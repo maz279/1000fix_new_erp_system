@@ -43,7 +43,8 @@ export const MODULE = {
     { en: 'Job Market', screens: [
       { id: 'M12-broadcast', en: 'Job Broadcast', bn: 'জব ব্রডকাস্ট', t: 'r' },
       { id: 'M12-bids', en: 'Bidding & Award', bn: 'বিডিং', t: 'g' },
-      { id: 'M12-oversight', en: 'Execution Oversight', bn: 'তদারকি', t: 'r' }
+      { id: 'M12-oversight', en: 'Execution Oversight', bn: 'তদারকি', t: 'r' },
+      { id: 'M12-job-evidence', en: 'Job Evidence', bn: 'কাজের প্রমাণক', t: 'g' }
     ]},
     { en: 'Money', screens: [
       { id: 'M12-commission', en: 'Commission Schemes', bn: 'কমিশন', t: 'g' },
@@ -53,15 +54,18 @@ export const MODULE = {
     ]},
     { en: 'Trust', screens: [
       { id: 'M12-reviews', en: 'Ratings & Reviews', bn: 'রেটিং', t: 'r' },
+      { id: 'M12-review-list', en: 'Customer Reviews', bn: 'গ্রাহক রিভিউ', t: 'g' },
       { id: 'M12-disputes', en: 'Disputes & Mediation', bn: 'বিরোধ', t: 'g' },
       { id: 'M12-trust', en: 'Fraud & Trust Ops', bn: 'ট্রাস্ট অপস', t: 'r' },
+      { id: 'M12-trust-signals', en: 'Trust & Safety Reports', bn: 'ট্রাস্ট ও সেফটি রিপোর্ট', t: 'g' },
       { id: 'M12-consequences', en: 'Seller Consequences', bn: 'সেলার ব্যবস্থা', t: 'g' },
       { id: 'M12-chargebacks', en: 'Chargebacks', bn: 'চার্জব্যাক', t: 'g' }
     ]}
   ],
   reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept', 'Commission Revenue', 'Dispute Rate & Outcomes', 'Seller Scorecard Distribution', 'Listing Coverage', 'Seller Stock', 'Standards & Training'],
   forms: ['Seller Application', 'Listing', 'Payout Run', 'Dispute Case', 'Stock Position', 'Seller Certification', 'Seller Standard',
-    'Seller Agreement', 'Seller Commission Scheme', 'Marketplace Order', 'Seller Bid', 'Job Completion', 'Customer Sign-off', 'Seller Consequence', 'Chargeback'],
+    'Seller Agreement', 'Seller Commission Scheme', 'Marketplace Order', 'Seller Bid', 'Job Completion', 'Customer Sign-off', 'Seller Consequence', 'Chargeback',
+    'Seller Payout Account', 'Job Evidence', 'Customer Review', 'Trust & Safety Report'],
   cross: ['M01 Service Orders', 'M20 AR', 'M33 Party Master', 'M40 Partners'],
   freg: {
     src: 101,
@@ -78,19 +82,29 @@ export const MODULE = {
      * (job completion, the customer's sign-off and rating). Performance
      * Consequences records a warning, probation or suspension, decided on
      * appeal by another operator (FR-MKP-053..055, BRU-MKP-18). Scores stay
-     * measured, never typed. `domain` stays the LAST key. */
+     * measured, never typed. `domain` stays the LAST key.
+     * Second pass (2026-11-19): four pages still borrowed another page's
+     * record. Ratings offered page 5's sign-off (one number) and now records
+     * the customer's review, moderated by another operator, with one seller
+     * response (FR-MKP-049/050). Trust & Safety offered page 7's consequence
+     * and now records the trust & safety report: a counterfeit-part report
+     * suspends the listing at once, and a substantiated counterfeit or fraud
+     * finding suspends the seller (FR-MKP-064..066, BRU-MKP-11). Execution
+     * Oversight records the job's evidence, without which no job completes
+     * (FR-MKP-040/042, BRU-MKP-02). Seller Registration also offers M52's
+     * verified payee account, where a seller's payout is sent (FR-MKP-006). */
     sub: [
-    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'], reports: [], forms: ['Seller Application'] }],
-    ['2', 'Agreements & Tiers', 7, { model: 'fix.contract', cols: ['name', 'customer_id', 'date_start', 'date_end', 'state', 'approval_state'], screens: ['M12-agreement-list', 'M12-agreements', 'M12-commission'], reports: [], forms: ['Seller Agreement', 'Seller Commission Scheme'], create: 'M08-record', domain: [['family', '=', 'marketplace']] }],
+    ['1', 'Seller Registration & KYC', 12, { model: 'fix.marketplace.seller', cols: ['name', 'partner_id', 'trade_license_no', 'tin_number', 'kyc_verified_date'], screens: ['M12-sellers', 'M12-kyc'], reports: [], forms: ['Seller Application', 'Seller Payout Account'] }],
+    ['2', 'Agreements & Tiers', 7, { model: 'fix.contract', cols: ['name', 'customer_id', 'date_start', 'date_end', 'state', 'approval_state'], screens: ['M12-agreement-list', 'M12-agreements', 'M12-commission'], reports: [], forms: ['Seller Agreement', 'Seller Commission Scheme'], create: 'M08-record', createLabel: 'New Seller Agreement', domain: [['family', '=', 'marketplace']] }],
     ['3', 'Listings', 9, { model: 'fix.marketplace.listing', cols: ['name', 'state', 'seller_id', 'category_id', 'list_price'], screens: ['M12-listings', 'M12-stock-positions', 'M12-rpt-listingcoverage'], reports: ['Listing Coverage', 'Seller Stock'], forms: ['Listing', 'Stock Position'] }],
     ['4', 'Job Broadcast & Bidding', 14, { model: 'fix.seller.quote', cols: ['marketplace_order_id', 'seller_id', 'quoted_price', 'eta_days', 'state'], screens: ['M12-bids', 'M12-broadcast', 'M12-marketplace-order'], reports: ['Supply-Demand Liquidity', 'Fill Rate & Time-to-Accept'], forms: ['Marketplace Order', 'Seller Bid'], create: 'M12-form-marketplace-order' }],
-    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['name', 'customer_id', 'state', 'awarded_price', 'started_at', 'completed_at'], screens: ['M12-marketplace-order', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: ['Job Completion', 'Customer Sign-off'], create: 'M12-form-job-complete', domain: [['state', 'in', ['selected', 'in_progress', 'completed', 'reviewed']]] }],
-    ['6', 'Ratings', 6, { model: 'fix.seller.score', cols: ['seller_id', 'period', 'acceptance_rate', 'on_time_rate', 'review_rating', 'dispute_rate'], screens: ['M12-seller-score', 'M12-reviews', 'M12-marketplace-order'], reports: ['Seller Scorecard Distribution'], forms: ['Customer Sign-off'], create: 'M12-form-signoff' }],
+    ['5', 'Execution Oversight', 10, { model: 'fix.marketplace.order', cols: ['name', 'customer_id', 'state', 'awarded_price', 'started_at', 'completed_at'], screens: ['M12-marketplace-order', 'M12-job-evidence', 'M12-oversight'], reports: ['Fill Rate & Time-to-Accept'], forms: ['Job Evidence', 'Job Completion', 'Customer Sign-off'], create: 'M12-form-job-evidence', domain: [['state', 'in', ['selected', 'in_progress', 'completed', 'reviewed']]] }],
+    ['6', 'Ratings', 6, { model: 'fix.seller.review', cols: ['name', 'seller_id', 'customer_id', 'rating_overall', 'state', 'seller_response'], screens: ['M12-review-list', 'M12-seller-score', 'M12-reviews'], reports: ['Seller Scorecard Distribution'], forms: ['Customer Review'], create: 'M12-form-review' }],
     ['7', 'Performance Consequences', 6, { model: 'fix.seller.consequence', cols: ['name', 'seller_id', 'consequence_type', 'trigger', 'effective_from', 'state'], screens: ['M12-consequences', 'M12-seller-score', 'M12-rpt-scorecard'], reports: ['Seller Scorecard Distribution'], forms: ['Seller Consequence'] }],
     ['8', 'Disputes', 9, { model: 'fix.marketplace.dispute', cols: ['name', 'state', 'customer_id', 'seller_id', 'disputed_amount', 'dispute_reason', 'sla_deadline'], screens: ['M12-disputes', 'M12-chargebacks', 'M12-rpt-dispute'], reports: ['Dispute Rate & Outcomes'], forms: ['Dispute Case', 'Chargeback'] }],
     ['9', 'Commission & Fees', 10, { model: 'fix.commission.scheme', cols: ['name', 'seller_tier', 'commission_rate', 'tds_rate', 'date_from', 'date_to'], screens: ['M12-commission', 'M12-fees', 'M12-rpt-commission'], reports: ['Commission Revenue'], forms: ['Seller Commission Scheme'], domain: [['scheme_type', '=', 'seller']] }],
     ['10', 'Wallet & Payouts', 10, { model: 'fix.payout.run', cols: ['name', 'period', 'seller_count', 'total_payable', 'rail_status', 'state'], screens: ['M12-payout-runs', 'M12-wallet'], reports: ['Commission Revenue'], forms: ['Payout Run'] }],
-    ['11', 'Trust & Safety', 8, { model: 'fix.marketplace.seller', cols: ['name', 'tier', 'kyc_status', 'payout_hold', 'rating'], screens: ['M12-trust', 'M12-consequences', 'M12-chargebacks', 'M12-certifications', 'M12-disputes'], reports: ['Standards & Training', 'Dispute Rate & Outcomes'], forms: ['Seller Consequence', 'Chargeback', 'Seller Certification', 'Seller Standard'], create: 'M12-form-consequence' }]
+    ['11', 'Trust & Safety', 8, { model: 'fix.trust.signal', cols: ['name', 'seller_id', 'signal_type', 'severity', 'listing_id', 'state'], screens: ['M12-trust-signals', 'M12-trust', 'M12-consequences', 'M12-chargebacks', 'M12-certifications', 'M12-disputes'], reports: ['Standards & Training', 'Dispute Rate & Outcomes'], forms: ['Trust & Safety Report', 'Seller Consequence', 'Chargeback', 'Seller Certification', 'Seller Standard'], create: 'M12-form-trust-signal' }]
   ] }
 };
 
@@ -273,6 +287,7 @@ export const SCREENS = {
         note: 'Registered third-party seller or repair partner on the 1000FiX Circular Platform.',
         fields: [
           { name: 'name', required: true, label: 'Merchant Business Name' },
+          { name: 'seller_type', required: true, label: 'Seller Type (individual: NID; shop: trade licence + e-TIN)' },
           { name: 'partner_id', required: true, label: 'Party Master Record (M33)' },
           { name: 'company_id', required: true, label: 'Company' },
           { name: 'operating_unit_id', label: 'Assigned Operating Unit' },
@@ -281,9 +296,10 @@ export const SCREENS = {
       { tab: 'commercial', title: 'Platform Commission & Settlement Terms',
         fields: [
           { name: 'tier', readonly: true, label: 'Seller Rating Tier (measured)' },
+          { name: 'category_ids', label: 'Service Categories Applied For (FR-MKP-007)' }
           ] },
       { tab: 'kyc', title: 'Bangladesh Statutory Compliance & Tax Registrations',
-        note: 'Statutory compliance under Digital Commerce Operational Guidelines 2021 and Income Tax Act 2023 s.140.',
+        note: 'Statutory compliance under Digital Commerce Operational Guidelines 2021 and Income Tax Act 2023 s.140. Verify KYC refuses an individual without the NID, and a shop or business without its trade licence and e-TIN. The payout account is recorded with + Seller Payout Account (M52): a second person confirms it after the call-back.',
         fields: [
           { name: 'nid_number', label: 'National ID (Smart NID)' },
           { name: 'tin_number', label: '12-Digit e-TIN Number' },
@@ -654,7 +670,7 @@ export const SCREENS = {
       { id: 'award', label: '2. Award & Start', bn: '২. প্রদান ও শুরু' }
     ],
     sections: [
-      { tab: 'job', title: 'Step 2 of 2: Confirm Completion', note: 'Completion closes the seller\'s access to the customer\'s contact details (BRU-MKP-04). The customer\'s sign-off and rating follow with Record Customer Sign-off.', fields: [
+      { tab: 'job', title: 'Step 2 of 2: Confirm Completion', note: 'Completion needs the same evidence as an owned job (BRU-MKP-02): before and after photographs, a passed QC checklist and the parts declaration, each recorded with + Record Job Evidence. It closes the seller\'s access to the customer\'s contact details (BRU-MKP-04). The customer\'s sign-off and rating follow with Record Customer Sign-off.', fields: [
         { name: 'name', label: 'Order', readonly: true },
         { name: 'customer_id', label: 'Customer', readonly: true },
         { name: 'revealed_seller_id', label: 'Awarded Seller', readonly: true }
@@ -741,6 +757,139 @@ export const SCREENS = {
       ] }
     ] },
 
+
+  /* ===== M12 capture audit, second pass (2026-11-19) ===== */
+  /* Page 5: what the seller did, on the same standard as an owned job. A job
+   * completes only with the evidence the Quality Manager requires (system
+   * parameter cd_marketplace.completion_evidence; by default before and
+   * after photographs, a passed QC checklist and the parts declaration). */
+  'M12-job-evidence': { kind: 'model_list', model: 'fix.marketplace.job.evidence',
+    cols: ['name', 'order_id', 'seller_id', 'artefact_type', 'provenance', 'compliant', 'captured_by_id', 'captured_at'],
+    empty: 'No job evidence yet. Record each photograph, the QC checklist and the parts declaration with + Record Job Evidence while the job is in progress: a job does not complete without them.' },
+  'M12-form-job-evidence': { kind: 'model_form', model: 'fix.marketplace.job.evidence',
+    title: 'Job Evidence', newLabel: 'Record Job Evidence', back: 'M12-job-evidence',
+    tabs: [
+      { id: 'docs', label: '1. Evidence', bn: '১. প্রমাণক' },
+      { id: 'qc', label: '2. QC Checklist', bn: '২. মান যাচাই' },
+      { id: 'parts', label: '3. Parts Declaration', bn: '৩. যন্ত্রাংশ ঘোষণা' },
+      { id: 'captured', label: '4. Captured', bn: '৪. রেকর্ড' }
+    ],
+    sections: [
+      { tab: 'docs', title: 'Job and Evidence', note: 'Captured while the job is in progress; it cannot be changed once the job completes. A photograph needs its file.', fields: [
+        { name: 'name', label: 'Reference (auto)', readonly: true },
+        { name: 'order_id', required: true, label: 'Marketplace Job (in progress)' },
+        { name: 'seller_id', label: 'Seller', readonly: true },
+        { name: 'artefact_type', required: true, label: 'Evidence' },
+        { name: 'evidence_file', type: 'binary', filename: 'evidence_filename', label: 'Upload Photo / Scan' },
+        { name: 'evidence_filename', label: 'File Name' },
+        { name: 'note', type: 'text', label: 'Findings / Checklist Notes' }
+      ] },
+      { tab: 'qc', title: 'QC Checklist', note: 'For the QC checklist: the checklist scan or its notes, and confirmation that every check passed.', fields: [
+        { name: 'qc_passed', label: 'Every QC Check Passed' }
+      ] },
+      { tab: 'parts', title: 'Parts Used (FR-MKP-042)', note: 'For the parts declaration: the provenance of every part used, or "No parts used".', fields: [
+        { name: 'provenance', label: 'Parts Provenance' },
+        { name: 'part_description', label: 'Parts Used' },
+        { name: 'part_warranty_days', label: 'Parts Warranty (days)' }
+      ] },
+      { tab: 'captured', title: 'Stamped by the Server', fields: [
+        { name: 'compliant', label: 'Meets the Standard', readonly: true },
+        { name: 'captured_by_id', label: 'Captured By', readonly: true },
+        { name: 'captured_at', label: 'Captured At', readonly: true }
+      ] }
+    ] },
+
+  /* Page 6: the customer's review of a signed-off job (FR-MKP-049/050). A
+   * published review's overall rating is the job's rating in the measured
+   * seller score. */
+  'M12-review-list': { kind: 'model_list', model: 'fix.seller.review', stateField: 'state',
+    cols: ['name', 'order_id', 'seller_id', 'customer_id', 'rating_overall', 'rating_workmanship', 'rating_timeliness', 'state', 'moderated_by_id', 'seller_response'],
+    empty: 'No customer review yet. Record one with + Record Customer Review for a job the customer has signed off; another operator moderates it before it is published.',
+    actions: [
+      { m: 'action_publish', l: 'Publish (moderated)', states: ['submitted'] },
+      { m: 'action_reject', l: 'Reject (policy breach)', ask: 'Which review policy it breaks', kwarg: 'note', states: ['submitted'] },
+      { m: 'action_record_response', l: 'Record Seller Response', ask: 'The seller\'s response (one per review)', kwarg: 'response', states: ['published'] }
+    ] },
+  'M12-form-review': { kind: 'model_form', model: 'fix.seller.review',
+    title: 'Customer Review', newLabel: 'Record Customer Review', back: 'M12-review-list',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'ratings', label: '1. Ratings', bn: '১. রেটিং' },
+      { id: 'review', label: '2. Review', bn: '২. রিভিউ' },
+      { id: 'moderation', label: '3. Moderation & Response', bn: '৩. মডারেশন ও উত্তর' }
+    ],
+    sections: [
+      { tab: 'ratings', title: 'The Customer\'s Ratings', note: 'Of a job the customer signed off (verified-job attribution). Whole numbers from 1 to 5; leave a part blank when the customer did not rate it.', fields: [
+        { name: 'name', label: 'Reference (auto)', readonly: true },
+        { name: 'order_id', required: true, label: 'Signed-off Marketplace Job' },
+        { name: 'seller_id', label: 'Seller', readonly: true },
+        { name: 'customer_id', label: 'Customer', readonly: true },
+        { name: 'rating_overall', required: true, label: 'Overall (1-5)' },
+        { name: 'rating_workmanship', label: 'Workmanship (1-5)' },
+        { name: 'rating_timeliness', label: 'Timeliness (1-5)' },
+        { name: 'rating_communication', label: 'Communication (1-5)' },
+        { name: 'rating_value', label: 'Value for Money (1-5)' }
+      ] },
+      { tab: 'review', title: 'Written Review', note: 'Pinned once moderated.', fields: [
+        { name: 'review_text', type: 'text', label: 'Customer\'s Review' }
+      ] },
+      { tab: 'moderation', title: 'Moderated by Another Operator', note: 'Published or rejected by an operator who did not record it and does not act for the seller; the seller responds once to a published review.', fields: [
+        { name: 'state', label: 'Status (set by its actions)', readonly: true },
+        { name: 'moderated_by_id', label: 'Moderated By', readonly: true },
+        { name: 'moderated_at', label: 'Moderated At', readonly: true },
+        { name: 'moderation_note', label: 'Moderation Note', readonly: true, type: 'text' },
+        { name: 'seller_response', label: 'Seller\'s Response', readonly: true, type: 'text' },
+        { name: 'response_at', label: 'Responded At', readonly: true }
+      ] }
+    ] },
+
+  /* Page 11: a trust & safety report. A counterfeit-part report suspends the
+   * named listing at once; a substantiated counterfeit, fraud, collusion or
+   * fake-job finding suspends the seller (BRU-MKP-11), decided by an operator
+   * other than the one who recorded the report. */
+  'M12-trust-signals': { kind: 'model_list', model: 'fix.trust.signal', stateField: 'state',
+    cols: ['name', 'seller_id', 'signal_type', 'source', 'severity', 'listing_id', 'order_id', 'listing_paused', 'state', 'consequence_id'],
+    empty: 'No trust & safety report yet. Record a counterfeit-part report, suspected fraud, collusion, fake job or off-platform dealing with + New Trust & Safety Report.',
+    actions: [
+      { m: 'action_investigate', l: 'Start Investigation', states: ['open'] },
+      { m: 'action_substantiate', l: 'Substantiate', ask: 'The finding (a counterfeit or fraud finding suspends the seller)', kwarg: 'finding', states: ['investigating'] },
+      { m: 'action_dismiss', l: 'Dismiss', ask: 'Why the concern is not upheld', kwarg: 'finding', states: ['investigating'] }
+    ] },
+  'M12-form-trust-signal': { kind: 'model_form', model: 'fix.trust.signal',
+    title: 'Trust & Safety Report', back: 'M12-trust-signals',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'report', label: '1. Report', bn: '১. রিপোর্ট' },
+      { id: 'docs', label: '2. Evidence', bn: '২. প্রমাণক' },
+      { id: 'decision', label: '3. Investigation & Finding', bn: '৩. তদন্ত ও সিদ্ধান্ত' }
+    ],
+    sections: [
+      { tab: 'report', title: 'Seller and Concern', note: 'A counterfeit-part report naming a live listing suspends that listing as soon as it is saved, pending investigation (FR-MKP-066).', fields: [
+        { name: 'name', label: 'Reference (auto)', readonly: true },
+        { name: 'seller_id', required: true, label: 'Seller' },
+        { name: 'signal_type', required: true, label: 'Concern' },
+        { name: 'source', required: true, label: 'Reported By' },
+        { name: 'severity', required: true, label: 'Severity' },
+        { name: 'listing_id', label: 'Listing (the seller\'s)' },
+        { name: 'order_id', label: 'Marketplace Job' },
+        { name: 'description', required: true, type: 'text', label: 'What Was Reported' }
+      ] },
+      { tab: 'docs', title: 'Evidence', fields: [
+        { name: 'evidence_file', type: 'binary', filename: 'evidence_filename', label: 'Upload Evidence' },
+        { name: 'evidence_filename', label: 'Evidence File Name' }
+      ] },
+      { tab: 'decision', title: 'Decided by Another Operator', fields: [
+        { name: 'state', label: 'Status (set by its actions)', readonly: true },
+        { name: 'listing_paused', label: 'Listing Suspended by this Report', readonly: true },
+        { name: 'reported_by_id', label: 'Recorded By', readonly: true },
+        { name: 'investigator_id', label: 'Investigated By', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true },
+        { name: 'decided_at', label: 'Decided At', readonly: true },
+        { name: 'finding', label: 'Finding', readonly: true, type: 'text' },
+        { name: 'consequence_id', label: 'Suspension Imposed', readonly: true }
+      ] }
+    ] },
+
   /* computed pack that had no screen (closure 2026-10-28) */
   'M12-rpt-listingcoverage': { kind: 'table_report', module: 'M12', report: 'listing_coverage', title: "Listing Coverage", period: false },
 
@@ -784,7 +933,7 @@ export const SCREENS = {
 
         { name: 'eta_days', label: 'ETA (days)' },
 
-        { name: 'state', label: 'State' },
+        { name: 'state', label: 'State', readonly: true },
 
         { name: 'notes', label: 'Notes' }
 
@@ -795,6 +944,7 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
+      { id: 'consent', label: 'Customer Consent', bn: 'গ্রাহকের সম্মতি' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
       { id: 'schedule', label: '3. Schedule', bn: '৩. সময়সূচি' },
       { id: 'relations', label: '4. Links', bn: '৪. সংযোগ' },
@@ -810,6 +960,13 @@ export const SCREENS = {
         { name: 'order_type', label: 'Order Type', required: true },
         { name: 'state', label: 'State (set by its actions)', readonly: true },
         { name: 'battery_health_percent', label: 'Battery Health (%)' }
+      ] },
+      { tab: 'consent', title: 'Consent to an External Seller (BRU-MKP-07)', note: 'A service job is broadcast only with the customer\'s explicit consent that an external marketplace seller performs it, with the implications stated: until it is recorded, no seller can quote. It is pinned once quotes arrive.', fields: [
+        { name: 'customer_consent', label: 'Customer Consented to an External Seller' },
+        { name: 'consent_method', label: 'Consent Taken By' },
+        { name: 'consent_ref', label: 'Consent Reference (form no., OTP log, call ref.)' },
+        { name: 'consent_at', label: 'Consent Recorded At', readonly: true },
+        { name: 'consent_by_id', label: 'Consent Recorded By', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'budget', label: 'Customer Budget / Listing Price' },
@@ -884,7 +1041,11 @@ export const FORM_MODELS = {
   'M12:Seller Bid': 'fix.seller.quote',
   'M12:Job Completion': 'fix.marketplace.order',
   'M12:Customer Sign-off': 'fix.marketplace.order',
-  'M12:Seller Consequence': 'fix.seller.consequence'
+  'M12:Seller Consequence': 'fix.seller.consequence',
+  'M12:Seller Payout Account': 'fix.payee.bank.change',
+  'M12:Job Evidence': 'fix.marketplace.job.evidence',
+  'M12:Customer Review': 'fix.seller.review',
+  'M12:Trust & Safety Report': 'fix.trust.signal'
 };
 
 export const FORM_CHIPS = {
@@ -903,6 +1064,12 @@ export const FORM_CHIPS = {
   'M12:Customer Sign-off': 'M12-form-signoff',
   'M12:Seller Consequence': 'M12-form-consequence',
   'M12:Chargeback': 'M12-form-chargeback',
+  /* the payee account is M52's: proposed with the call-back, confirmed by a
+   * second person, and only then payable (FR-MKP-006) */
+  'M12:Seller Payout Account': 'M52-form-bank-change',
+  'M12:Job Evidence': 'M12-form-job-evidence',
+  'M12:Customer Review': 'M12-form-review',
+  'M12:Trust & Safety Report': 'M12-form-trust-signal',
   'M12:__by_model__': {
     'fix.marketplace.order': 'M12-form-marketplace-order',
     'fix.seller.quote': 'M12-form-bid',
@@ -916,7 +1083,10 @@ export const FORM_CHIPS = {
     'fix.seller.standard': 'M12-form-standard',
     'fix.contract': 'M08-record',
     'fix.commission.scheme': 'M12-form-scheme',
-    'fix.seller.consequence': 'M12-form-consequence'
+    'fix.seller.consequence': 'M12-form-consequence',
+    'fix.marketplace.job.evidence': 'M12-form-job-evidence',
+    'fix.seller.review': 'M12-form-review',
+    'fix.trust.signal': 'M12-form-trust-signal'
   },
   'M12:__by_screen__': {
     'M12-marketplace-order': 'M12-form-marketplace-order',
@@ -932,7 +1102,10 @@ export const FORM_CHIPS = {
     'M12-agreement-list': 'M08-record',
     'M12-commission': 'M12-form-scheme',
     'M12-payout-runs': 'M12-form-payout',
-    'M12-consequences': 'M12-form-consequence'
+    'M12-consequences': 'M12-form-consequence',
+    'M12-job-evidence': 'M12-form-job-evidence',
+    'M12-review-list': 'M12-form-review',
+    'M12-trust-signals': 'M12-form-trust-signal'
   }
 };
 

@@ -23,6 +23,23 @@ SCORE = "fix.seller.score"
 DISPUTE = "fix.marketplace.dispute"
 
 
+def _job_evidence(order):
+    """BRU-MKP-02 (M12 capture audit, 19 Nov 2026): a marketplace job
+    completes only with the owned-job evidence. Recorded as the trusted
+    superuser, as a seller's app or an operator would."""
+    import base64
+
+    png = base64.b64encode(b"\x89PNG evidence")
+    Evidence = order.env["fix.marketplace.job.evidence"].sudo()
+    for kind, vals in (
+        ("before_photo", {"evidence_file": png, "evidence_filename": "before.png"}),
+        ("after_photo", {"evidence_file": png, "evidence_filename": "after.png"}),
+        ("qc_checklist", {"qc_passed": True, "note": "All QC checks passed"}),
+        ("parts_declaration", {"provenance": "none"}),
+    ):
+        Evidence.create({"order_id": order.id, "artefact_type": kind, **vals})
+
+
 def _events(env, event_type, aggregate, res_id):
     rows = env["fix.event.outbox"].search(
         [
@@ -58,6 +75,8 @@ def _seller(env, name="Gadget Fixers BD", verified=True, approved=True, **vals):
 def _order(env, **vals):
     vals.setdefault("customer_id", _partner(env, "Marketplace Customer").id)
     vals.setdefault("description", "Cracked screen on Galaxy A54")
+    vals.setdefault("customer_consent", True)  # BRU-MKP-07
+    vals.setdefault("consent_method", "signed")
     return env[ORDER].create(vals)
 
 
@@ -173,7 +192,9 @@ def test_cfo_approval_records_approver(odoo_env):
 
 def test_verify_kyc_never_grants_cfo_approval(odoo_env):
     """A04 M12-1: verifying KYC used to tick CFO approval for the same user."""
-    seller = _seller(odoo_env, verified=False, approved=False)
+    seller = _seller(
+        odoo_env, verified=False, approved=False, trade_license_no="TL-1", tin_number="TIN-1"
+    )
     seller.action_verify_kyc()
     assert seller.kyc_status == "verified"
     assert seller.kyc_verified_date == fields.Date.context_today(seller)
@@ -187,7 +208,7 @@ def test_verify_kyc_never_grants_cfo_approval(odoo_env):
 
 def test_verify_kyc_keeps_prior_cfo_approval(odoo_env):
     cfo = odoo_env["res.users"].create({"name": "CFO", "login": "cfo-marketplace-behaviour"})
-    seller = _seller(odoo_env, verified=False)
+    seller = _seller(odoo_env, verified=False, trade_license_no="TL-2", tin_number="TIN-2")
     seller.write({"cfo_approved_by": cfo.id, "cfo_approval_date": "2026-01-15"})
     seller.action_verify_kyc()
     assert seller.kyc_status == "verified"
@@ -372,6 +393,7 @@ def test_complete_requires_selected_seller(odoo_env):
 def test_complete_closes_contact_window(odoo_env):
     order = _order_in(odoo_env, "in_progress")
     seller = order.selected_quote_id.seller_id
+    _job_evidence(order)
     order.action_complete()
     assert order.state == "completed"
     assert order.customer_contact_revealed is False
@@ -393,6 +415,7 @@ def test_complete_only_from_in_progress(odoo_env, state):
 
 def test_commission_cannot_be_earned_twice(odoo_env):
     order = _order_in(odoo_env, "in_progress", price=3000)
+    _job_evidence(order)
     order.action_complete()
     order.action_review()
     order.action_earn_commission()
@@ -704,11 +727,13 @@ def test_kpis_are_measured_from_real_quotes_orders_ratings_and_disputes(odoo_env
     on_time = _order(odoo_env)
     on_time.action_select_quote(_quote(odoo_env, on_time, seller, eta_days=3))
     on_time.action_start_job()
+    _job_evidence(on_time)
     on_time.action_complete()
     on_time.action_review(rating=4)
     late = _order(odoo_env)
     late.action_select_quote(_quote(odoo_env, late, seller, eta_days=1))
     late.action_start_job()
+    _job_evidence(late)
     late.action_complete()
     late.write({"completed_at": late.started_at + timedelta(days=2)})
     late.action_review(rating=2)

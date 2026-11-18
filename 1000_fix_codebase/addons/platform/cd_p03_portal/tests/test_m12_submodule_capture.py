@@ -76,13 +76,13 @@ CAPTURE = {
     "2": ("form", "M08-record"),  # Seller Agreement: M08's contract form, Marketplace family
     "3": ("form", "M12-form-listing"),  # Listing
     "4": ("form", "M12-form-marketplace-order"),  # broadcast a job; Seller Bid chip
-    "5": ("form", "M12-form-job-complete"),  # Record Job Completion
-    "6": ("form", "M12-form-signoff"),  # Record Customer Sign-off (the rating)
+    "5": ("form", "M12-form-job-evidence"),  # Record Job Evidence (2nd pass)
+    "6": ("form", "M12-form-review"),  # Record Customer Review (2nd pass)
     "7": ("form", "M12-form-consequence"),  # Seller Consequence
     "8": ("form", "M12-form-dispute"),  # Dispute Case; Chargeback chip
     "9": ("form", "M12-form-scheme"),  # Seller Commission Scheme (M53)
     "10": ("form", "M12-form-payout"),  # Payout Run
-    "11": ("form", "M12-form-consequence"),  # suspension on a trust finding
+    "11": ("form", "M12-form-trust-signal"),  # Trust & Safety Report (2nd pass)
 }
 
 
@@ -251,3 +251,129 @@ def test_m12_does_not_edit_m08_contracts(m12):
     agreements = m12["screens"]["M12-agreement-list"]
     assert agreements["create"] is False and agreements["empty"]
     assert agreements["domain"] == [["family", "=", "marketplace"]]
+
+
+# --------------------------------------------------------------------------
+# Second pass (2026-11-19): four pages still borrowed another page's record.
+# --------------------------------------------------------------------------
+
+OWN_RECORD = {
+    "5": "fix.marketplace.job.evidence",  # FR-MKP-040/042, BRU-MKP-02
+    "6": "fix.seller.review",  # FR-MKP-049/050
+    "11": "fix.trust.signal",  # FR-MKP-064..066, BRU-MKP-11
+}
+
+
+@pytest.mark.parametrize("no", sorted(OWN_RECORD, key=int))
+def test_page_captures_a_record_of_its_own(m12, no):
+    """Ratings offered page 5's sign-off and Trust & Safety page 7's
+    consequence; Execution Oversight's completion captured nothing."""
+    sub = _sub(m12, no)
+    screen = sub["create"]["screen"]
+    assert m12["screens"][screen]["model"] == OWN_RECORD[no]
+    others = {(_sub(m12, o)["create"] or {}).get("screen") for o in CAPTURE if o != no}
+    assert screen not in others, "page %s offers another page's + New" % no
+    lists = [x["model"] for x in sub["lists"]]
+    assert OWN_RECORD[no] in lists, "page %s does not list what it captures" % no
+
+
+def test_ratings_page_no_longer_borrows_the_sign_off(m12):
+    assert "Customer Sign-off" not in [f["f"] for f in _sub(m12, "6")["forms"]]
+    assert "Customer Sign-off" in [f["f"] for f in _sub(m12, "5")["forms"]]
+
+
+def test_trust_page_offers_its_report_first(m12):
+    forms = [f["f"] for f in _sub(m12, "11")["forms"]]
+    assert forms[0] == "Trust & Safety Report" and "Seller Consequence" in forms
+
+
+def test_seller_registration_offers_the_verified_payout_account(m12):
+    """FR-MKP-006: M52's payee account, confirmed by a second person after
+    the call-back; the seller's payout goes only to a confirmed account."""
+    chips = {f["f"]: f for f in _sub(m12, "1")["forms"]}
+    chip = chips["Seller Payout Account"]
+    assert chip["id"] == "M52-form-bank-change" and chip["model"] == "fix.payee.bank.change"
+    assert chip["opens"]
+    own = [sid for sid, c in m12["screens"].items() if c["kind"] == "model_form"]
+    assert not [sid for sid in own if m12["screens"][sid]["model"] == "fix.payee.bank.change"]
+
+
+def test_seller_form_captures_type_and_categories(m12):
+    fields = {f["name"]: f for f in m12["screens"]["M12-form-seller"]["fields"]}
+    assert not fields["seller_type"]["readonly"] and not fields["category_ids"]["readonly"]
+
+
+def test_marketplace_order_captures_consent(m12):
+    fields = {f["name"]: f for f in m12["screens"]["M12-form-marketplace-order"]["fields"]}
+    for name in ("customer_consent", "consent_method", "consent_ref"):
+        assert not fields[name]["readonly"], name
+    for name in ("consent_at", "consent_by_id"):
+        assert fields[name]["readonly"], name
+
+
+def test_quote_state_is_not_typed_on_the_order(m12):
+    """The award sets a quote's state; the order's quote grid showed it as an
+    edit field."""
+    src = (SRC / "a04" / "m12.js").read_text(encoding="utf-8")
+    start = src.index("field: 'quote_ids'")
+    grid = src[start : src.index("kind: 'model_form'", start)]
+    assert "{ name: 'state', label: 'State', readonly: true }" in grid
+
+
+STAMPED = {
+    "M12-form-job-evidence": {"captured_by_id", "captured_at", "compliant", "seller_id"},
+    "M12-form-review": {
+        "state",
+        "moderated_by_id",
+        "moderated_at",
+        "moderation_note",
+        "seller_response",
+        "response_at",
+        "seller_id",
+        "customer_id",
+    },
+    "M12-form-trust-signal": {
+        "state",
+        "listing_paused",
+        "reported_by_id",
+        "investigator_id",
+        "decided_by_id",
+        "decided_at",
+        "finding",
+        "consequence_id",
+    },
+}
+
+
+@pytest.mark.parametrize("screen", sorted(STAMPED))
+def test_decisions_and_stamps_are_never_typed(m12, screen):
+    fields = {f["name"]: f for f in m12["screens"][screen]["fields"]}
+    typed = [n for n in STAMPED[screen] if not fields[n]["readonly"]]
+    assert not typed, typed
+    from importlib import util
+
+    spec = util.spec_from_file_location("a04w", ROOT / "controllers" / "a04" / "writable.py")
+    mod = util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    model = m12["screens"][screen]["model"]
+    assert not (STAMPED[screen] & set(mod.WRITABLE[model]))
+
+
+def test_new_record_actions_are_whitelisted():
+    tree = ast.parse(CONTROLLER.read_text(encoding="utf-8"))
+    surfaces = next(
+        n.value
+        for n in tree.body
+        if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SURFACES"
+    )
+    keys = [k.value for k in surfaces.keys]
+    for model in OWN_RECORD.values():
+        assert model in keys, model
+
+
+def test_agreement_button_says_seller_agreement(m12):
+    """M08's contract form is titled "Enterprise Service Contract"; on the
+    seller page the button said "+ New Enterprise Service Contract"."""
+    create = _sub(m12, "2")["create"]
+    assert create["screen"] == "M08-record"
+    assert create["label"] == "New Seller Agreement" and create["verbatim"]

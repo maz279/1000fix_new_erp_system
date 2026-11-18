@@ -7,3 +7,7 @@ from . import (
     fix_seller_standard,
     fix_seller_stock,
 )
+
+# isort: split
+# the M12 capture audit's second pass extends the models above
+from . import fix_marketplace_capture

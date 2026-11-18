@@ -1181,6 +1181,8 @@ def _commissioned_order(c, gross=50000.0):
             "operating_unit_id": c.ou.id,
             "budget": gross,
             "commission_rate": 0.10,
+            "customer_consent": True,
+            "consent_method": "signed",
         }
     )
     quote = c.env["fix.seller.quote"].create(

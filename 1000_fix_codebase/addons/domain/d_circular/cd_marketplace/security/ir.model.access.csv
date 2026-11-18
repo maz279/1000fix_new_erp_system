@@ -31,3 +31,11 @@ access_fix_seller_certification_portal,fix.seller.certification portal,model_fix
 access_fix_seller_consequence,fix.seller.consequence,model_fix_seller_consequence,base.group_user,1,0,0,0
 access_fix_seller_consequence_operator,fix.seller.consequence operator,model_fix_seller_consequence,group_marketplace_operator,1,1,1,0
 access_fix_seller_consequence_portal,fix.seller.consequence portal,model_fix_seller_consequence,group_fix_marketplace_seller,1,0,0,0
+access_fix_marketplace_job_evidence,fix.marketplace.job.evidence,model_fix_marketplace_job_evidence,base.group_user,1,0,0,0
+access_fix_marketplace_job_evidence_operator,fix.marketplace.job.evidence operator,model_fix_marketplace_job_evidence,group_marketplace_operator,1,1,1,1
+access_fix_marketplace_job_evidence_portal,fix.marketplace.job.evidence portal,model_fix_marketplace_job_evidence,group_fix_marketplace_seller,1,0,0,0
+access_fix_seller_review,fix.seller.review,model_fix_seller_review,base.group_user,1,0,0,0
+access_fix_seller_review_operator,fix.seller.review operator,model_fix_seller_review,group_marketplace_operator,1,1,1,0
+access_fix_seller_review_portal,fix.seller.review portal,model_fix_seller_review,group_fix_marketplace_seller,1,0,0,0
+access_fix_trust_signal,fix.trust.signal,model_fix_trust_signal,base.group_user,1,0,0,0
+access_fix_trust_signal_operator,fix.trust.signal operator,model_fix_trust_signal,group_marketplace_operator,1,1,1,0

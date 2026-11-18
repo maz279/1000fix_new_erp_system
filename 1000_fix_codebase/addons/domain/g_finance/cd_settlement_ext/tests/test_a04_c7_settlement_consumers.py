@@ -29,6 +29,23 @@ OPERATOR = "cd_marketplace.group_marketplace_operator"
 _SEQ = itertools.count(1)
 
 
+def _job_evidence(order):
+    """BRU-MKP-02 (M12 capture audit, 19 Nov 2026): a marketplace job
+    completes only with the owned-job evidence. Recorded as the trusted
+    superuser, as a seller's app or an operator would."""
+    import base64
+
+    png = base64.b64encode(b"\x89PNG evidence")
+    Evidence = order.env["fix.marketplace.job.evidence"].sudo()
+    for kind, vals in (
+        ("before_photo", {"evidence_file": png, "evidence_filename": "before.png"}),
+        ("after_photo", {"evidence_file": png, "evidence_filename": "after.png"}),
+        ("qc_checklist", {"qc_passed": True, "note": "All QC checks passed"}),
+        ("parts_declaration", {"provenance": "none"}),
+    ):
+        Evidence.create({"order_id": order.id, "artefact_type": kind, **vals})
+
+
 def _mk(env, login, *xmlids):
     return (
         env["res.users"]
@@ -119,7 +136,14 @@ def _commissioned_order(w):
     order = (
         env["fix.marketplace.order"]
         .with_user(w.operator)
-        .create({"customer_id": customer.id, "description": "Cracked screen"})
+        .create(
+            {
+                "customer_id": customer.id,
+                "description": "Cracked screen",
+                "customer_consent": True,
+                "consent_method": "signed",
+            }
+        )
     )
     quote = env["fix.seller.quote"].create(
         {"marketplace_order_id": order.id, "seller_id": seller.id, "quoted_price": 8000.0}
@@ -127,6 +151,7 @@ def _commissioned_order(w):
     quote.with_user(w.operator).action_select()
     as_op = order.with_user(w.operator)
     as_op.action_start_job()
+    _job_evidence(order)
     as_op.action_complete()
     as_op.action_review(rating=5)
     as_op.action_earn_commission()

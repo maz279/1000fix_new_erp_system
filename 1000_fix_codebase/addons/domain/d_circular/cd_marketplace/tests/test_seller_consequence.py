@@ -111,6 +111,8 @@ def _order(x):
                 "customer_id": x.customer.id,
                 "category_id": x.category.id,
                 "description": "CQ screen replacement",
+                "customer_consent": True,
+                "consent_method": "signed",
             }
         )
     )

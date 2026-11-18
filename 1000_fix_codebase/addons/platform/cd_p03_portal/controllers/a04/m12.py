@@ -108,6 +108,24 @@ SURFACES = {
             "action_cancel",
         },
     },
+    # M12 capture audit, second pass (19 Nov 2026): the records pages 5, 6
+    # and 11 capture. Each method checks its role, state and segregation of
+    # duties in cd_marketplace (fix_marketplace_capture.py).
+    "fix.marketplace.job.evidence": {
+        "order": "order_id, captured_at, id",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.seller.review": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_publish", "action_reject", "action_record_response"},
+    },
+    "fix.trust.signal": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_investigate", "action_substantiate", "action_dismiss"},
+    },
     # A04 P2 (M12): customer chargebacks against marketplace sales.
     "fix.marketplace.chargeback": {
         "order": "received_on desc, id desc",

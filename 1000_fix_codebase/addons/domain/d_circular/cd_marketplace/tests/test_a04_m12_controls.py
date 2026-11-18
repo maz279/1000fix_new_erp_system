@@ -29,6 +29,23 @@ ARBITRATOR = "cd_marketplace.group_marketplace_arbitrator"
 CFO = "cd_entity_config.group_dofa_tier_4"
 
 
+def _job_evidence(order):
+    """BRU-MKP-02 (M12 capture audit, 19 Nov 2026): a marketplace job
+    completes only with the owned-job evidence. Recorded as the trusted
+    superuser, as a seller's app or an operator would."""
+    import base64
+
+    png = base64.b64encode(b"\x89PNG evidence")
+    Evidence = order.env["fix.marketplace.job.evidence"].sudo()
+    for kind, vals in (
+        ("before_photo", {"evidence_file": png, "evidence_filename": "before.png"}),
+        ("after_photo", {"evidence_file": png, "evidence_filename": "after.png"}),
+        ("qc_checklist", {"qc_passed": True, "note": "All QC checks passed"}),
+        ("parts_declaration", {"provenance": "none"}),
+    ):
+        Evidence.create({"order_id": order.id, "artefact_type": kind, **vals})
+
+
 @contextmanager
 def _refused(env, exc=REFUSED, match=None):
     """Expect ``exc``; the failed operation is rolled back (flushing savepoint)."""
@@ -80,6 +97,8 @@ def mk(odoo_env):
     def order(user=None, **vals):
         vals.setdefault("customer_id", ns.customer.id)
         vals.setdefault("description", "Cracked screen")
+        vals.setdefault("customer_consent", True)  # BRU-MKP-07
+        vals.setdefault("consent_method", "signed")
         return env[ORDER].with_user(user or ns.operator).create(vals)
 
     def awarded(seller_rec=None, price=8000.0, **vals):
@@ -98,6 +117,7 @@ def mk(odoo_env):
         o, q = awarded(seller_rec, price)
         as_op = o.with_user(ns.operator)
         as_op.action_start_job()
+        _job_evidence(o)
         as_op.action_complete()
         as_op.action_review(rating=5)
         return o
@@ -134,7 +154,7 @@ def test_plain_users_read_the_marketplace_and_the_roles_do_the_work(mk):
 
 def test_kyc_is_a_compliance_decision_and_cfo_approval_a_routed_one(mk):
     env = mk.env
-    s = mk.seller(ready=False, partner=mk.seller_user.partner_id)
+    s = mk.seller(ready=False, partner=mk.seller_user.partner_id, seller_type="individual")
     s.with_user(mk.operator).action_submit_kyc(nid_number="1990123456789")
     assert s.kyc_status == "in_review"
     with mk.refused(AccessError, "Compliance Reviewer"):
@@ -244,6 +264,7 @@ def test_price_and_tier_rate_are_pinned_at_award(mk):
         o.with_user(mk.operator).write({"budget": 1.0})
     as_op = o.with_user(mk.operator)
     as_op.action_start_job()
+    _job_evidence(o)
     as_op.action_complete()
     as_op.action_review(rating=4)
     as_op.action_earn_commission()
@@ -470,7 +491,7 @@ def test_seller_kpis_are_measured_never_typed(mk):
 def test_the_workspace_runs_the_marketplace_lifecycles(mk):
     import odoo.addons.cd_p03_portal.controllers.p03_generic_api as g
 
-    s = mk.seller(ready=False)
+    s = mk.seller(ready=False, trade_license_no="TL-77", tin_number="123456789012")
     s.with_user(mk.operator).action_submit_kyc()
     ctl = g.P03GenericApiController()
     action = g.P03GenericApiController.model_action.original_endpoint

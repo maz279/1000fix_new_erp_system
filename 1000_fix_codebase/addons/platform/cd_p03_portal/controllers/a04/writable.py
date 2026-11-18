@@ -426,6 +426,19 @@ WRITABLE = {
             "seller_id",
         }
     ),
+    "fix.marketplace.job.evidence": frozenset(
+        {
+            "artefact_type",
+            "evidence_file",
+            "evidence_filename",
+            "note",
+            "order_id",
+            "part_description",
+            "part_warranty_days",
+            "provenance",
+            "qc_passed",
+        }
+    ),
     "fix.marketplace.listing": frozenset(
         {
             "category_id",
@@ -442,7 +455,10 @@ WRITABLE = {
             "budget",
             "category_id",
             "company_id",
+            "consent_method",
+            "consent_ref",
             "currency_id",
+            "customer_consent",
             "customer_id",
             "description",
             "disclosed_defects",
@@ -457,12 +473,14 @@ WRITABLE = {
     "fix.marketplace.seller": frozenset(
         {
             "active",
+            "category_ids",
             "company_id",
             "kyc_review_mode",
             "name",
             "nid_number",
             "operating_unit_id",
             "partner_id",
+            "seller_type",
             "tin_number",
             "trade_license_no",
         }
@@ -922,6 +940,17 @@ WRITABLE = {
             "seller_id",
         }
     ),
+    "fix.seller.review": frozenset(
+        {
+            "order_id",
+            "rating_communication",
+            "rating_overall",
+            "rating_timeliness",
+            "rating_value",
+            "rating_workmanship",
+            "review_text",
+        }
+    ),
     "fix.seller.score": frozenset(),
     "fix.seller.standard": frozenset(
         {
@@ -1138,6 +1167,19 @@ WRITABLE = {
             "name",
             "reason",
             "tender_id",
+        }
+    ),
+    "fix.trust.signal": frozenset(
+        {
+            "description",
+            "evidence_file",
+            "evidence_filename",
+            "listing_id",
+            "order_id",
+            "seller_id",
+            "severity",
+            "signal_type",
+            "source",
         }
     ),
     "fix.warranty.claim": frozenset(

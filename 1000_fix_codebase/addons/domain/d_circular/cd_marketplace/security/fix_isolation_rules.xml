@@ -24,6 +24,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_marketplace_job_evidence_company" model="ir.rule">
+        <field name="name">fix.marketplace.job.evidence: allowed companies</field>
+        <field name="model_id" ref="model_fix_marketplace_job_evidence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_marketplace_job_evidence_operating_unit" model="ir.rule">
+        <field name="name">fix.marketplace.job.evidence: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_marketplace_job_evidence"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_marketplace_listing_company" model="ir.rule">
         <field name="name">fix.marketplace.listing: allowed companies</field>
         <field name="model_id" ref="model_fix_marketplace_listing"/>
@@ -84,6 +95,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_seller_review_company" model="ir.rule">
+        <field name="name">fix.seller.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_seller_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_seller_review_operating_unit" model="ir.rule">
+        <field name="name">fix.seller.review: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_seller_review"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_seller_score_company" model="ir.rule">
         <field name="name">fix.seller.score: allowed companies</field>
         <field name="model_id" ref="model_fix_seller_score"/>
@@ -103,6 +125,17 @@
     <record id="rule_fix_seller_stock_operating_unit" model="ir.rule">
         <field name="name">fix.seller.stock: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_seller_stock"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_trust_signal_company" model="ir.rule">
+        <field name="name">fix.trust.signal: allowed companies</field>
+        <field name="model_id" ref="model_fix_trust_signal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_trust_signal_operating_unit" model="ir.rule">
+        <field name="name">fix.trust.signal: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_trust_signal"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -813,6 +813,12 @@ class FixMarketplaceOrder(models.Model):
                 },
             )
 
+    def _fix_job_rating(self):
+        """The customer's 1-5 rating of this job (0: none). The M12 capture
+        audit's review module refines it with the published review."""
+        self.ensure_one()
+        return self.review_rating or 0
+
     def action_review(self, rating=None):
         """Customer sign-off and review post completion (BRU-ECM-02). The
         customer's 1-5 rating, when given, feeds the seller's measured score.
@@ -1205,7 +1211,7 @@ class FixSellerScore(models.Model):
                     o.completed_at <= o.started_at + timedelta(days=o.selected_quote_id.eta_days)
                 )
             )
-            rated = orders.filtered(lambda o: o.review_rating)
+            rated = orders.filtered(lambda o: o._fix_job_rating())
             disputed = orders.filtered(lambda o: o.dispute_ids)
             measured = bool(decided and orders and timed and rated)
             rec._guarded().write(
@@ -1219,7 +1225,7 @@ class FixSellerScore(models.Model):
                     if decided
                     else 0.0,
                     "on_time_rate": len(on_time) / len(timed) if timed else 0.0,
-                    "review_rating": round(sum(rated.mapped("review_rating")) / len(rated), 2)
+                    "review_rating": round(sum(o._fix_job_rating() for o in rated) / len(rated), 2)
                     if rated
                     else 0.0,
                     "dispute_rate": len(disputed) / len(orders) if orders else 0.0,

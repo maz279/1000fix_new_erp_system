@@ -5204,6 +5204,13 @@ export class P03Workspace extends Component {
             const out = cfg.newLabel
                 ? { screen: id, label: cfg.newLabel, verbatim: true }
                 : { screen: id, label: cfg.title || id };
+            // `createLabel` on the mapping: the page's own wording when the
+            // form belongs to another module ("+ New Seller Agreement" on
+            // M12, which opens M08's contract form) (2026-11-19)
+            if (map && map.createLabel) {
+                out.label = map.createLabel;
+                out.verbatim = true;
+            }
             const presets = presetsFor(cfg);
             if (presets) out.presets = presets;
             return out;

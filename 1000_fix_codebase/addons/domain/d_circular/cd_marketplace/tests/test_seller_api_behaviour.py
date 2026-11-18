@@ -50,6 +50,8 @@ def _order(env, budget=1500.0, **vals):
             "customer_id": _partner(env, "API Customer").id,
             "description": "Battery swap",
             "budget": budget,
+            "customer_consent": True,
+            "consent_method": "signed",  # BRU-MKP-07
             **vals,
         }
     )
