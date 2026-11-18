@@ -113,13 +113,17 @@
 - **Probe of the landed controller code against both databases** (read-only, rolled back): **50 of 50**
   M05 screens load (26 lists, 24 forms). That includes the onboarding list, checklist and form, and the
   credit and policy forms.
-- **Restart of 8069 and 8090: not done by this session.** The safety check refused stopping the
-  production server processes. Both servers started at 22:11, before the landing (22:32). They load
-  Python only at start, so until they restart:
-  - the new onboarding surfaces are not served;
-  - "Record Data Returned" is not whitelisted.
-
-  The next restart (the operator's or a peer's) brings it all live. No database change is needed.
+- **LIVE: 8069 (fix_real) and 8090 (fix_dev) restarted at 23:28**, on the owner's go-ahead. The safety
+  check had refused the first attempt.
+  - The new processes started after the landing and booted clean: 155 modules, registry loaded, no errors.
+  - The backend bundle was built on both databases and fetched from both live ports
+    (`/web/assets/bf4821a/web.assets_web.min.js`). It contains:
+    - "Start a Client Onboarding";
+    - `M05-form-onboarding` and `M05-onboarding-steps`;
+    - "Record Data Returned";
+    - the `M05:SLA Credit` and `M05:Patch Policy` chips.
+  - No in-session click was made on production: this session has no fix_real login. The click-through
+    below used a copy running the same code.
 - **Click-through on a running server with the landed code** (stands in for the restart):
   - The fix_real backup was restored into a throwaway copy, `fix_m05live`, and upgraded like production.
   - It was served on port 8096, without crons, and walked headless in Chromium through the real
