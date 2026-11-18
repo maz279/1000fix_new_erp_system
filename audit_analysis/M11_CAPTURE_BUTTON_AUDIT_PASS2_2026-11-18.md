@@ -130,6 +130,17 @@ All runs used a private copy of `fix_test` (`fix_test_m11b`, `-u all` from the w
 - Built on `fix/m11-capture-pass2` (worktree `1000 fix/m11cap2-wt`).
 - `contracts/events/pricing_price_changed.json` was regenerated for the second publish site.
 - No live data changes meaning: fix_real and fix_dev hold 0 rate cards and 0 discount approvals.
+- **Landed** 48a113dc + 74fd8ed1 on `fix/a03-live-data-and-pending-work`; **pushed** (origin carries them from 7c9c62e6; branch `fix/m11-capture-pass2` pushed).
+- **Deployed 19 Nov** (user approved both DBs):
+  - Backups: `1000 fix/backups/fix_{real,dev}_pre_m11_capture2_2026-11-19.dump`.
+  - The upgrade ran inside the M06 session's combined `-u` (cd_data_case, cd_crm_ext, cd_quotation, cd_rate_card, cd_p03_portal), agreed between the sessions so that two upgrades never ran on one DB. It exited 0 on both.
+  - 8069 (PID 65964) and 8090 (PID 77252) restarted at 03:17.
+- **Checked read-only after the restart:**
+  - Both DBs: cd_rate_card 19.0.1.2.0 and cd_quotation 19.0.1.3.0 installed, nothing pending, all 6 new models present.
+  - fix_real: 10 access rules, 7 record rules, the mass-change cron and the new columns.
+  - Registries loaded clean (155 / 151 modules).
+  - The served bundle on both ports carries the four new forms and the reason-code field.
+  - Not clicked through on fix_real: that needs a real user's sign-in.
 
 ## 6. Not done here (owner decisions or larger builds)
 
