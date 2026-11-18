@@ -1,6 +1,6 @@
 # M06 Data Services & Recovery: data-capture button audit, second pass
 
-**Date:** 18 Nov 2026 · **Branch:** `fix/m06-capture-pass2` (worktree `m06cap2-wt`, from `6deb4dca`) · **Status:** built and tested on a private test database (`fix_test_m06c2`); see §6 for commit and deploy state
+**Date:** 18 Nov 2026 · **Branch:** `fix/m06-capture-pass2` (worktree `m06cap2-wt`, from `6deb4dca`) · **Status:** landed (`b6aa3201`), pushed, and **live on fix_real (8069) and fix_dev (8090) since 19 Nov 03:17**; see §6
 
 ## 1. The question
 
@@ -88,10 +88,20 @@ Not covered: no click-through on fix_real itself before the deploy (all its M06 
 
 ## 6. State and what is not done
 
-- **Landed** as `b6aa3201` on `fix/a03-live-data-and-pending-work` (a fast-forward; the code commit was rebased onto `74fd8ed1`, cleanly). The generated whitelist is unchanged after the rebase.
-- **Not pushed:** github.com:443 was unreachable from this machine on three attempts. Push both branches when the network is back.
-- **Not deployed.** 8069 (fix_real, PID 83708) and 8090 (fix_dev, PID 83680) started at 23:28 on 18 Nov, before this landing. The version-gap check finds **both databases behind on five installed modules**: `cd_data_case` (this change) plus four other sessions' modules, `cd_rate_card`, `cd_crm_ext`, `cd_loyalty` and `cd_quotation`. A restart loads all their code. So a safe deploy is one `-u` of all five plus `cd_p03_portal` on both databases, a column re-check, then a restart of 8069 and 8090. That waits for the owner's go-ahead, coordinated with the sessions that own the other four modules.
-- After deploying, someone must still appoint holders of the Data Recovery Lab Manager, Z4 Custodian and Wipe Certificate Verifier roles before holds, custodians and certificate verification can be used on fix_real.
+- **Landed** as `b6aa3201` (code) and `bcc7d680` (this report) on `fix/a03-live-data-and-pending-work`. The code commit was rebased cleanly onto `74fd8ed1`, and the generated whitelist was unchanged after the rebase.
+- **Pushed.** GitHub was unreachable at first. Once it was back, origin already held both commits (M08's push of `1f96e40b` carried them), and `fix/m06-capture-pass2` was pushed as well.
+- **Deployed 19 Nov, approved by the owner ("Yes, deploy all 5"), coordinated with the M07, M08, M10 and M11 sessions:**
+  1. **Backups:** `_migration/backups/fix_real_pre_m06_pass2_deploy_2026-11-19.dump` (51.8 MB) and `fix_dev_pre_m06_pass2_deploy_2026-11-19.dump` (47.7 MB).
+  2. **Upgrade:** `-u cd_data_case,cd_crm_ext,cd_quotation,cd_rate_card,cd_p03_portal` on fix_real, then on fix_dev once M08's own `-u cd_contract_core,cd_p03_portal` had exited on both. Both runs exited 0. M10 had already upgraded `cd_loyalty`, and M08 held its restart and M11 skipped its own `-u`, so no two upgrades overlapped on one database.
+  3. **Version-gap check:** empty on both databases.
+  4. **Restart:** one restart of 8069 and 8090 for all five sessions. The supervisor relaunched them as PIDs 65964 (fix_real) and 77252 (fix_dev) at 03:17.
+- **Verified live, read-only, without signing in** (nobody was signed in to fix_real in the browser pane, and real credentials are not mine to enter):
+  - both ports answer;
+  - the 5 new tables exist on both databases, each with 1 ACL row and 2 record rules, and the `WRQ/` sequence exists;
+  - the compiled bundle `web.assets_web.min.js` (02e9383) on each database carries all 6 new M06 forms, the custody ledger, the wipe-log upload and the intake tab;
+  - neither server logged an error since the restart.
+  - Not done: a click-through on fix_real itself. It needs your sign-in in the pane, and all M06 tables there are empty.
+- Someone must still appoint holders of the Data Recovery Lab Manager, Z4 Custodian and Wipe Certificate Verifier roles before holds, custodians and certificate verification can be used on fix_real.
 
 **Not built (spec items with no page defect behind them, or owner decisions):**
 
