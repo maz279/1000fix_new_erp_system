@@ -87,8 +87,15 @@ def param_on(env, key, default="1") -> bool:
     return str(param(env, key, default)).strip().lower() not in ("0", "false", "no", "off", "")
 
 
-def co2_factor(env):
-    """(kg CO2e avoided per kg, the factor version stamped on the figure)."""
+def co2_factor(env, company=None):
+    """(kg CO2e avoided per kg, the factor version stamped on the figure).
+
+    FR-ESG-019 / T-08 (capture pass 2): the company's ACTIVE, approved factor
+    set wins; the configured parameter is the fallback until one exists."""
+    if "fix.esg.factor.set" in env:
+        active = env["fix.esg.factor.set"]._fix_active_for(company or env.company)
+        if active:
+            return active.co2_avoided_per_kg, active.name
     return (
         param_float(env, P_CO2_FACTOR, DEFAULT_CO2_FACTOR),
         param(env, P_CO2_VERSION, DEFAULT_CO2_VERSION) or DEFAULT_CO2_VERSION,

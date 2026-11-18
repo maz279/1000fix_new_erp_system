@@ -38,5 +38,15 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- M18 capture pass 2: AUT-ESG-19 / BRU-ESG-16 -->
+        <record id="ir_cron_ewaste_obligation_review" model="ir.cron">
+            <field name="name">M18: flag regulatory obligations past their review date</field>
+            <field name="model_id" ref="model_fix_ewaste_obligation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_review_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

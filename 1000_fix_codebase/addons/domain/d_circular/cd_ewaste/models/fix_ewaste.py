@@ -32,12 +32,15 @@ EWASTE_STATES = [
     ("hazmat", "Hazardous Stream"),
     ("disposed", "Disposed (Hazardous Stream)"),
     ("certified", "Certificate Issued"),
+    # M18 capture pass 2 (FR-ESG-023 / BRU-ESG-15): a functional low-value
+    # device handed to an approved donation recipient, through the M06 gate
+    ("donated", "Donated"),
 ]
 
 # Where each state may go next (every path: write() checks it).
 TRANSITIONS = {
     "collected": {"triaged"},
-    "triaged": {"destruction", "routed", "hazmat"},
+    "triaged": {"destruction", "routed", "hazmat", "donated"},
     "destruction": {"recycled"},
     "recycled": {"certified"},
     # a revoked recycler certificate returns the item to 'recycled'
@@ -45,9 +48,15 @@ TRANSITIONS = {
     "hazmat": {"disposed"},
     "routed": set(),
     "disposed": set(),
+    "donated": set(),
 }
 OPEN_STATES = ("collected", "triaged", "destruction", "recycled", "hazmat")
 DIVERTED = ("reuse", "refurbish")
+# Grades that leave M18 for M14 (refurbishment, or harvesting into M15 parts,
+# FR-ESG-008). Reuse/refurbish route at triage: M14 runs its own wipe gate.
+# A harvest is routed by its own step once the M06 gate passes (spec §8.2:
+# "Triaged -> harvesting of a storage device: M18 state machine, no bypass").
+ROUTED_GRADES = (*DIVERTED, "harvest")
 
 # Changed only through a transition (A05 E3).
 _GUARDED = frozenset(
@@ -74,9 +83,33 @@ _GUARDED = frozenset(
 # The item as received: frozen once it leaves triage (M18-5: CO2 derives
 # from the weight; M18-2: the device the wipe certificate is bound to).
 _FROZEN_AFTER_TRIAGE = frozenset(
-    {"weight_kg", "material_type", "item_count", "customer_id", "event_id", "company_id"}
+    {
+        "weight_kg",
+        "material_type",
+        "item_count",
+        "customer_id",
+        "event_id",
+        "company_id",
+    }
 )
-_DEVICE_FROZEN = frozenset({"device_id"})
+# The receipt record of FR-ESG-001/003 (capture pass 2): what came in, from
+# where, in what condition, with which hazards and photo. The triage decision
+# rests on it, so it freezes once the item is triaged, like the device.
+_DEVICE_FROZEN = frozenset(
+    {
+        "device_id",
+        "channel",
+        "condition",
+        "has_battery",
+        "has_crt",
+        "has_mercury",
+        "has_refrigerant",
+        "has_toner",
+        "photo_attachment_id",
+        "collection_point_id",
+        "corporate_line_id",
+    }
+)
 _WIPE_FROZEN = frozenset({"wipe_certificate_id"})
 
 
@@ -126,6 +159,8 @@ class FixEwasteCollection(models.Model):
             ("refurbish", "Refurbishable"),
             ("recycle", "Recycle Only"),
             ("hazardous", "Hazardous"),
+            ("harvest", "Parts Harvest (M14 / M15)"),
+            ("donate", "Donation"),
         ],
         string="Triage Grade",
         help="Set by the assessor's triage decision; it routes the item.",
@@ -286,8 +321,20 @@ class FixEwasteCollection(models.Model):
                 "Reuse and refurbish items route to M14; hazardous items go to the "
                 "hazmat stream." % (self.name, grade or "untriaged")
             )
-        if new_state == "routed" and grade not in DIVERTED:
-            raise UserError("%s: only a reuse/refurbish item routes to M14." % self.name)
+        if new_state == "routed" and grade not in ROUTED_GRADES:
+            raise UserError(
+                "%s: only a reuse, refurbish or harvest item routes to M14." % self.name
+            )
+        if new_state == "routed" and grade == "harvest":
+            # BRU-ESG-01: no storage device is harvested without its certificate
+            denial = self._fix_wipe_denial()
+            if denial:
+                raise UserError(
+                    "%s cannot go for parts harvesting: it needs a verified M06 "
+                    "certificate bound to it first (%s)." % (self.name, denial)
+                )
+        if new_state == "donated":
+            self._fix_check_donation_gate(grade)
         if new_state == "hazmat" and grade != "hazardous":
             raise UserError("%s: only a hazardous item enters the hazmat stream." % self.name)
         if new_state in ("recycled", "certified"):
@@ -460,7 +507,7 @@ class FixEwasteCollection(models.Model):
 
     def _fix_co2_avoided(self):
         self.ensure_one()
-        factor, version = c.co2_factor(self.env)
+        factor, version = c.co2_factor(self.env, self.company_id)
         return round((self.weight_kg or 0.0) * factor, 3), version
 
     def action_recycle(self, co2_saved=None):
@@ -812,7 +859,7 @@ class FixEsgMetric(models.Model):
             "co2_saved": (
                 round(sum(certified.mapped("esg_co2_saved_kg")), 3),
                 len(certified),
-                ", ".join(versions) or c.co2_factor(self.env)[1],
+                ", ".join(versions) or c.co2_factor(self.env, company)[1],
             ),
             "devices_refurbished": (
                 float(sum(diverted.mapped("item_count"))),

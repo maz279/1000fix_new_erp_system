@@ -177,12 +177,33 @@ class M18:
         vals.setdefault("valid_from", self.today - timedelta(days=30))
         vals.setdefault("valid_to", self.today + timedelta(days=300))
         vals.setdefault("licence_attachment_id", attachment(self.env, "licence.pdf").id)
-        return self.env["fix.ewaste.partner"].with_user(user or self.clerk).create(vals)
+        p = self.env["fix.ewaste.partner"].with_user(user or self.clerk).create(vals)
+        # capture pass 2 (BRU-ESG-18): where its material goes next is
+        # declared at qualification
+        self.downstream(p)
+        return p
+
+    def downstream(self, partner, material="all", user=None, **vals):
+        return (
+            self.env["fix.ewaste.partner.downstream"]
+            .with_user(user or self.clerk)
+            .create(
+                {
+                    "partner_id": partner.id,
+                    "name": "M18 Smelter %d" % next(_SEQ),
+                    "material_class": material,
+                    "evidence_attachment_id": attachment(self.env, "downstream.pdf").id,
+                    **vals,
+                }
+            )
+        )
 
     def approved_partner(self, **vals):
         p = self.partner(**vals)
         approve_via_inbox(p, self.approver, requester=self.clerk)
         assert p.state == "active", p.state
+        # ... and verified by an approver who did not declare it (FR-ESG-024)
+        p.downstream_ids.with_user(self.approver).action_verify()
         return p
 
     def batch(self, partner=None, material="phone", **vals):

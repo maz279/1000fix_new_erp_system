@@ -110,6 +110,8 @@ class FixEwasteTriage(models.Model):
             ("refurbish", "Refurbishable"),
             ("recycle", "Recycle Only"),
             ("hazardous", "Hazardous"),
+            ("harvest", "Parts Harvest (M14 / M15)"),
+            ("donate", "Donation"),
         ],
         required=True,
         default="recycle",
@@ -120,6 +122,38 @@ class FixEwasteTriage(models.Model):
     decided_by_id = fields.Many2one("res.users", string="Decided By", readonly=True)
     decided_on = fields.Date(required=True, default=fields.Date.context_today)
     notes = fields.Text()
+    # M18 capture pass 2 (FR-ESG-006/007, BRU-ESG-09): the assessment against
+    # the published criteria in force, with its evidence - all write-once
+    criteria_id = fields.Many2one(
+        "fix.ewaste.triage.criteria",
+        string="Criteria Applied",
+        readonly=True,
+        ondelete="restrict",
+        help="The published triage criteria in force when the decision was made.",
+    )
+    functional_result = fields.Selection(
+        [
+            ("pass", "Fully Functional"),
+            ("partial", "Partly Functional"),
+            ("fail", "Not Functional"),
+        ],
+        string="Functional Test",
+    )
+    cosmetic_result = fields.Selection(
+        [
+            ("a", "A - Like New"),
+            ("b", "B - Light Wear"),
+            ("c", "C - Heavy Wear"),
+            ("d", "D - Broken"),
+        ],
+        string="Cosmetic Grade",
+    )
+    market_value_estimate = fields.Float(string="Market Value Estimate (BDT)")
+    evidence_attachment_id = fields.Many2one(
+        "ir.attachment", string="Assessment Evidence", readonly=True, ondelete="restrict"
+    )
+    evidence_file = fields.Binary(string="Upload Assessment Photo", store=False)
+    evidence_filename = fields.Char(string="Evidence File Name", store=False)
 
     _WRITE_ONCE = frozenset(
         {
@@ -132,12 +166,26 @@ class FixEwasteTriage(models.Model):
             "decided_on",
             "company_id",
             "name",
+            "criteria_id",
+            "functional_result",
+            "cosmetic_result",
+            "market_value_estimate",
+            "evidence_attachment_id",
+            "evidence_file",
+            "evidence_filename",
+            "notes",
         }
     )
 
     def _fix_guarded_fields(self) -> set:
         # decided_on: a decision is dated the day it is made (no back-dating)
-        return set(super()._fix_guarded_fields()) | {"decided_by_id", "decided_on"}
+        # criteria_id is set by create() itself from the set in force (any
+        # typed value is refused there) and is write-once afterwards
+        return set(super()._fix_guarded_fields()) | {
+            "decided_by_id",
+            "decided_on",
+            "evidence_attachment_id",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -151,7 +199,21 @@ class FixEwasteTriage(models.Model):
         if not trusted:
             c.require_group(self.env, c.G_ASSESSOR, "E-Waste Triage Assessor", "triage e-waste")
         own = c.employee_of(self.env)
-        for vals in vals_list:
+        # the evidence is attached to the decision itself once it exists
+        staged = [
+            (vals.pop("evidence_file", None), (vals.pop("evidence_filename", None) or "").strip())
+            for vals in vals_list
+        ]
+        Criteria = self.env["fix.ewaste.triage.criteria"]
+        for vals, (data, _fname) in zip(vals_list, staged, strict=True):
+            col = self.env["fix.ewaste.collection"].sudo().browse(vals.get("collection_id"))
+            company = col.company_id if col.exists() else self.env.company
+            criteria = Criteria._fix_in_force(company)
+            if not trusted:
+                if vals.get("criteria_id") and vals["criteria_id"] != criteria.id:
+                    raise UserError("A triage applies the criteria in force, not another set.")
+                criteria._fix_check_assessment(vals, bool(data))
+            vals["criteria_id"] = criteria.id or False
             if vals.get("name", "New") == "New":
                 vals["name"] = _seq(self.env, "fix.ewaste.triage", "ETRI/New")
             if not trusted:
@@ -167,6 +229,17 @@ class FixEwasteTriage(models.Model):
             if vals.get("data_bearing"):
                 vals["wipe_required"] = True
         records = super().create(vals_list)
+        for rec, (data, fname) in zip(records, staged, strict=True):
+            if data:
+                att = self.env["ir.attachment"].create(
+                    {
+                        "name": fname or "%s - assessment evidence" % rec.name,
+                        "datas": data,
+                        "res_model": rec._name,
+                        "res_id": rec.id,
+                    }
+                )
+                rec.sudo()._guarded().write({"evidence_attachment_id": att.id})
         for rec in records:
             if not trusted:
                 rec.sudo()._guarded().write({"decided_by_id": self.env.uid})
@@ -240,6 +313,9 @@ class FixEwasteBatch(models.Model):
     processed_on = fields.Date(readonly=True)
     processed_by_id = fields.Many2one("res.users", readonly=True)
     certificate_ids = fields.One2many("fix.ewaste.certificate", "batch_id", string="Certificates")
+    exception_ids = fields.One2many(
+        "fix.ewaste.certificate.exception", "batch_id", string="Certificate Exceptions"
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -546,7 +622,12 @@ class FixEwasteBatch(models.Model):
         for rec in self:
             if rec.state != "processed":
                 raise UserError("A disposal certificate is recorded for a processed batch.")
-            if rec.certificate_ids.filtered(lambda x: x.state in ("draft", "issued")):
+            live = rec.certificate_ids.filtered(lambda x: x.state in ("draft", "issued"))
+            if live.filtered(lambda x: x.state == "draft"):
+                raise UserError("Batch %s already has a draft certificate." % rec.name)
+            # a supplementary certificate is recorded for the items an earlier
+            # one left out (open exceptions, FR-ESG-013)
+            if live and not rec.exception_ids.filtered(lambda e: e.state == "open"):
                 raise UserError("Batch %s already has its certificate." % rec.name)
             out |= out._guarded().create({"batch_id": rec.id})
         return True
@@ -575,8 +656,15 @@ class FixEwasteBattery(models.Model):
             ("li_po", "Lithium-Polymer"),
             ("nimh", "NiMH"),
             ("lead_acid", "Lead-Acid"),
+            # FR-ESG-015 (capture pass 2): the other hazardous fractions the
+            # spec names, each with its own storage ceiling class
+            ("crt", "CRT Glass (lead)"),
+            ("mercury_lamp", "Mercury-Containing Lamp"),
+            ("refrigerant", "Refrigerant-Bearing Equipment"),
+            ("toner", "Toner / Ink Cartridge"),
             ("other", "Other"),
         ],
+        string="Hazardous Fraction",
         required=True,
         default="li_ion",
     )
@@ -1061,6 +1149,20 @@ class FixEwasteCertificate(models.Model):
         required=True,
         default="draft",
     )
+    # M18 capture pass 2 (FR-ESG-013 / T-03 / BRU-ESG-04, AC-07): the items of
+    # the batch the recycler's certificate does NOT list. They are left
+    # uncertified, each with an open exception, until a supplementary
+    # certificate covers it or an investigation closes it.
+    uncovered_collection_ids = fields.Many2many(
+        "fix.ewaste.collection",
+        "fix_ewaste_certificate_uncovered_rel",
+        "certificate_id",
+        "collection_id",
+        string="Items NOT on the Recycler's Certificate",
+    )
+    exception_ids = fields.One2many(
+        "fix.ewaste.certificate.exception", "certificate_id", string="Exceptions Raised"
+    )
 
     _GUARDED = frozenset(
         {
@@ -1084,6 +1186,7 @@ class FixEwasteCertificate(models.Model):
             "evidence_attachment_id",
             "file_ref",
             "material_type",
+            "uncovered_collection_ids",
         }
     )
 
@@ -1091,6 +1194,12 @@ class FixEwasteCertificate(models.Model):
         return set(super()._fix_guarded_fields()) | self._GUARDED
 
     _UPLOADS = {"evidence_attachment_id": ("evidence_file", "evidence_filename")}
+
+    def _fix_scope(self):
+        """The batch items this certificate is about: those not yet certified
+        (a supplementary certificate covers what an earlier one left out)."""
+        self.ensure_one()
+        return self.sudo().batch_id.collection_ids.filtered(lambda i: i.state == "recycled")
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -1158,21 +1267,47 @@ class FixEwasteCertificate(models.Model):
                     "Certificate %s: enter the recycler's certificate number and attach it."
                     % rec.name
                 )
-            processed = batch.processed_weight_kg
-            if processed <= 0 or abs(rec.recycler_stated_weight_kg - processed) > (
-                processed * tol / 100.0
+            scope = rec._fix_scope()
+            uncovered = rec.sudo().uncovered_collection_ids
+            if uncovered - scope:
+                raise UserError(
+                    "Certificate %s: %s %s not awaiting a certificate in batch %s."
+                    % (
+                        rec.name,
+                        ", ".join((uncovered - scope).mapped("name")),
+                        "is" if len(uncovered - scope) == 1 else "are",
+                        batch.name,
+                    )
+                )
+            items = scope - uncovered
+            earlier = batch.certificate_ids.filtered(
+                lambda x, r=rec: x != r and x.state == "issued"
+            )
+            if earlier and not items:
+                raise UserError(
+                    "Certificate %s covers nothing: batch %s has no item left awaiting a "
+                    "certificate." % (rec.name, batch.name)
+                )
+            if uncovered and not items:
+                raise UserError(
+                    "Certificate %s lists none of the batch's items: record the exception "
+                    "on the batch instead of issuing an empty certificate." % rec.name
+                )
+            if earlier or uncovered:
+                # a partial or supplementary certificate states what it covers
+                expected, basis = (
+                    round(sum(items.mapped("weight_kg")), 3),
+                    "the %d item(s) it covers" % len(items),
+                )
+            else:
+                expected, basis = batch.processed_weight_kg, "batch %s processed" % batch.name
+            if expected <= 0 or abs(rec.recycler_stated_weight_kg - expected) > (
+                expected * tol / 100.0
             ):
                 raise UserError(
-                    "Certificate %s states %.3f kg; batch %s processed %.3f kg (tolerance "
-                    "%.1f%%)."
-                    % (rec.name, rec.recycler_stated_weight_kg, batch.name, processed, tol)
+                    "Certificate %s states %.3f kg; %s weigh %.3f kg (tolerance %.1f%%)."
+                    % (rec.name, rec.recycler_stated_weight_kg, basis, expected, tol)
                 )
-            items = batch.collection_ids
-            for item in items:
-                if item.state != "recycled":
-                    raise UserError(
-                        "%s is %s, not awaiting a certificate." % (item.name, item.state)
-                    )
             rec._guarded().write(
                 {
                     "state": "issued",
@@ -1181,11 +1316,15 @@ class FixEwasteCertificate(models.Model):
                     "collection_ids": [(6, 0, items.ids)],
                     "collection_id": items[:1].id if len(items) == 1 else False,
                     "weight_kg": round(
-                        sum(items.mapped("weight_kg")) + sum(batch.battery_ids.mapped("weight_kg")),
+                        sum(items.mapped("weight_kg"))
+                        + (0.0 if earlier else sum(batch.battery_ids.mapped("weight_kg"))),
                         3,
                     ),
                 }
             )
+            Exc = rec.env["fix.ewaste.certificate.exception"].sudo()
+            Exc._fix_resolve(items, rec)
+            Exc._fix_raise(uncovered, rec)
             for item in items:
                 item._guarded().write(
                     {
@@ -1220,10 +1359,20 @@ class FixEwasteCertificate(models.Model):
             rec._guarded().write(
                 {"state": "revoked", "revoked_by_id": rec.env.uid, "revoked_on": c.today(rec.env)}
             )
-            for item in rec.collection_ids.filtered(lambda i: i.state == "certified"):
+            returned = rec.collection_ids.filtered(lambda i: i.state == "certified")
+            for item in returned:
                 item._guarded().write({"state": "recycled"})
                 item._guarded().write(
                     {"disposal_certificate_id": False, "disposal_certificate_ref": False}
+                )
+            others = rec.sudo().batch_id.certificate_ids.filtered(
+                lambda x, r=rec: x != r and x.state == "issued"
+            )
+            if others and returned:
+                # the batch keeps another certificate: the returned items are
+                # uncovered again and are tracked until a new one covers them
+                rec.env["fix.ewaste.certificate.exception"].sudo()._fix_raise(
+                    returned, rec, kind="revoked"
                 )
         return True
 

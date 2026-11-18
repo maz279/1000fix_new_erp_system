@@ -71,7 +71,22 @@ export const MODULE = {
     'Start Secure Destruction',
     'Bind M06 Wipe Certificate',
     'Release to Recycler',
-    'Recycler Certificate from Batch'
+    'Recycler Certificate from Batch',
+    // 19 Nov 2026 capture pass 2: what the spec records on these pages and
+    // the estate had no record for (FR-ESG-005/006/008/013/014/016/019/022/
+    // 023/024)
+    'Corporate Disposal Contract',
+    'Accept a Corporate Asset Exception',
+    'Triage Criteria',
+    'Route for Parts Harvest',
+    'Donation Hand-over',
+    'Downstream Vendor Declaration',
+    'Material Recovery',
+    'Close a Certificate Exception',
+    'Collection Point',
+    'Emission Factor Set',
+    'Regulatory Obligation',
+    'Review an Obligation'
   ],
   cross: ['M17 retired assets', 'M14 non-repairable trade-ins', 'M06 customer drop-offs', 'M03 hazardous transit'],
   /* 13 Nov 2026 capture audit: 3 Data Destruction and 9 ESG offered nothing,
@@ -80,17 +95,26 @@ export const MODULE = {
    * destruction gate's queue (start, bind the M06 certificate, release),
    * 5 records the certificate from its batch, 10 holds the DoE registration
    * the returns are filed under; 9 stays computed (BRU-ESG-11: no entry path). */
+  /* 19 Nov 2026 capture pass 2, read against the FRs/BRUs/§10.1 entities:
+   * 1 had no channel/condition/hazard/photo and no corporate disposal (005);
+   * 2 no published criteria, harvest or donation route (006/008/023);
+   * 4 no downstream declarations (024); 5 no uncovered-item exception or
+   * material recovery (013/014); 6/7 no collection point with ceilings (022,
+   * T-06); 9 no versioned factor set (019, T-08) - its figures stay
+   * computed; 10 no regulatory register (016, BRU-ESG-16). */
   freg: { src: 82, sub: [
-    ['1', 'Intake & Channels', 8, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-intake', 'M18-settlements'], reports: ['Collection Volume Trend'], forms: ['E-Waste Collection Dossier', 'E-Waste Incentive / Recycler Money'] }],
-    ['2', 'Triage & Disposition', 10, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'decision', 'data_bearing', 'decided_on'], screens: ['M18-triage'], reports: ['Disposition Mix'], forms: ['Triage & Sanitization Record'] }],
+    ['1', 'Intake & Channels', 8, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'channel', 'material_type', 'weight_kg', 'state'], screens: ['M18-intake', 'M18-settlements', 'M18-corporate', 'M18-corporate-lines'], reports: ['Collection Volume Trend'], forms: ['E-Waste Collection Dossier', 'E-Waste Incentive / Recycler Money', 'Corporate Disposal Contract', 'Accept a Corporate Asset Exception'] }],
+    ['2', 'Triage & Disposition', 10, { model: 'fix.ewaste.triage', cols: ['name', 'collection_id', 'decision', 'functional_result', 'criteria_id', 'decided_on'], screens: ['M18-triage', 'M18-criteria', 'M18-donations'], reports: ['Disposition Mix'], forms: ['Triage & Sanitization Record', 'Triage Criteria', 'Route for Parts Harvest', 'Donation Hand-over'] }],
     ['3', 'Data Destruction', 7, { model: 'fix.ewaste.collection', cols: ['name', 'customer_id', 'triage_grade', 'wipe_certificate_id', 'state'], screens: ['M18-intake'], reports: ['Disposition Mix'], forms: ['Start Secure Destruction', 'Bind M06 Wipe Certificate', 'Release to Recycler'], create: 'M18-form-destruction', domain: [['wipe_required', '=', true], ['state', 'in', ['triaged', 'destruction']]] }],
-    ['4', 'Outbound Recycler', 8, { model: 'fix.ewaste.batch', cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-batches', 'M18-partners', 'M18-manifest', 'M18-pic', 'M18-settlements'], reports: ['Material Recovery Yield'], forms: ['Recycler Dispatch Batch', 'Authorized Recycler Partner', 'Basel Prior Informed Consent', 'E-Waste Incentive / Recycler Money'] }],
-    ['5', 'Green Certificates', 7, { model: 'fix.ewaste.certificate', cols: ['name', 'certificate_no', 'partner_id', 'weight_kg', 'issued_on'], screens: ['M18-certs'], reports: ['Material Recovery Yield'], forms: ['Recycler Certificate from Batch', 'Green & Destruction Certificate'], create: 'M18-form-cert-record' }],
-    ['6', 'Public Drives & Bins', 7, { model: 'fix.ewaste.event', cols: ['name', 'venue', 'event_date', 'collected_kg', 'state'], screens: ['M18-drives'], reports: ['Collection Volume Trend'], forms: ['Collection Drive Event'] }],
-    ['7', 'Hazardous Fraction', 9, { model: 'fix.ewaste.battery', cols: ['name', 'chemistry', 'hazard_class', 'weight_kg', 'state'], screens: ['M18-battery'], reports: ['Material Recovery Yield'], forms: ['Battery & Hazardous Dossier'] }],
+    ['4', 'Outbound Recycler', 8, { model: 'fix.ewaste.batch', cols: ['name', 'partner_id', 'material_type', 'weight_kg', 'state'], screens: ['M18-batches', 'M18-partners', 'M18-downstream', 'M18-manifest', 'M18-pic', 'M18-settlements'], reports: ['Material Recovery Yield'], forms: ['Recycler Dispatch Batch', 'Authorized Recycler Partner', 'Downstream Vendor Declaration', 'Basel Prior Informed Consent', 'E-Waste Incentive / Recycler Money'] }],
+    ['5', 'Green Certificates', 7, { model: 'fix.ewaste.certificate', cols: ['name', 'certificate_no', 'partner_id', 'weight_kg', 'issued_on'], screens: ['M18-certs', 'M18-exceptions', 'M18-recovery'], reports: ['Material Recovery Yield'], forms: ['Recycler Certificate from Batch', 'Green & Destruction Certificate', 'Close a Certificate Exception', 'Material Recovery'], create: 'M18-form-cert-record' }],
+    ['6', 'Public Drives & Bins', 7, { model: 'fix.ewaste.event', cols: ['name', 'venue', 'event_date', 'collected_kg', 'state'], screens: ['M18-drives', 'M18-points'], reports: ['Collection Volume Trend'], forms: ['Collection Drive Event', 'Collection Point'] }],
+    ['7', 'Hazardous Fraction', 9, { model: 'fix.ewaste.battery', cols: ['name', 'chemistry', 'hazmat_class', 'collection_point_id', 'weight_kg', 'state'], screens: ['M18-battery', 'M18-points'], reports: ['Material Recovery Yield'], forms: ['Battery & Hazardous Dossier', 'Collection Point'] }],
     ['8', 'EPR Reporting', 8, { model: 'fix.ewaste.return', cols: ['name', 'authority', 'period', 'recovery_rate_pct', 'state'], screens: ['M18-returns'], reports: ['Statutory Compliance Pack'], forms: ['Statutory Environmental Return', 'DoE E-Waste Registration'] }],
-    ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit'], screens: ['M18-esg'], reports: ['ESG Materiality Report', 'Impact & Diversion'], forms: [] }],
-    ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.registration', cols: ['name', 'authority', 'role', 'registration_no', 'epr_target_pct', 'valid_to', 'state'], screens: ['M18-registration', 'M18-epr', 'M18-partners', 'M18-pic'], reports: ['Statutory Compliance Pack', 'Impact & Diversion'], forms: ['DoE E-Waste Registration', 'Authorized Recycler Partner', 'Basel Prior Informed Consent'] }]
+    /* the figures stay computed (BRU-ESG-11): what is captured here is the
+     * versioned factor set they are computed with (FR-ESG-019 / T-08) */
+    ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit', 'factor_version'], screens: ['M18-esg', 'M18-factors'], reports: ['ESG Materiality Report', 'Impact & Diversion'], forms: ['Emission Factor Set'], create: 'M18-form-factor' }],
+    ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.obligation', cols: ['name', 'instrument', 'citation', 'owner_id', 'next_review', 'compliance_status', 'state'], screens: ['M18-obligations', 'M18-registration', 'M18-epr', 'M18-partners', 'M18-pic'], reports: ['Statutory Compliance Pack', 'Impact & Diversion'], forms: ['Regulatory Obligation', 'Review an Obligation', 'DoE E-Waste Registration', 'Authorized Recycler Partner', 'Basel Prior Informed Consent'] }]
   ] }
 };
 
@@ -115,7 +139,8 @@ export const SCREENS = {
       { m: 'action_recycle_estimated', l: 'Release to Recycler' },
       { m: 'action_issue_certificate', l: 'Certify from Recycler Cert' },
       { m: 'action_remove_from_batch', l: 'Remove from Batch' },
-      { m: 'action_apply_storage_extension', l: 'Record DoE Extension' }
+      { m: 'action_apply_storage_extension', l: 'Record DoE Extension' },
+      { m: 'action_route_harvest', l: 'Route for Parts Harvest' }
     ] },
   'M18-triage': { kind: 'model_list', model: 'fix.ewaste.triage',
     cols: ['name', 'collection_id', 'decision', 'inspector_id', 'decided_on', 'wipe_required', 'data_bearing'] },
@@ -189,6 +214,64 @@ export const SCREENS = {
     actions: [{ m: 'action_recompute', l: 'Recompute from Collections' }] },
   'M18-epr': { kind: 'table_report', module: 'M18', report: 'compliance_pack', title: 'EPR Compliance Pack', period: true },
 
+  /* ===== 19 Nov 2026 capture pass 2: the records the spec names on these
+   * pages that had no model (each list's steps are its workflow methods) ===== */
+  'M18-points': { kind: 'model_list', model: 'fix.ewaste.collection.point', stateField: 'state',
+    cols: ['name', 'kind', 'operating_unit_id', 'responsible_id', 'capacity_kg', 'held_kg', 'state'],
+    empty: 'No collection point yet. Register each branch counter, public bin, warehouse area and hazardous store with its capacity and ceilings; an HSE officer activates it (FR-ESG-022).',
+    actions: [
+      { m: 'action_activate', l: 'Activate (HSE)' },
+      { m: 'action_reopen', l: 'Reopen to Change Ceilings' },
+      { m: 'action_close', l: 'Close Point' }
+    ] },
+  'M18-corporate': { kind: 'model_list', model: 'fix.ewaste.corporate.disposal', stateField: 'state',
+    cols: ['name', 'client_id', 'contract_ref', 'declared_count', 'received_count', 'reconciled_count', 'open_count', 'state'],
+    empty: 'No corporate disposal yet. Record the client’s declared asset list; each asset is reconciled to the item received and its certificate before the contract closes (FR-ESG-005, BRU-ESG-14).',
+    actions: [
+      { m: 'action_confirm', l: 'Start Receiving' },
+      { m: 'action_close', l: 'Close (all reconciled)' }
+    ] },
+  'M18-corporate-lines': { kind: 'model_list', model: 'fix.ewaste.corporate.disposal.line', create: false,
+    cols: ['disposal_id', 'asset_ref', 'description', 'material_type', 'collection_id', 'line_state', 'exception_reason'],
+    empty: 'No declared corporate asset yet.' },
+  'M18-criteria': { kind: 'model_list', model: 'fix.ewaste.triage.criteria', stateField: 'state',
+    cols: ['name', 'effective_from', 'donation_max_value', 'evidence_required', 'published_by_id', 'state'],
+    empty: 'No triage criteria published. Write the criteria for each route; another compliance officer publishes them and every decision then records the version in force (FR-ESG-006/007).',
+    actions: [{ m: 'action_publish', l: 'Publish (second officer)' }] },
+  'M18-donations': { kind: 'model_list', model: 'fix.ewaste.donation', stateField: 'state',
+    cols: ['name', 'collection_id', 'recipient_id', 'recipient_reg_no', 'approved_by_id', 'handed_over_on', 'state'],
+    empty: 'No donation yet. An item triaged for donation is donated to a registered recipient, approved by a compliance officer and handed over under the M06 gate (FR-ESG-023, BRU-ESG-15).',
+    actions: [
+      { m: 'action_approve', l: 'Approve (second officer)' },
+      { m: 'action_hand_over', l: 'Hand Over (M06 gate)' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M18-downstream': { kind: 'model_list', model: 'fix.ewaste.partner.downstream', stateField: 'state',
+    cols: ['partner_id', 'name', 'material_class', 'country_id', 'verified_on', 'verification_due', 'state'],
+    empty: 'No downstream destination declared. Each recycler declares where each material goes next; a recycler approver verifies it at least yearly, and a batch leaves only with a current one (FR-ESG-024, BRU-ESG-18).',
+    actions: [
+      { m: 'action_verify', l: 'Verify (approver)' },
+      { m: 'action_withdraw', l: 'Withdraw' }
+    ] },
+  'M18-exceptions': { kind: 'model_list', model: 'fix.ewaste.certificate.exception', stateField: 'state', create: false,
+    cols: ['name', 'collection_id', 'batch_id', 'partner_id', 'kind', 'raised_on', 'resolved_certificate_id', 'state'],
+    empty: 'No certificate exception. An item missing from a recycler’s certificate opens one here (BRU-ESG-04).' },
+  'M18-recovery': { kind: 'model_list', model: 'fix.ewaste.material.recovery', stateField: 'state',
+    cols: ['name', 'batch_id', 'partner_id', 'material_class', 'weight_kg', 'agreed_rate', 'income_amount', 'settlement_id', 'state'],
+    empty: 'No material recovery recorded. Record what each processed batch yielded by class, weight and agreed rate, then raise it as the batch’s income for the finance approver (FR-ESG-014, BRU-ESG-19).',
+    actions: [{ m: 'action_raise_income', l: 'Raise Batch Income' }] },
+  'M18-factors': { kind: 'model_list', model: 'fix.esg.factor.set', stateField: 'state',
+    cols: ['name', 'co2_avoided_per_kg', 'source', 'activated_by_id', 'activated_on', 'state'],
+    empty: 'No emissions factor set yet: figures use the configured provisional factor. Propose a versioned set with its source; another compliance officer activates it (FR-ESG-019, T-08).',
+    actions: [{ m: 'action_activate', l: 'Activate (second officer)' }] },
+  'M18-obligations': { kind: 'model_list', model: 'fix.ewaste.obligation', stateField: 'state',
+    cols: ['name', 'instrument', 'citation', 'owner_id', 'next_review', 'review_overdue', 'compliance_status', 'state'],
+    empty: 'No regulatory obligation recorded. List what each instrument requires of the Company, with its owner and evidence; it is reviewed at least quarterly (FR-ESG-016, BRU-ESG-16).',
+    actions: [
+      { m: 'action_activate', l: 'Activate' },
+      { m: 'action_retire', l: 'Retire' }
+    ] },
+
   /* Report chips -> their own computed packs (All 6 active) */
   'M18-rpt-volume': { kind: 'table_report', module: 'M18', report: 'collection_volume', title: 'Collection Volume Trend', period: true },
   'M18-rpt-disposition': { kind: 'table_report', module: 'M18', report: 'disposition_mix', title: 'Disposition Mix', period: true },
@@ -214,9 +297,13 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: 'Intake Reference & Source',
+        note: 'FR-ESG-001/003: the channel the item came through, where it was received and, for a corporate decommission, the declared asset it is.',
         fields: [
           { name: 'name', label: 'Collection Record ID', readonly: true },
           { name: 'customer_id', required: true, label: 'Corporate / Retail Source' },
+          { name: 'channel', required: true, label: 'Collection Channel' },
+          { name: 'collection_point_id', label: 'Collection Point', domain: [['state', '=', 'active']] },
+          { name: 'corporate_line_id', label: 'Declared Corporate Asset (corporate decommission)', domain: [['line_state', '=', 'declared'], ['disposal_id.state', '=', 'receiving']] },
           { name: 'operating_unit_id', label: 'Receiving Hub' },
           { name: 'state', label: 'Collection State', readonly: true }
         ] },
@@ -225,7 +312,17 @@ export const SCREENS = {
           { name: 'item_count', label: 'Item Count' },
           { name: 'weight_kg', required: true, label: 'Intake Mass (kg)' },
           { name: 'material_type', required: true, label: 'Schedule-1 Category (Phone/Laptop/Battery/Other)' },
+          { name: 'condition', label: 'Condition on Receipt' },
           { name: 'triage_grade', label: 'Triage Grade', readonly: true }
+        ] },
+      { tab: 'pricing', title: 'Hazards Found on Receipt',
+        note: 'A hazardous item opens one hazmat record per hazard ticked here (FR-ESG-015).',
+        fields: [
+          { name: 'has_battery', label: 'Contains Battery' },
+          { name: 'has_crt', label: 'Contains CRT Glass' },
+          { name: 'has_mercury', label: 'Contains Mercury Lamp' },
+          { name: 'has_refrigerant', label: 'Contains Refrigerant' },
+          { name: 'has_toner', label: 'Contains Toner / Ink' }
         ] },
       { tab: 'technical', title: 'Data Sanitization & Destruction',
         fields: [
@@ -254,6 +351,9 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
+          { name: 'photo_attachment_id', label: 'Receipt Photo (on file)', readonly: true },
+          { name: 'photo_file', type: 'file', label: 'Upload Receipt Photo' },
+          { name: 'photo_filename', label: 'Photo File Name' }
           ] }
     ]
   },
@@ -278,9 +378,17 @@ export const SCREENS = {
           /* the server triages a collected item once; anything else is refused */
           { name: 'collection_id', required: true, label: 'Origin Collection Item', domain: [['state', '=', 'collected']] }
         ] },
+      { tab: 'pricing', title: 'Assessment Against the Published Criteria',
+        note: 'FR-ESG-006/007: the criteria in force are stamped on the decision. Under published criteria the functional test and a photo are required; only a fully functional device is reused or donated, and a donation is a low-value device.',
+        fields: [
+          { name: 'criteria_id', label: 'Criteria Applied', readonly: true },
+          { name: 'functional_result', label: 'Functional Test' },
+          { name: 'cosmetic_result', label: 'Cosmetic Grade' },
+          { name: 'market_value_estimate', label: 'Market Value Estimate (BDT)' }
+        ] },
       { tab: 'pricing', title: 'Disposition Routing',
         fields: [
-          { name: 'decision', required: true, label: 'Triage Disposition Decision (Reuse/Refurbish/Recycle/Hazardous)' }
+          { name: 'decision', required: true, label: 'Disposition (Reuse / Refurbish / Harvest Parts / Recycle / Hazardous / Donate)' }
         ] },
       { tab: 'technical', title: 'Data Bearing Identification',
         fields: [
@@ -300,6 +408,9 @@ export const SCREENS = {
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
+          { name: 'evidence_attachment_id', label: 'Assessment Evidence (on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Assessment Photo' },
+          { name: 'evidence_filename', label: 'Evidence File Name' }
           ] }
     ]
   },
@@ -400,6 +511,11 @@ export const SCREENS = {
           { name: 'partner_id', label: 'Recipient / Client Entity', readonly: true },
           { name: 'state', label: 'Certification Status', readonly: true }
         ] },
+      { tab: 'pricing', title: 'Items the Recycler Did NOT Certify',
+        note: 'FR-ESG-013 / BRU-ESG-04: list any item of the batch missing from the recycler’s certificate. It stays uncertified with an open exception until a supplementary certificate covers it or an investigation closes it. The stated weight is then that of the items it does cover.',
+        fields: [
+          { name: 'uncovered_collection_ids', label: 'Items Not on the Certificate', domain: [['state', '=', 'recycled']] }
+        ] },
       { tab: 'pricing', title: 'Certified Mass Balance',
         fields: [
           { name: 'recycler_stated_weight_kg', label: 'Weight Stated by Recycler (kg)' },
@@ -495,8 +611,9 @@ export const SCREENS = {
       { tab: 'general', title: 'Hazardous Fraction Profile',
         fields: [
           { name: 'name', label: 'Battery Asset Record', readonly: true },
-          { name: 'chemistry', required: true, label: 'Cell Chemistry (Li-ion/Lead-Acid/Ni-Cd/LiFePO4)' },
+          { name: 'chemistry', required: true, label: 'Hazardous Fraction (cells, CRT, mercury lamp, refrigerant, toner)' },
           { name: 'hazard_class', label: 'UN Hazard Class (Class 9 Miscellaneous)' },
+          { name: 'hazmat_class', label: 'Storage Ceiling Class', readonly: true },
           { name: 'state', label: 'Hazard Safety State', readonly: true }
         ] },
       { tab: 'pricing', title: 'Net Weight',
@@ -515,7 +632,9 @@ export const SCREENS = {
           { name: 'quarantine_barrel_ref', label: 'Fire-Safe Vermiculite Quarantine Barrel' }
         ] },
       { tab: 'lifecycle', title: 'Storage & Downstream Traceability',
+        note: 'At a designated collection point the ceiling is per class (T-06); a point holds only the classes an HSE officer set a ceiling for.',
         fields: [
+          { name: 'collection_point_id', label: 'Storage Point (designated)', domain: [['state', '=', 'active']] },
           { name: 'storage_location', label: 'Flame-Proof Storage Bunker' },
           { name: 'received_on', label: 'Intake Date', readonly: true },
           { name: 'operating_unit_id', label: 'Intake Unit' },
@@ -872,7 +991,9 @@ export const SCREENS = {
       search: 'Search batch or recycler',
       choose: 'Record its certificate',
       cols: ['name', 'partner_id', 'material_type', 'processed_weight_kg', 'processed_on'],
-      domain: [['state', '=', 'processed'], '|', ['certificate_ids', '=', false], ['certificate_ids.state', '=', 'revoked']],
+      /* also a batch with an item an earlier certificate left out: its
+       * supplementary certificate (FR-ESG-013) */
+      domain: [['state', '=', 'processed'], '|', '|', ['certificate_ids', '=', false], ['certificate_ids.state', '=', 'revoked'], ['exception_ids.state', '=', 'open']],
       empty: 'No processed batch is waiting for its certificate. A batch is processed on Outbound Recycler once the recycler’s processing evidence is attached.'
     },
     saveAction: {
@@ -888,6 +1009,440 @@ export const SCREENS = {
           { name: 'material_type', label: 'Material', readonly: true },
           { name: 'processed_weight_kg', label: 'Processed (kg)', readonly: true },
           { name: 'processed_on', label: 'Processed On', readonly: true }
+        ] }
+    ]
+  },
+
+  /* ===== 19 Nov 2026 capture pass 2 forms ===== */
+  'M18-form-point': {
+    kind: 'model_form',
+    model: 'fix.ewaste.collection.point',
+    title: 'Collection Point',
+    back: 'M18-points',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', closed: 'Closed' } },
+    grids: [
+      {
+        field: 'limit_ids', tab: 'hazmat', title: 'Hazardous Material Ceilings',
+        addLabel: '+ Add a class',
+        empty: 'No hazardous class designated: this point may hold no batteries, CRTs, lamps, refrigerant or toner.',
+        note: 'T-06 / BRU-ESG-07: one ceiling per class. Receipt beyond it is refused. Frozen while the point is active.',
+        fields: [
+          { name: 'hazard_class', label: 'Class' },
+          { name: 'max_kg', label: 'Ceiling (kg)' }
+        ]
+      }
+    ],
+    tabs: [
+      { id: 'general', label: '1. Location', bn: '১. অবস্থান', icon: '📍', badge: '5' },
+      { id: 'capacity', label: '2. Capacity & Storage', bn: '২. ধারণক্ষমতা', icon: '📦', badge: '3' },
+      { id: 'hazmat', label: '3. Hazardous Ceilings', bn: '৩. বিপজ্জনক সীমা', icon: '⚠️' },
+      { id: 'governance', label: '4. Activation', bn: '৪. সক্রিয়করণ', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Designated Collection Point (FR-ESG-022)',
+        fields: [
+          { name: 'name', required: true, label: 'Point Name' },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'operating_unit_id', label: 'Branch / Unit' },
+          { name: 'address', label: 'Address' },
+          { name: 'responsible_id', label: 'Responsible Person' }
+        ] },
+      { tab: 'capacity', title: 'Capacity and Storage Constraints',
+        fields: [
+          { name: 'capacity_kg', label: 'Capacity (kg)' },
+          { name: 'held_kg', label: 'Held Now (kg)', readonly: true },
+          { name: 'storage_constraints', label: 'Segregation, Ventilation, Temperature, Suppression' },
+          { name: 'active_from', label: 'Active From' },
+          { name: 'active_to', label: 'Active To' }
+        ] },
+      { tab: 'governance', title: 'HSE Activation (four eyes)',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'approved_by_id', label: 'Activated By', readonly: true },
+          { name: 'approved_on', label: 'Activated On', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-corporate': {
+    kind: 'model_form',
+    model: 'fix.ewaste.corporate.disposal',
+    title: 'Corporate Disposal Contract',
+    back: 'M18-corporate',
+    status: { field: 'state', labels: { draft: 'Draft', receiving: 'Receiving', closed: 'Closed' } },
+    grids: [
+      {
+        field: 'line_ids', tab: 'assets', title: 'Client’s Declared Assets',
+        addLabel: '+ Add declared asset',
+        empty: 'No asset declared yet. List every asset on the client’s decommission list.',
+        note: 'The list freezes when receiving starts. Each received item is booked against its asset on the collection form; an asset that will never arrive is closed only as a documented exception.',
+        fields: [
+          { name: 'asset_ref', label: 'Asset Tag / Serial' },
+          { name: 'description', label: 'Description' },
+          { name: 'material_type', label: 'Category' },
+          { name: 'exception_reason', label: 'Exception Reason (if never reconciled)' }
+        ]
+      }
+    ],
+    tabs: [
+      { id: 'general', label: '1. Contract', bn: '১. চুক্তি', icon: '🏢', badge: '4' },
+      { id: 'assets', label: '2. Declared Assets', bn: '২. ঘোষিত সম্পদ', icon: '📋' },
+      { id: 'recon', label: '3. Reconciliation', bn: '৩. মিলকরণ', icon: '✅', badge: '6' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Contracted Bulk Disposal (FR-ESG-005)',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'client_id', required: true, label: 'Corporate Client' },
+          { name: 'contract_ref', label: 'Contract / PO Reference' },
+          { name: 'account_manager_id', label: 'Account Manager' }
+        ] },
+      { tab: 'recon', title: 'Declared vs Received vs Certified (BRU-ESG-14)',
+        fields: [
+          { name: 'declared_count', label: 'Declared', readonly: true },
+          { name: 'received_count', label: 'Received', readonly: true },
+          { name: 'reconciled_count', label: 'Reconciled / Exception', readonly: true },
+          { name: 'open_count', label: 'Still Open', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-corp-exception': {
+    kind: 'model_form',
+    model: 'fix.ewaste.corporate.disposal.line',
+    title: 'Accept a Corporate Asset Exception',
+    newLabel: 'Accept a Corporate Asset Exception',
+    back: 'M18-corporate-lines',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the declared asset that will not be reconciled',
+      note: 'An asset the client declared but that never arrived, or was lost in custody. The contract closes only when every asset is reconciled or accepted as a documented exception (BRU-ESG-14).',
+      search: 'Search asset or contract',
+      choose: 'Document the exception',
+      cols: ['disposal_id', 'asset_ref', 'description', 'line_state'],
+      domain: [['line_state', 'in', ['declared', 'received']], ['disposal_id.state', '=', 'receiving']],
+      empty: 'No unreconciled asset on a receiving contract.'
+    },
+    saveAction: {
+      method: 'action_accept_exception', label: 'Accept Exception',
+      kwargs: { reason: 'exception_reason' },
+      done: 'Exception accepted and recorded on the contract'
+    },
+    tabs: [{ id: 'general', label: '1. Asset & Reason', bn: '১. সম্পদ ও কারণ', icon: '📝', badge: '4' }],
+    sections: [
+      { tab: 'general', title: 'Declared asset',
+        fields: [
+          { name: 'disposal_id', label: 'Contract', readonly: true },
+          { name: 'asset_ref', label: 'Asset Tag / Serial', readonly: true },
+          { name: 'line_state', label: 'Reconciliation', readonly: true },
+          { name: 'exception_reason', required: true, label: 'Documented Reason' }
+        ] }
+    ]
+  },
+
+  'M18-form-criteria': {
+    kind: 'model_form',
+    model: 'fix.ewaste.triage.criteria',
+    title: 'Triage Criteria',
+    back: 'M18-criteria',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'In Force', retired: 'Retired' } },
+    tabs: [
+      { id: 'general', label: '1. Version', bn: '১. সংস্করণ', icon: '📘', badge: '4' },
+      { id: 'routes', label: '2. Criteria per Route', bn: '২. প্রতিটি পথের মানদণ্ড', icon: '🔀', badge: '4' },
+      { id: 'governance', label: '3. Publication', bn: '৩. প্রকাশ', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Published Triage Criteria (FR-ESG-006)',
+        fields: [
+          { name: 'name', required: true, label: 'Version (e.g. TRI-2026-1)' },
+          { name: 'effective_from', label: 'Effective From' },
+          { name: 'donation_max_value', label: 'Donation: Max Market Value (BDT)' },
+          { name: 'evidence_required', label: 'Photo Evidence Required (BRU-ESG-09)' }
+        ] },
+      { tab: 'routes', title: 'When Each Route Applies',
+        fields: [
+          { name: 'reuse_criteria', label: 'Reuse / Refurbish (M14) when' },
+          { name: 'harvest_criteria', label: 'Harvest Parts (M14 / M15) when' },
+          { name: 'recycle_criteria', label: 'Recycle when' },
+          { name: 'hazardous_criteria', label: 'Hazardous Treatment when' }
+        ] },
+      { tab: 'governance', title: 'Published by a Second Officer',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'published_by_id', label: 'Published By', readonly: true },
+          { name: 'published_on', label: 'Published On', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-harvest': {
+    kind: 'model_form',
+    model: 'fix.ewaste.collection',
+    title: 'Route for Parts Harvest',
+    newLabel: 'Route for Parts Harvest',
+    back: 'M18-intake',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the unit triaged for parts harvesting',
+      note: 'FR-ESG-008: the unit goes to M14, which harvests its parts into M15 stock. A data-bearing unit goes only with a verified M06 certificate bound to it (BRU-ESG-01).',
+      search: 'Search item or customer',
+      choose: 'Route it',
+      cols: ['name', 'customer_id', 'material_type', 'weight_kg', 'wipe_certificate_id'],
+      domain: [['state', '=', 'triaged'], ['triage_grade', '=', 'harvest']],
+      empty: 'No unit is triaged for parts harvesting.'
+    },
+    saveAction: {
+      method: 'action_route_harvest', label: 'Route to M14 for Harvesting',
+      done: 'Routed: M14 opens the unit for harvesting'
+    },
+    tabs: [{ id: 'general', label: '1. Unit', bn: '১. ইউনিট', icon: '🔧', badge: '5' }],
+    sections: [
+      { tab: 'general', title: 'Unit going for harvesting',
+        fields: [
+          { name: 'name', label: 'Collection Record', readonly: true },
+          { name: 'customer_id', label: 'Source', readonly: true },
+          { name: 'material_type', label: 'Category', readonly: true },
+          { name: 'data_bearing', label: 'Data Bearing', readonly: true },
+          { name: 'wipe_certificate_id', label: 'M06 Certificate', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-donation': {
+    kind: 'model_form',
+    model: 'fix.ewaste.donation',
+    title: 'Donation Hand-over',
+    back: 'M18-donations',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', handed_over: 'Handed Over', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'general', label: '1. Item & Recipient', bn: '১. আইটেম ও গ্রহীতা', icon: '🎁', badge: '4' },
+      { id: 'custody', label: '2. Hand-over Evidence', bn: '২. হস্তান্তর প্রমাণ', icon: '✍️', badge: '3' },
+      { id: 'governance', label: '3. Approval', bn: '৩. অনুমোদন', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Donation (FR-ESG-023)',
+        note: 'Only an item triaged for donation (fully functional, low value). It leaves under the same M06 gate as any route (BRU-ESG-15).',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'collection_id', required: true, label: 'Item', domain: [['state', '=', 'triaged'], ['triage_grade', '=', 'donate']] },
+          { name: 'recipient_id', required: true, label: 'Recipient' },
+          { name: 'recipient_reg_no', label: 'Recipient Registration No (NGO Affairs Bureau / DSS)' },
+          { name: 'purpose', label: 'Purpose' }
+        ] },
+      { tab: 'custody', title: 'Signed Acknowledgement (after approval)',
+        fields: [
+          { name: 'acknowledgement_attachment_id', label: 'Signed Acknowledgement (on file)', readonly: true },
+          { name: 'acknowledgement_file', type: 'file', label: 'Upload Signed Acknowledgement' },
+          { name: 'acknowledgement_filename', label: 'File Name' }
+        ] },
+      { tab: 'governance', title: 'Approval and Hand-over',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'handed_over_by_id', label: 'Handed Over By', readonly: true },
+          { name: 'handed_over_on', label: 'Handed Over On', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-downstream': {
+    kind: 'model_form',
+    model: 'fix.ewaste.partner.downstream',
+    title: 'Downstream Vendor Declaration',
+    back: 'M18-downstream',
+    status: { field: 'state', labels: { declared: 'Declared', verified: 'Verified', withdrawn: 'Withdrawn' } },
+    tabs: [
+      { id: 'general', label: '1. Destination', bn: '১. গন্তব্য', icon: '🏭', badge: '6' },
+      { id: 'technical', label: '2. Verification', bn: '২. যাচাই', icon: '🔍', badge: '5' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Where this material goes next (FR-ESG-024)',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Recycler' },
+          { name: 'name', required: true, label: 'Downstream Vendor' },
+          { name: 'material_class', required: true, label: 'Material' },
+          { name: 'process', label: 'Onward Process' },
+          { name: 'country_id', required: true, label: 'Country' },
+          { name: 'licence_ref', label: 'Vendor Licence / Authorisation' }
+        ] },
+      { tab: 'technical', title: 'Annual Verification (BRU-ESG-18)',
+        note: 'A recycler approver who did not declare it verifies it from evidence, at least once a year. A batch leaves only with a current verified destination for its material.',
+        fields: [
+          { name: 'evidence_attachment_id', label: 'Verification Evidence (on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Verification Evidence' },
+          { name: 'evidence_filename', label: 'Evidence File Name' },
+          { name: 'verified_on', label: 'Verified On', readonly: true },
+          { name: 'verification_due', label: 'Re-verify By', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-recovery': {
+    kind: 'model_form',
+    model: 'fix.ewaste.material.recovery',
+    title: 'Material Recovery',
+    back: 'M18-recovery',
+    status: { field: 'state', labels: { draft: 'Draft', raised: 'Income Raised' } },
+    tabs: [
+      { id: 'general', label: '1. Batch & Material', bn: '১. চালান ও উপাদান', icon: '♻️', badge: '4' },
+      { id: 'pricing', label: '2. Rate & Income', bn: '২. হার ও আয়', icon: '৳', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'What the batch yielded (FR-ESG-014)',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'batch_id', required: true, label: 'Processed Batch', domain: [['state', '=', 'processed']] },
+          { name: 'material_class', required: true, label: 'Recovered Material' },
+          { name: 'weight_kg', required: true, label: 'Recovered (kg)' }
+        ] },
+      { tab: 'pricing', title: 'Agreed Rate and Income (to the batch, BRU-ESG-19)',
+        fields: [
+          { name: 'agreed_rate', label: 'Agreed Rate (BDT per kg)' },
+          { name: 'income_amount', label: 'Income (BDT)', readonly: true },
+          { name: 'settlement_id', label: 'Income Settlement (finance)', readonly: true },
+          { name: 'notes', label: 'Notes' }
+        ] }
+    ]
+  },
+
+  'M18-form-exception': {
+    kind: 'model_form',
+    model: 'fix.ewaste.certificate.exception',
+    title: 'Close a Certificate Exception',
+    newLabel: 'Close a Certificate Exception',
+    back: 'M18-exceptions',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the open exception',
+      note: 'An item no returned certificate covers. Close it on an investigation finding only when no certificate will come; the officer who issued the certificate does not close its exception (BRU-ESG-04).',
+      search: 'Search item, batch or recycler',
+      choose: 'Record the finding',
+      cols: ['name', 'collection_id', 'batch_id', 'partner_id', 'raised_on'],
+      domain: [['state', '=', 'open']],
+      empty: 'No open certificate exception.'
+    },
+    saveAction: {
+      method: 'action_close', label: 'Close on Finding',
+      kwargs: { finding: 'finding' },
+      done: 'Exception closed on the recorded finding'
+    },
+    tabs: [{ id: 'general', label: '1. Exception & Finding', bn: '১. ব্যতিক্রম ও ফলাফল', icon: '🔎', badge: '5' }],
+    sections: [
+      { tab: 'general', title: 'Uncovered item',
+        fields: [
+          { name: 'name', label: 'Exception', readonly: true },
+          { name: 'collection_id', label: 'Item', readonly: true },
+          { name: 'batch_id', label: 'Batch', readonly: true },
+          { name: 'certificate_id', label: 'Raised by Certificate', readonly: true },
+          { name: 'finding', required: true, label: 'Investigation Finding' }
+        ] }
+    ]
+  },
+
+  'M18-form-factor': {
+    kind: 'model_form',
+    model: 'fix.esg.factor.set',
+    title: 'Emission Factor Set',
+    newLabel: '+ New Emission Factor Set',
+    back: 'M18-factors',
+    status: { field: 'state', labels: { draft: 'Proposed', active: 'Active', retired: 'Retired' } },
+    tabs: [
+      { id: 'general', label: '1. Factor', bn: '১. ফ্যাক্টর', icon: '🌱', badge: '4' },
+      { id: 'technical', label: '2. Source Document', bn: '২. উৎস নথি', icon: '📄', badge: '3' },
+      { id: 'governance', label: '3. Activation', bn: '৩. সক্রিয়করণ', icon: '✅', badge: '3' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Versioned Factor Set (FR-ESG-019 / T-08)',
+        note: 'An input, not a figure: the ESG figures stay computed from transactions (BRU-ESG-11) and carry the version of the set they were computed with.',
+        fields: [
+          { name: 'name', required: true, label: 'Version (e.g. EPA-WARM-16)' },
+          { name: 'co2_avoided_per_kg', required: true, label: 'kg CO2e Avoided per kg Recycled' },
+          { name: 'source', label: 'Factor Source' },
+          { name: 'method_note', label: 'Method' }
+        ] },
+      { tab: 'technical', title: 'Source',
+        fields: [
+          { name: 'evidence_attachment_id', label: 'Source Document (on file)', readonly: true },
+          { name: 'evidence_file', type: 'file', label: 'Upload Source Document' },
+          { name: 'evidence_filename', label: 'File Name' }
+        ] },
+      { tab: 'governance', title: 'Activated by a Second Officer',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'activated_by_id', label: 'Activated By', readonly: true },
+          { name: 'activated_on', label: 'Activated On', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-obligation': {
+    kind: 'model_form',
+    model: 'fix.ewaste.obligation',
+    title: 'Regulatory Obligation',
+    back: 'M18-obligations',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    tabs: [
+      { id: 'general', label: '1. Instrument & Duty', bn: '১. আইন ও দায়িত্ব', icon: '⚖️', badge: '5' },
+      { id: 'owner', label: '2. Owner & Evidence', bn: '২. দায়িত্বপ্রাপ্ত ও প্রমাণ', icon: '👤', badge: '4' },
+      { id: 'review', label: '3. Review Clock', bn: '৩. পর্যালোচনা', icon: '📅', badge: '5' }
+    ],
+    sections: [
+      { tab: 'general', title: 'E-Waste Regulatory Register (FR-ESG-016)',
+        fields: [
+          { name: 'name', required: true, label: 'Obligation' },
+          { name: 'instrument', required: true, label: 'Instrument' },
+          { name: 'citation', required: true, label: 'Clause / Section' },
+          { name: 'obligation_text', required: true, label: 'What the Company Must Do' },
+          { name: 'applies_because', label: 'Applies Because' }
+        ] },
+      { tab: 'owner', title: 'Owner and Evidence Source',
+        fields: [
+          { name: 'owner_id', label: 'Owner' },
+          { name: 'evidence_source', label: 'Evidence Source' },
+          { name: 'frequency', required: true, label: 'Obligation Frequency' },
+          { name: 'next_review', label: 'Next Review (at most a quarter away)' }
+        ] },
+      { tab: 'review', title: 'Last Review (BRU-ESG-16)',
+        fields: [
+          { name: 'compliance_status', label: 'Compliance Status', readonly: true },
+          { name: 'last_reviewed', label: 'Last Reviewed', readonly: true },
+          { name: 'last_reviewed_by_id', label: 'Reviewed By', readonly: true },
+          { name: 'last_review_note', label: 'Last Review Note', readonly: true },
+          { name: 'state', label: 'Status', readonly: true }
+        ] }
+    ]
+  },
+
+  'M18-form-obligation-review': {
+    kind: 'model_form',
+    model: 'fix.ewaste.obligation',
+    title: 'Review an Obligation',
+    newLabel: 'Review an Obligation',
+    back: 'M18-obligations',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the obligation to review',
+      note: 'The finding sets its compliance status; the next review is at most a quarter away (BRU-ESG-16).',
+      search: 'Search obligation or clause',
+      choose: 'Review it',
+      cols: ['name', 'instrument', 'citation', 'next_review', 'compliance_status'],
+      domain: [['state', '=', 'active']],
+      empty: 'No active obligation. Record and activate one first.'
+    },
+    saveAction: {
+      method: 'action_review', label: 'Record Review',
+      kwargs: { review_status: 'review_status', review_note: 'review_note' },
+      done: 'Review recorded; the next review date is set'
+    },
+    tabs: [{ id: 'general', label: '1. Review', bn: '১. পর্যালোচনা', icon: '🔍', badge: '5' }],
+    sections: [
+      { tab: 'general', title: 'Review finding',
+        fields: [
+          { name: 'name', label: 'Obligation', readonly: true },
+          { name: 'citation', label: 'Clause', readonly: true },
+          { name: 'compliance_status', label: 'Current Status', readonly: true },
+          { name: 'review_status', required: true, label: 'Finding' },
+          { name: 'review_note', required: true, label: 'Review Note (what was checked, evidence seen)' }
         ] }
     ]
   },
@@ -952,7 +1507,19 @@ export const FORM_MODELS = {
   'M18:Start Secure Destruction': 'fix.ewaste.collection',
   'M18:Bind M06 Wipe Certificate': 'fix.ewaste.collection',
   'M18:Release to Recycler': 'fix.ewaste.collection',
-  'M18:Recycler Certificate from Batch': 'fix.ewaste.batch'
+  'M18:Recycler Certificate from Batch': 'fix.ewaste.batch',
+  'M18:Corporate Disposal Contract': 'fix.ewaste.corporate.disposal',
+  'M18:Accept a Corporate Asset Exception': 'fix.ewaste.corporate.disposal.line',
+  'M18:Triage Criteria': 'fix.ewaste.triage.criteria',
+  'M18:Route for Parts Harvest': 'fix.ewaste.collection',
+  'M18:Donation Hand-over': 'fix.ewaste.donation',
+  'M18:Downstream Vendor Declaration': 'fix.ewaste.partner.downstream',
+  'M18:Material Recovery': 'fix.ewaste.material.recovery',
+  'M18:Close a Certificate Exception': 'fix.ewaste.certificate.exception',
+  'M18:Collection Point': 'fix.ewaste.collection.point',
+  'M18:Emission Factor Set': 'fix.esg.factor.set',
+  'M18:Regulatory Obligation': 'fix.ewaste.obligation',
+  'M18:Review an Obligation': 'fix.ewaste.obligation'
 };
 
 export const FORM_CHIPS = {
@@ -971,6 +1538,18 @@ export const FORM_CHIPS = {
   'M18:Bind M06 Wipe Certificate': 'M18-form-wipe-bind',
   'M18:Release to Recycler': 'M18-form-release',
   'M18:Recycler Certificate from Batch': 'M18-form-cert-record',
+  'M18:Corporate Disposal Contract': 'M18-form-corporate',
+  'M18:Accept a Corporate Asset Exception': 'M18-form-corp-exception',
+  'M18:Triage Criteria': 'M18-form-criteria',
+  'M18:Route for Parts Harvest': 'M18-form-harvest',
+  'M18:Donation Hand-over': 'M18-form-donation',
+  'M18:Downstream Vendor Declaration': 'M18-form-downstream',
+  'M18:Material Recovery': 'M18-form-recovery',
+  'M18:Close a Certificate Exception': 'M18-form-exception',
+  'M18:Collection Point': 'M18-form-point',
+  'M18:Emission Factor Set': 'M18-form-factor',
+  'M18:Regulatory Obligation': 'M18-form-obligation',
+  'M18:Review an Obligation': 'M18-form-obligation-review',
   'M18:__by_model__': {
     'fix.ewaste.collection': 'M18-form-collection',
     'fix.ewaste.triage': 'M18-form-triage',
@@ -983,7 +1562,15 @@ export const FORM_CHIPS = {
     'fix.esg.metric': 'M18-form-esg',
     'fix.ewaste.basel.pic': 'M18-form-pic',
     'fix.ewaste.registration': 'M18-form-registration',
-    'fix.ewaste.settlement': 'M18-form-settlement'
+    'fix.ewaste.settlement': 'M18-form-settlement',
+    'fix.ewaste.collection.point': 'M18-form-point',
+    'fix.ewaste.corporate.disposal': 'M18-form-corporate',
+    'fix.ewaste.triage.criteria': 'M18-form-criteria',
+    'fix.ewaste.donation': 'M18-form-donation',
+    'fix.ewaste.partner.downstream': 'M18-form-downstream',
+    'fix.ewaste.material.recovery': 'M18-form-recovery',
+    'fix.esg.factor.set': 'M18-form-factor',
+    'fix.ewaste.obligation': 'M18-form-obligation'
   },
   'M18:__by_screen__': {
     'M18-intake': 'M18-form-collection',
@@ -997,7 +1584,15 @@ export const FORM_CHIPS = {
     'M18-esg': 'M18-form-esg',
     'M18-pic': 'M18-form-pic',
     'M18-registration': 'M18-form-registration',
-    'M18-settlements': 'M18-form-settlement'
+    'M18-settlements': 'M18-form-settlement',
+    'M18-points': 'M18-form-point',
+    'M18-corporate': 'M18-form-corporate',
+    'M18-criteria': 'M18-form-criteria',
+    'M18-donations': 'M18-form-donation',
+    'M18-downstream': 'M18-form-downstream',
+    'M18-recovery': 'M18-form-recovery',
+    'M18-factors': 'M18-form-factor',
+    'M18-obligations': 'M18-form-obligation'
   }
 };
 

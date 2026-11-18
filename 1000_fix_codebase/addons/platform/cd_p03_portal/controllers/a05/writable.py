@@ -26,6 +26,16 @@ WRITABLE = {
             "partner_id",
         }
     ),
+    "fix.esg.factor.set": frozenset(
+        {
+            "co2_avoided_per_kg",
+            "evidence_file",
+            "evidence_filename",
+            "method_note",
+            "name",
+            "source",
+        }
+    ),
     "fix.esg.metric": frozenset(),
     "fix.ewaste.basel.pic": frozenset(
         {
@@ -60,6 +70,7 @@ WRITABLE = {
         {
             "chemistry",
             "collection_id",
+            "collection_point_id",
             "company_id",
             "hazard_class",
             "inspection_file",
@@ -81,20 +92,77 @@ WRITABLE = {
             "material_type",
             "recycler_stated_weight_kg",
             "revoke_reason",
+            "uncovered_collection_ids",
+        }
+    ),
+    "fix.ewaste.certificate.exception": frozenset(
+        {
+            "finding",
         }
     ),
     "fix.ewaste.collection": frozenset(
         {
+            "channel",
+            "collection_point_id",
             "company_id",
+            "condition",
+            "corporate_line_id",
             "customer_id",
             "device_id",
             "event_id",
+            "has_battery",
+            "has_crt",
+            "has_mercury",
+            "has_refrigerant",
+            "has_toner",
             "item_count",
             "material_type",
             "operating_unit_id",
+            "photo_file",
+            "photo_filename",
             "storage_extension_ref",
             "weight_kg",
             "wipe_certificate_id",
+        }
+    ),
+    "fix.ewaste.collection.point": frozenset(
+        {
+            "active_from",
+            "active_to",
+            "address",
+            "capacity_kg",
+            "kind",
+            "limit_ids",
+            "name",
+            "notes",
+            "operating_unit_id",
+            "responsible_id",
+            "storage_constraints",
+        }
+    ),
+    "fix.ewaste.corporate.disposal": frozenset(
+        {
+            "account_manager_id",
+            "client_id",
+            "contract_ref",
+            "line_ids",
+            "notes",
+        }
+    ),
+    "fix.ewaste.corporate.disposal.line": frozenset(
+        {
+            "exception_reason",
+        }
+    ),
+    "fix.ewaste.donation": frozenset(
+        {
+            "acknowledgement_file",
+            "acknowledgement_filename",
+            "collection_id",
+            "notes",
+            "purpose",
+            "recipient_id",
+            "recipient_reg_no",
         }
     ),
     "fix.ewaste.event": frozenset(
@@ -109,6 +177,30 @@ WRITABLE = {
         }
     ),
     "fix.ewaste.manifest": frozenset(),
+    "fix.ewaste.material.recovery": frozenset(
+        {
+            "agreed_rate",
+            "batch_id",
+            "material_class",
+            "notes",
+            "weight_kg",
+        }
+    ),
+    "fix.ewaste.obligation": frozenset(
+        {
+            "applies_because",
+            "citation",
+            "evidence_source",
+            "frequency",
+            "instrument",
+            "name",
+            "next_review",
+            "obligation_text",
+            "owner_id",
+            "review_note",
+            "review_status",
+        }
+    ),
     "fix.ewaste.partner": frozenset(
         {
             "capability",
@@ -121,6 +213,18 @@ WRITABLE = {
             "partner_id",
             "valid_from",
             "valid_to",
+        }
+    ),
+    "fix.ewaste.partner.downstream": frozenset(
+        {
+            "country_id",
+            "evidence_file",
+            "evidence_filename",
+            "licence_ref",
+            "material_class",
+            "name",
+            "partner_id",
+            "process",
         }
     ),
     "fix.ewaste.registration": frozenset(
@@ -167,10 +271,27 @@ WRITABLE = {
         {
             "collection_id",
             "company_id",
+            "cosmetic_result",
             "data_bearing",
             "decision",
+            "evidence_file",
+            "evidence_filename",
+            "functional_result",
+            "market_value_estimate",
             "notes",
             "wipe_required",
+        }
+    ),
+    "fix.ewaste.triage.criteria": frozenset(
+        {
+            "donation_max_value",
+            "effective_from",
+            "evidence_required",
+            "harvest_criteria",
+            "hazardous_criteria",
+            "name",
+            "recycle_criteria",
+            "reuse_criteria",
         }
     ),
     "fix.refurb.qa": frozenset(

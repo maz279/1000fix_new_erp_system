@@ -103,8 +103,12 @@ EXPECTED = {
     "6": "M18-form-event",
     "7": "M18-form-battery",
     "8": "M18-form-return",
-    "9": None,  # computed ESG metrics: no entry path (BRU-ESG-11 / T-07)
-    "10": "M18-form-registration",
+    # capture pass 2 (19 Nov): the figures stay computed (BRU-ESG-11 / T-07);
+    # what page 9 captures is the versioned factor set (FR-ESG-019 / T-08)
+    "9": "M18-form-factor",
+    # capture pass 2: page 10's record is the regulatory register (FR-ESG-016);
+    # the DoE registration is a chip on it
+    "10": "M18-form-obligation",
 }
 
 

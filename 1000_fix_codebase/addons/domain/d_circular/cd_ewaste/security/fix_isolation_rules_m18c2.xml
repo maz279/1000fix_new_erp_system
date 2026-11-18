@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- AS-03 company isolation for the M18 capture pass 2 models (19 Nov 2026). -->
+<odoo>
+    <record id="rule_fix_ewaste_collection_point_company" model="ir.rule">
+        <field name="name">fix.ewaste.collection.point: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_collection_point"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_collection_point_limit_company" model="ir.rule">
+        <field name="name">fix.ewaste.collection.point.limit: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_collection_point_limit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_corporate_disposal_company" model="ir.rule">
+        <field name="name">fix.ewaste.corporate.disposal: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_corporate_disposal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_corporate_disposal_line_company" model="ir.rule">
+        <field name="name">fix.ewaste.corporate.disposal.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_corporate_disposal_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_triage_criteria_company" model="ir.rule">
+        <field name="name">fix.ewaste.triage.criteria: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_triage_criteria"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_donation_company" model="ir.rule">
+        <field name="name">fix.ewaste.donation: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_donation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_partner_downstream_company" model="ir.rule">
+        <field name="name">fix.ewaste.partner.downstream: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_partner_downstream"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_certificate_exception_company" model="ir.rule">
+        <field name="name">fix.ewaste.certificate.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_certificate_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_material_recovery_company" model="ir.rule">
+        <field name="name">fix.ewaste.material.recovery: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_material_recovery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_obligation_company" model="ir.rule">
+        <field name="name">fix.ewaste.obligation: allowed companies</field>
+        <field name="model_id" ref="model_fix_ewaste_obligation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_esg_factor_set_company" model="ir.rule">
+        <field name="name">fix.esg.factor.set: allowed companies</field>
+        <field name="model_id" ref="model_fix_esg_factor_set"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

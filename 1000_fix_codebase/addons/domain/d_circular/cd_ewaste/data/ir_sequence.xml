@@ -78,5 +78,34 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- M18 capture pass 2 (19 Nov 2026) -->
+        <record id="seq_fix_ewaste_corporate_disposal" model="ir.sequence">
+            <field name="name">E-Waste Corporate Disposal</field>
+            <field name="code">fix.ewaste.corporate.disposal</field>
+            <field name="prefix">ECD/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_donation" model="ir.sequence">
+            <field name="name">E-Waste Donation</field>
+            <field name="code">fix.ewaste.donation</field>
+            <field name="prefix">EDON/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_certificate_exception" model="ir.sequence">
+            <field name="name">E-Waste Certificate Exception</field>
+            <field name="code">fix.ewaste.certificate.exception</field>
+            <field name="prefix">EEXC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_ewaste_material_recovery" model="ir.sequence">
+            <field name="name">E-Waste Material Recovery</field>
+            <field name="code">fix.ewaste.material.recovery</field>
+            <field name="prefix">EREC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

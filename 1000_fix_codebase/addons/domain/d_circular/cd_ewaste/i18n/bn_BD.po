@@ -153,3 +153,455 @@ msgstr "ট্রায়াজকৃত"
 #: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__weight_kg
 msgid "Weight (kg)"
 msgstr "ওজন (কেজি)"
+
+# M18 capture pass 2 (19 Nov 2026): the labels of the new records and fields
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal__account_manager_id
+msgid "Account Manager"
+msgstr "অ্যাকাউন্ট ম্যানেজার"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__acknowledgement_filename
+msgid "Acknowledgement File Name"
+msgstr "প্রাপ্তিস্বীকার ফাইলের নাম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__approved_by_id
+msgid "Activated By"
+msgstr "সক্রিয়কারী"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__approved_on
+msgid "Activated On"
+msgstr "সক্রিয়করণের তারিখ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__agreed_rate
+msgid "Agreed Rate (per kg)"
+msgstr "সম্মত হার (প্রতি কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__evidence_attachment_id
+msgid "Assessment Evidence"
+msgstr "মূল্যায়নের প্রমাণ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal_line__asset_ref
+msgid "Asset Tag / Serial"
+msgstr "সম্পদ ট্যাগ / সিরিয়াল"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__operating_unit_id
+msgid "Branch / Unit"
+msgstr "শাখা / ইউনিট"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__co2_avoided_per_kg
+msgid "CO2e Avoided per kg Recycled"
+msgstr "প্রতি কেজি পুনর্ব্যবহারে এড়ানো CO2e"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__capacity_kg
+msgid "Capacity (kg)"
+msgstr "ধারণক্ষমতা (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point_limit__max_kg
+msgid "Ceiling (kg)"
+msgstr "সর্বোচ্চ সীমা (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_battery__hazmat_class
+msgid "Ceiling Class"
+msgstr "সর্বোচ্চ সীমার শ্রেণি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_batch__exception_ids
+msgid "Certificate Exceptions"
+msgstr "সনদ ব্যতিক্রম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__citation
+msgid "Clause / Section"
+msgstr "ধারা / অনুচ্ছেদ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__channel
+msgid "Collection Channel"
+msgstr "সংগ্রহের মাধ্যম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__collection_point_id
+msgid "Collection Point"
+msgstr "সংগ্রহ কেন্দ্র"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__condition
+msgid "Condition on Receipt"
+msgstr "গ্রহণকালীন অবস্থা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__has_battery
+msgid "Contains Battery"
+msgstr "ব্যাটারি আছে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__has_crt
+msgid "Contains CRT Glass"
+msgstr "সিআরটি কাচ আছে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__has_mercury
+msgid "Contains Mercury Lamp"
+msgstr "পারদযুক্ত বাতি আছে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__has_refrigerant
+msgid "Contains Refrigerant"
+msgstr "রেফ্রিজারেন্ট আছে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__has_toner
+msgid "Contains Toner / Ink"
+msgstr "টোনার / কালি আছে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal__contract_ref
+msgid "Contract / PO Reference"
+msgstr "চুক্তি / ক্রয়াদেশ রেফারেন্স"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal__client_id
+msgid "Corporate Client"
+msgstr "কর্পোরেট ক্লায়েন্ট"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__corporate_disposal_id
+msgid "Corporate Disposal"
+msgstr "কর্পোরেট নিষ্পত্তি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__cosmetic_result
+msgid "Cosmetic Grade"
+msgstr "বাহ্যিক গ্রেড"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__country_id
+msgid "Country"
+msgstr "দেশ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__criteria_id
+msgid "Criteria Applied"
+msgstr "প্রয়োগকৃত মানদণ্ড"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal__line_ids
+msgid "Declared Assets"
+msgstr "ঘোষিত সম্পদ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__corporate_line_id
+msgid "Declared Corporate Asset"
+msgstr "ঘোষিত কর্পোরেট সম্পদ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__donation_max_value
+msgid "Donation: Max Market Value (BDT)"
+msgstr "দান: সর্বোচ্চ বাজারমূল্য (টাকা)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__donation_ids
+msgid "Donations"
+msgstr "দান"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__name
+msgid "Downstream Vendor"
+msgstr "পরবর্তী গন্তব্য বিক্রেতা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner__downstream_ids
+msgid "Downstream Vendors"
+msgstr "পরবর্তী গন্তব্য বিক্রেতাগণ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__evidence_filename
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__evidence_filename
+msgid "Evidence File Name"
+msgstr "প্রমাণ ফাইলের নাম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__evidence_source
+msgid "Evidence Source"
+msgstr "প্রমাণের উৎস"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal_line__exception_by_id
+msgid "Exception Accepted By"
+msgstr "ব্যতিক্রম গ্রহণকারী"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate__exception_ids
+msgid "Exceptions Raised"
+msgstr "উত্থাপিত ব্যতিক্রম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__source
+msgid "Factor Source"
+msgstr "ফ্যাক্টরের উৎস"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__functional_result
+msgid "Functional Test"
+msgstr "কার্যকারিতা পরীক্ষা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__harvest_criteria
+msgid "Harvest Parts when"
+msgstr "যখন যন্ত্রাংশ সংগ্রহ করা হবে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__limit_ids
+msgid "Hazardous Ceilings"
+msgstr "বিপজ্জনক বর্জ্যের সর্বোচ্চ সীমা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_battery__chemistry
+msgid "Hazardous Fraction"
+msgstr "বিপজ্জনক অংশ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__hazardous_criteria
+msgid "Hazardous Treatment when"
+msgstr "যখন বিপজ্জনক বর্জ্য প্রক্রিয়া হবে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__held_kg
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point_limit__held_kg
+msgid "Held Now (kg)"
+msgstr "বর্তমানে মজুত (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__income_amount
+msgid "Income"
+msgstr "আয়"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__settlement_id
+msgid "Income Settlement"
+msgstr "আয় নিষ্পত্তি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate_exception__finding
+msgid "Investigation Finding"
+msgstr "তদন্তের ফলাফল"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__collection_id
+msgid "Item"
+msgstr "আইটেম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate__uncovered_collection_ids
+msgid "Items NOT on the Recycler's Certificate"
+msgstr "রিসাইক্লারের সনদে অন্তর্ভুক্ত নয় এমন আইটেম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__market_value_estimate
+msgid "Market Value Estimate (BDT)"
+msgstr "আনুমানিক বাজারমূল্য (টাকা)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__method_note
+msgid "Method"
+msgstr "পদ্ধতি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__name
+msgid "Obligation"
+msgstr "বাধ্যবাধকতা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__frequency
+msgid "Obligation Frequency"
+msgstr "বাধ্যবাধকতার পুনরাবৃত্তি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__process
+msgid "Onward Process"
+msgstr "পরবর্তী প্রক্রিয়া"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__owner_id
+msgid "Owner"
+msgstr "দায়িত্বপ্রাপ্ত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__evidence_required
+msgid "Photo Evidence Required"
+msgstr "ছবি প্রমাণ আবশ্যক"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__batch_id
+msgid "Processed Batch"
+msgstr "প্রক্রিয়াজাত চালান"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate_exception__certificate_id
+msgid "Raised by Certificate"
+msgstr "যে সনদ থেকে উত্থাপিত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__photo_attachment_id
+msgid "Receipt Photo"
+msgstr "গ্রহণের ছবি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal_line__collection_id
+msgid "Received Item"
+msgstr "গৃহীত আইটেম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__recipient_id
+msgid "Recipient"
+msgstr "গ্রহীতা"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__recipient_reg_no
+msgid "Recipient Registration No"
+msgstr "গ্রহীতার নিবন্ধন নম্বর"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal_line__line_state
+msgid "Reconciliation"
+msgstr "মিলকরণ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__weight_kg
+msgid "Recovered (kg)"
+msgstr "পুনরুদ্ধারকৃত (কেজি)"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_batch__recovery_ids
+msgid "Recovery"
+msgstr "পুনরুদ্ধার"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_settlement__recovery_ids
+msgid "Recovery Lines"
+msgstr "পুনরুদ্ধার লাইন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__recycle_criteria
+msgid "Recycle when"
+msgstr "যখন পুনর্ব্যবহার করা হবে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate_exception__partner_id
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_material_recovery__partner_id
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__partner_id
+msgid "Recycler"
+msgstr "রিসাইক্লার"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate_exception__resolved_certificate_id
+msgid "Resolved by"
+msgstr "যার দ্বারা নিষ্পন্ন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection_point__responsible_id
+msgid "Responsible Person"
+msgstr "দায়িত্বপ্রাপ্ত ব্যক্তি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__reuse_criteria
+msgid "Reuse / Refurbish when"
+msgstr "যখন পুনঃব্যবহার / সংস্কার করা হবে"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__review_status
+msgid "Review Finding"
+msgstr "পর্যালোচনার ফলাফল"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__review_note
+msgid "Review Note"
+msgstr "পর্যালোচনা নোট"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__acknowledgement_attachment_id
+msgid "Signed Acknowledgement"
+msgstr "স্বাক্ষরিত প্রাপ্তিস্বীকার"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__evidence_attachment_id
+msgid "Source Document"
+msgstr "উৎস নথি"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__evidence_filename
+msgid "Source File Name"
+msgstr "উৎস ফাইলের নাম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_battery__collection_point_id
+msgid "Storage Point"
+msgstr "সংরক্ষণ কেন্দ্র"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_certificate_exception__collection_id
+msgid "Uncovered Item"
+msgstr "অন্তর্ভুক্ত নয় এমন আইটেম"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_corporate_disposal__open_count
+msgid "Unreconciled"
+msgstr "অমিলকৃত"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage__evidence_file
+msgid "Upload Assessment Photo"
+msgstr "মূল্যায়নের ছবি আপলোড করুন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_collection__photo_file
+msgid "Upload Receipt Photo"
+msgstr "গ্রহণের ছবি আপলোড করুন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_donation__acknowledgement_file
+msgid "Upload Signed Acknowledgement"
+msgstr "স্বাক্ষরিত প্রাপ্তিস্বীকার আপলোড করুন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__evidence_file
+msgid "Upload Source Document"
+msgstr "উৎস নথি আপলোড করুন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__evidence_file
+msgid "Upload Verification Evidence"
+msgstr "যাচাইয়ের প্রমাণ আপলোড করুন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__licence_ref
+msgid "Vendor Licence / Authorisation"
+msgstr "বিক্রেতার লাইসেন্স / অনুমোদন"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_partner_downstream__evidence_attachment_id
+msgid "Verification Evidence"
+msgstr "যাচাইয়ের প্রমাণ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_esg_factor_set__name
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_triage_criteria__name
+msgid "Version"
+msgstr "সংস্করণ"
+
+#. module: cd_ewaste
+#: model:ir.model.fields,field_description:cd_ewaste.field_fix_ewaste_obligation__obligation_text
+msgid "What the Company Must Do"
+msgstr "কোম্পানির করণীয়"

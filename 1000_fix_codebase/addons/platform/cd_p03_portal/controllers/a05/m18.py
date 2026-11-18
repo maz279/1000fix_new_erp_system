@@ -25,6 +25,7 @@ SURFACES = {
             "action_issue_certificate",
             "action_remove_from_batch",
             "action_apply_storage_extension",
+            "action_route_harvest",
         },
     },
     "fix.ewaste.event": {
@@ -90,6 +91,54 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
     },
+    # M18 capture pass 2 (19 Nov 2026): the records the spec names on the
+    # sub-module pages that had no model (models/fix_m18_capture.py)
+    "fix.ewaste.collection.point": {
+        "order": "name",
+        "limit": 300,
+        "actions": {"action_activate", "action_reopen", "action_close"},
+    },
+    "fix.ewaste.corporate.disposal": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_close"},
+    },
+    "fix.ewaste.corporate.disposal.line": {
+        "order": "disposal_id desc, id",
+        "limit": 500,
+        "actions": {"action_accept_exception"},
+    },
+    "fix.ewaste.triage.criteria": {
+        "order": "effective_from desc, id desc",
+        "limit": 100,
+        "actions": {"action_publish"},
+    },
+    "fix.ewaste.donation": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_hand_over", "action_cancel"},
+    },
+    "fix.ewaste.partner.downstream": {
+        "order": "partner_id, material_class",
+        "limit": 300,
+        "actions": {"action_verify", "action_withdraw"},
+    },
+    "fix.ewaste.certificate.exception": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_close"},
+    },
+    "fix.ewaste.material.recovery": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_raise_income"},
+    },
+    "fix.esg.factor.set": {"order": "id desc", "limit": 100, "actions": {"action_activate"}},
+    "fix.ewaste.obligation": {
+        "order": "next_review, id",
+        "limit": 300,
+        "actions": {"action_activate", "action_review", "action_retire"},
+    },
 }
 
 _MATERIAL_LABELS = {
@@ -105,8 +154,12 @@ _TRIAGE_LABELS = {
     "refurbish": "Refurbishable",
     "recycle": "Recycle Only",
     "hazardous": "Hazardous",
+    "harvest": "Parts Harvest",
+    "donate": "Donation",
 }
-_DIVERTED = ("reuse", "refurbish")
+# GRI 306-4 "diverted from disposal" (preparation for reuse): the M14 routes,
+# parts harvesting and donation (capture pass 2, FR-ESG-008/023)
+_DIVERTED = ("reuse", "refurbish", "harvest", "donate")
 _CO2_NOTE = (
     "CO2e avoided is an ESTIMATE (weight x the configured factor, version stamped), "
     "counted only for items a recycler certificate covers, and reported apart from "
