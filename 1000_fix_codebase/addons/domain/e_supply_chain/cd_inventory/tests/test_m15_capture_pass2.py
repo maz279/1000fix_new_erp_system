@@ -93,8 +93,10 @@ def test_warranty_work_takes_stock_from_lower_priority_holds(inv):
     assert (internal.state, internal.displaced_by_id) == ("overridden", warranty)
     assert "BRU-INV-17" in internal.release_reason
     assert inv.bucket(inv.part, inv.central).reserved == 4.0
-    # and never the other way round
+    # and never the other way round, nor between equals: only an override does that
     refused(inv, lambda: _held(inv, inv.keeper, 7.0), "lower-priority")
+    refused(inv, lambda: _held(inv, inv.keeper, 7.0, _job(inv, "warranty")), "lower-priority")
+    assert warranty.state == "active"
 
 
 def test_an_sla_bound_paid_job_ranks_with_warranty(inv):
