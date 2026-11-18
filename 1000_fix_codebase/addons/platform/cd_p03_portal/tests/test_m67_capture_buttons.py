@@ -339,9 +339,10 @@ def test_new_models_have_access_rows_and_company_rules():
 
 
 def test_the_capture_models_load_after_the_project_models():
+    """fix_ppm_capture extends fix.project and fix.project.milestone (fix_ppm)."""
     init = (PPM / "models" / "__init__.py").read_text(encoding="utf-8")
     order = re.search(r"from \. import (.+)", init).group(1).split(", ")
-    assert order.index("fix_ppm_capture") > order.index("fix_ppm_ops")
+    assert order.index("fix_ppm_capture") > order.index("fix_ppm")
     manifest = (PPM / "__manifest__.py").read_text(encoding="utf-8")
     assert "data/fix_ppm_capture_sequences.xml" in manifest
 
