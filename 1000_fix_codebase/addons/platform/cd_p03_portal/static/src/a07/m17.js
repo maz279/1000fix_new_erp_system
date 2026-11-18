@@ -1,13 +1,15 @@
 /** @odoo-module **/
 /* A07 · Assets & Facilities — M17 Device & Asset Registry (v2 rebuild).
  * Registry-faithful: 5 groups / 14 screens / 5 reports / 4 forms / freg 96.
+ * Capture pass 2 (2026-11-19): labels, identifiers, accessories, configuration,
+ * population, estate nodes and placements, end-of-life and stewardship.
  * The device master, warranty, ownership and history existed; estates, PM,
  * condition, identity resolution, custody and installed components are new. */
 
 export const MODULE = {
   area: 'A07', code: 'M17', en: 'Device & Asset Registry', title: 'M17 · Device & Asset Registry',
   bn: 'ডিভাইস ও অ্যাসেট রেজিস্ট্রি', icon: '📱',
-  desc: 'Asset register and record with five identifiers, Asset 360, identity resolution and merge, service history, parts genealogy, repeat-fault detection, custody chain, ownership transfers with evidence, lost/stolen flags, identifier history with NEIR status, merge lineage, corporate estates with device placement, bulk estate registration from a file (committed as a set), warranty dates and PM plans.',
+  desc: 'Asset register and record with five identifiers, Asset 360, identity resolution and merge, service history, parts genealogy, repeat-fault detection, custody chain, ownership transfers with evidence, lost/stolen flags, identifier history with NEIR status, merge lineage, corporate estates with device placement, bulk estate registration from a file (committed as a set), warranty dates with their derivation basis and PM plans; asset labels, extra identifiers, the accessory register and actual configuration, population changes, estate sites/departments/users with dated placements, end-of-life decisions and the stewardship worklist.',
   kpis: [
     { l: 'Active Devices', m: 'devices_active' },
     { l: 'Estates', m: 'estates' },
@@ -30,7 +32,13 @@ export const MODULE = {
       { id: 'M17-identifiers', en: 'Multi-Identifier Model', bn: 'মাল্টি-আইডেন্টিফায়ার', t: 'r' },
       { id: 'M17-merge', en: 'Identity Resolution & Merge', bn: 'আইডেন্টিটি রেজলিউশন', t: 'g' },
       { id: 'M17-merges', en: 'Merge Lineage & Reversal', bn: 'মার্জ লিনিয়েজ', t: 'g' },
-      { id: 'M17-idhistory', en: 'Identifier History & NEIR', bn: 'আইডেন্টিফায়ার ইতিহাস ও NEIR', t: 'g' }
+      { id: 'M17-idhistory', en: 'Identifier History & NEIR', bn: 'আইডেন্টিফায়ার ইতিহাস ও NEIR', t: 'g' },
+      { id: 'M17-labels', en: 'Asset Labels', bn: 'অ্যাসেট লেবেল', t: 'g' },
+      { id: 'M17-quality-issues', en: 'Stewardship Worklist', bn: 'ডেটা স্টুয়ার্ডশিপ', t: 'g' }
+    ]},
+    { en: 'Intake & Configuration', screens: [
+      { id: 'M17-accessories', en: 'Accessory Register', bn: 'আনুষঙ্গিক রেজিস্টার', t: 'g' },
+      { id: 'M17-configs', en: 'Actual Configuration', bn: 'প্রকৃত কনফিগারেশন', t: 'g' }
     ]},
     { en: 'History', screens: [
       { id: 'M17-history', en: 'Service History', bn: 'সেবা ইতিহাস', t: 'g' },
@@ -41,10 +49,13 @@ export const MODULE = {
     { en: 'Custody', screens: [
       { id: 'M17-custody', en: 'Custody State & Chain', bn: 'কাস্টডি চেইন', t: 'g' },
       { id: 'M17-ownership', en: 'Ownership & Transfers', bn: 'মালিকানা হস্তান্তর', t: 'g' },
-      { id: 'M17-holds', en: 'Lost / Stolen Holds', bn: 'হারানো / চুরি হোল্ড', t: 'g' }
+      { id: 'M17-holds', en: 'Lost / Stolen Holds', bn: 'হারানো / চুরি হোল্ড', t: 'g' },
+      { id: 'M17-populations', en: 'Population Changes', bn: 'পপুলেশন পরিবর্তন', t: 'g' }
     ]},
     { en: 'Corporate Estates', screens: [
       { id: 'M17-estates', en: 'Estates (Site/Dept/User)', bn: 'কর্পোরেট এস্টেট', t: 'g' },
+      { id: 'M17-estate-nodes', en: 'Estate Sites, Departments & Users', bn: 'এস্টেট নোড', t: 'g' },
+      { id: 'M17-placements', en: 'Estate Placements & Moves', bn: 'এস্টেট প্লেসমেন্ট', t: 'g' },
       { id: 'M17-bulk-loads', en: 'Bulk Registrations', bn: 'বাল্ক রেজিস্ট্রেশন', t: 'g' },
       { id: 'M17-bulk-lines', en: 'Bulk Registration Lines', bn: 'বাল্ক রেজিস্ট্রেশন লাইন', t: 'g' },
       { id: 'M17-bulk', en: 'Bulk Readiness', bn: 'বাল্ক প্রস্তুতি', t: 'r' }
@@ -52,7 +63,8 @@ export const MODULE = {
     { en: 'Coverage', screens: [
       { id: 'M17-wty', en: 'Warranty Dates & Priority', bn: 'ওয়ারেন্টি তারিখ', t: 'g' },
       { id: 'M17-conditions', en: 'Condition Grades', bn: 'কন্ডিশন গ্রেড', t: 'g' },
-      { id: 'M17-pm', en: 'PM Plans', bn: 'পিএম প্ল্যান', t: 'g' }
+      { id: 'M17-pm', en: 'PM Plans', bn: 'পিএম প্ল্যান', t: 'g' },
+      { id: 'M17-eol', en: 'End-of-Life Decisions', bn: 'জীবনশেষ সিদ্ধান্ত', t: 'g' }
     ]}
   ],
   reports: ['Installed Base by Brand/Model', 'Repeat-Fault Pareto', 'Estate Coverage by Client', 'Custody Exceptions', 'Data Quality Scorecard'],
@@ -63,24 +75,28 @@ export const MODULE = {
   // compatibility and PM forms existed but no page offered them.
   forms: ['Asset (5 identifiers)', 'Corporate Estate', 'Estate Assignment', 'Ownership Transfer',
     'Custody Event', 'Report Lost / Stolen', 'Condition Grading', 'PM Plan', 'Installed Component',
-    'Part Compatibility', 'Identity Resolution', 'Bulk Estate Upload'],
+    'Part Compatibility', 'Identity Resolution', 'Bulk Estate Upload',
+    // M17 capture pass 2 (2026-11-19): the records pages 1, 2, 3, 8, 10 and
+    // 11 still could not capture (FR-AST-002/008/012/015/022/038/048/051).
+    'Asset Label', 'Add Identifier', 'Accessory Received', 'Configuration Record',
+    'Population Change', 'Estate Node', 'End-of-Life Decision', 'Stewardship Issue'],
   cross: ['M01 every order links asset', 'M09 warranty evidence', 'M05 monitored assets', 'M48 telemetry streams', 'P01 customer devices'],
   freg: { src: 96, sub: [
     // M17 capture audit (2026-11-13). Each page offers the capture its record
     // has: a "+ New" or chip for what a person records; nothing, and a list
     // that says where its rows come from, for what the system writes (service
     // history is projected from orders, repeat faults are detected from it).
-    ['1', 'Identity & Resolution', 14, { model: 'fix.device', cols: ['name', 'serial_number', 'imei_1', 'mac_address', 'legacy_reference'], screens: ['M17-asset', 'M17-identifiers', 'M17-assets', 'M17-idhistory'], reports: ['Installed Base by Brand/Model', 'Data Quality Scorecard'], forms: ['Asset (5 identifiers)'] }],
-    ['2', 'Configuration & Components', 8, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'installed_on', 'state'], screens: ['M17-components', 'M17-device-part-compatibility'], reports: [], forms: ['Installed Component', 'Part Compatibility'] }],
-    ['3', 'Ownership & Custody', 12, { model: 'fix.device.ownership', cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date'], screens: ['M17-ownership', 'M17-custody', 'M17-holds'], reports: ['Custody Exceptions'], forms: ['Ownership Transfer', 'Custody Event', 'Report Lost / Stolen'], create: 'M17-form-custody' }],
+    ['1', 'Identity & Resolution', 14, { model: 'fix.device', cols: ['name', 'serial_number', 'imei_1', 'mac_address', 'legacy_reference'], screens: ['M17-asset', 'M17-identifiers', 'M17-assets', 'M17-idhistory', 'M17-labels'], reports: ['Installed Base by Brand/Model', 'Data Quality Scorecard'], forms: ['Asset (5 identifiers)', 'Asset Label', 'Add Identifier'] }],
+    ['2', 'Configuration & Components', 8, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'installed_on', 'state'], screens: ['M17-components', 'M17-device-part-compatibility', 'M17-accessories', 'M17-configs'], reports: [], forms: ['Installed Component', 'Part Compatibility', 'Accessory Received', 'Configuration Record'] }],
+    ['3', 'Ownership & Custody', 12, { model: 'fix.device.ownership', cols: ['device_id', 'from_partner_id', 'to_partner_id', 'transfer_type', 'transfer_date'], screens: ['M17-ownership', 'M17-custody', 'M17-holds', 'M17-populations'], reports: ['Custody Exceptions'], forms: ['Ownership Transfer', 'Custody Event', 'Report Lost / Stolen', 'Population Change'], create: 'M17-form-custody' }],
     ['4', 'Service History', 9, { model: 'fix.device.history', cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'], screens: ['M17-history', 'M17-360'], reports: ['Repeat-Fault Pareto'], forms: [], create: false }],
     ['5', 'Parts Genealogy', 7, { model: 'fix.device.component', cols: ['device_id', 'part_name', 'serial_no', 'source_ref', 'removed_on'], screens: ['M17-genealogy', 'M17-components'], reports: [], forms: ['Installed Component'] }],
     ['6', 'Repeat-Fault Detection', 6, { model: 'fix.device.history', cols: ['device_id', 'date', 'event_type', 'service_order_id', 'description'], screens: ['M17-rework', 'M17-history'], reports: ['Repeat-Fault Pareto'], forms: [], create: false, domain: [['event_type', 'in', ['repair', 'service_order']]] }],
-    ['7', 'Warranty Projection', 7, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status'], screens: ['M17-wty'], reports: [], forms: ['Device Warranty'] }],
-    ['8', 'Corporate Estates', 12, { model: 'fix.device.estate', cols: ['name', 'client_id', 'site', 'department', 'cost_centre'], screens: ['M17-estates', 'M17-assets'], reports: ['Estate Coverage by Client'], forms: ['Corporate Estate', 'Estate Assignment'] }],
+    ['7', 'Warranty Projection', 7, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'derivation_basis', 'status'], screens: ['M17-wty'], reports: [], forms: ['Device Warranty'] }],
+    ['8', 'Corporate Estates', 12, { model: 'fix.device.estate', cols: ['name', 'client_id', 'site', 'department', 'cost_centre'], screens: ['M17-estates', 'M17-estate-nodes', 'M17-placements', 'M17-assets'], reports: ['Estate Coverage by Client'], forms: ['Corporate Estate', 'Estate Node', 'Estate Assignment'] }],
     ['9', 'Bulk Registration', 7, { model: 'fix.device.bulk.load', cols: ['name', 'estate_id', 'upload_filename', 'line_count', 'error_count', 'state'], screens: ['M17-bulk-loads', 'M17-bulk-lines', 'M17-bulk', 'M17-assets'], reports: ['Installed Base by Brand/Model'], forms: ['Bulk Estate Upload'], create: 'M17-form-bulk' }],
-    ['10', 'Condition & EOL Routing', 8, { model: 'fix.device.condition', cols: ['device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on'], screens: ['M17-conditions', 'M17-pm', 'M17-assets'], reports: [], forms: ['Condition Grading', 'PM Plan'] }],
-    ['11', 'Data Quality', 6, { model: 'fix.device.identity', cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_score', 'state'], screens: ['M17-merge', 'M17-merges', 'M17-identifiers', 'M17-alerts'], reports: ['Data Quality Scorecard'], forms: ['Identity Resolution'] }]
+    ['10', 'Condition & EOL Routing', 8, { model: 'fix.device.condition', cols: ['device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on'], screens: ['M17-conditions', 'M17-pm', 'M17-eol', 'M17-assets'], reports: [], forms: ['Condition Grading', 'PM Plan', 'End-of-Life Decision'] }],
+    ['11', 'Data Quality', 6, { model: 'fix.device.identity', cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_score', 'state'], screens: ['M17-merge', 'M17-quality-issues', 'M17-merges', 'M17-identifiers', 'M17-alerts'], reports: ['Data Quality Scorecard'], forms: ['Identity Resolution', 'Stewardship Issue'] }]
   ] }
 };
 
@@ -111,7 +127,7 @@ export const SCREENS = {
     cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M17-assets': { kind: 'model_list', model: 'fix.device', stateField: 'state',
-    cols: ['name', 'serial_number', 'device_model_id', 'owner_id', 'state', 'lifecycle_stage', 'neir_status', 'approval_state'],
+    cols: ['name', 'serial_number', 'asset_tag', 'device_model_id', 'owner_id', 'population', 'state', 'lifecycle_stage', 'neir_status', 'approval_state'],
     // A07 audit M17-8: the state moves only through these. A Branch Manager
     // other than the flagger clears a lost flag; scrap is decided from the M63
     // approval inbox by a Device Quality Manager who did not request it.
@@ -192,7 +208,7 @@ export const SCREENS = {
     cols: ['name', 'device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Grade' }] },
   'M17-wty': { kind: 'model_list', model: 'fix.warranty', stateField: 'status',
-    cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'status', 'verification_state', 'verification_blocker', 'approval_state'],
+    cols: ['device_id', 'warranty_type', 'start_date', 'end_date', 'derivation_basis', 'status', 'verification_state', 'verification_blocker', 'approval_state'],
     // Verification is requested here and decided from a Warranty Officer's inbox.
     actions: [
       { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached?', kwarg: 'justification' },
@@ -243,6 +259,7 @@ export const SCREENS = {
           { name: 'legacy_reference', label: 'Legacy Reference' },
           { name: 'device_model_id', required: true, label: 'Device Model' },
           { name: 'identifier_warning', label: 'Identifier Warning', readonly: true },
+          { name: 'asset_tag', label: '1000FiX Asset Tag', readonly: true },
           { name: 'neir_status', label: 'NEIR Status', readonly: true }
         ] },
       { tab: 'identity', title: 'Identity Not Confirmed', note: 'Only when registering a device whose serial and IMEI cannot be read: tick this and say why. It can be taken in and diagnosed, but gets no warranty claim, invoice or transfer until its identifier is captured and Confirm Provisional Identity is pressed.',
@@ -254,6 +271,8 @@ export const SCREENS = {
         fields: [
           { name: 'owner_id', required: true, label: 'Owner' },
           { name: 'estate_id', label: 'Corporate Estate' },
+          { name: 'estate_node_id', label: 'Estate Site / Department / User', readonly: true },
+          { name: 'population', label: 'Population', readonly: true },
           { name: 'branch_id', label: 'Registered At' },
           { name: 'purchase_date', label: 'Purchase Date' }
         ] },
@@ -558,6 +577,10 @@ export const SCREENS = {
           { name: 'warranty_type', required: true, label: "Warranty Type" },
           { name: 'start_date', required: true, label: "Start Date" },
           { name: 'end_date', required: true, label: "End Date" },
+          // BRU-AST-16: how the dates were established; a date defaulted from
+          // manufacture is flagged and is not verified on its own
+          { name: 'derivation_basis', required: true, label: "Dates Derived From" },
+          { name: 'basis_flag', label: "Basis Flag", readonly: true },
           { name: 'status', label: "Status", readonly: true },
           { name: 'currency_id', required: true, label: "Currency" },
           { name: 'coverage_details', type: 'text', label: "Coverage Details" }
@@ -651,34 +674,6 @@ export const SCREENS = {
     ]
   },
 
-  // FR-AST-038: a device is placed in a client's estate. Only a device the
-  // client (or one of its contacts) owns may join it; the server refuses others.
-  'M17-form-placement': {
-    kind: 'model_form',
-    model: 'fix.device',
-    title: 'Estate Assignment',
-    newLabel: 'Place a Device in an Estate',
-    back: 'M17-estates',
-    pickRecord: {
-      label: 'Step 1 of 2: choose the device',
-      note: 'Registered devices. For a whole estate at once, use Bulk Estate Upload.',
-      search: 'Search serial, IMEI or owner',
-      choose: 'Place this device',
-      cols: ['name', 'serial_number', 'imei_1', 'owner_id', 'estate_id', 'state'],
-      domain: [['state', 'not in', ['scrapped']]],
-      empty: 'No registered device.'
-    },
-    sections: [
-      { title: 'Step 2 of 2: Estate',
-        note: 'A device joins an estate only when its owner is the estate\x27s client or one of its contacts. Clear the estate to take the device out of it. A device leaves the estate by itself when it is transferred to someone outside the client.',
-        fields: [
-          { name: 'name', label: 'Device', readonly: true },
-          { name: 'owner_id', label: 'Owner', readonly: true },
-          { name: 'estate_id', required: true, label: 'Corporate Estate' }
-        ] }
-    ]
-  },
-
   // FR-AST-039 / BRU-AST-18 / AUT-AST-11: the estate file. Saving validates it.
   'M17-bulk-loads': { kind: 'model_list', model: 'fix.device.bulk.load', stateField: 'state',
     note: 'An uploaded estate file is checked at once, row by row, against the device catalogue, the registry and the rules a single registration meets. Commit as a Set (Device Registry Agent) registers every row or none.',
@@ -750,6 +745,269 @@ export const SCREENS = {
     ]
   },
 
+  /* ===== M17 capture pass 2 (2026-11-19) ===== */
+
+  // p1 FR-AST-008: the QR asset tag. A new label on a labelled device replaces
+  // the old one, which stays on record with the reason.
+  'M17-labels': { kind: 'model_list', model: 'fix.device.label', stateField: 'state',
+    note: 'One row per tag applied. A damaged or lost tag is replaced by applying a new label; the old one stays here as Replaced.',
+    cols: ['name', 'device_id', 'label_type', 'applied_by_id', 'applied_on', 'replaces_label_id', 'replace_reason', 'state'] },
+  'M17-form-label': {
+    kind: 'model_form',
+    model: 'fix.device.label',
+    title: 'Asset Label',
+    back: 'M17-labels',
+    status: { field: 'state', labels: { active: 'Active', replaced: 'Replaced' } },
+    sections: [
+      { title: 'Label', note: 'The code is issued on save and printed on the tag; the tag code then finds the device anywhere a serial or IMEI does. If the device already carries a tag, say why it is replaced.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'label_type', required: true, label: 'Label Type' },
+          { name: 'applied_by_id', required: true, label: 'Labelling Technician' },
+          { name: 'applied_on', required: true, label: 'Applied On' },
+          { name: 'replace_reason', label: 'Why the Old Tag Is Replaced' },
+          { name: 'name', label: 'Label Code', readonly: true },
+          { name: 'replaces_label_id', label: 'Replaces Label', readonly: true },
+          { name: 'printed_at', label: 'Printed At', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] }
+    ]
+  },
+
+  // p1 FR-AST-002/010: identifiers beyond serial and IMEI. A value already on
+  // another device is still recorded; both go on the stewardship worklist.
+  'M17-form-identifier-add': {
+    kind: 'model_form',
+    model: 'fix.device',
+    title: 'Add Identifier',
+    newLabel: 'Add an Identifier to a Device',
+    back: 'M17-idhistory',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the device',
+      note: 'The brand service tag, the customer\x27s own asset number or a part number. Serials and IMEIs are captured on the asset; the asset tag comes from a label.',
+      search: 'Search serial, IMEI, tag or owner',
+      choose: 'Add to this device',
+      cols: ['name', 'serial_number', 'imei_1', 'asset_tag', 'owner_id', 'state'],
+      domain: [['state', '!=', 'scrapped']],
+      empty: 'No device to add an identifier to.'
+    },
+    saveAction: {
+      method: 'action_add_identifier', label: 'Record Identifier',
+      done: 'Identifier recorded in the identifier history',
+      kwargs: { identifier_type: 'extra_identifier_type', value: 'extra_identifier_value' }
+    },
+    sections: [
+      { title: 'Step 2 of 2: Identifier',
+        note: 'The value is kept with who captured it and when. If the same value of the same type is current on another device, both devices go on the Stewardship Worklist as an identifier conflict.',
+        fields: [
+          { name: 'name', label: 'Device', readonly: true },
+          { name: 'extra_identifier_type', required: true, label: 'Identifier Type', readonly: true },
+          { name: 'extra_identifier_value', required: true, label: 'Identifier Value', readonly: true }
+        ] }
+    ]
+  },
+
+  // p2 FR-AST-015 / BRU-AST-08: what came in with the device. A device is not
+  // issued back to its customer while an accessory is still held.
+  'M17-accessories': { kind: 'model_list', model: 'fix.device.accessory', stateField: 'state',
+    note: 'Every accessory received with a device is held until it is handed back or recorded missing. Issued to Customer is refused while one is still held.',
+    cols: ['name', 'device_id', 'intake_reference', 'accessory_type', 'description', 'quantity', 'received_on', 'state', 'returned_on', 'discrepancy_note'],
+    actions: [
+      { m: 'action_return', l: 'Handed Back' },
+      { m: 'action_report_missing', l: 'Missing at Return', ask: 'What is missing or different, and what was the customer told?', kwarg: 'reason' }
+    ] },
+  'M17-form-accessory': {
+    kind: 'model_form',
+    model: 'fix.device.accessory',
+    title: 'Accessory Received',
+    back: 'M17-accessories',
+    status: { field: 'state', labels: { held: 'Held', returned: 'Returned', missing: 'Missing at Return' } },
+    sections: [
+      { title: 'Accessory', note: 'One row per accessory (charger, battery, bag…) received with the device. What was received is not edited afterwards; it is handed back or recorded missing on the Accessory Register.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'intake_reference', label: 'Intake / Job Reference' },
+          { name: 'accessory_type', required: true, label: 'Accessory' },
+          { name: 'description', label: 'Description' },
+          { name: 'quantity', required: true, label: 'Quantity' },
+          { name: 'received_on', required: true, label: 'Received On' },
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'received_by_id', label: 'Received By', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'returned_on', label: 'Returned On', readonly: true },
+          { name: 'discrepancy_note', label: 'Discrepancy', readonly: true }
+        ] }
+    ]
+  },
+
+  // p2 FR-AST-012: the unit's actual specification and its history.
+  'M17-configs': { kind: 'model_list', model: 'fix.device.configuration',
+    note: 'Where the unit differs from its model. A new value of an attribute closes the previous one, which stays here with its end date.',
+    cols: ['device_id', 'attribute', 'value', 'unit', 'source', 'effective_from', 'effective_to', 'is_current', 'recorded_by_id'] },
+  'M17-form-config': {
+    kind: 'model_form',
+    model: 'fix.device.configuration',
+    title: 'Configuration Record',
+    back: 'M17-configs',
+    sections: [
+      { title: 'Configuration', note: 'Record the value as found (16 GB, 512 GB SSD, Windows 11). It is not edited afterwards: a later change is a new record from its own date.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'attribute', required: true, label: 'Attribute' },
+          { name: 'value', required: true, label: 'Value' },
+          { name: 'unit', label: 'Unit' },
+          { name: 'source', required: true, label: 'Source' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'effective_to', label: 'Effective To', readonly: true },
+          { name: 'is_current', label: 'Current', readonly: true }
+        ] }
+    ]
+  },
+
+  // p3 FR-AST-022 / BRU-AST-10/11: one population per device, changed only by
+  // a reason-coded transaction.
+  'M17-populations': { kind: 'model_list', model: 'fix.device.population.change',
+    note: 'Every change of a device\x27s population, with its reason. Rental-pool or refurbishment stock becomes customer-owned only with the ownership transfer that sold or gave it.',
+    cols: ['name', 'device_id', 'from_population', 'to_population', 'reason_code', 'ownership_id', 'recorded_by_id', 'recorded_at'] },
+  'M17-form-population': {
+    kind: 'model_form',
+    model: 'fix.device.population.change',
+    title: 'Population Change',
+    back: 'M17-populations',
+    sections: [
+      { title: 'Population Change', note: 'Device Registry Agent. The population says which modules may act on the device (rental, refurbishment, marketplace, e-waste). A change is permanent; a wrong one is put right by another change with the reason Correction.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'to_population', required: true, label: 'New Population' },
+          { name: 'reason_code', required: true, label: 'Reason' },
+          { name: 'ownership_id', label: 'Ownership Transfer (stock sold to a customer)' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'from_population', label: 'Previous Population', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'recorded_at', label: 'Recorded At', readonly: true }
+        ] }
+    ]
+  },
+
+  // p8 FR-AST-038: customer > site > department > assigned user.
+  'M17-estate-nodes': { kind: 'model_list', model: 'fix.device.estate.node',
+    cols: ['complete_name', 'estate_id', 'client_id', 'node_type', 'contact_id', 'cost_centre', 'device_count', 'active'] },
+  'M17-form-estate-node': {
+    kind: 'model_form',
+    model: 'fix.device.estate.node',
+    title: 'Estate Node',
+    back: 'M17-estate-nodes',
+    sections: [
+      { title: 'Site, Department or User', note: 'A site is the top of the estate; a department sits within a site; an assigned user sits within a department or site and names the client\x27s employee who holds the devices.',
+        fields: [
+          { name: 'estate_id', required: true, label: 'Estate' },
+          { name: 'node_type', required: true, label: 'Level' },
+          { name: 'name', required: true, label: 'Name' },
+          { name: 'parent_id', label: 'Within' },
+          { name: 'contact_id', label: 'Contact / Assigned User' },
+          { name: 'address', label: 'Address' },
+          { name: 'cost_centre', label: 'Cost Centre' },
+          { name: 'active', label: 'Active' },
+          { name: 'complete_name', label: 'Full Path', readonly: true },
+          { name: 'device_count', label: 'Devices Placed', readonly: true }
+        ] }
+    ]
+  },
+
+  // p8 FR-AST-038: placing (or moving) a device, dated. The previous placement
+  // closes on the same date and stays on record.
+  'M17-placements': { kind: 'model_list', model: 'fix.device.estate.placement',
+    note: 'Where each device has been in its client\x27s estate. A change of estate on the asset itself is recorded here too.',
+    cols: ['name', 'device_id', 'estate_id', 'node_id', 'placed_from', 'placed_to', 'is_current', 'move_reason', 'moved_by_id'] },
+  'M17-form-estate-placement': {
+    kind: 'model_form',
+    model: 'fix.device.estate.placement',
+    title: 'Estate Assignment',
+    newLabel: 'Place or Move a Device in an Estate',
+    back: 'M17-placements',
+    sections: [
+      { title: 'Placement', note: 'Only a device the estate\x27s client (or one of its contacts) owns is placed. An estate organised into sites, departments and users takes the device at one of its nodes. For a whole estate at once, use Bulk Estate Upload.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'estate_id', required: true, label: 'Corporate Estate' },
+          { name: 'node_id', label: 'Site / Department / User' },
+          { name: 'placed_from', required: true, label: 'Placed From' },
+          { name: 'move_reason', required: true, label: 'Reason for the Move' },
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'placed_to', label: 'Placed To', readonly: true },
+          { name: 'is_current', label: 'Current', readonly: true }
+        ] }
+    ]
+  },
+
+  // p10 FR-AST-048 / BRU-AST-19: the route, its basis, the customer's
+  // instruction and an approver who did not raise it.
+  'M17-eol': { kind: 'model_list', model: 'fix.device.eol.decision', stateField: 'state',
+    note: 'An approved decision makes the device obsolete and hands it on: refurbishment (M14) or e-waste (M18). A Branch Manager who neither raised nor requested it decides.',
+    cols: ['name', 'device_id', 'route', 'customer_instruction', 'state', 'requested_by_id', 'decided_by_id', 'decided_at'],
+    actions: [
+      { m: 'action_request', l: 'Request Approval' },
+      { m: 'action_approve', l: 'Approve Route (Branch Manager)' },
+      { m: 'action_reject', l: 'Reject (Branch Manager)', ask: 'Why is the route rejected?', kwarg: 'reason' }
+    ] },
+  'M17-form-eol': {
+    kind: 'model_form',
+    model: 'fix.device.eol.decision',
+    title: 'End-of-Life Decision',
+    back: 'M17-eol',
+    status: { field: 'state', labels: { draft: 'Draft', requested: 'Awaiting Approval', approved: 'Approved: Routed', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Decision', note: 'For a customer-owned device the customer\x27s instruction is required and must match the route. Save, then Request Approval on the list.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'route', required: true, label: 'Route' },
+          { name: 'basis', type: 'text', required: true, label: 'Basis for the Decision' },
+          { name: 'customer_instruction', label: 'Customer Instruction' },
+          { name: 'instruction_reference', label: 'Instruction Reference' },
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'population', label: 'Population', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true }
+        ] }
+    ]
+  },
+
+  // p11 FR-AST-051 / BRU-AST-22: the stewardship worklist. The daily sweep
+  // adds provisional identities left unresolved and escalates old issues.
+  'M17-quality-issues': { kind: 'model_list', model: 'fix.device.quality.issue', stateField: 'state',
+    note: 'Provisional identities, probable duplicates, identifier conflicts and incomplete records, by branch. A daily check adds provisional devices left unresolved and escalates issues left open too long.',
+    cols: ['name', 'device_id', 'issue_type', 'severity', 'assigned_branch_id', 'assigned_to_id', 'age_days', 'escalated', 'state'],
+    actions: [
+      { m: 'action_start', l: 'Start Work' },
+      { m: 'action_resolve', l: 'Resolve', ask: 'How was the record put right?', kwarg: 'resolution' }
+    ] },
+  'M17-form-quality-issue': {
+    kind: 'model_form',
+    model: 'fix.device.quality.issue',
+    title: 'Stewardship Issue',
+    back: 'M17-quality-issues',
+    status: { field: 'state', labels: { open: 'Open', in_progress: 'In Progress', resolved: 'Resolved' } },
+    sections: [
+      { title: 'Issue', note: 'The assignee or a Branch Manager works it. A provisional-identity issue resolves only once the identity is confirmed.',
+        fields: [
+          { name: 'device_id', required: true, label: 'Device' },
+          { name: 'issue_type', required: true, label: 'Issue' },
+          { name: 'severity', required: true, label: 'Severity' },
+          { name: 'description', type: 'text', required: true, label: 'What Is Wrong' },
+          { name: 'assigned_branch_id', label: 'Assigned Branch' },
+          { name: 'assigned_to_id', label: 'Assigned To' },
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'escalated', label: 'Escalated', readonly: true },
+          { name: 'resolution', type: 'text', label: 'Resolution', readonly: true },
+          { name: 'resolved_by_id', label: 'Resolved By', readonly: true }
+        ] }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
   'M17-device-part-compatibility': { kind: 'model_list', model: 'fix.device.part.compatibility',
     cols: ['active', 'company_id', 'operating_unit_id', 'model_id', 'part_number', 'part_name', 'category'] },
@@ -768,7 +1026,7 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M17:Asset (5 identifiers)': 'fix.device',
   'M17:Corporate Estate': 'fix.device.estate',
-  'M17:Estate Assignment': 'fix.device',
+  'M17:Estate Assignment': 'fix.device.estate.placement',
   'M17:Ownership Transfer': 'fix.device',
   'M17:Custody Event': 'fix.device.custody',
   'M17:Report Lost / Stolen': 'fix.device',
@@ -777,15 +1035,23 @@ export const FORM_MODELS = {
   'M17:Installed Component': 'fix.device.component',
   'M17:Part Compatibility': 'fix.device.part.compatibility',
   'M17:Identity Resolution': 'fix.device.identity',
-  'M17:Bulk Estate Upload': 'fix.device.bulk.load'
+  'M17:Bulk Estate Upload': 'fix.device.bulk.load',
+  'M17:Asset Label': 'fix.device.label',
+  'M17:Add Identifier': 'fix.device',
+  'M17:Accessory Received': 'fix.device.accessory',
+  'M17:Configuration Record': 'fix.device.configuration',
+  'M17:Population Change': 'fix.device.population.change',
+  'M17:Estate Node': 'fix.device.estate.node',
+  'M17:End-of-Life Decision': 'fix.device.eol.decision',
+  'M17:Stewardship Issue': 'fix.device.quality.issue'
 };
 
 export const FORM_CHIPS = {
   'M17:Device Warranty': 'M17-form-warranty',
   'M17:Asset (5 identifiers)': 'M17-form-asset',
   'M17:Corporate Estate': 'M17-form-estate',
-  // a device is assigned to an estate on the device (FR-AST-038)
-  'M17:Estate Assignment': 'M17-form-placement',
+  // M17 pass 2: a placement is a dated record at an estate node (FR-AST-038)
+  'M17:Estate Assignment': 'M17-form-estate-placement',
   // the chip records a transfer; past transfers open M17-form-transfer
   'M17:Ownership Transfer': 'M17-form-transfer-record',
   'M17:Custody Event': 'M17-form-custody',
@@ -796,6 +1062,14 @@ export const FORM_CHIPS = {
   'M17:Part Compatibility': 'M17-form-compat',
   'M17:Identity Resolution': 'M17-form-identity',
   'M17:Bulk Estate Upload': 'M17-form-bulk',
+  'M17:Asset Label': 'M17-form-label',
+  'M17:Add Identifier': 'M17-form-identifier-add',
+  'M17:Accessory Received': 'M17-form-accessory',
+  'M17:Configuration Record': 'M17-form-config',
+  'M17:Population Change': 'M17-form-population',
+  'M17:Estate Node': 'M17-form-estate-node',
+  'M17:End-of-Life Decision': 'M17-form-eol',
+  'M17:Stewardship Issue': 'M17-form-quality-issue',
   'M17:__by_model__': {
     'fix.device.part.compatibility': 'M17-form-compat',
 
@@ -812,7 +1086,15 @@ export const FORM_CHIPS = {
     'fix.device.identifier': 'M17-form-identifier',
     'fix.service.order.device.hold': 'M17-form-hold',
     'fix.device.bulk.load': 'M17-form-bulk',
-    'fix.device.bulk.line': 'M17-form-bulk-line'
+    'fix.device.bulk.line': 'M17-form-bulk-line',
+    'fix.device.label': 'M17-form-label',
+    'fix.device.accessory': 'M17-form-accessory',
+    'fix.device.configuration': 'M17-form-config',
+    'fix.device.population.change': 'M17-form-population',
+    'fix.device.estate.node': 'M17-form-estate-node',
+    'fix.device.estate.placement': 'M17-form-estate-placement',
+    'fix.device.eol.decision': 'M17-form-eol',
+    'fix.device.quality.issue': 'M17-form-quality-issue'
   },
   'M17:__by_screen__': {
     'M17-device-part-compatibility': 'M17-form-compat',
@@ -832,7 +1114,15 @@ export const FORM_CHIPS = {
     'M17-idhistory': 'M17-form-identifier',
     'M17-holds': 'M17-form-hold',
     'M17-bulk-loads': 'M17-form-bulk',
-    'M17-bulk-lines': 'M17-form-bulk-line'
+    'M17-bulk-lines': 'M17-form-bulk-line',
+    'M17-labels': 'M17-form-label',
+    'M17-accessories': 'M17-form-accessory',
+    'M17-configs': 'M17-form-config',
+    'M17-populations': 'M17-form-population',
+    'M17-estate-nodes': 'M17-form-estate-node',
+    'M17-placements': 'M17-form-estate-placement',
+    'M17-eol': 'M17-form-eol',
+    'M17-quality-issues': 'M17-form-quality-issue'
   }
 };
 

@@ -17,3 +17,9 @@ from . import fix_warranty_approval, fix_warranty_expiry
 # isort: split
 # M17 capture audit (2026-11-13): bulk estate registration (FR-AST-039).
 from . import fix_device_bulk
+
+# isort: split
+# M17 capture pass 2 (2026-11-19): labels, identifiers, accessories,
+# configuration, population, estate nodes and placements, end-of-life
+# decisions, stewardship worklist. Extends the models above, so it is last.
+from . import fix_device_capture

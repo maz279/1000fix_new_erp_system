@@ -114,6 +114,16 @@ WRITABLE = {
             "transfer_type_pending",
         }
     ),
+    "fix.device.accessory": frozenset(
+        {
+            "accessory_type",
+            "description",
+            "device_id",
+            "intake_reference",
+            "quantity",
+            "received_on",
+        }
+    ),
     "fix.device.bulk.line": frozenset(),
     "fix.device.bulk.load": frozenset(
         {
@@ -152,6 +162,16 @@ WRITABLE = {
             "inspector_id",
         }
     ),
+    "fix.device.configuration": frozenset(
+        {
+            "attribute",
+            "device_id",
+            "effective_from",
+            "source",
+            "unit",
+            "value",
+        }
+    ),
     "fix.device.custody": frozenset(
         {
             "accessories_reconciled",
@@ -171,6 +191,15 @@ WRITABLE = {
             "to_party_id",
         }
     ),
+    "fix.device.eol.decision": frozenset(
+        {
+            "basis",
+            "customer_instruction",
+            "device_id",
+            "instruction_reference",
+            "route",
+        }
+    ),
     "fix.device.estate": frozenset(
         {
             "active",
@@ -182,6 +211,27 @@ WRITABLE = {
             "site",
         }
     ),
+    "fix.device.estate.node": frozenset(
+        {
+            "active",
+            "address",
+            "contact_id",
+            "cost_centre",
+            "estate_id",
+            "name",
+            "node_type",
+            "parent_id",
+        }
+    ),
+    "fix.device.estate.placement": frozenset(
+        {
+            "device_id",
+            "estate_id",
+            "move_reason",
+            "node_id",
+            "placed_from",
+        }
+    ),
     "fix.device.identifier": frozenset(),
     "fix.device.identity": frozenset(
         {
@@ -190,6 +240,15 @@ WRITABLE = {
             "match_score",
             "notes",
             "primary_device_id",
+        }
+    ),
+    "fix.device.label": frozenset(
+        {
+            "applied_by_id",
+            "applied_on",
+            "device_id",
+            "label_type",
+            "replace_reason",
         }
     ),
     "fix.device.merge": frozenset(),
@@ -212,6 +271,25 @@ WRITABLE = {
             "next_due",
             "notes",
             "plan_type",
+        }
+    ),
+    "fix.device.population.change": frozenset(
+        {
+            "device_id",
+            "notes",
+            "ownership_id",
+            "reason_code",
+            "to_population",
+        }
+    ),
+    "fix.device.quality.issue": frozenset(
+        {
+            "assigned_branch_id",
+            "assigned_to_id",
+            "description",
+            "device_id",
+            "issue_type",
+            "severity",
         }
     ),
     "fix.driver": frozenset(

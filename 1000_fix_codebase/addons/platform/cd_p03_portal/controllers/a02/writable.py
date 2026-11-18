@@ -939,6 +939,7 @@ WRITABLE = {
             "company_id",
             "coverage_details",
             "currency_id",
+            "derivation_basis",
             "device_id",
             "end_date",
             "proof_document_id",

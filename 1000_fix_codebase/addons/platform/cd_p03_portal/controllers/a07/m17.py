@@ -48,6 +48,8 @@ SURFACES = {
             "action_transfer_ownership",
             "action_correct_identifier",
             "action_confirm_identity",
+            # M17 capture pass 2, FR-AST-002: the Add Identifier form
+            "action_add_identifier",
             "action_set_vintage",
             "action_set_end_of_support",
             "action_set_obsolete",
@@ -150,6 +152,58 @@ SURFACES = {
         "limit": 2000,
         "rules": True,
         "actions": set(),
+    },
+    # M17 capture pass 2 (2026-11-19): the records the spec places on pages
+    # 1, 2, 3, 8, 10 and 11 that no model held. Users create them; the
+    # registry writes their states, closures and the device fields they move.
+    "fix.device.label": {
+        "order": "applied_on desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": set(),
+    },
+    "fix.device.accessory": {
+        "order": "state, received_on desc, id desc",
+        "limit": 400,
+        "rules": True,
+        "actions": {"action_return", "action_report_missing"},
+    },
+    "fix.device.configuration": {
+        "order": "device_id, attribute, effective_from desc, id desc",
+        "limit": 400,
+        "rules": True,
+        "actions": set(),
+    },
+    "fix.device.population.change": {
+        "order": "recorded_at desc, id desc",
+        "limit": 300,
+        "rules": True,
+        "actions": set(),
+    },
+    "fix.device.estate.node": {
+        "order": "estate_id, complete_name, id",
+        "limit": 400,
+        "rules": True,
+        "actions": set(),
+    },
+    "fix.device.estate.placement": {
+        "order": "placed_from desc, id desc",
+        "limit": 400,
+        "rules": True,
+        "actions": set(),
+    },
+    "fix.device.eol.decision": {
+        "order": "id desc",
+        "limit": 200,
+        "rules": True,
+        # a Branch Manager who neither raised nor requested it decides it
+        "actions": {"action_request", "action_approve", "action_reject"},
+    },
+    "fix.device.quality.issue": {
+        "order": "escalated desc, severity_rank, raised_at, id",
+        "limit": 400,
+        "rules": True,
+        "actions": {"action_start", "action_resolve"},
     },
 }
 

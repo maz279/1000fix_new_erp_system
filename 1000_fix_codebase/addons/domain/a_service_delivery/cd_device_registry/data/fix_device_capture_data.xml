@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M17 capture pass 2 (2026-11-19): references for the new registers, and
+     the stewardship sweep (BRU-AST-22): provisional identities left unresolved
+     join the worklist, and issues left open escalate. Idempotent. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_device_label" model="ir.sequence">
+            <field name="name">Device Asset Label</field>
+            <field name="code">fix.device.label</field>
+            <field name="prefix">FXT-</field>
+            <field name="padding">6</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_accessory" model="ir.sequence">
+            <field name="name">Device Accessory</field>
+            <field name="code">fix.device.accessory</field>
+            <field name="prefix">DACC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_population_change" model="ir.sequence">
+            <field name="name">Device Population Change</field>
+            <field name="code">fix.device.population.change</field>
+            <field name="prefix">DPOP/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_estate_placement" model="ir.sequence">
+            <field name="name">Estate Placement</field>
+            <field name="code">fix.device.estate.placement</field>
+            <field name="prefix">DPLC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_eol_decision" model="ir.sequence">
+            <field name="name">End-of-Life Decision</field>
+            <field name="code">fix.device.eol.decision</field>
+            <field name="prefix">DEOL/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_device_quality_issue" model="ir.sequence">
+            <field name="name">Device Stewardship Issue</field>
+            <field name="code">fix.device.quality.issue</field>
+            <field name="prefix">DDQ/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_device_steward_sweep" model="ir.cron">
+            <field name="name">M17: stewardship sweep (provisional ageing, escalation)</field>
+            <field name="model_id" ref="model_fix_device_quality_issue"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_steward_sweep()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

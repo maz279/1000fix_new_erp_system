@@ -19,3 +19,13 @@ access_fix_device_merge,fix.device.merge,model_fix_device_merge,base.group_user,
 access_fix_device_bulk_load,fix.device.bulk.load,model_fix_device_bulk_load,base.group_user,1,1,1,0
 access_fix_device_bulk_load_manager,fix.device.bulk.load manager,model_fix_device_bulk_load,group_device_branch_manager,1,1,1,1
 access_fix_device_bulk_line,fix.device.bulk.line,model_fix_device_bulk_line,base.group_user,1,0,0,0
+access_fix_device_label,fix.device.label,model_fix_device_label,base.group_user,1,1,1,0
+access_fix_device_accessory,fix.device.accessory,model_fix_device_accessory,base.group_user,1,1,1,0
+access_fix_device_configuration,fix.device.configuration,model_fix_device_configuration,base.group_user,1,1,1,0
+access_fix_device_population_change,fix.device.population.change,model_fix_device_population_change,base.group_user,1,0,0,0
+access_fix_device_population_change_agent,fix.device.population.change agent,model_fix_device_population_change,group_device_registry_user,1,1,1,0
+access_fix_device_estate_node,fix.device.estate.node,model_fix_device_estate_node,base.group_user,1,1,1,0
+access_fix_device_estate_node_manager,fix.device.estate.node manager,model_fix_device_estate_node,group_device_branch_manager,1,1,1,1
+access_fix_device_estate_placement,fix.device.estate.placement,model_fix_device_estate_placement,base.group_user,1,1,1,0
+access_fix_device_eol_decision,fix.device.eol.decision,model_fix_device_eol_decision,base.group_user,1,1,1,1
+access_fix_device_quality_issue,fix.device.quality.issue,model_fix_device_quality_issue,base.group_user,1,1,1,0

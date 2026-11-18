@@ -158,8 +158,10 @@ def test_the_transfer_form_runs_the_governed_transfer_with_its_evidence(m17):
 def test_estates_page_places_a_device_in_an_estate(m17):
     chips = _chips(m17, "8")
     assert chips["Corporate Estate"]["model"] == "fix.device.estate"
-    assert chips["Estate Assignment"]["id"] == "M17-form-placement"
-    assert chips["Estate Assignment"]["model"] == "fix.device"
+    # capture pass 2 (2026-11-19): a dated placement at an estate node
+    # (FR-AST-038), no longer a bare write of the device's estate
+    assert chips["Estate Assignment"]["id"] == "M17-form-estate-placement"
+    assert chips["Estate Assignment"]["model"] == "fix.device.estate.placement"
 
 
 def test_bulk_registration_uploads_an_estate_file(m17):
