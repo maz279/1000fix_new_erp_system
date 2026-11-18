@@ -56,7 +56,7 @@ Also found:
 - 13 new surfaces; `writable.py` regenerated.
 - Loss Ratio by Product is now measured: claims settled divided by premium written, per product, with the reserve held.
 - Fraud Detection adds two rows: protection claims that need review, and confirmed findings.
-- Events `protection_claim.settled` and `warranty_claim.written_off`. Registry 548 -> 550: only these two were added, and the generator's unrelated drift was left out.
+- Events `protection_claim.settled` and `warranty_claim.written_off`. Registry +2 (577 after rebase): only these two were added, and the generator's unrelated drift was left out.
 
 **Page "+ New" after the fix:**
 
@@ -97,3 +97,16 @@ Not verified: a click-through on fix_real itself. fix_real has 0 rows in every M
 - **Certified-technician check** at submission: the rule set records the flag, but the claim does not yet read M22 competencies.
 - **A single structured appeal on a protection claim** (FR-WTY-034): a rejected protection claim has a reason, but no appeal record.
 - **Reserve rate per product** is a business decision. No product on fix_real has one, so **no protection policy can be activated until a Warranty Officer sets it**. Nothing was invented.
+
+## 5. Deploy record (19 Nov 2026, on the user's "Deploy both")
+
+- **Landed** 1ccc09a0 (fix) + daa353b9 (report) on `fix/a03-live-data-and-pending-work` by fast-forward, after a rebase over the M06/M07/M08/M10/M11 landings (two additive conflicts: the forms-children exemption list and the event registry, which was rebuilt as the shared version plus the two M09 events, 577 total). **Pushed** aa1f7bfc..daa353b9, plus branch `fix/m09-capture-pass2`.
+- **Backups:** `1000 fix/backups/fix_{real,dev}_pre_m09_capture2_2026-11-19.dump` (fix_real dump lists 1,810 tables of data).
+- **Upgrade:** `-u cd_warranty_claims,cd_p03_portal` on fix_real, then fix_dev. Both exit 0 with 0 ERROR; `cd_warranty_claims` is at 19.0.2.2.0 on both. Version-gap check empty on both before the restart.
+- **Restart:** after a heads-up to the active peer sessions (M10 held the restart for its own walk, then released it). 8069 = fix_real, pid 23388; 8090 = fix_dev, pid 30676. Both registries loaded (155 / 151 modules).
+- **Verified live:**
+  - The bundle both ports serve (e34444d) carries the new screens and forms.
+  - A read-only shell on each database finds the 12 models, all 12 in the workspace surfaces, 24 ACL rows, 8 isolation rules and 9 sequences.
+  - The expiry job runs (rolled back). 0 M09 records exist yet on either database.
+- **One job failure, before the restart:** the old 8090 and 8069 processes ran the new expiry job once between the upgrade and the restart, before their registry knew the model (`KeyError: 'fix.protection.policy'`, failure count 1). The job stays active and runs on the new processes.
+- **Clean-up:** private clone `fix_test_m09c2` dropped; worktree removed; branch kept.
