@@ -28,7 +28,7 @@ A separate module on purpose (the cd_vehicle_dispatch / bridge lesson): the
 front desk keeps its dependencies, and a server that has not installed the
 bridge never loads it.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Front Desk",

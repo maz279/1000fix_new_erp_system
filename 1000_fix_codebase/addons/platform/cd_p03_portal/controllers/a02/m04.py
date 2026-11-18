@@ -73,6 +73,12 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_publish", "action_withdraw", "action_acknowledge"},
     },
+    # M04 capture audit (18 Nov 2026): the shift handover the incoming team
+    # acknowledges (FR-FRD-022) and the NID + consent behind a high-value
+    # cash receipt (FR-FRD-019, cd_front_desk_finance). A check is evidence:
+    # it has no action and is never edited.
+    "fix.shift.handover": {"order": "id desc", "limit": 200, "actions": {"action_acknowledge"}},
+    "fix.cash.id.check": {"order": "id desc", "limit": 200, "actions": set()},
 }
 
 # tokens actually served vs issued today

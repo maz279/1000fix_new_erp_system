@@ -8,3 +8,8 @@ from . import (
     fix_counter_sale_posting,
     fix_engine_ext,
 )
+
+# isort: split
+# M04 capture audit (18 Nov 2026): the high-value cash ID check extends the
+# counter sale and basket confirms above, so it loads last.
+from . import fix_m04_cash_id

@@ -14,5 +14,19 @@
             <field name="prefix">M63/%(year)s/</field>
             <field name="padding">6</field>
         </record>
+        <!-- M04 capture audit 2026-11-18: FR-FRD-022 shift handover -->
+        <record id="seq_fix_shift_handover" model="ir.sequence">
+            <field name="name">Shift Handover</field>
+            <field name="code">fix.shift.handover</field>
+            <field name="prefix">SHO/%(year)s/</field>
+            <field name="padding">5</field>
+        </record>
+        <!-- M04 capture audit 2026-11-18: FR-FRD-019 high-value cash ID check -->
+        <record id="seq_fix_cash_id_check" model="ir.sequence">
+            <field name="name">High-Value Cash ID Check</field>
+            <field name="code">fix.cash.id.check</field>
+            <field name="prefix">HVC/%(year)s/</field>
+            <field name="padding">5</field>
+        </record>
     </data>
 </odoo>

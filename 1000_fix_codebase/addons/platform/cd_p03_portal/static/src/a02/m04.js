@@ -40,8 +40,11 @@ export const MODULE = {
       { id: 'M04-drawer', en: 'Cash Drawer', bn: 'ক্যাশ ড্রয়ার', t: 'g' },
       { id: 'M04-movements', en: 'Drawer Movements', bn: 'ড্রয়ার লেনদেন', t: 'g' },
       { id: 'M04-payments', en: 'Payment Capture (All Methods)', bn: 'পেমেন্ট গ্রহণ', t: 'g' },
+      { id: 'M04-idchecks', en: 'High-Value Cash ID Checks', bn: 'উচ্চমূল্যের নগদ পরিচয় যাচাই', t: 'g' },
       { id: 'M04-shift', en: 'Shift Open / Close', bn: 'শিফট খোলা/বন্ধ', t: 'r' },
-      { id: 'M04-banking', en: 'Banking Deposits', bn: 'ব্যাংকিং ডিপোজিট', t: 'r' }
+      { id: 'M04-handovers', en: 'Shift Handovers', bn: 'শিফট হস্তান্তর', t: 'g' },
+      { id: 'M04-banking', en: 'Banking Deposits', bn: 'ব্যাংকিং ডিপোজিট', t: 'r' },
+      { id: 'M04-deposits', en: 'Deposits Recorded', bn: 'জমাকৃত ডিপোজিট', t: 'g' }
     ]},
     { en: 'Counter Sales', screens: [
       { id: 'M04-sales', en: 'Counter Sales (Parts/Plans)', bn: 'কাউন্টার বিক্রয়', t: 'g' },
@@ -69,11 +72,19 @@ export const MODULE = {
    * master. Each page now captures its own record (test_m04_submodule_capture). */
   /* M04 build 2026-11-13: counters and priority rules, storage locations,
    * the drawer movement ledger, ID-checked device release and announcements. */
+  /* M04 capture audit (18 Nov 2026): every page had a "+ New", but four
+   * captures the specification gives M04 had no record. Payment Capture could
+   * not record the customer's NID and consent for cash above the high-value
+   * threshold (FR-FRD-019 P0, BRU-FRD-04/13), and the counter never enforced
+   * it; Shift Operations had no handover the incoming team acknowledges
+   * (FR-FRD-022, fix.shift.handover); Collection & Handover could not take
+   * the customer's rating at the counter (FR-FRD-029); Banking & Deposits
+   * captured a deposit it then never listed (test_m04_capture_gaps). */
   forms: ['Token Issue', 'Service Counter', 'Queue Priority Rule', 'Walk-in Intake',
     'Intake Receipt Acknowledgement', 'Device Storage Assignment', 'Storage Location',
     'Handover (ID verified)', 'Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher',
     'Counter Sale', 'Counter Basket', 'Counter Payment', 'Cash Deposit', 'Opening / Closing Checklist',
-    'Branch Announcement'],
+    'Branch Announcement', 'High-Value Cash ID Check', 'Shift Handover', 'Customer Rating at Handover'],
   cross: ['M01 walk-in intake', 'M03 collection/delivery', 'M20 receipts', 'M47 branch infrastructure', 'M17 device custody'],
   freg: {
     src: 95,
@@ -84,14 +95,16 @@ export const MODULE = {
       ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_location_id', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-locations', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment', 'Storage Location'], create: 'M04-form-storage-assign' }],
       /* 4 FR-FRD-010 / BRU-FRD-05: a ready device released to its collector,
        * whose identity is checked (the intake hand-off is Counter Workstation's) */
-      ['4', 'Collection & Handover', 9, { model: 'fix.service.order', cols: ['name', 'customer_id', 'recipient_name', 'collector_is_customer', 'collector_id_verified_by', 'delivery_otp_verified', 'state'], screens: ['M04-collection', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)'], create: 'M04-form-release', domain: [['state', 'in', ['ready', 'delivered']]] }],
+      ['4', 'Collection & Handover', 9, { model: 'fix.service.order', cols: ['name', 'customer_id', 'recipient_name', 'collector_is_customer', 'collector_id_verified_by', 'delivery_otp_verified', 'state'], screens: ['M04-collection', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)', 'Customer Rating at Handover'], create: 'M04-form-release', domain: [['state', 'in', ['ready', 'delivered']]] }],
       ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-baskets', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale', 'Counter Basket'] }],
       ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer', 'M04-movements'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher'] }],
       /* 7 FR-FRD-016: the method, reference and tender of a rung-up sale */
-      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment'], create: 'M04-form-payment' }],
-      ['8', 'Shift Operations', 10, { model: 'fix.cash.shift', cols: ['shift_date', 'shift_type', 'operator_id', 'opened_at', 'state'], screens: ['M04-shift', 'M04-shift-close', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Open/Close', 'Opening / Closing Checklist'] }],
+      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-idchecks', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment', 'High-Value Cash ID Check'], create: 'M04-form-payment' }],
+      /* 8 FR-FRD-014/022: the outgoing shift hands over to the incoming team,
+       * who acknowledge it (the drawer itself is Cash Drawer's) */
+      ['8', 'Shift Operations', 10, { model: 'fix.shift.handover', cols: ['name', 'branch_id', 'from_shift_id', 'to_operator_id', 'state', 'handed_over_at', 'acknowledged_by_id'], screens: ['M04-handovers', 'M04-shift', 'M04-shift-close', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Handover', 'Shift Open/Close', 'Opening / Closing Checklist'], create: 'M04-form-shift-handover' }],
       /* 9 FR-FRD-018: M04 records the deposit (M50's form, M50 reconciles it) */
-      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-banking'], reports: ['Shift Variance Register'], forms: ['Cash Deposit'], create: 'M50-form-deposit' }],
+      ['9', 'Banking & Deposits', 5, { model: 'fix.cash.deposit', cols: ['name', 'branch_id', 'business_date', 'amount', 'state'], screens: ['M04-deposits', 'M04-banking'], reports: ['Shift Variance Register'], forms: ['Cash Deposit'], create: 'M50-form-deposit' }],
       /* 10 FR-FRD-020/022/024: the branch's daily checklists and handover
        * notes. The branch itself is M30's configuration (spec section 3.2). */
       ['10', 'Branch Admin', 6, { model: 'fix.branch.checklist', cols: ['name', 'branch_id', 'checklist_type', 'checklist_date', 'open_item_count', 'state', 'completed_by_id'], screens: ['M04-checklists', 'M04-announcements', 'M04-dashboard'], reports: ['Branch Comparison League'], forms: ['Opening / Closing Checklist', 'Branch Announcement'] }]
@@ -184,6 +197,23 @@ export const SCREENS = {
      * in the open drawer and issues the Mushak-6.3 number (FR-FRD-016) */
     actions: [{ m: 'action_confirm', l: 'Confirm Payment & Issue Receipt', states: ['draft'] }] },
   'M04-shift': { kind: 'table_report', module: 'M04', report: 'daily_cash', period: false },
+  /* FR-FRD-018: the branch deposits M04 records with M50's form; M50
+   * dispatches and reconciles them (Cash-in-Transit) */
+  'M04-deposits': { kind: 'model_list', model: 'fix.cash.deposit',
+    cols: ['name', 'branch_id', 'business_date', 'amount', 'slip_no', 'state', 'credited_amount', 'variance_amount'],
+    stateField: 'state',
+    empty: 'No deposit recorded yet. Record each banking with + New; M50 dispatches and reconciles it.' },
+  /* FR-FRD-022: what the outgoing shift handed over, and who acknowledged it */
+  'M04-handovers': { kind: 'model_list', model: 'fix.shift.handover',
+    cols: ['name', 'branch_id', 'from_shift_id', 'from_operator_id', 'to_operator_id', 'state', 'handed_over_by_id', 'handed_over_at', 'acknowledged_by_id', 'acknowledged_at'],
+    stateField: 'state',
+    empty: 'No handover yet. The outgoing shift writes one with + New; the incoming team member acknowledges it here.',
+    actions: [{ m: 'action_acknowledge', l: 'I Have Read This Handover', states: ['handed_over'] }] },
+  /* FR-FRD-019 / BRU-FRD-04: the NID and consent behind each high-value cash
+   * receipt. A check is evidence: never edited, never deleted. */
+  'M04-idchecks': { kind: 'model_list', model: 'fix.cash.id.check',
+    cols: ['name', 'branch_id', 'sale_id', 'basket_id', 'partner_id', 'amount', 'threshold', 'nid_last4', 'notice_version_id', 'recorded_by_id', 'recorded_at'],
+    empty: 'No high-value cash receipt yet. A cash sale or basket above the threshold is confirmed only after its ID check is recorded with + New.' },
   'M04-banking': { kind: 'table_report', module: 'M04', report: 'variance_register', period: false },
   /* a sale is rung up at the counter (FR-FRD-012): "+ New" opens Counter Sale */
   'M04-sales': { kind: 'model_list', model: 'fix.counter.sale',
@@ -454,7 +484,7 @@ export const SCREENS = {
           { name: 'branch_id', label: 'Branch', required: true },
           { name: 'customer_id', label: 'Customer' }
         ] },
-      { tab: 'pay', title: 'One Payment for the Whole Basket', note: 'bKash, Nagad, Rocket, Upay and card need the TrxID / slip number.',
+      { tab: 'pay', title: 'One Payment for the Whole Basket', note: 'bKash, Nagad, Rocket, Upay and card need the TrxID / slip number. A cash basket above the high-value threshold (BDT 50,000) needs its High-Value Cash ID Check before it is confirmed.',
         fields: [
           /* the tenders a counter sale confirms (cash, the four wallets, card POS) */
           { name: 'payment_method_id', label: 'Paid By', required: true, domain: [['for_counter', '=', true], ['receipt_method', '!=', 'cheque']] },
@@ -561,7 +591,7 @@ export const SCREENS = {
     },
     sections: [
       { title: 'Step 2 of 2: Payment Method, Reference & Tender',
-        note: 'Cash, card, bKash, Nagad or bank transfer. A non-cash payment needs its TrxID or card slip number; cash needs the amount tendered. Then press Confirm Payment & Issue Receipt on Payment Capture: cash joins the open drawer and the Mushak-6.3 number is issued.',
+        note: 'Cash, card, bKash, Nagad or bank transfer. A non-cash payment needs its TrxID or card slip number; cash needs the amount tendered. Then press Confirm Payment & Issue Receipt on Payment Capture: cash joins the open drawer and the Mushak-6.3 number is issued. Cash above the high-value threshold (BDT 50,000) is confirmed only after its High-Value Cash ID Check.',
         fields: [
           { name: 'payment_method', required: true, label: 'Payment Method' },
           { name: 'transaction_ref', label: 'TrxID / Card Slip No.' },
@@ -776,6 +806,113 @@ export const SCREENS = {
     ]
   },
 
+  /* ===== M04 capture audit 2026-11-18 ===== */
+
+  /* 7 Payment Capture (FR-FRD-019 P0, BRU-FRD-04/13/14): cash above the
+   * high-value threshold is confirmed only after this check. The consent is
+   * recorded against the notice shown BEFORE the NID is written, and the NID
+   * goes to the resident store: the check keeps its last 4 digits only. */
+  'M04-form-idcheck': {
+    kind: 'model_form',
+    model: 'fix.cash.id.check',
+    title: 'High-Value Cash ID Check',
+    newLabel: 'Record High-Value Cash ID Check',
+    back: 'M04-idchecks',
+    tabs: [
+      { id: 'what', label: '1. Sale & Customer', bn: '১. বিক্রয় ও গ্রাহক', icon: '💵', badge: '3' },
+      { id: 'notice', label: '2. Notice & Consent', bn: '২. নোটিশ ও সম্মতি', icon: '📜', badge: '2' },
+      { id: 'nid', label: '3. Customer NID', bn: '৩. গ্রাহকের এনআইডি', icon: '🪪', badge: '2' }
+    ],
+    sections: [
+      { tab: 'what', title: 'The Cash Receipt Being Checked',
+        note: 'A cash sale or basket above the high-value threshold (M51 statutory parameter, BDT 50,000 today) is confirmed only after this check. Choose the draft sale, or the basket for a multi-item sale.',
+        fields: [
+          { name: 'sale_id', label: 'Counter Sale (draft, cash)', domain: [['state', '=', 'draft'], ['payment_method', '=', 'cash'], ['basket_id', '=', false]] },
+          { name: 'basket_id', label: 'Counter Basket (draft)', domain: [['state', '=', 'draft']] },
+          { name: 'partner_id', required: true, label: 'Customer Paying' },
+          { name: 'name', label: 'Check No.', readonly: true },
+          { name: 'amount', label: 'Cash Received (BDT)', readonly: true },
+          { name: 'threshold', label: 'Threshold in Force (BDT)', readonly: true }
+        ] },
+      { tab: 'notice', title: 'PDPA Transparency Notice (BRU-FRD-13)',
+        note: 'Show the customer the notice in force (Bengali and English) and tell them why the NID is needed: the law requires it for cash above the threshold. Tick the box only after they have seen it and agreed. Their consent is recorded against this notice version before the NID is written.',
+        fields: [
+          { name: 'notice_version_id', required: true, label: 'Notice Version Shown', domain: [['active', '=', true]] },
+          { name: 'notice_presented', required: true, label: 'Notice Shown and Customer Agreed' },
+          { name: 'consent_id', label: 'Consent Recorded', readonly: true }
+        ] },
+      { tab: 'nid', title: 'National ID (BRU-FRD-14)',
+        note: 'Type the NID from the card, or choose the NID already on file for this customer. The number goes to the Bangladesh-resident store only; this check keeps its last 4 digits. It is never printed beyond the statutory receipt.',
+        fields: [
+          { name: 'nid_number', label: 'Customer NID (10 or 17 digits)' },
+          { name: 'identity_document_id', label: 'Or: NID Already on File', domain: [['document_type', 'in', ['nid_10', 'nid_17']], ['active', '=', true]] },
+          { name: 'nid_last4', label: 'NID (last 4 digits)', readonly: true },
+          { name: 'recorded_by_id', label: 'Checked By', readonly: true },
+          { name: 'recorded_at', label: 'Checked At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 8 Shift Operations (FR-FRD-022): the outgoing shift's structured note */
+  'M04-form-shift-handover': {
+    kind: 'model_form',
+    model: 'fix.shift.handover',
+    title: 'Shift Handover',
+    newLabel: 'Write Shift Handover',
+    back: 'M04-handovers',
+    status: { field: 'state', labels: { handed_over: 'Handed Over', acknowledged: 'Acknowledged' } },
+    sections: [
+      { title: 'From the Outgoing Shift to the Incoming Team',
+        note: 'Write what the next team must know: customers waiting or promised a call, devices due back, cash or stock issues, equipment faults. The incoming team member acknowledges it on Shift Handovers; once acknowledged it is kept as written.',
+        fields: [
+          { name: 'from_shift_id', required: true, label: 'Outgoing Cash Shift' },
+          { name: 'to_operator_id', required: true, label: 'Incoming Team Member' },
+          { name: 'to_shift_id', label: 'Incoming Cash Shift (if opened)' },
+          { name: 'notes', required: true, label: 'Handover Notes', type: 'text' },
+          { name: 'open_items', label: 'Open Items to Act On', type: 'text' },
+          { name: 'name', label: 'Handover No.', readonly: true },
+          { name: 'branch_id', label: 'Branch', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'handed_over_by_id', label: 'Written By', readonly: true },
+          { name: 'acknowledged_by_id', label: 'Acknowledged By', readonly: true },
+          { name: 'acknowledged_at', label: 'Acknowledged At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 4 Collection & Handover (FR-FRD-029, AUT-FRD-12): the customer's quick
+   * rating at the counter. M34's survey is sent only when the order closes. */
+  'M04-form-rating': {
+    kind: 'model_form',
+    model: 'fix.service.order',
+    title: 'Customer Rating at Handover',
+    newLabel: 'Take Customer Rating',
+    back: 'M04-collection',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the order being handed over',
+      note: 'Orders ready for collection or just released that the customer has not rated yet.',
+      search: 'Search order / customer',
+      choose: 'Take the rating for this order',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'state'],
+      domain: [['state', 'in', ['ready', 'delivered']], ['counter_rated_at', '=', false]],
+      empty: 'No order is being handed over.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: How Was Today\'s Service?',
+        note: 'Ask the customer to rate the service at handover, on the counter tablet or by telling you. A rating is taken once and not changed. The fuller survey still goes to the customer when the order closes (M34).',
+        fields: [
+          { name: 'counter_rating', required: true, label: 'Customer Rating (1 to 5)' },
+          { name: 'counter_feedback', label: 'Customer\'s Comment' },
+          { name: 'name', label: 'Service Order', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'counter_rated_by_id', label: 'Rating Taken By', readonly: true },
+          { name: 'counter_rated_at', label: 'Rating Taken At', readonly: true },
+          { name: 'state', label: 'Order State', readonly: true }
+        ] }
+    ]
+  },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -816,6 +953,9 @@ export const FORM_CHIPS = {
   /* the deposit is M50's record: M04 records it with M50's own form */
   'M04:Cash Deposit': 'M50-form-deposit',
   'M04:Opening / Closing Checklist': 'M04-form-checklist',
+  'M04:High-Value Cash ID Check': 'M04-form-idcheck',
+  'M04:Shift Handover': 'M04-form-shift-handover',
+  'M04:Customer Rating at Handover': 'M04-form-rating',
   'M04:__by_model__': {
     'fix.token.queue': 'M04-form-token',
     'fix.walkin.intake': 'M04-form-storage',
@@ -828,6 +968,8 @@ export const FORM_CHIPS = {
     'fix.storage.location': 'M04-form-location',
     'fix.cash.movement': 'M04-form-movement',
     'fix.branch.announcement': 'M04-form-announcement',
+    'fix.cash.id.check': 'M04-form-idcheck',
+    'fix.shift.handover': 'M04-form-shift-handover',
   },
   'M04:__by_screen__': {
     'M04-queue': 'M04-form-token',
@@ -841,5 +983,8 @@ export const FORM_CHIPS = {
     'M04-locations': 'M04-form-location',
     'M04-movements': 'M04-form-movement',
     'M04-announcements': 'M04-form-announcement',
+    'M04-idchecks': 'M04-form-idcheck',
+    'M04-handovers': 'M04-form-shift-handover',
+    'M04-deposits': 'M50-form-deposit',
   }
 };

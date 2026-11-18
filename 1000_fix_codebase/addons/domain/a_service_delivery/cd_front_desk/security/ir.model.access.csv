@@ -27,3 +27,10 @@ access_fix_cash_movement_cashier,fix.cash.movement cashier,model_fix_cash_moveme
 access_fix_cash_movement_manager,fix.cash.movement manager,model_fix_cash_movement,group_fd_branch_manager,1,1,1,0
 access_fix_branch_announcement,fix.branch.announcement,model_fix_branch_announcement,base.group_user,1,0,0,0
 access_fix_branch_announcement_manager,fix.branch.announcement manager,model_fix_branch_announcement,group_fd_branch_manager,1,1,1,0
+access_fix_shift_handover,fix.shift.handover,model_fix_shift_handover,base.group_user,1,0,0,0
+access_fix_shift_handover_cashier,fix.shift.handover cashier,model_fix_shift_handover,group_fd_cashier,1,1,1,0
+access_fix_shift_handover_agent,fix.shift.handover agent,model_fix_shift_handover,group_fd_queue_agent,1,1,1,0
+access_fix_shift_handover_manager,fix.shift.handover manager,model_fix_shift_handover,group_fd_branch_manager,1,1,1,0
+access_fix_cash_id_check,fix.cash.id.check,model_fix_cash_id_check,base.group_user,1,0,0,0
+access_fix_cash_id_check_cashier,fix.cash.id.check cashier,model_fix_cash_id_check,group_fd_cashier,1,0,1,0
+access_fix_cash_id_check_manager,fix.cash.id.check manager,model_fix_cash_id_check,group_fd_branch_manager,1,0,1,0

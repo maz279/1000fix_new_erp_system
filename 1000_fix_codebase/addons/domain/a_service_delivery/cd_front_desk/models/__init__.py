@@ -17,3 +17,9 @@ from . import (
     fix_walkin_storage,
     fix_workstation_ext,
 )
+
+# isort: split
+# M04 capture audit (18 Nov 2026): the shift handover, the counter rating and
+# the high-value cash ID check; they extend fix.service.order and
+# fix.counter.sale, so they load last.
+from . import fix_m04_capture, fix_m04_cash_id

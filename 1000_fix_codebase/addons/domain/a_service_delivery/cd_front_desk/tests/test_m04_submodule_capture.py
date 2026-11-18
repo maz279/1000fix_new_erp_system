@@ -52,7 +52,8 @@ EXPECTED = {
     "5": ("M04-form-countersale", "Counter Sale"),
     "6": ("M04-form-shift", "Open a Cash Shift"),
     "7": ("M04-form-payment", "Take Counter Payment"),
-    "8": ("M04-form-shift", "Open a Cash Shift"),
+    # capture audit 2026-11-18: the shift handover (FR-FRD-022); shifts open on page 6
+    "8": ("M04-form-shift-handover", "Write Shift Handover"),
     "9": ("M50-form-deposit", "Cash Deposit"),
     "10": ("M04-form-checklist", "Start Opening / Closing Checklist"),
 }

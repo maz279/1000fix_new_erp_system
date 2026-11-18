@@ -10,7 +10,7 @@ Gate criterion: walk-in intake in under 3 minutes, demonstrated by branch staff.
 Token queue management, handover with customer acknowledgement, cash drawer
 and shift control with AS-10 Monetary reconciliation.
 """,
-    "version": "19.0.2.0.0",
+    "version": "19.0.2.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Front Desk",

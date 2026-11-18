@@ -31,6 +31,17 @@ WRITABLE = {
             "line_ids",
         }
     ),
+    "fix.cash.id.check": frozenset(
+        {
+            "basket_id",
+            "identity_document_id",
+            "nid_number",
+            "notice_presented",
+            "notice_version_id",
+            "partner_id",
+            "sale_id",
+        }
+    ),
     "fix.cash.movement": frozenset(
         {
             "amount",
@@ -712,6 +723,8 @@ WRITABLE = {
             "collector_is_customer",
             "collector_relation",
             "cosmetic_condition_notes",
+            "counter_feedback",
+            "counter_rating",
             "customer_id",
             "deferred_notes",
             "deferred_until",
@@ -735,6 +748,15 @@ WRITABLE = {
             "symptom_reproducibility",
             "technician_id",
             "triage_verdict",
+        }
+    ),
+    "fix.shift.handover": frozenset(
+        {
+            "from_shift_id",
+            "notes",
+            "open_items",
+            "to_operator_id",
+            "to_shift_id",
         }
     ),
     "fix.sla.item": frozenset(
