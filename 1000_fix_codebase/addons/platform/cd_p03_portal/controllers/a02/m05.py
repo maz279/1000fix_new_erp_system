@@ -39,8 +39,21 @@ SURFACES = {
             # BRU-RMS-11 offboarding
             "action_start_offboarding",
             "action_record_access_revoked",
+            "action_record_data_returned",  # FR-RMS-048
             "action_complete_offboarding",
         },
+    },
+    # capture audit pass 2 (2026-11-18): sub-module 10, the onboarding
+    # project (FR-RMS-047) and its checklist; go-live binds the SLA clocks
+    "fix.msp.onboarding": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_go_live"},
+    },
+    "fix.msp.onboarding.step": {
+        "order": "onboarding_id desc, sequence",
+        "limit": 400,
+        "actions": {"action_mark_done"},
     },
     # M05 capture audit (2026-11-13): an engineer's health reading of an
     # asset runs the same alerting the collector does, and the alert rules

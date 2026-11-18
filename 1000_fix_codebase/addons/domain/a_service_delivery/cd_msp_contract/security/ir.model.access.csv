@@ -53,3 +53,7 @@ access_fix_msp_dr_test,fix.msp.dr.test,model_fix_msp_dr_test,base.group_user,1,0
 access_fix_msp_dr_test_eng,fix.msp.dr.test engineer,model_fix_msp_dr_test,group_msp_engineer,1,1,1,0
 access_fix_msp_roadmap_item,fix.msp.roadmap.item,model_fix_msp_roadmap_item,base.group_user,1,0,0,0
 access_fix_msp_roadmap_item_eng,fix.msp.roadmap.item engineer,model_fix_msp_roadmap_item,group_msp_engineer,1,1,1,0
+access_fix_msp_onboarding,fix.msp.onboarding,model_fix_msp_onboarding,base.group_user,1,0,0,0
+access_fix_msp_onboarding_eng,fix.msp.onboarding engineer,model_fix_msp_onboarding,group_msp_engineer,1,1,1,0
+access_fix_msp_onboarding_step,fix.msp.onboarding.step,model_fix_msp_onboarding_step,base.group_user,1,0,0,0
+access_fix_msp_onboarding_step_eng,fix.msp.onboarding.step engineer,model_fix_msp_onboarding_step,group_msp_engineer,1,1,1,0

@@ -555,6 +555,17 @@ WRITABLE = {
             "name",
         }
     ),
+    "fix.msp.onboarding": frozenset(
+        {
+            "coverage_target_pct",
+            "kickoff_date",
+            "msp_contract_id",
+            "name",
+            "notes",
+            "target_live_date",
+        }
+    ),
+    "fix.msp.onboarding.step": frozenset(),
     "fix.msp.oncall.shift": frozenset(
         {
             "company_id",

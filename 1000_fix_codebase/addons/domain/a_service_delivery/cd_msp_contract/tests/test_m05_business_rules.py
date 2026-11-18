@@ -172,8 +172,23 @@ def test_offboarding_completes_only_with_every_agent_removed_and_access_revoked(
         kwargs={"evidence": "portal users archived; VPN keys revoked; vault entries deleted"},
     )
     assert out.get("success"), out
+    # FR-RMS-048 (capture audit pass 2): the client's data is returned too
+    with pytest.raises(UserError, match="return of the client's data"):
+        msp.action_complete_offboarding()
+    with pytest.raises(UserError, match="evidence"):
+        msp.action_record_data_returned(evidence="done")
+    out = call(
+        m5.env(user=m5.eng.id),
+        "model_action",
+        model="fix.msp.contract",
+        ids=[m5.msp.id],
+        method="action_record_data_returned",
+        kwargs={"evidence": "file-share export handed to client IT lead; local copies wiped"},
+    )
+    assert out.get("success"), out
     msp.action_complete_offboarding()
     assert msp.lifecycle == "offboarded" and msp.offboarded_by_id == m5.eng
+    assert msp.data_returned_at and "wiped" in msp.data_return_evidence
 
 
 def test_lifecycle_cannot_be_typed_on_the_form(m5, call):

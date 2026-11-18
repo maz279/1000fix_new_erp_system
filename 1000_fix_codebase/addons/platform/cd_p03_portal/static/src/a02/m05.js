@@ -63,6 +63,11 @@ export const MODULE = {
       { id: 'M05-contracts', en: 'MSP Contracts & Monthly Reports', bn: 'এমএসপি চুক্তি ও মাসিক প্রতিবেদন', t: 'g' },
       { id: 'M05-credits', en: 'SLA Credits', bn: 'এসএলএ ক্রেডিট', t: 'g' }
     ]},
+    /* capture audit pass 2 (2026-11-18): FR-RMS-047, spec 8.3 */
+    { en: 'Client Onboarding', screens: [
+      { id: 'M05-onboarding', en: 'Onboarding Projects', bn: 'অনবোর্ডিং প্রকল্প', t: 'g' },
+      { id: 'M05-onboarding-steps', en: 'Onboarding Checklist', bn: 'অনবোর্ডিং চেকলিস্ট', t: 'g' }
+    ]},
     { en: 'Specialist Services', screens: [
       { id: 'M05-cloud', en: 'Cloud Subscriptions', bn: 'ক্লাউড সাবস্ক্রিপশন', t: 'g' },
       { id: 'M05-dr-plans', en: 'DR / BC Plans', bn: 'ডিআর / বিসি পরিকল্পনা', t: 'g' },
@@ -76,7 +81,9 @@ export const MODULE = {
   forms: ['MSP Contract', 'Remote Session (consent recorded)', 'MSP Ticket', 'Change Record', 'Maintenance Window',
     'Managed Estate Device', 'Health Reading', 'Alert Rule', 'On-Call Shift', 'Runbook', 'Patch Update',
     'Monthly Service Report', 'Runbook Execution', 'Backup Job', 'Client Contact', 'Major Incident',
-    'Service Review Meeting', 'Roadmap Item', 'Cloud Subscription', 'DR Plan', 'DR Test'],
+    'Service Review Meeting', 'Roadmap Item', 'Cloud Subscription', 'DR Plan', 'DR Test',
+    /* capture audit pass 2: forms that sat on no page, and the onboarding project */
+    'SLA Credit', 'Patch Policy', 'Client Onboarding'],
   cross: ['M08 contract entitlement', 'M17 monitored assets', 'M48 telemetry streams', 'M20 SLA credit billing', 'P04 client portal'],
   freg: {
     src: 93,
@@ -89,18 +96,21 @@ export const MODULE = {
       ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate', 'M05-backups', 'M05-dr-plans', 'M05-dr-tests'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading', 'Backup Job', 'DR Plan', 'DR Test'], create: 'M05-form-reading' }],
       /* 4 FR-RMS-015: the engine is configured by its rules; alerts are
        * raised by readings that cross them. The button opened the ticket form. */
-      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket'], create: 'M05-form-alert-rule' }],
+      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules', 'M05-windows'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket', 'Maintenance Window'], create: 'M05-form-alert-rule' }],
       ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: ['On-Call Shift'] }],
       ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks', 'M05-runbook-runs'], reports: [], forms: ['Runbook', 'Runbook Execution'] }],
-      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Patch Update', 'Maintenance Window'] }],
+      ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Patch Update', 'Patch Policy', 'Maintenance Window'] }],
       /* 8 FR-RMS-026: a client reports by phone, email, portal or chat; the
        * desk lists those and every ticketed alert. Its list refused "+ New",
        * so the page had no button and a phoned-in fault had no input. */
       ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem', 'M05-contacts', 'M05-major-incidents'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record', 'Client Contact', 'Major Incident'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
       /* 9 FR-RMS-035: the monthly report is generated from its contract,
        * never typed - its figures decide the SLA credit. No button before. */
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
-      ['10', 'Onboarding Projects', 5, { model: 'fix.msp.contract', cols: ['name', 'contract_id', 'device_count', 'monitoring_scope', 'sla_target_pct'], screens: ['M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['MSP Contract'] }]
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-credits', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'SLA Credit', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
+      /* 10 FR-RMS-047/048, spec 8.3: the button opened the MSP contract; no
+       * record held the onboarding project, its checklist or the go-live
+       * from which SLA clocks bind (capture audit pass 2, 2026-11-18) */
+      ['10', 'Onboarding Projects', 5, { model: 'fix.msp.onboarding', cols: ['name', 'msp_contract_id', 'state', 'step_done_count', 'coverage_pct', 'live_at'], screens: ['M05-onboarding', 'M05-onboarding-steps', 'M05-contracts', 'M05-estate'], reports: ['MSP SLA Attainment by Client'], forms: ['Client Onboarding', 'MSP Contract'], create: 'M05-form-onboarding' }]
     ]
   }
 };
@@ -241,6 +251,8 @@ export const SCREENS = {
       /* BRU-RMS-11 offboarding: start, record access revoked, complete */
       { m: 'action_start_offboarding', l: 'Start Offboarding' },
       { m: 'action_record_access_revoked', l: 'Record Access Revoked', ask: 'Evidence: which access was revoked and how it was checked', kwarg: 'evidence' },
+      /* FR-RMS-048 */
+      { m: 'action_record_data_returned', l: 'Record Data Returned', ask: 'Evidence: what client data was handed back or confirmed deleted, and how', kwarg: 'evidence' },
       { m: 'action_complete_offboarding', l: 'Complete Offboarding' }
     ] },
   /* credits are computed from the service report; a manual credit is typed
@@ -300,6 +312,19 @@ export const SCREENS = {
     cols: ['test_date', 'msp_contract_id', 'plan_id', 'outcome', 'rto_achieved_hours', 'rpo_achieved_hours', 'meets_targets', 'tested_by_id'],
     stateField: 'outcome',
     empty: 'No DR test recorded yet.' },
+
+  /* ===== capture audit pass 2 (2026-11-18): sub-module 10 ===== */
+  /* FR-RMS-047 / spec 8.3: one project per contract, its checklist, and the
+   * go-live that makes the SLA clocks contractually binding */
+  'M05-onboarding': { kind: 'model_list', model: 'fix.msp.onboarding',
+    cols: ['name', 'msp_contract_id', 'kickoff_date', 'target_live_date', 'step_done_count', 'step_count', 'coverage_pct', 'coverage_target_pct', 'live_at', 'state'],
+    stateField: 'state',
+    empty: 'No client onboarding yet. Start one with + Start a Client Onboarding once the MSP contract is signed.',
+    actions: [{ m: 'action_go_live', l: 'Go Live (SLA clocks start)' }] },
+  'M05-onboarding-steps': { kind: 'model_list', model: 'fix.msp.onboarding.step', create: false,
+    cols: ['onboarding_id', 'name', 'requirement', 'done', 'done_by_id', 'done_at', 'evidence'],
+    empty: 'No onboarding checklist yet: each onboarding project brings its eight steps.',
+    actions: [{ m: 'action_mark_done', l: 'Mark Step Done', ask: 'Evidence: what was done and how it was checked', kwarg: 'evidence' }] },
 
   /* ============ SIX REGISTRY REPORT SCREENS (v2 forensic audit) =============
    * Every report chip opens its OWN titled computed report. Previously four of
@@ -609,7 +634,7 @@ export const SCREENS = {
     tabs: [
       { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
       { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '9' },
-      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '7' }
+      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '10' }
     ],
     sections: [
       { tab: 'contract', title: "Contract & Monitoring Scope",
@@ -640,9 +665,12 @@ export const SCREENS = {
         note: "Offboarding is run from MSP Contracts: Start Offboarding, record each agent's removal on Estate & Agents and the access revocation here, then Complete Offboarding. It completes only when every agent is removed and access is revoked, each with its evidence.",
         fields: [
           { name: 'lifecycle', label: "Service Lifecycle", readonly: true },
+          { name: 'service_live_at', label: "Service Live Since (SLA clocks bind from here)", readonly: true },
           { name: 'offboarding_started_at', label: "Offboarding Started At", readonly: true },
           { name: 'access_revoked_at', label: "Access Revoked At", readonly: true },
           { name: 'access_revoked_evidence', label: "Access Revocation Evidence", readonly: true },
+          { name: 'data_returned_at', label: "Client Data Returned At", readonly: true },
+          { name: 'data_return_evidence', label: "Data Return Evidence", readonly: true },
           { name: 'offboarded_at', label: "Offboarded At", readonly: true },
           { name: 'offboarded_by_id', label: "Offboarded By", readonly: true }
         ] }
@@ -975,6 +1003,55 @@ export const SCREENS = {
         ] }
     ] },
 
+  'M05-form-onboarding': {
+    kind: 'model_form',
+    model: 'fix.msp.onboarding',
+    title: 'Client Onboarding',
+    newLabel: 'Start a Client Onboarding',
+    back: 'M05-onboarding',
+    status: { field: 'state' },
+    lines: { field: 'step_ids', title: 'Onboarding Checklist (spec 8.3)', readonlyGrid: true,
+      note: 'Mark each step done on Onboarding Checklist with its evidence. Agents, baseline, contacts, runbooks, alert rules and the SLA are checked by the system when marked.',
+      fields: [
+        { name: 'name', label: 'Step', readonly: true },
+        { name: 'requirement', label: 'Done When', readonly: true },
+        { name: 'done', label: 'Done', readonly: true },
+        { name: 'done_by_id', label: 'Done By', readonly: true },
+        { name: 'done_at', label: 'Done At', readonly: true },
+        { name: 'evidence', label: 'Evidence', readonly: true }
+      ] },
+    tabs: [
+      { id: 'project', label: '1. Project', bn: '১. প্রকল্প', icon: '🚀', badge: '7' },
+      { id: 'live', label: '2. Coverage & Go-Live', bn: '২. কভারেজ ও চালু', icon: '✅', badge: '9' }
+    ],
+    sections: [
+      { tab: 'project', title: 'Client Onboarding Project (FR-RMS-047)',
+        note: 'One project per signed MSP contract. The eight-step checklist comes with it. Needs the MSP Engineer role.',
+        fields: [
+          { name: 'msp_contract_id', required: true, label: 'MSP Contract' },
+          { name: 'name', label: 'Project (empty: Onboarding: <contract>)' },
+          { name: 'kickoff_date', required: true, label: 'Kick-off' },
+          { name: 'target_live_date', label: 'Target Go-Live' },
+          { name: 'notes', label: 'Scope & Notes', type: 'text' },
+          { name: 'state', label: 'Stage', readonly: true },
+          { name: 'started_by_id', label: 'Started By', readonly: true }
+        ] },
+      { tab: 'live', title: 'Coverage Verified, Then Service Live',
+        note: 'Go Live needs every step done and at least the agreed share of covered devices reporting in the last 24 h. SLA clocks are contractually binding only from that moment.',
+        fields: [
+          { name: 'coverage_target_pct', required: true, label: 'Coverage Needed to Go Live (%)' },
+          { name: 'covered_count', label: 'Covered Devices', readonly: true },
+          { name: 'reporting_count', label: 'Agents Reporting (24 h)', readonly: true },
+          { name: 'coverage_pct', label: 'Coverage Now (%)', readonly: true },
+          { name: 'step_done_count', label: 'Steps Done', readonly: true },
+          { name: 'step_count', label: 'Steps', readonly: true },
+          { name: 'live_at', label: 'Service Live Since', readonly: true },
+          { name: 'live_by_id', label: 'Taken Live By', readonly: true },
+          { name: 'live_coverage_pct', label: 'Coverage at Go-Live (%)', readonly: true }
+        ] }
+    ]
+  },
+
   'M05-form-msp-patch-policy': {
     kind: 'model_form',
     model: 'fix.msp.patch.policy',
@@ -1040,7 +1117,11 @@ export const FORM_CHIPS = {
     'M05-cloud': 'M05-form-cloud',
     'M05-dr-plans': 'M05-form-dr-plan',
     'M05-dr-tests': 'M05-form-dr-test',
+    'M05-onboarding': 'M05-form-onboarding',
   },
+  'M05:SLA Credit': 'M05-form-credit',
+  'M05:Patch Policy': 'M05-form-msp-patch-policy',
+  'M05:Client Onboarding': 'M05-form-onboarding',
   'M05:Client Contact': 'M05-form-contact',
   'M05:Major Incident': 'M05-form-major-incident',
   'M05:Service Review Meeting': 'M05-form-review-meeting',
@@ -1083,7 +1164,8 @@ export const FORM_CHIPS = {
     'fix.msp.roadmap.item': 'M05-form-roadmap',
     'fix.msp.cloud.subscription': 'M05-form-cloud',
     'fix.msp.dr.plan': 'M05-form-dr-plan',
-    'fix.msp.dr.test': 'M05-form-dr-test'
+    'fix.msp.dr.test': 'M05-form-dr-test',
+    'fix.msp.onboarding': 'M05-form-onboarding'
   }
 };
 

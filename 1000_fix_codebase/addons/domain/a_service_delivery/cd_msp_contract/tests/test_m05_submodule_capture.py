@@ -54,6 +54,18 @@ EXPECTED = {
     "7": ("M05-form-patch", "Patch Update"),
     "8": ("M05-form-ticket", "Log a Client Ticket"),
     "9": ("M05-form-monthly-report", "Generate a Monthly Service Report"),
+    # pass 2 (2026-11-18): the page opened the MSP contract; FR-RMS-047 and
+    # spec 8.3 make the onboarding project the record it captures
+    "10": ("M05-form-onboarding", "Start a Client Onboarding"),
+}
+
+# pass 2: chips a page must carry because the spec places the record there
+# and the page lists it (page -> forms)
+REQUIRED_CHIPS = {
+    "4": {"Alert Rule", "Maintenance Window"},  # FR-RMS-019 suppresses alerting
+    "7": {"Patch Update", "Patch Policy"},  # the page lists the policies
+    "9": {"Monthly Service Report", "SLA Credit"},  # FR-RMS-037, BRU-RMS-06
+    "10": {"Client Onboarding", "MSP Contract"},
 }
 
 
@@ -100,12 +112,31 @@ def test_every_m05_submodule_offers_its_capture(registry):
     got = {
         no: ((r["create"] or {}).get("screen"), (r["create"] or {}).get("label"))
         for no, r in rows.items()
-        if no != "10"
     }
     assert got == EXPECTED
-    # 10 Onboarding Projects lists the MSP contract itself: the module's button
-    assert rows["10"]["create"] == {"module": True}
-    assert all(r["formKind"] == "model_form" for no, r in rows.items() if no != "10")
+    assert all(r["formKind"] == "model_form" for r in rows.values())
+    assert rows["10"]["formModel"] == "fix.msp.onboarding"
+
+
+def test_each_page_carries_the_chips_the_spec_places_on_it(registry):
+    rows = _rows(registry)
+    missing = {
+        no: sorted(want - set(rows[no]["forms"]))
+        for no, want in REQUIRED_CHIPS.items()
+        if want - set(rows[no]["forms"])
+    }
+    assert not missing, missing
+    chips = registry["chips"]
+    for name in ("SLA Credit", "Patch Policy", "Client Onboarding", "Maintenance Window"):
+        assert chips.get("M05:%s" % name), "chip %s opens no form" % name
+
+
+def test_every_m05_list_screen_sits_on_a_page(screens):
+    """A list on no sub-module page (SLA Credits was one) is reachable only
+    from the menu, and its capture from nowhere on the pages."""
+    placed = {s for sub in screens["module"]["freg"]["sub"] for s in sub[3]["screens"]}
+    lists = {sid for sid, cfg in screens["screens"].items() if cfg.get("kind") == "model_list"}
+    assert not lists - placed, sorted(lists - placed)
 
 
 def test_every_page_names_the_forms_that_capture_it(registry):
