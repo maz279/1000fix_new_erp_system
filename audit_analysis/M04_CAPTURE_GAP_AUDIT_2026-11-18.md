@@ -85,4 +85,21 @@ All runs were on a private clone (`fix_test_m04`, port 8132), never on fix_real 
 
 ## 5. State
 
-_(filled in when landed)_
+_State on 18 Nov 2026, 21:40 (UTC+8):_
+
+- **Landed.** b216e79d was fast-forwarded onto `fix/a03-live-data-and-pending-work`, after two rebases over the M67 and M02/M03 landings. It is not pushed.
+  - After the rebases: the M04, whitelist, page-mapping and control suites gave 931/932 (the one failure is M60's legal-hold screen).
+  - The final quick retest gave 31/31.
+- **Backups.** `fix_real_pre_m04_capture_gaps_2026-11-18.dump` and `fix_dev_pre_m04_capture_gaps_2026-11-18.dump`, in `_migration/backups`.
+- **Upgraded.**
+  - fix_real: `-u cd_front_desk,cd_front_desk_finance,cd_p03_portal`.
+  - fix_dev: `-u cd_front_desk,cd_p03_portal` (the finance bridge is not installed there).
+  - Both exited 0 with no ERROR lines. The version-gap check was empty on both before the restart.
+- **Restarted.** 8069 (fix_real) is now PID 81648 and 8090 (fix_dev) is PID 63616. Both registries loaded cleanly and `/web/login` returns 200.
+- **Verified on both databases.**
+  - The four surfaces are served.
+  - Both servers hand out the bundle `ca49a48`, which holds the new forms and lists.
+  - The threshold reads 50,000, and 2 active transparency notices exist.
+  - No ID check or handover has been recorded yet.
+- **Cleanup.** The clone `fix_test_m04` and its filestore are dropped, and the worktree is removed. The branch `fix/m04-capture-gaps` is kept.
+
