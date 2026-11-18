@@ -23,6 +23,11 @@
       "status": "planned"
     },
     {
+      "event_type": "cwip.capitalised",
+      "filename": "cwip_capitalised.json",
+      "status": "planned"
+    },
+    {
       "event_type": "data_case.recovery_completed",
       "filename": "data_case_recovery_completed.json",
       "status": "planned"

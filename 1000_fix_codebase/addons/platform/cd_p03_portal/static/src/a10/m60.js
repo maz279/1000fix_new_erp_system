@@ -1043,7 +1043,8 @@ export const FORM_CHIPS = {
     'M60-sod-tests': 'M29-form-sodtest',
     'M60-sod-exceptions': 'M29-form-sodexception',
     'M60-legal': 'M60-form-legal',
-    'M60-holds': 'M24-form-hold',
+    /* M60-holds lists fix.legal.hold: no row form (M24's Place Legal Hold
+     * edits a DOCUMENT); a hold is placed with the Place Legal Hold chip */
     'M60-ip': 'M60-form-ip',
     'M60-ropa': 'M60-form-ropa',
     'M60-transfers': 'M60-form-transfer',

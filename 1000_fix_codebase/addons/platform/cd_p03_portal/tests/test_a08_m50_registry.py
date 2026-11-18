@@ -127,5 +127,9 @@ def test_model_list_create_context_and_forms_are_real(registry, odoo_env):
         for key in cfg.get("context") or {}:
             assert key.startswith("default_")
             assert key[len("default_") :] in odoo_env[cfg["model"]]._fields, f"{sid}: {key}"
-    for model in registry["forms"].values():
-        assert model in m50.SURFACES
+    # a chip may open another module's form (M50 "FX Revaluation Run" opens
+    # M19's): the model must be served by the workspace, whichever area serves it
+    from odoo.addons.cd_p03_portal.controllers.p03_generic_api import SURFACES
+
+    for chip, model in registry["forms"].items():
+        assert model in m50.SURFACES or model in SURFACES, f"{chip}: {model} is not served"

@@ -23,7 +23,11 @@ from odoo.exceptions import AccessError, UserError
 # the guard's own refusal, an ACL refusal, or a module's stricter check
 REFUSED = (
     r"changes only through its workflow|cannot be set directly|cannot move|"
-    r"cannot change|not allowed to|access rights"
+    r"cannot change|not allowed to|access rights|"
+    # M60 capture (2026-11-17) refuses a plain edit before the field guard: a
+    # recorded assessment/event/attestation is immutable, and an obligation or
+    # treatment is edited by its owner or a Compliance Officer only
+    r"is kept as recorded|Compliance Officer edits"
 )
 ROUTED_MESSAGE = "approver's inbox"
 SIMPLE = {

@@ -95,7 +95,8 @@ def _require_editor(records, owner_field, why):
     for rec in records:
         owner = rec[owner_field]
         if not (owner and owner.user_id == records.env.user):
-            raise UserError(why % rec.display_name)
+            # a record not saved yet has no name: say what it is
+            raise UserError(why % (rec.display_name or rec._description))
 
 
 # ====================================================================== page 1

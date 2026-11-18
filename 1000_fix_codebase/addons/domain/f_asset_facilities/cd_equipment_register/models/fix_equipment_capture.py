@@ -927,20 +927,20 @@ class FixEquipmentLoss(models.Model):
                 )
             else:
                 equipment._m45_sync_status()
-            publish(
-                self.env,
-                "equipment.lost" if rec.kind != "damaged" else "equipment.damaged",
-                "fix.equipment.loss",
-                rec.id,
-                {
-                    "equipment": equipment.code,
-                    "loss": rec.name,
-                    "kind": rec.kind,
-                    "custodian": custodian.name or None,
-                    "custodian_id": custodian.id or None,
-                    "value": equipment.acquisition_cost or 0.0,
-                },
-            )
+            payload = {
+                "equipment": equipment.code,
+                "loss": rec.name,
+                "kind": rec.kind,
+                "custodian": custodian.name or None,
+                "custodian_id": custodian.id or None,
+                "value": equipment.acquisition_cost or 0.0,
+            }
+            # two literal event types: the registry scanner cannot resolve one
+            # composed at run time (FF-28 registry guard)
+            if rec.kind == "damaged":
+                publish(self.env, "equipment.damaged", "fix.equipment.loss", rec.id, payload)
+            else:
+                publish(self.env, "equipment.lost", "fix.equipment.loss", rec.id, payload)
         return records
 
     def _m45_decide(self, state, note=None, **extra):

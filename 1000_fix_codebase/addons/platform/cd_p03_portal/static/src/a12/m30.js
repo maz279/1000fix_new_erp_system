@@ -68,7 +68,7 @@ export const MODULE = {
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
     // Each page names its own capture first, then every other record its lists show.
-    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry', 'Branch Provisioning Time'], forms: ['Branch', 'Zone'], create: 'module' }],
+    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry', 'Branch Provisioning Time'], forms: ['Branch', 'Zone'], create: 'M30-form-branch' }],
     ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities'], reports: [], forms: ['Legal Entity'], create: 'M30-form-entity' }],
     ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-params', 'M30-config-changes', 'M30-config', 'M30-jobs', 'M30-crons', 'M30-env'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory', 'Job Success Rate'], forms: ['Feature Flag', 'Configuration Change', 'Registered Parameter', 'Scheduled Job', 'Environment'], create: 'M30-form-flag' }],
     ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars', 'M30-calendar-holidays'], reports: ['Calendar Coverage'], forms: ['Working Calendar', 'Calendar Holiday'], create: 'M30-form-calendar' }],

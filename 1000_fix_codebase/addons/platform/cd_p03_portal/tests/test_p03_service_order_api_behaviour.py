@@ -721,6 +721,9 @@ def test_dispatch_reuses_the_existing_work_order(ctrl, world):
 def test_dispatch_refusal_by_the_roster_gate_changes_nothing(ctrl, world):
     """Regression: a gate refusal used to leave the ORDER pointing at the
     refused technician (the order write was not rolled back)."""
+    # certified, so the M22 gate (checked first, fail-closed) lets it through
+    # and the M55 roster gate is the one that refuses: not on today's roster
+    _certified(world, world.tech)
     order = _order(world, "approved")
     result = ctrl.assign_dispatch(order_id=order.id, technician="Probe Technician Alam")
     assert result["success"] is False
