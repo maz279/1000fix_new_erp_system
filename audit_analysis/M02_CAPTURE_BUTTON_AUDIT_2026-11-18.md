@@ -1,6 +1,6 @@
 # M02 Field Service & Dispatch: data-capture button audit, second pass
 
-**Date:** 18 Nov 2026 · **Branch:** `fix/m02-capture-buttons-2` (worktree `m02cap-wt`, from `bd3f4796`) · **Status:** built and tested on a private copy of fix_test; committed; **not deployed** to fix_real or fix_dev
+**Date:** 18 Nov 2026 · **Branch:** `fix/m02-capture-buttons-2` (worktree `m02cap-wt`, from `bd3f4796`) · **Status:** built and tested on a private copy of fix_test; committed, landed (929f9e18) and **live on fix_real and fix_dev** (see §7); not pushed
 
 ## 1. The question
 
@@ -81,3 +81,20 @@ All runs used a private copy of fix_test (`fix_test_m02`), with 37 lagging modul
 3. AUT-FSM-10 (block the next shift until field cash is reconciled) and AUT-FSM-13 (alert after 26 h without sync) are automations, not captures. Not built.
 4. BRU-FSM-14 (location-history access logged, named roles only): field-service users can still read all pings. Not in this pass's scope.
 5. fix_real has 0 field orders, so these registers start empty there.
+
+## 7. Deploy record
+
+- **Landed** on `fix/a03-live-data-and-pending-work` at 13:27 UTC, 18 Nov (CAS fast-forward to `929f9e18`). Not pushed.
+- **Went live with the M04 session's deploy**, which ran after this landing:
+  - It upgraded both databases at 13:31–13:33 UTC, taking cd_field_service to 19.0.2.1.0.
+  - It restarted both servers at 13:34 UTC: 8069 (fix_real) is PID 81648 and 8090 (fix_dev) is PID 63616.
+  - Its backups are `fix_real_pre_m04_capture_gaps_2026-11-18.dump` and `fix_dev_pre_m04_capture_gaps_2026-11-18.dump` in `_migration/backups`.
+  - The user approved deploying M02 to both databases. Because that deploy had already carried it, no second restart was needed.
+- **Checked read-only on both databases:**
+  - The version-gap check is empty.
+  - The 6 models are registered, with 13 access rules, 12 isolation rules and 5 sequences.
+  - Both servers hand out bundle `ca49a48`, which holds all six new M02 forms.
+  - `/web/login` returns 200 on both.
+  - The pages were not walked in the live workspace: the browser pane is not signed in to fix_real, and no credentials were entered. The page walk was done on the private test server (§5).
+- **Data:** fix_real has 0 field orders, so all six registers start empty.
+
