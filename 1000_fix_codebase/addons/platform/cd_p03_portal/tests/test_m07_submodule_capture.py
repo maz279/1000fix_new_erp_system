@@ -298,6 +298,18 @@ def test_a_saved_lead_changes_type_only_by_conversion(crm, call):
 def test_conversion_needs_the_party_match_and_keeps_the_source(crm, call):
     env, partner, _pipeline = crm
     lead = env["crm.lead"].create({"name": "Unmatched", "type": "lead", "lead_source": "referral"})
+    # M07 capture pass 2 (2026-11-18): only a qualified lead converts
+    # (FR-CRM-007); test_m07_capture_pass2 covers the refusal before it.
+    env["fix.lead.qualification"].create(
+        {
+            "lead_id": lead.id,
+            "need": "confirmed",
+            "authority": "partial",
+            "budget": "partial",
+            "timing": "confirmed",
+            "outcome": "qualified",
+        }
+    )
     res = call(
         env,
         "model_action",

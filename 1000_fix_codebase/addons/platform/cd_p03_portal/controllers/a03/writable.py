@@ -40,6 +40,7 @@ WRITABLE = {
             "probability",
             "stage_id",
             "team_id",
+            "team_member_ids",
             "type",
             "user_id",
         }
@@ -63,8 +64,18 @@ WRITABLE = {
             "assignment_type",
             "effective_from",
             "effective_to",
+            "exception_reason",
             "owner_id",
             "partner_id",
+        }
+    ),
+    "fix.account.eligibility": frozenset(
+        {
+            "effective_from",
+            "min_acv_bdt",
+            "min_annual_spend_bdt",
+            "name",
+            "strategic_qualifies",
         }
     ),
     "fix.account.plan": frozenset(
@@ -679,6 +690,20 @@ WRITABLE = {
             "partner_id",
         }
     ),
+    "fix.lead.qualification": frozenset(
+        {
+            "authority",
+            "budget",
+            "budget_bdt",
+            "decision_by",
+            "disqualify_reason",
+            "lead_id",
+            "need",
+            "notes",
+            "outcome",
+            "timing",
+        }
+    ),
     "fix.loyalty.account": frozenset(
         {
             "enrollment_date",
@@ -975,6 +1000,14 @@ WRITABLE = {
             "transport",
         }
     ),
+    "fix.opportunity.team": frozenset(
+        {
+            "lead_id",
+            "notes",
+            "role",
+            "user_id",
+        }
+    ),
     "fix.otp.log": frozenset(),
     "fix.party.duplicate": frozenset(
         {
@@ -1063,11 +1096,12 @@ WRITABLE = {
     "fix.renewal": frozenset(
         {
             "expiry_date",
-            "lead_time_days",
             "owner_id",
             "partner_id",
+            "play",
             "risk_band",
             "source_ref",
+            "source_type",
             "value",
         }
     ),
@@ -1143,6 +1177,14 @@ WRITABLE = {
             "outcome",
             "owner_id",
             "partner_id",
+        }
+    ),
+    "fix.sales.quota": frozenset(
+        {
+            "owner_id",
+            "period",
+            "pipeline_id",
+            "target_value",
         }
     ),
     "fix.segment": frozenset(

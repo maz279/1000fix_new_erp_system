@@ -15,3 +15,9 @@ access_fix_crm_sequence_enrolment,fix.crm.sequence.enrolment,model_fix_crm_seque
 access_fix_crm_score_model,fix.crm.score.model,model_fix_crm_score_model,base.group_user,1,1,1,1
 access_fix_crm_score_factor,fix.crm.score.factor,model_fix_crm_score_factor,base.group_user,1,1,1,1
 access_fix_sales_activity,fix.sales.activity,model_fix_sales_activity,base.group_user,1,1,1,0
+access_fix_lead_qualification,fix.lead.qualification,model_fix_lead_qualification,base.group_user,1,0,1,0
+access_fix_opportunity_team,fix.opportunity.team,model_fix_opportunity_team,base.group_user,1,1,1,1
+access_fix_sales_quota_user,fix.sales.quota user,model_fix_sales_quota,base.group_user,1,0,0,0
+access_fix_sales_quota_manager,fix.sales.quota manager,model_fix_sales_quota,sales_team.group_sale_manager,1,1,1,1
+access_fix_account_eligibility_user,fix.account.eligibility user,model_fix_account_eligibility,base.group_user,1,0,0,0
+access_fix_account_eligibility_manager,fix.account.eligibility manager,model_fix_account_eligibility,sales_team.group_sale_manager,1,1,1,0

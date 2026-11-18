@@ -29,7 +29,7 @@ A03 P2 (2026-11-03) adds:
 D365 screen convention: the user-facing screens are the in-workspace surfaces
 in cd_p03_portal (static/src/a03/m07.js); Odoo views here are substrate only.
 """,
-    "version": "19.0.1.3.0",
+    "version": "19.0.1.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer Engagement/CRM",

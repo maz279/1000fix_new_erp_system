@@ -71,7 +71,47 @@ SURFACES = {
     "fix.qbr.action": {
         "order": "due_date, id",
         "limit": 300,
-        "actions": {"action_close", "action_cancel"},
+        # M07 capture pass 2: an accepted recommendation becomes a pursuit
+        # (FR-CRM-038)
+        "actions": {"action_close", "action_cancel", "action_raise_opportunity"},
+    },
+    # --- M07 capture audit, second pass (2026-11-18) ----------------------
+    # page 1: the need/authority/budget/timing assessment (FR-CRM-002)
+    "fix.lead.qualification": {
+        "order": "assessed_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        # only a lead still open to assessment; read sudo, so filtered here
+        "pickers": {
+            "lead_id": [
+                ("type", "=", "lead"),
+                ("active", "=", True),
+                ("qualification_state", "in", ("captured", "qualified")),
+            ]
+        },
+    },
+    # page 2: contributors on a pursuit (FR-CRM-013)
+    "fix.opportunity.team": {
+        "order": "lead_id, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {
+            "lead_id": [("type", "=", "opportunity"), ("active", "=", True)],
+            "user_id": [("share", "=", False)],
+        },
+    },
+    # page 3: targets the forecast is read against (FR-CRM-023)
+    "fix.sales.quota": {
+        "order": "period desc, owner_id, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"owner_id": [("share", "=", False)]},
+    },
+    # page 5: the published dedicated-manager criteria (FR-CRM-027, BRU-CRM-09)
+    "fix.account.eligibility": {
+        "order": "effective_from desc, id desc",
+        "limit": 50,
+        "actions": set(),
     },
     "fix.renewal": {
         "order": "expiry_date, id",

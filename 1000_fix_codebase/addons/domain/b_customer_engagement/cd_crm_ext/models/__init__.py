@@ -26,3 +26,9 @@ from . import crm_lead_quote, crm_lead_intake
 
 # A03 audit W1: open leads follow a merged party (extends crm.lead).
 from . import crm_lead_party_merge
+
+# M07 capture audit, second pass (2026-11-18): lead qualification, opportunity
+# team, sales quota, dedicated-manager eligibility, QBR action follow-through.
+# It extends crm.lead, fix.account.assignment and fix.qbr.action, so it loads
+# LAST.
+from . import fix_crm_capture  # isort: split

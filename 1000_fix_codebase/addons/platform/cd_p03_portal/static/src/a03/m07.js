@@ -27,21 +27,26 @@ export const MODULE = {
   groups: [
     { en: 'Leads', bn: 'লিড', screens: [
       { id: 'M07-leads', en: 'Leads', bn: 'লিড', t: 'g' },
+      { id: 'M07-qualifications', en: 'Qualification Assessments', bn: 'যোগ্যতা যাচাই', t: 'g' },
       { id: 'M07-scoring', en: 'Scoring & Routing', bn: 'স্কোরিং ও রাউটিং', t: 'g' },
       { id: 'M07-sources', en: 'Sources & Campaigns', bn: 'উৎস ও ক্যাম্পেইন', t: 'r' }
     ]},
     { en: 'Pipeline', bn: 'পাইপলাইন', screens: [
       { id: 'M07-opps', en: 'Opportunities', bn: 'সুযোগ', t: 'g' },
       { id: 'M07-kanban', en: 'Pipeline Kanban', bn: 'পাইপলাইন কানবান', t: 'd' },
+      { id: 'M07-opp-team', en: 'Opportunity Teams', bn: 'সুযোগ টিম', t: 'g' },
       { id: 'M07-forecast', en: 'Forecast', bn: 'পূর্বাভাস', t: 'g' },
+      { id: 'M07-quotas', en: 'Sales Quotas', bn: 'বিক্রয় কোটা', t: 'g' },
       { id: 'M07-quotes', en: 'Opportunity Estimates', bn: 'সুযোগের প্রাক্কলন', t: 'g' },
       { id: 'M07-form-quote', en: 'Opportunity Estimate', bn: 'প্রাক্কলন ফর্ম', t: 'f' }
     ]},
     { en: 'Accounts', bn: 'অ্যাকাউন্ট', screens: [
       { id: 'M07-key-accounts', en: 'Key Accounts & Stakeholders', bn: 'কী অ্যাকাউন্ট ও স্টেকহোল্ডার', t: 'g' },
       { id: 'M07-accounts', en: 'Corporate Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
+      { id: 'M07-eligibility', en: 'Dedicated-Manager Criteria', bn: 'ডেডিকেটেড ম্যানেজার মানদণ্ড', t: 'g' },
       { id: 'M07-plans', en: 'Account Plans', bn: 'অ্যাকাউন্ট পরিকল্পনা', t: 'g' },
       { id: 'M07-qbr', en: 'QBR Scheduler', bn: 'কিউবিআর সময়সূচি', t: 'g' },
+      { id: 'M07-qbr-actions', en: 'QBR Agreed Actions', bn: 'কিউবিআর সিদ্ধান্ত', t: 'g' },
       { id: 'M07-activities', en: 'Activities & Visits', bn: 'কার্যক্রম ও সাক্ষাৎ', t: 'g' }
     ]},
     { en: 'Renewals & Growth', bn: 'নবায়ন ও প্রবৃদ্ধি', screens: [
@@ -61,7 +66,11 @@ export const MODULE = {
       { id: 'M07-form-assignment', en: 'Account Assignment', bn: 'অ্যাসাইনমেন্ট ফর্ম', t: 'f' },
       { id: 'M07-form-qbr', en: 'Quarterly Business Review', bn: 'কিউবিআর ফর্ম', t: 'f' },
       { id: 'M07-form-renewal', en: 'Renewal Pursuit', bn: 'নবায়ন ফর্ম', t: 'f' },
-      { id: 'M07-form-forecast', en: 'Forecast Snapshot', bn: 'ফোরকাস্ট ফর্ম', t: 'f' }
+      { id: 'M07-form-forecast', en: 'Forecast Snapshot', bn: 'ফোরকাস্ট ফর্ম', t: 'f' },
+      { id: 'M07-form-qualification', en: 'Lead Qualification', bn: 'লিড যোগ্যতা ফর্ম', t: 'f' },
+      { id: 'M07-form-opp-team', en: 'Opportunity Team', bn: 'সুযোগ টিম ফর্ম', t: 'f' },
+      { id: 'M07-form-quota', en: 'Sales Quota', bn: 'কোটা ফর্ম', t: 'f' },
+      { id: 'M07-form-eligibility', en: 'Dedicated-Manager Eligibility Criteria', bn: 'যোগ্যতার মানদণ্ড ফর্ম', t: 'f' }
     ]},
     { en: 'Pipeline Reports', bn: 'রিপোর্ট', screens: [
       { id: 'M07-rpt-pipeline', en: 'Pipeline by Stream', bn: 'স্ট্রিমভিত্তিক পাইপলাইন', t: 'r' },
@@ -82,19 +91,19 @@ export const MODULE = {
     ]}
   ],
   reports: ['Pipeline by Stream', 'Funnel Conversion', 'Win Rate by Source', 'Account Manager Scorecard', 'Renewal Risk Report', 'Cross-Sell Attach Rate'],
-  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model', 'Opportunity Estimate', 'Key Account & Stakeholders', 'Competitor Intelligence'],
+  forms: ['Lead', 'Opportunity', 'Activity (call/visit/meeting)', 'Account Plan', 'Pipeline Configuration', 'Account Assignment', 'Quarterly Business Review', 'Renewal Pursuit', 'Forecast Snapshot', 'Sequence / Playbook', 'Lead Scoring Model', 'Opportunity Estimate', 'Key Account & Stakeholders', 'Competitor Intelligence', 'Lead Qualification', 'Opportunity Team', 'Sales Quota', 'Dedicated-Manager Eligibility Criteria'],
   cross: ['M33 Party Master', 'M08 Service Contracts', 'M01 Service Orders', 'M20 Credit Control', 'M53 Commissions'],
   freg: {
     src: 79,
     sub: [
-      ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads'], reports: ['Win Rate by Source'], forms: ['Lead', 'Lead Scoring Model'], create: 'M07-form-lead' }],
-      ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban'], reports: ['Funnel Conversion'], forms: ['Opportunity', 'Pipeline Configuration'] }],
-      ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-rpt-pipeline', 'M07-rpt-funnel'], reports: ['Pipeline by Stream', 'Funnel Conversion'], forms: ['Forecast Snapshot'] }],
+      ['1', 'Lead Capture & Qualification', 12, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'user_id', 'type'], screens: ['M07-leads', 'M07-qualifications'], reports: ['Win Rate by Source'], forms: ['Lead', 'Lead Qualification', 'Lead Scoring Model'], create: 'M07-form-lead' }],
+      ['2', 'Opportunity Stages', 10, { model: 'crm.lead', cols: ['name', 'partner_id', 'stage_id', 'expected_revenue', 'probability'], screens: ['M07-opps', 'M07-kanban', 'M07-opp-team'], reports: ['Funnel Conversion'], forms: ['Opportunity', 'Opportunity Team', 'Pipeline Configuration'] }],
+      ['3', 'Pipeline & Forecasting', 9, { model: 'fix.forecast.snapshot', cols: ['period', 'owner_id', 'pipeline_id', 'commit_value', 'best_case_value', 'pipeline_value'], screens: ['M07-forecast', 'M07-quotas', 'M07-rpt-pipeline', 'M07-rpt-funnel'], reports: ['Pipeline by Stream', 'Funnel Conversion'], forms: ['Forecast Snapshot', 'Sales Quota'] }],
       /* 4 FR-CRM-028/029: the plan, and the decision makers it is written
        * for - mapped on the key-account record (fix.account.stakeholder). */
       ['4', 'Account Plans & Stakeholders', 9, { model: 'fix.account.plan', cols: ['partner_id', 'period', 'objectives', 'whitespace_json', 'risks', 'actions'], screens: ['M07-plans', 'M07-key-accounts'], reports: [], forms: ['Account Plan', 'Key Account & Stakeholders'] }],
-      ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-rpt-amscore'], reports: ['Account Manager Scorecard'], forms: ['Account Assignment'] }],
-      ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr'], reports: [], forms: ['Quarterly Business Review'] }],
+      ['5', 'Account-Manager Assignment', 6, { model: 'fix.account.assignment', cols: ['partner_id', 'owner_id', 'assignment_type', 'dedicated', 'effective_from', 'effective_to'], screens: ['M07-accounts', 'M07-eligibility', 'M07-rpt-amscore'], reports: ['Account Manager Scorecard'], forms: ['Account Assignment', 'Dedicated-Manager Eligibility Criteria'] }],
+      ['6', 'QBR Programme', 7, { model: 'fix.qbr', cols: ['state', 'partner_id', 'period', 'scheduled_for', 'held_on', 'attendees'], screens: ['M07-qbr', 'M07-qbr-actions'], reports: [], forms: ['Quarterly Business Review'] }],
       /* 7 FR-CRM-045: the calls, meetings, site visits, e-mails and tasks
        * themselves (fix.sales.activity), each with its outcome and next step. */
       ['7', 'Activities', 8, { model: 'fix.sales.activity', cols: ['occurred_at', 'activity_type', 'name', 'lead_id', 'partner_id', 'owner_id', 'outcome', 'next_action_date'], screens: ['M07-activities'], reports: [], forms: ['Activity (call/visit/meeting)', 'Sequence / Playbook'] }],
@@ -117,7 +126,7 @@ export const SCREENS = {
     cols: ['name', 'partner_id', 'expected_revenue', 'stage_id', 'user_id', 'forecast_category'],
     stateField: 'stage_id' },
   'M07-leads': { kind: 'model_list', model: 'crm.lead', create: true,
-    cols: ['name', 'partner_id', 'lead_source', 'expected_revenue', 'user_id', 'create_date'],
+    cols: ['name', 'partner_id', 'lead_source', 'qualification_state', 'expected_revenue', 'user_id', 'create_date'],
     domain: [['type', '=', 'lead']],
     actions: [
       { m: 'action_score', l: 'Score Lead' },
@@ -141,7 +150,7 @@ export const SCREENS = {
     cols: ['period', 'owner_id', 'pipeline_id', 'pipeline_value', 'best_case_value', 'commit_value', 'taken_at'],
     note: 'Forecast snapshots by commit category (pipeline / best case / commit).' },
   'M07-accounts': { kind: 'model_list', model: 'fix.account.assignment', create: true,
-    cols: ['partner_id', 'owner_id', 'assignment_type', 'effective_from', 'effective_to'],
+    cols: ['partner_id', 'owner_id', 'assignment_type', 'effective_from', 'effective_to', 'eligibility_basis', 'exception_approved_by'],
     actions: [{ m: 'action_assign_unowned', l: 'Assign Unowned Accounts' }] },
   'M07-plans': { kind: 'model_list', model: 'fix.account.plan', create: true,
     cols: ['partner_id', 'period', 'reviewed_at', 'company_id'],
@@ -228,9 +237,12 @@ export const SCREENS = {
         { name: 'date_deadline', label: 'Target Closing Date' },
         { name: 'is_cross_sell', label: 'Cross-Sell / Installed Base Expansion' },
       ]},
-      { tab: 'qualification', title: 'M33 Party Kernel Matching Law',
-        note: 'A lead converts to an opportunity only after a party match against the M33 kernel (BRU-CRM-02) — never create a duplicate party master from an incoming lead.',
-        fields: [] }
+      { tab: 'qualification', title: 'Qualification & Party Match',
+        note: 'A lead converts to an opportunity once it is qualified (need, authority, budget and timing: + Qualify a Lead on the Leads page) and matched to its party in the M33 master (BRU-CRM-02). Conversion never creates a duplicate party.',
+        fields: [
+          { name: 'qualification_state', readonly: true, label: 'Qualification' },
+          { name: 'lead_score', readonly: true, label: 'Lead Score' }
+        ] }
     ] },
 
   'M07-form-opp': {
@@ -245,7 +257,22 @@ export const SCREENS = {
         { name: 'user_id', label: 'Organiser' },
         { name: 'location', label: 'Location' }
       ]
-    }, kind: 'model_form', model: 'crm.lead',
+    },
+    // M07 capture pass 2, FR-CRM-013: the people working the pursuit
+    grids: [
+      {
+        field: 'team_member_ids', tab: 'team', title: 'Opportunity Team',
+        addLabel: '+ Add contributor',
+        empty: 'Nobody besides the owner yet. Add the technical, commercial and executive contributors.',
+        note: 'The owner is the Assigned Key Account Manager. Only the owner or a sales manager changes the team.',
+        fields: [
+          { name: 'user_id', label: 'Contributor' },
+          { name: 'role', label: 'Role' },
+          { name: 'notes', label: 'Responsibility' }
+        ]
+      }
+    ],
+    kind: 'model_form', model: 'crm.lead',
     title: 'Commercial Opportunity & B2B KAM', back: 'M07-opps',
     tabs: [
       { id: 'general', label: '1. Opportunity Header', bn: '১. সুযোগের শিরোনাম', icon: '💼', badge: '6' },
@@ -254,6 +281,7 @@ export const SCREENS = {
       { id: 'commercial', label: '4. Commercials & Forecasting', bn: '৪. বাণিজ্যিক শর্ত', icon: '💰', badge: '6' },
       { id: 'competition', label: '5. Competitor Intelligence', bn: '৫. প্রতিযোগী তথ্য', icon: '⚔️', badge: '5' },
       { id: 'stage', label: '6. Stage Gating & Duration', bn: '৬. পর্যায় গেটিং', icon: '📊', badge: '3' },
+      { id: 'team', label: '6a. Opportunity Team', bn: '৬ক. সুযোগ টিম', icon: '👥' },
       { id: 'docs', label: '7. Contracts, PO & Evidence', bn: '৭. চুক্তি ও নথি', icon: '📎', badge: '9' },
       { id: 'audit', label: '8. System Audit Trail', bn: '৮. সিস্টেম অডিট', icon: '⏱️', badge: '4' }
     ],
@@ -394,9 +422,13 @@ export const SCREENS = {
         { name: 'effective_from', required: true, label: 'Assignment Effective Date' },
         { name: 'effective_to', label: 'Valid Until (Empty = Indefinite)' },
       ]},
-      { tab: 'coverage', title: 'Corporate Coverage Safety Net Rule',
-        note: 'Every corporate, dealer, and government account must have a named owner at all times — the safety net (action_assign_unowned) automatically back-fills any unowned enterprise accounts.',
-        fields: [] }
+      { tab: 'coverage', title: 'Dedicated Manager Eligibility (BRU-CRM-09)',
+        note: 'A Dedicated Manager assignment is checked against the published criteria (Dedicated-Manager Criteria). An account outside them needs an exception reason, and only a sales manager (the CCO) may record it. Every corporate, dealer and government account must have a named owner at all times: Assign Unowned Accounts back-fills the gaps.',
+        fields: [
+          { name: 'exception_reason', label: 'Exception Reason (outside the criteria)' },
+          { name: 'eligibility_basis', readonly: true, label: 'Eligibility Basis' },
+          { name: 'exception_approved_by', readonly: true, label: 'Exception Approved By' }
+        ] }
     ] },
 
   'M07-form-qbr': {
@@ -453,6 +485,9 @@ export const SCREENS = {
     sections: [
       { tab: 'contract', title: 'Contract & Account Information', fields: [
         { name: 'partner_id', required: true, label: 'Corporate Account' },
+        // M07 capture pass 2: required by the model and missing here, so
+        // "+ New Contract Renewal Pursuit" could never save
+        { name: 'source_type', required: true, label: 'Renewing (Contract / Membership / Warranty Product)' },
         { name: 'source_ref', label: 'Source Contract / AMC Reference' },
         { name: 'expiry_date', required: true, label: 'Contract Expiration Date' },
         { name: 'state', readonly: true, label: 'Renewal Pursuit State' },
@@ -460,7 +495,8 @@ export const SCREENS = {
       { tab: 'commercials', title: 'Renewal Value & Churn Risk Level', fields: [
         { name: 'value', label: 'Projected Renewal Contract Value (BDT)' },
         { name: 'risk_band', label: 'Account Churn Risk Band' },
-        { name: 'lead_time_days', label: 'Engagement Lead Time (Days Before Expiry)' },
+        { name: 'play', label: 'Renewal Play (FR-CRM-042)' },
+        { name: 'lead_time_days', readonly: true, label: 'Created Lead Time (Days Before Expiry)' },
       ]},
       { tab: 'history', title: 'Engagement Timeline', fields: [
         { name: 'auto_created', readonly: true, label: 'Auto-Created From Contract Expiry Engine' },
@@ -615,6 +651,129 @@ export const SCREENS = {
         { name: 'price_position', label: 'Our Price Position' }
       ]}
     ] },
+  /* ==================================================================
+   * M07 capture audit, second pass (2026-11-18): the records five pages
+   * had nowhere to capture. See tests/test_m07_capture_pass2.py.
+   * ================================================================== */
+
+  /* page 1, FR-CRM-002: the need / authority / budget / timing assessment
+   * and its outcome. A lead converts only once qualified (lifecycle 8.1). */
+  'M07-qualifications': { kind: 'model_list', model: 'fix.lead.qualification', create: true,
+    title: 'Qualification Assessments',
+    cols: ['assessed_at', 'lead_id', 'partner_id', 'need', 'authority', 'budget', 'timing', 'outcome', 'disqualify_reason', 'assessed_by'],
+    note: 'Each assessment is a record of the judgement made and is never edited. Qualified leads convert to opportunities; a disqualified lead closes with its reason; a lead not ready to buy goes back to marketing nurture.' },
+  'M07-form-qualification': { kind: 'model_form', model: 'fix.lead.qualification',
+    title: 'Lead Qualification', back: 'M07-qualifications',
+    newLabel: 'Qualify a Lead',
+    status: { field: 'outcome', labels: { qualified: 'Qualified', disqualified: 'Disqualified', nurture: 'Returned to Nurture' } },
+    tabs: [
+      { id: 'bant', label: '1. Need, Authority, Budget, Timing', bn: '১. প্রয়োজন, কর্তৃত্ব, বাজেট, সময়', icon: '🧭', badge: '7' },
+      { id: 'outcome', label: '2. Outcome', bn: '২. ফলাফল', icon: '✅', badge: '5' }
+    ],
+    sections: [
+      { tab: 'bant', title: 'The Assessment (FR-CRM-002)',
+        note: 'Qualified needs a confirmed need and at least a partly established authority, budget and timing.',
+        fields: [
+        { name: 'lead_id', required: true, label: 'Lead' },
+        { name: 'need', required: true, label: 'Need' },
+        { name: 'authority', required: true, label: 'Authority (decision maker reached)' },
+        { name: 'budget', required: true, label: 'Budget' },
+        { name: 'budget_bdt', label: 'Indicated Budget (BDT)' },
+        { name: 'timing', required: true, label: 'Timing' },
+        { name: 'decision_by', label: 'Decision Expected By' }
+      ]},
+      { tab: 'outcome', title: 'Outcome',
+        note: 'Disqualified closes the lead with its reason. Not Ready returns it to marketing nurture (FR-CRM-008) instead of discarding it. Neither can be undone from here.',
+        fields: [
+        { name: 'outcome', required: true, label: 'Outcome' },
+        { name: 'disqualify_reason', label: 'Disqualification Reason' },
+        { name: 'notes', type: 'text', label: 'Assessment Notes' },
+        { name: 'assessed_by', readonly: true, label: 'Assessed By' },
+        { name: 'assessed_at', readonly: true, label: 'Assessed On' }
+      ]}
+    ] },
+
+  /* page 2, FR-CRM-013: who works the pursuit besides its owner. */
+  'M07-opp-team': { kind: 'model_list', model: 'fix.opportunity.team', create: true,
+    title: 'Opportunity Teams',
+    cols: ['lead_id', 'user_id', 'role', 'notes'],
+    note: 'Contributors on each pursued opportunity and their role. Only the opportunity owner or a sales manager changes a team; a closed deal keeps its team as recorded.' },
+  'M07-form-opp-team': { kind: 'model_form', model: 'fix.opportunity.team',
+    title: 'Opportunity Team Member', back: 'M07-opp-team',
+    newLabel: 'Add to an Opportunity Team',
+    sections: [
+      { title: 'Pursuit Contributor (FR-CRM-013)',
+        note: 'The opportunity owner is its salesperson and is not listed. One executive sponsor per opportunity.',
+        fields: [
+        { name: 'lead_id', required: true, label: 'Opportunity' },
+        { name: 'user_id', required: true, label: 'Contributor' },
+        { name: 'role', required: true, label: 'Role' },
+        { name: 'notes', label: 'Responsibility' }
+      ]}
+    ] },
+
+  /* page 3, FR-CRM-023: the target the forecast is read against. */
+  'M07-quotas': { kind: 'model_list', model: 'fix.sales.quota', create: true,
+    title: 'Sales Quotas',
+    cols: ['period', 'owner_id', 'pipeline_id', 'target_value', 'achieved_value', 'won_count', 'attainment_pct', 'set_by'],
+    note: 'Targets by seller, period and (optionally) pipeline. Attainment counts won deals closed in the period. A sales manager sets quotas, never their own.' },
+  'M07-form-quota': { kind: 'model_form', model: 'fix.sales.quota',
+    title: 'Sales Quota', back: 'M07-quotas',
+    newLabel: 'Set a Sales Quota',
+    sections: [
+      { title: 'Target (FR-CRM-023)',
+        note: 'Period as a year (2026), a quarter (2026-Q4) or a month (2026-11). Leave the pipeline empty for a target across every revenue stream.',
+        fields: [
+        { name: 'owner_id', required: true, label: 'Seller' },
+        { name: 'period', required: true, placeholder: '2026-Q4', label: 'Period' },
+        { name: 'pipeline_id', label: 'Pipeline (empty = every stream)' },
+        { name: 'target_value', required: true, label: 'Target (BDT)' }
+      ]},
+      { title: 'Attainment',
+        fields: [
+        { name: 'achieved_value', readonly: true, label: 'Won (BDT)' },
+        { name: 'won_count', readonly: true, label: 'Deals Won' },
+        { name: 'attainment_pct', readonly: true, label: 'Attainment %' },
+        { name: 'set_by', readonly: true, label: 'Set By' }
+      ]}
+    ] },
+
+  /* page 5, FR-CRM-027 / BRU-CRM-09: the published criteria a dedicated
+   * account manager follows (open question Q-01 is answered here). */
+  'M07-eligibility': { kind: 'model_list', model: 'fix.account.eligibility', create: true,
+    title: 'Dedicated-Manager Criteria',
+    cols: ['name', 'effective_from', 'min_annual_spend_bdt', 'min_acv_bdt', 'strategic_qualifies', 'published_by'],
+    note: 'The criteria in force. Publishing new criteria archives the previous set. An account meeting any criterion qualifies for a dedicated manager; any other dedicated assignment is an exception a sales manager approves.' },
+  'M07-form-eligibility': { kind: 'model_form', model: 'fix.account.eligibility',
+    title: 'Dedicated-Manager Eligibility Criteria', back: 'M07-eligibility',
+    newLabel: 'Publish Dedicated-Manager Criteria',
+    sections: [
+      { title: 'Criteria (FR-CRM-027)',
+        note: 'Published by the CCO (a sales manager). Leave a threshold at 0 to not use it. An account qualifies when it meets ANY criterion set.',
+        fields: [
+        { name: 'name', required: true, placeholder: 'FY2027 criteria', label: 'Criteria Name' },
+        { name: 'min_annual_spend_bdt', label: 'Annual Spend At Least (BDT, last 12 months invoiced)' },
+        { name: 'min_acv_bdt', label: 'Annual Contract Value At Least (BDT)' },
+        { name: 'strategic_qualifies', label: 'Strategic-Tier Accounts Qualify' },
+        { name: 'effective_from', required: true, label: 'Effective From' },
+        { name: 'published_by', readonly: true, label: 'Published By' }
+      ]}
+    ] },
+
+  /* page 6, FR-CRM-037/038: agreed actions tracked across reviews; an
+   * accepted recommendation becomes an opportunity. Actions are agreed on
+   * the QBR form itself, so this list adds none. */
+  'M07-qbr-actions': { kind: 'model_list', model: 'fix.qbr.action', create: false,
+    title: 'QBR Agreed Actions',
+    cols: ['due_date', 'partner_id', 'qbr_period', 'description', 'owner_internal', 'owner_party', 'state', 'overdue', 'opportunity_id'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_close', l: 'Mark Done' },
+      { m: 'action_cancel', l: 'Cancel Action' },
+      { m: 'action_raise_opportunity', l: 'Raise Opportunity' }
+    ],
+    note: 'What each review committed to, until it is done. A recommendation the client accepted at a held review becomes an opportunity with Raise Opportunity, once.' },
+
   /* ==================================================================
    * A03 GAP-CLOSURE BUILD - new surfaces for this module
    * Every cols list was validated against the model's real fields
@@ -834,6 +993,10 @@ export const FORM_CHIPS = {
   'M07:Opportunity Estimate': 'M07-form-quote',
   'M07:Key Account & Stakeholders': 'M07-form-account',
   'M07:Competitor Intelligence': 'M07-form-competitor',
+  'M07:Lead Qualification': 'M07-form-qualification',
+  'M07:Opportunity Team': 'M07-form-opp-team',
+  'M07:Sales Quota': 'M07-form-quota',
+  'M07:Dedicated-Manager Eligibility Criteria': 'M07-form-eligibility',
   'M07:__by_model__': {
     'fix.crm.sequence': 'M07-form-sequence',
     'fix.crm.score.model': 'M07-form-score-model',
@@ -846,7 +1009,11 @@ export const FORM_CHIPS = {
     'fix.forecast.snapshot': 'M07-form-forecast',
     'fix.estimate': 'M07-form-quote',
     'fix.sales.activity': 'M07-form-activity',
-    'fix.account': 'M07-form-account'
+    'fix.account': 'M07-form-account',
+    'fix.lead.qualification': 'M07-form-qualification',
+    'fix.opportunity.team': 'M07-form-opp-team',
+    'fix.sales.quota': 'M07-form-quota',
+    'fix.account.eligibility': 'M07-form-eligibility'
   },
   'M07:__by_screen__': {
     'M07-sequences': 'M07-form-sequence',
@@ -864,7 +1031,11 @@ export const FORM_CHIPS = {
     'M07-renewals': 'M07-form-renewal',
     'M07-scoring': 'M07-form-pipeline',
     'M07-forecast': 'M07-form-forecast',
-    'M07-quotes': 'M07-form-quote'
+    'M07-quotes': 'M07-form-quote',
+    'M07-qualifications': 'M07-form-qualification',
+    'M07-opp-team': 'M07-form-opp-team',
+    'M07-quotas': 'M07-form-quota',
+    'M07-eligibility': 'M07-form-eligibility'
   }
 };
 
@@ -882,7 +1053,11 @@ export const FORM_MODELS = {
   'M07:Forecast Snapshot': 'fix.forecast.snapshot',
   'M07:Opportunity Estimate': 'fix.estimate',
   'M07:Key Account & Stakeholders': 'fix.account',
-  'M07:Competitor Intelligence': 'crm.lead'
+  'M07:Competitor Intelligence': 'crm.lead',
+  'M07:Lead Qualification': 'fix.lead.qualification',
+  'M07:Opportunity Team': 'fix.opportunity.team',
+  'M07:Sales Quota': 'fix.sales.quota',
+  'M07:Dedicated-Manager Eligibility Criteria': 'fix.account.eligibility'
 };
 
 export const CREATE = {
