@@ -25,3 +25,19 @@ access_fix_loyalty_card,fix.loyalty.card,model_fix_loyalty_card,base.group_user,
 access_fix_loyalty_card_mgr,fix.loyalty.card manager,model_fix_loyalty_card,cd_entity_config.group_dofa_tier_2,1,1,1,1
 access_fix_loyalty_event_receipt,fix.loyalty.event.receipt,model_fix_loyalty_event_receipt,base.group_user,1,0,0,0
 access_fix_loyalty_event_receipt_admin,fix.loyalty.event.receipt.admin,model_fix_loyalty_event_receipt,base.group_system,1,1,1,1
+access_fix_loyalty_membership,fix.loyalty.membership,model_fix_loyalty_membership,base.group_user,1,1,1,0
+access_fix_loyalty_membership_admin,fix.loyalty.membership.admin,model_fix_loyalty_membership,base.group_system,1,1,1,1
+access_fix_loyalty_benefit,fix.loyalty.benefit,model_fix_loyalty_benefit,base.group_user,1,1,1,1
+access_fix_loyalty_benefit_admin,fix.loyalty.benefit.admin,model_fix_loyalty_benefit,base.group_system,1,1,1,1
+access_fix_loyalty_wallet,fix.loyalty.wallet,model_fix_loyalty_wallet,base.group_user,1,1,1,0
+access_fix_loyalty_wallet_admin,fix.loyalty.wallet.admin,model_fix_loyalty_wallet,base.group_system,1,1,1,1
+access_fix_loyalty_wallet_txn,fix.loyalty.wallet.txn,model_fix_loyalty_wallet_txn,base.group_user,1,1,1,0
+access_fix_loyalty_wallet_txn_admin,fix.loyalty.wallet.txn.admin,model_fix_loyalty_wallet_txn,base.group_system,1,1,1,1
+access_fix_loyalty_voucher_batch,fix.loyalty.voucher.batch,model_fix_loyalty_voucher_batch,base.group_user,1,1,1,0
+access_fix_loyalty_voucher_batch_admin,fix.loyalty.voucher.batch.admin,model_fix_loyalty_voucher_batch,base.group_system,1,1,1,1
+access_fix_loyalty_stacking_rule,fix.loyalty.stacking.rule,model_fix_loyalty_stacking_rule,base.group_user,1,1,1,1
+access_fix_loyalty_stacking_rule_admin,fix.loyalty.stacking.rule.admin,model_fix_loyalty_stacking_rule,base.group_system,1,1,1,1
+access_fix_loyalty_referral_event,fix.loyalty.referral.event,model_fix_loyalty_referral_event,base.group_user,1,1,1,0
+access_fix_loyalty_referral_event_admin,fix.loyalty.referral.event.admin,model_fix_loyalty_referral_event,base.group_system,1,1,1,1
+access_fix_loyalty_liability_run,fix.loyalty.liability.run,model_fix_loyalty_liability_run,base.group_user,1,1,1,0
+access_fix_loyalty_liability_run_admin,fix.loyalty.liability.run.admin,model_fix_loyalty_liability_run,base.group_system,1,1,1,1

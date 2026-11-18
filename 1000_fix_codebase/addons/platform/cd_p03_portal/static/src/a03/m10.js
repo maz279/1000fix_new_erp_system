@@ -23,21 +23,30 @@ export const MODULE = {
       { id: 'M10-tiers', en: 'Tiers & Benefits', bn: 'টিয়ার ও সুবিধা', t: 'g' },
       { id: 'M10-form-tier', en: 'Tier Configuration Form', bn: 'টিয়ার কনফিগ ফর্ম', t: 'f' },
       { id: 'M10-enrol', en: 'Enrolment & Upgrade', bn: 'এনরোলমেন্ট ও আপগ্রেড', t: 'g' },
+      { id: 'M10-memberships', en: 'Privilege Memberships', bn: 'প্রিভিলেজ সদস্যপদ', t: 'g' },
+      { id: 'M10-benefits', en: 'Tier Benefit Definitions', bn: 'টিয়ার সুবিধার সংজ্ঞা', t: 'g' },
       { id: 'M10-alliance', en: 'Alliance Benefits', bn: 'অ্যালায়েন্স সুবিধা', t: 'g' }
     ]},
     { en: 'Points & Wallet', screens: [
       { id: 'M10-ledger', en: 'Points Ledger', bn: 'পয়েন্ট লেজার', t: 'g' },
       { id: 'M10-wallet', en: 'Wallet & Credits', bn: 'ওয়ালেট', t: 'g' },
+      { id: 'M10-wallet-txns', en: 'Wallet Transactions', bn: 'ওয়ালেট লেনদেন', t: 'g' },
+      { id: 'M10-points-balances', en: 'Points Balances', bn: 'পয়েন্ট ব্যালান্স', t: 'g' },
       { id: 'M10-redemption', en: 'Redemption Rules', bn: 'রিডেম্পশন নিয়ম', t: 'r' }
     ]},
     { en: 'Vouchers & Referrals', screens: [
       { id: 'M10-vouchers', en: 'Vouchers & Coupons', bn: 'ভাউচার', t: 'g' },
       { id: 'M10-hooks', en: 'Campaign Reward Hooks', bn: 'ক্যাম্পেইন হুক', t: 'g' },
+      { id: 'M10-voucher-batches', en: 'Voucher Batches', bn: 'ভাউচার ব্যাচ', t: 'g' },
+      { id: 'M10-stacking', en: 'Stacking Rules', bn: 'স্ট্যাকিং নিয়ম', t: 'g' },
       { id: 'M10-referral', en: 'Referral Programme', bn: 'রেফারেল কর্মসূচি', t: 'g' },
+      { id: 'M10-referral-events', en: 'Referral Registrations', bn: 'রেফারেল নিবন্ধন', t: 'g' },
       { id: 'M10-fraud', en: 'Fraud Controls', bn: 'প্রতারণা নিয়ন্ত্রণ', t: 'r' }
     ]},
     { en: 'Finance', screens: [
       { id: 'M10-liability', en: 'Liability & Breakage (IFRS 15)', bn: 'দায় ও ব্রেকেজ', t: 'r' },
+      { id: 'M10-liability-runs', en: 'Period-End Liability Runs', bn: 'মেয়াদান্তে দায় হিসাব', t: 'g' },
+      { id: 'M10-rpt-deferral', en: 'Membership Revenue Deferral', bn: 'সদস্য ফি স্থগিত রাজস্ব', t: 'r' },
       { id: 'M10-profit', en: 'Programme Profitability', bn: 'কর্মসূচির লাভজনকতা', t: 'r' }
     ]},
     { en: 'Schemes & Earn Rules', bn: 'স্কিম ও আর্ন রুল', screens: [
@@ -53,7 +62,9 @@ export const MODULE = {
     ]}
   ],
   reports: ['Member Growth & Tier Mix', 'Points Earn/Burn Analysis', 'Referral Funnel', 'Voucher Usage & Fraud', 'Programme P&L'],
-  forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation', 'Member Enrolment', 'Loyalty Card', 'Redemption Rule', 'Point Type'],
+  forms: ['Loyalty Programme', 'Tier Configuration', 'Voucher Campaign', 'Points Adjustment', 'Referral Code', 'Loyalty Scheme', 'Loyalty Affiliation', 'Member Enrolment', 'Loyalty Card', 'Redemption Rule', 'Point Type',
+    'Privilege Membership', 'Tier Benefit', 'Wallet Transaction', 'Voucher Batch', 'Stacking Rule',
+    'Referral Registration', 'Liability Run'],
   cross: ['M33 Customer Master', 'M20 AR &Invoicing', 'M07 CRM'],
   /* M10 capture audit (2026-11-13). Three pages had no button at all
    * (Wallet, Vouchers & Coupons, Liability & Breakage); Tiers & Enrolment
@@ -70,15 +81,26 @@ export const MODULE = {
    *   - Wallet: the points adjustment, the only thing that moves a balance
    *     (the balance is derived from posted ledger lines);
    *   - Liability & Breakage: nothing - it is a period calculation. */
+  /* M10 capture audit, pass 2 (2026-11-18). The 13 Nov pass gave every page
+   * a button, but only for records the estate could hold; six pages still could
+   * not capture what the spec says they are for:
+   *   1 paid membership (price, term, lapse)       -> Privilege Membership
+   *   2 benefit scope, labour only (BRU-LOY-01)    -> Tier Benefit
+   *   4 BDT stored value; it offered a POINTS
+   *     adjustment                                  -> Wallet Transaction
+   *   5 code batches and stacking caps             -> Voucher Batch, Stacking Rule
+   *   6 attribution of a shared code, with blocks  -> Referral Registration
+   *   8 the period-end calculation Finance
+   *     publishes (AUT-LOY-12)                      -> Liability Run */
   freg: { src: 63, sub: [
-    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-enrol', 'M10-cards'], reports: ['Member Growth & Tier Mix'], forms: ['Tier Configuration', 'Member Enrolment', 'Loyalty Card'] }],
-    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes', 'M10-schemes', 'M10-burn-rules', 'M10-point-types'], reports: ['Points Earn/Burn Analysis'], forms: ['Loyalty Programme', 'Loyalty Scheme', 'Redemption Rule', 'Point Type'] }],
-    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-redemption', 'M10-rpt-earnburn'], reports: ['Points Earn/Burn Analysis'], forms: ['Points Adjustment'] }],
-    ['4', 'Wallet', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'state'], screens: ['M10-wallet', 'M10-ledger'], reports: ['Member Growth & Tier Mix'], forms: ['Points Adjustment'], create: 'M10-form-adjustment' }],
-    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-hooks', 'M10-fraud', 'M10-rpt-voucher'], reports: ['Voucher Usage & Fraud'], forms: ['Voucher Campaign'], create: 'M10-form-voucher-campaign' }],
-    ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-rpt-referral'], reports: ['Referral Funnel'], forms: ['Referral Code'] }],
+    ['1', 'Tiers & Enrolment', 10, { model: 'fix.loyalty.tier', cols: ['name', 'code', 'sequence', 'min_points_threshold', 'min_spend_bdt'], screens: ['M10-tiers', 'M10-memberships', 'M10-enrol', 'M10-cards'], reports: ['Member Growth & Tier Mix'], forms: ['Tier Configuration', 'Privilege Membership', 'Member Enrolment', 'Loyalty Card'] }],
+    ['2', 'Benefit Engine', 9, { model: 'fix.loyalty.program', cols: ['name', 'code', 'active', 'name_bn', 'description', 'points_per_bdt'], screens: ['M10-programmes', 'M10-benefits', 'M10-schemes', 'M10-burn-rules', 'M10-point-types'], reports: ['Points Earn/Burn Analysis'], forms: ['Loyalty Programme', 'Tier Benefit', 'Loyalty Scheme', 'Redemption Rule', 'Point Type'] }],
+    ['3', 'Points Ledger', 9, { model: 'fix.loyalty.ledger', cols: ['partner_id', 'transaction_type', 'points', 'balance_after', 'state'], screens: ['M10-ledger', 'M10-points-balances', 'M10-redemption', 'M10-rpt-earnburn'], reports: ['Points Earn/Burn Analysis'], forms: ['Points Adjustment'] }],
+    ['4', 'Wallet', 7, { model: 'fix.loyalty.wallet', cols: ['name', 'partner_id', 'balance_bdt', 'state'], screens: ['M10-wallet', 'M10-wallet-txns'], reports: [], forms: ['Wallet Transaction'], create: 'M10-form-wallet-txn' }],
+    ['5', 'Vouchers & Coupons', 9, { model: 'fix.loyalty.voucher', cols: ['name', 'partner_id', 'state', 'discount_type', 'discount_value', 'valid_until'], screens: ['M10-vouchers', 'M10-voucher-batches', 'M10-hooks', 'M10-stacking', 'M10-fraud', 'M10-rpt-voucher'], reports: ['Voucher Usage & Fraud'], forms: ['Voucher Batch', 'Voucher Campaign', 'Stacking Rule'], create: 'M10-form-voucher-batch' }],
+    ['6', 'Referrals', 7, { model: 'fix.loyalty.referral.code', cols: ['name', 'state', 'program_id', 'referrer_partner_id', 'referee_partner_id', 'points_awarded'], screens: ['M10-referral', 'M10-referral-events', 'M10-rpt-referral'], reports: ['Referral Funnel'], forms: ['Referral Code', 'Referral Registration'] }],
     ['7', 'Alliance Benefits', 5, { model: 'fix.loyalty.affiliation', cols: ['name', 'code', 'program_id', 'member_count', 'active'], screens: ['M10-affiliations', 'M10-alliance'], reports: [], forms: ['Loyalty Affiliation'] }],
-    ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.account', cols: ['name', 'partner_id', 'points_balance', 'lifetime_points_earned', 'lifetime_points_redeemed'], screens: ['M10-liability', 'M10-profit', 'M10-rpt-pnl', 'M10-wallet'], reports: ['Programme P&L'], forms: [], create: false }]
+    ['8', 'Liability & Breakage', 7, { model: 'fix.loyalty.liability.run', cols: ['name', 'program_id', 'period_end', 'net_liability', 'state'], screens: ['M10-liability-runs', 'M10-liability', 'M10-rpt-deferral', 'M10-profit', 'M10-rpt-pnl'], reports: ['Programme P&L'], forms: ['Liability Run'], create: 'M10-form-liability' }]
   ] }
 };
 
@@ -115,12 +137,31 @@ export const SCREENS = {
       { m: 'action_post', l: 'Post Ledger Line' },
       { m: 'action_reverse', l: 'Reverse Line', ask: 'Why is this posted line being reversed?', kwarg: 'reason' }
     ] },
-  /* A wallet is opened by enrolment and its balance is derived from posted
-   * ledger lines (spec T-03), so it is never typed in here. */
-  'M10-wallet': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state', create: false,
+  /* Points balances (was the "Wallet" list): opened by enrolment, moved only
+   * by posted ledger lines (spec T-03), so never typed in here. */
+  'M10-points-balances': { kind: 'model_list', model: 'fix.loyalty.account', stateField: 'state', create: false,
     domain: [['points_balance', '>', 0]],
     cols: ['partner_id', 'tier_id', 'points_balance', 'lifetime_spend_bdt', 'tier_upgraded_date'],
-    empty: 'No member holds points yet. A wallet opens when a member is enrolled (Tiers & Enrolment) and its balance moves only through posted ledger lines: earned on a paid service, redeemed on a bill, or a Points Adjustment once it is approved and posted.' },
+    empty: 'No member holds points yet. A points balance opens when a member is enrolled (Tiers & Enrolment) and moves only through posted ledger lines: earned on a paid service, redeemed on a bill, or a Points Adjustment once it is approved and posted.' },
+  /* The BDT stored-value wallet (FR-LOY-022..026). A wallet opens with the
+   * customer's first wallet transaction; its balance is the sum of posted
+   * transactions, so it is never typed. Points never convert into it (BRU-LOY-07). */
+  'M10-wallet': { kind: 'model_list', model: 'fix.loyalty.wallet', stateField: 'state', create: false,
+    cols: ['name', 'partner_id', 'balance_bdt', 'state', 'last_activity_at'],
+    actions: [
+      { m: 'action_freeze', l: 'Freeze Wallet', ask: 'Why is this wallet frozen?', kwarg: 'reason', states: ['active'] },
+      { m: 'action_unfreeze', l: 'Release Wallet (Finance)', states: ['frozen'] }
+    ],
+    empty: 'No customer wallet yet. A wallet opens with its first transaction (+ New Wallet Transaction): a refund, trade-in proceeds, a prepayment or a goodwill credit. Loyalty points never convert into wallet money (BRU-LOY-07).' },
+  'M10-wallet-txns': { kind: 'model_list', model: 'fix.loyalty.wallet.txn', stateField: 'state',
+    cols: ['name', 'partner_id', 'entry_type', 'amount', 'balance_after', 'state', 'dofa_tier_required', 'approval_state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request Approval (DOFA)', ask: 'Business justification for the approver', kwarg: 'justification', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
+      { m: 'action_post', l: 'Post', states: ['draft'] },
+      { m: 'action_cancel', l: 'Cancel Draft', states: ['draft'] }
+    ],
+    note: 'Append-only. A payout needs a verified identity document and, above BDT 5,000, DOFA approval by someone who created no credit on the wallet (BRU-LOY-13, SOD-18). A wallet can never be overdrawn.' },
   'M10-redemption': { kind: 'table_report', module: 'M10', report: 'redemption_rules', title: 'Redemption Rules', period: false },
   'M10-vouchers': { kind: 'model_list', create: false, model: 'fix.loyalty.voucher', stateField: 'state',
     cols: ['name', 'partner_id', 'discount_type', 'discount_value', 'valid_from', 'state'],
@@ -154,6 +195,17 @@ export const SCREENS = {
 
   /* ============ D365 IN-WORKSPACE MULTI-TAB FORMS ============ */
   'M10-form-tier': {
+    lines: { field: 'benefit_ids', title: 'Tier Benefits', readonlyGrid: true,
+      note: 'What this tier gives and what each benefit applies to. Defined on Tier Benefit Definitions, where a discount outside labour is refused (BRU-LOY-01).',
+      fields: [
+        { name: 'code', label: 'Code', readonly: true },
+        { name: 'name', label: 'Benefit', readonly: true },
+        { name: 'benefit_type', label: 'Type', readonly: true },
+        { name: 'value', label: 'Value', readonly: true },
+        { name: 'applies_to', label: 'Applies To', readonly: true },
+        { name: 'active', label: 'Active', readonly: true }
+      ]
+    },
     kind: 'model_form',
     model: 'fix.loyalty.tier',
     title: 'Tier Configuration',
@@ -162,9 +214,20 @@ export const SCREENS = {
     tabs: [
       { id: 'general', label: 'Tier Definition', bn: 'টিয়ার বিবরণ', icon: '🏷️' },
       { id: 'benefits', label: 'Benefits & Privileges', bn: 'সুবিধা ও ছাড়', icon: '🎁' },
+      { id: 'membership', label: 'Membership Price & Term', bn: 'সদস্য ফি ও মেয়াদ', icon: '💳' },
       { id: 'audit', label: 'Audit & Governance', bn: 'অডিট ও পরিচালনা', icon: '📋' }
     ],
     sections: [
+      {
+        tab: 'membership',
+        title: 'Paid Membership Terms (FR-LOY-001)',
+        note: 'What a Privilege Membership in this tier costs and how long it runs. A membership keeps the price it was sold at; a renewal pays the price then in force.',
+        fields: [
+          { name: 'membership_fee_bdt', label: 'Membership Fee (BDT)' },
+          { name: 'membership_duration_months', label: 'Term (months)' },
+          { name: 'membership_grace_days', label: 'Renewal Grace (days)' }
+        ]
+      },
       {
         tab: 'general',
         title: 'Tier Definition',
@@ -182,10 +245,10 @@ export const SCREENS = {
       {
         tab: 'benefits',
         title: 'Benefits & Privileges',
-        note: 'Discounts and service privileges automatically applied across counter, workshop, and field repair orders.',
+        note: 'A privilege discount applies to labour charges only, never to parts, consumables or transport (BRU-LOY-01): a parts discount above 0 is refused. Each benefit and its scope is defined on Tier Benefit Definitions.',
         fields: [
           { name: 'labour_discount_pct', label: 'Labour Discount %' },
-          { name: 'parts_discount_pct', label: 'Parts Discount %' },
+          { name: 'parts_discount_pct', label: 'Parts Discount % (must stay 0: BRU-LOY-01)' },
           { name: 'dedicated_support', label: 'Dedicated Support Line' },
           { name: 'priority_diagnostic', label: 'Priority Diagnostic' }
         ]
@@ -378,6 +441,9 @@ export const SCREENS = {
         { name: 'active', label: 'Programme Active Operational Status' },
         { name: 'referral_referrer_points', label: 'Referral Award to Referrer (points, DOFA Tier 3)' },
         { name: 'referral_referee_points', label: 'Referral Award to New Customer (points, DOFA Tier 3)' },
+        { name: 'referral_window_days', label: 'Referral Attribution Window (days)' },
+        { name: 'referral_cap_per_month', label: 'Referrals per Referrer per Month (0 = no cap)' },
+        { name: 'max_aggregate_discount_pct', label: 'Max Aggregate Discount % (BRU-LOY-09, DOFA Tier 3)' },
       ]},
       { tab: 'tiers', title: 'Configured Member Tiers & Progression Levels', fields: [
         { name: 'tier_ids', label: 'Loyalty Tiers' },
@@ -723,6 +789,286 @@ export const SCREENS = {
       }
     ]
   },
+  /* ============ M10 capture audit, pass 2 (2026-11-18) ============ */
+  'M10-memberships': { kind: 'model_list', model: 'fix.loyalty.membership', stateField: 'state',
+    cols: ['name', 'partner_id', 'tier_id', 'channel', 'price_bdt', 'started_on', 'expires_on', 'state', 'deferred_bdt'],
+    actions: [
+      { m: 'action_confirm_payment', l: 'Confirm Payment (M20)', ask: 'M20 receipt or invoice reference', kwarg: 'payment_ref', states: ['pending'] },
+      { m: 'action_suspend', l: 'Suspend', ask: 'Why is the membership suspended?', kwarg: 'reason', states: ['active', 'expiring'] },
+      { m: 'action_reinstate', l: 'Reinstate', states: ['suspended'] },
+      { m: 'action_renew', l: 'Renew', states: ['active', 'expiring', 'lapsed'] },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the membership cancelled?', kwarg: 'reason', states: ['pending', 'active', 'expiring', 'suspended'] }
+    ],
+    note: 'A paid membership activates on confirmed payment, is noticed at 60/30/7 days, and lapses after its grace period. Benefits stop on the stated date, never retroactively (BRU-LOY-03); the fee is earned over the term (BRU-LOY-12).' },
+  'M10-form-membership': {
+    kind: 'model_form', model: 'fix.loyalty.membership',
+    title: 'Privilege Membership', back: 'M10-memberships',
+    status: { field: 'state', labels: { pending: 'Pending Payment', active: 'Active', expiring: 'Expiring', suspended: 'Suspended', lapsed: 'Lapsed', cancelled: 'Cancelled', completed: 'Completed (Renewed)' } },
+    tabs: [
+      { id: 'member', label: '1. Member & Tier', bn: '১. সদস্য ও টিয়ার', icon: '👑' },
+      { id: 'term', label: '2. Price & Term', bn: '২. ফি ও মেয়াদ', icon: '📅' },
+      { id: 'status', label: '3. Status & Revenue', bn: '৩. অবস্থা ও রাজস্ব', icon: '📊' }
+    ],
+    sections: [
+      { tab: 'member', title: 'Who Joins, Which Tier, Through Which Channel',
+        note: 'One open membership per customer per programme; a renewal waits beside the membership it renews. Price and term default from the tier and are fixed once paid.',
+        fields: [
+          { name: 'partner_id', label: 'Member', required: true },
+          { name: 'program_id', label: 'Programme', required: true },
+          { name: 'tier_id', label: 'Tier', required: true },
+          { name: 'channel', label: 'Enrolment Channel', required: true },
+          { name: 'operating_unit_id', label: 'Branch / Operating Unit' }
+        ] },
+      { tab: 'term', title: 'Price, Term & Grace',
+        note: 'Leave the price empty to take the tier fee. A paid membership stays Pending until Confirm Payment records its M20 reference.',
+        fields: [
+          { name: 'price_bdt', label: 'Price (BDT)' },
+          { name: 'duration_months', label: 'Term (months)' },
+          { name: 'grace_days', label: 'Grace (days)' },
+          { name: 'started_on', label: 'Starts On', readonly: true },
+          { name: 'expires_on', label: 'Expires On', readonly: true },
+          { name: 'grace_until', label: 'Lapses After', readonly: true }
+        ] },
+      { tab: 'status', title: 'Payment, Status & Deferred Revenue',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'payment_ref', label: 'Payment Reference (M20)', readonly: true },
+          { name: 'status_reason', label: 'Suspension / Cancellation Reason', readonly: true },
+          { name: 'benefits_withdrawn_on', label: 'Benefits Withdrawn On', readonly: true },
+          { name: 'recognised_bdt', label: 'Revenue Recognised to Date', readonly: true },
+          { name: 'deferred_bdt', label: 'Revenue Still Deferred', readonly: true }
+        ] }
+    ]
+  },
+  'M10-benefits': { kind: 'model_list', model: 'fix.loyalty.benefit', stateField: 'active',
+    cols: ['tier_id', 'priority', 'code', 'name', 'benefit_type', 'value', 'applies_to', 'stackable', 'active'],
+    note: 'What each tier benefit applies to. A discount applies to labour only; parts, consumables and transport are refused (BRU-LOY-01).' },
+  'M10-form-benefit': {
+    kind: 'model_form', model: 'fix.loyalty.benefit',
+    title: 'Tier Benefit', back: 'M10-benefits',
+    tabs: [
+      { id: 'what', label: '1. Benefit', bn: '১. সুবিধা', icon: '🎁' },
+      { id: 'scope', label: '2. Scope & Stacking', bn: '২. প্রযোজ্যতা', icon: '🎯' }
+    ],
+    sections: [
+      { tab: 'what', title: 'Benefit Definition', fields: [
+        { name: 'tier_id', label: 'Tier', required: true },
+        { name: 'code', label: 'Code', required: true },
+        { name: 'name', label: 'Name', required: true },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'benefit_type', label: 'Benefit Type', required: true },
+        { name: 'value', label: 'Value (% for a discount; hours, days or count otherwise)' }
+      ] },
+      { tab: 'scope', title: 'What It Applies To',
+        note: 'A Labour Discount must apply to labour charges; any other scope is refused. Entitlements (SLA, logistics, warranty, health check) apply as a service, not a price.',
+        fields: [
+          { name: 'applies_to', label: 'Applies To', required: true },
+          { name: 'priority', label: 'Order' },
+          { name: 'stackable', label: 'Combines with Vouchers & Promotions' },
+          { name: 'effective_from', label: 'Effective From' },
+          { name: 'effective_to', label: 'Effective To' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M10-form-wallet-txn': {
+    kind: 'model_form', model: 'fix.loyalty.wallet.txn',
+    title: 'Wallet Transaction', back: 'M10-wallet-txns',
+    status: { field: 'state', labels: { draft: 'Draft', posted: 'Posted', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'entry', label: '1. Entry', bn: '১. এন্ট্রি', icon: '💳' },
+      { id: 'target', label: '2. Source / Invoice / Payout', bn: '২. উৎস / ইনভয়েস / পরিশোধ', icon: '🏦' },
+      { id: 'approval', label: '3. DOFA & Posting', bn: '৩. অনুমোদন', icon: '⚖️' }
+    ],
+    sections: [
+      { tab: 'entry', title: 'Customer, Type & Amount',
+        note: 'The customer’s wallet is found or opened automatically. Credits: refund, trade-in, prepayment, goodwill. Debits: applied to an invoice, or paid out. The amount is always positive; the type gives its direction.',
+        fields: [
+          { name: 'partner_id', label: 'Customer', required: true },
+          { name: 'entry_type', label: 'Transaction Type', required: true },
+          { name: 'amount', label: 'Amount (BDT)', required: true },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'wallet_id', label: 'Wallet', readonly: true }
+        ] },
+      { tab: 'target', title: 'Where It Comes From or Goes To',
+        note: 'A credit names its source document. An application names a posted invoice of the same customer. A payout needs a VERIFIED identity document and the bank account or bKash/Nagad/Rocket number (BRU-LOY-13).',
+        fields: [
+          { name: 'source_ref', label: 'Source Document (refund / trade-in / receipt)' },
+          { name: 'invoice_id', label: 'Invoice (application)' },
+          { name: 'payout_method', label: 'Payout Method' },
+          { name: 'payout_account', label: 'Payout Account / Wallet No.' },
+          { name: 'id_document_id', label: 'Identity Verified With' },
+          { name: 'reason', label: 'Reason (goodwill)', type: 'text' }
+        ] },
+      { tab: 'approval', title: 'Approval & Posting',
+        note: 'A payout or goodwill credit above BDT 5,000 needs DOFA approval before Post. The approver of a payout must not have created credits on this wallet (SOD-18).',
+        fields: [
+          { name: 'dofa_justification', label: 'DOFA Justification', type: 'text' },
+          { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+          { name: 'dofa_approved', label: 'Approved', readonly: true },
+          { name: 'dofa_approved_by', label: 'Approver', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'balance_after', label: 'Wallet Balance After', readonly: true }
+        ] }
+    ]
+  },
+  'M10-voucher-batches': { kind: 'model_list', model: 'fix.loyalty.voucher.batch', stateField: 'state',
+    cols: ['name', 'code_prefix', 'batch_type', 'discount_type', 'discount_value', 'valid_until', 'issued_count', 'redeemed_count', 'state'],
+    actions: [
+      { m: 'action_issue', l: 'Issue Codes', states: ['draft'] },
+      { m: 'action_close', l: 'Close Batch', states: ['issued'] }
+    ],
+    note: 'A batch mints its codes on Issue, within its issuance limit; closing it (or its expiry) cancels unredeemed codes (AUT-LOY-14).' },
+  'M10-form-voucher-batch': {
+    lines: { field: 'voucher_ids', title: 'Issued Codes', readonlyGrid: true,
+      note: 'Minted by Issue Codes, never typed. A bulk code takes its holder when it is redeemed.',
+      fields: [
+        { name: 'name', label: 'Code', readonly: true },
+        { name: 'partner_id', label: 'Holder', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'redeemed_at', label: 'Redeemed At', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'fix.loyalty.voucher.batch',
+    title: 'Voucher Batch', back: 'M10-voucher-batches',
+    status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued', closed: 'Closed' } },
+    tabs: [
+      { id: 'batch', label: '1. Batch & Codes', bn: '১. ব্যাচ', icon: '🎟️' },
+      { id: 'value', label: '2. Value & Validity', bn: '২. মূল্য ও মেয়াদ', icon: '💰' },
+      { id: 'elig', label: '3. Eligibility', bn: '৩. যোগ্যতা', icon: '🎯' }
+    ],
+    sections: [
+      { tab: 'batch', title: 'Batch & Codes (FR-LOY-027)',
+        note: 'Personalised: one code for each listed customer. Bulk: the given number of codes, the holder named when a code is redeemed. A batch issues at most 10,000 codes.',
+        fields: [
+          { name: 'name', label: 'Batch Name', required: true },
+          { name: 'code_prefix', label: 'Code Prefix (2-8 capitals/digits)', required: true },
+          { name: 'program_id', label: 'Programme', required: true },
+          { name: 'campaign_id', label: 'Campaign (M35)' },
+          { name: 'batch_type', label: 'Batch Type', required: true },
+          { name: 'quantity', label: 'Codes to Issue (bulk)' },
+          { name: 'partner_ids', label: 'Customers (personalised)' }
+        ] },
+      { tab: 'value', title: 'Discount & Validity', fields: [
+        { name: 'discount_type', label: 'Discount Type', required: true },
+        { name: 'discount_value', label: 'Discount Value', required: true },
+        { name: 'min_spend_bdt', label: 'Minimum Spend (BDT)' },
+        { name: 'valid_from', label: 'Valid From', required: true },
+        { name: 'valid_until', label: 'Valid Until', required: true }
+      ] },
+      { tab: 'elig', title: 'Who May Redeem (FR-LOY-028)',
+        note: 'Checked when a code is redeemed: tier, channel, first purchase only and uses per customer.',
+        fields: [
+          { name: 'tier_ids', label: 'Eligible Tiers (empty = all)' },
+          { name: 'channel', label: 'Channel', required: true },
+          { name: 'first_purchase_only', label: 'First Purchase Only' },
+          { name: 'max_per_customer', label: 'Uses per Customer (0 = no limit)' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'closed_unredeemed', label: 'Codes Unredeemed at Close', readonly: true }
+        ] }
+    ]
+  },
+  'M10-stacking': { kind: 'model_list', model: 'fix.loyalty.stacking.rule', stateField: 'active',
+    cols: ['program_id', 'sequence', 'component_a', 'component_b', 'allowed', 'max_aggregate_pct', 'active'],
+    note: 'Which benefits, vouchers, promotions and points may combine, and the combined ceiling. The programme’s Max Aggregate Discount % caps every bill (BRU-LOY-09).' },
+  'M10-form-stacking': {
+    kind: 'model_form', model: 'fix.loyalty.stacking.rule',
+    title: 'Stacking Rule', back: 'M10-stacking',
+    tabs: [{ id: 'rule', label: '1. Stacking Rule', bn: '১. স্ট্যাকিং', icon: '🧮' }],
+    sections: [
+      { tab: 'rule', title: 'Combination Control (FR-LOY-029)',
+        note: 'Components apply in the order tier benefit, voucher, promotion, points. When a pair is not allowed, the later one is dropped; when allowed, together they may take at most the ceiling.',
+        fields: [
+          { name: 'program_id', label: 'Programme', required: true },
+          { name: 'component_a', label: 'Component A', required: true },
+          { name: 'component_b', label: 'Component B', required: true },
+          { name: 'allowed', label: 'May Combine' },
+          { name: 'max_aggregate_pct', label: 'Combined Ceiling %' },
+          { name: 'sequence', label: 'Order' },
+          { name: 'note', label: 'Note' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M10-referral-events': { kind: 'model_list', model: 'fix.loyalty.referral.event', stateField: 'state',
+    cols: ['name', 'code_id', 'referrer_partner_id', 'referee_partner_id', 'registered_at', 'window_until', 'state', 'block_reason'],
+    actions: [{ m: 'action_qualify', l: 'Qualify & Reward', states: ['registered'] }],
+    note: 'A shared code attributed to a new customer. Self-referral, same phone, email or address, circular referral, a second attribution and the per-referrer cap are blocked and kept as evidence (BRU-LOY-10).' },
+  'M10-form-referral-event': {
+    kind: 'model_form', model: 'fix.loyalty.referral.event',
+    title: 'Referral Registration', back: 'M10-referral-events',
+    status: { field: 'state', labels: { registered: 'Registered', qualified: 'Qualified', rewarded: 'Rewarded', not_qualified: 'Not Qualified', blocked: 'Blocked' } },
+    tabs: [
+      { id: 'who', label: '1. Attribution', bn: '১. অ্যাট্রিবিউশন', icon: '🔗' },
+      { id: 'outcome', label: '2. Outcome', bn: '২. ফলাফল', icon: '🏆' }
+    ],
+    sections: [
+      { tab: 'who', title: 'Which Code Brought Which New Customer (FR-LOY-034)',
+        note: 'A saved registration is checked at once; a blocked one is kept with its reason. It qualifies on the new customer’s first completed service within the programme’s window, and both sides are rewarded.',
+        fields: [
+          { name: 'code_id', label: 'Referral Code', required: true },
+          { name: 'referee_partner_id', label: 'New Customer', required: true },
+          { name: 'channel', label: 'Channel' },
+          { name: 'registered_at', label: 'Registered At', readonly: true }
+        ] },
+      { tab: 'outcome', title: 'Outcome', fields: [
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'block_reason', label: 'Block / Not-Qualified Reason', readonly: true },
+        { name: 'window_until', label: 'Qualify By', readonly: true },
+        { name: 'reward_referrer_points', label: 'Referrer Points', readonly: true },
+        { name: 'reward_referee_points', label: 'New Customer Points', readonly: true }
+      ] }
+    ]
+  },
+  'M10-liability-runs': { kind: 'model_list', model: 'fix.loyalty.liability.run', stateField: 'state',
+    cols: ['name', 'program_id', 'period_end', 'points_outstanding', 'gross_liability', 'breakage_amount', 'net_liability', 'movement', 'reconciles', 'state'],
+    actions: [
+      { m: 'action_calculate', l: 'Calculate', states: ['draft', 'calculated'] },
+      { m: 'action_publish', l: 'Publish to M19 (Finance)', states: ['calculated'] }
+    ],
+    note: 'The period-end IFRS 15 calculation (AUT-LOY-12). It must reconcile to the posted ledger, and is published by a Finance user other than the one who calculated it.' },
+  'M10-form-liability': {
+    kind: 'model_form', model: 'fix.loyalty.liability.run',
+    title: 'Period-End Liability Run', back: 'M10-liability-runs',
+    status: { field: 'state', labels: { draft: 'Draft', calculated: 'Calculated', published: 'Published to M19' } },
+    tabs: [
+      { id: 'period', label: '1. Period', bn: '১. সময়কাল', icon: '📅' },
+      { id: 'figures', label: '2. Liability & Breakage', bn: '২. দায় ও ব্রেকেজ', icon: '📊' },
+      { id: 'sign', label: '3. Calculation & Publication', bn: '৩. হিসাব ও প্রকাশ', icon: '✍️' }
+    ],
+    sections: [
+      { tab: 'period', title: 'Which Programme, Which Period',
+        note: 'Save, then Calculate on the list. Outstanding points are the posted ledger up to the end of the period, valued at the programme’s BDT per point, net of the expected breakage.',
+        fields: [
+          { name: 'program_id', label: 'Programme', required: true },
+          { name: 'period_end', label: 'Period End', required: true },
+          { name: 'company_id', label: 'Company', required: true },
+          { name: 'breakage_basis', label: 'Breakage Basis (required when breakage > 0)', type: 'text' }
+        ] },
+      { tab: 'figures', title: 'Figures', fields: [
+        { name: 'points_outstanding', label: 'Points Outstanding', readonly: true },
+        { name: 'valuation', label: 'BDT per Point', readonly: true },
+        { name: 'gross_liability', label: 'Gross Liability', readonly: true },
+        { name: 'breakage_rate_pct', label: 'Breakage %', readonly: true },
+        { name: 'breakage_amount', label: 'Breakage Amount', readonly: true },
+        { name: 'net_liability', label: 'Net Liability', readonly: true },
+        { name: 'prior_net_liability', label: 'Prior Period Net', readonly: true },
+        { name: 'movement', label: 'Movement', readonly: true },
+        { name: 'membership_deferred_bdt', label: 'Membership Fees Deferred', readonly: true }
+      ] },
+      { tab: 'sign', title: 'Reconciliation & Sign-Off', fields: [
+        { name: 'ledger_points', label: 'Ledger Points at Period End', readonly: true },
+        { name: 'account_points', label: 'Member Balances Now', readonly: true },
+        { name: 'reconciles', label: 'Balances Reconcile to Ledger', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'calculated_by', label: 'Calculated By', readonly: true },
+        { name: 'calculated_at', label: 'Calculated At', readonly: true },
+        { name: 'published_by', label: 'Published By', readonly: true },
+        { name: 'published_at', label: 'Published At', readonly: true }
+      ] }
+    ]
+  },
+  'M10-rpt-deferral': { kind: 'table_report', module: 'M10', report: 'membership_deferral', title: 'Membership Revenue Deferral', period: false },
 };
 
 export const REPORT_ROUTES = {
@@ -747,6 +1093,13 @@ export const FORM_CHIPS = {
   'M10:Loyalty Card': 'M10-form-card',
   'M10:Redemption Rule': 'M10-form-burn-rule',
   'M10:Point Type': 'M10-form-point-type',
+  'M10:Privilege Membership': 'M10-form-membership',
+  'M10:Tier Benefit': 'M10-form-benefit',
+  'M10:Wallet Transaction': 'M10-form-wallet-txn',
+  'M10:Voucher Batch': 'M10-form-voucher-batch',
+  'M10:Stacking Rule': 'M10-form-stacking',
+  'M10:Referral Registration': 'M10-form-referral-event',
+  'M10:Liability Run': 'M10-form-liability',
   'M10:__by_model__': {
     'fix.loyalty.scheme': 'M10-form-scheme',
     'fix.loyalty.affiliation': 'M10-form-affiliation',
@@ -758,7 +1111,14 @@ export const FORM_CHIPS = {
     'fix.loyalty.account': 'M10-form-account',
     'fix.loyalty.burn.rule': 'M10-form-burn-rule',
     'fix.loyalty.point.type': 'M10-form-point-type',
-    'fix.loyalty.card': 'M10-form-card'
+    'fix.loyalty.card': 'M10-form-card',
+    'fix.loyalty.membership': 'M10-form-membership',
+    'fix.loyalty.benefit': 'M10-form-benefit',
+    'fix.loyalty.wallet.txn': 'M10-form-wallet-txn',
+    'fix.loyalty.voucher.batch': 'M10-form-voucher-batch',
+    'fix.loyalty.stacking.rule': 'M10-form-stacking',
+    'fix.loyalty.referral.event': 'M10-form-referral-event',
+    'fix.loyalty.liability.run': 'M10-form-liability'
   },
   'M10:__by_screen__': {
     'M10-schemes': 'M10-form-scheme',
@@ -768,7 +1128,14 @@ export const FORM_CHIPS = {
     'M10-tiers': 'M10-form-tier',
     'M10-form-tier': 'M10-form-tier',
     'M10-enrol': 'M10-form-account',
-    'M10-wallet': 'M10-form-account',
+    'M10-wallet': 'M10-form-wallet-txn',
+    'M10-wallet-txns': 'M10-form-wallet-txn',
+    'M10-memberships': 'M10-form-membership',
+    'M10-benefits': 'M10-form-benefit',
+    'M10-voucher-batches': 'M10-form-voucher-batch',
+    'M10-stacking': 'M10-form-stacking',
+    'M10-referral-events': 'M10-form-referral-event',
+    'M10-liability-runs': 'M10-form-liability',
     'M10-referral': 'M10-form-referral',
     'M10-ledger': 'M10-form-adjustment',
     'M10-hooks': 'M10-form-voucher-campaign',
@@ -789,7 +1156,14 @@ export const FORM_MODELS = {
   'M10:Member Enrolment': 'fix.loyalty.account',
   'M10:Loyalty Card': 'fix.loyalty.card',
   'M10:Redemption Rule': 'fix.loyalty.burn.rule',
-  'M10:Point Type': 'fix.loyalty.point.type'
+  'M10:Point Type': 'fix.loyalty.point.type',
+  'M10:Privilege Membership': 'fix.loyalty.membership',
+  'M10:Tier Benefit': 'fix.loyalty.benefit',
+  'M10:Wallet Transaction': 'fix.loyalty.wallet.txn',
+  'M10:Voucher Batch': 'fix.loyalty.voucher.batch',
+  'M10:Stacking Rule': 'fix.loyalty.stacking.rule',
+  'M10:Referral Registration': 'fix.loyalty.referral.event',
+  'M10:Liability Run': 'fix.loyalty.liability.run'
 };
 
 export const CREATE = {

@@ -9,6 +9,12 @@
 # redemption rules, point types and affiliations live on fix_real could not be
 # reached from the register.
 #
+# Pass 2 (2026-11-18): the buttons existed but six pages could not capture
+# what the spec says they are for, because no model existed: paid membership
+# (1), benefit scope (2), the BDT wallet (4 offered a POINTS adjustment),
+# voucher batches and stacking (5), referral attribution (6) and the
+# period-end liability run Finance publishes (8).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M02 guard's fixture).
 from __future__ import annotations
@@ -65,14 +71,24 @@ console.log(JSON.stringify({ subs,
 # in-workspace form. 'system': calculated or written by a workflow, so the
 # page offers nothing and every list says where its rows come from.
 CAPTURE = {
-    "1": "form",  # tier, member enrolment, loyalty card
-    "2": "form",  # programme, scheme (earn rules), redemption rule, point type
+    "1": "form",  # tier, privilege membership, member enrolment, loyalty card
+    "2": "form",  # programme, tier benefit, scheme, redemption rule, point type
     "3": "form",  # points adjustment
-    "4": "form",  # a wallet moves only by a points adjustment
-    "5": "form",  # the voucher campaign hook that issues vouchers
-    "6": "form",  # referral code
+    "4": "form",  # BDT wallet transaction (credit, application, payout)
+    "5": "form",  # voucher batch, campaign hook, stacking rule
+    "6": "form",  # referral code, referral registration
     "7": "form",  # loyalty affiliation (the alliance cohort)
-    "8": "system",  # period liability and breakage calculation
+    "8": "form",  # period-end liability run (calculated, then published)
+}
+
+# The record each page must be able to capture (pass 2).
+PAGE_RECORDS = {
+    "1": {"fix.loyalty.membership", "fix.loyalty.account", "fix.loyalty.tier"},
+    "2": {"fix.loyalty.benefit", "fix.loyalty.scheme"},
+    "4": {"fix.loyalty.wallet.txn"},
+    "5": {"fix.loyalty.voucher.batch", "fix.loyalty.stacking.rule", "fix.loyalty.campaign.hook"},
+    "6": {"fix.loyalty.referral.code", "fix.loyalty.referral.event"},
+    "8": {"fix.loyalty.liability.run"},
 }
 
 
@@ -155,16 +171,46 @@ def test_benefit_engine_reaches_its_rules(m10):
     assert {"fix.loyalty.scheme", "fix.loyalty.burn.rule", "fix.loyalty.point.type"} <= models
 
 
-def test_wallet_balance_moves_only_by_a_ledger_line(m10):
+@pytest.mark.parametrize("no", sorted(PAGE_RECORDS, key=int))
+def test_each_page_captures_its_spec_record(m10, no):
+    sub = _sub(m10, no)
+    models = {f["model"] for f in sub["forms"] if f["opens"]}
+    missing = PAGE_RECORDS[no] - models
+    assert not missing, "page %s cannot capture %s" % (no, sorted(missing))
+
+
+def test_wallet_page_captures_money_not_points(m10):
+    """Page 4 offered a POINTS adjustment; the spec's wallet is BDT stored value."""
     sub = _sub(m10, "4")
-    assert sub["create"] == "M10-form-adjustment"
+    assert sub["model"] == "fix.loyalty.wallet"
+    assert sub["create"] == "M10-form-wallet-txn"
+    assert all(f["model"] != "fix.loyalty.ledger" for f in sub["forms"])
     wallet = m10["screens"]["M10-wallet"]
-    assert wallet["create"] is False and wallet["empty"]
+    assert wallet["model"] == "fix.loyalty.wallet"
+    assert wallet["create"] is False and wallet["empty"], "a balance is never typed"
+    points = m10["screens"]["M10-points-balances"]
+    assert points["create"] is False and points["empty"]
 
 
-def test_vouchers_are_issued_by_a_campaign_hook_not_typed(m10):
+def test_liability_page_runs_the_period_end_calculation(m10):
+    sub = _sub(m10, "8")
+    assert sub["create"] == "M10-form-liability"
+    lst = next(x for x in sub["lists"] if x["id"] == "M10-liability-runs")
+    assert {"action_calculate", "action_publish"} <= set(lst["actions"])
+    form = m10["screens"]["M10-form-liability"]
+    typed = {f["name"] for f in form["fields"]}
+    assert "net_liability" in typed  # shown, but the writable whitelist keeps it read-only
+    assert "M10-rpt-deferral" in sub["screens"]
+
+
+def test_voucher_page_issues_batches(m10):
     sub = _sub(m10, "5")
-    assert sub["create"] == "M10-form-voucher-campaign"
+    assert sub["create"] == "M10-form-voucher-batch"
+    assert {"M10-voucher-batches", "M10-stacking"} <= set(sub["screens"])
+
+
+def test_vouchers_are_issued_not_typed(m10):
+    sub = _sub(m10, "5")
     assert "M10-hooks" in sub["screens"], "the saved hook must be reachable to Activate it"
     vouchers = m10["screens"]["M10-vouchers"]
     assert vouchers["create"] is False and vouchers["empty"]
@@ -179,3 +225,24 @@ def test_alliance_page_captures_an_affiliation_not_a_tier(m10):
     assert sub["model"] == "fix.loyalty.affiliation"
     assert sub["create"] == "M10-form-affiliation"
     assert m10["screens"]["M10-alliance"]["create"] is False
+
+
+def test_new_records_are_writable_only_through_their_forms():
+    """Calculated figures, states and balances never reach the write whitelist."""
+    from importlib import util
+
+    spec = util.spec_from_file_location(
+        "_a03w", HERE.parent / "controllers" / "a03" / "writable.py"
+    )
+    mod = util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    w = mod.WRITABLE
+    assert w["fix.loyalty.wallet"] == frozenset()
+    for model, forbidden in {
+        "fix.loyalty.wallet.txn": {"state", "balance_after", "wallet_id", "dofa_approved"},
+        "fix.loyalty.membership": {"state", "started_on", "payment_ref", "deferred_bdt"},
+        "fix.loyalty.liability.run": {"net_liability", "gross_liability", "state", "reconciles"},
+        "fix.loyalty.referral.event": {"state", "block_reason", "registered_at"},
+        "fix.loyalty.voucher.batch": {"state", "issued_at"},
+    }.items():
+        assert not (w[model] & forbidden), (model, sorted(w[model] & forbidden))

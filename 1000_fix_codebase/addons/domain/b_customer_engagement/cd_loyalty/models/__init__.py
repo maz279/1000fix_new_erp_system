@@ -14,3 +14,6 @@ from . import (
     fix_loyalty_tier,
     fix_loyalty_voucher,
 )
+
+# The capture registers extend tier, programme and voucher, so they load last.
+from . import fix_loyalty_capture  # isort: skip

@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M10 capture pass 2 (2026-11-18): numbering for the new registers and the
+     jobs that move them on their own (AUT-LOY-05/06, AUT-LOY-09, AUT-LOY-14). -->
+<odoo noupdate="1">
+    <record id="seq_fix_loyalty_membership" model="ir.sequence">
+        <field name="name">Privilege Membership Number</field>
+        <field name="code">fix.loyalty.membership</field>
+        <field name="prefix">MEM/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_loyalty_wallet" model="ir.sequence">
+        <field name="name">Stored-Value Wallet Number</field>
+        <field name="code">fix.loyalty.wallet</field>
+        <field name="prefix">WAL/</field>
+        <field name="padding">7</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_loyalty_wallet_txn" model="ir.sequence">
+        <field name="name">Wallet Transaction Number</field>
+        <field name="code">fix.loyalty.wallet.txn</field>
+        <field name="prefix">WTX/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_loyalty_referral_event" model="ir.sequence">
+        <field name="name">Referral Attribution Number</field>
+        <field name="code">fix.loyalty.referral.event</field>
+        <field name="prefix">REF/%(year)s/</field>
+        <field name="padding">6</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_loyalty_liability_run" model="ir.sequence">
+        <field name="name">Points Liability Run Number</field>
+        <field name="code">fix.loyalty.liability.run</field>
+        <field name="prefix">LIAB/%(year)s/</field>
+        <field name="padding">4</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="ir_cron_loyalty_membership_lifecycle" model="ir.cron">
+        <field name="name">Loyalty: membership notices, completion and lapse</field>
+        <field name="model_id" ref="model_fix_loyalty_membership"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_membership_lifecycle()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_loyalty_voucher_batch_close" model="ir.cron">
+        <field name="name">Loyalty: close voucher batches past their validity</field>
+        <field name="model_id" ref="model_fix_loyalty_voucher_batch"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_close_expired_batches()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+    <record id="ir_cron_loyalty_referral_window" model="ir.cron">
+        <field name="name">Loyalty: referrals not qualified within their window</field>
+        <field name="model_id" ref="model_fix_loyalty_referral_event"/>
+        <field name="state">code</field>
+        <field name="code">model.cron_expire_referral_events()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

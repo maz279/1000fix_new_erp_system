@@ -109,6 +109,62 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_block"},
     },
+    # --- M10 capture audit, pass 2 (2026-11-18) ----------------
+    "fix.loyalty.membership": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_confirm_payment",
+            "action_suspend",
+            "action_reinstate",
+            "action_renew",
+            "action_cancel",
+        },
+    },
+    "fix.loyalty.benefit": {
+        "order": "tier_id, priority, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    # A wallet's balance is derived from its posted transactions: no write
+    # action moves it; freezing is a control, releasing it is Finance's.
+    "fix.loyalty.wallet": {
+        "order": "balance_bdt desc, id desc",
+        "limit": 300,
+        "actions": {"action_freeze", "action_unfreeze"},
+    },
+    # A payout or goodwill credit is approved from the M63 inbox
+    # (action_dofa_approve is not offered here, as for the points ledger).
+    "fix.loyalty.wallet.txn": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_post",
+            "action_cancel",
+        },
+    },
+    "fix.loyalty.voucher.batch": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_issue", "action_close"},
+    },
+    "fix.loyalty.stacking.rule": {
+        "order": "program_id, sequence, id",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.loyalty.referral.event": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_qualify"},
+    },
+    "fix.loyalty.liability.run": {
+        "order": "period_end desc, id desc",
+        "limit": 200,
+        "actions": {"action_calculate", "action_publish"},
+    },
 }
 
 POSTED = ("posted",)
@@ -558,7 +614,71 @@ def fraud_controls(env, date_from=None, date_to=None, **params):
     )
 
 
+def membership_deferral(env, date_from=None, date_to=None, **params):
+    """FR-LOY-042 / BRU-LOY-12: each paid membership's fee, earned over its term."""
+    members = (
+        env["fix.loyalty.membership"]
+        .sudo()
+        .search([("state", "not in", ("pending", "cancelled"))], order="started_on desc, id desc")
+    )
+    rows = [
+        {
+            "membership": m.name,
+            "member": m.partner_id.display_name,
+            "tier": m.tier_id.name,
+            "started_on": str(m.started_on or ""),
+            "expires_on": str(m.expires_on or ""),
+            "price": round(m.price_bdt or 0.0, 2),
+            "recognised": m.recognised_bdt,
+            "deferred": m.deferred_bdt,
+            "state": dict(m._fields["state"].selection).get(m.state, m.state),
+        }
+        for m in members
+    ]
+    totals = {
+        "membership": "Total",
+        "price": round(sum(r["price"] for r in rows), 2),
+        "recognised": round(sum(r["recognised"] for r in rows), 2),
+        "deferred": round(sum(r["deferred"] for r in rows), 2),
+    }
+    return _pack(
+        "Membership Revenue Deferral — fees earned over the membership term",
+        [
+            "membership",
+            "member",
+            "tier",
+            "started_on",
+            "expires_on",
+            "price",
+            "recognised",
+            "deferred",
+            "state",
+        ],
+        {
+            "membership": "Membership",
+            "member": "Member",
+            "tier": "Tier",
+            "started_on": "Starts",
+            "expires_on": "Expires",
+            "price": "Price (BDT)",
+            "recognised": "Recognised to Date",
+            "deferred": "Deferred",
+            "state": "Status",
+        },
+        rows,
+        [
+            "A membership fee is recognised day by day over the term, never at sale "
+            "(BRU-LOY-12); the deferred column is the contract liability for M53.",
+            "A cancelled or lapsed membership stops earning on the date its benefits were "
+            "withdrawn; pending (unpaid) memberships are not shown.",
+        ],
+        totals=totals if rows else None,
+        empty="No paid membership yet — sell one from Tiers & Enrolment (+ Privilege Membership).",
+    )
+
+
 REPORTS = {
+    "membership_deferral": membership_deferral,
     "member_growth_tier_mix": member_growth_tier_mix,
     "earn_burn": earn_burn,
     "referral_funnel": referral_funnel,

@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "loyalty.referral_blocked",
+  "description": "Published by cd_loyalty through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "loyalty.referral_blocked"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_loyalty"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "event_no",
+        "code",
+        "referrer_partner_id",
+        "referee_partner_id",
+        "reason"
+      ],
+      "properties": {
+        "event_no": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "code": {
+          "type": "string"
+        },
+        "referrer_partner_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "referee_partner_id": {
+          "type": "integer"
+        },
+        "reason": {
+          "description": "Type not statically derivable from `reason` (addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_capture.py:1336)."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_loyalty",
+  "x-publishers": [
+    "addons/domain/b_customer_engagement/cd_loyalty/models/fix_loyalty_capture.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

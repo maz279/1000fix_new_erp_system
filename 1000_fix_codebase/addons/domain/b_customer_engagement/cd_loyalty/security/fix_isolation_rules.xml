@@ -24,6 +24,11 @@
         <field name="model_id" ref="model_fix_loyalty_affiliation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_loyalty_benefit_company" model="ir.rule">
+        <field name="name">fix.loyalty.benefit: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_benefit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_loyalty_campaign_hook_company" model="ir.rule">
         <field name="name">fix.loyalty.campaign.hook: allowed companies</field>
         <field name="model_id" ref="model_fix_loyalty_campaign_hook"/>
@@ -53,6 +58,22 @@
     <record id="rule_fix_loyalty_ledger_operating_unit" model="ir.rule">
         <field name="name">fix.loyalty.ledger: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_loyalty_ledger"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_liability_run_company" model="ir.rule">
+        <field name="name">fix.loyalty.liability.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_liability_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_membership_company" model="ir.rule">
+        <field name="name">fix.loyalty.membership: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_membership"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_membership_operating_unit" model="ir.rule">
+        <field name="name">fix.loyalty.membership: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_loyalty_membership"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -93,6 +114,11 @@
         <field name="model_id" ref="model_fix_loyalty_referral_code"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_loyalty_referral_event_company" model="ir.rule">
+        <field name="name">fix.loyalty.referral.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_referral_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_loyalty_scheme_company" model="ir.rule">
         <field name="name">fix.loyalty.scheme: allowed companies</field>
         <field name="model_id" ref="model_fix_loyalty_scheme"/>
@@ -103,6 +129,11 @@
         <field name="model_id" ref="model_fix_loyalty_scheme"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_stacking_rule_company" model="ir.rule">
+        <field name="name">fix.loyalty.stacking.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_stacking_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_loyalty_tier_company" model="ir.rule">
         <field name="name">fix.loyalty.tier: allowed companies</field>
@@ -125,5 +156,20 @@
         <field name="model_id" ref="model_fix_loyalty_voucher"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_voucher_batch_company" model="ir.rule">
+        <field name="name">fix.loyalty.voucher.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_voucher_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_wallet_company" model="ir.rule">
+        <field name="name">fix.loyalty.wallet: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_wallet"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_loyalty_wallet_txn_company" model="ir.rule">
+        <field name="name">fix.loyalty.wallet.txn: allowed companies</field>
+        <field name="model_id" ref="model_fix_loyalty_wallet_txn"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

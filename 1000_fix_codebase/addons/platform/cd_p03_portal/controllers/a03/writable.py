@@ -701,6 +701,22 @@ WRITABLE = {
         }
     ),
     "fix.loyalty.affiliation.member": frozenset(),
+    "fix.loyalty.benefit": frozenset(
+        {
+            "active",
+            "applies_to",
+            "benefit_type",
+            "code",
+            "effective_from",
+            "effective_to",
+            "name",
+            "name_bn",
+            "priority",
+            "stackable",
+            "tier_id",
+            "value",
+        }
+    ),
     "fix.loyalty.burn.rule": frozenset(
         {
             "active",
@@ -756,6 +772,26 @@ WRITABLE = {
             "transaction_type",
         }
     ),
+    "fix.loyalty.liability.run": frozenset(
+        {
+            "breakage_basis",
+            "company_id",
+            "period_end",
+            "program_id",
+        }
+    ),
+    "fix.loyalty.membership": frozenset(
+        {
+            "channel",
+            "duration_months",
+            "grace_days",
+            "operating_unit_id",
+            "partner_id",
+            "price_bdt",
+            "program_id",
+            "tier_id",
+        }
+    ),
     "fix.loyalty.point.type": frozenset(
         {
             "active",
@@ -778,13 +814,16 @@ WRITABLE = {
             "description",
             "expected_breakage_pct",
             "expiry_months",
+            "max_aggregate_discount_pct",
             "min_points_to_redeem",
             "name",
             "name_bn",
             "operating_unit_id",
             "points_per_bdt",
+            "referral_cap_per_month",
             "referral_referee_points",
             "referral_referrer_points",
+            "referral_window_days",
             "tier_ids",
         }
     ),
@@ -795,6 +834,13 @@ WRITABLE = {
             "program_id",
             "referee_partner_id",
             "referrer_partner_id",
+        }
+    ),
+    "fix.loyalty.referral.event": frozenset(
+        {
+            "channel",
+            "code_id",
+            "referee_partner_id",
         }
     ),
     "fix.loyalty.scheme": frozenset(
@@ -813,12 +859,27 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.loyalty.stacking.rule": frozenset(
+        {
+            "active",
+            "allowed",
+            "component_a",
+            "component_b",
+            "max_aggregate_pct",
+            "note",
+            "program_id",
+            "sequence",
+        }
+    ),
     "fix.loyalty.tier": frozenset(
         {
             "active",
             "code",
             "dedicated_support",
             "labour_discount_pct",
+            "membership_duration_months",
+            "membership_fee_bdt",
+            "membership_grace_days",
             "min_points_threshold",
             "min_spend_bdt",
             "name",
@@ -830,6 +891,42 @@ WRITABLE = {
         }
     ),
     "fix.loyalty.voucher": frozenset(),
+    "fix.loyalty.voucher.batch": frozenset(
+        {
+            "batch_type",
+            "campaign_id",
+            "channel",
+            "code_prefix",
+            "discount_type",
+            "discount_value",
+            "first_purchase_only",
+            "max_per_customer",
+            "min_spend_bdt",
+            "name",
+            "partner_ids",
+            "program_id",
+            "quantity",
+            "tier_ids",
+            "valid_from",
+            "valid_until",
+        }
+    ),
+    "fix.loyalty.wallet": frozenset(),
+    "fix.loyalty.wallet.txn": frozenset(
+        {
+            "amount",
+            "company_id",
+            "dofa_justification",
+            "entry_type",
+            "id_document_id",
+            "invoice_id",
+            "partner_id",
+            "payout_account",
+            "payout_method",
+            "reason",
+            "source_ref",
+        }
+    ),
     "fix.notif.delivery": frozenset(
         {
             "attempts",
