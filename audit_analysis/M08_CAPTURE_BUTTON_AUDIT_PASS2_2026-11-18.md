@@ -1,6 +1,6 @@
 # M08 Contract Lifecycle (AMC): data-capture audit, second pass
 
-**Date:** 18 Nov 2026 · **Estate:** fix_real on port 8069 (fix_dev on 8090) · **Branch:** `fix/m08-capture-pass2` · **Status:** built and verified on a private clone; see §7
+**Date:** 18 Nov 2026 · **Estate:** fix_real on port 8069 (fix_dev on 8090) · **Branch:** `fix/m08-capture-pass2` · **Status:** deployed on fix_real and fix_dev 19 Nov; see §7
 
 ## 1. The question
 
@@ -91,4 +91,11 @@ All runs were on a private clone, `fix_test_m08b` (from `fix_test`, then `-u all
 
 ## 7. State
 
-Committed on `fix/m08-capture-pass2` (worktree `m08cap2-wt`). Not yet landed on `fix/a03-live-data-and-pending-work`, not deployed: `cd_contract_core` 19.0.1.3.0 needs `-u cd_contract_core,cd_p03_portal` on fix_real and fix_dev **and** a restart of 8069/8090 (new controller surfaces).
+**DEPLOYED 19 Nov 2026 on fix_real (8069) and fix_dev (8090).** The user chose "Land, deploy, restart".
+
+- Backups first, both verified with `pg_restore -l` (1,786 and 1,773 table-data entries): `1000 fix/backups/fix_real_pre_m08_capture2_2026-11-19.dump` and `fix_dev_pre_m08_capture2_2026-11-19.dump`.
+- Landed `1f96e40b` on `fix/a03-live-data-and-pending-work` by compare-and-swap from `7c9c62e6`, and fast-forwarded the main checkout with `read-tree -m -u`. **Pushed** `7c9c62e6..1f96e40b`, plus branch `fix/m08-capture-pass2`.
+- `-u cd_contract_core,cd_p03_portal` from the shared tree: exit 0 on both databases, no traceback. `cd_contract_core` 19.0.1.3.0 is installed; on each database the 6 new models, 11 ACL rows, the 9 new contract columns and the order restore flag exist.
+- **Restart:** one combined restart at 03:17:48 by the M06 session (M06/M07/M10/M11/M08), at their request, after both M08 upgrades had exited. 8069 is PID 65964 (fix_real); 8090 is PID 77252 (fix_dev). Both started after the 03:06:54 landing, so both import the new surfaces. The fix_real log since boot shows the registry loaded (155 modules) and no ERROR. M06's version-gap check is empty on both databases.
+- **Production bundle** `02e9383` on both ports contains the new forms (`M08-form-pmplan`, `M08-form-wetverify`, `M08-form-topup`).
+- **Not done on live:** a signed-in click-through on fix_real. The click-through ran on the private clone (§5). fix_real holds 0 contracts, so there is no live record to exercise yet.
