@@ -103,9 +103,22 @@ Other backend changes:
 
 ## 5. State
 
-**Built and verified in worktree `1000 fix/m59cap-wt`, branch `fix/m59-capture-buttons` (from 32e24dc9). Not landed on the shared branch, not deployed.**
+**Deployed on fix_real (8069) and fix_dev (8090), 18 Nov 2026 about 08:13 local, on the user's "land and deploy".** Not pushed.
 
-- The shared branch has since moved to 00326139 (commercial document title band), with no file overlap.
-- `writable.py` must be regenerated after a rebase (`form_fields.py --a09`).
-- **Deploying** means `-u cd_hse,cd_p03_portal` on fix_real, plus one 8069 restart. The new models, surfaces and controllers need the restart, so it must be coordinated with the peer sessions deploying at the same time. fix_dev (8090) is the same, separately.
-- After deploy, fix_real will still hold no M59 records. The HSE Officers' take-on (licences, procedures, site plans, committee) is what fills the registers.
+- **Landed** on `fix/a03-live-data-and-pending-work`: fix bf0e7bc9, report e07f95d9, by fast-forward of the shared checkout.
+  - Before landing it was rebased twice: over 00326139 (commercial document title band), then over M63/M60 (64e63e13). There was no file overlap either time.
+  - `controllers/a09/writable.py` was regenerated after each rebase and came out byte-identical.
+  - Results on the rebased tree: guard plus live 58/58, then guard plus estate pages 646/646.
+- **Backups:** `1000 fix/backups/fix_real_pre_m59_capture_2026-11-18.dump` and `fix_dev_pre_m59_capture_2026-11-18.dump`. Both headers were checked for the right dbname.
+- **Upgrades:** `-u cd_hse,cd_p03_portal` on each database, both exit 0 with no ERROR/CRITICAL. Each was run only when no other session had an upgrade running on that database. The M60, M63 and M61 sessions were deploying at the same time.
+- **Restarts:**
+  - 8069 was restarted by the M60 session at 08:09:37 (PID 69352). That was after this fix_real upgrade, which finished at 08:08:46, so it covers M59, M60 and M63.
+  - 8090 was restarted by this session at about 08:13 (PID 82848), after the M63 and M59 fix_dev upgrades.
+  - Both answer `/web/login` with 200.
+  - The M61 (cd_knowledge) and M64 (cd_mdm_core) upgrades started after these restarts. Those sessions own the next restarts.
+- **Post-deploy check on both databases:**
+  - `odoo-bin shell`, rolled back: all six models are in the registry and in `p03_generic_api.SURFACES`. Also present: `hse_site_hazard_note` on `fix.field.order`, both crons (and both run), the four sequences, the HSE Officer access to `fix.driver`, and cd_hse 19.0.0.5.0.
+  - The served bundle `web.assets_backend` (e239611) carries the new forms, the Driving Licence chip and the M02 hazard field. 8069 and 8090 both serve it with a 200.
+  - On the running servers, `/p03/model/records` answers for all six models on 8069 and 8090, with 0 rows.
+- **Data:** fix_real holds no M59 records. The HSE Officers' take-on (licences, procedures, site plans, committee) is what fills the registers.
+- **Cleaned up:** the private clone `fix_test_m59` and its filestore, the `odoo-m59-test` launch entry, and the worktree and branch.
