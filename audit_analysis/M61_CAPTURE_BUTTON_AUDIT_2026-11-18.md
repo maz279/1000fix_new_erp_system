@@ -121,15 +121,14 @@ Security and data:
 
 ## 5. State
 
-**Not committed, not deployed.** Everything is in worktree `1000 fix/m61cap-wt`, branch `fix/m61-capture-buttons` from 32e24dc9 (the shared branch has since moved to 00326139, a commercial-document change with no file in common).
+**Deployed on fix_real (8069) and fix_dev (8090), 18 Nov 2026 08:20 +0800.** Not pushed.
 
-Deploying needs:
-1. rebase onto the shared tip, and regenerate `controllers/a10/writable.py` with `form_fields.py --a10` if a peer touched it;
-2. a backup;
-3. `-u cd_knowledge,cd_p03_portal` on fix_real (and fix_dev). This installs the new dependency edge `cd_knowledge -> cd_service_order`; both are already installed on both databases;
-4. one 8069 restart, coordinated with peer sessions;
-5. building the asset bundle.
+1. Committed on `fix/m61-capture-buttons` and rebased twice, first onto M63 and then onto M59 and M60. M60 had also changed `controllers/a10/writable.py`; regenerating it with `form_fields.py --a10` gave the same file both times. The rebased code passed a rehearsal `-u cd_workflow_engine,cd_knowledge,cd_p03_portal` on the clone, and the M61 and M63 tests ran 121 with 0 failures.
+2. Backups were taken before the upgrade: `1000 fix/backups/fix_{real,dev}_pre_m61_capture_2026-11-18.dump` (51.0 MB and 46.5 MB).
+3. Landed by a fast-forward of `fix/a03-live-data-and-pending-work` to f8784f17, the code commit baded47b plus the report.
+4. Ran `-u cd_knowledge,cd_p03_portal` on fix_real and fix_dev; both exited 0 with no ERROR lines. cd_knowledge is now 19.0.0.2.0 on both, with all 8 new tables and the KCAP/, KREV/ and OFS/ sequences.
+5. Restarted each server once at 08:20, after the M64 and M65 upgrades that landed after M61, so the one restart covers M59, M60, M61, M63, M64 and M65. 8069 is now PID 7840 and 8090 is PID 71092. Both boot logs show no registry failure and no missing table, and version_gap shows 0 on both databases.
+6. Rebuilt the asset bundle from an odoo shell. Bundle d91fc14 on both databases carries the M61 captures and the Expertise Map report. The running servers return `/p03/model/records` for all eight M61 surfaces on both ports.
+7. Dropped the clone `fix_test_m61` and its filestore.
 
 fix_real holds no M61 record, so no existing data changes. The behaviour that does change: an article or tree can no longer be published by its own author without a review, and safety content needs the Quality Manager's sign-off. fix_real has one Knowledge Publisher and one Quality Manager. Content written by that publisher can only be released once **a second Knowledge Publisher is appointed** (owner decision B1 of the A10 report); content written by anyone else can be reviewed and published by the one publisher.
-
-Clone `fix_test_m61` (+ filestore copy) is kept for the deploy rehearsal; the private UI server on 8094 was stopped after the walk.
