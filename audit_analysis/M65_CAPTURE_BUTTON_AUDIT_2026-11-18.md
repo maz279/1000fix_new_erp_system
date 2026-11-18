@@ -128,6 +128,19 @@ residency rules, the onboarding step and elapsed weeks, and treats a missing res
 
 ## Deployment
 
-Not deployed and not committed. Branch `fix/m65-capture-buttons` in worktree `1000 fix/m65cap-wt`, based on
-32e24dc9. Deploying needs `-u cd_multi_entity,cd_p03_portal` on fix_real (8069) and fix_dev (8090) and a
-restart of each.
+18 Nov 2026, on the user's "Commit and deploy" (not pushed):
+
+- Committed on `fix/m65-capture-buttons` with the pre-commit hooks green (one ruff UP038 fix in the guard).
+  Rebased three times as M63, M59, M60 and M61 landed (no shared files), with the static guards re-run on
+  the rebased tree: 761/0, then 703/0. Fast-forwarded onto `fix/a03-live-data-and-pending-work` with a
+  compare-and-swap `update-ref`: **5c6e3422** (code) and **0f071e5e** (this report).
+- Backups: `1000 fix/backups/fix_real_pre_m65_capture_2026-11-18.dump` and `fix_dev_pre_m65_capture_2026-11-18.dump`.
+- `-u cd_multi_entity,cd_p03_portal` on fix_real (00:18 UTC) and fix_dev (00:19 UTC; the first try collided
+  with a concurrent upgrade by another session and was re-run clean). Both are at cd_multi_entity 19.0.1.3.0
+  with the five new tables; the module version gap against the shared checkout is 0 on both.
+- 8069 and 8090 were restarted once at 00:20 UTC by the M61 session, covering M59, M60, M61, M63, M64 and
+  M65 (8069 = fix_real PID 7840, 8090 = fix_dev PID 71092, both 200 on `/web/login`, no registry failure).
+- Checked after the restart, on both databases: all five models are registered and queryable, the
+  onboarding sequence exists, all eight page models (including M19's intercompany rule, charge and
+  transfer-pricing rate) are in the served surfaces, and the `web.assets_web` bundle carries the M65
+  forms and lists (fix_real `d91fc14`, fix_dev `2ecffda`).
