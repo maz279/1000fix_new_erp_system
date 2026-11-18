@@ -31,10 +31,33 @@ def _approver(env, login="a11.rental.t2"):
     )
 
 
+# M13 capture pass 2 (2026-11-19): a rental needs a party with a verified M33
+# identity (BRU-RNT-20) and photographed condition reports (BRU-RNT-01).
+_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _kyc(env, partner):
+    env["fix.identity.document"].sudo().create(
+        {"partner_id": partner.id, "document_type": "nid_10", "verification_status": "verified"}
+    )
+    return partner
+
+
+def _photo(env, condition, view="front"):
+    att = (
+        env["ir.attachment"]
+        .sudo()
+        .create({"name": "%s.png" % view, "datas": _PNG, "mimetype": "image/png"})
+    )
+    return env["fix.rental.condition.photo"].create(
+        {"condition_id": condition.id, "attachment_id": att.id, "view_code": view}
+    )
+
+
 def _reservation(env):
     return env[RES].create(
         {
-            "customer_id": env["res.partner"].create({"name": "A11 Rental Customer"}).id,
+            "customer_id": _kyc(env, env["res.partner"].create({"name": "A11 Rental Customer"})).id,
             "date_from": date(2026, 11, 1),
             "date_to": date(2026, 11, 4),
         }
