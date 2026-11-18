@@ -61,7 +61,7 @@ export const MODULE = {
    * its function records. The steps that are workflow transitions (seal,
    * hub intake) pick a consignment and run the guarded server method;
    * nothing writes a scan or a seal verdict directly. */
-  forms: ['Consignment (5 types)', 'Courier Booking', 'Damage Claim', 'Courier Partner',
+  forms: ['Consignment', 'Next Journey Leg', 'Courier Booking', 'Damage Claim', 'Courier Partner',
     'Seal for Dispatch', 'Hub Intake Scan', 'Proof of Delivery Record', 'Rider & Vehicle Assignment',
     'Rider COD Settlement', 'Courier POD Record', 'Rider Certification'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
@@ -71,11 +71,17 @@ export const MODULE = {
       /* 1 FR-LOG-001: a consignment is created from any source - the M01
        * hand-over makes pickup / delivery legs, and a branch transfer or a
        * return to vendor is raised here. The page had no button at all. */
-      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'], reports: ['Consignment Cycle Time', 'Reverse Logistics Volume'], forms: ['Consignment (5 types)'] }],
+      ['1', 'Consignment Creation & Manifest', 10, { model: 'fix.consignment', cols: ['name', 'consignment_type', 'state', 'scheduled_date', 'origin_branch_id'], screens: ['M03-cons', 'M03-manifest'], reports: ['Consignment Cycle Time', 'Reverse Logistics Volume'], forms: ['Consignment'] }],
       /* 2 FR-LOG-002: a journey is the chain of legs (consignments) of one
        * service order; planning it is raising the next leg. It listed the
-       * custody scans, which are sub-module 3's records. */
-      ['2', 'Multi-Leg Journey Planning', 8, { model: 'fix.consignment', cols: ['name', 'service_order_id', 'consignment_type', 'origin_branch_id', 'dest_branch_id', 'scheduled_date', 'state'], screens: ['M03-cons', 'M03-journeys'], reports: ['Consignment Cycle Time'], forms: ['Consignment (5 types)'] }],
+       * custody scans, which are sub-module 3's records.
+       * M03 capture audit 2026-11-18: the page offered the same blank
+       * consignment as page 1, and the hand-over it relies on raised a second
+       * pickup for a collection order whose device had already arrived. The
+       * page now plans the next leg of an order's journey (the server picks
+       * pickup or the delivery back); a leg with no order (branch transfer,
+       * return to vendor) is still a new consignment. */
+      ['2', 'Multi-Leg Journey Planning', 8, { model: 'fix.consignment', cols: ['name', 'service_order_id', 'consignment_type', 'origin_branch_id', 'dest_branch_id', 'scheduled_date', 'state'], screens: ['M03-journeys', 'M03-cons'], reports: ['Consignment Cycle Time'], forms: ['Next Journey Leg', 'Consignment'], create: 'M03-form-next-leg' }],
       /* 3 FR-LOG-006: the hub's custody scan is the intake (seal + weight),
        * which stamps the hub scan itself; the rider's scans come from the
        * transitions and the rider app. A typed scan could "explain" a
@@ -208,9 +214,14 @@ export const SCREENS = {
     cols: ['name', 'consignment_type', 'state', 'service_order_id', 'custody_summary', 'chain_broken',
       'chain_problem', 'pod_verified_at', 'pod_verified_by', 'delivered_at', 'create_date'],
     stateField: 'state' },
-  'M03-journeys': { kind: 'model_list', model: 'fix.custody.scan', create: false,
-    cols: ['consignment_id', 'step', 'scanned_at', 'scanned_by', 'scanned_by_user_id', 'location_branch_id', 'device_serial', 'exception_reason'],
-    empty: 'No custody scan recorded yet. Each hand-over of a device (pickup, branch, rider, delivery) is stamped here by its step: Start Transit, Out for Delivery, the hub intake scan, Confirm Receipt, Verify POD, or the rider app. A scan is never typed in: the server records who scanned it and when.' },
+  /* M03 capture audit 2026-11-18: "Multi-Leg Journeys" listed custody
+   * scans (sub-module 3's records, already on Chain-of-Custody). A journey
+   * is the legs of one service order: pickup, transfers, the delivery back. */
+  'M03-journeys': { kind: 'model_list', model: 'fix.consignment', create: false,
+    cols: ['service_order_id', 'name', 'consignment_type', 'origin_branch_id', 'dest_branch_id', 'scheduled_date', 'rider_id', 'state', 'custody_summary'],
+    domain: [['service_order_id', '!=', false]],
+    stateField: 'state',
+    empty: 'No service order has a logistics leg yet. Plan the next leg of a journey from Multi-Leg Journey Planning, or with Hand to Logistics on the service order.' },
   'M03-manifest': { kind: 'table_report', module: 'M03', report: 'manifest_register', title: 'Item Manifests', period: false },
   'M03-custody': { kind: 'model_list', model: 'fix.custody.scan', create: false,
     cols: ['consignment_id', 'step', 'scanned_at', 'exception_reason', 'device_serial'],
@@ -265,7 +276,7 @@ export const SCREENS = {
   'M03-form-consignment': {
     kind: 'model_form',
     model: 'fix.consignment',
-    title: "Consignment (5 types)",
+    title: "Consignment",
     back: 'M03-cons',
     status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", in_transit: "In Transit", held: "Exception Hold", delivered: "Delivered", returned: "Returned", lost: "Lost" } },
     tabs: [
@@ -355,6 +366,48 @@ export const SCREENS = {
    * Each picks the consignment it acts on (the M01 hold pattern). The
    * dispatch evidence below is locked by the model once the leg leaves
    * dispatch, so only draft and confirmed legs are offered. */
+  /* M03 capture audit 2026-11-18: sub-module 2's capture. The order's
+   * next leg is decided by the server (action_create_consignment ->
+   * _fix_next_leg_type): a collection / mail-in order gets its pickup, then
+   * the delivery back once it is ready; a second live leg is refused. */
+  'M03-form-next-leg': {
+    kind: 'model_form',
+    model: 'fix.service.order',
+    title: 'Next Journey Leg',
+    newLabel: 'Plan the Next Leg of a Journey',
+    back: 'M03-journeys',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the service order whose device moves next',
+      note: 'Open collection and mail-in orders, and any order ready to go back to its customer.',
+      search: 'Search order / customer',
+      choose: 'Plan this journey',
+      cols: ['name', 'customer_id', 'service_type', 'branch_id', 'consignment_count', 'state'],
+      domain: [['state', 'in', ['intake', 'diagnostic', 'estimate_pending', 'estimate_sent', 'awaiting_approval',
+        'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready']],
+        '|', ['service_type', 'in', ['collection', 'mail_in']], ['state', '=', 'ready']],
+      empty: 'No open collection or mail-in order, and no order ready to go back. A leg with no service order (branch transfer, return to vendor) is a new Consignment.'
+    },
+    saveAction: {
+      method: 'action_create_consignment', label: 'Raise the Next Leg',
+      done: 'Next leg raised: it is a draft consignment on Consignments, ready to seal and assign',
+      kwargs: {}
+    },
+    sections: [
+      { title: 'Step 2 of 2: check the order, then raise its next leg (FR-LOG-002)',
+        note: 'A collection or mail-in order gets a pickup (customer to branch); once that pickup is delivered, the next leg is the delivery back, raised when the order is ready. Any other order gets a delivery leg. A second live leg of the same kind is refused.',
+        fields: [
+          { name: 'name', label: 'Order Reference', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'service_type', label: 'Intake Channel', readonly: true },
+          { name: 'branch_id', label: 'Service Center / Branch', readonly: true },
+          { name: 'consignment_count', label: 'Legs So Far', readonly: true },
+          { name: 'state', label: 'Current State', readonly: true }
+        ] }
+    ]
+  },
+
   'M03-form-seal': {
     kind: 'model_form',
     model: 'fix.consignment',
@@ -671,7 +724,8 @@ export const CREATE = {
 export const FORM_CHIPS = {
   'M03:Courier Booking': 'M03-form-booking',
   'M03:Damage Claim': 'M03-form-damage-claim',
-  'M03:Consignment (5 types)': 'M03-form-consignment',
+  'M03:Consignment': 'M03-form-consignment',
+  'M03:Next Journey Leg': 'M03-form-next-leg',
   'M03:Courier Partner': 'M03-form-courier',
   'M03:Seal for Dispatch': 'M03-form-seal',
   'M03:Hub Intake Scan': 'M03-form-hub-intake',

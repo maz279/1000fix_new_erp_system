@@ -81,7 +81,7 @@ def _sub(m03, no):
 
 EXPECTED = {
     "1": {"module": True},  # + New Consignment
-    "2": {"module": True},  # the next leg of a journey is a consignment
+    "2": "M03-form-next-leg",  # the next leg of an order's journey (2026-11-18)
     "3": "M03-form-hub-intake",
     "4": "M03-form-pod",
     "5": "M03-form-seal",
@@ -142,7 +142,9 @@ def test_the_capture_forms_bind_real_fields(m03, odoo_env):
         fields = odoo_env[cfg["model"]]._fields
         names = [f["name"] for s in cfg["sections"] for f in s["fields"]]
         pick = cfg.get("pickRecord") or {}
-        names += pick.get("cols", []) + [c[0] for c in pick.get("domain", [])]
+        names += pick.get("cols", []) + [
+            c[0] for c in pick.get("domain", []) if isinstance(c, list)
+        ]
         bad += ["%s.%s" % (sid, n) for n in names if n not in fields]
     assert not bad, bad
 
@@ -341,3 +343,115 @@ def test_the_seal_form_cannot_rewrite_a_leg_in_transit(lg, call):
     )
     assert "error" in res
     assert rec.outbound_seal_number == "SEAL-001"
+
+
+# --- M03 capture audit 2026-11-18: page 2 plans the next leg of a journey ------
+
+
+def test_page_two_plans_the_next_leg_not_a_blank_consignment(m03):
+    """It offered the same blank consignment as page 1."""
+    cfg = m03["forms"]["M03-form-next-leg"]
+    assert cfg["model"] == "fix.service.order"
+    assert cfg["saveAction"]["method"] == "action_create_consignment"
+    assert not [f for s in cfg["sections"] for f in s["fields"] if not f.get("readonly")]
+    assert m03["chips"]["M03:Next Journey Leg"] == "M03-form-next-leg"
+    assert "Next Journey Leg" in _sub(m03, "2")["map"]["forms"]
+
+
+def test_the_journeys_screen_lists_legs_not_custody_scans(m03):
+    """'Multi-Leg Journeys' listed custody scans: page 3's records."""
+    cfg = m03["screens"]["M03-journeys"]
+    assert cfg["model"] == "fix.consignment"
+    assert cfg["cols"][0] == "service_order_id"
+    assert _sub(m03, "2")["map"]["screens"][0] == "M03-journeys"
+
+
+def test_no_form_claims_five_consignment_types(m03, odoo_env):
+    kinds = odoo_env["fix.consignment"]._fields["consignment_type"].selection
+    assert len(kinds) == 4
+    assert m03["forms"]["M03-form-consignment"]["title"] == "Consignment"
+    assert not [n for n in m03["moduleForms"] if "5 types" in n]
+
+
+@pytest.fixture
+def journey(odoo_env):
+    env = odoo_env
+    ou = env["operating.unit"].search([], limit=1)
+    entity = env["fix.entity"].create(
+        {"code": "M3NL", "legal_name": "M03 Next Leg Entity", "company_id": env.company.id}
+    )
+    branch = env["fix.branch"].create(
+        {
+            "name": "M03 NL Branch",
+            "code": "M3NL",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
+    )
+    brand = env["fix.brand"].create({"name": "M3NLBrand", "code": "M3N"})
+    model = env["fix.device.model"].create({"name": "M3NL Phone", "brand_id": brand.id})
+    customer = env["res.partner"].create({"name": "M03 NL Customer", "phone": "01711000404"})
+    device = env["fix.device"].create(
+        {"device_model_id": model.id, "owner_id": customer.id, "serial_number": "SN-M3NL-1"}
+    )
+    order = env["fix.service.order"].create(
+        {
+            "device_id": device.id,
+            "customer_id": customer.id,
+            "branch_id": branch.id,
+            "fault_description": "M03 next-leg journey",
+            "service_type": "collection",
+        }
+    )
+    return env, order
+
+
+def _raise_next_leg(m03, env, order, call):
+    act = m03["forms"]["M03-form-next-leg"]["saveAction"]
+    res = call(
+        env,
+        "model_action",
+        model="fix.service.order",
+        ids=[order.id],
+        method=act["method"],
+        kwargs=act["kwargs"],
+    )
+    return res
+
+
+def test_the_next_leg_form_runs_the_whole_collection_journey(m03, journey, call):
+    """Pickup, then (after the device arrives and the repair is ready) the
+    delivery back - through the same endpoint the form's save uses."""
+    env, order = journey
+    pick = m03["forms"]["M03-form-next-leg"]["pickRecord"]["domain"]
+    assert order not in env["fix.service.order"].search(pick)  # a draft is not booked in
+    order.state = "intake"
+    assert order in env["fix.service.order"].search(pick)
+    res = _raise_next_leg(m03, env, order, call)
+    assert res["success"], res
+    pickup = order.consignment_ids
+    assert pickup.consignment_type == "pickup"
+    pickup.declared_value_bdt = 5000
+    pickup.action_confirm()
+    pickup.action_start_transit()
+    pickup.action_verify_hub_intake()
+    pickup.action_confirm_receipt()
+    order.state = "diagnostic"
+    res = _raise_next_leg(m03, env, order, call)
+    assert not res.get("success") and "already arrived" in str(res), res
+    for state in (
+        "estimate_pending",
+        "estimate_sent",
+        "awaiting_approval",
+        "approved",
+        "in_repair",
+        "qc_pending",
+    ):
+        order.state = state
+    env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
+    order.state = "ready"
+    assert order in env["fix.service.order"].search(pick)
+    res = _raise_next_leg(m03, env, order, call)
+    assert res["success"], res
+    back = order.consignment_ids - pickup
+    assert back.consignment_type == "delivery" and back.state == "draft"

@@ -157,7 +157,10 @@ const SO_ACTIONS = [
     states: ['intake', 'diagnostic', 'approved', 'in_repair'] },
   /* M03 audit 2026-11-13: the M01 -> M03 hand-over was served by the server
    * and offered by no button. A collection / mail-in order gets a pickup leg,
-   * any other a delivery leg; a second live leg of the same kind is refused. */
+   * any other a delivery leg; a second live leg of the same kind is refused.
+   * M03 capture audit 2026-11-18: once a collection / mail-in pickup has
+   * arrived, the next leg is the delivery back, raised when the order is ready
+   * (it raised a second pickup). */
   { id: 'consignment', m: 'action_create_consignment', l: 'Hand to Logistics (Pick & Drop)',
     states: ['intake', 'diagnostic', 'estimate_pending', 'estimate_sent', 'awaiting_approval',
       'approved', 'in_repair', 'qc_pending', 'qc_failed', 'ready'] },

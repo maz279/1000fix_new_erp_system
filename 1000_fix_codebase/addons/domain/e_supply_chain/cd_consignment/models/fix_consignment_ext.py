@@ -481,10 +481,39 @@ class FixServiceOrderConsignmentBridge(models.Model):
         for order in self:
             order.consignment_count = len(order.consignment_ids)
 
+    def _fix_next_leg_type(self):
+        """The next leg of this order's journey (FR-LOG-002: customer ->
+        branch -> workshop -> branch -> customer).
+
+        A collection or mail-in order starts with a PICKUP. M03 capture audit
+        2026-11-18: the type used to follow the service type alone, so once
+        the pickup had arrived, a second press raised another pickup (a rider
+        sent for a device already in the shop) and the return DELIVERY could
+        not be raised at all. The device is home once a pickup leg is
+        delivered; from then on the next leg is the delivery, and only when
+        the order is ready to go back. Every other order type is delivered
+        to the customer, as before."""
+        self.ensure_one()
+        if self.service_type not in ("collection", "mail_in"):
+            return "delivery"
+        arrived = self.consignment_ids.filtered(
+            lambda c: c.consignment_type == "pickup" and c.state == "delivered"
+        )
+        if not arrived and self.state != "ready":
+            return "pickup"
+        if self.state != "ready":
+            raise UserError(
+                "Order %s: the device already arrived at the branch (%s). Its return "
+                "delivery is raised once the order is ready."
+                % (self.name, ", ".join(arrived.mapped("name")))
+            )
+        return "delivery"
+
     def action_create_consignment(self):
-        """Hand a service order to logistics (M03). Collection and mail-in
-        orders get a PICKUP (customer -> branch); an order entering delivery
-        gets a DELIVERY leg (branch -> customer). Branch pairing: pickup
+        """Hand a service order to logistics (M03): raise the next leg of its
+        journey (``_fix_next_leg_type``). Collection and mail-in orders get a
+        PICKUP (customer -> branch) and, once ready, the DELIVERY back; other
+        orders get a DELIVERY leg (branch -> customer). Branch pairing: pickup
         originates at the customer's nearest... no origin branch exists for a
         customer, so pickup runs branch-to-branch to the ORDER branch as
         destination; delivery originates at the order branch."""
@@ -498,10 +527,11 @@ class FixServiceOrderConsignmentBridge(models.Model):
             branch = order.branch_id
             if not branch:
                 raise UserError("Order %s has no branch for a logistics leg." % order.name)
-            if order.service_type in ("collection", "mail_in"):
-                ctype, origin, dest = "pickup", False, branch.id
+            ctype = order._fix_next_leg_type()
+            if ctype == "pickup":
+                origin, dest = False, branch.id
             else:
-                ctype, origin, dest = "delivery", branch.id, False
+                origin, dest = branch.id, False
             # M03 audit 2026-11-13: a second press made a second live leg for
             # the same move (two riders sent for one device)
             live = order.consignment_ids.filtered(

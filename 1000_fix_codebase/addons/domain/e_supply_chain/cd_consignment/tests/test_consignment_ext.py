@@ -194,3 +194,72 @@ def test_bridge_refuses_closed(lg):
     lg.order.state = "closed"
     with pytest.raises(UserError, match="no new logistics legs"):
         lg.order.action_create_consignment()
+
+
+# --- M03 capture audit 2026-11-18: the hand-over raises the NEXT leg ----------
+
+
+def _arrive(cons):
+    """A pickup leg through to its receipt at the branch (the device is home)."""
+    cons.declared_value_bdt = 1000.0  # BRU-LOG-12
+    cons.action_confirm()
+    cons.action_start_transit()
+    cons.action_verify_hub_intake()
+    cons.action_confirm_receipt()
+    assert cons.state == "delivered"
+    return cons
+
+
+def _ready(order):
+    for state in (
+        "intake",
+        "diagnostic",
+        "estimate_pending",
+        "estimate_sent",
+        "awaiting_approval",
+        "approved",
+        "in_repair",
+        "qc_pending",
+    ):
+        order.state = state
+    order.env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
+    order.state = "ready"
+
+
+def test_bridge_sends_no_second_pickup_once_the_device_arrived(lg):
+    """It raised another pickup: a rider sent for a device already in the shop."""
+    _arrive(lg.order.action_create_consignment())
+    lg.order.state = "intake"
+    lg.order.state = "diagnostic"
+    with pytest.raises(UserError, match="already arrived at the branch"):
+        lg.order.action_create_consignment()
+    assert lg.order.consignment_count == 1
+
+
+def test_bridge_raises_the_delivery_back_when_the_order_is_ready(lg):
+    """The return leg of a collection journey could not be raised at all."""
+    _arrive(lg.order.action_create_consignment())
+    _ready(lg.order)
+    back = lg.order.action_create_consignment()
+    assert back.consignment_type == "delivery"
+    assert back.origin_branch_id == lg.branch and not back.dest_branch_id
+    assert back.service_order_id == lg.order
+    with pytest.raises(UserError, match="already has a live delivery leg"):
+        lg.order.action_create_consignment()
+
+
+def test_bridge_collects_again_after_a_failed_pickup(lg):
+    """A pickup that came back without the device does not count as arrived."""
+    first = lg.order.action_create_consignment()
+    first.declared_value_bdt = 1000.0
+    first.action_confirm()
+    first.action_return(reason="Customer not at home")
+    assert first.state == "returned"
+    again = lg.order.action_create_consignment()
+    assert again.consignment_type == "pickup" and again != first
+
+
+def test_bridge_delivers_a_ready_collection_order_that_was_dropped_off(lg):
+    """The customer brought it in but wants it delivered back: no pickup."""
+    _ready(lg.order)
+    assert lg.order.action_create_consignment().consignment_type == "delivery"
