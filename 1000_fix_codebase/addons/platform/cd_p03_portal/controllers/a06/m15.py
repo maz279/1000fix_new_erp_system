@@ -94,6 +94,37 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_submit", "action_approve", "action_reject"},
     },
+    # capture pass 2 (2026-11-19): pages 3, 4, 5 and 7
+    "fix.stock.reservation": {
+        "order": "priority, expires_at, id",
+        "limit": 300,
+        "actions": {"action_reserve", "action_release"},
+    },
+    "fix.stock.backorder": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {
+            "action_raise_transfer",
+            "action_raise_requisition",
+            "action_fulfil",
+            "action_cancel",
+        },
+    },
+    "fix.stock.recall": {
+        "order": "create_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_execute", "action_cancel"},
+    },
+    "fix.consignment.reconciliation": {
+        "order": "as_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_compute", "action_submit", "action_acknowledge"},
+    },
+    "fix.consignment.reconciliation.line": {
+        "order": "reconciliation_id, part_id",
+        "limit": 400,
+        "actions": set(),
+    },
 }
 
 # The owned classes: consignment and customer property are held, never valued.

@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M15 capture pass 2 (19 Nov 2026): company and operating-unit isolation (T-11) -->
+<odoo>
+    <record id="rule_fix_stock_reservation_company" model="ir.rule">
+        <field name="name">fix.stock.reservation: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_reservation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_reservation_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.reservation: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_reservation"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_backorder_company" model="ir.rule">
+        <field name="name">fix.stock.backorder: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_backorder"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_backorder_operating_unit" model="ir.rule">
+        <field name="name">fix.stock.backorder: location operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_stock_backorder"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('location_id.operating_unit_id', '=', False), ('location_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_stock_recall_company" model="ir.rule">
+        <field name="name">fix.stock.recall: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_recall"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_consignment_reconciliation_company" model="ir.rule">
+        <field name="name">fix.consignment.reconciliation: allowed companies</field>
+        <field name="model_id" ref="model_fix_consignment_reconciliation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_consignment_reconciliation_line_company" model="ir.rule">
+        <field name="name">fix.consignment.reconciliation.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_consignment_reconciliation_line"/>
+        <field name="domain_force">['|', ('reconciliation_id.company_id', '=', False), ('reconciliation_id.company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

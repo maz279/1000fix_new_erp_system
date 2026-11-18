@@ -68,3 +68,14 @@ access_fix_wms_equipment_admin,fix.wms.equipment admin,model_fix_wms_equipment,b
 access_fix_wms_device_user,fix.wms.device user,model_fix_wms_device,base.group_user,1,0,0,0
 access_fix_wms_device_supervisor,fix.wms.device supervisor,model_fix_wms_device,cd_wms_structure.group_warehouse_supervisor,1,1,1,0
 access_fix_wms_device_admin,fix.wms.device admin,model_fix_wms_device,base.group_system,1,1,1,0
+access_fix_stock_reservation_user,fix.stock.reservation user,model_fix_stock_reservation,base.group_user,1,0,0,0
+access_fix_stock_reservation_storekeeper,fix.stock.reservation storekeeper,model_fix_stock_reservation,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_reservation_technician,fix.stock.reservation technician,model_fix_stock_reservation,cd_wms_structure.group_van_technician,1,1,1,0
+access_fix_stock_backorder_user,fix.stock.backorder user,model_fix_stock_backorder,base.group_user,1,0,0,0
+access_fix_stock_backorder_storekeeper,fix.stock.backorder storekeeper,model_fix_stock_backorder,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_stock_recall_user,fix.stock.recall user,model_fix_stock_recall,base.group_user,1,0,0,0
+access_fix_stock_recall_storekeeper,fix.stock.recall storekeeper,model_fix_stock_recall,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_consignment_reconciliation_user,fix.consignment.reconciliation user,model_fix_consignment_reconciliation,base.group_user,1,0,0,0
+access_fix_consignment_reconciliation_storekeeper,fix.consignment.reconciliation storekeeper,model_fix_consignment_reconciliation,cd_wms_structure.group_storekeeper,1,1,1,0
+access_fix_consignment_reconciliation_line_user,fix.consignment.reconciliation.line user,model_fix_consignment_reconciliation_line,base.group_user,1,0,0,0
+access_fix_consignment_reconciliation_line_storekeeper,fix.consignment.reconciliation.line storekeeper,model_fix_consignment_reconciliation_line,cd_wms_structure.group_storekeeper,1,1,0,0

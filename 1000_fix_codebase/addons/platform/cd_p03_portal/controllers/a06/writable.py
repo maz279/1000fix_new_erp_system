@@ -12,6 +12,18 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a06
 
 WRITABLE = {
+    "fix.consignment.reconciliation": frozenset(
+        {
+            "brand_acknowledged_by",
+            "brand_acknowledged_on",
+            "brand_id",
+            "line_ids",
+            "period_start",
+            "statement_ref",
+            "variance_note",
+        }
+    ),
+    "fix.consignment.reconciliation.line": frozenset(),
     "fix.demand.adjustment": frozenset(
         {
             "adjusted_qty",
@@ -631,6 +643,16 @@ WRITABLE = {
             "warranty_months",
         }
     ),
+    "fix.stock.backorder": frozenset(
+        {
+            "location_id",
+            "needed_by",
+            "notes",
+            "part_id",
+            "qty",
+            "service_order_ref",
+        }
+    ),
     "fix.stock.class.change": frozenset(
         {
             "from_class",
@@ -647,6 +669,7 @@ WRITABLE = {
             "location_id",
             "product_id",
             "quantity",
+            "reservation_id",
             "scanned_code",
             "serial_number",
             "service_order_ref",
@@ -699,6 +722,16 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.stock.recall": frozenset(
+        {
+            "lot_ids",
+            "notes",
+            "part_id",
+            "reason",
+            "reference",
+            "scope",
+        }
+    ),
     "fix.stock.receipt": frozenset(
         {
             "direct_reason",
@@ -714,6 +747,18 @@ WRITABLE = {
         }
     ),
     "fix.stock.receipt.line": frozenset(),
+    "fix.stock.reservation": frozenset(
+        {
+            "displaces_id",
+            "location_id",
+            "notes",
+            "override_reason",
+            "part_id",
+            "qty",
+            "reserve_class",
+            "service_order_ref",
+        }
+    ),
     "fix.stock.rtv": frozenset(
         {
             "location_id",

@@ -10,7 +10,15 @@
  * captures its record - a stock location (FR-INV-002), the approved
  * ownership-class change (FR-INV-018), van par levels (FR-INV-029), a return
  * to vendor (FR-INV-052) - and serials, which only goods receipts create, are
- * no longer offered as a blank form the server refuses. */
+ * no longer offered as a blank form the server refuses.
+ * Capture pass 2 (2026-11-19): four pages still could not record what the
+ * spec says is recorded there - page 4 a reservation held for a job, with
+ * priority, expiry and override (FR-INV-019..021, 027); page 5 a backorder
+ * when the part is not at hand (FR-INV-025) and an issue from the job's own
+ * reservation; page 7 a recall that quarantines every affected unit
+ * (FR-INV-040); page 3 the per-brand consignment statement (FR-INV-012/014).
+ * Page 6 adds the Transfer Request chip: van-to-van is a transfer between
+ * two vans (FR-INV-033). */
 
 export const MODULE = {
   area: 'A06', code: 'M15', en: 'Spare Parts & Inventory', title: 'M15 · Spare Parts & Inventory',
@@ -32,13 +40,16 @@ export const MODULE = {
       { id: 'M15-onhand', en: 'On-Hand by Location', bn: 'স্টক অন-হ্যান্ড', t: 'g' },
       { id: 'M15-locations', en: 'Stock Locations', bn: 'স্টক লোকেশন', t: 'g' },
       { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'r' },
+      { id: 'M15-reservations', en: 'Reservations', bn: 'রিজার্ভেশন', t: 'g' },
       { id: 'M15-movements', en: 'Issues & Returns', bn: 'ইস্যু ও রিটার্ন', t: 'g' },
+      { id: 'M15-backorders', en: 'Backorders (Parts Wait)', bn: 'ব্যাকঅর্ডার', t: 'g' },
       { id: 'M15-network', en: 'Network Availability Search', bn: 'প্রাপ্যতা অনুসন্ধান', t: 'r' },
       { id: 'M15-receipts', en: 'Goods Receipts', bn: 'পণ্য গ্রহণ', t: 'g' }
     ]},
     { en: 'Traceability', screens: [
       { id: 'M15-serials', en: 'Serial & Lot Trace', bn: 'সিরিয়াল ও লট ট্রেস', t: 'g' },
-      { id: 'M15-genealogy', en: 'Consumption Genealogy', bn: 'ব্যবহারের বংশতালিকা', t: 'r' }
+      { id: 'M15-genealogy', en: 'Consumption Genealogy', bn: 'ব্যবহারের বংশতালিকা', t: 'r' },
+      { id: 'M15-recalls', en: 'Recalls', bn: 'রিকল', t: 'g' }
     ]},
     { en: 'Van Stock', screens: [
       { id: 'M15-van', en: 'Van Stock by Technician', bn: 'ভ্যান স্টক', t: 'r' },
@@ -50,7 +61,8 @@ export const MODULE = {
       { id: 'M15-transfers', en: 'Inter-Branch Transfers', bn: 'শাখা স্থানান্তর', t: 'g' },
       { id: 'M15-quarantine', en: 'Quarantine & Scrap', bn: 'কোয়ারেন্টিন ও স্ক্র্যাপ', t: 'g' },
       { id: 'M15-rtv', en: 'RTV Initiation', bn: 'ভেন্ডর ফেরত', t: 'g' },
-      { id: 'M15-classchange', en: 'Ownership-Class Changes', bn: 'মালিকানা শ্রেণি পরিবর্তন', t: 'g' }
+      { id: 'M15-classchange', en: 'Ownership-Class Changes', bn: 'মালিকানা শ্রেণি পরিবর্তন', t: 'g' },
+      { id: 'M15-consignment', en: 'Brand Consignment Statements', bn: 'ব্র্যান্ড কনসাইনমেন্ট বিবরণী', t: 'g' }
     ]},
     { en: 'Valuation & Analysis', screens: [
       { id: 'M15-valuation', en: 'Valuation (WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
@@ -61,18 +73,23 @@ export const MODULE = {
   ],
   reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock', 'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation'],
   forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)',
-    'Stock Location', 'Ownership-Class Change', 'Reorder Rule', 'Return to Vendor'],
+    'Stock Location', 'Ownership-Class Change', 'Reorder Rule', 'Return to Vendor',
+    'Stock Reservation', 'Backorder', 'Stock Recall', 'Consignment Statement'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
     ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'], reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit'], forms: [] }],
     /* a location (van, store, quarantine...) is mastered on M41's form */
     ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-locations', 'M15-network', 'M15-onhand'], reports: [], forms: ['Stock Location'], create: 'M41-form-stock-location' }],
     /* stock changes class only by the approved document (BRU-INV-06) */
-    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership', 'M15-classchange'], reports: ['Stock Valuation by Class'], forms: ['Ownership-Class Change'], create: 'M15-form-classchange' }],
-    ['4', 'Reservations', 7, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'reserved', 'available_qty'], screens: ['M15-onhand'], reports: [], forms: [], create: false, domain: [['reserved', '>', 0]] }],
-    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-genealogy'], reports: [], forms: ['Stock Issue'] }],
-    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: ['Reorder Rule'] }],
-    ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-genealogy'], reports: [], forms: [] }],
+    /* the brand's monthly consignment statement is captured here (FR-INV-012/014) */
+    ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership', 'M15-classchange', 'M15-consignment'], reports: ['Stock Valuation by Class'], forms: ['Ownership-Class Change', 'Consignment Statement'], create: 'M15-form-classchange' }],
+    /* a reservation is a record held for a job (FR-INV-019..021, 027) */
+    ['4', 'Reservations', 7, { model: 'fix.stock.reservation', cols: ['name', 'part_id', 'location_id', 'qty_open', 'priority', 'service_order_ref', 'expires_at', 'state'], screens: ['M15-reservations', 'M15-onhand'], reports: [], forms: ['Stock Reservation'], create: 'M15-form-reservation' }],
+    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-backorders', 'M15-genealogy'], reports: [], forms: ['Stock Issue', 'Backorder'] }],
+    /* van-to-van (FR-INV-033) is a transfer request between two vans */
+    ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: ['Reorder Rule', 'Transfer Request'] }],
+    /* serials come from receipts; what a person records here is a recall (FR-INV-040) */
+    ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-recalls', 'M15-genealogy'], reports: [], forms: ['Stock Recall'], create: 'M15-form-recall' }],
     ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation', 'M15-suspense'], reports: ['Stock Valuation by Class'], forms: [] }],
     ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'], reports: [], forms: ['Goods Receipt (inspection gate)'] }],
     ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'], reports: ['Inventory Accuracy Audit'], forms: ['Cycle Count'] }],
@@ -175,6 +192,35 @@ export const SCREENS = {
       { m: 'action_submit', l: 'Submit' },
       { m: 'action_approve', l: 'Approve & Apply (controller)' },
       { m: 'action_reject', l: 'Reject (controller)', ask: 'Why the class change is rejected', kwarg: 'note' }
+    ] },
+  /* capture pass 2 (2026-11-19) */
+  'M15-reservations': { kind: 'model_list', model: 'fix.stock.reservation', stateField: 'state',
+    cols: ['name', 'part_id', 'location_id', 'booked_class', 'qty', 'qty_open', 'priority', 'service_order_ref', 'expires_at', 'requested_by_id', 'displaces_id', 'state'],
+    empty: 'No reservation yet. Reserve stock for a job here; warranty and SLA-bound work ranks first, an unissued hold expires and goes back to stock.',
+    actions: [
+      { m: 'action_reserve', l: 'Reserve' },
+      { m: 'action_release', l: 'Release', ask: 'Why the stock is released', kwarg: 'note' }
+    ] },
+  'M15-backorders': { kind: 'model_list', model: 'fix.stock.backorder', stateField: 'state',
+    cols: ['name', 'part_id', 'location_id', 'qty', 'service_order_ref', 'needed_by', 'transfer_id', 'requisition_id', 'state'],
+    actions: [
+      { m: 'action_raise_transfer', l: 'Raise Transfer' },
+      { m: 'action_raise_requisition', l: 'Raise Requisition' },
+      { m: 'action_fulfil', l: 'Fulfil (reserve for the job)' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why the backorder is cancelled', kwarg: 'note' }
+    ] },
+  'M15-recalls': { kind: 'model_list', model: 'fix.stock.recall', stateField: 'state',
+    cols: ['name', 'part_id', 'scope', 'reason', 'reference', 'qty_quarantined', 'qty_not_reached', 'executed_at', 'state'],
+    actions: [
+      { m: 'action_execute', l: 'Execute Recall (controller)' },
+      { m: 'action_cancel', l: 'Cancel' }
+    ] },
+  'M15-consignment': { kind: 'model_list', model: 'fix.consignment.reconciliation', stateField: 'state',
+    cols: ['name', 'brand_id', 'period_start', 'as_at', 'closing_qty', 'brand_qty', 'variance_qty', 'statement_ref', 'state'],
+    actions: [
+      { m: 'action_compute', l: 'Compute from Ledger' },
+      { m: 'action_submit', l: 'Send to Brand' },
+      { m: 'action_acknowledge', l: 'Record Brand Acknowledgement (controller)' }
     ] },
   'M15-suspense': { kind: 'table_report', module: 'M15', report: 'suspense_integrity', title: 'Valuation Suspense Integrity', period: false },
   'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (WAC)', period: false },
@@ -355,7 +401,8 @@ export const SCREENS = {
           { name: 'service_order_ref', required: true, label: 'Service Order Ref' },
           { name: 'work_order_ref', label: 'Work Order Ref' },
           { name: 'scanned_code', required: true, label: 'Scanned Code' },
-          { name: 'serial_number', label: 'Serial / IMEI' }
+          { name: 'serial_number', label: 'Serial / IMEI' },
+          { name: 'reservation_id', label: 'From Reservation (held for this job)', domain: [['state', '=', 'active']] }
         ] }
     ]
   },
@@ -607,6 +654,146 @@ export const SCREENS = {
           { name: 'approved_by_id', label: 'Approved By', readonly: true }
         ] }
     ]
+  },
+
+  /* page 4 (FR-INV-019..021, 027): stock held for a job */
+  'M15-form-reservation': {
+    kind: 'model_form',
+    model: 'fix.stock.reservation',
+    title: 'Stock Reservation',
+    back: 'M15-reservations',
+    status: { field: 'state', labels: {
+      draft: 'Draft', active: 'Held', consumed: 'Issued', released: 'Released',
+      expired: 'Expired', overridden: 'Displaced' } },
+    sections: [
+      { title: 'Reservation', note: 'Save, then Reserve. Only unrestricted, unreserved stock is held. The job sets the priority: warranty and SLA-bound work first, then paid work, then internal demand; a higher-priority job takes stock from lower-priority holds and their requesters are told. An unissued hold expires and goes back to stock. To take an equal or higher-priority job\'s stock, an Inventory Controller or Branch Manager names it under Emergency Override with a reason.',
+        fields: [
+          { name: 'part_id', required: true, label: 'Spare Part' },
+          { name: 'location_id', required: true, label: 'Location' },
+          { name: 'reserve_class', required: true, label: 'Reserve From Class', value: 'owned' },
+          { name: 'qty', required: true, label: 'Quantity' },
+          { name: 'service_order_ref', label: 'Job Reference (service order / job)' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'displaces_id', label: 'Emergency Override Of', domain: [['state', '=', 'active']] },
+          { name: 'override_reason', label: 'Override Reason' },
+          { name: 'priority', label: 'Priority', readonly: true },
+          { name: 'qty_open', label: 'Still Held', readonly: true },
+          { name: 'qty_consumed', label: 'Issued', readonly: true },
+          { name: 'expires_at', label: 'Expires', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'release_reason', label: 'Released Because', readonly: true }
+        ] }
+    ]
+  },
+
+  /* page 5 (FR-INV-025): the part is not at hand */
+  'M15-form-backorder': {
+    kind: 'model_form',
+    model: 'fix.stock.backorder',
+    title: 'Backorder',
+    back: 'M15-backorders',
+    status: { field: 'state', labels: {
+      open: 'Open (parts wait)', transfer: 'Transfer Raised', requisition: 'Requisition Raised',
+      fulfilled: 'Fulfilled', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Backorder', note: 'Raised only when the location cannot supply the quantity. If another location holds it, Raise Transfer pulls it from the network source; only when nobody holds it does Raise Requisition send a purchase to M16. When the stock arrives, Fulfil reserves it for the job.',
+        fields: [
+          { name: 'part_id', required: true, label: 'Spare Part' },
+          { name: 'location_id', required: true, label: 'Needed At' },
+          { name: 'qty', required: true, label: 'Quantity' },
+          { name: 'service_order_ref', label: 'Job Reference' },
+          { name: 'needed_by', label: 'Needed By' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'source_location_id', label: 'Network Source', readonly: true },
+          { name: 'source_available', label: 'Available There', readonly: true },
+          { name: 'transfer_id', label: 'Transfer', readonly: true },
+          { name: 'requisition_id', label: 'Requisition (M16)', readonly: true },
+          { name: 'reservation_id', label: 'Reservation', readonly: true },
+          { name: 'cancel_reason', label: 'Cancelled Because', readonly: true }
+        ] }
+    ]
+  },
+
+  /* page 7 (FR-INV-040 / AUT-INV-14): quarantine every affected unit */
+  'M15-form-recall': {
+    kind: 'model_form',
+    model: 'fix.stock.recall',
+    title: 'Stock Recall',
+    back: 'M15-recalls',
+    status: { field: 'state', labels: { draft: 'Draft', executed: 'Executed', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Recall', note: 'Execute (Inventory Controller) quarantines, in one transaction, every unrestricted unit of the part, or of the named serials, at every location and van, releases the reservations that held it and lists the jobs that already consumed it. What it cannot reach (in transit, issued, in warehouse bins, held by a wave pick) is listed as the manual sweep worklist.',
+        fields: [
+          { name: 'part_id', required: true, label: 'Spare Part' },
+          { name: 'scope', required: true, label: 'Scope', value: 'all' },
+          { name: 'lot_ids', label: 'Serials / Lots (named scope)' },
+          { name: 'reason', required: true, label: 'Reason', value: 'recall' },
+          { name: 'reference', label: 'Bulletin / Notice Reference' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'qty_quarantined', label: 'Quarantined', readonly: true },
+          { name: 'qty_not_reached', label: 'Not Reached', readonly: true },
+          { name: 'worklist', label: 'Manual Sweep Worklist', readonly: true },
+          { name: 'affected_consumption_ids', label: 'Jobs Already Consuming It', readonly: true },
+          { name: 'executed_by_id', label: 'Executed By', readonly: true },
+          { name: 'executed_at', label: 'Executed On', readonly: true }
+        ] }
+    ]
+  },
+
+  /* page 3 (FR-INV-012/014, AUT-INV-07): the brand's consignment statement */
+  'M15-form-consignment': {
+    kind: 'model_form',
+    model: 'fix.consignment.reconciliation',
+    title: 'Brand Consignment Statement',
+    back: 'M15-consignment',
+    status: { field: 'state', labels: {
+      draft: 'Draft', computed: 'Computed', submitted: 'Sent to Brand', acknowledged: 'Acknowledged' } },
+    // 15 header fields and a part grid: tabbed so the statement and the
+    // brand's acknowledgement each fit one screen (AGENTS.md multi-tab forms)
+    tabs: [
+      { id: 'statement', label: '1. Statement', bn: '১. বিবরণী', icon: '🧾', badge: '9' },
+      { id: 'brand', label: '2. Brand Acknowledgement', bn: '২. ব্র্যান্ডের স্বীকৃতি', icon: '✍', badge: '6' }
+    ],
+    sections: [
+      { tab: 'statement', title: 'Statement', note: 'Compute from Ledger: closing is the consignment stock of the brand\'s parts now; received and consumed on warranty jobs count from the period start; the opening carries from the brand\'s last acknowledged statement. Other movements are returns to the brand, transfers out and count adjustments.',
+        fields: [
+          { name: 'brand_id', required: true, label: 'Brand' },
+          { name: 'period_start', required: true, label: 'Period From' },
+          { name: 'as_at', label: 'As At', readonly: true },
+          { name: 'opening_qty', label: 'Opening', readonly: true },
+          { name: 'received_qty', label: 'Received', readonly: true },
+          { name: 'consumed_qty', label: 'Consumed on Warranty', readonly: true },
+          { name: 'damaged_qty', label: 'Damaged / Written Off', readonly: true },
+          { name: 'other_qty', label: 'Other Movements', readonly: true },
+          { name: 'closing_qty', label: 'Closing (ledger)', readonly: true }
+        ] },
+      { tab: 'brand', title: 'Brand Acknowledgement', note: 'Enter the brand\'s own closing figure on each line where it differs. An Inventory Controller who did not prepare the statement records the acknowledgement; a variance needs an explanation.',
+        fields: [
+          { name: 'brand_qty', label: 'Closing (brand)', readonly: true },
+          { name: 'variance_qty', label: 'Variance', readonly: true },
+          { name: 'statement_ref', label: 'Brand Statement Reference' },
+          { name: 'brand_acknowledged_by', label: 'Acknowledged By (brand)' },
+          { name: 'brand_acknowledged_on', label: 'Brand Acknowledged On' },
+          { name: 'variance_note', label: 'Variance Explanation' }
+        ] }
+    ],
+    lines: {
+      field: 'line_ids',
+      fixedRows: true,
+      title: 'Parts - ledger against the brand',
+      note: 'The rows come from the ledger. Only the brand\'s closing figure is entered.',
+      fields: [
+        { name: 'part_id', label: 'Spare Part', readonly: true },
+        { name: 'opening_qty', label: 'Opening', readonly: true },
+        { name: 'received_qty', label: 'Received', readonly: true },
+        { name: 'consumed_qty', label: 'Consumed', readonly: true },
+        { name: 'damaged_qty', label: 'Damaged', readonly: true },
+        { name: 'other_qty', label: 'Other', readonly: true },
+        { name: 'closing_qty', label: 'Closing (ledger)', readonly: true },
+        { name: 'brand_qty', label: 'Closing (brand)' },
+        { name: 'variance_qty', label: 'Variance', readonly: true }
+      ]
+    }
   }
 };
 
@@ -629,7 +816,11 @@ export const FORM_MODELS = {
   'M15:Stock Location': 'fix.stock.location',
   'M15:Ownership-Class Change': 'fix.stock.class.change',
   'M15:Reorder Rule': 'fix.reorder.rule',
-  'M15:Return to Vendor': 'fix.stock.rtv'
+  'M15:Return to Vendor': 'fix.stock.rtv',
+  'M15:Stock Reservation': 'fix.stock.reservation',
+  'M15:Backorder': 'fix.stock.backorder',
+  'M15:Stock Recall': 'fix.stock.recall',
+  'M15:Consignment Statement': 'fix.consignment.reconciliation'
 };
 
 export const FORM_CHIPS = {
@@ -644,7 +835,15 @@ export const FORM_CHIPS = {
   'M15:Ownership-Class Change': 'M15-form-classchange',
   'M15:Reorder Rule': 'M15-form-reorder',
   'M15:Return to Vendor': 'M15-form-rtv',
+  'M15:Stock Reservation': 'M15-form-reservation',
+  'M15:Backorder': 'M15-form-backorder',
+  'M15:Stock Recall': 'M15-form-recall',
+  'M15:Consignment Statement': 'M15-form-consignment',
   'M15:__by_model__': {
+    'fix.stock.reservation': 'M15-form-reservation',
+    'fix.stock.backorder': 'M15-form-backorder',
+    'fix.stock.recall': 'M15-form-recall',
+    'fix.consignment.reconciliation': 'M15-form-consignment',
     'fix.spare.part': 'M15-form-part',
     'fix.stock.location': 'M41-form-stock-location',
     'fix.stock.receipt': 'M15-form-receipt',
@@ -672,7 +871,11 @@ export const FORM_CHIPS = {
     'M15-quarantine': 'M15-form-scrap',
     'M15-rtv': 'M15-form-rtv',
     'M15-receipts': 'M15-form-receipt',
-    'M15-classchange': 'M15-form-classchange'
+    'M15-classchange': 'M15-form-classchange',
+    'M15-reservations': 'M15-form-reservation',
+    'M15-backorders': 'M15-form-backorder',
+    'M15-recalls': 'M15-form-recall',
+    'M15-consignment': 'M15-form-consignment'
   }
 };
 

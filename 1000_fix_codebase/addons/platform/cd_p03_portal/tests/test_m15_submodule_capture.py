@@ -71,10 +71,10 @@ CAPTURE = {
     "1": "system",  # on-hand: the ledger position (FR-INV-001/005)
     "2": "form",  # stock location (FR-INV-002, FR-INV-028 vans)
     "3": "form",  # ownership-class change (FR-INV-018)
-    "4": "system",  # reservations: written by M41 wave release
-    "5": "form",  # stock issue (FR-INV-022)
+    "4": "form",  # a reservation held for a job (FR-INV-019..021, 027; pass 2)
+    "5": "form",  # stock issue (FR-INV-022), backorder (FR-INV-025)
     "6": "form",  # van reconciliation + reorder rule (FR-INV-029..031)
-    "7": "system",  # serials and lots: created by goods receipts only
+    "7": "form",  # a recall (FR-INV-040; pass 2) - serials still come from receipts
     "8": "system",  # valuation: weighted average from the movements
     "9": "form",  # goods receipt (the module's button)
     "10": "form",  # cycle / full count
@@ -188,8 +188,53 @@ def test_a_serial_is_never_typed_in(m15):
     assert lots["create"] is False and lots["empty"]
     form = m15["screens"]["M15-form-lot"]
     assert form["create"] is False and form["pick"]
-    assert _sub(m15, "7")["create"] is None
+    # page 7's "+ New" is the recall, never a blank lot (pass 2)
+    assert _sub(m15, "7")["create"] == "M15-form-recall"
 
 
 def test_suspense_check_sits_with_valuation(m15):
     assert "M15-suspense" in _sub(m15, "8")["screens"]
+
+
+# ------------------------------------------------ capture pass 2 (2026-11-19)
+# Every page had a button after 13 Nov; these pages still could not record
+# what the spec says a person records there.
+
+
+def test_reservations_page_holds_stock_for_a_job(m15):
+    """Page 4 offered nothing: a reservation was a number M41 wrote."""
+    sub = _sub(m15, "4")
+    assert sub["model"] == "fix.stock.reservation"
+    assert sub["create"] == "M15-form-reservation"
+    assert _opening(sub)["Stock Reservation"]["model"] == "fix.stock.reservation"
+    assert "M15-reservations" in sub["screens"]
+    assert m15["byModel"]["fix.stock.reservation"] == "M15-form-reservation"
+
+
+def test_issue_page_raises_a_backorder(m15):
+    sub = _sub(m15, "5")
+    assert _opening(sub)["Backorder"]["model"] == "fix.stock.backorder"
+    assert "M15-backorders" in sub["screens"]
+
+
+def test_serial_page_declares_a_recall(m15):
+    sub = _sub(m15, "7")
+    assert _opening(sub)["Stock Recall"]["model"] == "fix.stock.recall"
+    assert "M15-recalls" in sub["screens"]
+
+
+def test_ownership_page_reconciles_a_brand_consignment(m15):
+    sub = _sub(m15, "3")
+    assert _opening(sub)["Consignment Statement"]["model"] == "fix.consignment.reconciliation"
+    assert "M15-consignment" in sub["screens"]
+
+
+def test_van_page_moves_stock_van_to_van(m15):
+    """FR-INV-033: a transfer request between two vans."""
+    assert _opening(_sub(m15, "6"))["Transfer Request"]["model"] == "fix.stock.transfer"
+
+
+def test_issue_form_draws_the_jobs_reservation():
+    js = (SRC / "a06" / "m15.js").read_text(encoding="utf-8")
+    issue = js[js.index("'M15-form-issue'") : js.index("'M15-form-transfer'")]
+    assert "reservation_id" in issue
