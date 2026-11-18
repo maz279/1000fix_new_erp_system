@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M21 capture audit pass 2 (2026-11-19): who reads the three records it
+     added, and company isolation (AS-03).
+
+     The privacy rules are GLOBAL (no groups), as in fix_a09_privacy_rules.xml:
+     group rules combine with OR, so a group rule could not narrow what another
+     group grants. The HR and payroll roles read every row
+     (res.users fix_reads_all_people).
+       * fix.hr.probation.review - the employee, their line manager and the
+         reviewer read it
+       * fix.hr.exit.handover - the leaver, the successor and the leaver's
+         line manager read it
+       * fix.hr.additional.assignment - HR only (no ACL for other users) -->
+<odoo>
+    <record id="rule_fix_hr_probation_review_people" model="ir.rule">
+        <field name="name">fix.hr.probation.review: the employee, their manager and the reviewer, unless HR</field>
+        <field name="model_id" ref="model_fix_hr_probation_review"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), ('reviewer_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_fix_hr_probation_review_company" model="ir.rule">
+        <field name="name">fix.hr.probation.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_probation_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_fix_hr_exit_handover_people" model="ir.rule">
+        <field name="name">fix.hr.exit.handover: the leaver, the successor and the line manager, unless HR</field>
+        <field name="model_id" ref="model_fix_hr_exit_handover"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('successor_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if user.fix_reads_all_people() else 0, '=', 1)]</field>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+    </record>
+    <record id="rule_fix_hr_exit_handover_company" model="ir.rule">
+        <field name="name">fix.hr.exit.handover: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_exit_handover"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+
+    <record id="rule_fix_hr_additional_assignment_company" model="ir.rule">
+        <field name="name">fix.hr.additional.assignment: allowed companies</field>
+        <field name="model_id" ref="model_fix_hr_additional_assignment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

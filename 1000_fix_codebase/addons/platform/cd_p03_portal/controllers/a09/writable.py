@@ -305,6 +305,18 @@ WRITABLE = {
             "notes",
         }
     ),
+    "fix.hr.additional.assignment": frozenset(
+        {
+            "assignment_type",
+            "date_from",
+            "date_to",
+            "employee_id",
+            "manager_id",
+            "order_file",
+            "position_id",
+            "reason",
+        }
+    ),
     "fix.hr.dependant": frozenset(
         {
             "date_of_birth",
@@ -380,6 +392,20 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.hr.exit.handover": frozenset(
+        {
+            "accounts_contacts",
+            "documents_files",
+            "exit_id",
+            "handover_date",
+            "handover_file",
+            "open_work",
+            "pending_notes",
+            "successor_id",
+            "systems_access",
+            "van_stock_ref",
+        }
+    ),
     "fix.hr.exit.interview": frozenset(
         {
             "comments",
@@ -429,11 +455,25 @@ WRITABLE = {
             "proposed_bank_account_number",
             "proposed_bank_branch_name",
             "proposed_bank_name",
+            "proposed_children",
+            "proposed_children_set",
+            "proposed_emergency_contact",
+            "proposed_emergency_contact_address",
+            "proposed_emergency_contact_relation",
+            "proposed_emergency_phone",
+            "proposed_emergency_phone_alt",
+            "proposed_marital",
             "proposed_mfs_account_number",
             "proposed_mfs_provider",
             "proposed_nid_number",
             "proposed_overtime_eligible",
+            "proposed_private_city",
+            "proposed_private_district",
+            "proposed_private_email",
+            "proposed_private_phone",
+            "proposed_private_street",
             "proposed_routing_number",
+            "proposed_spouse_name",
             "proposed_tin_number",
             "reason",
         }
@@ -456,6 +496,22 @@ WRITABLE = {
             "name",
             "operating_unit_id",
             "shift_id",
+        }
+    ),
+    "fix.hr.probation.review": frozenset(
+        {
+            "concerns",
+            "employee_id",
+            "evidence_file",
+            "rating_attendance",
+            "rating_conduct",
+            "rating_customer",
+            "rating_quality",
+            "rating_skill",
+            "recommendation",
+            "review_date",
+            "reviewer_id",
+            "strengths",
         }
     ),
     "fix.hr.transfer": frozenset(

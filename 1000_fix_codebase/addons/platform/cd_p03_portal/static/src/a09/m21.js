@@ -14,7 +14,8 @@ export const MODULE = {
     { l: 'Open Positions', m: 'open_positions' },
     { l: 'Probation Ending (30d)', m: 'probation_ending_30d' },
     { l: 'Service Books', m: 'service_books_complete' },
-    { l: 'Privacy Notice Pending', m: 'privacy_notice_pending' }
+    { l: 'Privacy Notice Pending', m: 'privacy_notice_pending' },
+    { l: 'Probation Unreviewed (30d)', m: 'probation_unreviewed_30d' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -27,14 +28,17 @@ export const MODULE = {
       { id: 'M21-positions', en: 'Positions & Jobs', bn: 'পদ', t: 'g' },
       { id: 'M21-departments', en: 'Departments', bn: 'বিভাগ', t: 'g' },
       { id: 'M21-jobs', en: 'Job Profiles', bn: 'চাকরির প্রোফাইল', t: 'g' },
+      { id: 'M21-assignments', en: 'Dual Roles & Acting Charges', bn: 'অতিরিক্ত ও ভারপ্রাপ্ত দায়িত্ব', t: 'g' },
       { id: 'M21-education', en: 'Academic Qualifications', bn: 'শিক্ষাগত যোগ্যতা', t: 'g' },
       { id: 'M21-experience', en: 'Work Experience', bn: 'কর্মঅভিজ্ঞতা', t: 'g' }
     ]},
     { en: 'Lifecycle', screens: [
       { id: 'M21-hire', en: 'Hire / Onboard', bn: 'নিয়োগ', t: 'g' },
+      { id: 'M21-probation-reviews', en: 'Probation Reviews', bn: 'শিক্ষানবিশকাল পর্যালোচনা', t: 'g' },
       { id: 'M21-transfer', en: 'Transfer / Promote', bn: 'স্থানান্তর ও পদোন্নতি', t: 'g' },
       { id: 'M21-exit', en: 'Exit & Settlement', bn: 'প্রস্থান', t: 'g' },
       { id: 'M21-exit-interviews', en: 'Exit Interviews', bn: 'প্রস্থান সাক্ষাৎকার', t: 'g' },
+      { id: 'M21-exit-handovers', en: 'Knowledge Handovers', bn: 'দায়িত্ব হস্তান্তর', t: 'g' },
       { id: 'M21-master-change', en: 'Master Changes', bn: 'তথ্য পরিবর্তন', t: 'g' },
       { id: 'M21-disciplinary', en: 'Disciplinary', bn: 'শৃঙ্খলা', t: 'g' },
       { id: 'M21-abandonment', en: 'Absence Without Leave (s.27(3A))', bn: 'বিনা ছুটিতে অনুপস্থিতি', t: 'g' },
@@ -63,21 +67,23 @@ export const MODULE = {
     'Education', 'Experience', 'Employment Contract', 'Organisation Position', 'Department', 'Job Profile',
     'Master Change Request', 'Disciplinary Case', 'Statutory Document', 'Service Book Entry',
     'Dependant / Nominee', 'Privacy Notice Acknowledgement', 'Rights Request', 'Absence Without Leave',
-    'Exit Interview'],
+    'Exit Interview', 'Probation Review', 'Additional Assignment', 'Exit Handover'],
   cross: ['M02 Dispatch', 'M56 Payroll', 'M55 Attendance', 'M57 Incentives'],
   freg: { src: 70, sub: [
     ['1', 'Employee Master', 12, { model: 'hr.employee', cols: ['name', 'employee_code', 'position_id', 'operating_unit_id', 'employment_type'], screens: ['M21-directory', 'M21-employee', 'M21-education', 'M21-experience'], reports: ['Identity Read Log', 'Data Clean-up Findings'], forms: ['Employee', 'Education', 'Experience'] }],
-    ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire'], reports: ['Probation Conversion'], forms: ['Employment Contract'] }],
-    ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-departments', 'M21-jobs', 'M21-orgchart'], reports: ['Org Distribution', 'Establishment Register'], forms: ['Organisation Position', 'Department', 'Job Profile'] }],
-    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement', 'M21-master-change', 'M21-disciplinary'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion', 'Master Change Request', 'Disciplinary Case'] }],
+    ['2', 'Employment Contracts', 7, { model: 'fix.employment.contract', cols: ['employee_id', 'contract_type', 'joining_date', 'probation_end', 'state'], screens: ['M21-hire', 'M21-probation-reviews'], reports: ['Probation Conversion'], forms: ['Employment Contract', 'Probation Review'] }],
+    ['3', 'Org Structure', 9, { model: 'fix.org.position', cols: ['name', 'parent_id', 'grade', 'operating_unit_id'], screens: ['M21-positions', 'M21-departments', 'M21-jobs', 'M21-assignments', 'M21-orgchart'], reports: ['Org Distribution', 'Establishment Register'], forms: ['Organisation Position', 'Department', 'Job Profile', 'Additional Assignment'] }],
+    ['4', 'Lifecycle Events', 12, { model: 'fix.hr.transfer', cols: ['name', 'employee_id', 'movement_type', 'effective_date', 'state'], screens: ['M21-transfer', 'M21-movement', 'M21-probation-reviews', 'M21-master-change', 'M21-disciplinary'], reports: ['Headcount & Movement'], forms: ['Transfer', 'Promotion', 'Probation Review', 'Master Change Request', 'Disciplinary Case'] }],
     ['5', 'Statutory Documents', 7, { model: 'fix.hr.document', cols: ['name', 'employee_id', 'doc_type', 'issued_on', 'verified'], screens: ['M21-appointment', 'M21-servicebook', 'M21-documents'], reports: ['Form 6(a) Register'], forms: ['Statutory Document', 'Service Book Entry'] }],
     ['6', 'Dependants & Nominees', 5, { model: 'fix.hr.dependant', cols: ['employee_id', 'name', 'relation', 'is_nominee', 'nominee_pct'], screens: ['M21-nominees'], reports: [], forms: ['Dependant / Nominee'] }],
     /* M21 capture audit 2026-11-17: the page listed employees and captured
      * nothing. It now carries what self-service raises: the privacy-notice
      * acknowledgement (FR-HCM-044), the employee's rights request (FR-HCM-045,
-     * M33's record) and the controlled master change (FR-HCM-042). */
-    ['7', 'ESS / MSS', 9, { model: 'fix.hr.notice.ack', cols: ['employee_id', 'notice_id', 'acknowledged_on', 'method', 'state'], screens: ['M21-notice-acks', 'M21-rights', 'M21-master-change', 'M21-ess'], reports: ['Probation Conversion'], forms: ['Privacy Notice Acknowledgement', 'Rights Request', 'Master Change Request'] }],
-    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit', 'M21-exit-interviews', 'M21-abandonment'], reports: ['Attrition Analysis'], forms: ['Exit Clearance', 'Exit Interview', 'Absence Without Leave'] }]
+     * M33's record) and the controlled master change (FR-HCM-042).
+     * Pass 2 (2026-11-19): the manager's side (FR-HCM-041) - the probation
+     * review and starting a movement for the team. */
+    ['7', 'ESS / MSS', 9, { model: 'fix.hr.notice.ack', cols: ['employee_id', 'notice_id', 'acknowledged_on', 'method', 'state'], screens: ['M21-notice-acks', 'M21-rights', 'M21-master-change', 'M21-probation-reviews', 'M21-transfer', 'M21-ess'], reports: ['Probation Conversion'], forms: ['Privacy Notice Acknowledgement', 'Rights Request', 'Master Change Request', 'Probation Review', 'Transfer'] }],
+    ['8', 'Exit Process', 9, { model: 'fix.hr.exit', cols: ['name', 'employee_id', 'exit_type', 'last_working_day', 'state'], screens: ['M21-exit', 'M21-exit-handovers', 'M21-exit-interviews', 'M21-abandonment'], reports: ['Attrition Analysis'], forms: ['Exit Clearance', 'Exit Handover', 'Exit Interview', 'Absence Without Leave'] }]
   ] }
 };
 
@@ -1254,7 +1260,8 @@ export const SCREENS = {
     tabs: [
       { id: 'request', label: 'Request', bn: 'অনুরোধ', icon: '📝', badge: '3' },
       { id: 'banking', label: 'Bank & MFS', bn: 'ব্যাংক ও এমএফএস', icon: '🏦', badge: '6' },
-      { id: 'identity', label: 'Identity & Eligibility', bn: 'পরিচয় ও যোগ্যতা', icon: '🪪', badge: '3' }
+      { id: 'identity', label: 'Identity & Eligibility', bn: 'পরিচয় ও যোগ্যতা', icon: '🪪', badge: '3' },
+      { id: 'personal', label: 'Contact & Family', bn: 'যোগাযোগ ও পরিবার', icon: '🏠', badge: '14' }
     ],
     sections: [
       {
@@ -1291,6 +1298,29 @@ export const SCREENS = {
           { name: 'proposed_nid_number', label: 'NID' },
           { name: 'proposed_tin_number', label: 'e-TIN' },
           { name: 'proposed_overtime_eligible', label: 'Overtime Eligibility' }
+        ]
+      },
+      {
+        /* M21 capture pass 2 (FR-HCM-040/042): an employee could request a
+         * change to bank, MFS, NID and e-TIN only. */
+        tab: 'personal',
+        title: 'Proposed Address, Contact, Emergency Contact and Family',
+        note: 'Leave a field empty to keep it. Tick "Change the Number of Children" to propose that number (0 is a valid answer).',
+        fields: [
+          { name: 'proposed_private_street', label: 'Present Address' },
+          { name: 'proposed_private_city', label: 'Present Thana / Upazila' },
+          { name: 'proposed_private_district', label: 'Present District' },
+          { name: 'proposed_private_phone', label: 'Personal Phone' },
+          { name: 'proposed_private_email', label: 'Personal Email' },
+          { name: 'proposed_emergency_contact', label: 'Emergency Contact Person' },
+          { name: 'proposed_emergency_contact_relation', label: 'Emergency Contact Relation' },
+          { name: 'proposed_emergency_phone', label: 'Emergency Phone' },
+          { name: 'proposed_emergency_phone_alt', label: 'Alternative Emergency Phone' },
+          { name: 'proposed_emergency_contact_address', label: 'Emergency Contact Address' },
+          { name: 'proposed_marital', label: 'Marital Status' },
+          { name: 'proposed_spouse_name', label: 'Spouse Name' },
+          { name: 'proposed_children_set', label: 'Change the Number of Children' },
+          { name: 'proposed_children', label: 'Number of Dependent Children' }
         ]
       }
     ]
@@ -1703,6 +1733,184 @@ Object.assign(SCREENS, {
  * it now starts a promotion (the same record and controls). */
 SCREENS['M21-form-promotion'] = { ...SCREENS['M21-form-transfer'], title: 'Promotion Dossier', presets: { movement_type: 'promotion' } };
 
+/* M21 capture audit pass 2 (2026-11-19): the records the spec names on these
+ * pages that nothing could capture. */
+Object.assign(SCREENS, {
+  /* FR-HCM-016/029: a probation was confirmed or extended by a bare button.
+   * The line manager's review is now the evidence HR decides on. */
+  'M21-probation-reviews': { kind: 'model_list', model: 'fix.hr.probation.review', stateField: 'state',
+    empty: 'No probation review is recorded. HR confirms or extends a probation only on a submitted review from the line manager.',
+    cols: ['name', 'employee_id', 'probation_end', 'reviewer_id', 'review_date', 'recommendation', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit Review (locks the answers)', states: ['draft'] }
+    ] },
+  'M21-form-probation-review': {
+    kind: 'model_form',
+    model: 'fix.hr.probation.review',
+    title: 'Probation Review',
+    back: 'M21-probation-reviews',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Submitted' } },
+    tabs: [
+      { id: 'review', label: 'Employee & Reviewer', bn: 'কর্মী ও পর্যালোচক', icon: '🧑‍💼', badge: '6' },
+      { id: 'ratings', label: 'Assessment', bn: 'মূল্যায়ন', icon: '⭐', badge: '7' },
+      { id: 'decision', label: 'Recommendation', bn: 'সুপারিশ', icon: '✅', badge: '4' }
+    ],
+    sections: [
+      {
+        tab: 'review',
+        title: 'Who Is Reviewed, and by Whom',
+        note: 'Pick an employee on an active probation; their probation contract is found for you. The reviewer is the line manager. An employee never reviews their own probation.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee on Probation' },
+          { name: 'contract_id', label: 'Probation Contract', readonly: true },
+          { name: 'probation_class', label: 'Probation Class', readonly: true },
+          { name: 'probation_end', label: 'Probation Ends', readonly: true },
+          { name: 'reviewer_id', required: true, label: 'Reviewer (line manager)' },
+          { name: 'review_date', required: true, label: 'Review Date' }
+        ]
+      },
+      {
+        tab: 'ratings',
+        title: 'Assessment of the Probation Period',
+        note: 'Ratings from 1 (very poor) to 5 (very good). Attendance, quality, skill and conduct must be rated before the review is submitted.',
+        fields: [
+          { name: 'rating_attendance', label: 'Attendance & Punctuality' },
+          { name: 'rating_quality', label: 'Quality of Work' },
+          { name: 'rating_skill', label: 'Technical Skill' },
+          { name: 'rating_conduct', label: 'Conduct & Discipline' },
+          { name: 'rating_customer', label: 'Customer Handling' },
+          { name: 'strengths', label: 'Strengths' },
+          { name: 'concerns', label: 'Concerns / Development Needs' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Recommendation and Evidence',
+        note: 'Extension is for a skilled worker only, once, by 3 months (BLA s.4(8)). An extension or a "do not confirm" states its concerns. HR then confirms or extends from the Hire / Onboard list; whoever wrote the review cannot decide it.',
+        fields: [
+          { name: 'recommendation', required: true, label: 'Recommendation' },
+          { name: 'evidence_file', label: 'Signed Review Form / Evidence', type: 'file' },
+          { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+          { name: 'submitted_on', label: 'Submitted On', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* FR-HCM-024, BRU-HCM-10, T-06: an employee had one position and one
+   * solid-line manager; a dual role, acting charge or dotted line had no
+   * record. */
+  'M21-assignments': { kind: 'model_list', model: 'fix.hr.additional.assignment', stateField: 'state',
+    empty: 'No dual role, acting charge or dotted-line reporting is recorded.',
+    cols: ['name', 'employee_id', 'assignment_type', 'position_id', 'manager_id', 'date_from', 'date_to', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve (another HR officer)', states: ['draft'] },
+      { m: 'action_end', l: 'End Assignment', states: ['approved'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft'] }
+    ] },
+  'M21-form-assignment': {
+    kind: 'model_form',
+    model: 'fix.hr.additional.assignment',
+    title: 'Additional Assignment',
+    back: 'M21-assignments',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', ended: 'Ended', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'assignment', label: 'Assignment', bn: 'অতিরিক্ত দায়িত্ব', icon: '🧩', badge: '6' },
+      { id: 'period', label: 'Period & Order', bn: 'মেয়াদ ও অফিস আদেশ', icon: '📅', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'assignment',
+        title: 'Dual Role, Acting Charge or Dotted Line',
+        note: 'A dual role holds a second position and takes one of its sanctioned seats. An acting charge covers a position for a fixed period. A dotted line adds a functional manager beside the solid-line manager.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'primary_position_id', label: 'Primary Position', readonly: true },
+          { name: 'assignment_type', required: true, label: 'Assignment Type' },
+          { name: 'position_id', label: 'Additional / Acting Position' },
+          { name: 'manager_id', label: 'Dotted-Line Manager' },
+          { name: 'reason', required: true, label: 'Reason' }
+        ]
+      },
+      {
+        tab: 'period',
+        title: 'Effective Period and Office Order',
+        note: 'Approved by an HR officer who did not raise it. Once approved the terms are fixed: end it and raise a new one to change them.',
+        fields: [
+          { name: 'date_from', required: true, label: 'Effective From' },
+          { name: 'date_to', label: 'Effective To (required for an acting charge)' },
+          { name: 'order_file', label: 'Office Order (scan)', type: 'file' },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'ended_on', label: 'Ended On', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* FR-HCM-036: the clearance had no knowledge handover. HR's clearance tick
+   * now waits for the successor to accept it. */
+  'M21-exit-handovers': { kind: 'model_list', model: 'fix.hr.exit.handover', stateField: 'state',
+    empty: 'No knowledge handover is recorded. The HR clearance of an exit waits for one, accepted by the successor.',
+    cols: ['name', 'employee_id', 'last_working_day', 'successor_id', 'handover_date', 'accepted_by_id', 'state'],
+    actions: [
+      { m: 'action_hand_over', l: 'Hand Over', states: ['draft'] },
+      { m: 'action_accept', l: 'Accept (successor)', states: ['handed'] }
+    ] },
+  'M21-form-exit-handover': {
+    kind: 'model_form',
+    model: 'fix.hr.exit.handover',
+    title: 'Knowledge Handover',
+    back: 'M21-exit-handovers',
+    status: { field: 'state', labels: { draft: 'Draft', handed: 'Handed Over', accepted: 'Accepted by Successor' } },
+    tabs: [
+      { id: 'handover', label: 'Leaver & Successor', bn: 'প্রস্থানকারী ও উত্তরসূরি', icon: '🤝', badge: '5' },
+      { id: 'content', label: 'What Is Handed Over', bn: 'হস্তান্তরের বিষয়', icon: '📋', badge: '6' },
+      { id: 'signoff', label: 'Note & Acceptance', bn: 'নোট ও গ্রহণ', icon: '✍️', badge: '5' }
+    ],
+    sections: [
+      {
+        tab: 'handover',
+        title: 'Exit and Successor',
+        note: 'One handover per exit, written by the leaver, their line manager or HR. The successor is who takes over the work.',
+        fields: [
+          { name: 'exit_id', required: true, label: 'Exit' },
+          { name: 'employee_id', label: 'Leaver', readonly: true },
+          { name: 'last_working_day', label: 'Last Working Day', readonly: true },
+          { name: 'successor_id', required: true, label: 'Handed Over To' },
+          { name: 'handover_date', required: true, label: 'Handover Date' }
+        ]
+      },
+      {
+        tab: 'content',
+        title: 'Open Work, Contacts, Files and Access',
+        note: 'List what the successor now owns. Shared accounts are listed so IT resets them; never write a password here.',
+        fields: [
+          { name: 'open_work', required: true, label: 'Open Jobs, Tickets & Customer Commitments' },
+          { name: 'accounts_contacts', label: 'Customers, Suppliers & Contacts Handed Over' },
+          { name: 'documents_files', label: 'Documents, Files & Records (where they are)' },
+          { name: 'systems_access', label: 'Shared Accounts to Reset' },
+          { name: 'van_stock_ref', label: 'Van Stock / Spares Return Challan' },
+          { name: 'pending_notes', label: 'Other Pending Matters' }
+        ]
+      },
+      {
+        tab: 'signoff',
+        title: 'Signed Note and Acceptance',
+        note: 'The successor accepts from the list; when the successor has no login, the leaver\'s line manager accepts. The leaver and whoever handed it over cannot accept.',
+        fields: [
+          { name: 'handover_file', label: 'Signed Handover Note', type: 'file' },
+          { name: 'handed_by_id', label: 'Handed Over By', readonly: true },
+          { name: 'handed_on', label: 'Handed Over On', readonly: true },
+          { name: 'accepted_by_id', label: 'Accepted By', readonly: true },
+          { name: 'accepted_on', label: 'Accepted On', readonly: true }
+        ]
+      }
+    ]
+  }
+});
+
+
 export const REPORT_ROUTES = {
   'M21:Headcount & Movement': 'M21-rpt-headcount',
   'M21:Attrition Analysis': 'M21-rpt-attrition',
@@ -1733,7 +1941,10 @@ export const FORM_MODELS = {
   'M21:Privacy Notice Acknowledgement': 'fix.hr.notice.ack',
   'M21:Rights Request': 'fix.rights.request',
   'M21:Absence Without Leave': 'fix.hr.abandonment',
-  'M21:Exit Interview': 'fix.hr.exit.interview'
+  'M21:Exit Interview': 'fix.hr.exit.interview',
+  'M21:Probation Review': 'fix.hr.probation.review',
+  'M21:Additional Assignment': 'fix.hr.additional.assignment',
+  'M21:Exit Handover': 'fix.hr.exit.handover'
 };
 
 export const FORM_CHIPS = {
@@ -1756,6 +1967,9 @@ export const FORM_CHIPS = {
   'M21:Rights Request': 'M21-form-rights',
   'M21:Absence Without Leave': 'M21-form-abandonment',
   'M21:Exit Interview': 'M21-form-exit-interview',
+  'M21:Probation Review': 'M21-form-probation-review',
+  'M21:Additional Assignment': 'M21-form-assignment',
+  'M21:Exit Handover': 'M21-form-exit-handover',
   'M21:__by_model__': {
     'fix.leave.type': 'M21-form-leave-type',
     'fix.org.position': 'M21-form-position',
@@ -1774,7 +1988,10 @@ export const FORM_CHIPS = {
     'hr.job': 'M21-form-job',
     'fix.hr.notice.ack': 'M21-form-notice-ack',
     'fix.rights.request': 'M21-form-rights',
-    'fix.hr.exit.interview': 'M21-form-exit-interview'
+    'fix.hr.exit.interview': 'M21-form-exit-interview',
+    'fix.hr.probation.review': 'M21-form-probation-review',
+    'fix.hr.additional.assignment': 'M21-form-assignment',
+    'fix.hr.exit.handover': 'M21-form-exit-handover'
   },
   'M21:__by_screen__': {
     'M21-leave-type': 'M21-form-leave-type',
@@ -1796,7 +2013,10 @@ export const FORM_CHIPS = {
     'M21-jobs': 'M21-form-job',
     'M21-notice-acks': 'M21-form-notice-ack',
     'M21-rights': 'M21-form-rights',
-    'M21-exit-interviews': 'M21-form-exit-interview'
+    'M21-exit-interviews': 'M21-form-exit-interview',
+    'M21-probation-reviews': 'M21-form-probation-review',
+    'M21-assignments': 'M21-form-assignment',
+    'M21-exit-handovers': 'M21-form-exit-handover'
   }
 };
 

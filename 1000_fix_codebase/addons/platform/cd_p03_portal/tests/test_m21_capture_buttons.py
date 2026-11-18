@@ -384,5 +384,9 @@ def test_the_new_file_loads_after_the_models_it_extends():
     """It extends hr.employee, fix.org.position and reads fix.hr.exit: an
     _inherit before its _name fails to load."""
     init = (HRCORE / "models" / "__init__.py").read_text(encoding="utf-8")
-    assert init.rstrip().endswith("from . import fix_hr_capture"), init
+    # pass 2 (2026-11-19) loads fix_hr_capture2 last; it extends this file's
+    # models, so this file is the one just before it
+    assert init.rstrip().endswith("from . import fix_hr_capture2"), init
+    imports = [ln for ln in init.splitlines() if ln.startswith("from . import")]
+    assert imports[-2:] == ["from . import fix_hr_capture", "from . import fix_hr_capture2"], init
     assert "ruff: noqa: I001" in init
