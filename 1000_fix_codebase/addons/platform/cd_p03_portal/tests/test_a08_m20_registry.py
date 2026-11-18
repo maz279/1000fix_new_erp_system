@@ -116,6 +116,16 @@ def test_bespoke_screens_kept_and_every_screen_is_real(registry):
         "M20-ar-consolidated-bill",
         "M20-dunning-register",
         "M20-notes-register",
+        # capture pass 2 (2026-11-19): the spec's records on pages 4/5/8/9/10
+        "M20-deliveries",
+        "M20-statement-register",
+        "M20-deposits",
+        "M20-dunning-policies",
+        "M20-promises",
+        "M20-plans",
+        "M20-cases",
+        "M20-oa-refunds",
+        "M20-unbilled",
     }
     for g in registry["module"]["groups"]:
         for s in g["screens"]:

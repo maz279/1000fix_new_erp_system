@@ -120,6 +120,95 @@ SURFACES = {
         "limit": 400,
         "actions": set(),
     },
+    # ---- M20 second capture pass (19 Nov 2026): the spec records ----
+    # p8 FR-ARB-032: the reminder ladder per segment / named account
+    "fix.ar.dunning.policy": {
+        "order": "state, segment, name",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
+        "pickers": {"customer_ids": [("customer_rank", ">", 0)]},
+    },
+    # p8 FR-ARB-034: the prioritised collections worklist
+    "fix.ar.collection.case": {
+        "order": "state, priority_score desc, id",
+        "limit": 400,
+        "actions": {
+            "action_refresh",
+            "action_take",
+            "action_log_contact",
+            "action_close_paid",
+            "action_close_promise",
+            "action_close_plan",
+            "action_close_legal",
+            "action_close_uncollectible",
+        },
+        "pickers": {"assigned_to": [("share", "=", False)]},
+    },
+    # p8 FR-ARB-035: a promise holds dunning until its date
+    "fix.ar.promise": {
+        "order": "state, promised_date, id",
+        "limit": 400,
+        "actions": {"action_cancel"},
+        "pickers": {
+            "invoice_id": [("state", "=", "issued")],
+            "case_id": [("state", "!=", "closed")],
+        },
+    },
+    # p8 FR-ARB-037: instalments agreed by a second person
+    "fix.ar.payment.plan": {
+        "order": "state, id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_cancel"},
+        "pickers": {"invoice_ids": [("state", "=", "issued")]},
+    },
+    "fix.ar.payment.plan.line": {"order": "plan_id, due_date, id", "limit": 400, "actions": set()},
+    # p4 FR-ARB-013/014: one delivery record per invoice and channel
+    "fix.ar.invoice.delivery": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_mark_sent",
+            "action_mark_delivered",
+            "action_mark_opened",
+            "action_mark_failed",
+            "action_retry",
+        },
+        "pickers": {"invoice_id": [("state", "in", ("issued", "paid"))]},
+    },
+    # p4 FR-ARB-017: statements of account, frozen once generated
+    "fix.ar.statement": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_generate", "action_mark_delivered"},
+    },
+    # p5 FR-ARB-028: deposit / retention money held apart from receivables
+    "fix.ar.deposit": {
+        "order": "state, release_due_at, id desc",
+        "limit": 400,
+        "actions": {"action_apply", "action_release"},
+        "pickers": {
+            "receipt_id": [("state", "=", "confirmed"), ("unapplied_amount", ">", 0)],
+        },
+    },
+    # p9 FR-ARB-040: refund of on-account money, authorised by another person
+    "fix.ar.refund": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_authorise", "action_reject"},
+        "pickers": {
+            "receipt_id": [("state", "=", "confirmed"), ("unapplied_amount", ">", 0)],
+        },
+    },
+    # p10 FR-ARB-043 / BRU-ARB-24: delivered but not invoiced
+    "fix.ar.unbilled.exception": {
+        "order": "state, age_days desc, id",
+        "limit": 400,
+        "actions": {
+            "action_resolve_invoiced",
+            "action_resolve_not_billable",
+            "action_resolve_duplicate",
+        },
+    },
 }
 
 

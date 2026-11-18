@@ -23,7 +23,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.4.0",
+    "version": "19.0.2.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -80,6 +80,9 @@ CD-M20-01: the M20 accounts-receivable core.
         # Commercial document standard (17 Nov 2026): the shared walk-in party.
         "data/fix_walk_in_partner.xml",
         "views/fix_payment_method_views.xml",
+        # M20 second capture pass (19 Nov 2026): sequences and the daily
+        # promise / plan / unbilled / collection-case jobs.
+        "data/fix_ar_capture_data.xml",
     ],
     "installable": True,
     "application": False,

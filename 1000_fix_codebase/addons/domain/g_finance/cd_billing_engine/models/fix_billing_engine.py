@@ -1895,6 +1895,20 @@ class FixDunning(models.Model):
                 run.days_overdue = 0
                 run.bucket = "current"
 
+    # Hooks the ladder policy (fix_ar_capture.py) overrides: the built-in
+    # NT-006 ladder, the first reminder the day after the due date, and no
+    # arrangement holding a new run.
+    def _fix_ladder(self):
+        return self.LADDER
+
+    @api.model
+    def _fix_first_offset(self, invoice):
+        return 1
+
+    @api.model
+    def _fix_hold_new(self, invoice, today):
+        return False
+
     def _manual_suppression_active(self, today) -> bool:
         self.ensure_one()
         return (
@@ -1966,7 +1980,7 @@ class FixDunning(models.Model):
                         }
                     )
                     existing.message_post(body="Dunning resumed: %s." % note)
-                nxt, grace = self.LADDER.get(existing.step, (False, 0))
+                nxt, grace = existing._fix_ladder().get(existing.step, (False, 0))
                 if (
                     nxt
                     and existing.step_date
@@ -1980,6 +1994,11 @@ class FixDunning(models.Model):
                 else:
                     existing._guarded().write({"overdue_amount": dunnable})
             else:
+                if self._fix_hold_new(inv, today):
+                    kept += 1
+                    continue
+                if days_past_due < self._fix_first_offset(inv):
+                    continue
                 self._guarded().create(
                     {
                         "company_id": inv.company_id.id,

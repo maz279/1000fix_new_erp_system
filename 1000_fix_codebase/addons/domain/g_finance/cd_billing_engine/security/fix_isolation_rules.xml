@@ -29,6 +29,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_ar_collection_case_company" model="ir.rule">
+        <field name="name">fix.ar.collection.case: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_collection_case"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_collection_case_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.collection.case: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_collection_case"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_ar_consolidated_bill_company" model="ir.rule">
         <field name="name">fix.ar.consolidated.bill: allowed companies</field>
         <field name="model_id" ref="model_fix_ar_consolidated_bill"/>
@@ -37,6 +48,17 @@
     <record id="rule_fix_ar_consolidated_bill_operating_unit" model="ir.rule">
         <field name="name">fix.ar.consolidated.bill: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_ar_consolidated_bill"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_deposit_company" model="ir.rule">
+        <field name="name">fix.ar.deposit: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_deposit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_deposit_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.deposit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_deposit"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -50,6 +72,11 @@
         <field name="model_id" ref="model_fix_ar_dispute"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_dunning_policy_company" model="ir.rule">
+        <field name="name">fix.ar.dunning.policy: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_dunning_policy"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_ar_ecl_rate_company" model="ir.rule">
         <field name="name">fix.ar.ecl.rate: allowed companies</field>
@@ -72,10 +99,48 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_ar_invoice_delivery_company" model="ir.rule">
+        <field name="name">fix.ar.invoice.delivery: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_invoice_delivery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_invoice_delivery_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.invoice.delivery: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_invoice_delivery"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_ar_payment_link_company" model="ir.rule">
         <field name="name">fix.ar.payment.link: allowed companies</field>
         <field name="model_id" ref="model_fix_ar_payment_link"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_payment_plan_company" model="ir.rule">
+        <field name="name">fix.ar.payment.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_payment_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_payment_plan_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.payment.plan: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_payment_plan"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_payment_plan_line_company" model="ir.rule">
+        <field name="name">fix.ar.payment.plan.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_payment_plan_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_promise_company" model="ir.rule">
+        <field name="name">fix.ar.promise: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_promise"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_promise_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.promise: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_promise"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_ar_receipt_company" model="ir.rule">
         <field name="name">fix.ar.receipt: allowed companies</field>
@@ -85,6 +150,33 @@
     <record id="rule_fix_ar_receipt_operating_unit" model="ir.rule">
         <field name="name">fix.ar.receipt: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_ar_receipt"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_refund_company" model="ir.rule">
+        <field name="name">fix.ar.refund: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_refund"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_refund_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.refund: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_refund"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_statement_company" model="ir.rule">
+        <field name="name">fix.ar.statement: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_statement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_unbilled_exception_company" model="ir.rule">
+        <field name="name">fix.ar.unbilled.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_unbilled_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_unbilled_exception_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.unbilled.exception: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_unbilled_exception"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

@@ -133,6 +133,14 @@ WRITABLE = {
             "statement_filename",
         }
     ),
+    "fix.ar.collection.case": frozenset(
+        {
+            "assigned_to",
+            "customer_id",
+            "next_action_at",
+            "note",
+        }
+    ),
     "fix.ar.consolidated.bill": frozenset(
         {
             "bill_ref",
@@ -142,11 +150,39 @@ WRITABLE = {
             "period_start",
         }
     ),
+    "fix.ar.deposit": frozenset(
+        {
+            "amount",
+            "contract_id",
+            "deposit_type",
+            "receipt_id",
+            "reference",
+            "release_due_at",
+        }
+    ),
     "fix.ar.dispute": frozenset(
         {
             "amount_disputed",
             "invoice_id",
             "reason",
+        }
+    ),
+    "fix.ar.dunning.policy": frozenset(
+        {
+            "customer_ids",
+            "escalation_role",
+            "first_offset_days",
+            "l1_channel",
+            "l1_tone",
+            "l2_channel",
+            "l2_days",
+            "l2_tone",
+            "l3_channel",
+            "l3_days",
+            "l3_tone",
+            "name",
+            "note",
+            "segment",
         }
     ),
     "fix.ar.ecl.rate": frozenset(
@@ -171,10 +207,37 @@ WRITABLE = {
         }
     ),
     "fix.ar.invoice": frozenset(),
+    "fix.ar.invoice.delivery": frozenset(
+        {
+            "channel",
+            "invoice_id",
+            "recipient",
+        }
+    ),
     "fix.ar.payment.link": frozenset(
         {
             "expires_at",
             "invoice_id",
+        }
+    ),
+    "fix.ar.payment.plan": frozenset(
+        {
+            "customer_id",
+            "invoice_ids",
+            "line_ids",
+            "reason",
+        }
+    ),
+    "fix.ar.payment.plan.line": frozenset(),
+    "fix.ar.promise": frozenset(
+        {
+            "amount",
+            "case_id",
+            "contact_channel",
+            "invoice_id",
+            "made_by",
+            "note",
+            "promised_date",
         }
     ),
     "fix.ar.receipt": frozenset(
@@ -186,6 +249,33 @@ WRITABLE = {
             "payment_method_id",
             "receipt_date",
             "reference",
+        }
+    ),
+    "fix.ar.refund": frozenset(
+        {
+            "amount",
+            "method",
+            "payee_account",
+            "reason",
+            "receipt_id",
+        }
+    ),
+    "fix.ar.statement": frozenset(
+        {
+            "customer_id",
+            "period_from",
+            "period_to",
+        }
+    ),
+    "fix.ar.unbilled.exception": frozenset(
+        {
+            "customer_id",
+            "delivered_at",
+            "estimated_value",
+            "note",
+            "operating_unit_id",
+            "source_module",
+            "source_ref",
         }
     ),
     "fix.ar.writeoff": frozenset(

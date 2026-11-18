@@ -10,6 +10,14 @@
 # consolidated-bill list had no Generate although its surface allowed it.
 # Billable-Event Intake listed INVOICES, not the billable-event queue.
 #
+# Second pass (2026-11-19): read against the spec's entities (section 10),
+# pages 4, 5, 8, 9 and 10 still had nowhere to record what the spec records
+# there - no model existed: invoice delivery and statements (FR-ARB-013/014/
+# 017), deposits (028), the dunning ladder (032), promises (035), payment
+# plans (037), the collections worklist (034), refunds of on-account money
+# (040; the "Refund" chip opened the credit-note form) and unbilled
+# exceptions (043; page 10 listed manual invoices).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M02/M10 guard fixture).
 from __future__ import annotations
@@ -74,13 +82,13 @@ CAPTURE = {
     "1": "system",  # billable events arrive from closed jobs (FR-ARB-001)
     "2": "form",  # manual-invoice exception + consolidated bill
     "3": "system",  # the Mushak 6.3 is rendered when the invoice is issued
-    "4": "form",  # consolidated corporate bill
-    "5": "form",  # receipt, payment link
+    "4": "form",  # invoice delivery; statement and consolidated bill chips
+    "5": "form",  # receipt, payment link, deposit / retention
     "6": "form",  # the customer's Mushak 6.6 VDS certificate
     "7": "form",  # customer credit profile (limit, terms)
-    "8": "form",  # dispute against an issued invoice
-    "9": "form",  # credit note / refund request
-    "10": "system",  # delivered-but-unbilled is computed
+    "8": "form",  # dispute; promise, plan, case and ladder chips
+    "9": "form",  # credit note; refund of on-account money
+    "10": "form",  # unbilled exception for streams the reconciliation does not read
 }
 
 
@@ -197,7 +205,7 @@ def test_dunning_page_raises_a_dispute(m20):
 
 def test_consolidated_bill_is_started_and_generated(m20):
     sub = _sub(m20, "4")
-    assert sub["create"] == "M20-form-consolidated"
+    assert any(f["f"] == "Consolidated Bill" and f["opens"] for f in sub["forms"])
     assert any(f["f"] == "Consolidated Bill" and f["opens"] for f in _sub(m20, "2")["forms"])
     form = m20["screens"]["M20-form-consolidated"]
     required = {f["name"] for f in form["fields"] if f["required"]}
@@ -246,3 +254,109 @@ def test_new_forms_are_writable(m20):
         form = m20["screens"][sid]
         editable = {f["name"] for f in form["fields"] if not f["readonly"]}
         assert editable <= writable[form["model"]], (sid, editable - writable[form["model"]])
+
+
+# ---------------------------------------------------------------- second pass
+# page -> (the + New form, the chips that must open their own model's form)
+PASS2 = {
+    "4": (
+        "M20-form-delivery",
+        {"Invoice Delivery": "fix.ar.invoice.delivery", "Customer Statement": "fix.ar.statement"},
+    ),
+    "5": (None, {"Deposit / Retention": "fix.ar.deposit"}),
+    "8": (
+        "M20-form-dispute",
+        {
+            "Promise to Pay": "fix.ar.promise",
+            "Payment Plan": "fix.ar.payment.plan",
+            "Collection Case": "fix.ar.collection.case",
+            "Dunning Policy": "fix.ar.dunning.policy",
+        },
+    ),
+    "9": ("M20-form-note", {"Refund": "fix.ar.refund", "Credit Note": "fix.credit.note"}),
+    "10": ("M20-form-unbilled", {"Unbilled Exception": "fix.ar.unbilled.exception"}),
+}
+NEW_MODELS = {
+    "fix.ar.invoice.delivery": "M20-deliveries",
+    "fix.ar.statement": "M20-statement-register",
+    "fix.ar.deposit": "M20-deposits",
+    "fix.ar.dunning.policy": "M20-dunning-policies",
+    "fix.ar.promise": "M20-promises",
+    "fix.ar.payment.plan": "M20-plans",
+    "fix.ar.collection.case": "M20-cases",
+    "fix.ar.refund": "M20-oa-refunds",
+    "fix.ar.unbilled.exception": "M20-unbilled",
+}
+
+
+@pytest.mark.parametrize("no", sorted(PASS2, key=int))
+def test_pass2_page_captures_the_spec_record(m20, no):
+    create, chips = PASS2[no]
+    sub = _sub(m20, no)
+    if create:
+        assert sub["create"] == create, (no, sub["create"])
+    forms = {f["f"]: f for f in sub["forms"]}
+    for chip, model in chips.items():
+        assert chip in forms, "page %s has no %s chip" % (no, chip)
+        assert forms[chip]["model"] == model and forms[chip]["opens"], (no, chip, forms[chip])
+
+
+def test_refund_chip_no_longer_opens_the_credit_note(m20):
+    sub = _sub(m20, "9")
+    refund = next(f for f in sub["forms"] if f["f"] == "Refund")
+    assert refund["id"] == "M20-form-refund" and refund["model"] == "fix.ar.refund"
+
+
+def test_leakage_page_lists_unbilled_exceptions_not_manual_invoices(m20):
+    sub = _sub(m20, "10")
+    assert sub["model"] == "fix.ar.unbilled.exception"
+    assert "M20-unbilled" in sub["screens"] and "M20-leakage" in sub["screens"]
+
+
+@pytest.mark.parametrize("model", sorted(NEW_MODELS))
+def test_pass2_lists_are_served_and_their_actions_allowed(m20, model):
+    lst = m20["screens"][NEW_MODELS[model]]
+    assert lst["model"] == model and lst["empty"], lst
+    surfaces = _surfaces()
+    assert model in surfaces, "%s has no served surface" % model
+    assert set(lst["actions"]) <= surfaces[model]["actions"], (
+        set(lst["actions"]) - surfaces[model]["actions"]
+    )
+    placed = {sid for s in m20["subs"] for sid in s["screens"]}
+    assert NEW_MODELS[model] in placed, "%s sits on no page" % NEW_MODELS[model]
+
+
+def test_pass2_forms_are_writable_and_system_fields_are_not(m20):
+    text = (CONTROLLERS / "writable.py").read_text(encoding="utf-8")
+    tree = ast.parse(text)
+    writable = {}
+    for node in tree.body:
+        if isinstance(node, ast.Assign) and node.targets[0].id == "WRITABLE":
+            for key, val in zip(node.value.keys, node.value.values, strict=True):
+                writable[key.value] = {e.value for e in val.args[0].elts} if val.args else set()
+    system = {
+        "state",
+        "status",
+        "approved_by_id",
+        "authorised_by_id",
+        "requested_by_id",
+        "recorded_by",
+        "escalated_to",
+        "resolution",
+        "priority_score",
+        "total_amount",
+        "name",
+    }
+    for model in NEW_MODELS:
+        forms = [
+            c for c in m20["screens"].values() if c["kind"] == "model_form" and c["model"] == model
+        ]
+        assert forms, "no form for %s" % model
+        for form in forms:
+            editable = {f["name"] for f in form["fields"] if not f["readonly"]}
+            assert editable <= writable[model], (model, editable - writable[model])
+        # a ladder's name is typed (it is the ladder's label); every other name is a sequence
+        stamped = system - {"name"} if model == "fix.ar.dunning.policy" else system
+        assert not (writable[model] & stamped), (model, writable[model] & stamped)
+    # the instalment grid is saved with its plan
+    assert "line_ids" in writable["fix.ar.payment.plan"]

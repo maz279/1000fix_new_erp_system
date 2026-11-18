@@ -1,7 +1,11 @@
 # cd_billing_engine models.
+# fix_ar_capture (M20 capture pass 2) extends the receipt, the allocation and
+# the dunning run: it imports fix_billing_engine itself, so the sort order of
+# this tuple cannot load it before the models it extends.
 from . import (
     account_move_mushak,
     fix_a04_claim_consumer,
+    fix_ar_capture,
     fix_ar_engine,
     fix_ar_impairment,
     fix_ar_invoice_document,

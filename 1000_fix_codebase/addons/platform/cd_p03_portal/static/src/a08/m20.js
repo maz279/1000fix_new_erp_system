@@ -28,6 +28,16 @@ export const MODULE = {
       { id: 'M20-ar-consolidated-bill', en: "Ar Consolidated Bill", bn: "Ar Consolidated Bill", t: 'g' },
       { id: 'M20-dunning-register', en: 'Dunning Register', bn: 'দেনা আদায় রেজিস্টার', t: 'g' }
     ]},
+    { en: 'Delivery & Statements', screens: [
+      { id: 'M20-deliveries', en: 'Invoice Deliveries', bn: 'ইনভয়েস বিতরণ', t: 'g' },
+      { id: 'M20-statement-register', en: 'Statements of Account', bn: 'হিসাব বিবরণী', t: 'g' }
+    ]},
+    { en: 'Collections', screens: [
+      { id: 'M20-cases', en: 'Collections Worklist', bn: 'আদায় কাজের তালিকা', t: 'g' },
+      { id: 'M20-promises', en: 'Promises to Pay', bn: 'পরিশোধের প্রতিশ্রুতি', t: 'g' },
+      { id: 'M20-plans', en: 'Payment Plans', bn: 'কিস্তি পরিকল্পনা', t: 'g' },
+      { id: 'M20-dunning-policies', en: 'Dunning Ladders', bn: 'তাগাদার ধাপ', t: 'g' }
+    ]},
     { en: 'Invoicing', screens: [
       { id: 'M20-invoices', en: 'Customer Invoices', bn: 'গ্রাহক ইনভয়েস', t: 'g' },
       { id: 'M20-invoice', en: 'Invoice (Mushak 6.3)', bn: 'মুশক ৬.৩', t: 'f' },
@@ -42,48 +52,55 @@ export const MODULE = {
       { id: 'M20-vds', en: 'Customer VDS Certificates (Mushak 6.6)', bn: 'গ্রাহকের উৎসে ভ্যাট কর্তন সনদ (মুশক ৬.৬)', t: 'g' },
       { id: 'M20-tds', en: 'Customer TDS / AIT Certificates', bn: 'গ্রাহকের উৎসে আয়কর কর্তন সনদ', t: 'g' },
       { id: 'M20-closeout', en: 'Invoice Settlement Close-out', bn: 'ইনভয়েস নিষ্পত্তি সমাপন', t: 'g' },
-      { id: 'M20-unapplied', en: 'Unapplied Receipts', bn: 'অপ্রয়োগকৃত রসিদ', t: 'g' }
+      { id: 'M20-unapplied', en: 'Unapplied Receipts', bn: 'অপ্রয়োগকৃত রসিদ', t: 'g' },
+      { id: 'M20-deposits', en: 'Deposits & Retention', bn: 'জামানত ও রিটেনশন', t: 'g' }
     ]},
     { en: 'Credit Control', screens: [
       { id: 'M20-credit', en: 'Limits, Terms & Holds', bn: 'ক্রেডিট নিয়ন্ত্রণ', t: 'g' },
       { id: 'M20-dunning', en: 'Dunning Worklist', bn: 'দেনা আদায়', t: 'c' },
       { id: 'M20-disputes', en: 'Disputes', bn: 'বিরোধ', t: 'g' },
       { id: 'M20-refunds', en: 'Credit Notes & Refunds', bn: 'ক্রেডিট নোট', t: 'g' },
-      { id: 'M20-notes-register', en: 'Credit-Note Register (approval)', bn: 'ক্রেডিট নোট রেজিস্টার', t: 'g' }
+      { id: 'M20-notes-register', en: 'Credit-Note Register (approval)', bn: 'ক্রেডিট নোট রেজিস্টার', t: 'g' },
+      { id: 'M20-oa-refunds', en: 'Refunds of On-Account Money', bn: 'অগ্রিম অর্থ ফেরত', t: 'g' }
     ]},
     { en: 'Analysis', screens: [
       { id: 'M20-aging', en: 'AR Ageing', bn: 'বয়স্ক প্রাপ্য', t: 'r' },
       { id: 'M20-leakage', en: 'Revenue-Leakage Detection', bn: 'রাজস্ব ক্ষয়', t: 'r' },
+      { id: 'M20-unbilled', en: 'Unbilled Exceptions', bn: 'বিল না হওয়া কাজ', t: 'g' },
       { id: 'M20-statements', en: 'Customer Statements', bn: 'গ্রাহক স্টেটমেন্ট', t: 'r' },
       { id: 'M20-vds-register', en: 'VDS Claim Register (Mushak 9.1)', bn: 'উৎসে ভ্যাট কর্তন দাবি রেজিস্টার (মুশক ৯.১)', t: 'r' },
       { id: 'M20-gl-recon', en: 'AR Sub-ledger to GL Reconciliation', bn: 'প্রাপ্য ও সাধারণ খতিয়ান সমন্বয়', t: 'r' }
     ]}
   ],
   reports: ['AR Ageing by Segment', 'Dunning Effectiveness', 'Payment Method Mix', 'Invoice Accuracy', 'Brand Receivable Ageing', 'Collections Productivity', 'VDS Received Register', 'AR Sub-ledger to GL Reconciliation'],
-  forms: ['Invoice Request', 'Consolidated Bill', 'Receipt', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'TDS Certificate', 'Credit Profile', 'Dispute', 'Write-off', 'ECL Loss Rates'],
+  forms: ['Invoice Request', 'Proforma Invoice', 'Consolidated Bill', 'Invoice Delivery', 'Customer Statement', 'Receipt', 'Deposit / Retention', 'Credit Note', 'Refund', 'Payment Link', 'VDS Certificate', 'TDS Certificate', 'Credit Profile', 'Dispute', 'Dunning Policy', 'Promise to Pay', 'Payment Plan', 'Collection Case', 'Write-off', 'ECL Loss Rates', 'Unbilled Exception'],
   cross: ['Financial Accounting & GL', 'Treasury & Banking', 'Tax & Regulatory (BD)'],
-  /* What each page captures (capture-button audit 2026-11-13):
-   *   1, 3, 10  nothing typed - the queue is fed by closed jobs (FR-ARB-001),
-   *             the Mushak 6.3 is rendered at issue, leakage is computed
-   *   2  "+ New AR Invoice" (the manual-invoice exception, FR-ARB-010) and a
-   *      consolidated corporate bill (FR-ARB-008)
-   *   4  the consolidated bill, generated and marked sent from its list
-   *   5  receipt and payment link        6  the customer's Mushak 6.6 VDS certificate
+  /* What each page captures (capture-button audits 2026-11-13 and 2026-11-19):
+   *   1, 3  nothing typed - the queue is fed by closed jobs (FR-ARB-001) and
+   *         the Mushak 6.3 is rendered at issue
+   *   2  "+ New AR Invoice" (the manual-invoice exception, FR-ARB-010), a
+   *      consolidated corporate bill (FR-ARB-008), M36's proforma (FR-ARB-007)
+   *   4  "+ New Invoice Delivery" (FR-ARB-013/014) and statements (FR-ARB-017)
+   *   5  receipt, payment link, deposit / retention (FR-ARB-028)
+   *   6  the customer's Mushak 6.6 VDS certificate
    *   7  the customer credit profile - limit and terms (FR-ARB-030); its form
    *      is M33's, the customer master that also surfaces it
-   *   8  a dispute against an issued invoice (FR-ARB-036, P0): until now no
-   *      screen could raise one       9  credit note / refund request */
+   *   8  a dispute (FR-ARB-036), promise to pay (035), payment plan (037),
+   *      collection case (034) and the dunning ladder (032)
+   *   9  credit note; refund of on-account money (FR-ARB-040)
+   *   10 "+ New Unbilled Exception" for delivered work the daily
+   *      reconciliation does not read (FR-ARB-043) */
   freg: { src: 99, sub: [
     ['1', 'Billable-Event Intake', 12, { model: 'fix.billable.event', cols: ['event_id', 'source_type', 'customer_id', 'first_seen_at', 'state', 'attempts', 'last_error', 'invoice_id'], screens: ['M20-events'], reports: ['Invoice Accuracy'], forms: [], create: false }],
-    ['2', 'Invoice Assembly', 12, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'invoice_date', 'total_payable', 'state'], screens: ['M20-invoices', 'M20-consolidated', 'M20-brand'], reports: ['Invoice Accuracy', 'Brand Receivable Ageing'], forms: ['Invoice Request', 'Consolidated Bill'] }],
+    ['2', 'Invoice Assembly', 12, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'invoice_date', 'total_payable', 'state'], screens: ['M20-invoices', 'M20-consolidated', 'M20-brand'], reports: ['Invoice Accuracy', 'Brand Receivable Ageing'], forms: ['Invoice Request', 'Proforma Invoice', 'Consolidated Bill'] }],
     ['3', 'Mushak 6.3 Rendering', 8, { model: 'fix.ar.invoice', cols: ['name', 'mushak_id', 'generated_at', 'vat_amount', 'total_payable'], screens: ['M20-invoice'], reports: [], forms: [], create: false }],
-    ['4', 'Delivery Channels', 6, { model: 'fix.ar.consolidated.bill', cols: ['bill_ref', 'customer_id', 'period_start', 'period_end', 'total_payable', 'state'], screens: ['M20-statements', 'M20-ar-consolidated-bill'], reports: [], forms: ['Consolidated Bill'] }],
-    ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links'], reports: ['Payment Method Mix'], forms: ['Receipt', 'Payment Link'] }],
+    ['4', 'Delivery Channels', 6, { model: 'fix.ar.invoice.delivery', cols: ['name', 'invoice_id', 'channel', 'recipient', 'status', 'retry_count'], screens: ['M20-deliveries', 'M20-statement-register', 'M20-statements', 'M20-ar-consolidated-bill'], reports: [], forms: ['Invoice Delivery', 'Customer Statement', 'Consolidated Bill'], create: 'M20-form-delivery' }],
+    ['5', 'Receipt Capture (8 methods)', 14, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'receipt_date', 'method', 'amount', 'state'], screens: ['M20-receipts', 'M20-links', 'M20-deposits'], reports: ['Payment Method Mix'], forms: ['Receipt', 'Payment Link', 'Deposit / Retention'] }],
     ['6', 'Matching & Allocation', 11, { model: 'fix.ar.receipt', cols: ['name', 'customer_id', 'amount', 'allocated_amount', 'unapplied_amount'], screens: ['M20-allocation', 'M20-unapplied', 'M20-closeout', 'M20-vds', 'M20-tds', 'M20-vds-register', 'M20-gl-recon'], reports: ['VDS Received Register', 'AR Sub-ledger to GL Reconciliation'], forms: ['VDS Certificate', 'TDS Certificate'], create: 'M20-form-vds' }],
     ['7', 'Credit Control', 9, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'exposure', 'over_limit', 'credit_hold'], screens: ['M20-credit', 'M20-aging', 'M20-ecl', 'M20-ecl-rates', 'M20-writeoffs'], reports: ['AR Ageing by Segment', 'Brand Receivable Ageing'], forms: ['Credit Profile', 'Write-off', 'ECL Loss Rates'], create: 'M33-form-credit' }],
-    ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-disputes', 'M20-ar-dispute'], reports: ['Dunning Effectiveness', 'Collections Productivity'], forms: ['Dispute'], create: 'M20-form-dispute' }],
-    ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register'], reports: [], forms: ['Credit Note', 'Refund'], create: 'M20-form-note' }],
-    ['10', 'Leakage Detection', 7, { model: 'fix.ar.invoice', cols: ['name', 'customer_id', 'manual_reason', 'total_payable', 'state'], screens: ['M20-leakage'], reports: ['Invoice Accuracy'], forms: [], create: false }]
+    ['8', 'Dunning & Collections', 12, { model: 'fix.dunning', cols: ['invoice_id', 'overdue_amount', 'days_overdue', 'step', 'channel', 'suppressed'], screens: ['M20-dunning', 'M20-dunning-register', 'M20-cases', 'M20-promises', 'M20-plans', 'M20-dunning-policies', 'M20-disputes', 'M20-ar-dispute'], reports: ['Dunning Effectiveness', 'Collections Productivity'], forms: ['Dispute', 'Promise to Pay', 'Payment Plan', 'Collection Case', 'Dunning Policy'], create: 'M20-form-dispute' }],
+    ['9', 'Credit Notes & Refunds', 8, { model: 'fix.credit.note', cols: ['invoice_id', 'amount', 'reason_code', 'state', 'issued_at'], screens: ['M20-refunds', 'M20-notes-register', 'M20-oa-refunds'], reports: [], forms: ['Credit Note', 'Refund'], create: 'M20-form-note' }],
+    ['10', 'Leakage Detection', 7, { model: 'fix.ar.unbilled.exception', cols: ['name', 'source_module', 'source_ref', 'customer_id', 'estimated_value', 'age_days', 'escalated_to', 'state'], screens: ['M20-unbilled', 'M20-leakage'], reports: ['Invoice Accuracy'], forms: ['Unbilled Exception'], create: 'M20-form-unbilled' }]
   ] }
 };
 
@@ -289,7 +306,7 @@ export const SCREENS = {
   'M20-form-note': {
     kind: 'model_form',
     model: 'fix.credit.note',
-    title: 'Credit Note / Refund',
+    title: 'Credit Note',
     back: 'M20-notes-register',
     status: { field: 'state', labels: { draft: 'Draft', pending_approval: 'Pending Approval', approved: 'Approved', rejected: 'Rejected', issued: 'Issued' } },
     sections: [
@@ -517,13 +534,359 @@ export const SCREENS = {
     ]
   },
   'M20-dunning-register': { empty: 'Dunning steps are generated by the collections cycle for overdue invoices.', kind: 'model_list', model: 'fix.dunning', create: false,
-    cols: ['name', 'invoice_id', 'overdue_amount', 'step', 'step_date', 'suppressed', 'suppression_reason', 'suppressed_until', 'suppression_note'],
+    cols: ['name', 'invoice_id', 'overdue_amount', 'step', 'step_date', 'channel', 'policy_id', 'suppressed', 'suppression_reason', 'suppressed_until', 'suppression_note'],
     actions: [
       { m: 'action_suppress_payment_plan', l: 'Suppress: Payment Plan', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
       { m: 'action_suppress_strategic', l: 'Suppress: Strategic Customer', asks: [{ label: 'Until (YYYY-MM-DD, empty = the configured days)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
       { m: 'action_suppress_dispute', l: 'Suppress: Open Dispute', asks: [{ label: 'Until (YYYY-MM-DD, empty = until the dispute closes)', kwarg: 'until' }, { label: 'Note', kwarg: 'note' }] },
       { m: 'action_lift_suppression', l: 'Lift Suppression', ask: 'Why the suppression ends', kwarg: 'note' }
     ] },
+
+  /* ============ M20 SECOND CAPTURE PASS (19 Nov 2026) ===================
+   * The records the spec says a person captures on these pages and that had
+   * no model: delivery and statements (p4), deposits (p5), the dunning
+   * ladder, promises, payment plans and the collections worklist (p8),
+   * refunds of on-account money (p9) and unbilled exceptions (p10). */
+
+  /* p4 FR-ARB-013/014: one record per invoice and channel; a re-send is a Retry. */
+  'M20-deliveries': { empty: 'No invoice delivery recorded. Record one with + New Invoice Delivery: the channel, who it went to, then whether it arrived.', kind: 'model_list', model: 'fix.ar.invoice.delivery', stateField: 'status',
+    cols: ['name', 'invoice_id', 'customer_id', 'channel', 'recipient', 'status', 'sent_at', 'delivered_at', 'retry_count', 'failure_reason'],
+    actions: [
+      { m: 'action_mark_sent', l: 'Mark Sent' },
+      { m: 'action_mark_delivered', l: 'Confirm Delivered' },
+      { m: 'action_mark_opened', l: 'Mark Opened' },
+      { m: 'action_mark_failed', l: 'Record Failure', ask: 'Why it failed (bounced, wrong number, not reachable)', kwarg: 'reason' },
+      { m: 'action_retry', l: 'Retry' }
+    ] },
+  'M20-form-delivery': {
+    kind: 'model_form',
+    model: 'fix.ar.invoice.delivery',
+    title: 'Invoice Delivery',
+    back: 'M20-deliveries',
+    status: { field: 'status', labels: { queued: 'Queued', sent: 'Sent', delivered: 'Delivered', opened: 'Opened', failed: 'Failed' } },
+    sections: [
+      { title: 'Delivery', note: 'FR-ARB-013: an issued invoice delivered on one channel. The recipient defaults to the customer\'s email or mobile. The invoice\'s payment link travels with it; delivering again on the same channel is a Retry on this record, never a second invoice or link (T-12).',
+        fields: [
+          { name: 'invoice_id', required: true, label: 'Issued Invoice' },
+          { name: 'channel', required: true, label: 'Channel' },
+          { name: 'recipient', label: 'Recipient (email / mobile; empty = the customer\'s)' }
+        ] },
+      { title: 'Confirmation (system)', note: 'FR-ARB-014: Mark Sent, Confirm Delivered, Mark Opened or Record Failure from the list. A failure is retried up to the configured count, then another channel is used.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'status', readonly: true, label: 'Status' },
+          { name: 'sent_at', readonly: true, label: 'Sent' },
+          { name: 'delivered_at', readonly: true, label: 'Delivered' },
+          { name: 'opened_at', readonly: true, label: 'Opened' },
+          { name: 'retry_count', readonly: true, label: 'Retries' },
+          { name: 'failure_reason', readonly: true, label: 'Failure' },
+          { name: 'payment_link_id', readonly: true, label: 'Payment Link Sent' }
+        ] }
+    ]
+  },
+  /* p4 FR-ARB-017: a statement of account, frozen once generated. */
+  'M20-statement-register': { empty: 'No statement requested. Request one with Customer Statement: the customer and the period, then Generate.', kind: 'model_list', model: 'fix.ar.statement', stateField: 'state',
+    cols: ['name', 'customer_id', 'period_from', 'period_to', 'opening_balance', 'total_charges', 'total_credits', 'closing_balance', 'state', 'delivery_channel'],
+    actions: [
+      { m: 'action_generate', l: 'Generate' },
+      { m: 'action_mark_delivered', l: 'Mark Delivered', ask: 'Channel: portal, email, whatsapp, sms or print', kwarg: 'channel' }
+    ] },
+  'M20-form-statement': {
+    kind: 'model_form',
+    model: 'fix.ar.statement',
+    title: 'Customer Statement',
+    back: 'M20-statement-register',
+    status: { field: 'state', labels: { draft: 'Draft', generated: 'Generated', delivered: 'Delivered' } },
+    sections: [
+      { title: 'Customer & Period', note: 'FR-ARB-017: opening balance, every invoice, credit note and receipt in the period, closing balance. Generate it from the list; it is then frozen, so the statement the customer received can be reproduced.',
+        fields: [
+          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'period_from', required: true, label: 'Period From' },
+          { name: 'period_to', required: true, label: 'Period To' }
+        ] },
+      { title: 'Statement (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'opening_balance', readonly: true, label: 'Opening Balance' },
+          { name: 'total_charges', readonly: true, label: 'Invoiced' },
+          { name: 'total_credits', readonly: true, label: 'Credits & Receipts' },
+          { name: 'closing_balance', readonly: true, label: 'Closing Balance' },
+          { name: 'line_count', readonly: true, label: 'Transactions' },
+          { name: 'lines_text', readonly: true, type: 'text', label: 'Transaction Lines' },
+          { name: 'generated_by', readonly: true, label: 'Generated By' },
+          { name: 'delivery_channel', readonly: true, label: 'Delivered On' },
+          { name: 'state', readonly: true, label: 'Status' }
+        ] }
+    ]
+  },
+  /* p5 FR-ARB-028: deposit / retention / advance money held apart. */
+  'M20-deposits': { empty: 'No deposit or retention held. Record one with Deposit / Retention against the receipt that brought the money.', kind: 'model_list', model: 'fix.ar.deposit', stateField: 'state',
+    cols: ['name', 'customer_id', 'deposit_type', 'receipt_id', 'amount', 'contract_id', 'release_due_at', 'state', 'applied_to_invoice_id'],
+    actions: [
+      { m: 'action_apply', l: 'Apply to Invoice', ask: 'Invoice number the money is applied to', kwarg: 'invoice' },
+      { m: 'action_release', l: 'Release (refund)', ask: 'Why the deposit is returned', kwarg: 'reason' }
+    ] },
+  'M20-form-deposit': {
+    kind: 'model_form',
+    model: 'fix.ar.deposit',
+    title: 'Deposit / Retention',
+    back: 'M20-deposits',
+    status: { field: 'state', labels: { held: 'Held', applied: 'Applied', released: 'Released' } },
+    sections: [
+      { title: 'Money Held', note: 'FR-ARB-028: part of a confirmed receipt held as a deposit, contract retention or an advance. It stops counting as unapplied (no escalation) until it is applied to an invoice or released as a refund that another person authorises.',
+        fields: [
+          { name: 'deposit_type', required: true, label: 'Type' },
+          { name: 'receipt_id', required: true, label: 'Receipt Holding the Money' },
+          { name: 'amount', required: true, label: 'Amount Held (BDT)' },
+          { name: 'contract_id', label: 'Contract' },
+          { name: 'reference', label: 'Agreement Reference' },
+          { name: 'release_due_at', label: 'Release / Apply By' }
+        ] },
+      { title: 'Application (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'applied_to_invoice_id', readonly: true, label: 'Applied To' },
+          { name: 'refund_id', readonly: true, label: 'Refund' }
+        ] }
+    ]
+  },
+  /* p8 FR-ARB-032: the ladder per segment or named account. */
+  'M20-dunning-policies': { empty: 'No dunning ladder in force: the built-in NT-006 ladder (reminder, final notice after 7 days, collections after 14) applies. Write one with Dunning Policy.', kind: 'model_list', model: 'fix.ar.dunning.policy', stateField: 'state',
+    cols: ['name', 'segment', 'first_offset_days', 'l1_channel', 'l2_days', 'l2_channel', 'l3_days', 'l3_channel', 'escalation_role', 'state', 'activated_by_id'],
+    actions: [
+      { m: 'action_activate', l: 'Activate (second Accounting Administrator)' },
+      { m: 'action_retire', l: 'Retire', ask: 'Why the ladder is retired', kwarg: 'reason' }
+    ] },
+  'M20-form-dunning-policy': {
+    kind: 'model_form',
+    model: 'fix.ar.dunning.policy',
+    title: 'Dunning Policy',
+    back: 'M20-dunning-policies',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    tabs: [
+      { id: 'policy', label: 'Policy', bn: 'নীতি' },
+      { id: 'ladder', label: 'Ladder', bn: 'ধাপ' }
+    ],
+    sections: [
+      { tab: 'policy', title: 'Who It Applies To', note: 'FR-ARB-032: a named-account ladder wins over a segment ladder, which wins over the company default (All customers). Another Accounting Administrator activates it; an active ladder is not edited, it is retired and replaced.',
+        fields: [
+          { name: 'name', required: true, label: 'Ladder' },
+          { name: 'segment', required: true, label: 'Segment' },
+          { name: 'customer_ids', label: 'Named Accounts' },
+          { name: 'note', type: 'text', label: 'Why this ladder' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'activated_by_id', readonly: true, label: 'Activated By' }
+        ] },
+      { tab: 'ladder', title: 'Levels', note: 'L1 goes out the given days after the due date; L2 and L3 follow after the given days at the level before. L3 opens a collection case for the role named.',
+        fields: [
+          { name: 'first_offset_days', required: true, label: 'L1 After (days past due)' },
+          { name: 'l1_channel', required: true, label: 'L1 Channel' },
+          { name: 'l1_tone', required: true, label: 'L1 Tone' },
+          { name: 'l2_days', required: true, label: 'L2 After (days at L1)' },
+          { name: 'l2_channel', required: true, label: 'L2 Channel' },
+          { name: 'l2_tone', required: true, label: 'L2 Tone' },
+          { name: 'l3_days', required: true, label: 'L3 After (days at L2)' },
+          { name: 'l3_channel', required: true, label: 'L3 Channel' },
+          { name: 'l3_tone', required: true, label: 'L3 Tone' },
+          { name: 'escalation_role', required: true, label: 'L3 Escalates To' }
+        ] }
+    ]
+  },
+  /* p8 FR-ARB-035: a promise holds dunning until its date. */
+  'M20-promises': { empty: 'No promise to pay recorded. When a customer commits to a date, record it with Promise to Pay: dunning on that invoice waits until then.', kind: 'model_list', model: 'fix.ar.promise', stateField: 'state',
+    cols: ['name', 'invoice_id', 'customer_id', 'amount', 'promised_date', 'made_by', 'state', 'recorded_by', 'case_id'],
+    actions: [
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why the promise is cancelled', kwarg: 'reason' }
+    ] },
+  'M20-form-promise': {
+    kind: 'model_form',
+    model: 'fix.ar.promise',
+    title: 'Promise to Pay',
+    back: 'M20-promises',
+    status: { field: 'state', labels: { open: 'Open', kept: 'Kept', broken: 'Broken', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'The Promise', note: 'FR-ARB-035: the amount and the date the customer committed to. Dunning on the invoice waits until the date; the daily check marks it kept when the money arrives, or broken, which resumes dunning and escalates the collection case.',
+        fields: [
+          { name: 'invoice_id', required: true, label: 'Open Invoice' },
+          { name: 'amount', required: true, label: 'Promised Amount (BDT)' },
+          { name: 'promised_date', required: true, label: 'Promised Date' },
+          { name: 'made_by', required: true, label: 'Promised By (customer side)' },
+          { name: 'contact_channel', required: true, label: 'How It Was Made' },
+          { name: 'case_id', label: 'Collection Case' },
+          { name: 'note', label: 'Note' }
+        ] },
+      { title: 'Outcome (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'residual_at_promise', readonly: true, label: 'Open When Promised' },
+          { name: 'recorded_by', readonly: true, label: 'Recorded By' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'kept_at', readonly: true, label: 'Kept On' },
+          { name: 'broken_at', readonly: true, label: 'Broken On' }
+        ] }
+    ]
+  },
+  /* p8 FR-ARB-037: instalments, agreed by a second person. */
+  'M20-plans': { empty: 'No payment plan. Propose one with Payment Plan; another Accountant agrees it.', kind: 'model_list', model: 'fix.ar.payment.plan', stateField: 'state',
+    cols: ['name', 'customer_id', 'total_amount', 'paid_to_date', 'missed_count', 'state', 'approved_by_id'],
+    actions: [
+      { m: 'action_activate', l: 'Agree (second Accountant)' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why the plan is cancelled', kwarg: 'reason' }
+    ] },
+  'M20-form-plan': {
+    kind: 'model_form',
+    model: 'fix.ar.payment.plan',
+    title: 'Payment Plan',
+    back: 'M20-plans',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', completed: 'Completed', defaulted: 'Defaulted', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'plan', label: 'Plan', bn: 'পরিকল্পনা' },
+      { id: 'instalments', label: 'Instalments', bn: 'কিস্তি' }
+    ],
+    sections: [
+      { tab: 'plan', title: 'Customer & Invoices', note: 'FR-ARB-037: the overdue invoices settled by instalments. The instalments add up to what is open on them; another Accountant agrees the plan, and dunning on those invoices then waits. A missed instalment defaults the plan, resumes dunning and escalates the collection case.',
+        fields: [
+          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'invoice_ids', label: 'Invoices in the Plan' },
+          { name: 'reason', required: true, label: 'Why a Plan' },
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'total_amount', readonly: true, label: 'Settles (at agreement)' },
+          { name: 'paid_to_date', readonly: true, label: 'Paid to Date' },
+          { name: 'missed_count', readonly: true, label: 'Missed Instalments' },
+          { name: 'approved_by_id', readonly: true, label: 'Agreed By' }
+        ] }
+    ],
+    grids: [
+      { field: 'line_ids', tab: 'instalments', title: 'Instalments', addLabel: '+ Add instalment',
+        empty: 'No instalment yet. Add each due date and amount.',
+        note: 'Due today or later; together they equal the open amount of the plan\'s invoices.',
+        fields: [
+          { name: 'due_date', label: 'Due Date' },
+          { name: 'amount', label: 'Amount (BDT)' },
+          { name: 'note', label: 'Note' }
+        ] }
+    ]
+  },
+  /* p8 FR-ARB-034: the collections worklist, highest priority first. */
+  'M20-cases': { empty: 'No collection case. Cases open when dunning reaches L3, a promise breaks or a plan defaults; a collector can open one with Collection Case.', kind: 'model_list', model: 'fix.ar.collection.case', stateField: 'state',
+    cols: ['name', 'customer_id', 'priority_score', 'total_overdue', 'oldest_age', 'broken_promises', 'assigned_to', 'next_action_at', 'last_contact_at', 'state', 'origin'],
+    actions: [
+      { m: 'action_take', l: 'Take' },
+      { m: 'action_log_contact', l: 'Log Contact', asks: [{ label: 'What the customer said', kwarg: 'note' }, { label: 'Next action on (YYYY-MM-DD)', kwarg: 'next_action' }] },
+      { m: 'action_refresh', l: 'Refresh Priority' },
+      { m: 'action_close_paid', l: 'Close: Paid', ask: 'How it was settled', kwarg: 'note' },
+      { m: 'action_close_promise', l: 'Close: Promise Recorded', ask: 'Note', kwarg: 'note' },
+      { m: 'action_close_plan', l: 'Close: Payment Plan Agreed', ask: 'Note', kwarg: 'note' },
+      { m: 'action_close_legal', l: 'Close: Referred to Legal', ask: 'Note', kwarg: 'note' },
+      { m: 'action_close_uncollectible', l: 'Close: Uncollectible', ask: 'Note', kwarg: 'note' }
+    ] },
+  'M20-form-case': {
+    kind: 'model_form',
+    model: 'fix.ar.collection.case',
+    title: 'Collection Case',
+    back: 'M20-cases',
+    status: { field: 'state', labels: { open: 'Open', in_progress: 'Being Worked', closed: 'Closed' } },
+    sections: [
+      { title: 'Case', note: 'FR-ARB-034: one open case per customer. Priority = overdue value (BDT thousands) + oldest overdue days + 50 per broken promise; the worklist is sorted by it.',
+        fields: [
+          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'assigned_to', label: 'Collector' },
+          { name: 'next_action_at', label: 'Next Action On' },
+          { name: 'note', type: 'text', label: 'Why the case is opened' }
+        ] },
+      { title: 'Exposure & History (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'priority_score', readonly: true, label: 'Priority' },
+          { name: 'total_overdue', readonly: true, label: 'Overdue' },
+          { name: 'overdue_count', readonly: true, label: 'Overdue Invoices' },
+          { name: 'oldest_age', readonly: true, label: 'Oldest Overdue (days)' },
+          { name: 'broken_promises', readonly: true, label: 'Broken Promises' },
+          { name: 'last_contact_at', readonly: true, label: 'Last Contact' },
+          { name: 'last_contact_note', readonly: true, label: 'Last Contact Note' },
+          { name: 'origin', readonly: true, label: 'Opened By' },
+          { name: 'outcome', readonly: true, label: 'Outcome' },
+          { name: 'state', readonly: true, label: 'Status' }
+        ] }
+    ]
+  },
+  /* p9 FR-ARB-040: refund of on-account money. */
+  'M20-oa-refunds': { empty: 'No refund of on-account money. Money already applied to an invoice is returned through a credit note; an overpayment or a released deposit is refunded here.', kind: 'model_list', model: 'fix.ar.refund', stateField: 'state',
+    cols: ['name', 'customer_id', 'receipt_id', 'amount', 'method', 'reason', 'requested_by_id', 'authorised_by_id', 'payment_instruction', 'state'],
+    actions: [
+      { m: 'action_authorise', l: 'Authorise (another person)' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the refund is rejected', kwarg: 'reason' }
+    ] },
+  'M20-form-refund': {
+    kind: 'model_form',
+    model: 'fix.ar.refund',
+    title: 'Refund',
+    back: 'M20-oa-refunds',
+    status: { field: 'state', labels: { requested: 'Requested', authorised: 'Authorised', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Refund Request', note: 'FR-ARB-040: money the customer has on account (an overpayment) goes back to them. Another person authorises it: an Accountant within the direct band, the Accounting Administrator above it; treasury (M50) then pays it. Cash above the threshold is refused (BRU-ARB-11).',
+        fields: [
+          { name: 'receipt_id', required: true, label: 'Receipt With Money on Account' },
+          { name: 'amount', required: true, label: 'Refund Amount (BDT)' },
+          { name: 'method', required: true, label: 'Refund Method' },
+          { name: 'payee_account', label: 'Pay To (wallet / account no.)' },
+          { name: 'reason', required: true, label: 'Reason' }
+        ] },
+      { title: 'Authorisation (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'customer_id', readonly: true, label: 'Customer' },
+          { name: 'requested_by_id', readonly: true, label: 'Requested By' },
+          { name: 'authorised_by_id', readonly: true, label: 'Authorised By' },
+          { name: 'payment_instruction', readonly: true, label: 'Treasury Instruction' },
+          { name: 'rejected_reason', readonly: true, label: 'Rejection Reason' },
+          { name: 'state', readonly: true, label: 'Status' }
+        ] }
+    ]
+  },
+  /* p10 FR-ARB-043 / BRU-ARB-24: delivered but not invoiced. */
+  'M20-unbilled': { empty: 'No delivered-but-unbilled exception. The daily reconciliation raises one for every closed job without an invoice; report other delivered work with + New Unbilled Exception.', kind: 'model_list', model: 'fix.ar.unbilled.exception', stateField: 'state',
+    cols: ['name', 'source_module', 'source_ref', 'customer_id', 'delivered_at', 'estimated_value', 'age_days', 'escalated_to', 'state', 'resolution'],
+    actions: [
+      { m: 'action_resolve_invoiced', l: 'Resolve: Invoiced', ask: 'Number of the issued invoice that bills it', kwarg: 'invoice' },
+      { m: 'action_resolve_not_billable', l: 'Resolve: Not Billable (Accounting Administrator)', ask: 'Why it is not billable', kwarg: 'note' },
+      { m: 'action_resolve_duplicate', l: 'Resolve: Duplicate', ask: 'Which item it duplicates', kwarg: 'note' }
+    ] },
+  'M20-form-unbilled': {
+    kind: 'model_form',
+    model: 'fix.ar.unbilled.exception',
+    title: 'Unbilled Exception',
+    back: 'M20-unbilled',
+    status: { field: 'state', labels: { open: 'Open', escalated: 'Escalated', resolved: 'Resolved' } },
+    sections: [
+      { title: 'Delivered Work Not Invoiced', note: 'FR-ARB-043: work delivered with no invoice. The daily reconciliation raises closed service orders by itself; report here what it does not read (a contract cycle, a rental period, an order). It ages and escalates to the branch manager, the Finance Manager and the CFO; "not billable" is approved by an Accounting Administrator who did not report it (BRU-ARB-01).',
+        fields: [
+          { name: 'source_module', required: true, label: 'Revenue Stream' },
+          { name: 'source_ref', required: true, label: 'Source Document' },
+          { name: 'customer_id', required: true, label: 'Customer' },
+          { name: 'delivered_at', required: true, label: 'Delivered On' },
+          { name: 'estimated_value', label: 'Estimated Value (BDT)' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'note', type: 'text', label: 'Note' }
+        ] },
+      { title: 'Ageing & Resolution (system)',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'detected_by', readonly: true, label: 'Detected By' },
+          { name: 'age_days', readonly: true, label: 'Age (days)' },
+          { name: 'escalated_to', readonly: true, label: 'Escalated To' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'resolution', readonly: true, label: 'Resolution' },
+          { name: 'invoice_id', readonly: true, label: 'Invoice' },
+          { name: 'resolution_note', readonly: true, label: 'Resolution Note' },
+          { name: 'resolved_by', readonly: true, label: 'Resolved By' }
+        ] }
+    ]
+  },
 
 
 };
@@ -545,7 +908,7 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M20:Invoice Request': 'fix.ar.invoice',
   'M20:Credit Note': 'fix.credit.note',
-  'M20:Refund': 'fix.credit.note',
+  'M20:Refund': 'fix.ar.refund',
   'M20:Receipt': 'fix.ar.receipt',
   'M20:Payment Link': 'fix.ar.payment.link',
   'M20:VDS Certificate': 'fix.vds.certificate.received',
@@ -555,6 +918,15 @@ export const FORM_MODELS = {
   'M20:Consolidated Bill': 'fix.ar.consolidated.bill',
   'M20:Dispute': 'fix.ar.dispute',
   'M20:Credit Profile': 'fix.credit.profile',
+  'M20:Proforma Invoice': 'fix.sales.proforma',
+  'M20:Invoice Delivery': 'fix.ar.invoice.delivery',
+  'M20:Customer Statement': 'fix.ar.statement',
+  'M20:Deposit / Retention': 'fix.ar.deposit',
+  'M20:Dunning Policy': 'fix.ar.dunning.policy',
+  'M20:Promise to Pay': 'fix.ar.promise',
+  'M20:Payment Plan': 'fix.ar.payment.plan',
+  'M20:Collection Case': 'fix.ar.collection.case',
+  'M20:Unbilled Exception': 'fix.ar.unbilled.exception',
 };
 
 /* the registry chips + every grid's + New / Open full record resolve to the
@@ -562,7 +934,7 @@ export const FORM_MODELS = {
 export const FORM_CHIPS = {
   'M20:Receipt': 'M20-form-receipt',
   'M20:Credit Note': 'M20-form-note',
-  'M20:Refund': 'M20-form-note',
+  'M20:Refund': 'M20-form-refund',
   'M20:Payment Link': 'M20-form-link',
   'M20:VDS Certificate': 'M20-form-vds',
   'M20:TDS Certificate': 'M20-form-tds',
@@ -571,6 +943,15 @@ export const FORM_CHIPS = {
   'M20:Consolidated Bill': 'M20-form-consolidated',
   'M20:Dispute': 'M20-form-dispute',
   'M20:Credit Profile': 'M33-form-credit',
+  'M20:Proforma Invoice': 'M36-form-proforma',
+  'M20:Invoice Delivery': 'M20-form-delivery',
+  'M20:Customer Statement': 'M20-form-statement',
+  'M20:Deposit / Retention': 'M20-form-deposit',
+  'M20:Dunning Policy': 'M20-form-dunning-policy',
+  'M20:Promise to Pay': 'M20-form-promise',
+  'M20:Payment Plan': 'M20-form-plan',
+  'M20:Collection Case': 'M20-form-case',
+  'M20:Unbilled Exception': 'M20-form-unbilled',
   'M20:__by_model__': {
     'fix.ar.consolidated.bill': 'M20-form-consolidated',
     'fix.ar.dispute': 'M20-form-dispute',
@@ -582,7 +963,16 @@ export const FORM_CHIPS = {
     'fix.credit.note': 'M20-form-note',
     'fix.ar.payment.link': 'M20-form-link',
     'fix.vds.certificate.received': 'M20-form-vds',
-    'fix.tds.certificate.received': 'M20-form-tds'
+    'fix.tds.certificate.received': 'M20-form-tds',
+    'fix.ar.invoice.delivery': 'M20-form-delivery',
+    'fix.ar.statement': 'M20-form-statement',
+    'fix.ar.deposit': 'M20-form-deposit',
+    'fix.ar.dunning.policy': 'M20-form-dunning-policy',
+    'fix.ar.promise': 'M20-form-promise',
+    'fix.ar.payment.plan': 'M20-form-plan',
+    'fix.ar.collection.case': 'M20-form-case',
+    'fix.ar.refund': 'M20-form-refund',
+    'fix.ar.unbilled.exception': 'M20-form-unbilled'
   },
   'M20:__by_screen__': {
     'M20-ecl': 'M20-form-ecl',
@@ -592,7 +982,16 @@ export const FORM_CHIPS = {
     'M20-tds': 'M20-form-tds',
     'M20-notes-register': 'M20-form-note',
     'M20-ar-dispute': 'M20-form-dispute',
-    'M20-ar-consolidated-bill': 'M20-form-consolidated'
+    'M20-ar-consolidated-bill': 'M20-form-consolidated',
+    'M20-deliveries': 'M20-form-delivery',
+    'M20-statement-register': 'M20-form-statement',
+    'M20-deposits': 'M20-form-deposit',
+    'M20-dunning-policies': 'M20-form-dunning-policy',
+    'M20-promises': 'M20-form-promise',
+    'M20-plans': 'M20-form-plan',
+    'M20-cases': 'M20-form-case',
+    'M20-oa-refunds': 'M20-form-refund',
+    'M20-unbilled': 'M20-form-unbilled'
   }
 };
 
