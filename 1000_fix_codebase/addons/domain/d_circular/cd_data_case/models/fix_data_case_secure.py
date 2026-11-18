@@ -687,6 +687,9 @@ class FixDataRecoveryCaseSecure(models.Model):
         )
         purged = 0
         for case in due:
+            # FR-DTS-008b: an approved, running retention hold keeps the data
+            if case._retention_held():
+                continue
             try:
                 with self.env.cr.savepoint():
                     reason = "automatic purge is off"
@@ -704,6 +707,10 @@ class FixDataRecoveryCaseSecure(models.Model):
             except Exception:
                 _logger.exception("M06 retention purge failed for case %s", case.id)
         return purged
+
+    def _retention_held(self):
+        """True while an approved retention hold runs (fix_data_capture)."""
+        return False
 
     def _retention_flag(self, reason):
         for case in self.filtered(lambda c: not c.retention_flagged_at):

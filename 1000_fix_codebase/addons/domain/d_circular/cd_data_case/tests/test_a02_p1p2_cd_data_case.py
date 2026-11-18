@@ -72,6 +72,19 @@ def m6(odoo_env):
     )
     digest = "%064x" % (0xD06 * n)
 
+    def undertake(case, *people):
+        """M06 capture pass 2 (BRU-DTS-12): each person accepts the case's
+        confidentiality undertaking themself before they are named on it."""
+        for person in people:
+            env["fix.data.confidentiality.undertaking"].with_user(person).create(
+                {
+                    "case_id": case.id,
+                    "undertaking_type": "staff",
+                    "user_id": person.id,
+                    "acknowledged": True,
+                }
+            )
+
     def new_case(serial="WD-P1-%d" % n, staffed=True):
         case = (
             env[CASE]
@@ -80,6 +93,7 @@ def m6(odoo_env):
                 {"customer_id": customer.id, "media_type": "hdd", "media_serial_number": serial}
             )
         )
+        undertake(case, tech, custodian)
         if staffed:
             case.action_assign_staff(technician=tech, custodian=custodian)
         return case
@@ -263,6 +277,7 @@ def test_p2_z4_work_is_for_the_named_staff_only(m6):
             {"case_id": case.id, "method": "software_scan"}
         )
     # once recovery started only a Z4 custodian re-assigns
+    m6.undertake(case, m6.tech2)
     with pytest.raises(AccessError, match="Z4 Custodian"):
         case.action_assign_staff(technician=m6.tech2)
     case.with_user(m6.custodian).action_assign_staff(technician=m6.tech2)
@@ -461,7 +476,12 @@ def test_b4_restore_test_due_is_scheduled_and_reminded_once(m6):
         len(plan.activity_ids.filtered(lambda a: "Restore test overdue" in (a.summary or ""))) == 1
     )
     assert not plan.compliant
-    plan.with_user(m6.tech).action_log_test(result="passed")
+    evidence = (
+        m6.env["ir.attachment"]
+        .with_user(m6.tech)
+        .create({"name": "restore-report.pdf", "raw": b"%PDF restore ok"})
+    )
+    plan.with_user(m6.tech).action_log_test(result="passed", evidence_attachment_id=evidence.id)
     assert plan.compliant and plan.next_test_due == date.today() + timedelta(days=30)
 
 

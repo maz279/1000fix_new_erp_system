@@ -12,3 +12,8 @@ access_fix_data_evaluation,fix.data.evaluation,model_fix_data_evaluation,group_d
 access_fix_data_quote,fix.data.quote,model_fix_data_quote,group_data_recovery_operator,1,1,1,0
 access_fix_data_backup_plan,fix.data.backup.plan,model_fix_data_backup_plan,base.group_user,1,1,1,0
 access_fix_data_backup_test,fix.data.backup.test,model_fix_data_backup_test,base.group_user,1,0,1,0
+access_fix_data_confidentiality_undertaking,fix.data.confidentiality.undertaking,model_fix_data_confidentiality_undertaking,group_data_recovery_operator,1,1,1,0
+access_fix_data_retention_hold,fix.data.retention.hold,model_fix_data_retention_hold,group_data_recovery_operator,1,1,1,0
+access_fix_data_recovered_inventory,fix.data.recovered.inventory,model_fix_data_recovered_inventory,group_data_recovery_operator,1,1,1,1
+access_fix_data_wipe_request,fix.data.wipe.request,model_fix_data_wipe_request,base.group_user,1,1,1,0
+access_fix_data_backup_run,fix.data.backup.run,model_fix_data_backup_run,base.group_user,1,0,1,0

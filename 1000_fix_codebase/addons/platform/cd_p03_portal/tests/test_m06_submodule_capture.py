@@ -92,11 +92,11 @@ EXPECTED = {
     "3": "M06-form-eval",  # the evaluation comes before any quote
     "4": "M06-form-attempt",
     "5": "M06-form-attempt-outcome",
-    "6": "M06-form-inventory",
+    "6": "M06-form-inventory-line",  # capture pass 2: by file type
     "7": "M06-form-handover",
     "8": "M06-form-backup",
-    "9": "M06-form-wipe",
-    "10": "M06-form-staff",  # the log itself writes itself
+    "9": "M06-form-wipe-request",  # capture pass 2: the request first
+    "10": "M06-form-undertaking",  # pass 2: undertaking before access
 }
 
 

@@ -20,4 +20,11 @@
         <field name="prefix">DRQ/%(year)s/</field>
         <field name="padding">4</field>
     </record>
+    <!-- M06 capture pass 2 (2026-11-18): wipe / destruction requests -->
+    <record id="seq_fix_data_wipe_request" model="ir.sequence">
+        <field name="name">Data Wipe Request</field>
+        <field name="code">fix.data.wipe.request</field>
+        <field name="prefix">WRQ/%(year)s/</field>
+        <field name="padding">5</field>
+    </record>
 </odoo>

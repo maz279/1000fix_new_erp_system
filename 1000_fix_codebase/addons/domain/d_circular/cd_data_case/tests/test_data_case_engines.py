@@ -239,7 +239,16 @@ def test_backup_plan_test_log_and_compliance(ds):
         }
     )
     assert not plan.compliant  # never tested
-    plan.action_log_test(result="passed", restored_gb=120.5, notes="full restore ok")
+    # M06 capture pass 2: a passed restore test carries its evidence
+    with pytest.raises(UserError, match="evidence"):
+        plan.action_log_test(result="passed", restored_gb=120.5, notes="no proof")
+    evidence = env["ir.attachment"].create({"name": "restore.pdf", "raw": b"%PDF ok"})
+    plan.action_log_test(
+        result="passed",
+        restored_gb=120.5,
+        notes="full restore ok",
+        evidence_attachment_id=evidence.id,
+    )
     plan.invalidate_recordset()
     assert plan.last_test_result == "passed"
     assert plan.next_test_due == fields.Date.today() + timedelta(days=30)

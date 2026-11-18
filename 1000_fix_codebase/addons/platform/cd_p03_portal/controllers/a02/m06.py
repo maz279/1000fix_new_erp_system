@@ -102,6 +102,44 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_log_test"},
     },
+    # M06 capture pass 2 (2026-11-18): the records five pages could not
+    # capture (cd_data_case models/fix_data_capture.py), and the custody
+    # ledger every move writes, which no screen listed.
+    "fix.data.custody.event": {
+        "order": "event_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.data.confidentiality.undertaking": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_revoke"},
+    },
+    "fix.data.retention.hold": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_reject", "action_release"},
+    },
+    "fix.data.recovered.inventory": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.data.wipe.request": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_cancel"},
+    },
+    "fix.data.backup.test": {
+        "order": "tested_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.data.backup.run": {
+        "order": "started_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
 }
 
 
@@ -379,6 +417,7 @@ def _recovered_inventory(env, **params):
     Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
     Attachment = env["ir.attachment"].sudo()
     states = dict(type(Case).state.selection)
+    types = dict(env["fix.data.recovered.inventory"]._fields["file_type"].selection)
     cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
     rows = []
     for case in cases:
@@ -392,6 +431,13 @@ def _recovered_inventory(env, **params):
                 "stage": states.get(case.state, case.state),
                 "recovered_files": case.recovered_files_count,
                 "recovered_gb": round(case.recovered_volume_gb or 0.0, 2),
+                # M06 capture pass 2: FR-DTS-006 is "by type and size"
+                "by_type": ", ".join(
+                    "%s %d (%.2f GB)"
+                    % (types.get(line.file_type, line.file_type), line.file_count, line.size_gb)
+                    for line in case.inventory_line_ids
+                )
+                or "-",
                 "files": len(atts),
                 "size_kb": round(sum(atts.mapped("file_size")) / 1024.0, 1),
                 "zone": case.residency_zone,
@@ -405,6 +451,7 @@ def _recovered_inventory(env, **params):
             "stage",
             "recovered_files",
             "recovered_gb",
+            "by_type",
             "files",
             "size_kb",
             "zone",
@@ -415,6 +462,7 @@ def _recovered_inventory(env, **params):
             "stage": "Stage",
             "recovered_files": "Recovered Files",
             "recovered_gb": "Recovered GB",
+            "by_type": "By File Type",
             "files": "Case Documents",
             "size_kb": "Documents KB",
             "zone": "Zone",

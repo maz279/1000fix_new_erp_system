@@ -198,6 +198,28 @@ WRITABLE = {
             "test_frequency_days",
         }
     ),
+    "fix.data.backup.run": frozenset(
+        {
+            "ended_at",
+            "error_ref",
+            "notes",
+            "outcome",
+            "plan_id",
+            "started_at",
+            "transferred_gb",
+        }
+    ),
+    "fix.data.backup.test": frozenset(
+        {
+            "evidence_attachment_id",
+            "notes",
+            "plan_id",
+            "restored_gb",
+            "result",
+            "scope_tested",
+            "tested_at",
+        }
+    ),
     "fix.data.cleanroom.slot": frozenset(
         {
             "case_id",
@@ -212,6 +234,19 @@ WRITABLE = {
             "temperature_c",
         }
     ),
+    "fix.data.confidentiality.undertaking": frozenset(
+        {
+            "acknowledged",
+            "case_id",
+            "document_attachment_id",
+            "document_reference",
+            "partner_id",
+            "undertaking_type",
+            "user_id",
+            "valid_until",
+        }
+    ),
+    "fix.data.custody.event": frozenset(),
     "fix.data.evaluation": frozenset(
         {
             "case_id",
@@ -245,6 +280,14 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.data.recovered.inventory": frozenset(
+        {
+            "case_id",
+            "file_count",
+            "file_type",
+            "size_gb",
+        }
+    ),
     "fix.data.recovery.attempt": frozenset(
         {
             "attempt_report_attachment_id",
@@ -261,10 +304,13 @@ WRITABLE = {
     "fix.data.recovery.case": frozenset(
         {
             "capacity_gb",
+            "criticality",
+            "customer_declarations",
             "customer_id",
             "device_id",
             "donor_drive_serial",
             "encrypted_target_serial",
+            "failure_symptoms",
             "firmware_revision",
             "form_factor",
             "handover_recipient_id",
@@ -274,8 +320,19 @@ WRITABLE = {
             "nda_attachment_id",
             "nda_reference",
             "operating_unit_id",
+            "prior_recovery_attempt",
             "specialism",
+            "target_data_description",
             "write_blocker_serial",
+        }
+    ),
+    "fix.data.retention.hold": frozenset(
+        {
+            "case_id",
+            "document_attachment_id",
+            "hold_until",
+            "reason",
+            "reason_type",
         }
     ),
     "fix.data.wipe.certificate": frozenset(
@@ -286,6 +343,21 @@ WRITABLE = {
             "sector_count",
             "serial_number",
             "tool_name",
+            "wipe_log_attachment_id",
+            "wipe_request_id",
+        }
+    ),
+    "fix.data.wipe.request": frozenset(
+        {
+            "confidentiality_level",
+            "customer_id",
+            "device_id",
+            "disposition",
+            "media_description",
+            "notes",
+            "serial_number",
+            "source",
+            "source_ref",
         }
     ),
     "fix.device.history": frozenset(),

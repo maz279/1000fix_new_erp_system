@@ -92,6 +92,16 @@ def j11(odoo_env, monkeypatch):
                 {"customer_id": customer.id, "media_type": "hdd", "media_serial_number": serial}
             )
         )
+        # M06 capture pass 2 (BRU-DTS-12): undertakings before access
+        for person in (tech, custodian):
+            env["fix.data.confidentiality.undertaking"].with_user(person).create(
+                {
+                    "case_id": case.id,
+                    "undertaking_type": "staff",
+                    "user_id": person.id,
+                    "acknowledged": True,
+                }
+            )
         case.action_assign_staff(technician=tech, custodian=custodian)
         return case
 

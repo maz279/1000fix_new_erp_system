@@ -59,7 +59,12 @@ export const MODULE = {
   forms: ['Recovery Case', 'Media Intake (sealed)', 'Media Custody Move', 'Witnessed Seal Break',
     'Free Evaluation', 'Firm Quotation', 'Recovery Attempt', 'Cleanroom Slot Booking', 'Attempt Outcome',
     'Recovered-Data Inventory Entry', 'Handover Preparation', 'Secure Handover', 'Secure Purge',
-    'Backup Plan', 'Destruction Request (dual control)', 'Named Z4 Staff Assignment'],
+    'Backup Plan', 'Destruction Request (dual control)', 'Named Z4 Staff Assignment',
+    /* M06 capture pass 2 (2026-11-18): the records five pages could not
+     * capture because they did not exist (FR-DTS-010, 008b, 006, 019/024,
+     * 012/013) */
+    'Staff Confidentiality Undertaking', 'Retention Hold', 'Recovered Data by File Type',
+    'Wipe Request', 'Restore Test', 'Backup Job Run'],
   cross: ['M36 recovery quotations', 'M24 evidence certificates', 'M18 e-waste routing', 'M01 data-service orders'],
   freg: {
     src: 75,
@@ -67,7 +72,7 @@ export const MODULE = {
       ['1', 'Case Management (7 specialisms)', 12, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'specialism', 'media_type', 'state'], screens: ['M06-cases', 'M06-record'], reports: ['Recovery Success by Specialism', 'Case Cycle Time'], forms: ['Recovery Case'] }],
       /* 2 FR-DTS-002 / BRU-DTS-01: intake under seal, every move, and a seal
        * opened only with a second person as witness */
-      ['2', 'Media Chain of Custody', 11, { model: 'fix.data.media.unit', cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state'], screens: ['M06-custody', 'M06-cleanroom'], reports: [], forms: ['Media Intake (sealed)', 'Media Custody Move', 'Witnessed Seal Break'] }],
+      ['2', 'Media Chain of Custody', 11, { model: 'fix.data.media.unit', cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state'], screens: ['M06-custody', 'M06-custody-ledger', 'M06-cleanroom'], reports: [], forms: ['Media Intake (sealed)', 'Media Custody Move', 'Witnessed Seal Break'] }],
       /* 3 FR-DTS-003: the free evaluation comes first - a quote is refused
        * until an evaluation is completed with data to recover */
       ['3', 'Evaluation & Quotation', 8, { model: 'fix.data.quote', cols: ['name', 'case_id', 'amount', 'valid_until', 'state'], screens: ['M06-eval', 'M06-quotes'], reports: ['Data Service Revenue'], forms: ['Free Evaluation', 'Firm Quotation'], create: 'M06-form-eval' }],
@@ -76,18 +81,27 @@ export const MODULE = {
       ['4', 'Methodology Logging', 6, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'method', 'donor_part_used', 'imaged_pct', 'notes'], screens: ['M06-attempts', 'M06-cleanroom'], reports: ['Recovery Success by Specialism'], forms: ['Recovery Attempt', 'Cleanroom Slot Booking'] }],
       /* 5: what each attempt achieved - closing an open attempt with its outcome */
       ['5', 'Attempt Tracking', 5, { model: 'fix.data.recovery.attempt', cols: ['case_id', 'sequence', 'started_at', 'finished_at', 'outcome'], screens: ['M06-attempts'], reports: ['Recovery Success by Specialism', 'Case Cycle Time'], forms: ['Attempt Outcome'], create: 'M06-form-attempt-outcome' }],
-      /* 6 FR-DTS-006: files and GB recovered, never names; recorded by the
-       * case's staff during recovery, frozen at handover */
-      ['6', 'Recovered-Data Inventory', 5, { model: 'fix.data.recovery.case', cols: ['name', 'recovered_files_count', 'recovered_volume_gb', 'image_sha256_hash', 'state'], screens: ['M06-inventory'], reports: ['Recovery Success by Specialism'], forms: ['Recovered-Data Inventory Entry'], create: 'M06-form-inventory', domain: [['state', 'in', ['recovering', 'recovered', 'handover']]] }],
+      /* 6 FR-DTS-006: volumes and file counts BY TYPE and size, never names;
+       * recorded by the case's staff during recovery, frozen at handover.
+       * Capture pass 2: one line per file type (the case totals are their
+       * sum); the totals-only entry stays for a case with no breakdown */
+      ['6', 'Recovered-Data Inventory', 5, { model: 'fix.data.recovered.inventory', cols: ['case_id', 'file_type', 'file_count', 'size_gb', 'recorded_by_id'], screens: ['M06-inventory-lines', 'M06-inventory'], reports: ['Recovery Success by Specialism'], forms: ['Recovered Data by File Type', 'Recovered-Data Inventory Entry'], create: 'M06-form-inventory-line' }],
       /* 7 FR-DTS-007 / 008: recipient and target drive, the verified
        * handover against the signed receipt, then the purge on a verified
        * wipe certificate */
-      ['7', 'Secure Handover & Purge', 7, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'purge_certificate_id', 'residency_zone', 'state'], screens: ['M06-handover'], reports: ['Destruction & Purge Audit'], forms: ['Handover Preparation', 'Secure Handover', 'Secure Purge'], create: 'M06-form-handover', domain: [['state', 'in', ['handover', 'purged']]] }],
-      ['8', 'Backup Plans', 6, { model: 'fix.data.backup.plan', cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'next_test_due'], screens: ['M06-backup'], reports: ['Backup Restore-Test Compliance'], forms: ['Backup Plan'] }],
-      ['9', 'Secure Destruction', 9, { model: 'fix.data.wipe.certificate', cols: ['name', 'serial_number', 'method', 'sanitization_status', 'certified_at'], screens: ['M06-destroy', 'M06-certs'], reports: ['Destruction & Purge Audit'], forms: ['Destruction Request (dual control)'] }],
-      /* 10 FR-DTS-009 / BRU-DTS-02: the access log writes itself; what a
-       * person captures is WHO may work the case - its named staff */
-      ['10', 'Access Control & Audit', 6, { model: 'fix.z4.access.audit', cols: ['case_id', 'user_name', 'access_type', 'access_time', 'step_up_verified'], screens: ['M06-access-audit'], reports: ['Destruction & Purge Audit'], forms: ['Named Z4 Staff Assignment'], create: 'M06-form-staff' }]
+      ['7', 'Secure Handover & Purge', 7, { model: 'fix.data.recovery.case', cols: ['name', 'customer_id', 'purge_certificate_id', 'residency_zone', 'state'], screens: ['M06-handover', 'M06-retention-holds'], reports: ['Destruction & Purge Audit'], forms: ['Handover Preparation', 'Secure Handover', 'Retention Hold', 'Secure Purge'], create: 'M06-form-handover', domain: [['state', 'in', ['handover', 'purged']]] }],
+      /* 8 FR-DTS-011/012/013: the plan, each job's outcome (two failures in
+       * a row raise an incident) and the evidenced restore test */
+      ['8', 'Backup Plans', 6, { model: 'fix.data.backup.plan', cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'next_test_due'], screens: ['M06-backup', 'M06-restore-tests', 'M06-backup-runs'], reports: ['Backup Restore-Test Compliance'], forms: ['Backup Plan', 'Restore Test', 'Backup Job Run'] }],
+      /* 9 FR-DTS-019/024: the request comes first (M14, M18, a customer, a
+       * corporate decommission); the certificate answers it, and a failed
+       * erasure makes physical destruction mandatory (BRU-DTS-10) */
+      ['9', 'Secure Destruction', 9, { model: 'fix.data.wipe.request', cols: ['name', 'source', 'serial_number', 'disposition', 'state'], screens: ['M06-wipe-requests', 'M06-destroy', 'M06-certs'], reports: ['Destruction & Purge Audit'], forms: ['Wipe Request', 'Destruction Request (dual control)'], create: 'M06-form-wipe-request' }],
+      /* 10 FR-DTS-009/010, BRU-DTS-02/12: the access log writes itself; what
+       * a person captures is the undertaking each person signs for the case,
+       * BEFORE they are named on it (the assignment refuses anyone without
+       * one), then WHO may work the case - its named staff */
+      ['10', 'Access Control & Audit', 6, { model: 'fix.z4.access.audit', cols: ['case_id', 'user_name', 'access_type', 'access_time', 'step_up_verified'], screens: ['M06-access-audit', 'M06-undertakings'], reports: ['Destruction & Purge Audit'], forms: ['Staff Confidentiality Undertaking', 'Named Z4 Staff Assignment'], create: 'M06-form-undertaking' }]
     ]
   }
 };
@@ -102,7 +116,7 @@ export const SCREENS = {
     empty: 'No access to recovered data has been logged yet. Each time the data of a case is opened, the accessor, purpose and second-factor check are recorded here automatically; entries cannot be typed in or changed.' },
   /* --- Recovery Cases --- */
   'M06-cases': { kind: 'model_list', model: 'fix.data.recovery.case',
-    cols: ['name', 'customer_id', 'media_type', 'specialism', 'residency_zone', 'attempt_count', 'audit_count', 'state'],
+    cols: ['name', 'customer_id', 'criticality', 'media_type', 'specialism', 'residency_zone', 'attempt_count', 'audit_count', 'state'],
     stateField: 'state',
     /* A02 audit M06: every lifecycle step is a server action (state, zone,
      * consent and purge certificate are workflow-owned, never typed). */
@@ -184,10 +198,7 @@ export const SCREENS = {
 
   /* --- Backup & Destruction --- */
   'M06-backup': { kind: 'model_list', model: 'fix.data.backup.plan', create: true,
-    cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'rto_hours', 'last_test_date', 'last_test_result', 'next_test_due', 'compliant'],
-    actions: [
-      { m: 'action_log_test', l: 'Log Restore Test', ask: 'Result (passed/partial/failed)', kwarg: 'result' }
-    ] },
+    cols: ['name', 'customer_id', 'plan_type', 'rpo_hours', 'rto_hours', 'last_test_date', 'last_test_result', 'next_test_due', 'compliant', 'last_run_outcome', 'consecutive_failures'] },
   /* the destruction console = certificates awaiting verification */
   'M06-destroy': { kind: 'model_list', model: 'fix.data.wipe.certificate', create: true,
     cols: ['name', 'device_id', 'serial_number', 'method', 'tool_name', 'sanitization_status', 'certified_at'],
@@ -242,10 +253,11 @@ Object.assign(SCREENS, {
       closed: 'Closed', unrecoverable: 'Unrecoverable' } },
     tabs: [
       { id: 'case', label: '1. Case Identity & Media', bn: '১. কেস তথ্য ও মিডিয়া', icon: '💾', badge: '9' },
-      { id: 'forensic', label: '2. Forensic Triage & Hash', bn: '২. ফরেনসিক ট্রায়াজ ও হ্যাশ', icon: '🔍', badge: '7' },
-      { id: 'custody', label: '3. Chain of Custody', bn: '৩. কাস্টডি লেজার', icon: '🔒', badge: '3' },
-      { id: 'security', label: '4. Z4 TOTP & Secure Purge', bn: '৪. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '7' },
-      { id: 'handover', label: '5. Z4 Staff, Imaging & Handover', bn: '৫. জেড৪ কর্মী, ইমেজ ও হস্তান্তর', icon: '🤝', badge: '15' }
+      { id: 'intake', label: '2. Customer Intake & Declarations', bn: '২. গ্রাহকের তথ্য ও ঘোষণা', icon: '📝', badge: '5' },
+      { id: 'forensic', label: '3. Forensic Triage & Hash', bn: '৩. ফরেনসিক ট্রায়াজ ও হ্যাশ', icon: '🔍', badge: '7' },
+      { id: 'custody', label: '4. Chain of Custody', bn: '৪. কাস্টডি লেজার', icon: '🔒', badge: '3' },
+      { id: 'security', label: '5. Z4 TOTP & Secure Purge', bn: '৫. জেড৪ টিওটিপি ও ধ্বংস', icon: '🛡️', badge: '7' },
+      { id: 'handover', label: '6. Z4 Staff, Imaging & Handover', bn: '৬. জেড৪ কর্মী, ইমেজ ও হস্তান্তর', icon: '🤝', badge: '15' }
     ],
     sections: [
       { tab: 'case', title: 'Case Registration & Media Classification', note: 'Intake, custody, recovery, secure handover with purge after a verified certificate. Z4 residency routing is statutory (SC-002).',
@@ -259,6 +271,17 @@ Object.assign(SCREENS, {
           { name: 'residency_zone', label: 'Residency Zone (set by Route to Z4)', readonly: true },
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'state', label: 'Workflow State', readonly: true }
+        ] },
+      /* M06 capture pass 2: FR-DTS-001 / 028 - what the customer reports,
+       * needs and declares, and how urgent it is */
+      { tab: 'intake', title: 'What the Customer Reports, Needs and Declares (FR-DTS-001)',
+        note: 'Criticality orders the lab queue. Describe the data the customer needs (folders, systems, kinds of files), never file content. Record what the customer declares: that they may hand the data over, and any earlier recovery attempt elsewhere.',
+        fields: [
+          { name: 'criticality', label: 'Criticality' },
+          { name: 'failure_symptoms', label: 'Failure Symptoms (as the customer reports them)', type: 'text' },
+          { name: 'target_data_description', label: 'Data the Customer Needs Back', type: 'text' },
+          { name: 'customer_declarations', label: 'Customer Declarations', type: 'text' },
+          { name: 'prior_recovery_attempt', label: 'Earlier Recovery Attempt Elsewhere (declared)' }
         ] },
       { tab: 'forensic', title: 'Forensic Write-Blocking & Cryptographic Hash',
         fields: [
@@ -392,17 +415,26 @@ Object.assign(SCREENS, {
       pending_verification: 'Pending Verification', verified: 'Verified',
       failed: 'Failed' } },
     tabs: [
-      { id: 'media', label: '1. Media & Sanitization', bn: '১. মিডিয়া ও ডিস্ট্রাকশন', icon: '🗑️', badge: '6' },
+      { id: 'media', label: '1. Media & Sanitization', bn: '১. মিডিয়া ও ডিস্ট্রাকশন', icon: '🗑️', badge: '8' },
       { id: 'nist', label: '2. NIST 800-88 & Dual-Sign', bn: '২. নিস্ট ৮০০-৮৮ ও যৌথ অনুমোদন', icon: '📜', badge: '7' }
     ],
     sections: [
       { tab: 'media', title: 'Media Sanitization & Overwrite Tool', note: 'Dual control: the certifying technician records the wipe; a second verifier confirms.',
         fields: [
           { name: 'name', required: true, label: 'Certificate Reference', readonly: true },
+          /* M06 capture pass 2: the request this certificate answers */
+          { name: 'wipe_request_id', label: 'Answers Wipe Request (serial and device come from it)',
+            domain: [['state', 'in', ['requested', 'physical_required']]],
+            emptyNote: 'No wipe request is waiting. Raise one with + New Wipe Request on Secure Destruction, or leave this blank for a certificate no request asked for.' },
           { name: 'device_id', label: 'Registered Hardware Asset' },
           { name: 'serial_number', required: true, label: 'Media Serial Number' },
           { name: 'method', required: true, label: 'NIST 800-88 Method (Purge/Clear/Destroy)' },
           { name: 'tool_name', label: 'Sanitization Tool & Version' },
+          /* M06 capture pass 2: verification refuses a certificate without
+           * its evidence, and no form could attach it - every workspace
+           * certificate was unverifiable, so no case could be purged and no
+           * device released to M14 / M18 */
+          { name: 'wipe_log_attachment_id', label: 'Wipe Tool Report / Destruction Photo (evidence)' },
           { name: 'technician_id', label: 'Certifying Technician', readonly: true }
         ] },
       { tab: 'nist', title: 'Dual-Control Verification & SHA-256 Certificate',
@@ -548,6 +580,8 @@ Object.assign(SCREENS, {
           { name: 'test_frequency_days', label: 'Mandatory Restore Test Frequency (Days)' },
           { name: 'next_test_due', label: 'Next Restore Verification Due Date', readonly: true },
           { name: 'compliant', label: 'Compliance Audit Status', readonly: true },
+          { name: 'last_run_outcome', label: 'Last Backup Job', readonly: true },
+          { name: 'consecutive_failures', label: 'Failed Jobs in a Row', readonly: true },
           { name: 'dr_runbook_attachment_id', label: 'DR Runbook / Verification Certificate' }
         ] }
     ]
@@ -843,6 +877,211 @@ Object.assign(SCREENS, {
   }
 });
 
+/* ============ M06 CAPTURE PASS 2 (2026-11-18) ======================
+ * The user still saw pages without a RELEVANT capture after the 13 Nov
+ * pass. Each page below lists or works on something the spec says a person
+ * records there, and the estate had no record for it (cd_data_case
+ * models/fix_data_capture.py). */
+Object.assign(SCREENS, {
+  /* page 2: the dual-control custody ledger every move writes (read-only) */
+  'M06-custody-ledger': { kind: 'model_list', model: 'fix.data.custody.event', create: false,
+    title: 'Custody Ledger',
+    cols: ['event_at', 'case_id', 'media_unit_id', 'action', 'description', 'actor_id', 'witness_id'],
+    empty: 'No custody event yet. Taking custody, every media move, a seal break and the handover each write a line here automatically; lines cannot be typed in or changed.' },
+  /* page 6 */
+  'M06-inventory-lines': { kind: 'model_list', model: 'fix.data.recovered.inventory', create: true,
+    title: 'Recovered Data by File Type',
+    cols: ['case_id', 'file_type', 'file_count', 'size_gb', 'recorded_by_id', 'recorded_at'] },
+  /* page 7 */
+  'M06-retention-holds': { kind: 'model_list', model: 'fix.data.retention.hold', create: true,
+    title: 'Retention Holds',
+    cols: ['case_id', 'reason_type', 'retention_until', 'hold_until', 'state', 'requested_by_id', 'decided_by_id'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_approve', l: 'Approve Hold' },
+      { m: 'action_reject', l: 'Refuse Hold', ask: 'Why the hold is refused', kwarg: 'note' },
+      { m: 'action_release', l: 'Release Hold' }
+    ] },
+  /* page 8 */
+  'M06-restore-tests': { kind: 'model_list', model: 'fix.data.backup.test', create: true,
+    title: 'Restore Tests',
+    cols: ['plan_id', 'tested_at', 'result', 'restored_gb', 'tested_by', 'scope_tested'] },
+  'M06-backup-runs': { kind: 'model_list', model: 'fix.data.backup.run', create: true,
+    title: 'Backup Job Runs',
+    cols: ['plan_id', 'started_at', 'ended_at', 'outcome', 'transferred_gb', 'error_ref', 'incident_raised'],
+    stateField: 'outcome' },
+  /* page 9 */
+  'M06-wipe-requests': { kind: 'model_list', model: 'fix.data.wipe.request', create: true,
+    title: 'Wipe Requests',
+    cols: ['name', 'source', 'source_ref', 'serial_number', 'confidentiality_level', 'disposition', 'certificate_count', 'state'],
+    stateField: 'state',
+    actions: [{ m: 'action_cancel', l: 'Cancel Request', ask: 'Why the request is cancelled', kwarg: 'reason' }] },
+  /* page 10 */
+  'M06-undertakings': { kind: 'model_list', model: 'fix.data.confidentiality.undertaking', create: true,
+    title: 'Confidentiality Undertakings',
+    cols: ['case_id', 'undertaking_type', 'user_id', 'partner_id', 'signature_method', 'signed_at', 'state'],
+    stateField: 'state',
+    actions: [{ m: 'action_revoke', l: 'Revoke Undertaking', ask: 'Why it is revoked', kwarg: 'reason' }] },
+
+  'M06-form-undertaking': {
+    kind: 'model_form',
+    model: 'fix.data.confidentiality.undertaking',
+    title: 'Staff Confidentiality Undertaking',
+    back: 'M06-undertakings',
+    status: { field: 'state', labels: { active: 'Active', revoked: 'Revoked' } },
+    sections: [
+      { title: 'Who Undertakes Confidentiality for This Case (FR-DTS-010 / BRU-DTS-12)',
+        note: 'Nobody is named on a case, and nobody works its data, before their undertaking for THAT case is recorded here. A staff member accepts it themself by ticking the box; to record it for someone else, attach the undertaking they signed. A customer NDA or a partner laboratory agreement is always the signed document.',
+        fields: [
+          { name: 'case_id', required: true, label: 'Recovery Case', domain: OPEN_CASE,
+            emptyNote: 'No open recovery case yet. Open the case first (+ New Recovery Case).' },
+          { name: 'undertaking_type', required: true, label: 'Undertaking',
+            choices: [['staff', 'Staff Confidentiality Undertaking'], ['customer_nda', 'Customer NDA'], ['partner_lab', 'Partner Laboratory Confidentiality Agreement']] },
+          { name: 'user_id', label: 'Staff Member (for a staff undertaking)', domain: INTERNAL_USER },
+          { name: 'partner_id', label: 'Customer / Partner Laboratory (for an NDA or agreement)' },
+          { name: 'acknowledged', label: 'I have read this case’s confidentiality undertaking and accept it (only for yourself)' },
+          { name: 'document_attachment_id', label: 'Signed Undertaking / NDA (scan or photo)' },
+          { name: 'document_reference', label: 'Document Reference' },
+          { name: 'valid_until', label: 'Valid Until (blank = for the life of the case)' },
+          { name: 'signature_method', label: 'Signed By', readonly: true },
+          { name: 'signed_at', label: 'Signed At', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'state', label: 'Status', readonly: true }
+        ] }
+    ]
+  },
+
+  'M06-form-retention-hold': {
+    kind: 'model_form',
+    model: 'fix.data.retention.hold',
+    title: 'Retention Hold',
+    back: 'M06-retention-holds',
+    status: { field: 'state', labels: { requested: 'Requested', approved: 'Approved', rejected: 'Refused', released: 'Released', expired: 'Expired' } },
+    sections: [
+      { title: 'Keep Recovered Data Past Its Retention Date (FR-DTS-008b / BRU-DTS-06)',
+        note: 'Recovered data is purged when its retention ends. It is kept longer only on a documented reason, until a fixed date, once a lab manager other than you approves. While the hold runs the case cannot be purged; when it ends the case is due again.',
+        fields: [
+          { name: 'case_id', required: true, label: 'Handed-Over Case', domain: [['state', '=', 'handover']],
+            emptyNote: 'No case is handed over and retained. A hold applies to recovered data after its handover.' },
+          { name: 'retention_until', label: 'Retention Ends', readonly: true },
+          { name: 'reason_type', required: true, label: 'Hold Basis' },
+          { name: 'reason', required: true, label: 'Why the data must be kept', type: 'text' },
+          { name: 'hold_until', required: true, label: 'Hold Until' },
+          { name: 'document_attachment_id', label: 'Supporting Document (written request, order)' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decided_at', label: 'Decided At', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true }
+        ] }
+    ]
+  },
+
+  'M06-form-inventory-line': {
+    kind: 'model_form',
+    model: 'fix.data.recovered.inventory',
+    title: 'Recovered Data by File Type',
+    back: 'M06-inventory-lines',
+    sections: [
+      { title: 'Files and Size Recovered, per Type (FR-DTS-006)',
+        note: 'One line per kind of file: how many and how much. File names and content never enter the ERP. Recorded by the case technician or Z4 custodian during recovery; the case totals are the sum of its lines, and they are fixed once the data is handed over.',
+        fields: [
+          { name: 'case_id', required: true, label: 'Recovery Case', domain: [['state', 'in', ['recovering', 'recovered']]],
+            emptyNote: 'No case is in recovery or recovered yet.' },
+          { name: 'file_type', required: true, label: 'File Type' },
+          { name: 'file_count', required: true, label: 'Files (count)' },
+          { name: 'size_gb', required: true, label: 'Size (GB)' },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'recorded_at', label: 'Recorded At', readonly: true }
+        ] }
+    ]
+  },
+
+  'M06-form-wipe-request': {
+    kind: 'model_form',
+    model: 'fix.data.wipe.request',
+    title: 'Wipe Request',
+    back: 'M06-wipe-requests',
+    status: { field: 'state', labels: {
+      requested: 'Requested', in_progress: 'Awaiting Verification', certified: 'Certified',
+      physical_required: 'Physical Destruction Required', escalated: 'Escalated', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'media', label: '1. Media & Source', bn: '১. মিডিয়া ও উৎস', icon: '💽', badge: '7' },
+      { id: 'decision', label: '2. Confidentiality & Disposition', bn: '২. গোপনীয়তা ও নিষ্পত্তি', icon: '⚖️', badge: '7' }
+    ],
+    sections: [
+      { tab: 'media', title: 'What Must Be Wiped, and Who Asks (FR-DTS-019)',
+        note: 'Refurbishment (M14), recycling (M18), a customer or a corporate decommission asks for one piece of media to be sanitised. The lab answers with a certificate bound to this serial; nothing proceeds to resale or recycling without it (BRU-DTS-09).',
+        fields: [
+          { name: 'name', label: 'Request Reference', readonly: true },
+          { name: 'source', required: true, label: 'Requested For' },
+          { name: 'source_ref', label: 'Source Reference (lot, trade-in, project, order)' },
+          { name: 'customer_id', label: 'Customer / Client' },
+          { name: 'device_id', label: 'Registered Device (fills the serial)' },
+          { name: 'serial_number', required: true, label: 'Media Serial Number' },
+          { name: 'media_description', label: 'Media (type, make, capacity)' }
+        ] },
+      { tab: 'decision', title: 'Confidentiality, Disposition and Progress (BRU-DTS-08 / 10)',
+        note: 'The technique is chosen from the data’s confidentiality and where the media goes next. If erasure cannot be verified, the next certificate must be a physical destruction, and the requester is told.',
+        fields: [
+          { name: 'confidentiality_level', required: true, label: 'Data Confidentiality' },
+          { name: 'disposition', required: true, label: 'Final Disposition' },
+          { name: 'notes', label: 'Notes', type: 'text' },
+          { name: 'state', label: 'Progress', readonly: true },
+          { name: 'certificate_count', label: 'Certificates Recorded', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'requested_at', label: 'Requested At', readonly: true }
+        ] }
+    ]
+  },
+
+  'M06-form-restore-test': {
+    kind: 'model_form',
+    model: 'fix.data.backup.test',
+    title: 'Restore Test',
+    back: 'M06-restore-tests',
+    sections: [
+      { title: 'Restore Test with Evidence (FR-DTS-013 / AUT-DTS-12)',
+        note: 'Restore real data from the backup and say what was restored. A passed test needs its evidence (the restore report or a screenshot of the restored data): an untested backup is an unproven backup. Saving rolls the plan’s next test date forward; a test cannot be edited afterwards.',
+        fields: [
+          { name: 'plan_id', required: true, label: 'Backup Plan',
+            emptyNote: 'No backup plan yet. Add one with + New Backup Plan.' },
+          { name: 'tested_at', required: true, label: 'Tested At' },
+          { name: 'result', required: true, label: 'Result', choices: [['passed', 'Passed'], ['partial', 'Partial'], ['failed', 'Failed']] },
+          { name: 'restored_gb', label: 'Restored (GB)' },
+          { name: 'scope_tested', label: 'What Was Restored (scope)', type: 'text' },
+          { name: 'evidence_attachment_id', label: 'Restore Evidence (report, screenshot)' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'tested_by', label: 'Tested By', readonly: true }
+        ] }
+    ]
+  },
+
+  'M06-form-backup-run': {
+    kind: 'model_form',
+    model: 'fix.data.backup.run',
+    title: 'Backup Job Run',
+    back: 'M06-backup-runs',
+    status: { field: 'outcome', labels: { success: 'Succeeded', partial: 'With Warnings', failed: 'Failed', missed: 'Missed' } },
+    sections: [
+      { title: 'Backup Job Outcome (FR-DTS-012 / AUT-DTS-11)',
+        note: 'Record each job the customer’s plan ran, or missed. A failed or warning run needs its error reference or what went wrong. A second failed or missed run in a row raises an incident to the plan owner. A run cannot be edited afterwards.',
+        fields: [
+          { name: 'plan_id', required: true, label: 'Backup Plan',
+            emptyNote: 'No backup plan yet. Add one with + New Backup Plan.' },
+          { name: 'started_at', required: true, label: 'Job Started' },
+          { name: 'ended_at', label: 'Job Ended' },
+          { name: 'outcome', required: true, label: 'Outcome' },
+          { name: 'transferred_gb', label: 'Data Backed Up (GB)' },
+          { name: 'error_ref', label: 'Error / Alert Reference' },
+          { name: 'notes', label: 'Notes', type: 'text' },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
+          { name: 'incident_raised', label: 'Incident Raised', readonly: true }
+        ] }
+    ]
+  }
+});
+
 export const FORM_CHIPS = {
   'M06:Recovery Case': 'M06-form-case',
   'M06:Media Intake (sealed)': 'M06-form-media',
@@ -861,6 +1100,13 @@ export const FORM_CHIPS = {
   'M06:Secure Purge': 'M06-form-purge',
   'M06:Backup Plan': 'M06-form-backup',
   'M06:Named Z4 Staff Assignment': 'M06-form-staff',
+  /* M06 capture pass 2 (2026-11-18) */
+  'M06:Staff Confidentiality Undertaking': 'M06-form-undertaking',
+  'M06:Retention Hold': 'M06-form-retention-hold',
+  'M06:Recovered Data by File Type': 'M06-form-inventory-line',
+  'M06:Wipe Request': 'M06-form-wipe-request',
+  'M06:Restore Test': 'M06-form-restore-test',
+  'M06:Backup Job Run': 'M06-form-backup-run',
   'M06:__by_model__': {
     'fix.data.recovery.case': 'M06-form-case',
     'fix.data.media.unit': 'M06-form-media',
@@ -869,7 +1115,13 @@ export const FORM_CHIPS = {
     'fix.data.recovery.attempt': 'M06-form-attempt',
     'fix.data.cleanroom.slot': 'M06-form-cleanroom',
     'fix.data.evaluation': 'M06-form-eval',
-    'fix.data.backup.plan': 'M06-form-backup'
+    'fix.data.backup.plan': 'M06-form-backup',
+    'fix.data.confidentiality.undertaking': 'M06-form-undertaking',
+    'fix.data.retention.hold': 'M06-form-retention-hold',
+    'fix.data.recovered.inventory': 'M06-form-inventory-line',
+    'fix.data.wipe.request': 'M06-form-wipe-request',
+    'fix.data.backup.test': 'M06-form-restore-test',
+    'fix.data.backup.run': 'M06-form-backup-run'
   },
   'M06:__by_screen__': {
     'M06-cases': 'M06-form-case',
@@ -880,7 +1132,13 @@ export const FORM_CHIPS = {
     'M06-attempts': 'M06-form-attempt',
     'M06-cleanroom': 'M06-form-cleanroom',
     'M06-eval': 'M06-form-eval',
-    'M06-backup': 'M06-form-backup'
+    'M06-backup': 'M06-form-backup',
+    'M06-undertakings': 'M06-form-undertaking',
+    'M06-retention-holds': 'M06-form-retention-hold',
+    'M06-inventory-lines': 'M06-form-inventory-line',
+    'M06-wipe-requests': 'M06-form-wipe-request',
+    'M06-restore-tests': 'M06-form-restore-test',
+    'M06-backup-runs': 'M06-form-backup-run'
   }
 };
 

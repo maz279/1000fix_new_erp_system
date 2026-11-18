@@ -1245,9 +1245,13 @@ class FixDataBackupPlan(models.Model):
                 _logger.exception("M06 restore-test reminder failed for plan %s", plan.id)
         return notified
 
-    def action_log_test(self, result="passed", restored_gb=0.0, notes=""):
-        """Record a restore test; the next due date rolls forward by the
-        plan's test frequency. Fail closed on an unknown result."""
+    def action_log_test(
+        self, result="passed", restored_gb=0.0, notes="", evidence_attachment_id=None, scope=None
+    ):
+        """Record a restore test. The test record rolls the plan's next due
+        date forward and publishes the event (M06 capture pass 2: the restore
+        test is also captured on its own form, with its scope and evidence;
+        a passed test needs the evidence). Fail closed on an unknown result."""
         if result not in ("passed", "partial", "failed"):
             raise UserError("A restore test result is one of: passed, partial, failed")
         for plan in self:
@@ -1257,16 +1261,11 @@ class FixDataBackupPlan(models.Model):
                     "result": result,
                     "restored_gb": float(restored_gb or 0.0),
                     "notes": notes or False,
+                    "evidence_attachment_id": evidence_attachment_id or False,
+                    "scope_tested": scope or False,
                 }
             )
-            plan.next_test_due = date.today() + timedelta(days=plan.test_frequency_days or 90)
-            publish(
-                self.env,
-                "data_case.backup_test_logged",
-                "fix.data.backup.plan",
-                plan.id,
-                {"result": result, "restored_gb": float(restored_gb or 0.0)},
-            )
+        return True
 
 
 class FixDataBackupTest(models.Model):

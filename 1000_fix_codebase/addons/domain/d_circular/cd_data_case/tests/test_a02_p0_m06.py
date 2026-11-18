@@ -94,6 +94,16 @@ def m6(odoo_env):
             **vals,
         }
         case = env[CASE].with_user(tech).create(vals)
+        # M06 capture pass 2 (BRU-DTS-12): undertakings before access
+        for person in (tech, custodian_user):
+            env["fix.data.confidentiality.undertaking"].with_user(person).create(
+                {
+                    "case_id": case.id,
+                    "undertaking_type": "staff",
+                    "user_id": person.id,
+                    "acknowledged": True,
+                }
+            )
         if staffed:
             # A02 audit M06-P2: Z4 work is for the case's named staff
             case.action_assign_staff(technician=tech, custodian=custodian_user)

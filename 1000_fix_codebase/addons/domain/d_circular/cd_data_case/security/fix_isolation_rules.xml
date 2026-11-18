@@ -19,6 +19,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_data_backup_run_company" model="ir.rule">
+        <field name="name">fix.data.backup.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_backup_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_backup_run_operating_unit" model="ir.rule">
+        <field name="name">fix.data.backup.run: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_backup_run"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_data_backup_test_company" model="ir.rule">
         <field name="name">fix.data.backup.test: allowed companies</field>
         <field name="model_id" ref="model_fix_data_backup_test"/>
@@ -32,6 +43,17 @@
     <record id="rule_fix_data_cleanroom_slot_operating_unit" model="ir.rule">
         <field name="name">fix.data.cleanroom.slot: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_data_cleanroom_slot"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_confidentiality_undertaking_company" model="ir.rule">
+        <field name="name">fix.data.confidentiality.undertaking: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_confidentiality_undertaking"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_confidentiality_undertaking_operating_unit" model="ir.rule">
+        <field name="name">fix.data.confidentiality.undertaking: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_confidentiality_undertaking"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
@@ -68,6 +90,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_data_recovered_inventory_company" model="ir.rule">
+        <field name="name">fix.data.recovered.inventory: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_recovered_inventory"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_recovered_inventory_operating_unit" model="ir.rule">
+        <field name="name">fix.data.recovered.inventory: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_recovered_inventory"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_data_recovery_attempt_company" model="ir.rule">
         <field name="name">fix.data.recovery.attempt: allowed companies</field>
         <field name="model_id" ref="model_fix_data_recovery_attempt"/>
@@ -90,6 +123,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_data_retention_hold_company" model="ir.rule">
+        <field name="name">fix.data.retention.hold: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_retention_hold"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_retention_hold_operating_unit" model="ir.rule">
+        <field name="name">fix.data.retention.hold: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_retention_hold"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_data_wipe_certificate_company" model="ir.rule">
         <field name="name">fix.data.wipe.certificate: allowed companies</field>
         <field name="model_id" ref="model_fix_data_wipe_certificate"/>
@@ -98,6 +142,17 @@
     <record id="rule_fix_data_wipe_certificate_operating_unit" model="ir.rule">
         <field name="name">fix.data.wipe.certificate: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_data_wipe_certificate"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_data_wipe_request_company" model="ir.rule">
+        <field name="name">fix.data.wipe.request: allowed companies</field>
+        <field name="model_id" ref="model_fix_data_wipe_request"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_data_wipe_request_operating_unit" model="ir.rule">
+        <field name="name">fix.data.wipe.request: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_data_wipe_request"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
