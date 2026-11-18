@@ -11,6 +11,13 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_country_onboarding" model="ir.sequence">
+            <field name="name">Country Onboarding Ref</field>
+            <field name="code">fix.country.onboarding</field>
+            <field name="prefix">ONB/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
         <record id="seq_fix_nil_return" model="ir.sequence">
             <field name="name">Nil-Return Declaration Ref</field>
             <field name="code">fix.nil.return</field>

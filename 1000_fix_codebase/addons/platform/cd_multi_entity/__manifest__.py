@@ -15,10 +15,13 @@ Owns:
 - fix.entity.localisation (BD address formats, BIN/TIN, Mushak statutory calendar)
 - fix.nil.return.generator (Statutory nil-return automation for newly registered entities)
 - Concrete Bangladesh country-pack loader on M30's fix.country.pack interface
+- M65 capture audit (2026-11-18): fix.entity.jurisdiction (entity <-> pack
+  assignment), fix.jurisdiction.residency.rule, fix.country.onboarding,
+  fix.translation.entry (reviewed translations), fix.rendering.verification
 
 CD items: CD-M65-01, CD-M65-02, CD-M65-03 per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",

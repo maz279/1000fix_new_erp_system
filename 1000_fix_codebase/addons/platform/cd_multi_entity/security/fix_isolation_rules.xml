@@ -13,6 +13,16 @@
         <field name="model_id" ref="model_fix_consolidation_book"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_country_onboarding_company" model="ir.rule">
+        <field name="name">fix.country.onboarding: allowed companies</field>
+        <field name="model_id" ref="model_fix_country_onboarding"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_entity_jurisdiction_company" model="ir.rule">
+        <field name="name">fix.entity.jurisdiction: allowed companies</field>
+        <field name="model_id" ref="model_fix_entity_jurisdiction"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_intercompany_rule_company" model="ir.rule">
         <field name="name">fix.intercompany.rule: allowed companies</field>
         <field name="model_id" ref="model_fix_intercompany_rule"/>
@@ -29,6 +39,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_jurisdiction_residency_rule_company" model="ir.rule">
+        <field name="name">fix.jurisdiction.residency.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_jurisdiction_residency_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_nil_return_generator_company" model="ir.rule">
         <field name="name">fix.nil.return.generator: allowed companies</field>
         <field name="model_id" ref="model_fix_nil_return_generator"/>
@@ -40,9 +55,19 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_rendering_verification_company" model="ir.rule">
+        <field name="name">fix.rendering.verification: allowed companies</field>
+        <field name="model_id" ref="model_fix_rendering_verification"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_transfer_price_rate_company" model="ir.rule">
         <field name="name">fix.transfer.price.rate: allowed companies</field>
         <field name="model_id" ref="model_fix_transfer_price_rate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_translation_entry_company" model="ir.rule">
+        <field name="name">fix.translation.entry: allowed companies</field>
+        <field name="model_id" ref="model_fix_translation_entry"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
