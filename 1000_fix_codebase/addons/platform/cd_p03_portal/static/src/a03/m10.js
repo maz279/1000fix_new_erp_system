@@ -1128,7 +1128,8 @@ export const FORM_CHIPS = {
     'M10-tiers': 'M10-form-tier',
     'M10-form-tier': 'M10-form-tier',
     'M10-enrol': 'M10-form-account',
-    'M10-wallet': 'M10-form-wallet-txn',
+    // M10-wallet rows are wallets: a row opens the wallet itself, not a new
+    // transaction (the page's + New still posts a Wallet Transaction).
     'M10-wallet-txns': 'M10-form-wallet-txn',
     'M10-memberships': 'M10-form-membership',
     'M10-benefits': 'M10-form-benefit',
