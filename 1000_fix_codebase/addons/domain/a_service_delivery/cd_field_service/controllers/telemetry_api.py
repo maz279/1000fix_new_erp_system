@@ -33,6 +33,9 @@ class TelemetryApiController(http.Controller):
         lon = kwargs.get("lon")
         if lat is None or lon is None:
             return _error("bad_request", "lat and lon are required")
+        # BRU-FSM-05: during a break or off duty no position is kept at all
+        if request.env["fix.tracking.pause"]._fix_paused(employee.id):
+            return {"recorded": False, "reason": "tracking_paused"}
         ping = request.env["fix.technician.location"].record_ping(
             technician_id=employee.id,
             lat=float(lat),

@@ -67,6 +67,9 @@ class TestOfflineSyncSuite:
         env_dict = {
             "fix.offline.idempotency.ledger": mock_ledger,
             "fix.field.order": mock_orders_model,
+            # T-11 device check (M02 capture audit 2026-11-18): an enrolled /
+            # unknown device is not refused; refusals are tested live
+            "fix.technician.device": MagicMock(**{"_fix_sync_refusal.return_value": None}),
         }
         mock_env = MagicMock()
         mock_env.__getitem__.side_effect = lambda key: env_dict[key]
@@ -129,6 +132,9 @@ class TestOfflineSyncSuite:
         env_dict = {
             "fix.offline.idempotency.ledger": mock_ledger,
             "fix.field.order": mock_orders_model,
+            # T-11 device check (M02 capture audit 2026-11-18): an enrolled /
+            # unknown device is not refused; refusals are tested live
+            "fix.technician.device": MagicMock(**{"_fix_sync_refusal.return_value": None}),
         }
         mock_env = MagicMock()
         mock_env.__getitem__.side_effect = lambda key: env_dict[key]

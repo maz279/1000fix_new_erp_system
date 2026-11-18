@@ -1905,16 +1905,31 @@ export class P03Workspace extends Component {
             return;
         }
         const order = gl.fsSuggest.order;
+        // M02 capture audit (2026-11-18): every dispatch is a Dispatch
+        // Decision, which keeps what the engine ranked first. Sending anyone
+        // ranked lower needs the override reason (BRU-FSM-04); the server
+        // refuses it without one, so ask here rather than fail on save.
+        const values = { field_order_id: order.id, technician_id: pickId };
+        const top = gl.fsSuggest.rows[0];
+        const picked = gl.fsSuggest.rows.find((r) => r.employee_id === pickId);
+        if (top && picked && picked.score < top.score) {
+            const answer = window.prompt(
+                order.name + " — " + this.t("Override reason (customer_preference, workload_balance, skill_detail, proximity_traffic, parts_on_van, continuity or other), then notes")
+            );
+            if (answer === null) return;
+            const text = answer.trim();
+            const cut = text.indexOf(" ");
+            values.override_reason = cut < 0 ? text : text.slice(0, cut);
+            values.override_notes = cut < 0 ? "" : text.slice(cut + 1).trim();
+        }
         gl.fsBusy = order.id;
         try {
-            const res = await this.rpc("/p03/model/action", {
-                model: "fix.field.order",
-                ids: [order.id],
-                method: "action_dispatch",
-                kwargs: { technician_id: pickId },
+            const res = await this.rpc("/p03/model/write", {
+                model: "fix.dispatch.decision",
+                record_id: false,
+                values,
             });
-            if (res && res.success) {
-                const picked = gl.fsSuggest.rows.find((r) => r.employee_id === pickId);
+            if (res && res.id) {
                 this.showToast(order.name + " → " + (picked ? picked.name : this.t("technician")) + " ✓");
                 this.fsCloseSuggest();
                 await this.loadGlData();
@@ -1968,8 +1983,8 @@ export class P03Workspace extends Component {
         if (!me || tech !== me) return null;
         const forward = {
             draft: ["action_request_dispatch", "Submit for Dispatch"],
-            pending_dispatch: ["action_dispatch", "Dispatch"],
-            declined: ["action_dispatch", "Dispatch"],
+            // pending / declined orders are dispatched from the board's
+            // suggestion modal, which records the Dispatch Decision
             dispatched: ["action_accept", "Accept"],
             accepted: ["action_start_travel", "Start Travel"],
             en_route: ["action_arrive", "Mark Arrival"],

@@ -70,17 +70,19 @@ console.log(JSON.stringify({ subs, screens: Object.fromEntries(
 # 'system': written by the technician app or a workflow - typing it in would
 # fabricate evidence, so the page offers nothing and says where it comes from.
 CAPTURE = {
-    "1": "form",  # a new field order enters the assignment queue
+    "1": "form",  # Dispatch Decision with the override reason (BRU-FSM-04)
     "2": "form",  # Emergency Reschedule (pick the order first)
     "3": "form",  # Route Plan
     "4": "form",  # Zone Geofence + Dispatch Zone (M30)
     "5": "form",  # Field Work Order + Crew Assignment
-    "6": "form",  # Technician Work Order
-    "7": "system",  # offline command journal
-    "8": "system",  # GPS pings
-    "9": "system",  # signature / photos from the technician app
+    "6": "form",  # Technician Work Order + Technician Device (T-11)
+    # second pass (2026-11-18): the spec names a person-entered record on
+    # each of these; the streams themselves stay untypeable (below)
+    "7": "form",  # Offline Conflict Review (AUT-FSM-06)
+    "8": "form",  # Tracking Pause (BRU-FSM-05)
+    "9": "form",  # Failed Visit Report with site evidence (BRU-FSM-09)
     "10": "form",  # Van Stock Reconciliation (M15)
-    "11": "actions",  # Record Collection / Hand Over Cash
+    "11": "form",  # Field Cash Reconciliation (BRU-FSM-07)
     "12": "form",  # Lone-Worker Check-In (M59)
 }
 
@@ -236,3 +238,89 @@ def test_the_geofence_form_asks_for_the_shape_the_model_checks(m02):
     text = m02["screens"]["M02-form-zone"]["text"]
     assert "GeoJSON" not in text
     assert "radius_m" in text and "points" in text
+
+
+# --- second capture pass (2026-11-18) ----------------------------------------
+
+# page -> the record its "+ New" captures (the spec's record for that page)
+NEW_RECORD = {
+    "1": "fix.dispatch.decision",
+    "7": "fix.offline.conflict.review",
+    "8": "fix.tracking.pause",
+    "9": "fix.field.visit.exception",
+    "11": "fix.field.cash.recon",
+}
+CAPTURE_MODELS = {*NEW_RECORD.values(), "fix.technician.device"}
+
+
+@pytest.mark.parametrize("no", sorted(NEW_RECORD, key=int))
+def test_the_new_button_captures_the_pages_own_record(m02, no):
+    sub = next(s for s in m02["subs"] if s["no"] == no)
+    assert sub["create"], "page %s has no + New" % no
+    target = m02["screens"][sub["create"]["screen"]]
+    assert target["kind"] == "model_form" and target["model"] == NEW_RECORD[no]
+    # and the page lists what it captured
+    assert any(lst["model"] == NEW_RECORD[no] for lst in sub["lists"]), no
+
+
+def test_device_enrolment_is_on_the_technician_app_and_sync_pages(m02):
+    for no in ("6", "7"):
+        sub = next(s for s in m02["subs"] if s["no"] == no)
+        assert "fix.technician.device" in [f["model"] for f in sub["forms"] if f["opens"]], no
+
+
+def test_the_streams_stay_untypeable(m02):
+    """GPS pings, the offline journal, panic alerts and the customer's sign-off
+    are evidence the technician app writes: still no + New on their lists."""
+    for sid in ("M02-offline", "M02-technician-location", "M02-panic", "M02-evidence"):
+        assert m02["screens"][sid]["create"] is False, sid
+    assert m02["screens"]["M02-form-technician-location"]["create"] is False
+
+
+def test_the_capture_forms_send_only_what_a_person_decides(m02):
+    """What the server measures or decides is read-only on the form."""
+    ro = {
+        "M02-form-decision": {"recommended_technician_id", "selected_rank", "is_override"},
+        "M02-form-cashrecon": {
+            "cash_collected",
+            "cash_handed_over",
+            "cash_outstanding",
+            "variance",
+            "order_count",
+        },  # fmt: skip
+        "M02-form-device": {"state", "last_sync_at"},
+    }
+    for sid, names in ro.items():
+        fields = dict(m02["screens"][sid]["fields"])
+        assert all(fields[n] is True for n in names), (sid, names)
+
+
+def _surfaces():
+    tree = ast.parse(CONTROLLER.read_text(encoding="utf-8"))
+    node = next(
+        n.value
+        for n in tree.body
+        if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "SURFACES"
+    )
+    return ast.literal_eval(node)
+
+
+def test_the_workspace_never_dispatches_without_a_decision():
+    """BRU-FSM-04: a bare action_dispatch would skip the recommendation and
+    the override reason, so it is off the whitelist and the board saves a
+    fix.dispatch.decision instead."""
+    surfaces = _surfaces()
+    assert "action_dispatch" not in surfaces["fix.field.order"]["actions"]
+    assert set(surfaces) >= CAPTURE_MODELS
+    engine = (SRC / "p03_workspace.js").read_text(encoding="utf-8")
+    body = engine[engine.index("async fsConfirmDispatch()") :]
+    body = body[: body.index("    /** Field-order lifecycle button")]
+    assert '"fix.dispatch.decision"' in body and "action_dispatch" not in body
+    assert "override_reason" in body
+
+
+def test_capture_list_buttons_are_whitelisted(m02):
+    surfaces = _surfaces()
+    for sid in ("M02-devices", "M02-pauses", "M02-field-cash"):
+        scr = m02["screens"][sid]
+        assert set(scr["actions"]) <= surfaces[scr["model"]]["actions"], sid

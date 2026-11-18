@@ -62,7 +62,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Dispatch Performance by Zone', 'Travel-Time Analysis', 'Jobs per Technician', 'Field Exception Summary', 'Van Stock Variance', 'On-Site Payment Reconciliation', 'Technician Utilization & Travel Time', 'First-Time Fix Rate by Skill', 'Geofence Breach & Delay Log'],
-  forms: ['Field Work Order', 'Field Exception Report', 'Crew Assignment', 'Route Plan', 'Emergency Reschedule Request', 'Zone Geofence', 'Dispatch Zone', 'Technician Work Order', 'Van Stock Reconciliation', 'Lone-Worker Check-In', 'Field Incident Report'],
+  forms: ['Field Work Order', 'Field Exception Report', 'Crew Assignment', 'Route Plan', 'Emergency Reschedule Request', 'Zone Geofence', 'Dispatch Zone', 'Technician Work Order', 'Van Stock Reconciliation', 'Lone-Worker Check-In', 'Field Incident Report', 'Dispatch Decision', 'Technician Device', 'Offline Conflict Review', 'Tracking Pause', 'Failed Visit Report', 'Field Cash Reconciliation'],
   cross: ['M01 order → work order', 'M55 availability & roster', 'M22 certification gate', 'M03 logistics handover', 'M17 asset context'],
   freg: {
     src: 106,
@@ -75,19 +75,27 @@ export const MODULE = {
      * write it (Dispatch Board, Record Collection, Decline). Telemetry (GPS,
      * the offline journal) and field evidence stay capture-free on purpose:
      * typing them in would fabricate tracking or a customer's sign-off.
-     * `domain` stays the LAST key (the mapping guard parses it there). */
+     * `domain` stays the LAST key (the mapping guard parses it there).
+     *
+     * Second pass (2026-11-18): pages 1, 7, 8, 9 and 11 still captured
+     * nothing a person decides. The spec names a record on each that the
+     * estate never had: the dispatch decision and its override reason
+     * (BRU-FSM-04), a supervisor's conflict review (AUT-FSM-06), a tracking
+     * pause (BRU-FSM-05), a failed visit with site evidence (BRU-FSM-09)
+     * and the technician's daily cash reconciliation (BRU-FSM-07); page 6
+     * gains device enrolment (T-11). The streams stay untypeable. */
     sub: [
-      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-dispatch', 'M02-unassigned', 'M02-exceptions'], reports: ['Field Exception Summary', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order'], create: false, domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
+      ['1', 'Candidate Scoring & Assignment', 14, { model: 'fix.field.order', cols: ['name', 'zone_id', 'priority', 'scheduled_start', 'technician_id'], screens: ['M02-dispatch', 'M02-unassigned', 'M02-decisions', 'M02-exceptions'], reports: ['Field Exception Summary', 'First-Time Fix Rate by Skill'], forms: ['Dispatch Decision', 'Field Work Order'], create: 'M02-form-decision', domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] }],
       ['2', 'Dispatch Board', 10, { model: 'fix.field.order', cols: ['name', 'technician_id', 'state', 'sla_deadline', 'dispatched_at'], screens: ['M02-dispatch', 'M02-sla-risk', 'M02-redispatch'], reports: ['Dispatch Performance by Zone'], forms: ['Emergency Reschedule Request'], create: 'M02-form-reschedule', domain: [['state', 'in', ['dispatched', 'accepted', 'en_route', 'arrived', 'in_progress']]] }],
       ['3', 'Route Optimisation & Re-optimisation', 9, { model: 'fix.field.route', cols: ['name', 'technician_id', 'date', 'total_distance_km', 'improvement_pct'], screens: ['M02-routes'], reports: ['Travel-Time Analysis'], forms: ['Route Plan'] }],
       ['4', 'Territory / Zone / Geofence', 8, { model: 'fix.geofence', cols: ['name', 'zone_id', 'geofence_type', 'active'], screens: ['M02-zones', 'M02-territory'], reports: ['Geofence Breach & Delay Log', 'Dispatch Performance by Zone'], forms: ['Zone Geofence', 'Dispatch Zone'] }],
       ['5', 'Work-Order Lifecycle', 9, { model: 'fix.field.order', cols: ['name', 'state', 'dispatched_at', 'arrived_at', 'completed_at'], screens: ['M02-record', 'M02-wo', 'M02-crews', 'M02-exceptions'], reports: ['Jobs per Technician', 'First-Time Fix Rate by Skill'], forms: ['Field Work Order', 'Crew Assignment', 'Field Exception Report'] }],
-      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo', 'M02-fieldparts'], reports: ['Technician Utilization & Travel Time', 'Jobs per Technician'], forms: ['Technician Work Order'] }],
-      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline'], reports: [], forms: [], create: false }],
-      ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location'], reports: ['Geofence Breach & Delay Log', 'Travel-Time Analysis'], forms: [], create: false }],
-      ['9', 'Field Evidence Capture', 6, { model: 'fix.field.order', cols: ['name', 'technician_id', 'customer_signature_signer', 'customer_otp_verified', 'post_work_photo_attachment_id'], screens: ['M02-evidence'], reports: ['Field Exception Summary'], forms: [], create: false, domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]] }],
+      ['6', 'Technician Mobile App', 18, { model: 'fix.work.order', cols: ['name', 'technician_id', 'sequence', 'state', 'start_time'], screens: ['M02-day', 'M02-wo', 'M02-fieldparts', 'M02-devices'], reports: ['Technician Utilization & Travel Time', 'Jobs per Technician'], forms: ['Technician Work Order', 'Technician Device'] }],
+      ['7', 'Offline Sync & Conflict Resolution', 7, { model: 'fix.offline.idempotency.ledger', cols: ['command_id', 'technician_id', 'operation', 'status', 'applied_at'], screens: ['M02-offline', 'M02-conflict-reviews', 'M02-devices'], reports: [], forms: ['Offline Conflict Review', 'Technician Device'], create: 'M02-form-conflict' }],
+      ['8', 'GPS Tracking & ETA', 7, { model: 'fix.technician.location', cols: ['technician_id', 'timestamp', 'latitude', 'longitude', 'speed_kmh'], screens: ['M02-map', 'M02-technician-location', 'M02-pauses'], reports: ['Geofence Breach & Delay Log', 'Travel-Time Analysis'], forms: ['Tracking Pause'], create: 'M02-form-pause' }],
+      ['9', 'Field Evidence Capture', 6, { model: 'fix.field.order', cols: ['name', 'technician_id', 'customer_signature_signer', 'customer_otp_verified', 'post_work_photo_attachment_id'], screens: ['M02-evidence', 'M02-failed-visits'], reports: ['Field Exception Summary'], forms: ['Failed Visit Report'], create: 'M02-form-failedvisit', domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]] }],
       ['10', 'Van Stock', 5, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'state'], screens: ['M02-vanstock', 'M02-fieldparts'], reports: ['Van Stock Variance'], forms: ['Van Stock Reconciliation'], create: 'M15-form-recon' }],
-      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-collect', 'M02-fieldpay', 'M02-cashrec'], reports: ['On-Site Payment Reconciliation'], forms: [], create: false, domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
+      ['11', 'On-Site Payment', 6, { model: 'fix.field.order', cols: ['name', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'customer_otp_verified'], screens: ['M02-collect', 'M02-field-cash', 'M02-fieldpay', 'M02-cashrec'], reports: ['On-Site Payment Reconciliation'], forms: ['Field Cash Reconciliation'], create: 'M02-form-cashrecon', domain: [['onsite_payment_method', 'in', ['cash', 'bkash', 'nagad', 'sslcommerz', 'corporate_credit']]] }],
       ['12', 'Field Safety', 7, { model: 'fix.hse.loneworker', cols: ['name', 'employee_id', 'field_order_id', 'checkin_time', 'expected_end', 'state'], screens: ['M02-loneworker', 'M02-panic'], reports: [], forms: ['Lone-Worker Check-In', 'Field Incident Report'], create: 'M59-form-loneworker', domain: [['field_order_id', '!=', false]] }]
     ]
   }
@@ -178,9 +186,9 @@ export const SCREENS = {
    * absence (no safety-event store yet — the P02 app stream is the source). */
   'M02-day': { kind: 'table_report', module: 'M02', report: 'day_queue', title: 'Day / Job Queue Preview', period: false },
   'M02-offline': { kind: 'model_list', model: 'fix.offline.idempotency.ledger', create: false,
-    cols: ['command_id', 'technician_id', 'device_id', 'model', 'operation', 'status', 'conflict_reason', 'client_created_at', 'applied_at'],
+    cols: ['command_id', 'technician_id', 'device_id', 'model', 'operation', 'status', 'review_state', 'conflict_reason', 'client_created_at', 'applied_at'],
     stateField: 'status',
-    empty: 'No offline command received yet. The technician app writes one entry per action it replays after working offline, with its result and any conflict: the journal is audit evidence and cannot be typed in.' },
+    empty: 'No offline command received yet. The technician app writes one entry per action it replays after working offline, with its result and any conflict: the journal is audit evidence and cannot be typed in. A rejected or conflicted entry is reviewed with + New Conflict Review.' },
   /* Field evidence is the signature, photos and job sheet linked to a FIELD
    * order by the technician app's evidence channel (bound to the assigned
    * technician). This list used to read fix.workshop.evidence - M31's bench
@@ -550,7 +558,7 @@ export const SCREENS = {
    * here, or editing a ping's coordinates, fabricates tracking (2026-11-12). */
   'M02-technician-location': { kind: 'model_list', model: 'fix.technician.location', create: false,
     cols: ['name', 'company_id', 'operating_unit_id', 'name_bn', 'technician_id', 'latitude', 'longitude', 'is_mock_location', 'gnss_hdop'],
-    empty: 'No GPS ping received yet. Pings arrive from the technician mobile app while a technician is on duty; they are tracking evidence and cannot be typed in.' },
+    empty: 'No GPS ping received yet. Pings arrive from the technician mobile app while a technician is on duty; they are tracking evidence and cannot be typed in. A break or the end of duty is recorded with + New Tracking Pause: no position is kept while it runs.' },
 
   'M02-form-technician-location': {
     kind: 'model_form',
@@ -579,6 +587,190 @@ export const SCREENS = {
           { name: 'gnss_hdop', label: "GNSS HDOP Precision", readonly: true },
           { name: 'speed_kmh', label: "Speed (km/h)", readonly: true },
           { name: 'battery_pct', label: "Device Battery (%)", readonly: true }
+        ] }
+    ]
+  },
+
+  /* ============ CAPTURE REGISTERS (second capture pass, 2026-11-18) =====
+   * Each list below is the record one sub-module page now captures. The
+   * model checks who may write it; the lists only show and call it. */
+  'M02-decisions': { kind: 'model_list', title: 'Dispatch Decisions', title_bn: 'ডিসপ্যাচ সিদ্ধান্ত', model: 'fix.dispatch.decision',
+    cols: ['name', 'field_order_id', 'technician_id', 'recommended_technician_id', 'selected_rank', 'is_override', 'override_reason', 'decided_by_id', 'decided_at'],
+    empty: 'No dispatch decided here yet. + New Dispatch Decision sends a waiting field order to a technician and keeps what the engine ranked first; sending anyone else needs the override reason (BRU-FSM-04).' },
+  'M02-devices': { kind: 'model_list', title: 'Technician Devices', title_bn: 'টেকনিশিয়ান ডিভাইস', model: 'fix.technician.device', stateField: 'state',
+    cols: ['device_uid', 'employee_id', 'platform', 'device_model', 'app_version', 'state', 'enrolled_at', 'last_sync_at', 'revoke_reason', 'revoked_at'],
+    actions: [
+      { m: 'action_revoke', l: 'Revoke Device (dispatcher)', ask: 'Reason (lost, stolen, departed, replaced or compromised), then any notes', kwarg: 'revoke', states: ['enrolled'] }
+    ],
+    empty: 'No device enrolled. A dispatcher enrols each technician phone with + New Technician Device; a revoked phone can no longer sync (T-11).' },
+  'M02-conflict-reviews': { kind: 'model_list', title: 'Conflict Reviews', title_bn: 'দ্বন্দ্ব পর্যালোচনা', model: 'fix.offline.conflict.review',
+    cols: ['name', 'ledger_id', 'technician_id', 'operation', 'entry_status', 'decision', 'reviewed_by_id', 'reviewed_at'],
+    empty: 'No conflict reviewed yet. A rejected or conflicted replay in the offline journal is reviewed with + New Conflict Review, by someone other than the technician who sent it.' },
+  'M02-pauses': { kind: 'model_list', title: 'Tracking Pauses', title_bn: 'ট্র্যাকিং বিরতি', model: 'fix.tracking.pause', stateField: 'state',
+    cols: ['name', 'employee_id', 'reason', 'started_at', 'planned_end', 'ended_at', 'state'],
+    actions: [{ m: 'action_end', l: 'End Pause', states: ['active'] }],
+    empty: 'No tracking pause. A technician (or a dispatcher for them) records a break or the end of duty with + New Tracking Pause; no position is stored while it runs (BRU-FSM-05).' },
+  'M02-failed-visits': { kind: 'model_list', title: 'Failed Visits', title_bn: 'ব্যর্থ ভিজিট', model: 'fix.field.visit.exception',
+    cols: ['name', 'field_order_id', 'technician_id', 'exception_type', 'follow_up', 'distance_from_site_m', 'recorded_at'],
+    empty: 'No failed visit. The technician sent to the site records one with + New Failed Visit Report, with a photo and the position it was taken at (BRU-FSM-09); the order returns to the dispatch queue.' },
+  'M02-field-cash': { kind: 'model_list', title: 'Field Cash Reconciliation', title_bn: 'ফিল্ড নগদ মিলকরণ', model: 'fix.field.cash.recon', stateField: 'state',
+    cols: ['name', 'employee_id', 'recon_date', 'order_count', 'cash_collected', 'cash_handed_over', 'cash_outstanding', 'counted_amount', 'variance', 'state', 'confirmed_by_id'],
+    actions: [
+      { m: 'action_submit', l: 'Submit Count', states: ['draft'] },
+      { m: 'action_confirm', l: 'Confirm (dispatcher / finance)', states: ['submitted'] }
+    ],
+    empty: 'No field cash day reconciled. + New Field Cash Reconciliation takes one technician\'s day: the cash their completed jobs collected and what reached a branch shift come from the jobs; the technician counts what they still hold, and someone else confirms (BRU-FSM-07).' },
+
+  'M02-form-decision': {
+    kind: 'model_form',
+    model: 'fix.dispatch.decision',
+    title: 'Dispatch Decision',
+    back: 'M02-decisions',
+    tabs: [
+      { id: 'send', label: '1. Order & Technician', bn: '১. অর্ডার ও টেকনিশিয়ান', icon: '🚐', badge: '2' },
+      { id: 'override', label: '2. Override Reason', bn: '২. ব্যতিক্রমের কারণ', icon: '📝', badge: '2' },
+      { id: 'engine', label: '3. What The Engine Ranked', bn: '৩. সুপারিশ', icon: '📊', badge: '6' }
+    ],
+    sections: [
+      { tab: 'send', title: 'Order To Dispatch',
+        note: 'Saving dispatches the order to this technician, through the same checks as the dispatch board: availability (M55), certification (M22) and the vehicle gate (M46). The decision cannot be edited afterwards.',
+        fields: [
+          { name: 'field_order_id', required: true, label: 'Field Order (waiting for dispatch)', domain: [['state', 'in', ['draft', 'pending_dispatch', 'declined']]] },
+          { name: 'technician_id', required: true, label: 'Technician To Send' }
+        ] },
+      { tab: 'override', title: 'Override Reason (BRU-FSM-04)',
+        note: 'Needed only when the technician is not the engine\'s first choice: the save is refused without it, and the reason feeds the assignment model.',
+        fields: [
+          { name: 'override_reason', label: 'Override Reason' },
+          { name: 'override_notes', type: 'text', label: 'Override Notes (required for Other)' }
+        ] },
+      { tab: 'engine', title: 'Recommendation At The Time Of The Decision',
+        note: 'Filled on save from the suggestion engine\'s ranking.',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'recommended_technician_id', label: 'Recommended Technician', readonly: true },
+          { name: 'recommended_score', label: 'Recommended Score', readonly: true },
+          { name: 'selected_rank', label: 'Rank Of Technician Sent', readonly: true },
+          { name: 'is_override', label: 'Overrode The Recommendation', readonly: true },
+          { name: 'explanation', type: 'text', label: 'Why The Engine Recommended', readonly: true }
+        ] }
+    ]
+  },
+
+  'M02-form-device': {
+    kind: 'model_form',
+    model: 'fix.technician.device',
+    title: 'Technician Device',
+    back: 'M02-devices',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Device Enrolment (FR-FSM-064, T-11)',
+        note: 'Enrolled by a dispatcher. The Device ID is the one the technician app shows under Settings; it is sent with every sync. A lost or replaced phone is revoked on the Technician Devices list and the new one enrolled as a new device.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Technician' },
+          { name: 'device_uid', required: true, label: 'Device ID' },
+          { name: 'platform', required: true, label: 'Platform' },
+          { name: 'device_model', label: 'Handset Model' },
+          { name: 'app_version', label: 'App Version' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'last_sync_at', label: 'Last Sync', readonly: true }
+        ] }
+    ]
+  },
+
+  'M02-form-conflict': {
+    kind: 'model_form',
+    model: 'fix.offline.conflict.review',
+    title: 'Offline Conflict Review',
+    back: 'M02-conflict-reviews',
+    sections: [
+      { title: 'Journal Entry Reviewed (AUT-FSM-06)',
+        note: 'Only a replay the server rejected or applied with a conflict. The journal entry itself is evidence and does not change; this review records what was done about it. The technician who sent the command does not review it.',
+        fields: [
+          { name: 'ledger_id', required: true, label: 'Journal Entry', domain: [['status', 'in', ['rejected', 'conflict_applied']]] },
+          { name: 'decision', required: true, label: 'Decision' },
+          { name: 'notes', required: true, type: 'text', label: 'What Was Done' },
+          { name: 'technician_id', label: 'Technician', readonly: true },
+          { name: 'operation', label: 'Command', readonly: true },
+          { name: 'conflict_reason', type: 'text', label: 'Conflict / Rejection Reason', readonly: true }
+        ] }
+    ]
+  },
+
+  'M02-form-pause': {
+    kind: 'model_form',
+    model: 'fix.tracking.pause',
+    title: 'Tracking Pause',
+    back: 'M02-pauses',
+    sections: [
+      { title: 'Break Or End Of Duty (BRU-FSM-05)',
+        note: 'No position is stored from the start until the end (at most 14 hours), and the app shows that tracking is paused. A pause starts now or later: positions already recorded stay. End it early with End Pause.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Technician' },
+          { name: 'reason', required: true, label: 'Reason' },
+          { name: 'started_at', required: true, label: 'From' },
+          { name: 'planned_end', required: true, label: 'Until' }
+        ] }
+    ]
+  },
+
+  'M02-form-failedvisit': {
+    kind: 'model_form',
+    model: 'fix.field.visit.exception',
+    title: 'Failed Visit Report',
+    back: 'M02-failed-visits',
+    tabs: [
+      { id: 'visit', label: '1. Visit & Outcome', bn: '১. ভিজিট ও ফলাফল', icon: '🚪', badge: '4' },
+      { id: 'evidence', label: '2. Site Evidence', bn: '২. সাইটের প্রমাণ', icon: '📷', badge: '4' }
+    ],
+    sections: [
+      { tab: 'visit', title: 'What Happened At The Site (FR-FSM-037/038)',
+        note: 'Recorded by the technician the order was sent to, on the way or at the site. Saving returns the order to the dispatch queue for the follow-up; it cannot be edited afterwards.',
+        fields: [
+          { name: 'field_order_id', required: true, label: 'Field Order', domain: [['state', 'in', ['en_route', 'arrived', 'in_progress']]] },
+          { name: 'exception_type', required: true, label: 'What Happened' },
+          { name: 'reason', required: true, type: 'text', label: 'Details' },
+          { name: 'follow_up', required: true, label: 'Follow-Up' }
+        ] },
+      { tab: 'evidence', title: 'Geotagged Evidence (BRU-FSM-09)',
+        note: 'A photo taken at the customer\'s site, and the position it was taken at: within 1 km of the site on the order, or the save is refused.',
+        fields: [
+          { name: 'evidence_photo', required: true, type: 'binary', filename: 'evidence_photo_name', label: 'Site Photo' },
+          { name: 'evidence_photo_name', label: 'Photo File Name' },
+          { name: 'latitude', required: true, label: 'Latitude' },
+          { name: 'longitude', required: true, label: 'Longitude' }
+        ] }
+    ]
+  },
+
+  'M02-form-cashrecon': {
+    kind: 'model_form',
+    model: 'fix.field.cash.recon',
+    title: 'Field Cash Reconciliation',
+    back: 'M02-field-cash',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'day', label: '1. Technician & Count', bn: '১. টেকনিশিয়ান ও গণনা', icon: '💵', badge: '4' },
+      { id: 'jobs', label: '2. From The Jobs', bn: '২. কাজের হিসাব', icon: '📋', badge: '6' }
+    ],
+    sections: [
+      { tab: 'day', title: 'The Technician\'s Day (FR-FSM-056)',
+        note: 'One record per technician per day. Count the cash still held; a difference from the jobs needs an explanation. Submit Count and Confirm are on the Field Cash list, and the confirmer is not the technician or whoever submitted.',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Technician' },
+          { name: 'recon_date', required: true, label: 'Day' },
+          { name: 'counted_amount', label: 'Cash In Hand (Counted, BDT)' },
+          { name: 'variance_reason', type: 'text', label: 'Variance Explanation' }
+        ] },
+      { tab: 'jobs', title: 'Measured From The Day\'s Completed Cash Jobs',
+        note: 'Taken from the field orders, never typed.',
+        fields: [
+          { name: 'order_count', label: 'Cash Jobs', readonly: true },
+          { name: 'cash_collected', label: 'Cash Collected', readonly: true },
+          { name: 'cash_handed_over', label: 'Handed To A Branch Shift', readonly: true },
+          { name: 'cash_outstanding', label: 'Still With The Technician', readonly: true },
+          { name: 'variance', label: 'Variance', readonly: true },
+          { name: 'order_refs', type: 'text', label: 'Jobs Counted', readonly: true }
         ] }
     ]
   },
@@ -619,6 +811,13 @@ export const FORM_CHIPS = {
   'M02:Lone-Worker Check-In': 'M59-form-loneworker',
   /* FR-FSM-059: an accident, hazard or abuse in the field goes to M59 */
   'M02:Field Incident Report': 'M59-form-incident',
+  /* second capture pass (2026-11-18): the six capture registers */
+  'M02:Dispatch Decision': 'M02-form-decision',
+  'M02:Technician Device': 'M02-form-device',
+  'M02:Offline Conflict Review': 'M02-form-conflict',
+  'M02:Tracking Pause': 'M02-form-pause',
+  'M02:Failed Visit Report': 'M02-form-failedvisit',
+  'M02:Field Cash Reconciliation': 'M02-form-cashrecon',
   'M02:__by_model__': {
     'fix.geofence': 'M02-form-zone',
     'fix.technician.location': 'M02-form-technician-location',
@@ -627,7 +826,13 @@ export const FORM_CHIPS = {
     'fix.field.route': 'M02-form-route',
     'fix.work.order': 'M02-form-workorder',
     'fix.stock.van.recon': 'M15-form-recon',
-    'fix.hse.loneworker': 'M59-form-loneworker'
+    'fix.hse.loneworker': 'M59-form-loneworker',
+    'fix.dispatch.decision': 'M02-form-decision',
+    'fix.technician.device': 'M02-form-device',
+    'fix.offline.conflict.review': 'M02-form-conflict',
+    'fix.tracking.pause': 'M02-form-pause',
+    'fix.field.visit.exception': 'M02-form-failedvisit',
+    'fix.field.cash.recon': 'M02-form-cashrecon'
   },
   'M02:__by_screen__': {
     'M02-wo': 'M02-form-workorder',
@@ -636,7 +841,13 @@ export const FORM_CHIPS = {
     'M02-exceptions': 'M02-form-exception',
     'M02-routes': 'M02-form-route',
     'M02-sla-risk': 'M02-form-reschedule',
-    'M02-loneworker': 'M59-form-loneworker'
+    'M02-loneworker': 'M59-form-loneworker',
+    'M02-decisions': 'M02-form-decision',
+    'M02-devices': 'M02-form-device',
+    'M02-conflict-reviews': 'M02-form-conflict',
+    'M02-pauses': 'M02-form-pause',
+    'M02-failed-visits': 'M02-form-failedvisit',
+    'M02-field-cash': 'M02-form-cashrecon'
   }
 };
 
@@ -651,7 +862,13 @@ export const FORM_MODELS = {
   'M02:Dispatch Zone': 'fix.zone',
   'M02:Van Stock Reconciliation': 'fix.stock.van.recon',
   'M02:Lone-Worker Check-In': 'fix.hse.loneworker',
-  'M02:Field Incident Report': 'fix.hse.incident'
+  'M02:Field Incident Report': 'fix.hse.incident',
+  'M02:Dispatch Decision': 'fix.dispatch.decision',
+  'M02:Technician Device': 'fix.technician.device',
+  'M02:Offline Conflict Review': 'fix.offline.conflict.review',
+  'M02:Tracking Pause': 'fix.tracking.pause',
+  'M02:Failed Visit Report': 'fix.field.visit.exception',
+  'M02:Field Cash Reconciliation': 'fix.field.cash.recon'
 };
 
 /* The module's "+ New" surface: opens the canonical Dynamics 365 Create Field Work Order form */

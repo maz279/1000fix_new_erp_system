@@ -143,6 +143,11 @@ class OfflineSyncApiController(http.Controller):
 
         env = _su_env()
         device_id = kwargs.get("device_id", "DEV-UNKNOWN")
+        # T-11 (M02 capture audit 2026-11-18): a revoked device, or one
+        # enrolled to someone else, replays nothing and downloads nothing.
+        refusal = env["fix.technician.device"]._fix_sync_refusal(device_id, tech)
+        if refusal:
+            return _error("device_refused", refusal)
         ledger_model = env["fix.offline.idempotency.ledger"]
 
         acknowledged = {}

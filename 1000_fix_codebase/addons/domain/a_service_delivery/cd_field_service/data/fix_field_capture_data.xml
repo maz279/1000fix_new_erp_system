@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M02 capture audit 2026-11-18: references for the capture registers. -->
+<odoo noupdate="1">
+    <record id="seq_fix_dispatch_decision" model="ir.sequence">
+        <field name="name">Dispatch Decision</field>
+        <field name="code">fix.dispatch.decision</field>
+        <field name="prefix">DD/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_offline_conflict_review" model="ir.sequence">
+        <field name="name">Offline Conflict Review</field>
+        <field name="code">fix.offline.conflict.review</field>
+        <field name="prefix">OCR/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_tracking_pause" model="ir.sequence">
+        <field name="name">Location Tracking Pause</field>
+        <field name="code">fix.tracking.pause</field>
+        <field name="prefix">TPZ/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_field_visit_exception" model="ir.sequence">
+        <field name="name">Failed Field Visit</field>
+        <field name="code">fix.field.visit.exception</field>
+        <field name="prefix">FVX/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_field_cash_recon" model="ir.sequence">
+        <field name="name">Field Cash Reconciliation</field>
+        <field name="code">fix.field.cash.recon</field>
+        <field name="prefix">FCR/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+</odoo>

@@ -1,6 +1,6 @@
 {
     "name": "1000FiX Field Service, Dispatch & Geospatial Platform",
-    "version": "19.0.2.0.0",
+    "version": "19.0.2.1.0",
     "category": "Service Delivery",
     "summary": "AI dispatch board, route optimization, field order tracking, accept/decline flows and geofencing",
     "author": "1000FiX Services Ltd.",
@@ -32,6 +32,8 @@
         "data/ir_sequence.xml",
         # A02 audit M02-7: the SLA breach escalation
         "data/ir_cron.xml",
+        # M02 capture audit 2026-11-18: the six capture registers' sequences
+        "data/fix_field_capture_data.xml",
         # sample field orders removed from install data (R01 re-audit 2026-10-22):
         # synthetic records belong in db/seeds (DE-12/13), and they required a
         # service order that a clean install does not have (NOT NULL order_id).

@@ -289,6 +289,14 @@ WRITABLE = {
             "recommended_action",
         }
     ),
+    "fix.dispatch.decision": frozenset(
+        {
+            "field_order_id",
+            "override_notes",
+            "override_reason",
+            "technician_id",
+        }
+    ),
     "fix.escalation.event": frozenset(),
     "fix.escalation.rule": frozenset(
         {
@@ -331,6 +339,14 @@ WRITABLE = {
             "name",
         }
     ),
+    "fix.field.cash.recon": frozenset(
+        {
+            "counted_amount",
+            "employee_id",
+            "recon_date",
+            "variance_reason",
+        }
+    ),
     "fix.field.decline.log": frozenset(
         {
             "notes",
@@ -364,6 +380,18 @@ WRITABLE = {
             "field_order_ids",
             "notes",
             "technician_id",
+        }
+    ),
+    "fix.field.visit.exception": frozenset(
+        {
+            "evidence_photo",
+            "evidence_photo_name",
+            "exception_type",
+            "field_order_id",
+            "follow_up",
+            "latitude",
+            "longitude",
+            "reason",
         }
     ),
     "fix.geofence": frozenset(
@@ -603,6 +631,13 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.offline.conflict.review": frozenset(
+        {
+            "decision",
+            "ledger_id",
+            "notes",
+        }
+    ),
     "fix.offline.idempotency.ledger": frozenset(),
     "fix.qc.checklist": frozenset(
         {
@@ -741,6 +776,15 @@ WRITABLE = {
             "zone",
         }
     ),
+    "fix.technician.device": frozenset(
+        {
+            "app_version",
+            "device_model",
+            "device_uid",
+            "employee_id",
+            "platform",
+        }
+    ),
     "fix.technician.location": frozenset(),
     "fix.token.queue": frozenset(
         {
@@ -750,6 +794,14 @@ WRITABLE = {
             "notes",
             "priority_level",
             "service_type",
+        }
+    ),
+    "fix.tracking.pause": frozenset(
+        {
+            "employee_id",
+            "planned_end",
+            "reason",
+            "started_at",
         }
     ),
     "fix.walkin.intake": frozenset(

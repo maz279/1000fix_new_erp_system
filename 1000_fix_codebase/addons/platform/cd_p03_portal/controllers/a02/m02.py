@@ -25,7 +25,10 @@ SURFACES = {
         # assigned technician for accept, decline and progress).
         "actions": {
             "action_request_dispatch",
-            "action_dispatch",
+            # action_dispatch is NOT here (M02 capture audit 2026-11-18): the
+            # workspace dispatches by saving a fix.dispatch.decision, which
+            # keeps the engine's first choice and the override reason
+            # (BRU-FSM-04); a bare dispatch would bypass both.
             "action_reassign",
             # A09 M22-F3: an uncertified technician needs a routed waiver
             "action_request_certification_waiver",
@@ -82,6 +85,34 @@ SURFACES = {
         "order": "client_created_at desc, id desc",
         "limit": 300,
         "actions": set(),
+    },
+    # M02 capture audit (2026-11-18): the six capture registers. Each model
+    # checks who may write it; the workspace saves them through their forms.
+    "fix.dispatch.decision": {"order": "decided_at desc, id desc", "limit": 200, "actions": set()},
+    "fix.technician.device": {
+        "order": "state, enrolled_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_revoke"},
+    },
+    "fix.offline.conflict.review": {
+        "order": "reviewed_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.tracking.pause": {
+        "order": "started_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_end"},
+    },
+    "fix.field.visit.exception": {
+        "order": "recorded_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.field.cash.recon": {
+        "order": "recon_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_confirm"},
     },
     # fix.workshop.evidence (Field Evidence Hub) is already surfaced by the
     # M31 workshop module in this same area's SURFACES — declaring it twice

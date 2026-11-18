@@ -9,3 +9,8 @@ from . import (
     fix_service_order_bridge,
     fix_technician_location,
 )
+
+# M02 capture audit 2026-11-18: extends field order, ledger and location, so it
+# loads LAST (a sorted import would put it first and break the _inherit).
+# isort: split
+from . import fix_field_capture

@@ -355,26 +355,33 @@ def test_route_state_moves_only_through_the_route_actions(w):
 
 # ===================================================== A3: dispatch authority
 def test_only_a_dispatcher_dispatches(w, monkeypatch):
-    """M02-4: a plain technician self-dispatched through P03."""
+    """M02-4: a plain technician self-dispatched through P03. Since the M02
+    capture audit (2026-11-18) the workspace dispatches only by saving a
+    Dispatch Decision (BRU-FSM-04), so the bare action is refused for all."""
     rec = w.fo("pending_dispatch")
-    _mw, ma = p03(w, w.ub, monkeypatch)
-    res = ma(
-        model="fix.field.order",
-        ids=[rec.id],
-        method="action_dispatch",
-        kwargs={"technician_id": w.eb.id},
+    for user in (w.ub, w.ud):
+        _mw, ma = p03(w, user, monkeypatch)
+        res = ma(
+            model="fix.field.order",
+            ids=[rec.id],
+            method="action_dispatch",
+            kwargs={"technician_id": w.eb.id},
+        )
+        w.env.invalidate_all()
+        assert not res.get("success") and rec.state == "pending_dispatch" and not rec.technician_id
+    decision = {"field_order_id": rec.id, "technician_id": w.eb.id}
+    mw, _ma = p03(w, w.ub, monkeypatch)
+    res = mw(model="fix.dispatch.decision", record_id=False, values=decision)
+    w.env.invalidate_all()
+    assert not res.get("id") and rec.state == "pending_dispatch"
+    mw, _ma = p03(w, w.ud, monkeypatch)
+    res = mw(
+        model="fix.dispatch.decision",
+        record_id=False,
+        values={**decision, "override_reason": "other", "override_notes": "test"},
     )
     w.env.invalidate_all()
-    assert not res.get("success") and rec.state == "pending_dispatch" and not rec.technician_id
-    _mw, ma = p03(w, w.ud, monkeypatch)
-    res = ma(
-        model="fix.field.order",
-        ids=[rec.id],
-        method="action_dispatch",
-        kwargs={"technician_id": w.eb.id},
-    )
-    w.env.invalidate_all()
-    assert res.get("success"), res
+    assert res.get("id"), res
     assert (rec.state, rec.technician_id) == ("dispatched", w.eb) and rec.dispatched_at
 
 
