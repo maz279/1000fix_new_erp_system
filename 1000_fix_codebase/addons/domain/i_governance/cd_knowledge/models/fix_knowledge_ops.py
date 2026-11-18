@@ -74,10 +74,7 @@ class FixKnowledgeTree(models.Model):
         for rec in self:
             if rec.state == "published":
                 raise UserError("%s is already published." % rec.name)
-            rid = reviewer_id or rec.reviewed_by_id.id
-            reviewer = self.env["res.users"].browse(rid).exists() if rid else self.env["res.users"]
-            if rec.safety_critical or reviewer:
-                require_reviewer(rec, reviewer, rec.create_uid.id)
+            reviewer = rec._fix_publish_reviewer(reviewer_id)
             rec._guarded().write(
                 {
                     "state": "published",
@@ -99,6 +96,15 @@ class FixKnowledgeTree(models.Model):
                 )
             )
         return True
+
+    def _fix_publish_reviewer(self, reviewer_id=None):
+        """As the article's (A10 K1); extended by the review workflow."""
+        self.ensure_one()
+        rid = reviewer_id or self.reviewed_by_id.id
+        reviewer = self.env["res.users"].browse(rid).exists() if rid else self.env["res.users"]
+        if self.safety_critical or reviewer:
+            require_reviewer(self, reviewer, self.create_uid.id)
+        return reviewer
 
     def action_archive(self):
         require_publisher(self.env)
@@ -340,8 +346,7 @@ class FixKnowledgeBulletin(models.Model):
                 # recipient branch has acknowledged it.
                 _qm_gate(
                     self.env,
-                    "Only the Quality Manager closes a safety recall (A10 P1-7) — %s."
-                    % rec.name,
+                    "Only the Quality Manager closes a safety recall (A10 P1-7) — %s." % rec.name,
                 )
                 pending = rec.recipient_ids.filtered(lambda r: not r.acknowledged_on)
                 if pending:

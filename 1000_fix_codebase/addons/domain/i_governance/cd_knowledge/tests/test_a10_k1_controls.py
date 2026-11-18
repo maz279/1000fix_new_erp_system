@@ -14,6 +14,13 @@
 # plain write() (the JSON-RPC path) and the real P03 endpoints. The
 # legitimate path runs end to end through the real actions. The odoo_env
 # fixture rolls everything back.
+#
+# M61 capture audit (2026-11-18): BRU-KMS-02/03 now apply to ALL content. An
+# approved review request (fix.knowledge.review) of the content as it stands
+# names the reviewer; without one, a publisher who did not write it reviews
+# it by publishing; safety-critical content publishes only through a review
+# carrying the Quality Manager's sign-off. A reviewer is never typed at
+# publication. The tests below take that path.
 import itertools
 import json
 import types
@@ -25,6 +32,7 @@ from odoo.exceptions import UserError
 
 GUARD = "changes only through its workflow"
 PUBLISHER = "cd_knowledge.group_knowledge_publisher"
+QM = "cd_qms_process.group_qms_quality_manager"
 
 _MW = getattr(g.P03GenericApiController.model_write, "original_endpoint", None) or (
     g.P03GenericApiController.model_write
@@ -69,6 +77,9 @@ def k(odoo_env):
     x.clerk = _user(env, "clerk")
     x.author = _user(env, "author", [PUBLISHER])
     x.publisher = _user(env, "publisher", [PUBLISHER])
+    if not env.ref(QM, raise_if_not_found=False):
+        pytest.skip("the safety sign-off needs the Quality Manager group (cd_qms_process)")
+    x.qm = _user(env, "qm", [QM])
     saved = getattr(g, "request", None)
     yield x
     g.request = saved
@@ -86,6 +97,19 @@ def _article(x, vals=None, user=None):
     return x.env["fix.knowledge.article"].with_user(user or x.author).create(vals)
 
 
+def _reviewed(x, content, reviewer=None, qm=None):
+    """The review workflow: the author asks, the reviewer passes it, and the
+    Quality Manager signs off safety content."""
+    vals = {"reviewer_id": (reviewer or x.publisher).id}
+    vals["article_id" if content._name == "fix.knowledge.article" else "tree_id"] = content.id
+    review = x.env["fix.knowledge.review"].with_user(x.author).create(vals)
+    review.with_user(reviewer or x.publisher).action_approve()
+    if review.state == "reviewed":
+        review.with_user(qm or x.qm).action_safety_approve()
+    assert review.state == "approved"
+    return review
+
+
 def p03(x, endpoint, user=None, **kw):
     g.request = types.SimpleNamespace(env=x.env(user=(user or x.clerk).id))
     return endpoint(g.P03GenericApiController(), **kw)
@@ -96,27 +120,40 @@ def test_k1_publishing_is_a_publishers_act(k):
     art = _article(k, {"tags": "battery, z14"})
     with pytest.raises(UserError, match="Only a Knowledge Publisher"):
         art.with_user(k.clerk).action_publish()
-    # ordinary content publishes without a named reviewer
+    # ordinary content: its author does not publish it unreviewed (BRU-KMS-02)
     plain = _article(k, {"name": "Zeltrix Z15 hinge torque"})
+    with pytest.raises(UserError, match="You wrote"):
+        plain.with_user(k.author).action_publish()
+    # another publisher reviews it by publishing, and is named
     plain.with_user(k.publisher).action_publish()
     assert plain.state == "published"
-    assert (plain.reviewed_by_id, plain.version) == (k.env["res.users"], 2)
+    assert (plain.reviewed_by_id, plain.version) == (k.publisher, 2)
 
 
 def test_k1_safety_content_needs_a_second_publisher(k):
     art = _article(k, {"tags": "battery, swelling"})  # safety-critical by tag
     assert art.safety_critical is True
-    # no reviewer at all
-    with pytest.raises(UserError, match="cannot be published without a reviewer"):
+    # no review at all
+    with pytest.raises(UserError, match="only through an approved review"):
         art.with_user(k.publisher).action_publish()
+    # a reviewer is never typed at publication
+    with pytest.raises(UserError, match="only through an approved review"):
+        art.with_user(k.publisher).action_publish(reviewer_id=k.publisher.id)
+    Review = k.env["fix.knowledge.review"].with_user(k.author)
     # a reviewer who is not a publisher is a typo, not a review
-    with pytest.raises(UserError, match="must belong to the Knowledge Publisher"):
-        art.with_user(k.publisher).action_publish(reviewer_id=k.clerk.id)
+    with pytest.raises(UserError, match="must be a Knowledge Publisher"):
+        Review.create({"article_id": art.id, "reviewer_id": k.clerk.id})
     # the author cannot be their own reviewer (M61-1)
-    with pytest.raises(UserError, match="cannot be its reviewer"):
-        art.with_user(k.author).action_publish(reviewer_id=k.author.id)
-    # a second publisher reviews and the record names them
-    art.with_user(k.publisher).action_publish(reviewer_id=k.publisher.id)
+    with pytest.raises(UserError, match="cannot be its author"):
+        Review.create({"article_id": art.id, "reviewer_id": k.author.id})
+    review = Review.create({"article_id": art.id, "reviewer_id": k.publisher.id})
+    review.with_user(k.publisher).action_approve()
+    # the technical review alone does not release safety content (BRU-KMS-03)
+    assert review.state == "reviewed"
+    with pytest.raises(UserError, match="only through an approved review"):
+        art.with_user(k.publisher).action_publish()
+    review.with_user(k.qm).action_safety_approve()
+    art.with_user(k.publisher).action_publish()
     assert art.state == "published"
     assert (art.reviewed_by_id, art.reviewed_on) == (
         k.publisher,
@@ -128,11 +165,14 @@ def test_k1_safety_content_needs_a_second_publisher(k):
 
 def test_k1_safety_bulletins_are_safety_content(k):
     # the category alone makes it safety-critical — no tag needed
-    bulletin_article = _article(k, {"name": "Recall: Z14 battery batch", "category": "safety_bulletin"})
+    bulletin_article = _article(
+        k, {"name": "Recall: Z14 battery batch", "category": "safety_bulletin"}
+    )
     assert bulletin_article.safety_critical is True
-    with pytest.raises(UserError, match="cannot be published without a reviewer"):
+    with pytest.raises(UserError, match="only through an approved review"):
         bulletin_article.with_user(k.publisher).action_publish()
-    bulletin_article.with_user(k.publisher).action_publish(reviewer_id=k.publisher.id)
+    _reviewed(k, bulletin_article)
+    bulletin_article.with_user(k.publisher).action_publish()
     assert bulletin_article.reviewed_by_id == k.publisher
 
 
@@ -146,21 +186,26 @@ def test_k1_lifecycle_fields_are_guarded(k):
         art.with_user(k.author).write({"reviewed_by_id": k.publisher.id})
     with pytest.raises(UserError, match=GUARD):
         k.env["fix.knowledge.article"].with_user(k.author).create(
-            {"name": "born published", "category": "training", "content": "<p>x</p>", "state": "published"}
+            {
+                "name": "born published",
+                "category": "training",
+                "content": "<p>x</p>",
+                "state": "published",
+            }
         )
     # archiving is a publisher's act over published content only
     with pytest.raises(UserError, match="Only a Knowledge Publisher"):
         art.with_user(k.clerk).action_archive()
     with pytest.raises(UserError, match="Only a published article"):
         art.with_user(k.author).action_archive()
-    art.with_user(k.author).action_publish()
+    art.with_user(k.publisher).action_publish()
     art.with_user(k.author).action_archive()
     assert art.state == "archived"
 
 
 def test_k1_published_edit_is_a_revision_that_resyncs(k):
     art = _article(k, {"article_code": "KB-K1-901"})
-    art.with_user(k.author).action_publish()
+    art.with_user(k.publisher).action_publish()
     before_hash = art.content_hash
     # the edit is allowed — it is the author's content to improve — but it
     # MUST NOT die silently on the server: version and event move so the
@@ -188,9 +233,10 @@ def test_k1_trees_publish_under_the_same_gate(k):
         {"name": "Z14 no power tree", "tags": "high voltage", "nodes_text": "PSU -> fuse"}
     )
     assert tree.safety_critical is True
-    with pytest.raises(UserError, match="cannot be published without a reviewer"):
+    with pytest.raises(UserError, match="only through an approved review"):
         tree.with_user(k.publisher).action_publish()
-    tree.with_user(k.publisher).action_publish(reviewer_id=k.publisher.id)
+    _reviewed(k, tree)
+    tree.with_user(k.publisher).action_publish()
     assert (tree.state, tree.reviewed_by_id) == ("published", k.publisher)
     with pytest.raises(UserError, match=GUARD):
         tree.with_user(k.author).write({"state": "archived"})
@@ -219,29 +265,61 @@ def test_k1_p03_surface_takes_content_not_state(k):
     art = _article(k)
     # tags are the author's to edit through the workspace form
     out = p03(
-        k, _MW, user=k.author, model="fix.knowledge.article", record_id=art.id,
+        k,
+        _MW,
+        user=k.author,
+        model="fix.knowledge.article",
+        record_id=art.id,
         values={"tags": "battery, swelling"},
     )
     assert "error" not in out and art.tags == "battery, swelling"
     # the lifecycle never moves through the write endpoint
     out = p03(
-        k, _MW, user=k.author, model="fix.knowledge.article", record_id=art.id,
+        k,
+        _MW,
+        user=k.author,
+        model="fix.knowledge.article",
+        record_id=art.id,
         values={"state": "published"},
     )
     assert "error" in out and GUARD in out["error"]
     out = p03(
-        k, _MW, user=k.author, model="fix.knowledge.article", record_id=art.id,
+        k,
+        _MW,
+        user=k.author,
+        model="fix.knowledge.article",
+        record_id=art.id,
         values={"reviewed_by_id": k.publisher.id},
     )
     assert "error" in out and GUARD in out["error"]
-    # the action endpoint carries the gate and the reviewer prompt
+    # the action endpoint carries the gate; safety content needs its review
     out = p03(
-        k, _MA, user=k.clerk, model="fix.knowledge.article", ids=art.ids, method="action_publish",
+        k,
+        _MA,
+        user=k.clerk,
+        model="fix.knowledge.article",
+        ids=art.ids,
+        method="action_publish",
     )
     assert out.get("success") is False and "Knowledge Publisher" in out.get("error", "")
     out = p03(
-        k, _MA, user=k.publisher, model="fix.knowledge.article", ids=art.ids,
-        method="action_publish", kwargs={"reviewer_id": k.publisher.id},
+        k,
+        _MA,
+        user=k.publisher,
+        model="fix.knowledge.article",
+        ids=art.ids,
+        method="action_publish",
+        kwargs={"reviewer_id": k.publisher.id},
+    )
+    assert out.get("success") is False and "approved review" in out.get("error", "")
+    _reviewed(k, art)
+    out = p03(
+        k,
+        _MA,
+        user=k.publisher,
+        model="fix.knowledge.article",
+        ids=art.ids,
+        method="action_publish",
     )
     assert out.get("success") is True
     assert (art.state, art.reviewed_by_id) == ("published", k.publisher)

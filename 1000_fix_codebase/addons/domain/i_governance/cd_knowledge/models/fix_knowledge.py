@@ -220,8 +220,7 @@ class FixKnowledgeArticle(models.Model):
             rec._guarded().write(
                 {
                     "version": (rec.version or 1) + 1,
-                    "review_due": fields.Date.context_today(rec)
-                    + datetime.timedelta(days=365),
+                    "review_due": fields.Date.context_today(rec) + datetime.timedelta(days=365),
                 }
             )
             publish(
@@ -241,6 +240,7 @@ class FixKnowledgeArticle(models.Model):
                 body="Published content revised — version %d now syncing to the field "
                 "(hash %s)." % (rec.version, (rec.content_hash or "")[:12])
             )
+            rec._fix_after_publish("revised")
         return result
 
     @api.depends("content", "content_bn", "name", "category")
@@ -260,20 +260,22 @@ class FixKnowledgeArticle(models.Model):
         for rec in self:
             if rec.state == "published":
                 raise UserError("%s is already published." % rec.name)
-            rid = reviewer_id or rec.reviewed_by_id.id
-            reviewer = self.env["res.users"].browse(rid).exists() if rid else self.env["res.users"]
-            if rec.safety_critical:
-                require_reviewer(rec, reviewer, rec.create_uid.id)
-            elif reviewer:
-                # a named reviewer on ordinary content is still validated:
-                # a reviewer who is not a publisher is a typo, not a review
-                require_reviewer(rec, reviewer, rec.create_uid.id)
+            # M61 capture audit (2026-11-18): the review evidence comes from
+            # the review workflow (fix_m61_capture.py) when one exists
+            reviewer = rec._fix_publish_reviewer(reviewer_id)
             rec._guarded().write(
                 {
                     "state": "published",
                     "version": (rec.version or 1) + 1,
                     "review_due": fields.Date.context_today(rec) + datetime.timedelta(days=365),
-                    **({"reviewed_by_id": reviewer.id, "reviewed_on": fields.Date.context_today(rec)} if reviewer else {}),
+                    **(
+                        {
+                            "reviewed_by_id": reviewer.id,
+                            "reviewed_on": fields.Date.context_today(rec),
+                        }
+                        if reviewer
+                        else {}
+                    ),
                 }
             )
             publish(
@@ -293,9 +295,30 @@ class FixKnowledgeArticle(models.Model):
                 body="Published by %s%s."
                 % (
                     self.env.user.name,
-                    " — reviewed by %s" % reviewer.name if reviewer else " (no safety review required)",
+                    " — reviewed by %s" % reviewer.name
+                    if reviewer
+                    else " (no safety review required)",
                 )
             )
+            rec._fix_after_publish("published")
+        return True
+
+    def _fix_publish_reviewer(self, reviewer_id=None):
+        """The reviewer behind this publication (A10 K1): safety-critical
+        content needs a named publisher who is not the author. Extended by
+        the review workflow (fix_m61_capture.py)."""
+        self.ensure_one()
+        rid = reviewer_id or self.reviewed_by_id.id
+        reviewer = self.env["res.users"].browse(rid).exists() if rid else self.env["res.users"]
+        if self.safety_critical or reviewer:
+            # a named reviewer on ordinary content is still validated:
+            # a reviewer who is not a publisher is a typo, not a review
+            require_reviewer(self, reviewer, self.create_uid.id)
+        return reviewer
+
+    def _fix_after_publish(self, note):
+        """Hook run after a publication or a revision of published content
+        (the version history extends it)."""
         return True
 
     def action_archive(self):
@@ -303,7 +326,9 @@ class FixKnowledgeArticle(models.Model):
         require_publisher(self.env)
         for rec in self:
             if rec.state != "published":
-                raise UserError("Only a published article is archived — %s is %s." % (rec.name, rec.state))
+                raise UserError(
+                    "Only a published article is archived — %s is %s." % (rec.name, rec.state)
+                )
             rec._guarded().write({"state": "archived"})
             rec.message_post(body="Archived by %s." % self.env.user.name)
         return True
@@ -340,8 +365,7 @@ class FixKnowledgeArticle(models.Model):
             rec._guarded().write({"review_notified_on": today})
             rec.message_post(
                 body="Review due since %s (version %d) — technical content older "
-                "than its window is re-reviewed, not trusted."
-                % (rec.review_due, rec.version or 0)
+                "than its window is re-reviewed, not trusted." % (rec.review_due, rec.version or 0)
             )
         return len(due)
 

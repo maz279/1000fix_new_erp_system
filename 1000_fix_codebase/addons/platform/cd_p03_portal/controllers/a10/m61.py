@@ -2,18 +2,69 @@
 # article library, troubleshooting trees, media assets and brand bulletins.
 import datetime
 
+# M61 capture audit (2026-11-18): reviewers and technicians are internal
+# users; the server checks the rest (publisher, not the author, the QM).
+_INTERNAL = [("share", "=", False)]
+
 SURFACES = {
     "fix.knowledge.article": {
         "order": "write_date desc, id desc",
         "limit": 500,
         "actions": {"action_publish", "action_archive"},
     },
+    "fix.knowledge.article.version": {
+        "order": "article_id, version desc",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.knowledge.capture": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_take", "action_draft_article", "action_merge"},
+    },
+    "fix.knowledge.review": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_return", "action_safety_approve", "action_cancel"},
+        "pickers": {
+            "reviewer_id": _INTERNAL,
+            "article_id": [("state", "=", "draft")],
+            "tree_id": [("state", "=", "draft")],
+        },
+    },
     "fix.knowledge.tree": {
         "order": "name",
         "limit": 300,
         "actions": {"action_publish", "action_archive"},
     },
+    "fix.knowledge.tree.node": {"order": "tree_id, sequence, id", "limit": 500, "actions": set()},
     "fix.knowledge.media": {"order": "name", "limit": 300, "actions": set()},
+    "fix.knowledge.library": {
+        "order": "brand_id, name",
+        "limit": 300,
+        "actions": {"action_make_available", "action_withdraw"},
+    },
+    "fix.knowledge.link": {
+        "order": "relevance_weight desc, id",
+        "limit": 500,
+        "actions": set(),
+        "pickers": {
+            "article_id": [("state", "!=", "archived")],
+            "tree_id": [("state", "!=", "archived")],
+        },
+    },
+    "fix.knowledge.offline.set": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_compute"},
+        "pickers": {"user_id": _INTERNAL},
+    },
+    "fix.knowledge.feedback": {
+        "order": "id desc",
+        "limit": 500,
+        "actions": set(),
+        "pickers": {"article_id": [("state", "=", "published")]},
+    },
     "fix.knowledge.bulletin": {
         "order": "issued_on desc, id desc",
         "limit": 300,
@@ -65,40 +116,64 @@ def coverage_analysis(env, date_from=None, date_to=None, **params):
 
 
 def usage_usefulness(env, date_from=None, date_to=None, **params):
-    """Article usage and usefulness from the article's view/helpful counters."""
+    """Article usage and usefulness. Usefulness is measured from the
+    usefulness feedback (FR-KMS-030): the share of "did this resolve it?"
+    answers that said yes, and the average 1-5 rating. M61 capture audit: the
+    old score divided helpful votes by a view counter nothing increments."""
     articles = env["fix.knowledge.article"].search([])
+    today = datetime.date.today()
     rows = []
     for art in articles:
-        views = art.views or 0
-        helpful = art.helpful_votes or 0
+        if art.flagged_on:
+            health = "FLAGGED: %s" % art.flag_reason
+        elif art.state == "published" and art.review_due and art.review_due <= today:
+            health = "Review overdue"
+        else:
+            health = "—"
         rows.append(
             {
                 "article": art.name[:60],
                 "code": art.article_code or "—",
                 "category": dict(art._fields["category"].selection).get(art.category),
-                "views": views,
-                "helpful": helpful,
-                "usefulness": round(helpful / views * 100.0, 1) if views else 0.0,
+                "version": art.version,
+                "feedback": art.feedback_count,
+                "resolved": art.resolution_rate,
+                "rating": round(art.avg_rating, 2) if art.feedback_count else 0.0,
+                "health": health,
                 "state": dict(art._fields["state"].selection).get(art.state, art.state),
             }
         )
-    rows.sort(key=lambda r: -r["views"])
+    rows.sort(key=lambda r: (r["health"] == "—", -r["feedback"], r["article"]))
     return _pack(
         "Article Usage & Usefulness",
-        ["article", "code", "category", "views", "helpful", "usefulness", "state"],
+        [
+            "article",
+            "code",
+            "category",
+            "version",
+            "feedback",
+            "resolved",
+            "rating",
+            "health",
+            "state",
+        ],
         {
             "article": "Article",
             "code": "Code",
             "category": "Type",
-            "views": "Views",
-            "helpful": "Helpful Votes",
-            "usefulness": "Usefulness %",
+            "version": "Version",
+            "feedback": "Feedback",
+            "resolved": "Resolved It %",
+            "rating": "Avg Rating (1-5)",
+            "health": "Health",
             "state": "State",
         },
         rows,
         [
-            "Usefulness = helpful votes / views for the article's own counters; articles with "
-            "no views show 0 rather than a fabricated score."
+            "Resolved It % = 'yes' answers / all feedback; the rating is the average of the "
+            "1-5 ratings. Articles with no feedback show 0 rather than a fabricated score.",
+            "Flagged = three 'did not resolve' answers in a row, or an average below 2.5 over "
+            "five or more ratings, on the current version (AUT-KMS-17).",
         ],
         empty="No articles in the library.",
     )
@@ -166,40 +241,117 @@ def gap_report(env, date_from=None, date_to=None, **params):
 
 
 def contribution_leaderboard(env, date_from=None, date_to=None, **params):
-    """Contribution leaderboard by creator (the article model carries no author
-    field, so the creating user is the honest basis)."""
-    articles = env["fix.knowledge.article"].search([])
+    """Contribution leaderboard (FR-KMS-029): articles owned, field captures
+    contributed, reviews done and "resolved it" answers on their articles."""
     groups = {}
-    for art in articles:
-        key = art.create_uid.name if art.create_uid else "—"
-        g = groups.setdefault(key, {"articles": 0, "views": 0, "helpful": 0})
+
+    def row(user):
+        return groups.setdefault(
+            user.name if user else "—",
+            {"articles": 0, "captures": 0, "reviews": 0, "resolved": 0},
+        )
+
+    for art in env["fix.knowledge.article"].search([]):
+        g = row(art.owner_id or art.create_uid)
         g["articles"] += 1
-        g["views"] += art.views or 0
-        g["helpful"] += art.helpful_votes or 0
+        g["resolved"] += len(art.feedback_ids.filtered(lambda f: f.resolved == "yes"))
+    for cap in env["fix.knowledge.capture"].search([]):
+        row(cap.captured_by_id)["captures"] += 1
+    reviews = env["fix.knowledge.review"].search(
+        [("state", "in", ("approved", "returned", "reviewed"))]
+    )
+    for rev in reviews:
+        row(rev.reviewer_id)["reviews"] += 1
     rows = [
-        {"author": k, **v} for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["articles"])
+        {"author": k, **v}
+        for k, v in sorted(
+            groups.items(), key=lambda kv: (-(kv[1]["articles"] + kv[1]["captures"]), kv[0])
+        )
     ]
     return _pack(
         "Contribution Leaderboard",
-        ["author", "articles", "views", "helpful"],
+        ["author", "articles", "captures", "reviews", "resolved"],
         {
-            "author": "Author (creator)",
-            "articles": "Articles",
-            "views": "Views",
-            "helpful": "Helpful Votes",
+            "author": "Contributor",
+            "articles": "Articles Owned",
+            "captures": "Field Captures",
+            "reviews": "Reviews Done",
+            "resolved": "Resolved-It Answers on Their Articles",
         },
         rows,
         [
-            "Groups by the creating user because the article model has no author field; an "
-            "author score is not invented."
+            "Recognition context only (spec 12.2: M57 receives it as context, not a metric). "
+            "Resolved-it answers are counted; no causal first-time-fix claim is made "
+            "(BRU-KMS-17)."
         ],
         totals={
             "author": "Total",
             "articles": sum(r["articles"] for r in rows),
-            "views": sum(r["views"] for r in rows),
-            "helpful": sum(r["helpful"] for r in rows),
+            "captures": sum(r["captures"] for r in rows),
+            "reviews": sum(r["reviews"] for r in rows),
+            "resolved": sum(r["resolved"] for r in rows),
         },
-        empty="No articles in the library.",
+        empty="No contributions yet.",
+    )
+
+
+def expertise_map(env, date_from=None, date_to=None, **params):
+    """Expertise map (FR-KMS-035, AUT-KMS-18): who knows what, derived from
+    authored articles, field captures and reviews per brand, and the brands
+    whose knowledge sits with fewer than three people. Derived, never typed."""
+    people = {}
+
+    def bump(brand, user, key):
+        if not user:
+            return
+        brand = (brand or "").strip() or "All brands"
+        g = people.setdefault(brand, {}).setdefault(
+            user.name, {"authored": 0, "captured": 0, "reviewed": 0}
+        )
+        g[key] += 1
+
+    for art in env["fix.knowledge.article"].search([("state", "!=", "archived")]):
+        bump(art.device_brand, art.owner_id or art.create_uid, "authored")
+    for cap in env["fix.knowledge.capture"].search([]):
+        bump(cap.device_brand, cap.captured_by_id, "captured")
+    for rev in env["fix.knowledge.review"].search([("state", "in", ("approved", "reviewed"))]):
+        subject = rev.article_id or rev.tree_id
+        bump(subject.device_brand, rev.reviewer_id, "reviewed")
+    rows = []
+    for brand, users in sorted(people.items()):
+        concentrated = len(users) < 3
+        for name, g in sorted(users.items(), key=lambda kv: -sum(kv[1].values())):
+            rows.append(
+                {
+                    "brand": brand,
+                    "person": name,
+                    "authored": g["authored"],
+                    "captured": g["captured"],
+                    "reviewed": g["reviewed"],
+                    "holders": len(users),
+                    "risk": "CONCENTRATED" if concentrated else "—",
+                }
+            )
+    concentrated = len([b for b, u in people.items() if len(u) < 3])
+    return _pack(
+        "Expertise Map — %d brand(s), %d concentrated" % (len(people), concentrated),
+        ["brand", "person", "authored", "captured", "reviewed", "holders", "risk"],
+        {
+            "brand": "Brand",
+            "person": "Person",
+            "authored": "Articles Authored",
+            "captured": "Field Captures",
+            "reviewed": "Reviews Done",
+            "holders": "People on This Brand",
+            "risk": "Concentration (< 3 people)",
+        },
+        rows,
+        [
+            "Derived from articles (owner), field captures (contributor) and approved reviews "
+            "(reviewer), by the content's brand. A brand whose knowledge sits with fewer than "
+            "three people is flagged (KPI-C61-12). Nothing on this page is typed."
+        ],
+        empty="No knowledge contributions yet.",
     )
 
 
@@ -274,6 +426,7 @@ REPORTS = {
     "gap_report": gap_report,
     "contribution_leaderboard": contribution_leaderboard,
     "recall_routing": recall_routing,
+    "expertise_map": expertise_map,
 }
 
 
@@ -290,8 +443,10 @@ def kpis(env):
     bulletins = env["fix.knowledge.bulletin"].search([])
     today = datetime.date.today()
     month_start = today.replace(day=1)
-    views = sum(a.views or 0 for a in articles)
-    helpful = sum(a.helpful_votes or 0 for a in articles)
+    # M61 capture audit: usefulness is the feedback's "resolved it" share;
+    # the old views counter was never incremented, so the tile was always 0.
+    feedback = env["fix.knowledge.feedback"].search([])
+    resolved = len(feedback.filtered(lambda f: f.resolved == "yes"))
     combos = {}
     for order in env["fix.service.order"].search([]):
         device = getattr(order, "device_id", False)
@@ -321,7 +476,7 @@ def kpis(env):
         "articles": len(articles),
         "coverage_serviced": round(len(covered) / len(combos) * 100.0, 1) if combos else 0.0,
         "offline_articles": offline_articles,
-        "usefulness_score": round(helpful / views * 100.0, 1) if views else 0.0,
+        "usefulness_score": round(resolved / len(feedback) * 100.0, 1) if feedback else 0.0,
         "reviews_due": len(published.filtered(lambda a: a.review_due and a.review_due <= today)),
         "brand_bulletins_mtd": len(
             bulletins.filtered(lambda b: b.issued_on and b.issued_on >= month_start)

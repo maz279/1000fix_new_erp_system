@@ -304,6 +304,7 @@ WRITABLE = {
             "title_bn",
         }
     ),
+    "fix.knowledge.article.version": frozenset(),
     "fix.knowledge.bulletin": frozenset(
         {
             "affected_models",
@@ -324,6 +325,54 @@ WRITABLE = {
             "note",
         }
     ),
+    "fix.knowledge.capture": frozenset(
+        {
+            "device_brand",
+            "device_model",
+            "fault_code_id",
+            "fault_symptom",
+            "photo_attachment_id",
+            "raw_text",
+            "rework_level",
+            "service_order_id",
+            "voice_attachment_id",
+        }
+    ),
+    "fix.knowledge.feedback": frozenset(
+        {
+            "article_id",
+            "captured_offline",
+            "comment",
+            "rating",
+            "resolved",
+            "service_order_id",
+        }
+    ),
+    "fix.knowledge.library": frozenset(
+        {
+            "brand_id",
+            "device_model_ids",
+            "document_attachment_id",
+            "document_ref",
+            "entry_type",
+            "licence_terms",
+            "model_text",
+            "name",
+            "page_count",
+            "redistribution",
+            "source",
+        }
+    ),
+    "fix.knowledge.link": frozenset(
+        {
+            "article_id",
+            "brand_id",
+            "device_model_id",
+            "fault_code_id",
+            "relevance_weight",
+            "tree_id",
+        }
+    ),
     "fix.knowledge.media": frozenset(
         {
             "article_id",
@@ -335,6 +384,23 @@ WRITABLE = {
             "url",
         }
     ),
+    "fix.knowledge.offline.set": frozenset(
+        {
+            "brand_ids",
+            "budget_mb",
+            "device_model_ids",
+            "max_level",
+            "user_id",
+        }
+    ),
+    "fix.knowledge.review": frozenset(
+        {
+            "article_id",
+            "request_note",
+            "reviewer_id",
+            "tree_id",
+        }
+    ),
     "fix.knowledge.tree": frozenset(
         {
             "device_brand",
@@ -342,10 +408,12 @@ WRITABLE = {
             "fault_symptom",
             "linked_article_id",
             "name",
+            "node_ids",
             "nodes_text",
             "tags",
         }
     ),
+    "fix.knowledge.tree.node": frozenset(),
     "fix.legal.hold": frozenset(),
     "fix.ncr": frozenset(
         {

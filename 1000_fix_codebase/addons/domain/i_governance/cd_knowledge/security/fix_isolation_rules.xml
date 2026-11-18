@@ -19,6 +19,11 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_knowledge_article_version_company" model="ir.rule">
+        <field name="name">fix.knowledge.article.version: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_article_version"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_knowledge_bulletin_company" model="ir.rule">
         <field name="name">fix.knowledge.bulletin: allowed companies</field>
         <field name="model_id" ref="model_fix_knowledge_bulletin"/>
@@ -29,14 +34,49 @@
         <field name="model_id" ref="model_fix_knowledge_bulletin_recipient"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_knowledge_capture_company" model="ir.rule">
+        <field name="name">fix.knowledge.capture: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_capture"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_knowledge_feedback_company" model="ir.rule">
+        <field name="name">fix.knowledge.feedback: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_feedback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_knowledge_library_company" model="ir.rule">
+        <field name="name">fix.knowledge.library: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_library"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_knowledge_link_company" model="ir.rule">
+        <field name="name">fix.knowledge.link: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_link"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_knowledge_media_company" model="ir.rule">
         <field name="name">fix.knowledge.media: allowed companies</field>
         <field name="model_id" ref="model_fix_knowledge_media"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_knowledge_offline_set_company" model="ir.rule">
+        <field name="name">fix.knowledge.offline.set: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_offline_set"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_knowledge_review_company" model="ir.rule">
+        <field name="name">fix.knowledge.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_knowledge_tree_company" model="ir.rule">
         <field name="name">fix.knowledge.tree: allowed companies</field>
         <field name="model_id" ref="model_fix_knowledge_tree"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_knowledge_tree_node_company" model="ir.rule">
+        <field name="name">fix.knowledge.tree.node: allowed companies</field>
+        <field name="model_id" ref="model_fix_knowledge_tree_node"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
