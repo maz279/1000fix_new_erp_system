@@ -99,4 +99,12 @@ Security and data:
 
 ## 5. State
 
-_(filled in when landed)_
+_State on 18 Nov 2026, 08:20:_
+
+- **Landed.** 0416704f and 734327d7 were fast-forwarded onto `fix/a03-live-data-and-pending-work`. They are not pushed.
+- **Backups.** `fix_real_pre_m63_capture_2026-11-18.dump` and `fix_dev_pre_m63_capture_2026-11-18.dump`, in `_migration/backups`.
+- **Upgraded.** `-u cd_workflow_engine,cd_p03_portal` ran on fix_real and then fix_dev. Both exited 0 with no ERROR lines. On both databases `cd_workflow_engine` is now 19.0.1.1.0, with the 3 new models, 7 access rows, and the RSIM/WFX sequences.
+- **Restarted.** The restart was shared with the M59/M60 sessions. 8069 (fix_real) has run as PID 69352 since 08:09:37, and 8090 (fix_dev) as PID 82848 since about 08:13. Both `/web/login` return 200, and the registry loaded cleanly.
+- **Verified on fix_real.** All 4 M63 surfaces are served. The `web.assets_web` bundle was rebuilt (a4f00da to bde638f) and contains the simulation, register, intervention and scheduled forms and the events list.
+- **Rules Never Simulated.** The KPI's own method reads 6 on fix_real. That is the 6 undated, in-force DoA rows.
+- **Still open (owner's decision).** fix_real has 0 automation register rows and 0 AUT rows. Until `action_load_register` is run, the automation-rate tile has no denominator.
