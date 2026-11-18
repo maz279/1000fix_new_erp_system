@@ -107,4 +107,5 @@ _State on 18 Nov 2026, 08:20:_
 - **Restarted.** The restart was shared with the M59/M60 sessions. 8069 (fix_real) has run as PID 69352 since 08:09:37, and 8090 (fix_dev) as PID 82848 since about 08:13. Both `/web/login` return 200, and the registry loaded cleanly.
 - **Verified on fix_real.** All 4 M63 surfaces are served. The `web.assets_web` bundle was rebuilt (a4f00da to bde638f) and contains the simulation, register, intervention and scheduled forms and the events list.
 - **Rules Never Simulated.** The KPI's own method reads 6 on fix_real. That is the 6 undated, in-force DoA rows.
-- **Still open (owner's decision).** fix_real has 0 automation register rows and 0 AUT rows. Until `action_load_register` is run, the automation-rate tile has no denominator.
+- **AUT catalogue loaded (owner's OK, 18 Nov 08:45).** `action_load_register` put 60 AUT rows on fix_real (32 Odoo automated actions, 16 Airflow, 12 domain service; company 1000Fix Services Limited). A second run added 0. Backup taken first: `fix_real_pre_aut_register_2026-11-18.dump`.
+- **Still open (business data).** The automation-rate tile is computed from the routine-work register (`fix.automation.register`), not from the AUT catalogue, and that register has 0 rows. The tile reads 0 until someone records each process area's monthly volume on page 7 ("Automation Register Entry").
