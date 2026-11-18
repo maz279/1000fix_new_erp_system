@@ -41,11 +41,15 @@ export const MODULE = {
       { id: 'M19-coa-loader', en: 'CoA Master Loader', bn: 'হিসাবের ছক লোডার', t: 'g' },
       { id: 'M19-coa-register', en: 'CoA Register Pack', bn: 'হিসাবের ছক রেজিস্টার প্যাক', t: 'r' },
       { id: 'M19-recurring', en: 'Recurring & Accrual Journals', bn: 'পুনরাবৃত্ত ও বকেয়া জার্নাল', t: 'g' },
-      { id: 'M19-alloc-rules', en: 'Allocation Rules', bn: 'বরাদ্দ নিয়ম', t: 'g' }
+      { id: 'M19-alloc-rules', en: 'Allocation Rules', bn: 'বরাদ্দ নিয়ম', t: 'g' },
+      { id: 'M19-crossval', en: 'Dimension Cross-Validation Rules', bn: 'মাত্রা যাচাই নিয়ম', t: 'g' },
+      { id: 'M19-posting-rules', en: 'Posting Rules (versioned)', bn: 'পোস্টিং নিয়ম (সংস্করণ)', t: 'g' },
+      { id: 'M19-fx-rates', en: 'Exchange Rates', bn: 'বিনিময় হার', t: 'g' }
     ]},
     { en: 'Close', screens: [
       { id: 'M19-close', en: 'Month-End Close Console', bn: 'মাসিক ক্লোজ', t: 'c' },
       { id: 'M19-periods', en: 'Periods & Locks', bn: 'পিরিয়ড', t: 'g' },
+      { id: 'M19-fiscal-years', en: 'Fiscal Years (July–June)', bn: 'অর্থবছর (জুলাই–জুন)', t: 'g' },
       { id: 'M19-close-sla', en: 'Close SLA Breaches', bn: 'ক্লোজ SLA লঙ্ঘন', t: 'r' },
       { id: 'M19-report-bridge', en: 'Statutory Report Bridge', bn: 'বিধিবদ্ধ প্রতিবেদন সেতু', t: 'g' },
       { id: 'M19-nil-returns', en: 'Nil-Return Packs', bn: 'শূন্য রিটার্ন প্যাক', t: 'g' }
@@ -60,6 +64,7 @@ export const MODULE = {
       { id: 'M19-suspense', en: 'Suspense & Control Accounts', bn: 'সাসপেন্স', t: 'g' },
       { id: 'M19-recon', en: 'Subledger vs Control', bn: 'উপ-খতিয়ান মিলকরণ', t: 'c' },
       { id: 'M19-audit', en: 'Immutable Audit Trail', bn: 'নিরবচ্ছিন্ন অডিট', t: 'g' },
+      { id: 'M19-auditor-grants', en: 'External Auditor Access', bn: 'বহিঃনিরীক্ষক প্রবেশাধিকার', t: 'g' },
       { id: 'M19-reopens', en: 'Period Reopen Requests', bn: 'পিরিয়ড পুনরায় খোলার অনুরোধ', t: 'g' },
       { id: 'M19-control-changes', en: 'Control Account Changes', bn: 'নিয়ন্ত্রণ হিসাব পরিবর্তন', t: 'g' },
       { id: 'M19-tp-rates', en: 'Transfer-Pricing Rates', bn: 'স্থানান্তর মূল্য হার', t: 'g' }
@@ -82,7 +87,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Trial Balance', 'P&L (BFRS)', 'Balance Sheet', 'Cash Flow', 'Dimensional P&L by Branch', 'Close Checklist Report', 'Close SLA Breaches', 'Due-To / Due-From Balances', 'Partner Ledger (GL)', 'Partner Statement Drill-down', 'Legacy AR Control Reconciliation'],
-  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on', 'Chart of Accounts Account', 'Control Account Change', 'Chart Loader', 'Period Close', 'Period Reopen Request', 'Consolidation Book', 'Intercompany Rule', 'Transfer-Pricing Rate', 'FX Revaluation Run', 'Financial Report Bridge', 'Retention Policy', 'SoD Control', 'SoD Exception'],
+  forms: ['Journal Entry (manual/recurring)', 'Allocation Rule', 'Intercompany Charge', 'Recurring Journal Template', 'Nil Return Declaration', 'Legacy Partner-Ledger Take-on', 'Legacy GL Control-Ledger Import', 'Legacy Bank-Ledger Take-on', 'Chart of Accounts Account', 'Control Account Change', 'Chart Loader', 'Period Close', 'Period Reopen Request', 'Consolidation Book', 'Intercompany Rule', 'Transfer-Pricing Rate', 'FX Revaluation Run', 'Financial Report Bridge', 'Retention Policy', 'SoD Control', 'SoD Exception', 'Cross-Validation Rule', 'Posting Rule', 'Fiscal Year (July–June)', 'Exchange Rate', 'External Auditor Access'],
   cross: ['AR, Invoicing & Collections', 'AP & Employee Expense', 'Tax & Regulatory (BD)', 'Costing, Budget & FP&A'],
   /* M19 capture audit (2026-11-13): four of the twelve pages had no "+ New"
    * (Journals, Subledger Posting Engine, Audit & Retention, Controls & SoD)
@@ -102,15 +107,22 @@ export const MODULE = {
    *   lines are written by posting, posting rules (FR-FIN-009) and auditor
    *   access grants (FR-FIN-043) have no model yet: typing a dimension line
    *   would fabricate a posting. */
+  /* Second pass (2026-11-19): pages 3 and 8 still captured nothing, and the
+   * spec records behind pages 1, 4 and 6 had no model. Built in cd_gl_ext
+   * (fix_gl_capture.py): posting rules (FR-FIN-009, page 3), external
+   * auditor access (FR-FIN-043, page 8), dimension cross-validation rules
+   * (FR-FIN-004, page 1), the July-June fiscal year (FR-FIN-018, page 4) and
+   * approved exchange rates (FR-FIN-033, page 6 - the revaluation refuses to
+   * run without the official rate, and no screen could enter one). */
   freg: { src: 95, sub: [
-    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-coa-loader', 'M19-control-changes', 'M19-coa-register'], reports: ['Dimensional P&L by Branch'], forms: ['Chart of Accounts Account', 'Control Account Change', 'Chart Loader'] }],
+    ['1', 'CoA & Dimensions', 12, { model: 'fix.chart.account', cols: ['account_code', 'name', 'account_type', 'is_postable', 'is_control_account'], screens: ['M19-coa', 'M19-chart-account', 'M19-dimensions', 'M19-crossval', 'M19-coa-loader', 'M19-control-changes', 'M19-coa-register'], reports: ['Dimensional P&L by Branch'], forms: ['Chart of Accounts Account', 'Cross-Validation Rule', 'Control Account Change', 'Chart Loader'] }],
     ['2', 'Journals', 15, { model: 'account.journal', cols: ['name', 'code', 'type', 'default_account_id', 'currency_id'], screens: ['M19-journals', 'M19-je', 'M19-partner-ledger', 'M19-partner-statement', 'M19-takeon', 'M19-takeon-lines'], reports: ['Partner Ledger (GL)', 'Partner Statement Drill-down', 'Trial Balance'], forms: ['Journal Entry (manual/recurring)', 'Legacy Partner-Ledger Take-on'], create: 'module' }],
-    ['3', 'Subledger Posting Engine', 12, { model: 'fix.journal.dimension', cols: ['move_line_id', 'branch_id', 'cost_centre', 'business_line', 'channel'], screens: ['M19-journal-dimension', 'M19-recon', 'M19-tb'], reports: ['Trial Balance'], forms: [], create: false }],
-    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-period-close', 'M19-close-sla', 'M19-reopens'], reports: ['Close Checklist Report', 'Close SLA Breaches'], forms: ['Period Close', 'Period Reopen Request'] }],
+    ['3', 'Subledger Posting Engine', 12, { model: 'fix.gl.posting.rule', cols: ['code', 'name', 'source', 'effective_from', 'state', 'approved_by_id'], screens: ['M19-posting-rules', 'M19-journal-dimension', 'M19-recon', 'M19-tb'], reports: ['Trial Balance'], forms: ['Posting Rule'] }],
+    ['4', 'Fiscal Calendar & Close', 10, { model: 'fix.period.close', cols: ['period_end', 'state', 'sla_status', 'target_completion_date', 'closed_at'], screens: ['M19-close', 'M19-periods', 'M19-fiscal-years', 'M19-period-close', 'M19-close-sla', 'M19-reopens'], reports: ['Close Checklist Report', 'Close SLA Breaches'], forms: ['Period Close', 'Period Reopen Request', 'Fiscal Year (July–June)'] }],
     ['5', 'Multi-Entity & Consolidation', 9, { model: 'fix.consolidation.book', cols: ['code', 'name', 'consolidation_date', 'net_consolidated_profit', 'state'], screens: ['M19-consol-books', 'M19-eliminations', 'M19-ic-txns', 'M19-ic-balances', 'M19-ic-rules', 'M19-consol', 'M19-tp-rates'], reports: ['Due-To / Due-From Balances'], forms: ['Consolidation Book', 'Intercompany Charge', 'Intercompany Rule', 'Transfer-Pricing Rate'] }],
-    ['6', 'Multi-Currency', 7, { model: 'fix.fx.revaluation', cols: ['name', 'rate_date', 'currency_id', 'net_amount', 'state'], screens: ['M19-fx-revaluation'], reports: [], forms: ['FX Revaluation Run'] }],
+    ['6', 'Multi-Currency', 7, { model: 'fix.currency.rate.entry', cols: ['currency_id', 'rate_type', 'rate_date', 'rate_bdt', 'source', 'state'], screens: ['M19-fx-rates', 'M19-fx-revaluation'], reports: [], forms: ['Exchange Rate', 'FX Revaluation Run'] }],
     ['7', 'Statutory Statements', 9, { model: 'fix.financial.report.bridge', cols: ['name', 'report_type', 'date_from', 'date_to', 'is_balanced'], screens: ['M19-report-bridge', 'M19-bs', 'M19-pl', 'M19-cf', 'M19-nil-returns'], reports: ['P&L (BFRS)', 'Balance Sheet', 'Cash Flow'], forms: ['Financial Report Bridge', 'Nil Return Declaration'] }],
-    ['8', 'Audit & Retention', 7, { model: 'fix.fiscal.period.bridge', cols: ['fiscal_year_id', 'period_close_id', 'is_locked', 'locked_at'], screens: ['M19-audit', 'M19-fiscal-period-bridge'], reports: [], forms: ['Retention Policy'], create: false }],
+    ['8', 'Audit & Retention', 7, { model: 'fix.auditor.access.grant', cols: ['user_id', 'audit_firm_id', 'period_from', 'period_to', 'valid_to', 'state'], screens: ['M19-auditor-grants', 'M19-audit', 'M19-fiscal-period-bridge'], reports: [], forms: ['External Auditor Access', 'Retention Policy'] }],
     ['9', 'Accrual Framework', 8, { model: 'fix.journal.template', cols: ['name', 'schedule', 'next_run_date', 'auto_reverse', 'state'], screens: ['M19-recurring', 'M19-alloc-rules'], reports: [], forms: ['Recurring Journal Template', 'Allocation Rule'] }],
     ['10', 'Controls & SoD', 6, { model: 'fix.sod.control', cols: ['code', 'name', 'role_a_id', 'role_b_id', 'conflict_action'], screens: ['M19-suspense', 'M19-control-changes'], reports: [], forms: ['Control Account Change', 'SoD Exception', 'SoD Control'], create: 'M19-form-control-change' }],
     ['11', 'Legacy AR Control Archive', 3, { model: 'fix.legacy.ledger.batch', cols: ['name', 'state', 'line_count', 'branch_count', 'total_net'], screens: ['M19-legacy-ledger', 'M19-legacy-ledger-lines', 'M19-legacy-ar-recon'], reports: ['Legacy AR Control Reconciliation'], forms: ['Legacy GL Control-Ledger Import'] }],
@@ -120,6 +132,165 @@ export const MODULE = {
 
 /* in-workspace data screens (checked before any stock Odoo view) */
 export const SCREENS = {
+  /* ---- capture pass 2 (2026-11-19) ---------------------------------- */
+  'M19-crossval': { kind: 'model_list', model: 'fix.gl.crossvalidation.rule', stateField: 'state',
+    cols: ['name', 'account_prefix', 'dimension', 'effect', 'values', 'active_from', 'activated_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate (Accounting Administrator, not the author)' },
+      { m: 'action_retire', l: 'Retire (Accounting Administrator)' }
+    ] },
+  'M19-form-crossval': {
+    kind: 'model_form', model: 'fix.gl.crossvalidation.rule',
+    title: 'Dimension Cross-Validation Rule', back: 'M19-crossval',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', retired: 'Retired' } },
+    sections: [
+      { title: 'Rule', note: 'Once active, every posting (manual, template, sub-ledger or API) whose line breaks the rule is refused. Example: accounts starting 4102 (rental revenue) must not carry the business line Repair. Save, then Activate from the list: an Accounting Administrator who did not write the rule activates it. An active rule is never edited; retire it and write a new one.',
+        fields: [
+          { name: 'name', required: true, label: 'Rule' },
+          { name: 'account_prefix', required: true, label: 'Account Code Starts With' },
+          { name: 'dimension', required: true, label: 'Dimension' },
+          { name: 'effect', required: true, label: 'Effect' },
+          { name: 'values', required: true, label: 'Values (comma-separated; branches by code)' },
+          { name: 'active_from', required: true, label: 'Active From' },
+          { name: 'note', label: 'Why' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'activated_by_id', readonly: true, label: 'Activated By' },
+          { name: 'last_edited_by_id', readonly: true, label: 'Last Edited By' }
+        ] }
+    ]
+  },
+  'M19-posting-rules': { kind: 'model_list', model: 'fix.gl.posting.rule', stateField: 'state',
+    cols: ['code', 'name', 'source', 'version', 'effective_from', 'approved_by_id', 'posting_count', 'state'],
+    actions: [
+      { m: 'action_run_tests', l: 'Run Test Fixtures' },
+      { m: 'action_approve', l: 'Approve & Activate (Accounting Administrator, not the author)' },
+      { m: 'action_new_version', l: 'Draft a New Version' },
+      { m: 'action_retire', l: 'Retire (Accounting Administrator)' }
+    ] },
+  'M19-form-posting-rule': {
+    kind: 'model_form', model: 'fix.gl.posting.rule',
+    title: 'Posting Rule', back: 'M19-posting-rules',
+    status: { field: 'state', labels: { draft: 'Draft', tested: 'Tested', active: 'Active', superseded: 'Superseded', retired: 'Retired' } },
+    sections: [
+      { title: 'Rule Version', note: 'The rule a sub-ledger posts by. Draft, then Run Test Fixtures (every case must pass), then Approve (an Accounting Administrator who did not write it). From its effective date that sub-ledger may post only to the accounts below, and every posting names the version. A tested rule is never edited: draft a new version.',
+        fields: [
+          { name: 'name', required: true, label: 'Description' },
+          { name: 'source', required: true, label: 'Sub-ledger Source' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'company_id', required: true, label: 'Company' },
+          { name: 'code', readonly: true, label: 'Rule Version' },
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'previous_version_id', readonly: true, label: 'Replaces' },
+          { name: 'last_test_result', readonly: true, label: 'Last Fixture Run' }
+        ] }
+    ],
+    lines: {
+      field: 'line_ids',
+      title: 'Posting Lines: debit shares and credit shares each add up to 100%',
+      note: 'Each line posts its share of the event amount to its account.',
+      fields: [
+        { name: 'side', required: true, label: 'Side' },
+        { name: 'account_id', required: true, label: 'Account' },
+        { name: 'share_percent', required: true, label: 'Share (%)' },
+        { name: 'label', label: 'Line Label' }
+      ]
+    },
+    grids: [
+      { field: 'fixture_ids', title: 'Test Fixtures: expected lines per sample amount',
+        addLabel: '+ Add expected line',
+        empty: 'No fixture yet. A rule cannot be tested or approved without one.',
+        note: 'Rows with the same sample amount are one test case: the rule must produce exactly these lines for that amount.',
+        fields: [
+          { name: 'sample_amount', label: 'Sample Amount' },
+          { name: 'account_id', label: 'Expected Account' },
+          { name: 'expected_debit', label: 'Expected Debit' },
+          { name: 'expected_credit', label: 'Expected Credit' }
+        ] }
+    ]
+  },
+  'M19-fiscal-years': { kind: 'model_list', model: 'account.fiscal.year',
+    cols: ['name', 'date_from', 'date_to', 'company_id'] },
+  'M19-form-fiscal-year': {
+    kind: 'model_form', model: 'account.fiscal.year',
+    title: 'Fiscal Year (July–June)', back: 'M19-fiscal-years',
+    sections: [
+      { title: 'Fiscal Year', note: 'The Bangladesh fiscal year runs 1 July to 30 June. Any other span is refused, and years may not overlap.',
+        fields: [
+          { name: 'name', required: true, label: 'Name (e.g. FY2026-27)' },
+          { name: 'date_from', required: true, label: 'From (1 July)' },
+          { name: 'date_to', required: true, label: 'To (30 June)' },
+          { name: 'company_id', required: true, label: 'Company' }
+        ] }
+    ]
+  },
+  'M19-fx-rates': { kind: 'model_list', model: 'fix.currency.rate.entry', stateField: 'state',
+    cols: ['currency_id', 'rate_type', 'rate_date', 'rate_bdt', 'source', 'entered_by_id', 'approved_by_id', 'published_rate_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval' },
+      { m: 'action_approve', l: 'Approve (Accounting Administrator, not the entrant)' },
+      { m: 'action_reject', l: 'Reject (Accounting Administrator)' }
+    ] },
+  'M19-form-fx-rate': {
+    kind: 'model_form', model: 'fix.currency.rate.entry',
+    title: 'Exchange Rate', back: 'M19-fx-rates',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Awaiting Approval', approved: 'Approved', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Rate', note: 'A dated rate by type. Save, then Submit; an Accounting Administrator other than the entrant approves it. An approved spot or closing rate becomes the ledger rate the FX revaluation and every conversion use (a closing rate wins over a spot rate of the same day); average and statutory/customs rates are kept for reporting. A manual override states why the official rate is not used.',
+        fields: [
+          { name: 'currency_id', required: true, label: 'Currency' },
+          { name: 'rate_type', required: true, label: 'Rate Type' },
+          { name: 'rate_date', required: true, label: 'Rate Date' },
+          { name: 'rate_bdt', required: true, label: 'BDT per 1 Unit' },
+          { name: 'source', required: true, label: 'Source' },
+          { name: 'source_ref', label: 'Source Reference (circular / bank)' },
+          { name: 'override_reason', label: 'Override Reason (manual only)' },
+          { name: 'company_id', required: true, label: 'Company' }
+        ] },
+      { title: 'Approval (system)', note: 'Stamped on submit and approval.',
+        fields: [
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'entered_by_id', readonly: true, label: 'Entered By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_at', readonly: true, label: 'Approved At' },
+          { name: 'published_rate_id', readonly: true, label: 'Ledger Rate Row' }
+        ] }
+    ]
+  },
+  'M19-auditor-grants': { kind: 'model_list', model: 'fix.auditor.access.grant', stateField: 'state',
+    cols: ['user_id', 'audit_firm_id', 'engagement_ref', 'period_from', 'period_to', 'valid_from', 'valid_to', 'login_count', 'state'],
+    actions: [
+      { m: 'action_grant', l: 'Grant Access (Accounting Administrator, not the requester)' },
+      { m: 'action_revoke', l: 'Revoke Access (Accounting Administrator)' }
+    ] },
+  'M19-form-auditor-grant': {
+    kind: 'model_form', model: 'fix.auditor.access.grant',
+    title: 'External Auditor Access', back: 'M19-auditor-grants',
+    status: { field: 'state', labels: { draft: 'Draft', active: 'Active', expired: 'Expired', revoked: 'Revoked' } },
+    sections: [
+      { title: 'Scope', note: 'Read-only, time-limited (90 days at most), limited to the entities and the audited period, and logged. Use a dedicated login that cannot change the books; its companies must lie within the grant. Save, then Grant from the list: an Accounting Administrator other than the requester grants it. Access ends by itself at the end of the window.',
+        fields: [
+          { name: 'user_id', required: true, label: 'Auditor Login' },
+          { name: 'audit_firm_id', label: 'Audit Firm' },
+          { name: 'engagement_ref', required: true, label: 'Engagement Letter Ref' },
+          { name: 'company_ids', required: true, label: 'Entities in Scope' },
+          { name: 'period_from', required: true, label: 'Audited Period From' },
+          { name: 'period_to', required: true, label: 'Audited Period To' },
+          { name: 'valid_from', required: true, label: 'Access From' },
+          { name: 'valid_to', required: true, label: 'Access Until' }
+        ] },
+      { title: 'Access Log (system)', note: 'Who granted it, sign-ins in the window, and how it ended.',
+        fields: [
+          { name: 'state', readonly: true, label: 'Status' },
+          { name: 'granted_by_id', readonly: true, label: 'Granted By' },
+          { name: 'granted_at', readonly: true, label: 'Granted At' },
+          { name: 'login_count', readonly: true, label: 'Sign-ins in Window' },
+          { name: 'last_login', readonly: true, label: 'Last Sign-in' },
+          { name: 'ended_at', readonly: true, label: 'Ended At' },
+          { name: 'end_reason', readonly: true, label: 'Why It Ended' }
+        ] }
+    ]
+  },
   'M19-fx-revaluation': { kind: 'model_list', model: 'fix.fx.revaluation', stateField: 'state',
     cols: ['name', 'rate_date', 'currency_id', 'total_gain', 'total_loss', 'net_amount', 'state'],
     actions: [{ m: 'action_compute', l: 'Compute' }, { m: 'action_post', l: 'Post' }] },
@@ -941,6 +1112,12 @@ export const FORM_MODELS = {
   'M19:Retention Policy': 'fix.retention.class',
   'M19:SoD Control': 'fix.sod.control',
   'M19:SoD Exception': 'fix.sod.mitigation',
+  // capture pass 2 (2026-11-19)
+  'M19:Cross-Validation Rule': 'fix.gl.crossvalidation.rule',
+  'M19:Posting Rule': 'fix.gl.posting.rule',
+  'M19:Fiscal Year (July–June)': 'account.fiscal.year',
+  'M19:Exchange Rate': 'fix.currency.rate.entry',
+  'M19:External Auditor Access': 'fix.auditor.access.grant',
 };
 
 /* every registry form chip -> its in-workspace D365 screen; grid + New and
@@ -971,7 +1148,17 @@ export const FORM_CHIPS = {
   'M19:Retention Policy': 'M24-form-retention',
   'M19:SoD Control': 'M29-form-sodcontrol',
   'M19:SoD Exception': 'M29-form-sodexception',
+  'M19:Cross-Validation Rule': 'M19-form-crossval',
+  'M19:Posting Rule': 'M19-form-posting-rule',
+  'M19:Fiscal Year (July–June)': 'M19-form-fiscal-year',
+  'M19:Exchange Rate': 'M19-form-fx-rate',
+  'M19:External Auditor Access': 'M19-form-auditor-grant',
   'M19:__by_model__': {
+    'fix.gl.crossvalidation.rule': 'M19-form-crossval',
+    'fix.gl.posting.rule': 'M19-form-posting-rule',
+    'account.fiscal.year': 'M19-form-fiscal-year',
+    'fix.currency.rate.entry': 'M19-form-fx-rate',
+    'fix.auditor.access.grant': 'M19-form-auditor-grant',
     'fix.sod.control': 'M29-form-sodcontrol',
     'fix.sod.mitigation': 'M29-form-sodexception',
     'fix.period.close': 'M19-form-period-close',
@@ -993,6 +1180,11 @@ export const FORM_CHIPS = {
     'fix.bank.takeon.batch': 'M19-form-bank-takeon'
   },
   'M19:__by_screen__': {
+    'M19-crossval': 'M19-form-crossval',
+    'M19-posting-rules': 'M19-form-posting-rule',
+    'M19-fiscal-years': 'M19-form-fiscal-year',
+    'M19-fx-rates': 'M19-form-fx-rate',
+    'M19-auditor-grants': 'M19-form-auditor-grant',
     'M19-period-close': 'M19-form-period-close',
     'M19-reopens': 'M19-form-reopen',
     'M19-control-changes': 'M19-form-control-change',

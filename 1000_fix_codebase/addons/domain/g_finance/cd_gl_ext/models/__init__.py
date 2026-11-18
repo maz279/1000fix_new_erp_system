@@ -12,3 +12,7 @@ from . import (
     fix_ledger_takeon,
     fix_legacy_ledger,
 )
+
+# isort: split
+# imported last: the M19 capture pass-2 registers extend the models above
+from . import fix_gl_capture

@@ -1271,6 +1271,9 @@ def _validate_move_against_chart(env, move, dimension_by_line, source):
     Lines on UNMAPPED accounts get no statutory check: the chart links
     progressively (fix.chart.loader.action_link_odoo_accounts), and the
     platform must post on the generic Odoo chart meanwhile."""
+    # BRU-FIN-22: dimension cross-validation applies on every posting path,
+    # linked chart or not
+    env["fix.gl.crossvalidation.rule"]._check_move(move, dimension_by_line)
     chart_map = _chart_map_for_company(env, move.company_id.id)
     if not chart_map:
         return
@@ -1358,7 +1361,15 @@ def _attach_dimensions(env, move, dimension_by_line):
 
 
 def _log_posting(
-    env, move, source, requested_by, template, state="posted", source_ref=None, posted_by=None
+    env,
+    move,
+    source,
+    requested_by,
+    template,
+    state="posted",
+    source_ref=None,
+    posted_by=None,
+    posting_rule=None,
 ):
     """Append the immutable posting-log row (FR-FIN-042). Created sudo: the
     audit trail must never be the reason a posting fails on permissions."""
@@ -1381,6 +1392,7 @@ def _log_posting(
                 "template_id": template.id if template else False,
                 "currency_id": move.currency_id.id,
                 "amount": move.amount_total,
+                "posting_rule_id": posting_rule.id if posting_rule else False,
             }
         )
     )
@@ -1441,6 +1453,7 @@ def post_with_dimensions(
     move = env["account.move"].create(move_vals)
     dimension_by_line = _fill_subledger_dimensions(env, move, dimension_by_line or {}, source)
     _validate_move_against_chart(env, move, dimension_by_line, source)
+    rule = env["fix.gl.posting.rule"]._govern(move, source)  # FR-FIN-008/010
     _m19_post(env, move, source)
     dimensions = _attach_dimensions(env, move, dimension_by_line)
     _publish_posted(env, move, source)
@@ -1452,6 +1465,7 @@ def post_with_dimensions(
         template,
         state="posted",
         source_ref=source_ref,
+        posting_rule=rule,
     )
     return move, dimensions
 
@@ -1469,11 +1483,20 @@ def post_existing_moves(env, moves, source="api", source_ref=None, dimension_by_
             raise UserError("%s is not a draft entry." % move.display_name)
         line_dims = _fill_subledger_dimensions(env, move, dimension_by_line or {}, source)
         _validate_move_against_chart(env, move, line_dims, source)
+        rule = env["fix.gl.posting.rule"]._govern(move, source)  # FR-FIN-008/010
         _m19_post(env, move, source)
         if line_dims:
             _attach_dimensions(env, move, line_dims)
         _publish_posted(env, move, source)
-        _log_posting(env, move, source, getattr(env, "uid", None), None, source_ref=source_ref)
+        _log_posting(
+            env,
+            move,
+            source,
+            getattr(env, "uid", None),
+            None,
+            source_ref=source_ref,
+            posting_rule=rule,
+        )
     return moves
 
 

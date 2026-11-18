@@ -71,12 +71,12 @@ console.log(JSON.stringify({ subs, ownForms, byScreen, moduleCreate: P03_MODULE_
 CAPTURE = {
     "1": "form",  # account + control-account change + chart loader
     "2": "form",  # journal entry (editor) + partner-ledger take-on
-    "3": "system",  # dimension lines are written when an entry posts
+    "3": "form",  # posting rule (pass 2, FR-FIN-009); dimension lines stay system-written
     "4": "form",  # period close + reopen request
     "5": "form",  # consolidation book, IC charge, IC rule, TP rate
     "6": "form",  # FX revaluation run
     "7": "form",  # report bridge + nil return
-    "8": "chip",  # retention policy (M24 master, administrators)
+    "8": "form",  # auditor access grant (pass 2, FR-FIN-043) + retention policy chip (M24)
     "9": "form",  # recurring template + allocation rule
     "10": "form",  # control-account change; SoD exception / control (M29)
     "11": "form",  # legacy GL control-ledger import

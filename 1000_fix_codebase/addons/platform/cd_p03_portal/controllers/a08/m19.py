@@ -178,6 +178,28 @@ SURFACES = {
         "actions": {"action_submit", "action_revoke"},
     },
     "fix.chart.control.change": {"order": "id desc", "limit": 200, "actions": {"action_submit"}},
+    # capture pass 2 (2026-11-19): the five spec records that had no model
+    "fix.gl.crossvalidation.rule": {
+        "order": "account_prefix, id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.gl.posting.rule": {
+        "order": "source, version desc",
+        "limit": 200,
+        "actions": {"action_run_tests", "action_approve", "action_new_version", "action_retire"},
+    },
+    "account.fiscal.year": {"order": "date_from desc", "limit": 100, "actions": set()},
+    "fix.currency.rate.entry": {
+        "order": "rate_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
+    "fix.auditor.access.grant": {
+        "order": "valid_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_grant", "action_revoke"},
+    },
     "fix.transfer.price.rate": {
         "order": "rule_id, date_from desc",
         "limit": 200,

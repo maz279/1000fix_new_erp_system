@@ -924,9 +924,10 @@ class TestFiscalYearBridge:
         move(date(2026, 3, 6), expense, cash, 999.0, post=False)
         fy = env["account.fiscal.year"].create(
             {
-                "name": "FY2026",
-                "date_from": date(2026, 1, 1),
-                "date_to": date(2026, 12, 31),
+                # BRU-FIN-19: the Bangladesh fiscal year runs July to June
+                "name": "FY2025-26",
+                "date_from": date(2025, 7, 1),
+                "date_to": date(2026, 6, 30),
                 "company_id": company.id,
             }
         )

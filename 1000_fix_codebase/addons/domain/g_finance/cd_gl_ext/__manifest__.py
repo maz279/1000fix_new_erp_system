@@ -15,7 +15,7 @@ content set (master data, AF-09-gated — loader lands with the content).
 Suspense reconciliation (AR-006 §5.4) is enforced at close: the W2 inventory
 suspense balance must be zero before a period can close.
 """,
-    "version": "19.0.2.4.0",
+    "version": "19.0.2.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Accounting",
@@ -33,6 +33,7 @@ suspense balance must be zero before a period can close.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_gl_capture_security.xml",
         "data/fx_revaluation_sequences.xml",
         "views/fix_gl_ext_views.xml",
         "views/fix_gl_engine_views.xml",

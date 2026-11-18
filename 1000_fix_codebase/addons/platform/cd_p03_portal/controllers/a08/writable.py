@@ -12,6 +12,14 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a08
 
 WRITABLE = {
+    "account.fiscal.year": frozenset(
+        {
+            "company_id",
+            "date_from",
+            "date_to",
+            "name",
+        }
+    ),
     "account.journal": frozenset(
         {
             "active",
@@ -425,6 +433,18 @@ WRITABLE = {
             "proposed_action",
         }
     ),
+    "fix.auditor.access.grant": frozenset(
+        {
+            "audit_firm_id",
+            "company_ids",
+            "engagement_ref",
+            "period_from",
+            "period_to",
+            "user_id",
+            "valid_from",
+            "valid_to",
+        }
+    ),
     "fix.bank.facility": frozenset(
         {
             "expiry_date",
@@ -833,6 +853,18 @@ WRITABLE = {
             "reason_code",
         }
     ),
+    "fix.currency.rate.entry": frozenset(
+        {
+            "company_id",
+            "currency_id",
+            "override_reason",
+            "rate_bdt",
+            "rate_date",
+            "rate_type",
+            "source",
+            "source_ref",
+        }
+    ),
     "fix.cwip.component": frozenset(
         {
             "category_id",
@@ -1035,6 +1067,27 @@ WRITABLE = {
         }
     ),
     "fix.gateway.settlement.line": frozenset(),
+    "fix.gl.crossvalidation.rule": frozenset(
+        {
+            "account_prefix",
+            "active_from",
+            "dimension",
+            "effect",
+            "name",
+            "note",
+            "values",
+        }
+    ),
+    "fix.gl.posting.rule": frozenset(
+        {
+            "company_id",
+            "effective_from",
+            "fixture_ids",
+            "line_ids",
+            "name",
+            "source",
+        }
+    ),
     "fix.imprest.count": frozenset(
         {
             "count_date",

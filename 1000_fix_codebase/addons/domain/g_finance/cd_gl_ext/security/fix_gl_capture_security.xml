@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- FR-FIN-043 / BRU-FIN-26: held only while an external auditor access
+         grant is active (fix.auditor.access.grant adds and removes it).
+         Read-only accounting; journal entries and items limited to the
+         granted entities and audited period.
+         The scope rules are GLOBAL (AND-ed for every user) and narrow only
+         for a holder of this group: as group rules they were OR-ed with the
+         read-only accounting group's own "all journal items" rule and
+         restricted nothing (caught by test_m19_capture_pass2). -->
+    <record id="group_external_auditor" model="res.groups">
+        <field name="name">M19 External Auditor (read-only, time-limited)</field>
+        <field name="implied_ids" eval="[(4, ref('account.group_account_readonly'))]"/>
+    </record>
+
+    <record id="rule_external_auditor_move" model="ir.rule">
+        <field name="name">External auditor: granted entities and audited period (entries)</field>
+        <field name="model_id" ref="account.model_account_move"/>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="domain_force">[('company_id', 'in', user.fix_audit_company_ids.ids), ('date', '&gt;=', user.fix_audit_period_from or '2999-12-31'), ('date', '&lt;=', user.fix_audit_period_to or '1900-01-01')] if user.has_group('cd_gl_ext.group_external_auditor') else [(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="rule_external_auditor_move_line" model="ir.rule">
+        <field name="name">External auditor: granted entities and audited period (items)</field>
+        <field name="model_id" ref="account.model_account_move_line"/>
+        <field name="groups" eval="[(5, 0, 0)]"/>
+        <field name="domain_force">[('company_id', 'in', user.fix_audit_company_ids.ids), ('date', '&gt;=', user.fix_audit_period_from or '2999-12-31'), ('date', '&lt;=', user.fix_audit_period_to or '1900-01-01')] if user.has_group('cd_gl_ext.group_external_auditor') else [(1, '=', 1)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
+
+    <record id="ir_cron_auditor_access_expiry" model="ir.cron">
+        <field name="name">GL: Expire External Auditor Access</field>
+        <field name="model_id" ref="model_fix_auditor_access_grant"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_expire()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">hours</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>
