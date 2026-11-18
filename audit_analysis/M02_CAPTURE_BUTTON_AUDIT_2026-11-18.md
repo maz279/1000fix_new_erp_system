@@ -95,6 +95,13 @@ All runs used a private copy of fix_test (`fix_test_m02`), with 37 lagging modul
   - The 6 models are registered, with 13 access rules, 12 isolation rules and 5 sequences.
   - Both servers hand out bundle `ca49a48`, which holds all six new M02 forms.
   - `/web/login` returns 200 on both.
-  - The pages were not walked in the live workspace: the browser pane is not signed in to fix_real, and no credentials were entered. The page walk was done on the private test server (§5).
+- **Walked on the live fix_real workspace** (8069, signed in by the user in the browser pane; nothing saved):
+  - All 12 sub-module pages show their button.
+  - Every "+ New" opens its form with the expected fields (page 2's opens on its pick-the-order step):
+    - 1 Dispatch Decision, 2 Reschedule a Field Order, 3 Route Plan, 4 Zone Geofence;
+    - 5 Field Work Order, 6 Work Order, 7 Offline Conflict Review, 8 Tracking Pause;
+    - 9 Failed Visit Report, 10 Van Reconciliation, 11 Field Cash Reconciliation, 12 Lone-Worker Check-In.
+  - `/p03/model/records` serves all six new models (0 rows each).
+  - fix_dev (8090) serves the same bundle `ca49a48` and has the same database objects, but was not walked.
 - **Data:** fix_real has 0 field orders, so all six registers start empty.
 
