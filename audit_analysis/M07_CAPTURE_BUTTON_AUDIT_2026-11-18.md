@@ -1,6 +1,6 @@
 # M07 CRM & Sales Pipeline: data-capture button audit, second pass
 
-**Date:** 18 Nov 2026 · **Branch:** `fix/m07-capture-pass2` (worktree `m07cap2-wt`, from `6deb4dca`) · **Status:** built and tested on a private copy of fix_test (`fix_test_m07`); see §7 for landing and deploy
+**Date:** 18 Nov 2026 · **Branch:** `fix/m07-capture-pass2` (worktree `m07cap2-wt`, from `6deb4dca`) · **Status:** built, tested, landed (`bbb27f2c`), pushed, and **live on fix_real (8069) and fix_dev (8090)** since 19 Nov 03:17 (see §7)
 
 ## 1. The question
 
@@ -86,4 +86,13 @@ All runs used `fix_test_m07`, a private copy of fix_test with 39 lagging modules
 
 ## 7. State
 
-STATE
+| Step | Status |
+|---|---|
+| Commit | `eca20c79` on `fix/m07-capture-pass2`, replayed onto the shared tip as **`bbb27f2c`** (after M10's `6d1dbd77`). The merged tree was re-checked: generated `writable.py` unchanged on regeneration; A03/M07/M10 page guards: 443 run, 257 passed, 184 skipped, 2 failed. Both failures are pre-existing (M60 hold row, M19/M30 page buttons); the row-form failure now also names M10's wallet row, from M10's landing, not M07. |
+| Land | CAS `update-ref` on `fix/a03-live-data-and-pending-work` + `read-tree -m -u` in the shared checkout (clean before and after). |
+| Push | `origin/fix/a03-live-data-and-pending-work` contains `bbb27f2c`; `origin/fix/m07-capture-pass2` pushed. |
+| Backup | `all_working_folder/1000fix-2/_migration/backups/fix_real_pre_m07_capture2_2026-11-19.dump` (51.8 MB). |
+| Deploy (user approved: both DBs) | Run by the M06 session in one coordinated wave: `-u cd_data_case,cd_crm_ext,cd_quotation,cd_rate_card,cd_p03_portal` on fix_real and fix_dev, version-gap check empty, one restart of both at 19 Nov 03:17 (8069 PID 65964, 8090 PID 77252). M07 ran no -u of its own, to avoid two upgrades on one database. |
+| Live check (read-only, both DBs) | `cd_crm_ext` 19.0.1.4.0; the 4 new models, 6 ACL rows, 4 isolation rules and 5 new columns present; both servers started after the landing; live bundle `02e9383` carries the new forms (qualification, team, quota, criteria, QBR actions, renewal source type). |
+| Data | fix_real has no M07 records yet (0 leads, 0 accounts), and **no dedicated-manager criteria are published**: until the CCO publishes them, every dedicated assignment is a sales-manager-approved exception. |
+| Cleanup | Private clones `fix_test_m07`, `_m07r`, `_m07w` dropped; private server and launch entry removed; run worktree removed. |
