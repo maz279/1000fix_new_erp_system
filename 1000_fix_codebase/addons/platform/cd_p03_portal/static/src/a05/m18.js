@@ -1344,7 +1344,6 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.esg.factor.set',
     title: 'Emission Factor Set',
-    newLabel: '+ New Emission Factor Set',
     back: 'M18-factors',
     status: { field: 'state', labels: { draft: 'Proposed', active: 'Active', retired: 'Retired' } },
     tabs: [

@@ -39,3 +39,4 @@ access_fix_esg_factor_set,fix.esg.factor.set user,model_fix_esg_factor_set,base.
 access_fix_esg_factor_set_compliance,fix.esg.factor.set compliance,model_fix_esg_factor_set,group_ewaste_compliance_officer,1,1,1,0
 access_fix_ewaste_obligation,fix.ewaste.obligation user,model_fix_ewaste_obligation,base.group_user,1,0,0,0
 access_fix_ewaste_obligation_compliance,fix.ewaste.obligation compliance,model_fix_ewaste_obligation,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_material_recovery_admin,fix.ewaste.material.recovery admin (read),model_fix_ewaste_material_recovery,base.group_system,1,0,0,0
