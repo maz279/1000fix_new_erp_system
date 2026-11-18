@@ -1169,7 +1169,8 @@ class FixContract(models.Model):
                 if days_left > 0
                 else None
             )
-            if window is None or not contract.auto_renew:
+            # BRU-CTR-12: a contract in dispute neither escalates nor auto-renews
+            if window is None or not contract.auto_renew or contract.in_dispute:
                 continue
             if contract.expiry_notified_window and contract.expiry_notified_window <= window:
                 continue
@@ -1562,9 +1563,11 @@ class FixContractEntitlement(models.Model):
         term covers it), not merely carry an 'active' state; and when the
         caller names the customer, only that customer's contracts count."""
         day = on_date or fields.Date.context_today(self)
+        # M08 capture pass 2: a device is covered when it is listed OR caught
+        # by a coverage rule (asset type / brand / site, FR-CTR-014), so the
+        # device is no longer part of the search
         domain = [
             ("state", "in", IN_FORCE),
-            ("covered_device_ids", "in", [device_id]),
             ("family", "=", category),
             ("date_start", "<=", day),
             ("date_end", ">=", day),
@@ -1576,7 +1579,13 @@ class FixContractEntitlement(models.Model):
                 else (self.env["res.partner"].browse(int(customer)))
             )
             domain.append(("customer_id", "child_of", partner.commercial_partner_id.id))
-        contracts = self.env["fix.contract"].sudo().search(domain)
+        device = self.env["fix.device"].sudo().browse(device_id)
+        contracts = (
+            self.env["fix.contract"]
+            .sudo()
+            .search(domain)
+            .filtered(lambda k: k._contract_covers_device(device, day))
+        )
         remaining = contracts.entitlement_ids.filtered(
             lambda ent: ent.device_id.id in (False, device_id)
             and (ent.quantity_included == 0 or ent.quantity_remaining > 0)

@@ -34,7 +34,10 @@ SURFACES = {
             "action_reset_to_draft",
             "action_activate",
             "action_renew",
+            # resumes with the declared treatment of the suspended period
+            # (Reinstatement form); a second officer verifies an ink signature
             "action_resume",
+            "action_verify_wet_signature",
         },
     },
     "fix.contract.entitlement": {
@@ -76,6 +79,35 @@ SURFACES = {
         "order": "due_date, id",
         "limit": 300,
         "actions": {"action_complete", "action_waive"},
+    },
+    # M08 capture pass 2 (2026-11-18): the PM / calibration plan, coverage
+    # rules, the entitlement ledger (read-only: the engine writes it) and
+    # top-ups, the service credit scheme and disputes with legal hold.
+    "fix.contract.pm.plan": {
+        "order": "contract_id, schedule_type, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.contract.coverage.rule": {"order": "contract_id, id", "limit": 300, "actions": set()},
+    "fix.contract.entitlement.movement": {
+        "order": "moved_on desc, id desc",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.contract.entitlement.topup": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_apply", "action_reject"},
+    },
+    "fix.contract.credit.scheme": {
+        "order": "contract_id, breach_type, priority, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.contract.dispute": {
+        "order": "state, opened_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_resolve"},
     },
     # fix.msp.sla.credit is owned by M05 (a02 surface) — read through the
     # merged registry; not declared twice.

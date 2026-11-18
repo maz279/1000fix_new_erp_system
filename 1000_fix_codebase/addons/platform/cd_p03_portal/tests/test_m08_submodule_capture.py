@@ -102,9 +102,9 @@ EXPECTED = {
     "1": {"module": True},  # + New Contract
     "2": "M08-form-submit",  # Legal review is the second chip
     "3": "M08-form-coverage",  # the covered assets and SLAs, not an entitlement
-    "4": "M08-form-entitlement",
-    "5": "M05-form-credit",  # M05 masters the SLA credit
-    "6": "M08-form-pm",
+    "4": "M08-form-topup",  # a live contract's entitlement grows by a top-up (pass 2)
+    "5": "M08-form-creditscheme",  # the credit scheme; M05 computes the credit (pass 2)
+    "6": "M08-form-pmplan",  # the schedule is the plan, not one visit (pass 2)
     "7": "M08-form-amendment",
     "8": "M08-form-renewal",
     "9": "M08-form-termination",

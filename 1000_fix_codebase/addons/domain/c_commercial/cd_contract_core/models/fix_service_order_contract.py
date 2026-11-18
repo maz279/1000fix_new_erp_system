@@ -116,7 +116,7 @@ class FixServiceOrderContract(models.Model):
         customer = (self.customer_id.commercial_partner_id or self.customer_id).sudo()
         if contract.customer_id.commercial_partner_id != customer:
             return Line
-        if self.device_id not in contract.covered_device_ids:
+        if not contract._contract_covers_device(self.device_id, fields.Date.context_today(self)):
             return Line
         lines = contract.entitlement_ids.filtered(
             lambda e: e.entitlement_type in self._fix_entitlement_types()

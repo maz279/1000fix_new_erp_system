@@ -109,7 +109,10 @@ WRITABLE = {
             "family",
             "name",
             "operating_unit_id",
+            "owner_id",
+            "parent_contract_id",
             "renewal_lead_days",
+            "signature_method",
             "sla_policy_ids",
             "stamp_act_article",
             "stamp_duty_amount",
@@ -117,6 +120,8 @@ WRITABLE = {
             "stamp_duty_cert_no",
             "stamp_duty_exemption_reason",
             "template_id",
+            "wet_signed_file_id",
+            "wet_signed_on",
         }
     ),
     "fix.contract.amendment": frozenset(
@@ -131,12 +136,55 @@ WRITABLE = {
             "note",
         }
     ),
+    "fix.contract.coverage.rule": frozenset(
+        {
+            "brand_id",
+            "contract_id",
+            "cover_from",
+            "cover_to",
+            "device_type",
+            "note",
+            "site_partner_id",
+        }
+    ),
+    "fix.contract.credit.scheme": frozenset(
+        {
+            "breach_type",
+            "cap_pct",
+            "contract_id",
+            "credit_basis",
+            "credit_value",
+            "cumulative_rule",
+            "note",
+            "priority",
+        }
+    ),
+    "fix.contract.dispute": frozenset(
+        {
+            "contract_id",
+            "description",
+            "name",
+            "opened_on",
+            "raised_by_party",
+        }
+    ),
     "fix.contract.entitlement": frozenset(
         {
             "contract_id",
             "device_id",
             "entitlement_type",
             "quantity_included",
+        }
+    ),
+    "fix.contract.entitlement.movement": frozenset(),
+    "fix.contract.entitlement.topup": frozenset(
+        {
+            "amount",
+            "customer_reference",
+            "entitlement_id",
+            "name",
+            "quantity",
+            "reason",
         }
     ),
     "fix.contract.exclusion": frozenset(
@@ -172,6 +220,19 @@ WRITABLE = {
             "phone",
             "portal_access",
             "role",
+        }
+    ),
+    "fix.contract.pm.plan": frozenset(
+        {
+            "access_window",
+            "active",
+            "contract_id",
+            "device_id",
+            "first_due",
+            "interval_months",
+            "lead_days",
+            "name",
+            "schedule_type",
         }
     ),
     "fix.contract.pm.visit": frozenset(

@@ -23,3 +23,14 @@ access_fix_contract_exclusion,fix.contract.exclusion,model_fix_contract_exclusio
 access_fix_contract_exclusion_officer,fix.contract.exclusion.officer,model_fix_contract_exclusion,group_contract_officer,1,1,1,1
 access_fix_contract_obligation,fix.contract.obligation,model_fix_contract_obligation,base.group_user,1,0,0,0
 access_fix_contract_obligation_officer,fix.contract.obligation.officer,model_fix_contract_obligation,group_contract_officer,1,1,1,0
+access_fix_contract_pm_plan,fix.contract.pm.plan,model_fix_contract_pm_plan,base.group_user,1,0,0,0
+access_fix_contract_pm_plan_officer,fix.contract.pm.plan.officer,model_fix_contract_pm_plan,group_contract_officer,1,1,1,1
+access_fix_contract_coverage_rule,fix.contract.coverage.rule,model_fix_contract_coverage_rule,base.group_user,1,0,0,0
+access_fix_contract_coverage_rule_officer,fix.contract.coverage.rule.officer,model_fix_contract_coverage_rule,group_contract_officer,1,1,1,1
+access_fix_contract_entitlement_movement,fix.contract.entitlement.movement,model_fix_contract_entitlement_movement,base.group_user,1,0,0,0
+access_fix_contract_entitlement_topup,fix.contract.entitlement.topup,model_fix_contract_entitlement_topup,base.group_user,1,0,0,0
+access_fix_contract_entitlement_topup_officer,fix.contract.entitlement.topup.officer,model_fix_contract_entitlement_topup,group_contract_officer,1,1,1,0
+access_fix_contract_credit_scheme,fix.contract.credit.scheme,model_fix_contract_credit_scheme,base.group_user,1,0,0,0
+access_fix_contract_credit_scheme_officer,fix.contract.credit.scheme.officer,model_fix_contract_credit_scheme,group_contract_officer,1,1,1,1
+access_fix_contract_dispute,fix.contract.dispute,model_fix_contract_dispute,base.group_user,1,0,0,0
+access_fix_contract_dispute_officer,fix.contract.dispute.officer,model_fix_contract_dispute,group_contract_officer,1,1,1,0

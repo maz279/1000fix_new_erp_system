@@ -295,7 +295,10 @@ def test_high_value_contract_needs_legal_review_by_someone_else(c):
 
 def test_stamp_exemption_is_a_finance_decision_by_someone_else(c):
     k = _contract(
-        c, stamp_duty_applicable=False, stamp_duty_exemption_reason="Duty paid on master MSA"
+        c,
+        stamp_duty_applicable=False,
+        stamp_duty_exemption_reason="Duty paid on master MSA",
+        covered_device_ids=[(6, 0, _device(c).ids)],  # BRU-CTR-01: an AMC covers something
     )
     assert k.stamp_exemption_requested_by == c.officer
     k.action_request_approval(justification="Call-off under the MSA")
