@@ -233,27 +233,37 @@ def test_surfaces_and_writable_follow_the_forms():
     assert "agreed_price" in W["fix.procurement.approved.source"]
 
 
+# required fields a form need not offer: create() derives them from another
+# field the form does offer
+DERIVED = {
+    ("fix.procurement.inspection", "product_id"),  # from the receipt line
+}
+MAGIC = {"id", "create_uid", "create_date", "write_uid", "write_date"}
+
+
 def test_every_m16_form_field_exists_and_required_fields_are_offered(reg, odoo_env):
     env = odoo_env
+    gaps = []
     for sid, cfg in reg["screens"].items():
         if cfg["kind"] != "model_form" or not sid.startswith("M16-") or cfg["model"] not in env:
             continue
         model = env[cfg["model"]]
         offered = {f["name"] for f in cfg["fields"]}
         missing = offered - set(model._fields)
-        assert not missing, (sid, missing)
+        if missing:
+            gaps.append((sid, "unknown field", sorted(missing)))
         if sid == "M16-form-grn":
             continue  # read-only here: raised by posting a PO goods receipt
         defaults = model.default_get(list(model._fields))
         computed = {n for n, f in model._fields.items() if f.compute or f.related}
-        lines = {cfg["lines"]["field"]} if cfg["lines"] else set()
-        needed = (
-            {
-                n
-                for n, f in model._fields.items()
-                if f.required and n not in defaults and n not in computed and not f.automatic
-            }
-            - lines
-            - {"name"}
-        )
-        assert needed <= offered, (sid, needed - offered)
+        skip = MAGIC | {"name"} | {n for m, n in DERIVED if m == cfg["model"]}
+        if cfg["lines"]:
+            skip.add(cfg["lines"]["field"])
+        needed = {
+            n
+            for n, f in model._fields.items()
+            if f.required and n not in defaults and n not in computed and n not in skip
+        }
+        if needed - offered:
+            gaps.append((sid, "required not offered", sorted(needed - offered)))
+    assert not gaps, gaps

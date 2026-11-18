@@ -577,6 +577,7 @@ def test_a3_the_buyer_who_recorded_a_bid_sees_only_that_bid_while_open(world, rf
     rec, bid = rfq
     assert [r["id"] for r in _bids(p03, world.buyer, rec)] == [bid.id]
     other = world.env["res.partner"].create({"name": "A06 Final Bidder 2", "is_company": True})
+    rec.write({"invited_vendor_ids": [(4, other.id)]})  # FR-PRO-011: only invitees bid
     theirs = (
         world.env["fix.procurement.bid"]
         .with_user(world.buyer2)
@@ -799,6 +800,8 @@ def test_a6_every_button_is_served_and_collects_what_its_method_needs(odoo_env, 
             continue
         model = form_fields.MODEL.search(body).group(1)
         for method, asked in _buttons(body):
+            if method.startswith("__"):
+                continue  # opens a form on the client ("Raise Call-Off PO"); no server method
             seen += 1
             assert method in api.SURFACES[model]["actions"], "%s: %s not served" % (sid, method)
             fn = getattr(odoo_env[model], method)
