@@ -97,4 +97,13 @@ Every new surface declares its buttons and the fields its form may write; no sta
 
 ## 5. State
 
-**Committed on `fix/m64-capture-buttons` (worktree `1000 fix/m64cap-wt`), not landed on the shared branch and not deployed.** Landing and deploying (`-u cd_mdm_core,cd_p03_portal` on fix_real and fix_dev, then a restart so the new surfaces are served) wait for the user's go-ahead.
+**Landed and deployed 18 Nov 2026 (user: "Land and deploy").**
+
+- Landed on `fix/a03-live-data-and-pending-work` as 11017090 (fix) + 663d7dec (report), by compare-and-swap fast-forward. Three peer landings arrived during the landing (M63, then M59/M60/M61, then M65), and each time the M64 commits were replayed with `git merge-tree` (no shared files). The static guards (M64 capture, estate pages, A12 write whitelist) were green on the final tree. The M64/M63 ORM tests were green on the combined M63+M64 tree. Not pushed.
+- Backups: `_migration/backups/fix_real_pre_m64_capture_2026-11-18.dump` and `fix_dev_pre_m64_capture_2026-11-18.dump`.
+- `-u cd_mdm_core,cd_p03_portal`, both exit 0, cd_mdm_core 19.0.1.3.0:
+  - fix_real (08:19 +0800): no ERROR lines; the 7 new tables were created.
+  - fix_dev (08:18 +0800): 5 "has no table" lines, all M65 `cd_multi_entity` models whose own fix_dev upgrade was still running.
+- One shared restart of 8069 and 8090 by the M61 session at 08:20:34, after both upgrades (it covers M59-M65). 8069 is now PID 7840 and 8090 PID 71092.
+- Live probe (`/p03/model/records` with each screen's own columns, and `/p03/model/report`) on 8069/fix_real and 8090/fix_dev: 23 calls each, 0 errors, 0 dropped columns. Live bundle `d91fc14` on both carries the M64 parameter, hierarchy, bulk-set and remediation forms.
+- Still open: no active MDM Domain Steward on fix_real (role grant is an owner decision); no business parameters registered yet.
