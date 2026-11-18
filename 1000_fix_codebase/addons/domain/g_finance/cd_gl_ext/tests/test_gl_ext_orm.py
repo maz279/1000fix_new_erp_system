@@ -969,7 +969,7 @@ class TestFiscalYearBridge:
             1400.0,
             True,
         )
-        assert (data["date_from"], data["date_to"]) == ("2026-01-01", "2026-12-31")
+        assert (data["date_from"], data["date_to"]) == ("2025-07-01", "2026-06-30")
 
     def test_pnl_and_balance_sheet(self, odoo_env):
         env, company, fy = self._ledger(odoo_env)

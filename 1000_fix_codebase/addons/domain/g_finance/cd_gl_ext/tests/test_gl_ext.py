@@ -229,6 +229,11 @@ class TestPostWithDimensions:
         chart_model.sudo.return_value.search.return_value = []
         # The immutable posting log the helper appends (FR-FIN-042).
         log_model = MagicMock()
+        # M19 capture pass 2: every posting is checked against the active
+        # dimension cross-validation rules (BRU-FIN-22) and the posting rule
+        # in force for its source (FR-FIN-008/010).
+        crossval_model = MagicMock()
+        rule_model = MagicMock()
 
         env = {
             "account.move": MagicMock(create=MagicMock(return_value=move_mock)),
@@ -236,6 +241,8 @@ class TestPostWithDimensions:
             "operating.unit": ou_model,
             "fix.chart.account": chart_model,
             "fix.journal.posting.log": log_model,
+            "fix.gl.crossvalidation.rule": crossval_model,
+            "fix.gl.posting.rule": rule_model,
         }
 
         with patch("odoo.addons.cd_gl_ext.models.fix_gl_ext.publish") as mock_pub:
@@ -252,6 +259,8 @@ class TestPostWithDimensions:
             dim_model.create.assert_called_once()
             mock_pub.assert_called_once()
             log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
+            crossval_model._check_move.assert_called_once()
+            rule_model._govern.assert_called_once_with(move_mock, "api")
 
 
 def _records(*recs, ledger=None):
