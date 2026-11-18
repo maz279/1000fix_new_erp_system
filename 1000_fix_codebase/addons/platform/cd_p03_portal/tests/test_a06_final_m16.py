@@ -524,7 +524,15 @@ def rfq(world):
     rec = (
         w.env["fix.procurement.rfq"]
         .with_user(w.buyer)
-        .create({"description": "A06 final RFQ", "product_id": w.product.id, "qty": 5})
+        .create(
+            {
+                "description": "A06 final RFQ",
+                "product_id": w.product.id,
+                "qty": 5,
+                "invited_vendor_ids": [(6, 0, sup_partner.ids)],
+                "response_deadline": "2099-01-01",
+            }
+        )
     )
     rec.with_user(w.buyer).action_open()
     bid = (

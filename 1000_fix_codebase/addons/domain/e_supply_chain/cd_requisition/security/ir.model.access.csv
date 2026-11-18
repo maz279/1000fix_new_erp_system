@@ -32,3 +32,7 @@ access_fix_purchase_advance_buyer,fix.purchase.advance.buyer,model_fix_purchase_
 access_fix_purchase_advance_approver,fix.purchase.advance.approver,model_fix_purchase_advance,group_fix_procurement_approver,1,1,0,0
 access_fix_purchase_proforma_line_user,fix.purchase.proforma.line.user,model_fix_purchase_proforma_line,base.group_user,1,0,0,0
 access_fix_purchase_proforma_line_buyer,fix.purchase.proforma.line.buyer,model_fix_purchase_proforma_line,group_fix_procurement_buyer,1,1,1,1
+access_fix_procurement_approved_source,fix.procurement.approved.source,model_fix_procurement_approved_source,base.group_user,1,0,0,0
+access_fix_procurement_approved_source_buyer,fix.procurement.approved.source.buyer,model_fix_procurement_approved_source,group_fix_procurement_buyer,1,1,1,1
+access_fix_procurement_approved_source_approver,fix.procurement.approved.source.approver,model_fix_procurement_approved_source,group_fix_procurement_approver,1,1,0,0
+access_fix_purchase_service_entry,fix.purchase.service.entry,model_fix_purchase_service_entry,base.group_user,1,1,1,0

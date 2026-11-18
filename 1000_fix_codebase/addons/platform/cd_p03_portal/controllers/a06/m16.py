@@ -75,7 +75,21 @@ SURFACES = {
     "fix.procurement.rfq": {
         "order": "create_date desc, id desc",
         "limit": 200,
-        "actions": {"action_open", "action_close"},
+        # FR-PRO-011 (19 Nov 2026): an RFQ invites its suppliers before it opens
+        "actions": {"action_open", "action_close", "action_invite_approved_sources"},
+    },
+    # FR-PRO-009 (19 Nov 2026): the suppliers approved to supply each part
+    "fix.procurement.approved.source": {
+        "order": "product_id, priority, agreed_price, id",
+        "limit": 300,
+        "actions": {"action_approve", "action_withdraw"},
+    },
+    # FR-PRO-037 / BRU-PRO-19 (19 Nov 2026): a service or non-stock line is
+    # confirmed by its requester, which posts the receipt the match reads
+    "fix.purchase.service.entry": {
+        "order": "service_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_cancel"},
     },
     # M16-5: read as the caller, so the sealed-bid record rule applies; the sudo
     # list and form showed every vendor and price on an open RFQ to any employee.

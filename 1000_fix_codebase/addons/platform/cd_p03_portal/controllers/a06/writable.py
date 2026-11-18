@@ -465,6 +465,20 @@ WRITABLE = {
         }
     ),
     "fix.inventory.valuation.suspense": frozenset(),
+    "fix.procurement.approved.source": frozenset(
+        {
+            "agreed_price",
+            "currency_id",
+            "lead_time_days",
+            "moq",
+            "notes",
+            "priority",
+            "product_id",
+            "valid_from",
+            "valid_to",
+            "vendor_id",
+        }
+    ),
     "fix.procurement.award": frozenset(
         {
             "bid_id",
@@ -476,12 +490,18 @@ WRITABLE = {
     ),
     "fix.procurement.bid": frozenset(
         {
+            "incoterm",
             "lead_time_days",
+            "moq",
             "notes",
+            "payment_terms",
+            "quote_file",
+            "quote_filename",
             "rfq_id",
             "unit_price",
             "valid_until",
             "vendor_id",
+            "warranty_months",
         }
     ),
     "fix.procurement.blanket": frozenset(
@@ -512,12 +532,14 @@ WRITABLE = {
     "fix.procurement.rfq": frozenset(
         {
             "description",
+            "invited_vendor_ids",
             "notes",
             "product_id",
             "qty",
             "required_by",
             "requisition_id",
             "requisition_ids",
+            "response_deadline",
             "target_price",
         }
     ),
@@ -535,8 +557,10 @@ WRITABLE = {
             "branch_id",
             "currency_id",
             "date_order",
+            "incoterm",
             "line_ids",
             "operating_unit_id",
+            "payment_terms",
             "promised_date",
             "purchase_type",
             "vendor_id",
@@ -568,6 +592,18 @@ WRITABLE = {
         }
     ),
     "fix.purchase.receipt.line": frozenset(),
+    "fix.purchase.service.entry": frozenset(
+        {
+            "description",
+            "evidence_file",
+            "evidence_filename",
+            "po_line_id",
+            "purchase_order_id",
+            "qty_confirmed",
+            "service_date",
+            "service_period",
+        }
+    ),
     "fix.qualification.questionnaire": frozenset(
         {
             "active",
@@ -597,15 +633,19 @@ WRITABLE = {
     "fix.requisition": frozenset(
         {
             "branch_id",
+            "budget_ref",
             "cost_centre",
+            "demand_source",
             "description",
             "estimate_amount",
             "justification",
             "operating_unit_id",
             "product_id",
+            "purchase_kind",
             "qty",
             "requested_by",
             "required_by",
+            "source_ref",
             "urgency",
             "vendor_id",
         }

@@ -17,7 +17,7 @@ CD-M16-01: the procurement core.
 
 RFQ sourcing events (CD-M16-03) land with the vendor-portal completion.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Purchasing",

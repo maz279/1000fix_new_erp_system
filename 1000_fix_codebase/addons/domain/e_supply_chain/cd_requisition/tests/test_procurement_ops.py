@@ -92,6 +92,14 @@ def _requisition(ctx, approved=True, **vals):
     return req
 
 
+def _invite(ctx):
+    """FR-PRO-011: the suppliers an RFQ asks to quote, and its deadline."""
+    return {
+        "invited_vendor_ids": [(6, 0, (ctx["vendor"] | ctx["vendor2"] | ctx["vendor3"]).ids)],
+        "response_deadline": "2099-01-01",
+    }
+
+
 def _sent_po(ctx, price=1000.0, qty=2.0, **vals):
     env = ctx["env"]
     po = env["fix.purchase.order"].create(
@@ -140,7 +148,7 @@ def test_requisition_conversion_needs_approval_and_vendor(ctx):
 def test_rfq_open_close_and_close_needs_bid(ctx):
     env = ctx["env"]
     rfq = env["fix.procurement.rfq"].create(
-        {"description": f"RFQ {TAG}", "product_id": ctx["product"].id, "qty": 5}
+        {"description": f"RFQ {TAG}", "product_id": ctx["product"].id, "qty": 5, **_invite(ctx)}
     )
     assert rfq.name.startswith("RFQ/")
     rfq.action_open()
@@ -156,7 +164,7 @@ def test_rfq_open_close_and_close_needs_bid(ctx):
 def test_award_marks_winner_and_losers(ctx):
     env = ctx["env"]
     rfq = env["fix.procurement.rfq"].create(
-        {"description": f"Award {TAG}", "product_id": ctx["product"].id, "qty": 2}
+        {"description": f"Award {TAG}", "product_id": ctx["product"].id, "qty": 2, **_invite(ctx)}
     )
     rfq.action_open()
     Bid = env["fix.procurement.bid"]
@@ -246,7 +254,10 @@ def test_po_promised_and_received_dates(ctx):
 # ---- FR-PRO-006: cross-branch consolidation (M16 capture audit, 13 Nov 2026)
 def _branches(ctx):
     env = ctx["env"]
-    entity = env["fix.entity"].create(
+    # one legal entity per company (M65 fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create(
         {"code": f"CN{TAG}", "legal_name": f"Consolidation {TAG}", "company_id": env.company.id}
     )
     return env["fix.branch"].create(
@@ -273,6 +284,7 @@ def _consolidated_rfq(ctx, reqs, **vals):
             "description": f"Consolidated {TAG}",
             "product_id": ctx["product"].id,
             "requisition_ids": [(6, 0, reqs.ids)],
+            **_invite(ctx),
             **vals,
         }
     )

@@ -10,7 +10,18 @@
  * and Expediting no chip at all; GRN & Inspection offered a "GRN" chip that
  * made an M15 warehouse receipt with no purchase order, and the RTV list
  * refused "+ New" although its chip raised one. Each page now names what
- * captures its record (report: audit_analysis/M16_CAPTURE_BUTTON_AUDIT_2026-11-13.md). */
+ * captures its record (report: audit_analysis/M16_CAPTURE_BUTTON_AUDIT_2026-11-13.md).
+ *
+ * Capture audit pass 2 (19 Nov 2026), read against FR-PRO-001..038: the
+ * buttons were there but several records lacked what the spec is about. A
+ * requisition did not say where its demand came from; there was no
+ * approved-source list (FR-PRO-009); an RFQ invited nobody and had no
+ * deadline (FR-PRO-011); a bid had no warranty, MOQ, payment terms, incoterm
+ * or quotation file (FR-PRO-012/013); a PO had no payment terms or incoterm
+ * (FR-PRO-017); a blanket offered no call-off; a receipt line recorded no
+ * condition (FR-PRO-026); services had no service entry (BRU-PRO-19); and the
+ * 3-Way Match page offered no exception case or tolerance (FR-PRO-030, BRU-PRO-09).
+ * Report: audit_analysis/M16_CAPTURE_BUTTON_AUDIT_PASS2_2026-11-19.md. */
 
 export const MODULE = {
   area: 'A06', code: 'M16', en: 'Procurement & Sourcing', title: 'M16 · Procurement & Sourcing',
@@ -32,7 +43,8 @@ export const MODULE = {
     { en: 'Sourcing', screens: [
       { id: 'M16-rfqs', en: 'RFQ Events', bn: 'আরএফকিউ', t: 'g' },
       { id: 'M16-compare', en: 'Bid Comparison', bn: 'দর তুলনা', t: 'g' },
-      { id: 'M16-award', en: 'Award Decisions', bn: 'অ্যাওয়ার্ড', t: 'g' }
+      { id: 'M16-award', en: 'Award Decisions', bn: 'অ্যাওয়ার্ড', t: 'g' },
+      { id: 'M16-sources', en: 'Approved Sources', bn: 'অনুমোদিত সরবরাহ উৎস', t: 'g' }
     ]},
     { en: 'Orders', screens: [
       { id: 'M16-pos', en: 'Local Purchase Orders', bn: 'স্থানীয় ক্রয়াদেশ', t: 'g' },
@@ -45,7 +57,9 @@ export const MODULE = {
     { en: 'Receiving & Match', screens: [
       { id: 'M16-po-receipts', en: 'PO Goods Receipts', bn: 'ক্রয়াদেশের পণ্য গ্রহণ', t: 'g' },
       { id: 'M16-inspection', en: 'Inspection Outcomes', bn: 'পরিদর্শন ফলাফল', t: 'g' },
+      { id: 'M16-service-entries', en: 'Service Entries', bn: 'সেবা প্রাপ্তি নিশ্চিতকরণ', t: 'g' },
       { id: 'M16-match', en: '3-Way Match Workbench', bn: 'থ্রি-ওয়ে ম্যাচ', t: 'r' },
+      { id: 'M16-match-cases', en: 'Match Exception Cases (M52)', bn: 'ম্যাচ ব্যতিক্রম কেস (M52)', t: 'g' },
       { id: 'M16-grir', en: 'GR/IR Reconciliation', bn: 'জিআর/আইআর সমন্বয়', t: 'r' },
       { id: 'M16-grn', en: 'Warehouse Stock Receipts (M15)', bn: 'গুদামের স্টক রসিদ (M15)', t: 'g' }
     ]},
@@ -57,32 +71,35 @@ export const MODULE = {
     ]}
   ],
   reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert', 'Maverick Spend', 'PO Cycle Time', 'GR/IR Reconciliation', 'Emergency Purchases'],
-  forms: ['Purchase Requisition', 'Consolidated RFQ', 'RFQ', 'Supplier Bid', 'Award Decision', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'Blanket Agreement', 'Expediting Case', 'PO Goods Receipt', 'Inspection Outcome', 'RTV Request', 'Vendor Bill'],
+  forms: ['Purchase Requisition', 'Consolidated RFQ', 'RFQ', 'Supplier Bid', 'Award Decision', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'Blanket Agreement', 'Expediting Case', 'PO Goods Receipt', 'Inspection Outcome', 'RTV Request', 'Vendor Bill', 'Approved Source', 'Service Entry', 'Match Exception Case', 'Match Tolerance'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
-    ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
+    ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'demand_source', 'source_ref', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
     ['2', 'Requisition & Approval', 10, { model: 'fix.requisition', cols: ['description', 'estimate_amount', 'urgency', 'state', 'purchase_order_id'], screens: ['M16-prs'], reports: ['Maverick Spend'], forms: ['Purchase Requisition'] }],
     /* FR-PRO-006: the approved requisitions still to be bought; the capture is
      * the one sourcing event that buys a part for several branches */
     ['3', 'Consolidation', 6, { model: 'fix.requisition', cols: ['product_id', 'branch_id', 'qty', 'required_by', 'estimate_amount', 'state'], domain: [['state', '=', 'approved'], ['purchase_order_id', '=', false]], screens: ['M16-consol'], reports: [], forms: ['Consolidated RFQ'], create: 'M16-form-rfq-consol' }],
-    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], reports: ['Price Variance Alert'], forms: ['RFQ', 'Supplier Bid', 'Award Decision'] }],
+    ['4', 'RFQ & Bidding', 12, { model: 'fix.procurement.rfq', cols: ['name', 'product_id', 'qty', 'required_by', 'state'], screens: ['M16-rfqs', 'M16-compare', 'M16-award', 'M16-sources'], reports: ['Price Variance Alert'], forms: ['RFQ', 'Supplier Bid', 'Award Decision', 'Approved Source'] }],
     ['5', 'PO Lifecycle', 11, { model: 'fix.purchase.order', cols: ['name', 'vendor_id', 'date_order', 'amount_total', 'state'], screens: ['M16-pos', 'M16-pos-import', 'M16-proformas', 'M16-advances'], reports: ['PO Cycle Time', 'OTD by Vendor'], forms: ['Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance'] }],
     ['6', 'Blanket Orders', 6, { model: 'fix.procurement.blanket', cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount'], screens: ['M16-blanket'], reports: ['Spend by Category & Vendor'], forms: ['Blanket Agreement'] }],
     ['7', 'Expediting', 7, { model: 'fix.procurement.expedite', cols: ['name', 'purchase_order_id', 'promised_date', 'follow_up_date', 'state'], screens: ['M16-expedite'], reports: ['OTD by Vendor'], forms: ['Expediting Case'] }],
     /* goods are received against a PO here (PO Goods Receipt), judged
-     * (Inspection Outcome) and returned (RTV Request); the warehouse's own
-     * stock receipt is M15's and is only read here */
-    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'Inspection Outcome', 'RTV Request'] }],
+     * (Inspection Outcome) and returned (RTV Request); a service or non-stock
+     * line is confirmed by its requester instead (Service Entry, BRU-PRO-19);
+     * the warehouse's own stock receipt is M15's and is only read here */
+    ['8', 'GRN & Inspection', 9, { model: 'fix.procurement.inspection', cols: ['name', 'receipt_ref', 'product_id', 'qty_accepted', 'outcome'], screens: ['M16-po-receipts', 'M16-inspection', 'M16-service-entries', 'M16-rtv', 'M16-grn'], reports: ['GR/IR Reconciliation'], forms: ['PO Goods Receipt', 'Inspection Outcome', 'Service Entry', 'RTV Request'] }],
     /* the match itself is computed when the bill is registered; the record a
-     * person enters is the vendor's bill (M52's form), the third document */
-    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], domain: [['bill_type', '=', 'po']], screens: ['M16-match-queue', 'M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: ['Vendor Bill'], create: 'M52-form-bill' }],
+     * person enters is the vendor's bill (M52's form), the third document; an
+     * exception is worked as a case and the tolerance bands are set by the
+     * CFO (M52's own records, FR-PRO-030 / BRU-PRO-09) */
+    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], domain: [['bill_type', '=', 'po']], screens: ['M16-match-queue', 'M16-match-cases', 'M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: ['Vendor Bill', 'Match Exception Case', 'Match Tolerance'], create: 'M52-form-bill' }],
     ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'], reports: ['Spend by Category & Vendor', 'Maverick Spend', 'Price Variance Alert', 'Emergency Purchases'], forms: [], create: false }]
   ] }
 };
 
 export const SCREENS = {
   'M16-prs': { kind: 'model_list', model: 'fix.requisition', stateField: 'state',
-    cols: ['description', 'branch_id', 'vendor_id', 'qty', 'estimate_amount', 'cost_centre', 'required_by', 'urgency', 'emergency_state', 'state'],
+    cols: ['description', 'demand_source', 'purchase_kind', 'branch_id', 'vendor_id', 'qty', 'estimate_amount', 'cost_centre', 'required_by', 'urgency', 'emergency_state', 'state'],
     actions: [
       { m: 'action_submit', l: 'Submit for Approval' },
       { m: 'action_request_approval', l: 'Request Approval (re-route)' },
@@ -95,13 +112,17 @@ export const SCREENS = {
     ] },
   'M16-consol': { kind: 'table_report', module: 'M16', report: 'consolidation', title: 'Cross-Branch Consolidation', period: false },
   'M16-rfqs': { kind: 'model_list', model: 'fix.procurement.rfq', stateField: 'state',
-    cols: ['name', 'description', 'product_id', 'qty', 'required_by', 'target_price', 'state'],
+    cols: ['name', 'description', 'product_id', 'qty', 'required_by', 'target_price', 'invited_count', 'response_deadline', 'state'],
     actions: [
+      /* FR-PRO-009/011: the part's approved sources become the invitations */
+      { m: 'action_invite_approved_sources', l: 'Invite Approved Sources', states: ['draft', 'open'] },
       { m: 'action_open', l: 'Open RFQ' },
       { m: 'action_close', l: 'Close RFQ' }
     ] },
   'M16-compare': { kind: 'model_list', model: 'fix.procurement.bid', stateField: 'state',
-    cols: ['rfq_id', 'vendor_id', 'unit_price', 'lead_time_days', 'valid_until', 'state'] },
+    /* FR-PRO-013: compared on price, lead time, warranty, MOQ, payment terms
+     * and incoterm, not on price alone */
+    cols: ['rfq_id', 'vendor_id', 'unit_price', 'total_price', 'lead_time_days', 'warranty_months', 'moq', 'payment_terms', 'incoterm', 'valid_until', 'state'] },
   'M16-award': { kind: 'model_list', model: 'fix.procurement.award', stateField: 'state',
     cols: ['name', 'rfq_id', 'bid_id', 'decided_on', 'is_lowest', 'rationale', 'needs_approval', 'state'],
     actions: [
@@ -114,7 +135,7 @@ export const SCREENS = {
    * M44 import order raised from it, or that raised it. */
   'M16-pos': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
     domain: [['purchase_type', '=', 'local']],
-    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'vendor_confirmed_date', 'receipt_refs', 'approval_state', 'state'],
+    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'payment_terms', 'vendor_confirmed_date', 'receipt_refs', 'approval_state', 'state'],
     actions: [
       { m: 'action_submit_for_approval', l: 'Request Approval', ask: 'Business justification for the PO', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
@@ -135,7 +156,7 @@ export const SCREENS = {
     ] },
   'M16-pos-import': { kind: 'model_list', model: 'fix.purchase.order', stateField: 'state',
     domain: [['purchase_type', '=', 'import']],
-    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'import_order_refs', 'approval_state', 'state'],
+    cols: ['name', 'vendor_id', 'date_order', 'currency_id', 'amount_total', 'incoterm', 'import_order_refs', 'approval_state', 'state'],
     empty: 'No import purchase order yet. Raise one with + New, or from a draft M44 import order (Create Purchase Order).',
     actions: [
       { m: 'action_submit_for_approval', l: 'Request Approval', ask: 'Business justification for the PO', kwarg: 'justification' },
@@ -174,6 +195,9 @@ export const SCREENS = {
     cols: ['name', 'vendor_id', 'valid_from', 'valid_to', 'cap_amount', 'consumed_amount', 'remaining_amount', 'state'],
     actions: [
       { m: 'action_activate', l: 'Activate (approver)' },
+      /* FR-PRO-019: a call-off is a purchase order against the agreement,
+       * with its vendor; the cap and window are checked when it is sent */
+      { m: '__call_off', l: 'Raise Call-Off PO', form: 'M16-form-po', prefill: 'blanket_id', carry: { vendor_id: 'vendor_id' }, states: ['active'] },
       { m: 'action_revise', l: 'Revise Terms' },
       { m: 'action_cancel', l: 'Cancel Agreement' }
     ] },
@@ -196,6 +220,23 @@ export const SCREENS = {
   'M16-inspection': { kind: 'model_list', model: 'fix.procurement.inspection', stateField: 'state',
     cols: ['name', 'receipt_ref', 'purchase_order_id', 'product_id', 'qty_received', 'qty_accepted', 'outcome', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Outcome' }] },
+  /* FR-PRO-037 / BRU-PRO-19: a service or non-stock line has no goods
+   * receipt; its requester confirms what was delivered */
+  'M16-service-entries': { kind: 'model_list', model: 'fix.purchase.service.entry', stateField: 'state',
+    cols: ['name', 'purchase_order_id', 'vendor_id', 'product_id', 'qty_confirmed', 'service_period', 'service_date', 'confirmed_by_id', 'receipt_id', 'state'],
+    empty: 'No service entry yet. A service or non-stock purchase is confirmed here by its requester once the supplier has delivered (+ New, choose the order and its line).',
+    actions: [
+      { m: 'action_confirm', l: 'Confirm Delivery (requester)', states: ['draft'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft'] }
+    ] },
+  /* FR-PRO-009: the suppliers approved to supply each part */
+  'M16-sources': { kind: 'model_list', model: 'fix.procurement.approved.source', stateField: 'state',
+    cols: ['name', 'product_id', 'vendor_id', 'priority', 'agreed_price', 'currency_id', 'moq', 'lead_time_days', 'valid_from', 'valid_to', 'approved_by_id', 'state'],
+    empty: 'No approved source yet. + New proposes a supplier for a part with its priority, agreed price, MOQ and lead time; another Procurement Approver approves it.',
+    actions: [
+      { m: 'action_approve', l: 'Approve (second approver)', states: ['draft'] },
+      { m: 'action_withdraw', l: 'Withdraw', ask: 'Why the supplier is no longer an approved source', kwarg: 'reason', states: ['approved'] }
+    ] },
   'M16-match': { kind: 'table_report', module: 'M16', report: 'three_way', title: '3-Way Match Workbench', period: false },
   /* The PO bills and their match verdict, as M16 reads them: the match runs
    * when AP registers the bill (M52) and again when a receipt or inspection
@@ -204,6 +245,11 @@ export const SCREENS = {
     domain: [['bill_type', '=', 'po']],
     cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'invoice_date', 'total_payable', 'match_state', 'match_detail', 'approval_state'],
     empty: 'No purchase-order bill yet. A vendor bill is registered by Accounts Payable (+ New Vendor Bill on this page opens the M52 form); the match then runs against its purchase order and posted goods receipts.' },
+  /* FR-PRO-030: each exception is worked as a case with its cause, owner and
+   * due date (M52's record, resolved there when its cause is fixed) */
+  'M16-match-cases': { kind: 'model_list', model: 'fix.ap.match.exception', stateField: 'state',
+    cols: ['name', 'invoice_id', 'vendor_id', 'purchase_order_id', 'exception_type', 'responsible_party', 'owner_id', 'due_date', 'age_days', 'state'],
+    empty: 'No match exception case. A case is opened for a blocked purchase-order bill (+ New here, or the daily check in M52).' },
   'M16-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: false },
   'M16-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend Analysis', period: false },
   'M16-pricehist': { kind: 'table_report', module: 'M16', report: 'price_history', title: 'Price History & Alerts', period: false },
@@ -237,8 +283,13 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', submitted: 'Submitted for Approval', approved: 'Approved',
       converted: 'Converted to PO', rejected: 'Rejected', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'request', label: '1. Request', bn: '১. অনুরোধ', icon: '📝', badge: '7' },
+      { id: 'source', label: '2. Source & Budget', bn: '২. উৎস ও বাজেট', icon: '🧭', badge: '7' },
+      { id: 'status', label: '3. Requester & Status', bn: '৩. অনুরোধকারী ও অবস্থা', icon: '✔', badge: '5' }
+    ],
     sections: [
-      { title: 'Request', note: 'Submit for approval: it is routed by amount (related requisitions of the same requester in the split window are added) to a DOFA tier holder other than you, who decides it in the approval inbox. A change to amount, quantity, product or vendor after submission returns it to draft. Then a buyer converts it to a PO.',
+      { tab: 'request', title: 'Request', note: 'Submit for approval: it is routed by amount (related requisitions of the same requester in the split window are added) to a DOFA tier holder other than you, who decides it in the approval inbox. A change to amount, quantity, product or vendor after submission returns it to draft. With no preferred vendor, the part\'s first approved source is filled in when it is submitted. Then a buyer converts it to a PO.',
         fields: [
           { name: 'description', required: true, label: 'Description' },
           { name: 'justification', type: 'text', label: 'Business Justification' },
@@ -246,14 +297,27 @@ export const SCREENS = {
           { name: 'qty', label: 'Quantity' },
           { name: 'vendor_id', label: 'Preferred Vendor', domain: [['fix_supplier_status', '=', 'active']], emptyNote: 'No supplier is active yet. A supplier becomes active in M42 Supplier Management once its trade licence, TIN and VAT documents are verified, it is screened, and a Supplier Approver activates it (BRU-PRO-02).' },
           { name: 'estimate_amount', label: 'Estimated Amount' },
+          { name: 'urgency', required: true, label: 'Urgency' }
+        ] },
+      /* FR-PRO-001/002: where the demand comes from, what it refers to and
+       * the budget it is charged to; FR-PRO-037: what kind of purchase */
+      { tab: 'source', title: 'Source & Budget', note: 'Where the demand comes from. An M15 replenishment alert, an M43 planned order, a job backorder or a project names its reference before the requisition is submitted; a project also names its budget. A service or non-stock purchase is later confirmed by a Service Entry from you, not by a goods receipt.',
+        fields: [
+          { name: 'demand_source', required: true, label: 'Demand Source' },
+          { name: 'source_ref', label: 'Source Reference (alert / plan / job / project no.)' },
+          { name: 'purchase_kind', required: true, label: 'What Is Bought' },
           { name: 'cost_centre', required: true, label: 'Cost Centre' },
+          { name: 'budget_ref', label: 'Budget Reference' },
           { name: 'required_by', required: true, label: 'Required By' },
-          { name: 'urgency', required: true, label: 'Urgency' },
+          { name: 'branch_id', label: 'Deliver to Branch' }
+        ] },
+      { tab: 'status', title: 'Requester & Status', note: 'The requester confirms services when they are delivered. The emergency path is set by Emergency Release on the list.',
+        fields: [
           { name: 'requested_by', required: true, label: 'Requested By' },
-          { name: 'branch_id', label: 'Branch' },
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'emergency_state', readonly: true, label: 'Emergency Path' },
-          { name: 'emergency_deadline', readonly: true, label: 'Post-Hoc Approval Due' }
+          { name: 'emergency_deadline', readonly: true, label: 'Post-Hoc Approval Due' },
+          { name: 'purchase_order_id', readonly: true, label: 'Purchase Order' }
         ] }
     ]
   },
@@ -266,7 +330,7 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       draft: 'Draft', open: 'Open for Bids', closed: 'Closed', awarded: 'Awarded' } },
     sections: [
-      { title: 'RFQ', note: 'Open the event, record sealed bids (hidden from others until close), close it, then propose the award: the lowest compliant bid is decided at once; any other bid, or fewer bids than the minimum, needs a rationale or exception that a Procurement Approver decides.',
+      { title: 'RFQ', note: 'Choose the suppliers asked to quote (or Invite Approved Sources from the list) and the response deadline, then open the event: only invited suppliers bid, before the deadline; suppliers can be added while it is open, never removed. Bids are sealed (hidden from others until close). Close it, then propose the award: the lowest compliant bid is decided at once; any other bid, or fewer bids than the minimum, needs a rationale or exception that a Procurement Approver decides.',
         fields: [
           { name: 'description', required: true, label: 'Description' },
           { name: 'requisition_id', label: 'Source Requisition', domain: [['state', '=', 'approved']] },
@@ -274,6 +338,9 @@ export const SCREENS = {
           { name: 'product_id', required: true, label: 'Product' },
           { name: 'qty', label: 'Quantity' },
           { name: 'required_by', label: 'Required By' },
+          { name: 'invited_vendor_ids', required: true, label: 'Invited Suppliers', domain: [['fix_supplier_status', '!=', false]],
+            emptyNote: 'No supplier is registered in M42 yet. Suppliers are registered and activated in M42 Supplier Management.' },
+          { name: 'response_deadline', required: true, label: 'Response Deadline' },
           { name: 'target_price', label: 'Target Price' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
@@ -301,6 +368,8 @@ export const SCREENS = {
             emptyNote: 'No approved requisition is waiting to be bought. Requisitions are raised and approved on Purchase Requisitions first.' },
           { name: 'qty', readonly: true, label: 'Total Quantity' },
           { name: 'required_by', label: 'Required By' },
+          { name: 'invited_vendor_ids', required: true, label: 'Invited Suppliers', domain: [['fix_supplier_status', '!=', false]] },
+          { name: 'response_deadline', required: true, label: 'Response Deadline' },
           { name: 'target_price', label: 'Target Price' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }
@@ -326,6 +395,8 @@ export const SCREENS = {
           { name: 'date_order', required: true, label: 'Order Date' },
           { name: 'currency_id', required: true, label: 'Currency (BDT or USD)', domain: [['fix_local_purchase', '=', true]] },
           { name: 'promised_date', label: 'Promised Date' },
+          { name: 'payment_terms', label: 'Payment Terms' },
+          { name: 'incoterm', label: 'Incoterm (delivery terms)' },
           { name: 'blanket_id', label: 'Blanket Agreement (call-off)', domain: [['state', '=', 'active']] },
           { name: 'vendor_confirmed_date', readonly: true, label: 'Vendor-Confirmed Delivery' },
           { name: 'receipt_refs', readonly: true, label: 'Goods Receipts' }
@@ -366,6 +437,8 @@ export const SCREENS = {
           { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
           { name: 'date_order', required: true, label: 'Order Date' },
           { name: 'promised_date', label: 'Expected Shipment' },
+          { name: 'incoterm', required: true, label: 'Incoterm' },
+          { name: 'payment_terms', label: 'Payment Terms (LC / TT / ...)' },
           { name: 'import_order_refs', readonly: true, label: 'M44 Import Orders' },
           { name: 'vendor_confirmed_date', readonly: true, label: 'Supplier-Confirmed Date' }
         ] }
@@ -405,11 +478,13 @@ export const SCREENS = {
     lines: {
       field: 'line_ids',
       title: 'Lines of the Chosen Order',
-      note: 'Only the open lines of the order above. Over-delivery beyond the configured tolerance is refused at posting.',
+      note: 'Only the open lines of the order above. Over-delivery beyond the configured tolerance is refused at posting. A line that arrived damaged, wrong, short or in excess needs the discrepancy described. Service and non-stock lines are confirmed by a Service Entry instead.',
       fixedRows: true,
       fields: [
         { name: 'po_line_id', readonly: true, label: 'PO Line' },
         { name: 'qty_received', required: true, label: 'Delivered' },
+        { name: 'condition', required: true, label: 'Condition' },
+        { name: 'discrepancy_note', label: 'Discrepancy' },
         { name: 'inspection_state', readonly: true, label: 'Inspection' },
         { name: 'qty_accepted', readonly: true, label: 'Accepted' }
       ]
@@ -485,13 +560,19 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       received: 'Received', awarded: 'Awarded', lost: 'Lost' } },
     sections: [
-      { title: 'Bid', note: 'Bids are received only while the RFQ is open, stay sealed until it closes and cannot change afterwards.',
+      { title: 'Bid', note: 'Bids are received only from a supplier invited to the RFQ, while it is open and before its response deadline; they stay sealed until it closes and cannot change afterwards. Record the terms as quoted so the bids compare on more than price, and attach the supplier\'s quotation.',
         fields: [
           { name: 'rfq_id', required: true, label: 'RFQ', domain: [['state', '=', 'open']] },
           { name: 'vendor_id', required: true, label: 'Vendor', domain: [['fix_supplier_status', '!=', false]] },
           { name: 'unit_price', required: true, label: 'Unit Price' },
           { name: 'lead_time_days', label: 'Lead Time (days)' },
+          { name: 'warranty_months', label: 'Warranty (months)' },
+          { name: 'moq', label: 'Minimum Order Qty' },
+          { name: 'payment_terms', label: 'Payment Terms' },
+          { name: 'incoterm', label: 'Incoterm' },
           { name: 'valid_until', label: 'Valid Until' },
+          { name: 'quote_file', type: 'binary', filename: 'quote_filename', accept: '.pdf,.jpg,.jpeg,.png,.xlsx,.docx', label: 'Supplier\'s Quotation (copy)' },
+          { name: 'quote_filename', label: 'Quotation File Name' },
           { name: 'notes', label: 'Notes' }
         ] }
     ]
@@ -643,6 +724,61 @@ export const SCREENS = {
     ]
   },
 
+  /* FR-PRO-009: a supplier approved to supply a part */
+  'M16-form-source': {
+    kind: 'model_form',
+    model: 'fix.procurement.approved.source',
+    title: 'Approved Source',
+    back: 'M16-sources',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', withdrawn: 'Withdrawn' } },
+    sections: [
+      { title: 'Source', note: 'A supplier approved to supply this part, first choice = priority 1. A Procurement Approver other than you approves it, once the supplier is active in M42; its terms are then fixed (withdraw it and propose a new one to change them). Approved sources fill an RFQ\'s invitations and the vendor of a requisition submitted without one.',
+        fields: [
+          { name: 'product_id', required: true, label: 'Part' },
+          { name: 'vendor_id', required: true, label: 'Supplier', domain: [['fix_supplier_status', '=', 'active']],
+            emptyNote: 'No supplier is active yet. A supplier becomes active in M42 Supplier Management.' },
+          { name: 'priority', required: true, label: 'Priority (1 = first choice)' },
+          { name: 'agreed_price', label: 'Agreed Unit Price' },
+          { name: 'currency_id', required: true, label: 'Currency' },
+          { name: 'moq', label: 'Minimum Order Qty' },
+          { name: 'lead_time_days', label: 'Lead Time (days)' },
+          { name: 'valid_from', required: true, label: 'Valid From' },
+          { name: 'valid_to', label: 'Valid To' },
+          { name: 'notes', type: 'text', label: 'Notes' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'withdrawn_reason', readonly: true, label: 'Withdrawn Because' }
+        ] }
+    ]
+  },
+
+  /* FR-PRO-037 / BRU-PRO-19: the requester confirms a service delivered */
+  'M16-form-service-entry': {
+    kind: 'model_form',
+    model: 'fix.purchase.service.entry',
+    title: 'Service Entry',
+    back: 'M16-service-entries',
+    status: { field: 'state', labels: { draft: 'Draft', confirmed: 'Confirmed', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Service Delivered', note: 'For a service or a non-stock purchase, which has no goods receipt. Pick the sent order and its line, state what was delivered (quantity, or milestone units) and attach the evidence. The requester of the purchase confirms it from the list (never its buyer); confirming posts the receipt the three-way match reads.',
+        fields: [
+          { name: 'purchase_order_id', required: true, label: 'Purchase Order', domain: [['state', 'in', ['sent', 'acknowledged', 'partially_received']]] },
+          { name: 'po_line_id', required: true, label: 'Order Line',
+            domain: [['order_id.state', 'in', ['sent', 'acknowledged', 'partially_received']], '|', ['product_id.type', '=', 'service'], ['order_id.requisition_id.purchase_kind', 'in', ['non_stock', 'service']]],
+            emptyNote: 'No sent order has a service or non-stock line. A requisition for a service or non-stock purchase says so on its Source & Budget tab.' },
+          { name: 'qty_confirmed', required: true, label: 'Quantity / Milestone Units Delivered' },
+          { name: 'service_period', label: 'Period or Milestone' },
+          { name: 'service_date', required: true, label: 'Delivered On' },
+          { name: 'description', type: 'text', label: 'What Was Delivered' },
+          { name: 'evidence_file', type: 'binary', filename: 'evidence_filename', accept: '.pdf,.jpg,.jpeg,.png', label: 'Evidence (job sheet, report, photos)' },
+          { name: 'evidence_filename', label: 'Evidence File Name' },
+          { name: 'qty_ordered', readonly: true, label: 'Ordered' },
+          { name: 'qty_done_before', readonly: true, label: 'Already Confirmed' },
+          { name: 'confirmed_by_id', readonly: true, label: 'Confirmed By' },
+          { name: 'receipt_id', readonly: true, label: 'Receipt' }
+        ] }
+    ]
+  },
+
   'M16-form-inspection': {
     kind: 'model_form',
     model: 'fix.procurement.inspection',
@@ -688,7 +824,11 @@ export const FORM_MODELS = {
   'M16:Blanket Agreement': 'fix.procurement.blanket',
   'M16:Expediting Case': 'fix.procurement.expedite',
   'M16:Inspection Outcome': 'fix.procurement.inspection',
-  'M16:Vendor Bill': 'fix.vendor.invoice'
+  'M16:Vendor Bill': 'fix.vendor.invoice',
+  'M16:Approved Source': 'fix.procurement.approved.source',
+  'M16:Service Entry': 'fix.purchase.service.entry',
+  'M16:Match Exception Case': 'fix.ap.match.exception',
+  'M16:Match Tolerance': 'fix.ap.match.tolerance'
 };
 
 export const FORM_CHIPS = {
@@ -708,6 +848,11 @@ export const FORM_CHIPS = {
   'M16:Inspection Outcome': 'M16-form-inspection',
   /* the bill is M52's record: its own form, as on M52 Invoice Capture */
   'M16:Vendor Bill': 'M52-form-bill',
+  'M16:Approved Source': 'M16-form-source',
+  'M16:Service Entry': 'M16-form-service-entry',
+  /* M52's records, on their own forms (BRU-PRO-09: the CFO sets tolerances) */
+  'M16:Match Exception Case': 'M52-form-matchcase',
+  'M16:Match Tolerance': 'M52-form-tolerance',
   'M16:__by_model__': {
     'fix.requisition': 'M16-form-requisition',
     'fix.procurement.rfq': 'M16-form-rfq',
@@ -721,7 +866,9 @@ export const FORM_CHIPS = {
     'fix.procurement.expedite': 'M16-form-expedite',
     'fix.procurement.inspection': 'M16-form-inspection',
     'fix.stock.receipt': 'M16-form-grn',
-    'fix.stock.rtv': 'M16-form-rtv'
+    'fix.stock.rtv': 'M16-form-rtv',
+    'fix.procurement.approved.source': 'M16-form-source',
+    'fix.purchase.service.entry': 'M16-form-service-entry'
   },
   'M16:__by_screen__': {
     'M16-prs': 'M16-form-requisition',
@@ -738,7 +885,10 @@ export const FORM_CHIPS = {
     'M16-po-receipts': 'M16-form-po-receipt',
     'M16-grn': 'M16-form-grn',
     'M16-rtv': 'M16-form-rtv',
-    'M16-match-queue': 'M52-form-bill'
+    'M16-match-queue': 'M52-form-bill',
+    'M16-sources': 'M16-form-source',
+    'M16-service-entries': 'M16-form-service-entry',
+    'M16-match-cases': 'M52-form-matchcase'
   }
 };
 

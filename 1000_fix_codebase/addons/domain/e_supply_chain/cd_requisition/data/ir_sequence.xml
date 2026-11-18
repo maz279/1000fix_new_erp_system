@@ -75,5 +75,19 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_procurement_approved_source" model="ir.sequence">
+            <field name="name">Approved Source</field>
+            <field name="code">fix.procurement.approved.source</field>
+            <field name="prefix">APSRC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_purchase_service_entry" model="ir.sequence">
+            <field name="name">Service Entry</field>
+            <field name="code">fix.purchase.service.entry</field>
+            <field name="prefix">SRVE/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

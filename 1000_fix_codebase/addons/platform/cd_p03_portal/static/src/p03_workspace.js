@@ -3815,11 +3815,22 @@ export class P03Workspace extends Component {
         if (cfg.form && P03_DATA_SCREENS[cfg.form]) {
             const base = P03_DATA_SCREENS[cfg.form];
             const label = row.display_name || row.name || `#${row.id}`;
-            const presets = cfg.prefill ? { [cfg.prefill]: { id: row.id, label: String(label) } } : null;
+            const presets = cfg.prefill ? { [cfg.prefill]: { id: row.id, label: String(label) } } : {};
+            // `carry` copies more of the row onto the new record, as
+            // {formField: rowColumn} ("Raise Call-Off" carries the blanket's
+            // vendor onto the purchase order); the column must be on the list
+            for (const [field, column] of Object.entries(cfg.carry || {})) {
+                const value = row[column];
+                if (value && typeof value === "object" && value.id) {
+                    presets[field] = { id: value.id, label: String(value.name || value.display_name || value.id) };
+                } else if (value !== undefined && value !== null && value !== "") {
+                    presets[field] = value;
+                }
+            }
             this.openFormScreen(
                 cfg.form,
                 { sc: { en: base.title || cfg.form, t: "f" }, m: { title: (this.state.activeModule && this.state.activeModule.title) || "" } },
-                presets ? { ...base, presets } : base
+                Object.keys(presets).length ? { ...base, presets } : base
             );
             return;
         }

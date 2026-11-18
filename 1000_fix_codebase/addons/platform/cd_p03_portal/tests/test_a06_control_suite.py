@@ -99,8 +99,11 @@ EXPOSED = (
     "fix.wms.wave.line",
 )
 
-# Any employee may still raise a purchase requisition (its state is guarded).
-EMPLOYEE_WRITABLE = {"fix.requisition"}
+# Any employee may still raise a purchase requisition (its state is guarded),
+# and confirm the service it bought: BRU-PRO-19 names the requester (the
+# cost-centre owner) as the one who confirms, and action_confirm refuses
+# anyone else and the buyer (M16 capture pass 2, 19 Nov 2026).
+EMPLOYEE_WRITABLE = {"fix.requisition", "fix.purchase.service.entry"}
 
 # Supplier bank-detail proposals are confidential (M42-3): not even readable
 # by employees outside the supplier stewards and approvers.

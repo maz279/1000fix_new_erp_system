@@ -217,7 +217,16 @@ def _maverick_po(c, vendor=None, price=1000.0, qty=10.0, user=None, **kw):
 
 
 def _rfq(c, open_=True, **kw):
-    vals = {"description": "A06M16T RFQ", "product_id": c.prod.id, "qty": 10, "target_price": 1000}
+    # FR-PRO-011 (19 Nov 2026): an RFQ opens with its invited suppliers and a
+    # response deadline; _bid invites a bidder the test brings in later
+    vals = {
+        "description": "A06M16T RFQ",
+        "product_id": c.prod.id,
+        "qty": 10,
+        "target_price": 1000,
+        "invited_vendor_ids": [(6, 0, (c.vendor | c.vendor4 | c.vendor5).ids)],
+        "response_deadline": date.today() + timedelta(days=7),
+    }
     vals.update(kw)
     r = c.env["fix.procurement.rfq"].with_user(c.buyer).create(vals)
     if open_:
@@ -226,6 +235,8 @@ def _rfq(c, open_=True, **kw):
 
 
 def _bid(c, r, vendor, price, user=None, **kw):
+    if r.state in ("draft", "open") and vendor not in r.invited_vendor_ids:
+        r.sudo().write({"invited_vendor_ids": [(4, vendor.id)]})
     vals = {"rfq_id": r.id, "vendor_id": vendor.id, "unit_price": price}
     vals.update(kw)
     return c.env["fix.procurement.bid"].with_user(user or c.buyer).create(vals)
