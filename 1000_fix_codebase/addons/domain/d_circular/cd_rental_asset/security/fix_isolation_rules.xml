@@ -30,6 +30,11 @@
         <field name="model_id" ref="model_fix_rental_condition"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_rental_condition_photo_company" model="ir.rule">
+        <field name="name">fix.rental.condition.photo: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_condition_photo"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_rental_damage_company" model="ir.rule">
         <field name="name">fix.rental.damage: allowed companies</field>
         <field name="model_id" ref="model_fix_rental_damage"/>
@@ -46,9 +51,51 @@
         <field name="model_id" ref="model_fix_rental_deposit"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_rental_exposure_company" model="ir.rule">
+        <field name="name">fix.rental.exposure: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_exposure"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_exposure_override_company" model="ir.rule">
+        <field name="name">fix.rental.exposure.override: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_exposure_override"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_extension_company" model="ir.rule">
+        <field name="name">fix.rental.extension: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_extension"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_extension_operating_unit" model="ir.rule">
+        <field name="name">fix.rental.extension: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_rental_extension"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_rental_kit_company" model="ir.rule">
         <field name="name">fix.rental.kit: allowed companies</field>
         <field name="model_id" ref="model_fix_rental_kit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_loss_company" model="ir.rule">
+        <field name="name">fix.rental.loss: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_loss"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_loss_operating_unit" model="ir.rule">
+        <field name="name">fix.rental.loss: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_rental_loss"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_pm_plan_company" model="ir.rule">
+        <field name="name">fix.rental.pm.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_pm_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_redeployment_company" model="ir.rule">
+        <field name="name">fix.rental.redeployment: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_redeployment"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_rental_reservation_company" model="ir.rule">
@@ -62,9 +109,25 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_rental_swap_company" model="ir.rule">
+        <field name="name">fix.rental.swap: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_swap"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_swap_operating_unit" model="ir.rule">
+        <field name="name">fix.rental.swap: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_rental_swap"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_rental_turnaround_company" model="ir.rule">
         <field name="name">fix.rental.turnaround: allowed companies</field>
         <field name="model_id" ref="model_fix_rental_turnaround"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_waiver_plan_company" model="ir.rule">
+        <field name="name">fix.rental.waiver.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_rental_waiver_plan"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

@@ -24,6 +24,13 @@
 #   cd_rental_asset.data_bearing_categories    every category but 'tool': fleet
 #                                                  categories whose turnaround
 #                                                  needs a verified M06 wipe
+#   cd_rental_asset.require_verified_identity  1   a booking is confirmed only for a
+#                                                  party with a verified M33 identity
+#                                                  document (BRU-RNT-20)
+#   cd_rental_asset.condition_photo_minimum    1   photographs each condition report
+#                                                  needs before handover / assessment
+#                                                  / close (BRU-RNT-01; 0 = off)
+#   cd_rental_asset.swap_sla_hours            24   in-rental swap-out SLA (FR-RNT-027)
 PREFIX = "cd_rental_asset."
 DEFAULT_DATA_BEARING = "camera,laptop,projector,audio,medical,network,other"
 

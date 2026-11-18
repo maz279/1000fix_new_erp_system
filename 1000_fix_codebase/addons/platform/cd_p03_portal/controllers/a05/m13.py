@@ -43,6 +43,12 @@ SURFACES = {
             "action_issue_rental_invoice",
             "action_report_fault",
         },
+        # capture pass 2: allocation offers available units, the waiver
+        # election published plans
+        "pickers": {
+            "rental_asset_id": [("status", "=", "available")],
+            "waiver_plan_id": [("state", "=", "published")],
+        },
     },
     "fix.rental.damage": {
         "order": "create_date desc, id desc",
@@ -66,6 +72,71 @@ SURFACES = {
         "order": "returned_on desc, id desc",
         "limit": 300,
         "actions": {"action_ready", "action_retire"},
+    },
+    # M13 capture pass 2 (2026-11-19): the records the spec names that had no
+    # model. Pickers offer only what the server accepts: an available unit to
+    # move, allocate or swap in; a condition report still at its stage; a
+    # published waiver plan.
+    "fix.rental.redeployment": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_dispatch", "action_receive", "action_cancel"},
+        "pickers": {"rental_asset_id": [("status", "=", "available")]},
+    },
+    "fix.rental.pm.plan": {"order": "rental_sku_id, category, id", "limit": 200, "actions": set()},
+    "fix.rental.exposure": {"order": "partner_id", "limit": 300, "actions": set()},
+    "fix.rental.exposure.override": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_reject"},
+        "pickers": {"reservation_id": [("state", "=", "draft")]},
+    },
+    "fix.rental.extension": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_apply", "action_reject"},
+        "pickers": {"reservation_id": [("state", "in", ("delivered", "active"))]},
+    },
+    "fix.rental.waiver.plan": {
+        "order": "state, name",
+        "limit": 100,
+        "actions": {"action_publish", "action_retire"},
+    },
+    "fix.rental.condition.photo": {
+        "order": "condition_id, sequence, id",
+        "limit": 500,
+        "actions": set(),
+        "pickers": {
+            "condition_id": [
+                "|",
+                "&",
+                ("report_type", "=", "pre_delivery"),
+                ("reservation_id.state", "in", ("draft", "reserved")),
+                "&",
+                ("report_type", "=", "post_return"),
+                ("reservation_id.state", "in", ("returned", "damage_assess")),
+            ]
+        },
+    },
+    "fix.rental.loss": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_escalate",
+            "action_recover",
+            "action_request_writeoff",
+            "action_write_off",
+        },
+        "pickers": {"reservation_id": [("state", "in", ("delivered", "active"))]},
+    },
+    "fix.rental.swap": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_execute", "action_cancel"},
+        "pickers": {
+            "reservation_id": [("state", "in", ("delivered", "active"))],
+            "in_asset_id": [("status", "=", "available")],
+        },
     },
 }
 

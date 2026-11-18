@@ -83,7 +83,12 @@ def forms(root=STATIC):
             # readonlyGrid: the grid only shows the children, so the form edits nothing there
             if grid and "readonlyGrid: true" not in lines:
                 editable.add(grid.group(1))
-            editable.update(re.findall(r"\bfield:\s*'([a-z0-9_]+)'", grids))
+            # each grid is one `{ field: ... }` object; a readonlyGrid one only
+            # shows its children (M13 capture pass 2), so it is not writable
+            for chunk in re.split(r"\{\s*(?=field:)", grids)[1:]:
+                name = re.match(r"field:\s*'([a-z0-9_]+)'", chunk)
+                if name and not re.search(r"\breadonlyGrid:\s*true", chunk):
+                    editable.add(name.group(1))
             yield js.parent.name, sid, model.group(1), editable
 
 

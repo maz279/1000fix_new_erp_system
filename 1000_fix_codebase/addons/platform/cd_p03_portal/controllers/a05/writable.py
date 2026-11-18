@@ -270,6 +270,15 @@ WRITABLE = {
             "screen_ok",
         }
     ),
+    "fix.rental.condition.photo": frozenset(
+        {
+            "attachment_id",
+            "condition_id",
+            "device_ref",
+            "note",
+            "view_code",
+        }
+    ),
     "fix.rental.damage": frozenset(
         {
             "category",
@@ -284,14 +293,37 @@ WRITABLE = {
             "incident_date",
             "inspector_id",
             "operating_unit_id",
+            "police_report_ref",
             "reservation_id",
             "settlement_notes",
+            "waiver_exclusion",
         }
     ),
     "fix.rental.deposit": frozenset(
         {
             "note",
             "reference",
+        }
+    ),
+    "fix.rental.exposure": frozenset(
+        {
+            "basis",
+            "exposure_limit",
+            "partner_id",
+            "risk_tier",
+        }
+    ),
+    "fix.rental.exposure.override": frozenset(
+        {
+            "justification",
+            "reservation_id",
+        }
+    ),
+    "fix.rental.extension": frozenset(
+        {
+            "new_date_to",
+            "reason",
+            "reservation_id",
         }
     ),
     "fix.rental.kit": frozenset(
@@ -302,6 +334,36 @@ WRITABLE = {
             "deposit",
             "name",
             "rental_sku_id",
+        }
+    ),
+    "fix.rental.loss": frozenset(
+        {
+            "circumstances",
+            "claim_decision",
+            "claim_ref",
+            "kind",
+            "no_claim_reason",
+            "police_report_ref",
+            "reservation_id",
+            "valuation",
+        }
+    ),
+    "fix.rental.pm.plan": frozenset(
+        {
+            "active",
+            "category",
+            "checklist",
+            "interval_days",
+            "name",
+            "rental_sku_id",
+            "usage_rental_days",
+        }
+    ),
+    "fix.rental.redeployment": frozenset(
+        {
+            "reason",
+            "rental_asset_id",
+            "to_operating_unit_id",
         }
     ),
     "fix.rental.reservation": frozenset(
@@ -325,7 +387,19 @@ WRITABLE = {
             "signer_mobile",
             "special_terms",
             "stamp_duty_cert_no",
+            "waiver_plan_id",
             "weekly_rate",
+        }
+    ),
+    "fix.rental.swap": frozenset(
+        {
+            "fault",
+            "in_asset_id",
+            "in_grade",
+            "in_notes",
+            "out_grade",
+            "out_notes",
+            "reservation_id",
         }
     ),
     "fix.rental.turnaround": frozenset(
@@ -343,6 +417,17 @@ WRITABLE = {
             "regrade",
             "sensor_cleaned",
             "technician_id",
+        }
+    ),
+    "fix.rental.waiver.plan": frozenset(
+        {
+            "covers_accessories",
+            "covers_theft",
+            "excess_amount",
+            "exclusions",
+            "fee_pct",
+            "legal_review_ref",
+            "name",
         }
     ),
     "fix.tradein.grade": frozenset(

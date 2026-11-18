@@ -603,7 +603,10 @@ class FixRentalReservation(models.Model):
                     self.env["fix.rental.asset"]
                     .sudo()
                     .search_count(
-                        [("rental_sku_id", "=", rec.rental_sku_id.id), ("status", "!=", "retired")]
+                        [
+                            ("rental_sku_id", "=", rec.rental_sku_id.id),
+                            ("status", "not in", ("retired", "lost")),
+                        ]
                     )
                 )
                 demand = (
@@ -1040,7 +1043,9 @@ class FixRentalReservation(models.Model):
             deduction = 0.0
             charges = 0.0
             for dmg in rec.damage_ids.sorted("id"):
-                charge = round(max((dmg.cost or 0.0) - (dmg.waived_amount or 0.0), 0.0), 2)
+                # M13 capture pass 2: what the line charges the customer, after a
+                # loss waiver AND the elected damage waiver (FR-RNT-036)
+                charge = dmg._chargeable()
                 charges += charge
                 take = min(charge, remaining)
                 if take > 0:
@@ -1400,6 +1405,53 @@ class FixRentalReservation(models.Model):
                 company=rec.company_id,
             )
             det = determination.lines[0]
+            lines = [
+                (
+                    0,
+                    0,
+                    {
+                        "description": "Equipment rental %s — %s to %s"
+                        % (rec.name, rec.date_from, rec.date_to),
+                        "taxable_amount": float(det.taxable_amount),
+                        "vat_amount": float(det.vat_amount),
+                        "line_total": float(det.line_total),
+                    },
+                )
+            ]
+            # M13 capture pass 2 (FR-RNT-036/037): the elected damage waiver is
+            # its own chargeable line, at the plan's % of the gross rental
+            waiver_fee = getattr(rec, "waiver_fee", 0.0) or 0.0
+            if waiver_fee > 0:
+                wdet = (
+                    self.env["fix.vat.treatment"]
+                    ._fix_determine_tax(
+                        [
+                            tax_logic.TaxLine(
+                                product_code="RENTAL",
+                                qty=Decimal("1"),
+                                unit_price=Decimal(str(waiver_fee)).quantize(
+                                    Decimal("0.01"), ROUND_HALF_UP
+                                ),
+                            )
+                        ],
+                        on_date=fields.Date.context_today(rec),
+                        company=rec.company_id,
+                    )
+                    .lines[0]
+                )
+                lines.append(
+                    (
+                        0,
+                        0,
+                        {
+                            "description": "Damage waiver %s (%s)"
+                            % (rec.waiver_plan_id.name, rec.name),
+                            "taxable_amount": float(wdet.taxable_amount),
+                            "vat_amount": float(wdet.vat_amount),
+                            "line_total": float(wdet.line_total),
+                        },
+                    )
+                )
             invoice = Invoice.create(
                 {
                     "company_id": rec.company_id.id,
@@ -1417,19 +1469,7 @@ class FixRentalReservation(models.Model):
                     "invoice_date": fields.Date.context_today(rec),
                     "manual_reason": "Rental charges %s (%s to %s)"
                     % (rec.name, rec.date_from, rec.date_to),
-                    "line_ids": [
-                        (
-                            0,
-                            0,
-                            {
-                                "description": "Equipment rental %s — %s to %s"
-                                % (rec.name, rec.date_from, rec.date_to),
-                                "taxable_amount": float(det.taxable_amount),
-                                "vat_amount": float(det.vat_amount),
-                                "line_total": float(det.line_total),
-                            },
-                        )
-                    ],
+                    "line_ids": lines,
                 }
             )
             rec._guarded().write({"mushak_6_3_id": invoice.id})

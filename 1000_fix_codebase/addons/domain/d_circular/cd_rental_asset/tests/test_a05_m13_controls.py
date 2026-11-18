@@ -61,6 +61,29 @@ def _user(env, login, groups=()):
     )
 
 
+# M13 capture pass 2 (2026-11-19): a rental needs a party with a verified M33
+# identity (BRU-RNT-20) and photographed condition reports (BRU-RNT-01).
+_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _kyc(env, partner):
+    env["fix.identity.document"].sudo().create(
+        {"partner_id": partner.id, "document_type": "nid_10", "verification_status": "verified"}
+    )
+    return partner
+
+
+def _photo(env, condition, view="front"):
+    att = (
+        env["ir.attachment"]
+        .sudo()
+        .create({"name": "%s.png" % view, "datas": _PNG, "mimetype": "image/png"})
+    )
+    return env["fix.rental.condition.photo"].create(
+        {"condition_id": condition.id, "attachment_id": att.id, "view_code": view}
+    )
+
+
 @pytest.fixture
 def c(odoo_env):
     env = odoo_env
@@ -74,7 +97,9 @@ def c(odoo_env):
     x.t1 = _user(env, "t1", ["cd_entity_config.group_dofa_tier_1"])
     x.t1b = _user(env, "t1b", ["cd_entity_config.group_dofa_tier_1"])
     x.t2 = _user(env, "t2", ["cd_entity_config.group_dofa_tier_2"])
-    x.customer = env["res.partner"].create({"name": "A05 M13T Customer", "phone": "01700001302"})
+    x.customer = _kyc(
+        env, env["res.partner"].create({"name": "A05 M13T Customer", "phone": "01700001302"})
+    )
     tmpl = env["product.template"].create({"name": "A05M13T Camera rental"})
     item = env["fix.catalogue.item"].create({"product_tmpl_id": tmpl.id})
     x.sku = env["fix.rental.sku"].create(
@@ -149,11 +174,13 @@ def sign(c, r):
 
 
 def report(c, r, report_type, user=None):
-    return (
+    cond = (
         c.env["fix.rental.condition"]
         .with_user(user or c.clerk)
         .create({"reservation_id": r.id, "report_type": report_type, "grade": "a"})
     )
+    _photo(cond.env, cond)
+    return cond
 
 
 def walk(c, r, upto):

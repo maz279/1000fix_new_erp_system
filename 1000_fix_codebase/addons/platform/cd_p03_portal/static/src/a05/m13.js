@@ -25,17 +25,26 @@ export const MODULE = {
     { en: 'Fleet', screens: [
       { id: 'M13-fleet', en: 'Fleet Register', bn: 'ফ্লিট রেজিস্টার', t: 'g' },
       { id: 'M13-availability', en: 'Real-Time Availability', bn: 'রিয়েল-টাইম প্রাপ্যতা', t: 'r' },
-      { id: 'M13-kits', en: 'Kits & Accessories', bn: 'কিট ও এক্সেসরিজ', t: 'g' }
+      { id: 'M13-kits', en: 'Kits & Accessories', bn: 'কিট ও এক্সেসরিজ', t: 'g' },
+      { id: 'M13-redeploy', en: 'Fleet Redeployments', bn: 'শাখান্তর স্থানান্তর', t: 'g' },
+      { id: 'M13-pm-plans', en: 'PM Plans', bn: 'রক্ষণাবেক্ষণ পরিকল্পনা', t: 'g' }
     ]},
     { en: 'Booking', screens: [
       { id: 'M13-reservations', en: 'Reservations', bn: 'বুকিং রেজিস্ট্রি', t: 'g' },
       { id: 'M13-agreements', en: 'Rental Agreements', bn: 'ভাড়া চুক্তিপত্র', t: 'g' },
-      { id: 'M13-deposits', en: 'Security Deposits', bn: 'জামানত খতিয়ান', t: 'g' }
+      { id: 'M13-deposits', en: 'Security Deposits', bn: 'জামানত খতিয়ান', t: 'g' },
+      { id: 'M13-extensions', en: 'Rental Extensions', bn: 'মেয়াদ বৃদ্ধি', t: 'g' },
+      { id: 'M13-waiver-plans', en: 'Damage Waiver Plans', bn: 'ক্ষতি মওকুফ পরিকল্পনা', t: 'g' },
+      { id: 'M13-exposure', en: 'Exposure Limits', bn: 'ঝুঁকি সীমা', t: 'g' },
+      { id: 'M13-overrides', en: 'Exposure Overrides', bn: 'ঝুঁকি সীমা ব্যতিক্রম', t: 'g' }
     ]},
     { en: 'Lifecycle', screens: [
       { id: 'M13-condition', en: 'Condition Reports', bn: 'কন্ডিশন রিপোর্ট', t: 'g' },
       { id: 'M13-damage', en: 'Damage & Recovery', bn: 'ক্ষয়ক্ষতি ও পুনরুদ্ধার', t: 'g' },
-      { id: 'M13-turnaround', en: 'Turnaround & Re-Grade', bn: 'টার্নঅ্যারাউন্ড ও রি-গ্রেড', t: 'g' }
+      { id: 'M13-turnaround', en: 'Turnaround & Re-Grade', bn: 'টার্নঅ্যারাউন্ড ও রি-গ্রেড', t: 'g' },
+      { id: 'M13-photos', en: 'Condition Photographs', bn: 'কন্ডিশন ছবি', t: 'g' },
+      { id: 'M13-swaps', en: 'Unit Swaps', bn: 'ইউনিট বদল', t: 'g' },
+      { id: 'M13-losses', en: 'Loss & Non-Return', bn: 'হারানো ও অফেরত', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M13-utilisation', en: 'Utilisation Analytics', bn: 'ব্যবহার অ্যানালিটিক্স', t: 'r' },
@@ -67,23 +76,39 @@ export const MODULE = {
     'Return Collection Booking',
     'Preventive Maintenance Booking',
     /* mastered by M37: a fleet unit cannot be registered without one */
-    'Rental SKU (M37)'
+    'Rental SKU (M37)',
+    /* capture pass 2 (2026-11-19): the records the spec names that had no model */
+    'Fleet Redeployment',
+    'Preventive Maintenance Plan',
+    'Rental Exposure Limit',
+    'Exposure Override Request',
+    'Allocate a Fleet Unit',
+    'Rental Extension',
+    'Damage Waiver Plan',
+    'Damage Waiver Election',
+    'Condition Photograph',
+    'Loss / Non-Return Case',
+    'Unit Swap-Out'
   ],
   cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
   /* Each page offers the capture of ITS function (capture audit 2026-11-13):
    * 3 prepares the agreement (not a second "+ New Reservation"), 4 takes the
    * deposit in its real tender, 6 records the return, 7 the in-rental fault,
    * 8 the turnaround checklist (a turnaround is opened by the return, never
-   * typed: its old "+ New" was refused by the server). 9 is computed. */
+   * typed: its old "+ New" was refused by the server). 9 is computed.
+   * Capture pass 2 (2026-11-19) adds, as chips, the records the spec names
+   * on each page that had no model: 1 redeployment, 2 allocation, exposure
+   * limit and override, 3 extension, 4 damage waiver plan and election,
+   * 5 photographs, 6 loss / non-return, 7 swap-out, 8 PM plan. */
   freg: { src: 78, sub: [
-    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Rental SKU (M37)'] }],
-    ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations'], reports: ['Real-Time Availability'], forms: ['Reservation Cockpit'] }],
-    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements'], reports: [], forms: ['Rental Agreement (e-sign)'], create: 'M13-form-agreement' }],
-    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method', 'reference'], screens: ['M13-deposits'], reports: ['Deposit Reconciliation'], forms: ['Security Deposit Collection', 'Loss Waiver Request'], create: 'M13-form-deposit-take' }],
-    ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage'], reports: ['Damage & Loss Rate'], forms: ['Condition Report', 'Damage Assessment & Recovery'] }],
-    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Rental Return', 'Damage Assessment & Recovery'], create: 'M13-form-return' }],
-    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations'], reports: ['Late Return Analysis'], forms: ['In-Rental Fault Report', 'Return Collection Booking'], create: 'M13-form-fault', domain: [['state', 'in', ['delivered', 'active']]] }],
-    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading', 'Preventive Maintenance Booking'], create: 'M13-form-turnaround' }],
+    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits', 'M13-redeploy'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Rental SKU (M37)', 'Fleet Redeployment'] }],
+    ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations', 'M13-exposure', 'M13-overrides'], reports: ['Real-Time Availability'], forms: ['Reservation Cockpit', 'Allocate a Fleet Unit', 'Rental Exposure Limit', 'Exposure Override Request'] }],
+    ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements', 'M13-extensions'], reports: [], forms: ['Rental Agreement (e-sign)', 'Rental Extension', 'Damage Waiver Election'], create: 'M13-form-agreement' }],
+    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method', 'reference'], screens: ['M13-deposits', 'M13-waiver-plans'], reports: ['Deposit Reconciliation'], forms: ['Security Deposit Collection', 'Damage Waiver Election', 'Damage Waiver Plan', 'Loss Waiver Request'], create: 'M13-form-deposit-take' }],
+    ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage', 'M13-photos'], reports: ['Damage & Loss Rate'], forms: ['Condition Report', 'Condition Photograph', 'Damage Assessment & Recovery'] }],
+    ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage', 'M13-losses'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Rental Return', 'Damage Assessment & Recovery', 'Loss / Non-Return Case'], create: 'M13-form-return' }],
+    ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations', 'M13-swaps'], reports: ['Late Return Analysis'], forms: ['In-Rental Fault Report', 'Unit Swap-Out', 'Return Collection Booking'], create: 'M13-form-fault', domain: [['state', 'in', ['delivered', 'active']]] }],
+    ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround', 'M13-pm-plans'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading', 'Preventive Maintenance Booking', 'Preventive Maintenance Plan'], create: 'M13-form-turnaround' }],
     ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'], reports: ['Utilisation by Category', 'Rental P&L', 'Fleet Health & Retirement'], forms: [], create: false }]
   ] }
 };
@@ -153,6 +178,57 @@ export const SCREENS = {
     ] },
   'M13-utilisation': { kind: 'table_report', module: 'M13', report: 'utilization_by_category', title: 'Utilisation Analytics', period: true },
   'M13-retire': { kind: 'table_report', module: 'M13', report: 'fleet_health', title: 'Fleet Health & Retirement', period: false },
+
+  /* ---- capture pass 2 (2026-11-19): the spec's missing registers ---- */
+  'M13-redeploy': { kind: 'model_list', model: 'fix.rental.redeployment', stateField: 'state',
+    cols: ['name', 'rental_asset_id', 'from_operating_unit_id', 'to_operating_unit_id', 'dispatched_on', 'received_on', 'state'],
+    empty: 'No unit has been moved between branches. Use Redeploy a Unit to Another Branch.',
+    actions: [
+      { m: 'action_dispatch', l: 'Dispatch (M03 branch transfer)' },
+      { m: 'action_receive', l: 'Confirm Receipt at New Branch' },
+      { m: 'action_cancel', l: 'Cancel Redeployment' }
+    ] },
+  'M13-pm-plans': { kind: 'model_list', model: 'fix.rental.pm.plan',
+    cols: ['name', 'rental_sku_id', 'category', 'interval_days', 'usage_rental_days', 'active'],
+    empty: 'No preventive maintenance plan yet: units fall due only when a plan says when (every N days, or after N days on rent).' },
+  'M13-exposure': { kind: 'model_list', model: 'fix.rental.exposure',
+    cols: ['partner_id', 'risk_tier', 'exposure_limit', 'current_exposure', 'headroom', 'open_rental_count', 'reviewed_by', 'reviewed_on'],
+    empty: 'No party has a rental exposure limit yet. Finance records one per party (FR-RNT-010); a party without one is limited only by its deposit.' },
+  'M13-overrides': { kind: 'model_list', model: 'fix.rental.exposure.override', stateField: 'state',
+    cols: ['name', 'reservation_id', 'customer_id', 'exposure_limit', 'exposure_after', 'excess', 'requested_by', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve Override' },
+      { m: 'action_reject', l: 'Reject Override', ask: 'Why the override is refused', kwarg: 'reason' }
+    ] },
+  'M13-extensions': { kind: 'model_list', model: 'fix.rental.extension', stateField: 'state',
+    cols: ['name', 'reservation_id', 'customer_id', 'old_date_to', 'new_date_to', 'charge_delta', 'availability_result', 'state'],
+    actions: [
+      { m: 'action_apply', l: 'Apply Extension (agreement v+1)' },
+      { m: 'action_reject', l: 'Refuse Extension', ask: 'Why the extension is refused', kwarg: 'reason' }
+    ] },
+  'M13-waiver-plans': { kind: 'model_list', model: 'fix.rental.waiver.plan', stateField: 'state',
+    cols: ['name', 'fee_pct', 'excess_amount', 'covers_accessories', 'covers_theft', 'legal_review_ref', 'election_count', 'state'],
+    empty: 'No damage waiver is offered. Finance configures a plan; another person publishes it once Legal has reviewed it (spec Q-04).',
+    actions: [
+      { m: 'action_publish', l: 'Publish Plan' },
+      { m: 'action_retire', l: 'Retire Plan' }
+    ] },
+  'M13-photos': { kind: 'model_list', model: 'fix.rental.condition.photo',
+    cols: ['condition_id', 'reservation_id', 'report_type', 'view_code', 'captured_by', 'captured_at', 'sha256', 'integrity_ok'] },
+  'M13-losses': { kind: 'model_list', model: 'fix.rental.loss', stateField: 'state',
+    cols: ['name', 'reservation_id', 'customer_id', 'rental_asset_id', 'kind', 'escalation_stage', 'valuation', 'state'],
+    actions: [
+      { m: 'action_escalate', l: 'Escalate (notice > recovery > legal)' },
+      { m: 'action_recover', l: 'Unit Recovered' },
+      { m: 'action_request_writeoff', l: 'Request Write-Off Approval', ask: 'Justification for writing the unit off', kwarg: 'justification' },
+      { m: 'action_write_off', l: 'Write Off (approved)' }
+    ] },
+  'M13-swaps': { kind: 'model_list', model: 'fix.rental.swap', stateField: 'state',
+    cols: ['name', 'reservation_id', 'customer_id', 'out_asset_id', 'in_asset_id', 'sla_target', 'executed_at', 'sla_met', 'state'],
+    actions: [
+      { m: 'action_execute', l: 'Execute Swap' },
+      { m: 'action_cancel', l: 'Cancel Swap' }
+    ] },
 
   /* Report chips -> their own computed packs (All 7 active) */
   'M13-rpt-utilization': { kind: 'table_report', module: 'M13', report: 'utilization_by_category', title: 'Utilisation by Category', period: true },
@@ -224,7 +300,9 @@ export const SCREENS = {
           { name: 'deposit_collected', label: 'Deposit Agreed (BDT)' },
           { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)', readonly: true },
           { name: 'ifrs16_classification', label: 'IFRS 16 Lessor Classification' },
-          { name: 'lease_income_per_day', label: 'Lease Income per Day', readonly: true }
+          { name: 'lease_income_per_day', label: 'Lease Income per Day', readonly: true },
+          { name: 'waiver_plan_id', label: 'Damage Waiver Elected', domain: [['state', '=', 'published']] },
+          { name: 'waiver_fee', label: 'Damage Waiver Fee', readonly: true }
         ] },
       { tab: 'inspection', title: 'Condition & Recovery Dossier',
         fields: [
@@ -238,7 +316,9 @@ export const SCREENS = {
           { name: 'signer_mobile', label: 'Customer Signing Mobile' },
           { name: 'agreement_state', label: 'Agreement Execution State', readonly: true },
           { name: 'signed_at', label: 'Signed Timestamp', readonly: true },
-          { name: 'signature_ref', label: 'E-Signature Reference', readonly: true }
+          { name: 'signature_ref', label: 'E-Signature Reference', readonly: true },
+          { name: 'agreement_version', label: 'Agreement Version', readonly: true },
+          { name: 'identity_verified', label: 'Identity Verified (M33)', readonly: true }
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & Electronic Execution',
         note: 'SHA-256 e-signed rental agreement, stamp paper scan, customer NID scan, and pre/post inspection photos.',
@@ -307,7 +387,9 @@ export const SCREENS = {
         fields: [
           { name: 'daily_rate', label: 'Daily Rate' },
           { name: 'rental_charge', label: 'Rental Charge (BDT)', readonly: true },
-          { name: 'late_fee', label: 'Late Fee (computed)', readonly: true }
+          { name: 'late_fee', label: 'Late Fee (computed)', readonly: true },
+          { name: 'waiver_plan_id', label: 'Damage Waiver Elected', domain: [['state', '=', 'published']] },
+          { name: 'waiver_fee', label: 'Damage Waiver Fee', readonly: true }
         ] },
       { tab: 'vault', title: 'Cryptographic Document Vault & E-Sign Stamp',
         note: 'Tamper-evident legal agreement copy and customer verification proofs.',
@@ -320,6 +402,27 @@ export const SCREENS = {
     model: 'fix.rental.condition',
     title: 'Condition Inspection Report',
     back: 'M13-condition',
+    /* capture pass 2: the hashed photographs (added with Add a Condition
+     * Photograph) and, on a post-return report, the outbound ones beside
+     * them (FR-RNT-023) */
+    grids: [
+      { field: 'photo_ids', tab: 'vault', title: 'Photographs of This Report', readonlyGrid: true,
+        empty: 'No photograph yet. Handover, assessment and close need them: use Add a Condition Photograph.',
+        fields: [
+          { name: 'view_code', label: 'View' },
+          { name: 'captured_by', label: 'Captured By' },
+          { name: 'captured_at', label: 'Captured At' },
+          { name: 'sha256', label: 'SHA-256' },
+          { name: 'integrity_ok', label: 'Intact' }
+        ] },
+      { field: 'outbound_photo_ids', tab: 'vault', title: 'Outbound Photographs (side-by-side comparison)', readonlyGrid: true,
+        empty: 'Shown on a post-return report: the photographs taken before delivery.',
+        fields: [
+          { name: 'view_code', label: 'View' },
+          { name: 'captured_at', label: 'Captured At' },
+          { name: 'sha256', label: 'SHA-256' }
+        ] }
+    ],
     tabs: [
       { id: 'header', label: '1. Report Header', bn: '১. রিপোর্ট পরিচিতি', icon: '📋', badge: '5' },
       { id: 'checklist', label: '2. Physical Checklist', bn: '২. বাহ্যিক চেকলিস্ট', icon: '🔍', badge: '4' },
@@ -404,7 +507,11 @@ export const SCREENS = {
           { name: 'unrecovered_loss_amount', label: 'Unrecovered Loss', readonly: true },
           { name: 'waived', label: 'Waived (DOFA)', readonly: true },
           { name: 'waived_amount', label: 'Waived Amount', readonly: true },
-          { name: 'settled', label: 'Settlement Completed', readonly: true }
+          { name: 'settled', label: 'Settlement Completed', readonly: true },
+          /* capture pass 2: the elected damage waiver applies at assessment */
+          { name: 'waiver_exclusion', label: 'Waiver Exclusion (BRU-RNT-10)' },
+          { name: 'police_report_ref', label: 'Police Report (theft)' },
+          { name: 'waiver_relief', label: 'Waived by the Damage Waiver', readonly: true }
         ] },
       { tab: 'dispute', title: 'Customer Arbitration & Objections',
         fields: [
@@ -876,6 +983,416 @@ export const SCREENS = {
           { name: 'battery_health_pct', label: 'Battery Health %', readonly: true }
         ] }
     ]
+  },
+
+  /* ============ CAPTURE PASS 2 FORMS (2026-11-19) ============
+   * The records the spec asks a person to enter that had no model at all:
+   * redeployment, PM plan, exposure limit and override, allocation,
+   * extension, damage waiver (plan and election), condition photographs,
+   * loss / non-return and swap-out. */
+
+  /* 1 Fleet Register: FR-RNT-031 */
+  'M13-form-redeploy': {
+    kind: 'model_form',
+    model: 'fix.rental.redeployment',
+    title: 'Fleet Redeployment',
+    newLabel: 'Redeploy a Unit to Another Branch',
+    back: 'M13-redeploy',
+    status: { field: 'state', labels: { draft: 'Draft', in_transit: 'In Transit', received: 'Received', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'move', label: '1. Unit & Destination', bn: '১. ইউনিট ও গন্তব্য', icon: '🚚', badge: '4' },
+      { id: 'custody', label: '2. Custody (M03)', bn: '২. হেফাজত', icon: '📦', badge: '5' },
+      { id: 'vault', label: '3. Transfer Documents', bn: '৩. স্থানান্তর নথি', icon: '📁', badge: '1' }
+    ],
+    sections: [
+      { tab: 'move', title: 'Which Unit Moves Where (FR-RNT-031)',
+        note: 'Only an available unit with no open booking moves. Save, then press Dispatch on Fleet Redeployments; the receiving branch (another person) confirms receipt and the unit is re-homed there. Its rental and utilisation history stay on the unit.',
+        fields: [
+          { name: 'name', label: 'Redeployment Ref', readonly: true },
+          { name: 'rental_asset_id', required: true, label: 'Fleet Unit', domain: [['status', '=', 'available']] },
+          { name: 'from_operating_unit_id', label: 'From Branch', readonly: true },
+          { name: 'to_operating_unit_id', required: true, label: 'To Branch' },
+          { name: 'reason', required: true, type: 'text', label: 'Why (demand at the new branch / idle here)' }
+        ] },
+      { tab: 'custody', title: 'Branch Transfer & Custody',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'consignment_id', label: 'Branch Transfer Consignment (M03)', readonly: true },
+          { name: 'dispatched_by', label: 'Dispatched By', readonly: true },
+          { name: 'dispatched_on', label: 'Dispatched On', readonly: true },
+          { name: 'received_by', label: 'Received By', readonly: true },
+          { name: 'received_on', label: 'Received On', readonly: true }
+        ] },
+      { tab: 'vault', title: 'Transfer Documents', note: 'Gate pass and the receiving branch acknowledgement.', fields: [] }
+    ]
+  },
+
+  /* 8 Turnaround & PM: FR-RNT-028 / AUT-RNT-12 */
+  'M13-form-pm-plan': {
+    kind: 'model_form',
+    model: 'fix.rental.pm.plan',
+    title: 'Preventive Maintenance Plan',
+    newLabel: 'Set a Preventive Maintenance Plan',
+    back: 'M13-pm-plans',
+    tabs: [
+      { id: 'scope', label: '1. What It Covers', bn: '১. আওতা', icon: '🎯', badge: '3' },
+      { id: 'when', label: '2. When It Falls Due', bn: '২. কখন', icon: '📅', badge: '2' },
+      { id: 'work', label: '3. Maintenance Work', bn: '৩. রক্ষণাবেক্ষণ', icon: '🛠️', badge: '2' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Plan Scope',
+        note: 'A unit follows the plan of its rental SKU, else the plan of its fleet category. One active plan per SKU or category.',
+        fields: [
+          { name: 'name', required: true, label: 'Plan Name' },
+          { name: 'rental_sku_id', label: 'Rental SKU' },
+          { name: 'category', label: 'Or Fleet Category' }
+        ] },
+      { tab: 'when', title: 'Calendar or Usage (whichever first)',
+        note: 'Every day the system takes an available unit whose maintenance has fallen due out of availability and opens its turnaround (BRU-RNT-21: it cannot be rented "just this once"). Completing the turnaround sets the next due date.',
+        fields: [
+          { name: 'interval_days', label: 'Every N Calendar Days' },
+          { name: 'usage_rental_days', label: 'Or After N Days on Rent' }
+        ] },
+      { tab: 'work', title: 'Checklist',
+        fields: [
+          { name: 'checklist', type: 'text', label: 'Maintenance Checklist' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
+  /* 2 Availability & Reservation: FR-RNT-010 (P1) */
+  'M13-form-exposure': {
+    kind: 'model_form',
+    model: 'fix.rental.exposure',
+    title: 'Rental Exposure Limit',
+    newLabel: 'Set a Party Exposure Limit',
+    back: 'M13-exposure',
+    tabs: [
+      { id: 'limit', label: '1. Party & Limit', bn: '১. পক্ষ ও সীমা', icon: '🛡️', badge: '4' },
+      { id: 'usage', label: '2. Open Exposure', bn: '২. চলমান ঝুঁকি', icon: '📊', badge: '5' },
+      { id: 'vault', label: '3. Evidence', bn: '৩. প্রমাণ', icon: '📁', badge: '1' }
+    ],
+    sections: [
+      { tab: 'limit', title: 'Exposure Limit (FR-RNT-010)',
+        note: 'Open exposure = for each open rental, the unit book value less the deposit agreed on it. A booking above the limit is refused at reservation unless an exposure override is approved by someone other than whoever asked (BRU-RNT-05).',
+        fields: [
+          { name: 'partner_id', required: true, label: 'Party (company or person)' },
+          { name: 'risk_tier', required: true, label: 'Risk Tier' },
+          { name: 'exposure_limit', required: true, label: 'Exposure Limit (BDT)' },
+          { name: 'basis', required: true, type: 'text', label: 'Basis: identity, deposit tier, rental history' }
+        ] },
+      { tab: 'usage', title: 'Live Position',
+        fields: [
+          { name: 'current_exposure', label: 'Open Exposure (BDT)', readonly: true },
+          { name: 'headroom', label: 'Headroom (BDT)', readonly: true },
+          { name: 'open_rental_count', label: 'Open Rentals', readonly: true },
+          { name: 'reviewed_by', label: 'Last Set By', readonly: true },
+          { name: 'reviewed_on', label: 'Last Set On', readonly: true }
+        ] },
+      { tab: 'vault', title: 'Evidence', note: 'Credit references, trade licence, corporate guarantee.', fields: [] }
+    ]
+  },
+
+  /* 2 Availability & Reservation: BRU-RNT-05 */
+  'M13-form-override': {
+    kind: 'model_form',
+    model: 'fix.rental.exposure.override',
+    title: 'Exposure Override Request',
+    newLabel: 'Request an Exposure Override',
+    back: 'M13-overrides',
+    status: { field: 'state', labels: { requested: 'Requested', approved: 'Approved', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'request', label: '1. Request', bn: '১. অনুরোধ', icon: '📝', badge: '2' },
+      { id: 'figures', label: '2. Figures & Decision', bn: '২. হিসাব ও সিদ্ধান্ত', icon: '⚖️', badge: '7' }
+    ],
+    sections: [
+      { tab: 'request', title: 'Booking Above the Party Limit (BRU-RNT-05)',
+        note: 'For a draft booking the reservation refused for exposure. The figures are computed by the system when you save; another person approves or rejects it on Exposure Overrides.',
+        fields: [
+          { name: 'name', label: 'Override Ref', readonly: true },
+          { name: 'reservation_id', required: true, label: 'Booking', domain: [['state', '=', 'draft']] },
+          { name: 'justification', required: true, type: 'text', label: 'Justification' }
+        ] },
+      { tab: 'figures', title: 'Exposure & Decision',
+        fields: [
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'exposure_limit', label: 'Limit (BDT)', readonly: true },
+          { name: 'exposure_after', label: 'Exposure With This Booking', readonly: true },
+          { name: 'excess', label: 'Above the Limit', readonly: true },
+          { name: 'state', label: 'Decision', readonly: true },
+          { name: 'requested_by', label: 'Requested By', readonly: true },
+          { name: 'decided_by', label: 'Decided By', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 2 Availability & Reservation: FR-RNT-032 allocation at pick */
+  'M13-form-allocate': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'Allocate a Fleet Unit',
+    newLabel: 'Allocate a Unit to a Pool Booking',
+    back: 'M13-reservations',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the confirmed booking that has no unit yet',
+      note: 'Bookings reserved against a rental SKU (the pool) whose unit is chosen at pick.',
+      search: 'Search booking or customer',
+      choose: 'Allocate its unit',
+      cols: ['name', 'customer_id', 'rental_sku_id', 'date_from', 'date_to', 'agreement_state'],
+      domain: [['state', '=', 'reserved'], ['rental_asset_id', '=', false]],
+      empty: 'No confirmed booking is waiting for a unit.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: The Unit (FR-RNT-032)',
+        note: 'Choose an available unit of the SKU the customer booked; the server refuses another SKU, a unit booked for an overlapping window (with turnaround padding) or one not available. The unit is held for this booking. Allocate before the agreement is sent: the unit is one of its terms.',
+        fields: [
+          { name: 'name', label: 'Booking', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_sku_id', label: 'Rental SKU Booked', readonly: true },
+          { name: 'date_from', label: 'From', readonly: true },
+          { name: 'date_to', label: 'To', readonly: true },
+          { name: 'rental_asset_id', required: true, label: 'Fleet Unit', domain: [['status', '=', 'available']] }
+        ] }
+    ]
+  },
+
+  /* 3 Agreements: FR-RNT-016 / FR-RNT-033 */
+  'M13-form-extension': {
+    kind: 'model_form',
+    model: 'fix.rental.extension',
+    title: 'Rental Extension',
+    newLabel: 'Extend a Live Rental',
+    back: 'M13-extensions',
+    status: { field: 'state', labels: { requested: 'Requested', applied: 'Applied', rejected: 'Refused' } },
+    tabs: [
+      { id: 'request', label: '1. Extension Request', bn: '১. মেয়াদ বৃদ্ধির অনুরোধ', icon: '📅', badge: '3' },
+      { id: 'check', label: '2. Availability & Re-Price', bn: '২. প্রাপ্যতা ও মূল্য', icon: '৳', badge: '5' },
+      { id: 'approval', label: '3. Variation Record', bn: '৩. সংশোধন রেকর্ড', icon: '✍️', badge: '5' },
+      { id: 'vault', label: '4. Customer Request', bn: '৪. গ্রাহকের অনুরোধ', icon: '📁', badge: '1' }
+    ],
+    sections: [
+      { tab: 'request', title: 'New Return Date (FR-RNT-016)',
+        note: 'For a rental out with the customer. Save to see whether the unit is free (turnaround padding included) and the re-priced charge on the rate ladder; another person applies it on Rental Extensions, which moves the agreement to its next version.',
+        fields: [
+          { name: 'name', label: 'Extension Ref', readonly: true },
+          { name: 'reservation_id', required: true, label: 'Rental', domain: [['state', 'in', ['delivered', 'active']]] },
+          { name: 'new_date_to', required: true, label: 'New Return Date' },
+          { name: 'reason', required: true, type: 'text', label: 'Customer Request' }
+        ] },
+      { tab: 'check', title: 'Availability & Rate Ladder (FR-RNT-035)',
+        fields: [
+          { name: 'old_date_to', label: 'Due Back Before', readonly: true },
+          { name: 'availability_result', label: 'Availability', readonly: true },
+          { name: 'old_charge', label: 'Rental Charge Before', readonly: true },
+          { name: 'new_charge', label: 'Rental Charge After', readonly: true },
+          { name: 'charge_delta', label: 'Additional Charge', readonly: true }
+        ] },
+      { tab: 'approval', title: 'Agreement Variation (FR-RNT-033)',
+        fields: [
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'requested_by', label: 'Requested By', readonly: true },
+          { name: 'approved_by', label: 'Applied By', readonly: true },
+          { name: 'applied_on', label: 'Applied On', readonly: true },
+          { name: 'agreement_version', label: 'Agreement Version', readonly: true },
+          { name: 'rejection_reason', label: 'Why Refused', readonly: true }
+        ] },
+      { tab: 'vault', title: 'Customer Request', note: 'The customer written or portal request.', fields: [] }
+    ]
+  },
+
+  /* 4 Deposits & Waivers: FR-RNT-036 — the product */
+  'M13-form-waiver-plan': {
+    kind: 'model_form',
+    model: 'fix.rental.waiver.plan',
+    title: 'Damage Waiver Plan',
+    newLabel: 'Configure a Damage Waiver Plan',
+    back: 'M13-waiver-plans',
+    status: { field: 'state', labels: { draft: 'Draft', published: 'Published', retired: 'Retired' } },
+    tabs: [
+      { id: 'price', label: '1. Fee & Excess', bn: '১. ফি ও অতিরিক্ত', icon: '৳', badge: '3' },
+      { id: 'cover', label: '2. Cover & Exclusions', bn: '২. আওতা ও বর্জন', icon: '🛡️', badge: '3' },
+      { id: 'legal', label: '3. Legal & Publication', bn: '৩. আইনি ও প্রকাশ', icon: '⚖️', badge: '5' },
+      { id: 'vault', label: '4. Published Terms', bn: '৪. প্রকাশিত শর্ত', icon: '📁', badge: '1' }
+    ],
+    sections: [
+      { tab: 'price', title: 'Waiver Fee and Excess (FR-RNT-036)',
+        note: 'The fee is a % of the gross rental, charged as its own line on the rental invoice. On a covered damage the customer pays the excess and the rest is waived automatically at assessment.',
+        fields: [
+          { name: 'name', required: true, label: 'Plan Name' },
+          { name: 'fee_pct', required: true, label: 'Fee (% of gross rental)' },
+          { name: 'excess_amount', required: true, label: 'Excess per Incident (BDT)' }
+        ] },
+      { tab: 'cover', title: 'What Is Covered (BRU-RNT-10)',
+        fields: [
+          { name: 'covers_accessories', label: 'Covers Missing Accessories' },
+          { name: 'covers_theft', label: 'Covers Theft (only with a police report)' },
+          { name: 'exclusions', required: true, type: 'text', label: 'Published Exclusions' }
+        ] },
+      { tab: 'legal', title: 'Not Insurance: Legal Review (spec Q-04)',
+        note: 'A plan is offered only once published, and published only with the Legal review reference, by someone other than whoever configured it. Published terms never change: retire the plan and configure a new one.',
+        fields: [
+          { name: 'legal_review_ref', label: 'Legal Review Reference' },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'published_by', label: 'Published By', readonly: true },
+          { name: 'published_on', label: 'Published On', readonly: true },
+          { name: 'election_count', label: 'Agreements Electing It', readonly: true }
+        ] },
+      { tab: 'vault', title: 'Published Terms', note: 'Customer-facing waiver terms and the Legal opinion.', fields: [] }
+    ]
+  },
+
+  /* 4 Deposits & Waivers: FR-RNT-036 — the customer's election */
+  'M13-form-waiver-elect': {
+    kind: 'model_form',
+    model: 'fix.rental.reservation',
+    title: 'Damage Waiver Election',
+    newLabel: 'Record a Damage Waiver Election',
+    back: 'M13-agreements',
+    status: { field: 'agreement_state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the booking whose customer elects the waiver',
+      note: 'Draft bookings whose agreement has not been sent: the election is a term of the agreement.',
+      search: 'Search booking or customer',
+      choose: 'Record the election',
+      cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to', 'rental_charge'],
+      domain: [['state', '=', 'draft'], ['agreement_state', 'in', ['draft', 'declined']]],
+      empty: 'No draft booking is open to an election. The waiver is chosen before the agreement is sent.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: The Plan Elected (FR-RNT-036)',
+        note: 'Only published plans are offered. The fee is added as its own line to the rental Mushak 6.3; damage assessed on this rental applies the plan excess automatically, except its exclusions (BRU-RNT-10). Leave empty to decline the waiver.',
+        fields: [
+          { name: 'name', label: 'Booking', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'rental_charge', label: 'Gross Rental (BDT)', readonly: true },
+          { name: 'waiver_plan_id', label: 'Damage Waiver Plan', domain: [['state', '=', 'published']] },
+          { name: 'waiver_fee', label: 'Waiver Fee (BDT)', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 5 Condition & Damage: FR-RNT-021/023, T-04, BRU-RNT-01/19 */
+  'M13-form-photo': {
+    kind: 'model_form',
+    model: 'fix.rental.condition.photo',
+    title: 'Condition Photograph',
+    newLabel: 'Add a Condition Photograph',
+    back: 'M13-photos',
+    tabs: [
+      { id: 'photo', label: '1. Photograph', bn: '১. ছবি', icon: '📸', badge: '5' },
+      { id: 'evidence', label: '2. Evidence Integrity', bn: '২. প্রমাণের সততা', icon: '🔐', badge: '5' }
+    ],
+    sections: [
+      { tab: 'photo', title: 'Photograph of the Unit (BRU-RNT-01)',
+        note: 'For a condition report still at its stage: pre-delivery while the booking is draft or reserved, post-return while it is returned or under assessment. Handover, assessment and close each need at least the minimum number of photographs. A photograph is never replaced: add another and delete this one while the report is open.',
+        fields: [
+          { name: 'condition_id', required: true, label: 'Condition Report', domain: ['|', '&', ['report_type', '=', 'pre_delivery'], ['reservation_id.state', 'in', ['draft', 'reserved']], '&', ['report_type', '=', 'post_return'], ['reservation_id.state', 'in', ['returned', 'damage_assess']]] },
+          { name: 'view_code', required: true, label: 'View' },
+          { name: 'attachment_id', required: true, label: 'Photograph (upload)' },
+          { name: 'device_ref', label: 'Capture Device' },
+          { name: 'note', label: 'Note' }
+        ] },
+      { tab: 'evidence', title: 'Hashed at Capture, Filed in M24 (T-04)',
+        fields: [
+          { name: 'sha256', label: 'SHA-256 at Capture', readonly: true },
+          { name: 'integrity_ok', label: 'Integrity Verified', readonly: true },
+          { name: 'document_id', label: 'M24 Document', readonly: true },
+          { name: 'captured_by', label: 'Captured By', readonly: true },
+          { name: 'captured_at', label: 'Captured At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 6 Returns & Recovery: FR-RNT-025, BRU-RNT-11/22 */
+  'M13-form-loss': {
+    kind: 'model_form',
+    model: 'fix.rental.loss',
+    title: 'Loss / Non-Return Case',
+    newLabel: 'Report a Lost or Unreturned Unit',
+    back: 'M13-losses',
+    status: { field: 'state', labels: { open: 'Open', recovered: 'Recovered', written_off: 'Written Off' } },
+    tabs: [
+      { id: 'case', label: '1. The Case', bn: '১. ঘটনা', icon: '🚨', badge: '5' },
+      { id: 'value', label: '2. Valuation & Claim', bn: '২. মূল্যায়ন ও দাবি', icon: '৳', badge: '4' },
+      { id: 'outcome', label: '3. Escalation & Outcome', bn: '৩. অগ্রগতি ও ফলাফল', icon: '⚖️', badge: '8' },
+      { id: 'vault', label: '4. Evidence Vault', bn: '৪. প্রমাণ ভল্ট', icon: '📁', badge: '1' }
+    ],
+    sections: [
+      { tab: 'case', title: 'What Happened (FR-RNT-025)',
+        note: 'Escalate on Loss & Non-Return: formal notice, recovery, legal. A recovered unit stays Company property whatever was paid (BRU-RNT-11); record its return as usual.',
+        fields: [
+          { name: 'name', label: 'Case Ref', readonly: true },
+          { name: 'reservation_id', required: true, label: 'Rental', domain: [['state', 'in', ['delivered', 'active']]] },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'circumstances', required: true, type: 'text', label: 'Circumstances' },
+          { name: 'police_report_ref', label: 'Police Report (GD / FIR) No' }
+        ] },
+      { tab: 'value', title: 'Valuation & Insurance (BRU-RNT-22)',
+        note: 'The write-off forfeits the deposit up to the valuation and invoices the rest through M20. It needs the claim reference or a documented decision not to claim, and the unit routed write-off approval (Request Write-Off Approval).',
+        fields: [
+          { name: 'valuation', label: 'Agreed Replacement Valuation (BDT)' },
+          { name: 'claim_decision', label: 'Insurance' },
+          { name: 'claim_ref', label: 'Claim Reference' },
+          { name: 'no_claim_reason', type: 'text', label: 'Why No Claim' }
+        ] },
+      { tab: 'outcome', title: 'Escalation & Outcome',
+        fields: [
+          { name: 'escalation_stage', label: 'Escalation Stage', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'reported_by', label: 'Reported By', readonly: true },
+          { name: 'reported_at', label: 'Reported At', readonly: true },
+          { name: 'recovered_on', label: 'Recovered On', readonly: true },
+          { name: 'written_off_on', label: 'Written Off On', readonly: true },
+          { name: 'forfeited_amount', label: 'Deposit Forfeited', readonly: true },
+          { name: 'invoiced_amount', label: 'Invoiced (M20)', readonly: true }
+        ] },
+      { tab: 'vault', title: 'Evidence', note: 'Police report, formal notices, insurer correspondence.', fields: [] }
+    ]
+  },
+
+  /* 7 In-Rental Support: FR-RNT-027 */
+  'M13-form-swap': {
+    kind: 'model_form',
+    model: 'fix.rental.swap',
+    title: 'Unit Swap-Out',
+    newLabel: 'Swap a Faulty Unit on a Live Rental',
+    back: 'M13-swaps',
+    status: { field: 'state', labels: { open: 'Open', executed: 'Executed', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'fault', label: '1. Fault & Replacement', bn: '১. ত্রুটি ও প্রতিস্থাপন', icon: '🔁', badge: '4' },
+      { id: 'condition', label: '2. Condition of Both Units', bn: '২. দুই ইউনিটের অবস্থা', icon: '🔍', badge: '4' },
+      { id: 'sla', label: '3. SLA & Record', bn: '৩. এসএলএ ও রেকর্ড', icon: '⏱️', badge: '7' }
+    ],
+    sections: [
+      { tab: 'fault', title: 'The Fault and the Replacement (FR-RNT-027)',
+        note: 'The SLA clock starts when you save. Execute it on Unit Swaps once the replacement is with the customer: the rental moves to the replacement, the faulty unit goes to turnaround and a condition report is recorded for each.',
+        fields: [
+          { name: 'name', label: 'Swap Ref', readonly: true },
+          { name: 'reservation_id', required: true, label: 'Rental', domain: [['state', 'in', ['delivered', 'active']]] },
+          { name: 'fault', required: true, type: 'text', label: 'Fault' },
+          { name: 'in_asset_id', required: true, label: 'Replacement Unit', domain: [['status', '=', 'available']] }
+        ] },
+      { tab: 'condition', title: 'Condition of Both Units',
+        fields: [
+          { name: 'out_grade', label: 'Faulty Unit: Grade on Receipt' },
+          { name: 'out_notes', type: 'text', label: 'Faulty Unit: Condition' },
+          { name: 'in_grade', label: 'Replacement: Grade at Dispatch' },
+          { name: 'in_notes', type: 'text', label: 'Replacement: Condition' }
+        ] },
+      { tab: 'sla', title: 'SLA and the Record',
+        fields: [
+          { name: 'out_asset_id', label: 'Faulty Unit', readonly: true },
+          { name: 'sla_hours', label: 'SLA (hours)', readonly: true },
+          { name: 'sla_target', label: 'Due By', readonly: true },
+          { name: 'executed_at', label: 'Executed At', readonly: true },
+          { name: 'sla_met', label: 'SLA Met', readonly: true },
+          { name: 'returned_report_id', label: 'Report: Faulty Unit', readonly: true },
+          { name: 'replacement_report_id', label: 'Report: Replacement', readonly: true }
+        ] }
+    ]
   }
 };
 
@@ -903,7 +1420,18 @@ export const FORM_MODELS = {
   'M13:In-Rental Fault Report': 'fix.rental.reservation',
   'M13:Return Collection Booking': 'fix.rental.reservation',
   'M13:Preventive Maintenance Booking': 'fix.rental.asset',
-  'M13:Rental SKU (M37)': 'fix.rental.sku'
+  'M13:Rental SKU (M37)': 'fix.rental.sku',
+  'M13:Fleet Redeployment': 'fix.rental.redeployment',
+  'M13:Preventive Maintenance Plan': 'fix.rental.pm.plan',
+  'M13:Rental Exposure Limit': 'fix.rental.exposure',
+  'M13:Exposure Override Request': 'fix.rental.exposure.override',
+  'M13:Allocate a Fleet Unit': 'fix.rental.reservation',
+  'M13:Rental Extension': 'fix.rental.extension',
+  'M13:Damage Waiver Plan': 'fix.rental.waiver.plan',
+  'M13:Damage Waiver Election': 'fix.rental.reservation',
+  'M13:Condition Photograph': 'fix.rental.condition.photo',
+  'M13:Loss / Non-Return Case': 'fix.rental.loss',
+  'M13:Unit Swap-Out': 'fix.rental.swap'
 };
 
 export const FORM_CHIPS = {
@@ -921,6 +1449,17 @@ export const FORM_CHIPS = {
   'M13:Return Collection Booking': 'M13-form-collection',
   'M13:Preventive Maintenance Booking': 'M13-form-pm',
   'M13:Rental SKU (M37)': 'M37-form-rentalsku',
+  'M13:Fleet Redeployment': 'M13-form-redeploy',
+  'M13:Preventive Maintenance Plan': 'M13-form-pm-plan',
+  'M13:Rental Exposure Limit': 'M13-form-exposure',
+  'M13:Exposure Override Request': 'M13-form-override',
+  'M13:Allocate a Fleet Unit': 'M13-form-allocate',
+  'M13:Rental Extension': 'M13-form-extension',
+  'M13:Damage Waiver Plan': 'M13-form-waiver-plan',
+  'M13:Damage Waiver Election': 'M13-form-waiver-elect',
+  'M13:Condition Photograph': 'M13-form-photo',
+  'M13:Loss / Non-Return Case': 'M13-form-loss',
+  'M13:Unit Swap-Out': 'M13-form-swap',
   'M13:__by_model__': {
     'fix.rental.reservation': 'M13-form-reservation',
     'fix.rental.condition': 'M13-form-condition',
@@ -928,7 +1467,16 @@ export const FORM_CHIPS = {
     'fix.rental.asset': 'M13-form-asset',
     'fix.rental.kit': 'M13-form-kit',
     'fix.rental.deposit': 'M13-form-deposit',
-    'fix.rental.turnaround': 'M13-form-turnaround'
+    'fix.rental.turnaround': 'M13-form-turnaround',
+    'fix.rental.redeployment': 'M13-form-redeploy',
+    'fix.rental.pm.plan': 'M13-form-pm-plan',
+    'fix.rental.exposure': 'M13-form-exposure',
+    'fix.rental.exposure.override': 'M13-form-override',
+    'fix.rental.extension': 'M13-form-extension',
+    'fix.rental.waiver.plan': 'M13-form-waiver-plan',
+    'fix.rental.condition.photo': 'M13-form-photo',
+    'fix.rental.loss': 'M13-form-loss',
+    'fix.rental.swap': 'M13-form-swap'
   },
   'M13:__by_screen__': {
     'M13-fleet': 'M13-form-asset',
@@ -938,7 +1486,16 @@ export const FORM_CHIPS = {
     'M13-deposits': 'M13-form-deposit',
     'M13-condition': 'M13-form-condition',
     'M13-damage': 'M13-form-damage',
-    'M13-turnaround': 'M13-form-turnaround'
+    'M13-turnaround': 'M13-form-turnaround',
+    'M13-redeploy': 'M13-form-redeploy',
+    'M13-pm-plans': 'M13-form-pm-plan',
+    'M13-exposure': 'M13-form-exposure',
+    'M13-overrides': 'M13-form-override',
+    'M13-extensions': 'M13-form-extension',
+    'M13-waiver-plans': 'M13-form-waiver-plan',
+    'M13-photos': 'M13-form-photo',
+    'M13-losses': 'M13-form-loss',
+    'M13-swaps': 'M13-form-swap'
   }
 };
 

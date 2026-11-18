@@ -37,8 +37,33 @@ def _sku(env, **rates):
     return env["fix.rental.sku"].create({"catalogue_item_id": item.id, **rates})
 
 
+# M13 capture pass 2 (2026-11-19): a rental needs a party with a verified M33
+# identity (BRU-RNT-20) and photographed condition reports (BRU-RNT-01).
+_PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="
+
+
+def _kyc(env, partner):
+    env["fix.identity.document"].sudo().create(
+        {"partner_id": partner.id, "document_type": "nid_10", "verification_status": "verified"}
+    )
+    return partner
+
+
+def _photo(env, condition, view="front"):
+    att = (
+        env["ir.attachment"]
+        .sudo()
+        .create({"name": "%s.png" % view, "datas": _PNG, "mimetype": "image/png"})
+    )
+    return env["fix.rental.condition.photo"].create(
+        {"condition_id": condition.id, "attachment_id": att.id, "view_code": view}
+    )
+
+
 def _reservation(env, **vals):
-    vals.setdefault("customer_id", env["res.partner"].create({"name": "Rental Customer"}).id)
+    vals.setdefault(
+        "customer_id", _kyc(env, env["res.partner"].create({"name": "Rental Customer"})).id
+    )
     vals.setdefault("date_from", date(2026, 11, 1))
     vals.setdefault("date_to", date(2026, 11, 4))
     return env[RES].create(vals)
@@ -59,9 +84,11 @@ def _signed(env, rec):
 
 
 def _report(env, rec, report_type):
-    return env["fix.rental.condition"].create(
+    cond = env["fix.rental.condition"].create(
         {"reservation_id": rec.id, "report_type": report_type}
     )
+    _photo(env, cond)
+    return cond
 
 
 def _posted_deposit(env, rec, amount):
@@ -514,7 +541,10 @@ def test_full_journey(odoo_env):
     today = fields.Date.context_today(odoo_env[RES])
     ou = odoo_env["operating.unit"].search([], limit=1)
     branch = odoo_env["fix.branch"].search([("operating_unit_id", "=", ou.id)], limit=1)
-    customer = odoo_env["res.partner"].create({"name": "Rental Customer", "phone": "01711000444"})
+    customer = _kyc(
+        odoo_env,
+        odoo_env["res.partner"].create({"name": "Rental Customer", "phone": "01711000444"}),
+    )
     rec = _reservation(
         odoo_env,
         customer_id=customer.id,
