@@ -596,6 +596,25 @@ def test_versioning_supersedes_and_announces_the_pay_change(w):
     assert _events(w.env, "salary_structure.changed", new.id)[0]["basic"] == 36000.0
 
 
+def _reviewed(w, contract, recommendation):
+    """Arrangement (superuser): the line manager's submitted probation review
+    (M21 capture pass 2), written by w.mgr, never by the deciding officer."""
+    review = w.env["fix.hr.probation.review"].create(
+        {
+            "employee_id": contract.employee_id.id,
+            "reviewer_id": w.mgr.id,
+            "rating_attendance": "4",
+            "rating_quality": "4",
+            "rating_skill": "4",
+            "rating_conduct": "4",
+            "recommendation": recommendation,
+            "concerns": "Arranged by the test.",
+        }
+    )
+    review.action_submit()
+    return review
+
+
 def test_probation_confirmation_extension_and_deemed_permanence(w):
     contract = _contract(
         w.env,
@@ -610,6 +629,8 @@ def test_probation_confirmation_extension_and_deemed_permanence(w):
     with pytest.raises(UserError, match="your own"):
         contract.with_user(w.hro2).action_confirm_probation()
     contract.employee_id.write({"user_id": False})
+    # M21 capture pass 2: HR decides on the line manager's submitted review
+    _reviewed(w, contract, "extend")
     contract.with_user(w.hro).action_extend_probation()
     assert contract.probation_extended and contract.probation_decision == "extended"
     with pytest.raises(UserError, match="already extended"):
@@ -629,6 +650,7 @@ def test_probation_confirmation_extension_and_deemed_permanence(w):
     )
     with pytest.raises(UserError, match="skilled"):
         clerical.with_user(w.hro).action_extend_probation()
+    _reviewed(w, clerical, "confirm")
     clerical.with_user(w.hro).action_confirm_probation()
     assert clerical.employee_id.employment_type == "permanent"
 
@@ -804,10 +826,22 @@ def _exit(c, emp, **vals):
     )
 
 
+def _handed_over(c, ex):
+    """Arrangement (superuser): the leaver's knowledge handover, accepted
+    (M21 capture pass 2: the HR clearance waits for it)."""
+    handover = c.env["fix.hr.exit.handover"].create(
+        {"exit_id": ex.id, "successor_id": _emp(c.env).id, "open_work": "none"}
+    )
+    handover.action_hand_over()
+    handover.action_accept()
+    return handover
+
+
 def _cleared(c, ex):
     ex.with_user(c.hro2).action_confirm_notice()
     ex.with_user(c.it).action_clear_it()
     ex.with_user(c.fin).action_clear_finance()
+    _handed_over(c, ex)
     ex.with_user(c.hro2).action_clear_hr()
     ex.with_user(c.assets).action_clear_assets()
     ex.with_user(c.hro2).action_clear()

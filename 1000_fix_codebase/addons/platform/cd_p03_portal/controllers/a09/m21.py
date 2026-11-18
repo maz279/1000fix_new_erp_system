@@ -171,6 +171,30 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_record"},
     },
+    # M21 capture pass 2 (2026-11-19). The line manager's probation review
+    # (FR-HCM-029): only an employee on an active probation is offered; the
+    # server resolves the contract.
+    "fix.hr.probation.review": {
+        "order": "review_date desc, id desc",
+        "limit": 400,
+        "pickers": {"employee_id": [("fix_on_probation", "=", True)]},
+        "actions": {"action_submit"},
+    },
+    # dual role, acting charge, dotted-line manager (FR-HCM-024, BRU-HCM-10):
+    # a frozen position takes no dual role
+    "fix.hr.additional.assignment": {
+        "order": "date_from desc, id desc",
+        "limit": 400,
+        "pickers": {"position_id": [("frozen", "=", False)]},
+        "actions": {"action_approve", "action_end", "action_cancel"},
+    },
+    # the leaver's knowledge handover (FR-HCM-036): only a live exit is offered
+    "fix.hr.exit.handover": {
+        "order": "handover_date desc, id desc",
+        "limit": 300,
+        "pickers": {"exit_id": [("state", "in", ("draft", "notice"))]},
+        "actions": {"action_hand_over", "action_accept"},
+    },
 }
 
 
@@ -497,6 +521,8 @@ def establishment_register(env, date_from=None, date_to=None, **params):
     rows = []
     for position in positions:
         heads = len(employees.filtered(lambda e, p=position.id: e.position_id.id == p))
+        # an approved, current dual role holds a seat too (BRU-HCM-10)
+        heads += len(position._fix_dual_role_holders() & employees)
         sanctioned = position.headcount or 0
         empty = max(sanctioned - heads, 0)
         rows.append(
@@ -516,7 +542,8 @@ def establishment_register(env, date_from=None, date_to=None, **params):
     over = [r for r in rows if r["over"]]
     notes = [
         "Sanctioned is the position's headcount (BRU-HCM-10: no holder beyond it); "
-        "filled counts the employees currently holding it. The empty seats of a frozen "
+        "filled counts the employees currently holding it, as their own position or "
+        "through an approved dual role. The empty seats of a frozen "
         "position are shown as frozen, not vacant."
     ]
     if over:
@@ -735,6 +762,11 @@ def kpis(env):
     holders = {}
     for emp in employees.filtered("position_id"):
         holders[emp.position_id.id] = holders.get(emp.position_id.id, 0) + 1
+    # an approved, current dual role takes a seat too (BRU-HCM-10)
+    for position in positions:
+        dual = position._fix_dual_role_holders() & employees
+        if dual:
+            holders[position.id] = holders.get(position.id, 0) + len(dual)
     out = {
         "headcount": headcount,
         # leavers YTD over the average headcount (as the Attrition report)
@@ -754,4 +786,20 @@ def kpis(env):
     # who cannot read the acknowledgements.
     if env["fix.hr.notice.ack"].has_access("read"):
         out["privacy_notice_pending"] = len(employees - employees.fix_privacy_notice_acknowledged())
+    # KPI-218: probations ending within 30 days with no submitted review from
+    # the line manager (FR-HCM-029). Withheld from a caller who cannot read
+    # the reviews.
+    if env["fix.hr.probation.review"].has_access("read"):
+        reviewed = (
+            env["fix.hr.probation.review"]
+            .search([("contract_id", "in", contracts.ids), ("state", "=", "submitted")])
+            .mapped("contract_id")
+        )
+        out["probation_unreviewed_30d"] = len(
+            [
+                c
+                for c in contracts - reviewed
+                if c.probation_end and today <= c.probation_end <= horizon
+            ]
+        )
     return out

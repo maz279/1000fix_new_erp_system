@@ -28,6 +28,15 @@ SELF_SERVICE = [
     # A09 round 2: the owner of an onboarding task completes it with evidence
     # (global rule: own tasks only); mandatory tasks are never cancelled.
     "fix.onboarding.task",
+    # M21 capture pass 2 (FR-HCM-029/041): the line manager writes the
+    # probation review of their own report (global rule; the server refuses
+    # anyone but HR or the line manager, and the subject); HR decides the
+    # probation from it, never the person who reviewed.
+    "fix.hr.probation.review",
+    # M21 capture pass 2 (FR-HCM-036): the leaver or their line manager writes
+    # the knowledge handover (global rule; server-side party check); the
+    # successor accepts it.
+    "fix.hr.exit.handover",
 ]
 
 # Models a plain internal user must NOT be able to write, grouped by why.

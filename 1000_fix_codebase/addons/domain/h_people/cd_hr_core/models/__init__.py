@@ -15,3 +15,8 @@ from . import fix_hr_cost_centre
 # M21 capture audit 2026-11-17: job architecture, privacy-notice acknowledgement,
 # exit interview (extends hr.employee, fix.org.position and fix.hr.exit: last)
 from . import fix_hr_capture
+
+# M21 capture audit pass 2 (2026-11-19): probation review, additional
+# assignment, exit knowledge handover, personal master change (last: extends
+# fix_hr_capture and the contract, exit, position and master-change models)
+from . import fix_hr_capture2

@@ -648,6 +648,13 @@ def _cleared(w, ex):
     ex.with_user(w.hro2).action_confirm_notice()
     ex.with_user(w.it).action_clear_it()
     ex.with_user(w.fin).action_clear_finance()
+    # M21 capture pass 2 (arrangement, superuser): the accepted knowledge
+    # handover the HR clearance waits for
+    handover = w.env["fix.hr.exit.handover"].create(
+        {"exit_id": ex.id, "successor_id": _emp(w.env).id, "open_work": "none"}
+    )
+    handover.action_hand_over()
+    handover.action_accept()
     ex.with_user(w.hro2).action_clear_hr()
     ex.with_user(w.assets).action_clear_assets()
     ex.with_user(w.hro2).action_clear()

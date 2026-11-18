@@ -40,3 +40,11 @@ access_fix_hr_notice_ack_officer,fix.hr.notice.ack.officer,model_fix_hr_notice_a
 access_fix_hr_notice_ack_dpo,fix.hr.notice.ack.dpo,model_fix_hr_notice_ack,cd_party_master.group_party_dpo,1,0,0,0
 access_fix_hr_exit_interview_officer,fix.hr.exit.interview.officer,model_fix_hr_exit_interview,cd_hr_core.group_hr_officer,1,1,1,0
 access_fix_hr_exit_interview_mgr,fix.hr.exit.interview.manager,model_fix_hr_exit_interview,hr.group_hr_manager,1,1,1,1
+access_fix_hr_probation_review_user,fix.hr.probation.review.user,model_fix_hr_probation_review,base.group_user,1,1,1,0
+access_fix_hr_probation_review_officer,fix.hr.probation.review.officer,model_fix_hr_probation_review,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_probation_review_mgr,fix.hr.probation.review.manager,model_fix_hr_probation_review,hr.group_hr_manager,1,1,1,1
+access_fix_hr_additional_assignment_officer,fix.hr.additional.assignment.officer,model_fix_hr_additional_assignment,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_additional_assignment_mgr,fix.hr.additional.assignment.manager,model_fix_hr_additional_assignment,hr.group_hr_manager,1,1,1,1
+access_fix_hr_exit_handover_user,fix.hr.exit.handover.user,model_fix_hr_exit_handover,base.group_user,1,1,1,0
+access_fix_hr_exit_handover_officer,fix.hr.exit.handover.officer,model_fix_hr_exit_handover,cd_hr_core.group_hr_officer,1,1,1,0
+access_fix_hr_exit_handover_mgr,fix.hr.exit.handover.manager,model_fix_hr_exit_handover,hr.group_hr_manager,1,1,1,1
