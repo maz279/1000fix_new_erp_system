@@ -73,6 +73,25 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_record_decision", "action_hold", "action_close"},
     },
+    # M67 capture audit (2026-11-18): the records the spec makes M67 own that no
+    # page could capture (cd_ppm/models/fix_ppm_capture.py).
+    "fix.project.deliverable": {
+        "order": "project_id, id",
+        "limit": 400,
+        "actions": {"action_submit", "action_accept", "action_send_back"},
+    },
+    "fix.project.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_withdraw", "action_approve", "action_reject"},
+    },
+    "fix.project.budget.line": {"order": "project_id, category", "limit": 400, "actions": set()},
+    "fix.project.lesson": {"order": "id desc", "limit": 300, "actions": {"action_share"}},
+    "fix.project.benefit": {
+        "order": "project_id, id",
+        "limit": 300,
+        "actions": {"action_record_measurement"},
+    },
 }
 
 # R4: what /p03/model/write may set per surface. Guarded workflow fields are
@@ -145,6 +164,36 @@ WRITABLE = {
         "reviewer_id",
         "checklist_passed",
         "findings",
+    },
+    # Decisions, stamps and states move only through the actions above.
+    "fix.project.deliverable": {
+        "title",
+        "project_id",
+        "milestone_id",
+        "acceptance_criteria",
+        "evidence_requirement",
+        "reviewer_id",
+        "evidence_file",
+        "evidence_filename",
+    },
+    "fix.project.change": {
+        "project_id",
+        "title",
+        "description",
+        "justification",
+        "cost_impact",
+        "schedule_impact_days",
+        "resource_impact",
+    },
+    "fix.project.budget.line": {"project_id", "category", "amount", "note"},
+    "fix.project.lesson": {"project_id", "category", "observation", "recommendation"},
+    "fix.project.benefit": {
+        "name",
+        "project_id",
+        "business_case_target",
+        "unit",
+        "measurement_method",
+        "owner_id",
     },
 }
 
@@ -323,6 +372,19 @@ def gate_compliance(env, date_from=None, date_to=None, **params):
     )
 
 
+def _budget_split(project):
+    """FR-PPM-024: the category lines as text; the unallocated rest is named."""
+    lines = project.env["fix.project.budget.line"].search([("project_id", "=", project.id)])
+    if not lines:
+        return "not split"
+    labels = dict(lines._fields["category"].selection)
+    parts = ["%s %.2f" % (labels[line.category], line.amount) for line in lines]
+    rest = round(float(project.budget or 0.0) - sum(lines.mapped("amount")), 2)
+    if rest > 0.005:
+        parts.append("unallocated %.2f" % rest)
+    return ", ".join(parts)
+
+
 def budget_vs_actual(env, date_from=None, date_to=None, **params):
     projects = env["fix.project"].search([])
     rows = [
@@ -336,6 +398,7 @@ def budget_vs_actual(env, date_from=None, date_to=None, **params):
             "burn_pct": round(float(p.actual_cost or 0.0) / float(p.budget) * 100.0, 1)
             if p.cost_measured
             else NOT_MEASURED,
+            "split": _budget_split(p),
         }
         for p in projects
         if (p.budget or 0.0)
@@ -343,13 +406,14 @@ def budget_vs_actual(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: -r["burn_pct"] if isinstance(r["burn_pct"], float) else 0.0)
     return _pack(
         "Budget vs Actual",
-        ["project", "budget", "actual", "variance", "burn_pct"],
+        ["project", "budget", "actual", "variance", "burn_pct", "split"],
         {
             "project": "Project",
             "budget": "Budget",
             "actual": "Actual",
             "variance": "Variance",
             "burn_pct": "Burn %",
+            "split": "Budget by Category",
         },
         rows,
         [
@@ -612,6 +676,7 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
     recorded says so - the platform does not invent a promised benefit."""
     projects = env["fix.project"].search([])
     milestone_model = env["fix.project.milestone"]
+    benefit_model = env["fix.project.benefit"]
     rows = []
     for p in projects:
         budget = round(float(p.budget or 0.0), 2)
@@ -619,6 +684,21 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
         milestones = milestone_model.search([("project_id", "=", p.id)])
         done = len(milestones.filtered(lambda m: m.state == "done"))
         deliver_pct = round(100.0 * done / len(milestones), 1) if milestones else None
+        benefits = benefit_model.search([("project_id", "=", p.id)])
+        measured = benefits.filtered(lambda b: b.state == "measured")
+        if not benefits:
+            baseline = "not recorded"
+        else:
+            baseline = "; ".join(
+                "%s: %s of %s %s"
+                % (
+                    b.name,
+                    ("%g" % b.measured_value) if b.state == "measured" else "not measured",
+                    "%g" % b.business_case_target,
+                    b.unit,
+                )
+                for b in benefits
+            )
         rows.append(
             {
                 "project": p.name,
@@ -628,7 +708,12 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
                 "saved": round(budget - actual, 2) if p.cost_measured else NOT_MEASURED,
                 "milestones_done": "%d/%d" % (done, len(milestones)) if milestones else "-",
                 "delivery_pct": deliver_pct,
-                "benefit_baseline": "not recorded",
+                "benefit_baseline": baseline,
+                "benefit_realised_pct": round(
+                    sum(measured.mapped("realised_pct")) / len(measured), 1
+                )
+                if measured
+                else None,
             }
         )
     rows.sort(key=lambda r: -r["saved"] if isinstance(r["saved"], float) else 0.0)
@@ -643,6 +728,7 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
             "milestones_done",
             "delivery_pct",
             "benefit_baseline",
+            "benefit_realised_pct",
         ],
         {
             "project": "Project",
@@ -652,13 +738,15 @@ def benefits_realisation(env, date_from=None, date_to=None, **params):
             "saved": "Budget not consumed",
             "milestones_done": "Milestones",
             "delivery_pct": "Delivery %",
-            "benefit_baseline": "Benefit baseline",
+            "benefit_baseline": "Benefit: measured of target",
+            "benefit_realised_pct": "Benefit realised %",
         },
         rows,
         [
-            "Scope note: the platform records cost and delivery, not a promised benefit figure. "
-            "'Budget not consumed' is what the project has not spent, and every row states that no "
-            "benefit baseline is recorded rather than presenting spend as a benefit."
+            "'Budget not consumed' is what the project has not spent; it is never presented as a "
+            "benefit. The benefit columns read the business-case targets recorded for internal "
+            "initiatives and their measurement by a sponsor (BRU-PPM-15); a project with none says "
+            "'not recorded'."
         ],
         totals={
             "project": "Total",
@@ -709,4 +797,9 @@ def kpis(env):
             billings.filtered(lambda b: b.invoice_id and b.state in ("invoiced", "paid"))
         ),
         "portfolio_budget": round(sum(float(p.budget or 0.0) for p in projects), 2),
+        # M67 capture audit: decisions waiting on a sponsor or a reviewer.
+        "changes_pending": env["fix.project.change"].search_count([("state", "=", "submitted")]),
+        "deliverables_awaiting": env["fix.project.deliverable"].search_count(
+            [("state", "=", "submitted")]
+        ),
     }

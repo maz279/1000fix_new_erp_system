@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M67 capture audit (2026-11-18): references of the deliverable register, scope
+     changes and lessons learned. -->
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_project_deliverable" model="ir.sequence">
+            <field name="name">Project Deliverable</field>
+            <field name="code">fix.project.deliverable</field>
+            <field name="prefix">DLV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_project_change" model="ir.sequence">
+            <field name="name">Project Scope Change</field>
+            <field name="code">fix.project.change</field>
+            <field name="prefix">PCR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_project_lesson" model="ir.sequence">
+            <field name="name">Project Lesson Learned</field>
+            <field name="code">fix.project.lesson</field>
+            <field name="prefix">LSN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

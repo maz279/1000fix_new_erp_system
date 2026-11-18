@@ -5,7 +5,7 @@
     "description": """
 CD-M67-01 (P10) — Project, Program & Portfolio Management.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Project, Program & Portfolio Management",
@@ -32,6 +32,7 @@ CD-M67-01 (P10) — Project, Program & Portfolio Management.
         "data/fix_ppm_a12_sequences.xml",
         "data/fix_ppm_a12_crons.xml",
         "data/fix_a12_event_consumers.xml",
+        "data/fix_ppm_capture_sequences.xml",
         "views/cd_ppm_views.xml",
     ],
     "installable": True,

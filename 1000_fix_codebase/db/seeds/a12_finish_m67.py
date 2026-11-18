@@ -481,6 +481,20 @@ def walk_closed_project(env, pm, sponsor, engineer, finance_user, out):
         out["for_a_person"].append("%s for %s: %s" % (PAYMENT_NOT_DONE, move.name, exc))
     line.invalidate_recordset()
     project.with_user(finance_user).action_confirm_billing()
+    # BRU-PPM-14 (M67 capture audit 2026-11-18): the lesson passed to Quality.
+    lesson = (
+        env["fix.project.lesson"]
+        .with_user(pm_user)
+        .create(
+            {
+                "project_id": project.id,
+                "category": "schedule",
+                "observation": "The core switch cutover needed a night window.",
+                "recommendation": "Plan network cutovers as night work from the start.",
+            }
+        )
+    )
+    lesson.with_user(pm_user).action_share()
     project.with_user(sponsor_user).action_complete()
     out["walk_closed"] = {
         "project": project.code,

@@ -16,3 +16,17 @@ access_fix_project_risk_pm,fix.project.risk project manager,model_fix_project_ri
 access_fix_project_dofa_t2,fix.project dofa tier 2,model_fix_project,cd_entity_config.group_dofa_tier_2,1,1,0,0
 access_fix_project_dofa_t3,fix.project dofa tier 3,model_fix_project,cd_entity_config.group_dofa_tier_3,1,1,0,0
 access_fix_project_dofa_t4,fix.project dofa tier 4,model_fix_project,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_project_deliverable,fix.project.deliverable,model_fix_project_deliverable,base.group_user,1,0,0,0
+access_fix_project_deliverable_pm,fix.project.deliverable project manager,model_fix_project_deliverable,cd_ppm.group_ppm_project_manager,1,1,1,1
+access_fix_project_deliverable_sponsor,fix.project.deliverable sponsor,model_fix_project_deliverable,cd_ppm.group_ppm_sponsor,1,1,0,0
+access_fix_project_change,fix.project.change,model_fix_project_change,base.group_user,1,0,0,0
+access_fix_project_change_pm,fix.project.change project manager,model_fix_project_change,cd_ppm.group_ppm_project_manager,1,1,1,1
+access_fix_project_change_sponsor,fix.project.change sponsor,model_fix_project_change,cd_ppm.group_ppm_sponsor,1,1,0,0
+access_fix_project_budget_line,fix.project.budget.line,model_fix_project_budget_line,base.group_user,1,0,0,0
+access_fix_project_budget_line_pm,fix.project.budget.line project manager,model_fix_project_budget_line,cd_ppm.group_ppm_project_manager,1,1,1,1
+access_fix_project_lesson,fix.project.lesson,model_fix_project_lesson,base.group_user,1,0,0,0
+access_fix_project_lesson_pm,fix.project.lesson project manager,model_fix_project_lesson,cd_ppm.group_ppm_project_manager,1,1,1,1
+access_fix_project_lesson_sponsor,fix.project.lesson sponsor,model_fix_project_lesson,cd_ppm.group_ppm_sponsor,1,1,1,0
+access_fix_project_benefit,fix.project.benefit,model_fix_project_benefit,base.group_user,1,0,0,0
+access_fix_project_benefit_pm,fix.project.benefit project manager,model_fix_project_benefit,cd_ppm.group_ppm_project_manager,1,1,1,1
+access_fix_project_benefit_sponsor,fix.project.benefit sponsor,model_fix_project_benefit,cd_ppm.group_ppm_sponsor,1,1,1,0

@@ -737,6 +737,9 @@ class FixProject(models.Model):
                         "The billing of %s moved after Finance confirmed it: Finance confirms "
                         "it again." % rec.display_name
                     )
+            # M67 capture audit: pending changes, lessons (BRU-PPM-14), benefits
+            # (BRU-PPM-15) - fix_ppm_capture.py.
+            rec._ppm_closure_records_ready()
             rec._guarded().write(
                 {
                     "state": "completed",

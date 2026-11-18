@@ -109,6 +109,22 @@ def test_completion_gates(odoo_env):
     assert _events(odoo_env, "project.milestone_completed", milestone.id) == [
         {"milestone": "Go-live", "project": "Warehouse WMS"}
     ]
+    # BRU-PPM-14 (M67 capture audit): a lesson passed to Quality before closure.
+    lesson = odoo_env["fix.project.lesson"].create(
+        {"project_id": project.id, "observation": "o", "recommendation": "r"}
+    )
+    lesson.action_share()
+    if project.project_type == "internal":
+        benefit = odoo_env["fix.project.benefit"].create(
+            {
+                "name": "b",
+                "project_id": project.id,
+                "business_case_target": 1.0,
+                "unit": "u",
+                "measurement_method": "m",
+            }
+        )
+        benefit.action_record_measurement(measured_value=1, evidence="e")
     project.action_complete()
     assert project.state == "completed"
     assert _events(odoo_env, "project.completed", project.id) == [{"name": "Warehouse WMS"}]

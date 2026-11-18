@@ -223,6 +223,33 @@ def _refused(env, fn):
     return None
 
 
+def _closure_records(w, project):
+    """BRU-PPM-14/15 (M67 capture audit): a lesson passed to Quality, and for an
+    internal initiative a measured benefit."""
+    lesson = (
+        w.env["fix.project.lesson"]
+        .with_user(w.pm)
+        .create({"project_id": project.id, "observation": "o", "recommendation": "r"})
+    )
+    lesson.with_user(w.pm).action_share()
+    if project.project_type == "internal":
+        benefit = (
+            w.env["fix.project.benefit"]
+            .with_user(w.pm)
+            .create(
+                {
+                    "name": "b",
+                    "project_id": project.id,
+                    "business_case_target": 1.0,
+                    "unit": "u",
+                    "measurement_method": "m",
+                }
+            )
+        )
+        benefit.with_user(w.sponsor).action_record_measurement(measured_value=1, evidence="e")
+    return project
+
+
 def _risk(w, project=None, user=None, **extra):
     vals = {
         "project_id": (project or _project(w)).id,
@@ -866,6 +893,7 @@ def test_a12f_f12_failed_gate_blocks_completion_until_re_reviewed(w):
     err = _refused(w.env, lambda: project.with_user(w.sponsor).action_complete())
     assert "closed as FAIL" in err
     _decided(w, project, decision="pass", kind="g5_closure")
+    _closure_records(w, project)
     project.with_user(w.sponsor).action_complete()
     assert project.state == "completed"
 
@@ -1303,6 +1331,7 @@ def test_a12f_f18_closure_needs_finance_to_confirm_the_billing(linked):
     err = _refused(w.env, lambda: project.with_user(w.sponsor).action_complete())
     assert "moved" in err
     project.with_user(w.billing).action_confirm_billing()
+    _closure_records(w, project)
     result = Api(w.env, w.sponsor).action("fix.project", project, "action_complete")
     assert result["success"], result
     assert project.state == "completed" and project.closed_by_id == w.sponsor
@@ -1557,6 +1586,7 @@ def test_a12f_full_walk_by_the_real_roles_through_the_screen(linked):
     assert line.state == "paid"
     # Closure: Finance confirms, the sponsor closes.
     assert finance.action("fix.project", project, "action_confirm_billing")["success"]
+    _closure_records(w, project)
     result = sponsor.action("fix.project", project, "action_complete")
     assert result["success"], result
     assert project.state == "completed"

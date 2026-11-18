@@ -1,5 +1,5 @@
 /** @odoo-module **/
-/* A12 · M67 Projects & Portfolio Management. 3 groups / 12 screens / 7 reports / 4 forms / freg 54.
+/* A12 · M67 Projects & Portfolio Management. 5 groups / 20 screens / 8 reports / 12 forms / freg 54.
  *
  * A12 workflow audit (2026-11-04) R4/X5: the forms posted `state` (and the
  * gate's `decision`) as ordinary inputs — the badge at the top of each form
@@ -25,13 +25,16 @@ export const MODULE = {
     { l: 'Milestones Due 30d', m: 'milestones_due_30d' },
     { l: 'Milestones Overdue', m: 'milestones_overdue' },
     { l: 'Invoiced (real)', m: 'billings_invoiced' },
-    { l: 'Portfolio Budget', m: 'portfolio_budget', prefix: '৳ ' }
+    { l: 'Portfolio Budget', m: 'portfolio_budget', prefix: '৳ ' },
+    { l: 'Scope Changes Pending', m: 'changes_pending' },
+    { l: 'Deliverables Awaiting Acceptance', m: 'deliverables_awaiting' }
   ],
   groups: [
     { en: 'Registry Completion', screens: [
       { id: 'M67-templates', en: 'Templates (6 types)', bn: 'Templates (6 types)', t: 'g' },
       { id: 'M67-evm', en: 'Earned Value', bn: 'Earned Value', t: 'r' },
       { id: 'M67-billing', en: 'Milestone Billing', bn: 'Milestone Billing', t: 'g' },
+      { id: 'M67-budget-lines', en: 'Budget by Category', bn: 'খাতভিত্তিক বাজেট', t: 'g' },
       { id: 'M67-billstatus', en: 'Billing Status', bn: 'বিলিং স্ট্যাটাস', t: 'r' },
       { id: 'M67-profit', en: 'Project P&L', bn: 'Project P&L', t: 'r' },
       { id: 'M67-risks', en: 'Risk & Issue Registers', bn: 'Risk & Issue Registers', t: 'g' }
@@ -45,23 +48,31 @@ export const MODULE = {
       { id: 'M67-milestones', en: 'Milestones', bn: 'মাইলস্টোন', t: 'g' },
       { id: 'M67-tracker', en: 'Milestone Tracker', bn: 'ট্র্যাকার', t: 'r' },
       { id: 'M67-wbs', en: 'WBS & Tasks', bn: 'টাস্ক', t: 'g' },
-      { id: 'M67-resources', en: 'Resource Planning', bn: 'ওয়ার্কলোড', t: 'r' }
+      { id: 'M67-deliverables', en: 'Deliverables', bn: 'ডেলিভারেবল', t: 'g' },
+      { id: 'M67-resources', en: 'Resource Planning', bn: 'ওয়ার্কলোড', t: 'r' },
+      { id: 'M67-rpt-resutil', en: 'Resource Utilisation', bn: 'রিসোর্স ব্যবহার', t: 'r' }
     ]},
     { en: 'Governance', screens: [
       { id: 'M67-gates', en: 'Stage Gates', bn: 'স্টেজ-গেট', t: 'g' },
+      { id: 'M67-changes', en: 'Scope Changes', bn: 'স্কোপ পরিবর্তন', t: 'g' },
       { id: 'M67-compliance', en: 'Gate Compliance', bn: 'সম্মতি', t: 'r' }
+    ]},
+    { en: 'Closure', screens: [
+      { id: 'M67-lessons', en: 'Lessons Learned', bn: 'শিক্ষণীয় বিষয়', t: 'g' },
+      { id: 'M67-benefits', en: 'Benefit Realisation', bn: 'সুফল বাস্তবায়ন', t: 'g' },
+      { id: 'M67-rpt-benefits', en: 'Benefits Realisation Report', bn: 'সুফল প্রতিবেদন', t: 'r' }
     ]}
   ],
-  reports: ['Portfolio Status', 'Milestone Tracker', 'Task Workload by Assignee', 'Stage-Gate Compliance', 'Budget vs Actual', 'Billing Status'],
-  forms: ['Project (6 types)', 'Milestone', 'Task', 'Stage Gate Review'],
+  reports: ['Portfolio Status', 'Milestone Tracker', 'Task Workload by Assignee', 'Resource Utilisation', 'Stage-Gate Compliance', 'Budget vs Actual', 'Billing Status', 'Benefits Realisation'],
+  forms: ['Project (6 types)', 'Project Template', 'Milestone', 'Task', 'Deliverable', 'Stage Gate Review', 'Scope Change', 'Milestone Billing', 'Budget Line', 'Risk / Issue', 'Lesson Learned', 'Benefit Measurement'],
   cross: ['M49 capex budgets', 'M54 costing', 'M21 project staffing', 'M60 enterprise register (project.risk_escalated)'],
   freg: { src: 54, sub: [
     ['1', 'Portfolio', 10, { model: 'fix.project', cols: ['name', 'code', 'project_type', 'manager_id', 'state'], screens: ['M67-projects', 'M67-portfolio', 'M67-budget'], reports: ['Portfolio Status', 'Budget vs Actual'], forms: ['Project (6 types)'] }],
-    ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-projects'], reports: [], forms: ['Project (6 types)'] }],
-    ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-tracker', 'M67-resources'], reports: ['Milestone Tracker', 'Task Workload by Assignee'], forms: ['Task', 'Milestone'] }],
-    ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-compliance'], reports: ['Stage-Gate Compliance'], forms: ['Stage Gate Review'] }],
-    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'invoice_id', 'state'], screens: ['M67-billing', 'M67-billstatus', 'M67-evm', 'M67-profit'], reports: ['Billing Status', 'Budget vs Actual'], forms: [] }],
-    ['6', 'Audit', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'state'], screens: ['M67-risks'], reports: [], forms: [] }]
+    ['2', 'Project Setup', 9, { model: 'fix.project.template', cols: ['name', 'project_type', 'default_duration_days', 'default_budget', 'active'], screens: ['M67-templates', 'M67-projects'], reports: [], forms: ['Project Template', 'Project (6 types)'] }],
+    ['3', 'Delivery', 11, { model: 'fix.project.task', cols: ['name', 'project_id', 'milestone_id', 'assigned_to', 'state'], screens: ['M67-wbs', 'M67-milestones', 'M67-deliverables', 'M67-tracker', 'M67-resources', 'M67-rpt-resutil'], reports: ['Milestone Tracker', 'Task Workload by Assignee', 'Resource Utilisation'], forms: ['Task', 'Milestone', 'Deliverable'] }],
+    ['4', 'Governance', 8, { model: 'fix.project.gate', cols: ['name', 'project_id', 'gate', 'decision', 'state'], screens: ['M67-gates', 'M67-changes', 'M67-compliance'], reports: ['Stage-Gate Compliance'], forms: ['Stage Gate Review', 'Scope Change'] }],
+    ['5', 'Financials', 9, { model: 'fix.project.billing', cols: ['name', 'project_id', 'billing_type', 'amount', 'invoice_id', 'state'], screens: ['M67-billing', 'M67-budget-lines', 'M67-billstatus', 'M67-evm', 'M67-profit'], reports: ['Billing Status', 'Budget vs Actual'], forms: ['Milestone Billing', 'Budget Line'] }],
+    ['6', 'Risks, Issues & Closure', 7, { model: 'fix.project.risk', cols: ['name', 'project_id', 'kind', 'title', 'severity_score', 'escalated', 'state'], screens: ['M67-risks', 'M67-lessons', 'M67-benefits', 'M67-rpt-benefits'], reports: ['Benefits Realisation'], forms: ['Risk / Issue', 'Lesson Learned', 'Benefit Measurement'] }]
   ] }
 };
 
@@ -287,6 +298,130 @@ export const SCREENS = {
 
 };
 
+/* ===== M67 capture audit (2026-11-18): the records the spec makes M67 own that no
+ * page could capture: deliverables (FR-PPM-004), scope changes (FR-PPM-013,
+ * BRU-PPM-06), the budget by category (FR-PPM-024), lessons learned and benefit
+ * realisation (FR-PPM-032, BRU-PPM-14/15). States, decisions and stamps move only
+ * through the list actions. */
+Object.assign(SCREENS, {
+  'M67-deliverables': { kind: 'model_list', model: 'fix.project.deliverable', stateField: 'state',
+    cols: ['name', 'title', 'project_id', 'milestone_id', 'reviewer_id', 'submitted_by_id', 'decided_by_id', 'rejection_reason', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Acceptance', states: ['draft', 'rework'] },
+      { m: 'action_accept', l: 'Accept (Reviewer)', states: ['submitted'] },
+      { m: 'action_send_back', l: 'Send Back', states: ['submitted'], ask: 'What must be reworked (required)', kwarg: 'reason' }
+    ] },
+  'M67-form-deliverable': {
+    kind: 'model_form', model: 'fix.project.deliverable', title: 'Deliverable', back: 'M67-deliverables',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Submitted', accepted: 'Accepted', rework: 'Sent Back' } },
+    sections: [
+      { title: 'Deliverable', note: 'Register what the project hands over and how it is accepted. Submission needs the evidence attached and a reviewer who is not the submitter; the reviewer (or a sponsor) accepts it or sends it back with the reason. A milestone with deliverables completes only when all of them are accepted.',
+        fields: [
+          { name: 'title', required: true, label: 'Deliverable', bn: 'ডেলিভারেবল' },
+          { name: 'project_id', required: true, label: 'Project' },
+          { name: 'milestone_id', label: 'Milestone' },
+          { name: 'acceptance_criteria', type: 'text', required: true, label: 'Acceptance Criteria', bn: 'গ্রহণযোগ্যতার মানদণ্ড' },
+          { name: 'evidence_requirement', label: 'Evidence Required' },
+          { name: 'reviewer_id', label: 'Reviewer' },
+          { name: 'evidence_file', label: 'Evidence', type: 'file' }
+        ] },
+      { title: 'Review', fields: [
+          { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'rejection_reason', type: 'text', label: 'Sent Back Because', readonly: true }
+        ] }
+    ]
+  },
+  'M67-changes': { kind: 'model_list', model: 'fix.project.change', stateField: 'state',
+    cols: ['name', 'project_id', 'title', 'cost_impact', 'schedule_impact_days', 'requested_by_id', 'decided_by_id', 'decision_note', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Decision', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve (Sponsor)', states: ['submitted'] },
+      { m: 'action_reject', l: 'Reject (Sponsor)', states: ['submitted'], ask: 'Why is the change rejected? (required)', kwarg: 'note' },
+      { m: 'action_withdraw', l: 'Withdraw', states: ['draft', 'submitted'] }
+    ] },
+  'M67-form-change': {
+    kind: 'model_form', model: 'fix.project.change', title: 'Scope Change', back: 'M67-changes',
+    status: { field: 'state', labels: { draft: 'Draft', submitted: 'Submitted', approved: 'Approved', rejected: 'Rejected', withdrawn: 'Withdrawn' } },
+    sections: [
+      { title: 'Scope Change', note: 'Price the change before work proceeds on it (BRU-PPM-06). A sponsor who does not deliver the project decides it. On approval the schedule impact moves the planned end, and on a running project a cost increase becomes the Requested Budget, which re-baselines the project only through its DOFA budget approval. A submitted change cannot be rewritten.',
+        fields: [
+          { name: 'project_id', required: true, label: 'Project' },
+          { name: 'title', required: true, label: 'Change', bn: 'পরিবর্তন' },
+          { name: 'description', type: 'text', required: true, label: 'Scope Change' },
+          { name: 'justification', type: 'text', required: true, label: 'Justification', bn: 'যৌক্তিকতা' },
+          { name: 'cost_impact', label: 'Cost Impact' },
+          { name: 'schedule_impact_days', label: 'Schedule Impact (days)' },
+          { name: 'resource_impact', type: 'text', label: 'Resource Impact' }
+        ] },
+      { title: 'Decision', fields: [
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'decision_note', type: 'text', label: 'Decision Note', readonly: true }
+        ] }
+    ]
+  },
+  'M67-budget-lines': { kind: 'model_list', model: 'fix.project.budget.line',
+    cols: ['project_id', 'category', 'amount', 'note'] },
+  'M67-form-budget-line': {
+    kind: 'model_form', model: 'fix.project.budget.line', title: 'Budget Line', back: 'M67-budget-lines',
+    sections: [
+      { title: 'Budget by Category', note: 'Split the project budget by cost category (FR-PPM-024): labour, parts, subcontract, travel, equipment, overhead. The lines never add up to more than the budget, and they freeze when the project is activated and its budget baselined.',
+        fields: [
+          { name: 'project_id', required: true, label: 'Project' },
+          { name: 'category', required: true, label: 'Cost Category', bn: 'খরচের খাত' },
+          { name: 'amount', required: true, label: 'Amount' },
+          { name: 'note', label: 'Note' }
+        ] }
+    ]
+  },
+  'M67-lessons': { kind: 'model_list', model: 'fix.project.lesson', stateField: 'state',
+    cols: ['name', 'project_id', 'category', 'observation', 'recommendation', 'recorded_by_id', 'shared_on', 'state'],
+    actions: [{ m: 'action_share', l: 'Pass to Quality (M23)', states: ['draft'] }] },
+  'M67-form-lesson': {
+    kind: 'model_form', model: 'fix.project.lesson', title: 'Lesson Learned', back: 'M67-lessons',
+    status: { field: 'state', labels: { draft: 'Recorded', shared: 'Passed to Quality (M23)' } },
+    sections: [
+      { title: 'Lesson Learned', note: 'A project closes only with at least one lesson recorded and passed to Quality (M23) (BRU-PPM-14). Once passed it is not edited: record a new lesson instead.',
+        fields: [
+          { name: 'project_id', required: true, label: 'Project' },
+          { name: 'category', required: true, label: 'Category' },
+          { name: 'observation', type: 'text', required: true, label: 'What Happened', bn: 'কী ঘটেছিল' },
+          { name: 'recommendation', type: 'text', required: true, label: 'What To Do Next Time', bn: 'পরবর্তীতে করণীয়' }
+        ] }
+    ]
+  },
+  'M67-benefits': { kind: 'model_list', model: 'fix.project.benefit', stateField: 'state',
+    cols: ['name', 'project_id', 'business_case_target', 'unit', 'measured_value', 'realised_pct', 'measured_on', 'measured_by_id', 'state'],
+    actions: [
+      { m: 'action_record_measurement', l: 'Record Measurement (Sponsor)', states: ['planned'], asks: [
+        { label: 'Measured value', kwarg: 'measured_value', number: true },
+        { label: 'Evidence of the measurement: report, data source, period (required)', kwarg: 'evidence' }
+      ] }
+    ] },
+  'M67-form-benefit': {
+    kind: 'model_form', model: 'fix.project.benefit', title: 'Benefit Measurement', back: 'M67-benefits',
+    status: { field: 'state', labels: { planned: 'Planned', measured: 'Measured' } },
+    sections: [
+      { title: 'Benefit', note: 'For an internal initiative: the benefit its business case promised and how it is measured. A sponsor who does not deliver the initiative records the measurement from the list; the initiative closes only with a benefit measured (BRU-PPM-15). The target is fixed once measured.',
+        fields: [
+          { name: 'name', required: true, label: 'Benefit', bn: 'সুফল' },
+          { name: 'project_id', required: true, label: 'Internal Initiative' },
+          { name: 'business_case_target', required: true, label: 'Business Case Target' },
+          { name: 'unit', required: true, label: 'Unit (e.g. BDT per year)' },
+          { name: 'measurement_method', type: 'text', required: true, label: 'Measurement Method' },
+          { name: 'owner_id', label: 'Benefit Owner' }
+        ] },
+      { title: 'Measurement', fields: [
+          { name: 'measured_value', label: 'Measured Value', readonly: true },
+          { name: 'realised_pct', label: 'Realised %', readonly: true },
+          { name: 'measured_by_id', label: 'Measured By', readonly: true },
+          { name: 'measurement_evidence', type: 'text', label: 'Evidence', readonly: true }
+        ] }
+    ]
+  }
+});
+
 export const REPORT_ROUTES = {
   'M67:Portfolio Health': 'M67-portfolio',
   'M67:Earned Value Analysis': 'M67-evm',
@@ -305,7 +440,15 @@ export const FORM_MODELS = {
   'M67:Project (6 types)': 'fix.project',
   'M67:Milestone': 'fix.project.milestone',
   'M67:Task': 'fix.project.task',
-  'M67:Stage Gate Review': 'fix.project.gate'
+  'M67:Stage Gate Review': 'fix.project.gate',
+  'M67:Project Template': 'fix.project.template',
+  'M67:Deliverable': 'fix.project.deliverable',
+  'M67:Scope Change': 'fix.project.change',
+  'M67:Milestone Billing': 'fix.project.billing',
+  'M67:Budget Line': 'fix.project.budget.line',
+  'M67:Risk / Issue': 'fix.project.risk',
+  'M67:Lesson Learned': 'fix.project.lesson',
+  'M67:Benefit Measurement': 'fix.project.benefit'
 };
 
 export const FORM_CHIPS = {
@@ -313,6 +456,14 @@ export const FORM_CHIPS = {
   'M67:Milestone': 'M67-form-milestone',
   'M67:Task': 'M67-form-task',
   'M67:Stage Gate Review': 'M67-form-gate',
+  'M67:Project Template': 'M67-form-template',
+  'M67:Deliverable': 'M67-form-deliverable',
+  'M67:Scope Change': 'M67-form-change',
+  'M67:Milestone Billing': 'M67-form-billing',
+  'M67:Budget Line': 'M67-form-budget-line',
+  'M67:Risk / Issue': 'M67-form-risk',
+  'M67:Lesson Learned': 'M67-form-lesson',
+  'M67:Benefit Measurement': 'M67-form-benefit',
   'M67:__by_model__': {
     'fix.project.template': 'M67-form-template',
     'fix.project.billing': 'M67-form-billing',
@@ -320,7 +471,12 @@ export const FORM_CHIPS = {
     'fix.project': 'M67-form-project',
     'fix.project.milestone': 'M67-form-milestone',
     'fix.project.task': 'M67-form-task',
-    'fix.project.gate': 'M67-form-gate'
+    'fix.project.gate': 'M67-form-gate',
+    'fix.project.deliverable': 'M67-form-deliverable',
+    'fix.project.change': 'M67-form-change',
+    'fix.project.budget.line': 'M67-form-budget-line',
+    'fix.project.lesson': 'M67-form-lesson',
+    'fix.project.benefit': 'M67-form-benefit'
   },
   'M67:__by_screen__': {
     'M67-templates': 'M67-form-template',
@@ -329,7 +485,12 @@ export const FORM_CHIPS = {
     'M67-projects': 'M67-form-project',
     'M67-milestones': 'M67-form-milestone',
     'M67-wbs': 'M67-form-task',
-    'M67-gates': 'M67-form-gate'
+    'M67-gates': 'M67-form-gate',
+    'M67-deliverables': 'M67-form-deliverable',
+    'M67-changes': 'M67-form-change',
+    'M67-budget-lines': 'M67-form-budget-line',
+    'M67-lessons': 'M67-form-lesson',
+    'M67-benefits': 'M67-form-benefit'
   }
 };
 
