@@ -118,3 +118,26 @@ The owner said "Yes, deploy both".
 - 8069 serves the deployed `m10.js`.
 - Peer fix `7c9c62e6`: a wallet row on page 4 now opens the wallet, not a blank transaction form. `test_screens_wiring` caught it; this pass had not run that test.
 - Not done: the click-through on 8069. It needs the owner's sign-in in the browser pane.
+
+## 9. Live walk on fix_real (8069), 19 Nov 2026
+
+Signed in as the local admin. The walk was read-only: nothing was saved on fix_real.
+
+- **Endpoints:** every M10 screen was posted to its real endpoint: **50 screens, 0 errors, 0 dropped columns, 0 missing form fields**. Row counts match the estate: 1 programme, 1 tier, 3 schemes, 3 redemption rules, 2 point types, 2 affiliations; no members, wallets or vouchers yet.
+- **Pages:** each of the 8 sub-module pages was opened in the workspace. Each shows its **+ New**:
+  - Tier Configuration
+  - Loyalty Programme
+  - Points Adjustment
+  - **Wallet Transaction**
+  - **Voucher Batch**
+  - Referral Code
+  - Loyalty Affiliation
+  - **Period-End Liability Run**
+- **Forms:** each new chip was clicked and its form opened with its own tabs, a Save button and no error:
+  - Privilege Membership (3 tabs)
+  - Tier Benefit (2)
+  - Wallet Transaction (3)
+  - Voucher Batch (3)
+  - Stacking Rule (1)
+  - Referral Registration (2)
+  - Liability Run (3)
