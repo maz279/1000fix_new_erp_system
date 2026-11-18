@@ -106,3 +106,15 @@ self-referral and its message said "self-referral" too. The test now asserts the
   - Confirm Payment with no reference was refused.
   - With reference PROBE-RCPT-1 the membership went Active, from 18 Nov 2026 to 17 Nov 2027, with BDT 1,495.89 deferred.
 - Not clicked in the pane: the browser pane was hidden, and the Odoo web client does not mount in a hidden pane.
+
+## 8. Deployed (19 Nov 2026)
+
+The owner said "Yes, deploy both".
+
+- Backups: `_migration/backups/fix_real_pre_m10_capture2_2026-11-19.dump` and `fix_dev_pre_m10_capture2_2026-11-19.dump`.
+- `-u cd_loyalty,cd_p03_portal` ran with exit 0 on fix_real and fix_dev, from the main checkout at the shared tip.
+- One shared restart by the M06 session at 03:17 covered M06, M07, M10 and M11: 8069 = fix_real PID 65964, 8090 = fix_dev PID 77252. Both processes started after this landing.
+- Read-only check on both DBs, identical: cd_loyalty 19.0.1.1.0 installed; 8 models, 16 ACL rows, 9 isolation rules, 5 sequences, 3 crons; tier fee/term/grace columns present; voucher holder now optional.
+- 8069 serves the deployed `m10.js`.
+- Peer fix `7c9c62e6`: a wallet row on page 4 now opens the wallet, not a blank transaction form. `test_screens_wiring` caught it; this pass had not run that test.
+- Not done: the click-through on 8069. It needs the owner's sign-in in the browser pane.
