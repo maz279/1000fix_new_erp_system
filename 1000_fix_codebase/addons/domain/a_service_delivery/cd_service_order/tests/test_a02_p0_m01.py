@@ -764,8 +764,30 @@ def test_warranty_officer_verifies_someone_elses_registration(w):
     )
     assert order(w, dev=dev, order_category="warranty").id
     assert attempt(w, lambda: wty.with_user(officer2).action_void(""))
-    wty.with_user(officer2).action_void("fraudulent receipt")
-    assert wty.status == "voided"
+    if "fix.warranty.void" not in w.env:
+        wty.with_user(officer2).action_void("fraudulent receipt")
+        assert wty.status == "voided"
+        return
+    # M09 second pass (BRU-WTY-17): a typed reason no longer voids cover; the
+    # condition is declared with its evidence and applied by another officer.
+    assert "evidenced void condition" in attempt(
+        w, lambda: wty.with_user(officer2).action_void("fraudulent receipt")
+    )
+    clerk = _user(w.env, "void_clerk", ["cd_warranty_claims.group_warranty_claims_clerk"])
+    void = (
+        w.env["fix.warranty.void"]
+        .with_user(clerk)
+        .create(
+            {
+                "warranty_id": wty.id,
+                "condition": "other",
+                "description": "fraudulent receipt",
+                "evidence_document_id": _proof(w).id,
+            }
+        )
+    )
+    void.with_user(officer2).action_apply()
+    assert wty.status == "voided" and "fraudulent receipt" in wty.void_reason
 
 
 # =========================================================================== P03 endpoint

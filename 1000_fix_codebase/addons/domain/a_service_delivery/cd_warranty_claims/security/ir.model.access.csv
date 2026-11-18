@@ -12,3 +12,29 @@ access_fix_warranty_recall,fix.warranty.recall,model_fix_warranty_recall,base.gr
 access_fix_warranty_recall_clerk,fix.warranty.recall clerk,model_fix_warranty_recall,group_warranty_claims_clerk,1,1,1,0
 access_fix_claim_appeal,fix.claim.appeal,model_fix_claim_appeal,base.group_user,1,0,0,0
 access_fix_claim_appeal_clerk,fix.claim.appeal clerk,model_fix_claim_appeal,group_warranty_claims_clerk,1,1,1,0
+access_fix_warranty_void,fix.warranty.void,model_fix_warranty_void,base.group_user,1,0,0,0
+access_fix_warranty_void_clerk,fix.warranty.void clerk,model_fix_warranty_void,group_warranty_claims_clerk,1,1,1,0
+access_fix_warranty_void_group_warranty_officer,fix.warranty.void group_warranty_officer,model_fix_warranty_void,cd_device_registry.group_warranty_officer,1,1,0,0
+access_fix_protection_policy,fix.protection.policy,model_fix_protection_policy,base.group_user,1,0,0,0
+access_fix_protection_policy_clerk,fix.protection.policy clerk,model_fix_protection_policy,group_warranty_claims_clerk,1,1,1,0
+access_fix_protection_inspection,fix.protection.inspection,model_fix_protection_inspection,base.group_user,1,0,0,0
+access_fix_protection_inspection_clerk,fix.protection.inspection clerk,model_fix_protection_inspection,group_warranty_claims_clerk,1,0,1,0
+access_fix_protection_reserve,fix.protection.reserve,model_fix_protection_reserve,base.group_user,1,0,0,0
+access_fix_protection_claim,fix.protection.claim,model_fix_protection_claim,base.group_user,1,0,0,0
+access_fix_protection_claim_clerk,fix.protection.claim clerk,model_fix_protection_claim,group_warranty_claims_clerk,1,1,1,0
+access_fix_brand_claim_rule,fix.brand.claim.rule,model_fix_brand_claim_rule,base.group_user,1,0,0,0
+access_fix_brand_claim_rule_officer,fix.brand.claim.rule officer,model_fix_brand_claim_rule,group_warranty_claims_officer,1,1,1,0
+access_fix_warranty_claim_info_request,fix.warranty.claim.info.request,model_fix_warranty_claim_info_request,base.group_user,1,0,0,0
+access_fix_warranty_claim_info_request_clerk,fix.warranty.claim.info.request clerk,model_fix_warranty_claim_info_request,group_warranty_claims_clerk,1,1,1,0
+access_fix_brand_remittance,fix.brand.remittance,model_fix_brand_remittance,base.group_user,1,0,0,0
+access_fix_brand_remittance_clerk,fix.brand.remittance clerk,model_fix_brand_remittance,group_warranty_claims_clerk,1,1,1,0
+access_fix_brand_remittance_line,fix.brand.remittance.line,model_fix_brand_remittance_line,base.group_user,1,0,0,0
+access_fix_brand_remittance_line_clerk,fix.brand.remittance.line clerk,model_fix_brand_remittance_line,group_warranty_claims_clerk,1,1,1,1
+access_fix_brand_reconciliation,fix.brand.reconciliation,model_fix_brand_reconciliation,base.group_user,1,0,0,0
+access_fix_brand_reconciliation_clerk,fix.brand.reconciliation clerk,model_fix_brand_reconciliation,group_warranty_claims_clerk,1,1,1,0
+access_fix_claim_writeoff,fix.claim.writeoff,model_fix_claim_writeoff,base.group_user,1,0,0,0
+access_fix_claim_writeoff_clerk,fix.claim.writeoff clerk,model_fix_claim_writeoff,group_warranty_claims_clerk,1,1,1,0
+access_fix_defective_return,fix.defective.return,model_fix_defective_return,base.group_user,1,0,0,0
+access_fix_defective_return_clerk,fix.defective.return clerk,model_fix_defective_return,group_warranty_claims_clerk,1,1,1,0
+access_fix_warranty_fraud_review,fix.warranty.fraud.review,model_fix_warranty_fraud_review,base.group_user,1,0,0,0
+access_fix_warranty_fraud_review_officer,fix.warranty.fraud.review officer,model_fix_warranty_fraud_review,group_warranty_claims_officer,1,0,1,0

@@ -26,6 +26,35 @@ WRITABLE = {
             "website",
         }
     ),
+    "fix.brand.claim.rule": frozenset(
+        {
+            "brand_id",
+            "channel",
+            "code_scheme",
+            "labour_allowance_minutes",
+            "note",
+            "req_device_serial",
+            "req_diagnostic",
+            "req_parts_issued",
+            "req_photo_after",
+            "req_photo_before",
+            "req_purchase_proof",
+            "req_technician_cert",
+            "requires_certified_technician",
+            "requires_defective_return",
+            "resubmission_window_days",
+            "submission_window_days",
+            "valid_from",
+        }
+    ),
+    "fix.brand.reconciliation": frozenset(
+        {
+            "brand_id",
+            "date_from",
+            "date_to",
+            "note",
+        }
+    ),
     "fix.brand.reimbursement.rate": frozenset(
         {
             "brand_id",
@@ -37,6 +66,16 @@ WRITABLE = {
             "parts_markup_pct",
             "repair_level",
             "valid_from",
+        }
+    ),
+    "fix.brand.remittance": frozenset(
+        {
+            "advice_document_id",
+            "bank_ref",
+            "brand_id",
+            "line_ids",
+            "received_on",
+            "total_amount",
         }
     ),
     "fix.catalogue.item": frozenset(
@@ -89,7 +128,15 @@ WRITABLE = {
     "fix.claim.appeal": frozenset(
         {
             "claim_id",
+            "evidence_document_id",
             "name",
+            "reason",
+        }
+    ),
+    "fix.claim.writeoff": frozenset(
+        {
+            "amount",
+            "claim_id",
             "reason",
         }
     ),
@@ -278,6 +325,18 @@ WRITABLE = {
             "name",
             "penalty_amount",
             "reason",
+        }
+    ),
+    "fix.defective.return": frozenset(
+        {
+            "claim_id",
+            "part_description",
+            "part_serial",
+            "proof_document_id",
+            "proof_file",
+            "proof_filename",
+            "shipped_on",
+            "waybill_ref",
         }
     ),
     "fix.discount.approval": frozenset(
@@ -630,6 +689,45 @@ WRITABLE = {
             "value",
         }
     ),
+    "fix.protection.claim": frozenset(
+        {
+            "assessed_value",
+            "assessment_note",
+            "cause",
+            "channel",
+            "damage_consistent",
+            "description",
+            "evidence_document_id",
+            "evidence_file",
+            "evidence_filename",
+            "fulfilment_ref",
+            "fulfilment_type",
+            "incident_date",
+            "policy_id",
+            "remedy",
+        }
+    ),
+    "fix.protection.inspection": frozenset(
+        {
+            "condition_grade",
+            "note",
+            "outcome",
+            "photo_file",
+            "photo_filename",
+            "policy_id",
+        }
+    ),
+    "fix.protection.policy": frozenset(
+        {
+            "device_id",
+            "partner_id",
+            "premium",
+            "product_id",
+            "sale_ref",
+            "term_start",
+        }
+    ),
+    "fix.protection.reserve": frozenset(),
     "fix.quotation": frozenset(
         {
             "advance_entry_amount",
@@ -1052,6 +1150,16 @@ WRITABLE = {
             "warranty_product_id",
         }
     ),
+    "fix.warranty.claim.info.request": frozenset(
+        {
+            "brand_ref",
+            "claim_id",
+            "due_date",
+            "request_text",
+            "requested_on",
+            "response_document_id",
+        }
+    ),
     "fix.warranty.evidence": frozenset(
         {
             "attachment_id",
@@ -1060,6 +1168,14 @@ WRITABLE = {
             "file_data",
             "file_name",
             "requirement_key",
+        }
+    ),
+    "fix.warranty.fraud.review": frozenset(
+        {
+            "claim_id",
+            "finding",
+            "note",
+            "protection_claim_id",
         }
     ),
     "fix.warranty.product": frozenset(
@@ -1071,8 +1187,11 @@ WRITABLE = {
             "currency_id",
             "duration_months",
             "excess_amount",
+            "inspection_required",
+            "max_device_age_months",
             "name",
             "product_type",
+            "reserve_rate",
             "waiting_days",
         }
     ),
@@ -1094,6 +1213,16 @@ WRITABLE = {
             "name",
             "note",
             "to_partner_id",
+            "warranty_id",
+        }
+    ),
+    "fix.warranty.void": frozenset(
+        {
+            "condition",
+            "description",
+            "evidence_document_id",
+            "evidence_file",
+            "evidence_filename",
             "warranty_id",
         }
     ),

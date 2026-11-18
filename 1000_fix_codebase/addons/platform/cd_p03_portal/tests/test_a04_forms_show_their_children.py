@@ -48,6 +48,13 @@ INCIDENTAL = {
     # their own read-only screen (Mass Change Preview). A line grid in the
     # form would offer "+ Add line" on rows nobody may write.
     ("fix.price.mass.change", "line_ids"),
+    # M09 second pass (2026-11-18): a policy's claims and inspections, and a
+    # protection claim's fraud reviews, are separate records with their own
+    # lists on the same sub-module pages (decided there, by other people);
+    # the policy form shows its reserve ledger.
+    ("fix.protection.policy", "claim_ids"),
+    ("fix.protection.policy", "inspection_ids"),
+    ("fix.protection.claim", "fraud_review_ids"),
 }
 
 

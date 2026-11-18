@@ -24,7 +24,8 @@ export const MODULE = {
       { id: 'M09-repair-wty', en: 'Repair Warranty & Rework', bn: 'মেরামত ওয়ারেন্টি', t: 'r' },
       { id: 'M09-comeback', en: 'Repair Warranty Comebacks', bn: 'মেরামত ওয়ারেন্টিতে ফেরত', t: 'g' },
       { id: 'M09-reworks', en: 'Open Rework Orders', bn: 'চলমান রিওয়ার্ক', t: 'g' },
-      { id: 'M09-transfer', en: 'Transfer & Void Rules', bn: 'হস্তান্তর', t: 'g' }
+      { id: 'M09-transfer', en: 'Transfer & Void Rules', bn: 'হস্তান্তর', t: 'g' },
+      { id: 'M09-voids', en: 'Void Conditions', bn: 'বাতিলের শর্ত', t: 'g' }
     ]},
     { en: 'Brand Claims', screens: [
       { id: 'M09-claims', en: 'Brand Claims', bn: 'ব্র্যান্ড দাবি', t: 'g' },
@@ -33,20 +34,32 @@ export const MODULE = {
       { id: 'M09-brandrules', en: 'Brand Rules & Formats', bn: 'ব্র্যান্ড নিয়ম', t: 'g' },
       { id: 'M09-remit', en: 'Remittance Matching', bn: 'রেমিট্যান্স মিলকরণ', t: 'g' },
       { id: 'M09-recon', en: 'Brand Reconciliation', bn: 'ব্র্যান্ড মিলকরণ', t: 'r' },
-      { id: 'M09-appeals', en: 'Claim Appeals', bn: 'দাবি আপিল', t: 'g' }
+      { id: 'M09-appeals', en: 'Claim Appeals', bn: 'দাবি আপিল', t: 'g' },
+      { id: 'M09-inforeq', en: 'Brand Information Requests', bn: 'ব্র্যান্ডের তথ্য অনুরোধ', t: 'g' },
+      { id: 'M09-remittances', en: 'Brand Remittances', bn: 'ব্র্যান্ড রেমিট্যান্স', t: 'g' },
+      { id: 'M09-brandrecon', en: 'Period Reconciliation Statements', bn: 'সময়কালীন মিলকরণ', t: 'g' },
+      { id: 'M09-writeoffs', en: 'Claim Write-offs', bn: 'দাবি অবলোপন', t: 'g' },
+      { id: 'M09-defreturns', en: 'Defective Part Returns', bn: 'ত্রুটিপূর্ণ যন্ত্রাংশ ফেরত', t: 'g' }
     ]},
     { en: 'Protection Plans', screens: [
       { id: 'M09-protection', en: 'Extended Protection Cover', bn: 'প্রোটেকশন পরিবার', t: 'g' },
       { id: 'M09-policies', en: 'Policy Lifecycle', bn: 'পলিসি লাইফসাইকেল', t: 'g' },
-      { id: 'M09-reserves', en: 'Reserves & Loss Ratio', bn: 'রিজার্ভ ও লস রেশিও', t: 'g' }
+      { id: 'M09-reserves', en: 'Reserves & Loss Ratio', bn: 'রিজার্ভ ও লস রেশিও', t: 'g' },
+      { id: 'M09-products', en: 'Protection Products', bn: 'প্রোটেকশন পণ্য', t: 'g' },
+      { id: 'M09-inspections', en: 'Pre-sale Inspections', bn: 'বিক্রয়-পূর্ব পরিদর্শন', t: 'g' },
+      { id: 'M09-pclaims', en: 'Protection Claims', bn: 'প্রোটেকশন দাবি', t: 'g' },
+      { id: 'M09-preserve', en: 'Protection Reserve Ledger', bn: 'প্রোটেকশন রিজার্ভ খতিয়ান', t: 'g' },
+      { id: 'M09-provpolicies', en: 'Provision Policies (IAS 37)', bn: 'প্রভিশন পলিসি', t: 'g' }
     ]},
     { en: 'Recalls & Fraud', screens: [
       { id: 'M09-recalls', en: 'Recalls & Campaigns', bn: 'রিকল', t: 'g' },
-      { id: 'M09-fraud', en: 'Fraud Detection', bn: 'প্রতারণা শনাক্তকরণ', t: 'r' }
+      { id: 'M09-fraud', en: 'Fraud Detection', bn: 'প্রতারণা শনাক্তকরণ', t: 'r' },
+      { id: 'M09-fraudreviews', en: 'Fraud Reviews', bn: 'প্রতারণা পর্যালোচনা', t: 'g' }
     ]}
   ],
   reports: ['Claim Ageing by Brand', 'Reimbursement Cycle Time', 'Claim Rejection Analysis', 'Evidence Completeness', 'Loss Ratio by Product', 'Recall Coverage Report'],
-  forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign', 'Warranty Register Entry', 'Warranty Transfer', 'Protection Product', 'Claim Evidence Item', 'Provision Policy'],
+  forms: ['Brand Claim', 'Protection Policy', 'Claim Appeal', 'Recall Campaign', 'Warranty Register Entry', 'Warranty Transfer', 'Protection Product', 'Claim Evidence Item', 'Provision Policy',
+    'Void Condition', 'Pre-sale Inspection', 'Protection Claim', 'Brand Claim Rule', 'Brand Information Request', 'Brand Remittance', 'Brand Reconciliation', 'Claim Write-off', 'Defective Part Return', 'Fraud Review'],
   cross: ['M01 Service Orders', 'M08 Contracts', 'M20 AR', 'M37 Catalogue'],
   /* M09 capture audit (2026-11-13). Five of the twelve pages offered no way
    * to record their data and three captured the wrong record:
@@ -65,19 +78,38 @@ export const MODULE = {
    * Validation, assessment and submission are steps on existing claims (list
    * buttons); entitlement and fraud are computed - nothing is typed in there.
    * `domain` stays the LAST key (the mapping guard parses it there). */
+  /* Second pass (2026-11-18). A "+ New" on six pages was not the same as
+   * capturing what the spec says each page records. Eight pages still could
+   * not record their own record, because the record did not exist:
+   * - 1 and 4: a void condition with its evidence (BRU-WTY-17); "Void
+   *   Warranty" voided cover on a typed reason;
+   * - 5: the sold protection policy, its pre-sale inspection and its
+   *   reserve (FR-WTY-015..024); the "Protection Policy" chip opened a
+   *   warranty register row;
+   * - 6: a customer's protection claim (FR-WTY-027..036); the page listed
+   *   brand claims and captured nothing;
+   * - 8: each brand's claim rule set (FR-WTY-040); "Brand Rules & Formats"
+   *   listed products and the evidence list was fixed in code;
+   * - 9: the brand's request for information (FR-WTY-047);
+   * - 10: a brand's payment across many claims, the signed period
+   *   statement, write-off with SoD and defective-part returns
+   *   (FR-WTY-053..057);
+   * - 12: the fraud review that clears or confirms a flagged claim
+   *   (BRU-WTY-21).
+   * Validation (2) and the repair-warranty comeback (3) stay list steps. */
   freg: { src: 108, sub: [
-    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register', 'M09-transfer'], reports: [], forms: ['Warranty Register Entry', 'Warranty Transfer'] }],
+    ['1', 'Warranty Register', 12, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-register', 'M09-transfer', 'M09-voids'], reports: [], forms: ['Warranty Register Entry', 'Warranty Transfer', 'Void Condition'] }],
     ['2', 'Manufacturer Validation', 8, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'verification_state', 'verified_by', 'verified_at'], screens: ['M09-validate', 'M09-register'], reports: [], forms: [], create: false }],
     ['3', 'Repair Warranty', 8, { model: 'fix.service.order', cols: ['name', 'customer_id', 'device_id', 'service_warranty_until', 'is_rework', 'state'], screens: ['M09-comeback', 'M09-reworks', 'M09-repair-wty'], reports: [], forms: [], create: false, domain: [['service_warranty_until', '!=', false]] }],
-    ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-protection', 'M09-validate'], reports: [], forms: [], create: false }],
-    ['5', 'Protection Products', 13, { model: 'fix.warranty.product', cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit'], screens: ['M09-brandrules', 'M09-protection'], reports: [], forms: ['Protection Product', 'Protection Policy'], create: 'M09-form-wproduct' }],
-    ['6', 'Claim Assessment', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-ageing'], reports: ['Claim Ageing by Brand'], forms: [], create: false }],
+    ['4', 'Entitlement Evaluation', 9, { model: 'fix.warranty', cols: ['device_id', 'warranty_type', 'status', 'verification_state', 'start_date', 'end_date'], screens: ['M09-voids', 'M09-protection', 'M09-validate'], reports: [], forms: ['Void Condition'], create: 'M09-form-void' }],
+    ['5', 'Protection Products', 13, { model: 'fix.protection.policy', cols: ['name', 'partner_id', 'device_id', 'product_id', 'premium', 'term_start', 'term_end', 'state'], screens: ['M09-policies', 'M09-products', 'M09-inspections', 'M09-preserve', 'M09-protection'], reports: [], forms: ['Protection Policy', 'Pre-sale Inspection', 'Protection Product'], create: 'M09-form-ppolicy' }],
+    ['6', 'Claim Assessment', 9, { model: 'fix.protection.claim', cols: ['name', 'policy_id', 'partner_id', 'incident_date', 'cause', 'assessed_value', 'fraud_score', 'state'], screens: ['M09-pclaims', 'M09-claims', 'M09-rpt-ageing'], reports: ['Claim Ageing by Brand'], forms: ['Protection Claim'], create: 'M09-form-pclaim' }],
     ['7', 'Evidence Assembly', 9, { model: 'fix.warranty.evidence', cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash'], screens: ['M09-evidence', 'M09-claims', 'M09-rpt-evidence'], reports: ['Evidence Completeness'], forms: ['Claim Evidence Item'], create: 'M09-form-wevidence' }],
-    ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-rpt-cycle'], reports: ['Reimbursement Cycle Time'], forms: ['Brand Claim'] }],
-    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-appeals', 'M09-claims', 'M09-rpt-rejection'], reports: ['Claim Rejection Analysis'], forms: ['Claim Appeal'], create: 'M09-form-appeal' }],
-    ['10', 'Reconciliation', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'approved_amount', 'remittance_amount', 'remittance_mismatch'], screens: ['M09-remit', 'M09-recon', 'M09-reserves', 'M09-policies'], reports: [], forms: ['Provision Policy'], create: false, domain: [['state', 'in', ['approved', 'partially_approved', 'remitted', 'closed']]] }],
+    ['8', 'Brand Submission', 10, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-claims', 'M09-brandrules', 'M09-rpt-cycle'], reports: ['Reimbursement Cycle Time'], forms: ['Brand Claim', 'Brand Claim Rule'] }],
+    ['9', 'Decisions & Appeals', 9, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'claim_amount'], screens: ['M09-appeals', 'M09-inforeq', 'M09-claims', 'M09-rpt-rejection'], reports: ['Claim Rejection Analysis'], forms: ['Claim Appeal', 'Brand Information Request'], create: 'M09-form-appeal' }],
+    ['10', 'Reconciliation', 8, { model: 'fix.warranty.claim', cols: ['claim_no', 'brand_id', 'state', 'approved_amount', 'remittance_amount', 'remittance_mismatch'], screens: ['M09-remittances', 'M09-remit', 'M09-brandrecon', 'M09-writeoffs', 'M09-defreturns', 'M09-recon', 'M09-reserves', 'M09-provpolicies'], reports: [], forms: ['Brand Remittance', 'Brand Reconciliation', 'Claim Write-off', 'Defective Part Return', 'Provision Policy'], create: 'M09-form-remittance', domain: [['state', 'in', ['approved', 'partially_approved', 'remitted', 'closed', 'written_off']]] }],
     ['11', 'Recalls', 7, { model: 'fix.warranty.recall', cols: ['name', 'state', 'brand_id', 'product_ref', 'affected_units', 'covered_units', 'launched_on'], screens: ['M09-recalls', 'M09-rpt-recall'], reports: ['Recall Coverage Report'], forms: ['Recall Campaign'] }],
-    ['12', 'Fraud Detection', 6, { model: 'fix.warranty.claim', cols: ['claim_no', 'device_id', 'evidence_complete', 'missing_evidence', 'state'], screens: ['M09-fraud', 'M09-rpt-loss', 'M09-claims'], reports: ['Loss Ratio by Product'], forms: [], create: false }]
+    ['12', 'Fraud Detection', 6, { model: 'fix.warranty.claim', cols: ['claim_no', 'device_id', 'evidence_complete', 'missing_evidence', 'state'], screens: ['M09-fraud', 'M09-fraudreviews', 'M09-pclaims', 'M09-rpt-loss', 'M09-claims'], reports: ['Loss Ratio by Product'], forms: ['Fraud Review'], create: 'M09-form-fraud' }]
   ] }
 };
 
@@ -90,11 +122,85 @@ export const SCREENS = {
   'M09-evidence': { kind: 'model_list', model: 'fix.warranty.evidence',
     cols: ['claim_id', 'requirement_key', 'file_name', 'sha256_hash', 'create_date'],
     empty: 'No evidence item yet. Assemble Evidence on Brand Claims pulls the workshop job\'s photos and reports into the claim; + New adds an item the job does not hold, while the claim is draft or ready.' },
+  /* FR-WTY-040: each brand's claim rule set as data (the evidence the pack
+   * needs, the submission window, defective-part return). It listed the
+   * protection products; they have their own list, M09-products. */
+  'M09-brandrules': { kind: 'model_list', model: 'fix.brand.claim.rule', stateField: 'state',
+    cols: ['name', 'brand_id', 'version', 'valid_from', 'channel', 'submission_window_days', 'requires_defective_return', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Rule Set', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire Rule Set', states: ['active'] }
+    ],
+    empty: 'No brand has a rule set yet: every claim needs all seven evidence items and 72 hours. A Claim Decision Officer writes a brand\'s rules; another one activates them.' },
   /* The protection / warranty product rules (duration, waiting days, claim
-   * limit, excess). A Warranty Officer maintains them. */
-  'M09-brandrules': { kind: 'model_list', model: 'fix.warranty.product',
-    cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit', 'active'],
+   * limit, excess, inspection, eligibility, reserve). A Warranty Officer
+   * maintains them. */
+  'M09-products': { kind: 'model_list', model: 'fix.warranty.product',
+    cols: ['name', 'product_type', 'catalogue_item_id', 'duration_months', 'waiting_days', 'claim_limit', 'reserve_rate', 'inspection_required', 'active'],
     stateField: 'product_type' },
+  /* BRU-WTY-17: a void condition, with its evidence, applied by a Warranty
+   * Officer who did not declare it. "Void Warranty" took a typed reason. */
+  'M09-voids': { kind: 'model_list', model: 'fix.warranty.void', stateField: 'state',
+    cols: ['name', 'warranty_id', 'device_id', 'condition', 'evidence_document_id', 'declared_by_id', 'state'],
+    actions: [
+      { m: 'action_apply', l: 'Apply - Void The Warranty', states: ['declared'] },
+      { m: 'action_reject', l: 'Reject Condition', ask: 'Why the condition does not void the warranty', kwarg: 'note', states: ['declared'] }
+    ],
+    empty: 'No void condition declared. Found tampering, liquid or an unauthorised repair? + New with a photograph; a Warranty Officer who did not declare it applies it.' },
+  'M09-inspections': { kind: 'model_list', model: 'fix.protection.inspection', create: true,
+    cols: ['policy_id', 'device_id', 'condition_grade', 'outcome', 'inspector_id', 'inspected_at'],
+    stateField: 'outcome' },
+  'M09-preserve': { kind: 'model_list', model: 'fix.protection.reserve', create: false,
+    cols: ['policy_id', 'product_id', 'movement_type', 'amount', 'reason', 'claim_id', 'at'],
+    stateField: 'movement_type',
+    empty: 'No reserve movement yet. Activating a protection policy establishes its reserve; settling a claim, cancellation and expiry release it. The ledger is never typed in.' },
+  /* FR-WTY-027..036: a customer's claim on a protection plan. */
+  'M09-pclaims': { kind: 'model_list', model: 'fix.protection.claim', stateField: 'state',
+    cols: ['name', 'policy_id', 'partner_id', 'incident_date', 'cause', 'assessed_value', 'fraud_score', 'approved_amount', 'excess_state', 'state'],
+    actions: [
+      { m: 'action_assess', l: 'Confirm Assessment', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve Claim', states: ['assessed'] },
+      { m: 'action_reject', l: 'Reject Claim', ask: 'Reason, in words the customer will read', kwarg: 'reason', states: ['draft', 'assessed'] },
+      { m: 'action_record_excess', l: 'Excess Collected', ask: 'Receipt number of the excess payment', kwarg: 'receipt_ref', states: ['approved'] },
+      { m: 'action_waive_excess', l: 'Waive Excess', ask: 'Why the excess is waived', kwarg: 'reason', states: ['approved'] },
+      { m: 'action_settle', l: 'Settle (fulfilled)', states: ['approved'] }
+    ],
+    empty: 'No protection claim yet. + New records the incident, cause and evidence; a claim inside the waiting period is rejected at intake.' },
+  'M09-inforeq': { kind: 'model_list', model: 'fix.warranty.claim.info.request', stateField: 'state',
+    cols: ['name', 'claim_id', 'brand_id', 'requested_on', 'due_date', 'overdue', 'state'],
+    actions: [
+      { m: 'action_answer', l: 'Record Answer Sent', ask: 'What was sent to the brand', kwarg: 'response', states: ['open'] }
+    ],
+    empty: 'No open request from a brand. When a brand asks for more on a submitted claim, + New records what it asked and by when.' },
+  /* FR-WTY-053: one bank receipt, split across the claims it pays. */
+  'M09-remittances': { kind: 'model_list', model: 'fix.brand.remittance', stateField: 'state',
+    cols: ['name', 'brand_id', 'bank_ref', 'received_on', 'total_amount', 'allocated_amount', 'unmatched_amount', 'state'],
+    actions: [
+      { m: 'action_match', l: 'Match To Claims', states: ['draft'] }
+    ],
+    empty: 'No brand payment recorded. + New records the bank receipt and the claims it pays; a Claim Decision Officer matches it.' },
+  'M09-brandrecon': { kind: 'model_list', model: 'fix.brand.reconciliation', stateField: 'state',
+    cols: ['name', 'brand_id', 'date_from', 'date_to', 'claimed', 'approved', 'paid', 'outstanding', 'written_off', 'state'],
+    actions: [
+      { m: 'action_compute', l: 'Compute Statement', states: ['draft', 'computed'] },
+      { m: 'action_sign', l: 'Sign Statement', states: ['computed'] }
+    ] },
+  'M09-writeoffs': { kind: 'model_list', model: 'fix.claim.writeoff', stateField: 'state',
+    cols: ['name', 'claim_id', 'brand_id', 'amount', 'requested_by_id', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve Write-off', states: ['requested'] },
+      { m: 'action_refuse', l: 'Refuse Write-off', ask: 'Why the write-off is refused', kwarg: 'note', states: ['requested'] }
+    ],
+    empty: 'No write-off requested. A Finance Manager who neither raised the claim nor asked for the write-off decides it (BRU-WTY-07).' },
+  'M09-defreturns': { kind: 'model_list', model: 'fix.defective.return', stateField: 'state',
+    cols: ['name', 'claim_id', 'brand_id', 'part_description', 'part_serial', 'waybill_ref', 'shipped_on', 'state'],
+    actions: [
+      { m: 'action_ship', l: 'Mark Shipped', states: ['pending'] },
+      { m: 'action_acknowledge', l: 'Brand Acknowledged Receipt', states: ['shipped'] }
+    ] },
+  'M09-fraudreviews': { kind: 'model_list', model: 'fix.warranty.fraud.review', stateField: 'finding',
+    cols: ['name', 'claim_id', 'protection_claim_id', 'finding', 'reviewer_id', 'reviewed_at'],
+    empty: 'No fraud review yet. A Claim Decision Officer who did not raise the claim records one; a cleared review lets a high-score claim be settled, a confirmed one blocks it.' },
   'M09-recon': { kind: 'table_report', module: 'M09', report: 'claim_reconciliation', title: 'Claim Reconciliation', period: true },
   /* FR-WTY-053 remittance matching. The brand's money is recorded against
    * the approved claim with the bank reference it arrived under (a Claim
@@ -141,10 +247,20 @@ export const SCREENS = {
       // A02 audit B1: verification is decided from the Warranty Officer's
       // M63 inbox; the screen requests it.
       { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached', kwarg: 'justification' },
-      { m: 'action_recall_approval', l: 'Recall Request' },
-      { m: 'action_void', l: 'Void Warranty', ask: 'Reason for voiding', kwarg: 'reason' }
+      // BRU-WTY-17: voiding is a void condition with its evidence (M09-voids),
+      // not a typed reason on the row.
+      { m: 'action_recall_approval', l: 'Recall Request' }
     ] },
-  'M09-policies': { kind: 'model_list', model: 'fix.warranty.provision.policy', create: false,
+  /* Policy Lifecycle (§8.2): the protection policies sold. It listed the
+   * IAS 37 provision policies, which moved to M09-provpolicies. */
+  'M09-policies': { kind: 'model_list', model: 'fix.protection.policy', stateField: 'state',
+    cols: ['name', 'partner_id', 'device_id', 'product_id', 'premium', 'term_start', 'term_end', 'remaining_limit', 'reserve_balance', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Cover', states: ['sold'] },
+      { m: 'action_cancel', l: 'Cancel Policy (pro-rata refund)', ask: 'Why the policy is cancelled', kwarg: 'reason', states: ['sold', 'active'] }
+    ],
+    empty: 'No protection policy sold. + New records the sale; Activate checks eligibility and the pre-sale inspection, then establishes the reserve.' },
+  'M09-provpolicies': { kind: 'model_list', model: 'fix.warranty.provision.policy', create: false,
     cols: ['name', 'warranty_days', 'lookback_months', 'cost_ratio', 'date_from', 'date_to', 'active'] },
   'M09-reserves': { kind: 'model_list', model: 'fix.warranty.provision', create: false,
     cols: ['name', 'period', 'revenue_in_warranty', 'rework_rate', 'cost_ratio', 'required_balance', 'movement', 'state'],
@@ -188,8 +304,9 @@ export const SCREENS = {
       // A02 audit B1: verification is decided from the Warranty Officer's
       // M63 inbox; the screen requests it.
       { m: 'action_request_approval', l: 'Request Verification', ask: 'What proof is attached', kwarg: 'justification' },
-      { m: 'action_recall_approval', l: 'Recall Request' },
-      { m: 'action_void', l: 'Void Warranty', ask: 'Reason for voiding', kwarg: 'reason' }
+      // BRU-WTY-17: voiding is a void condition with its evidence (M09-voids),
+      // not a typed reason on the row.
+      { m: 'action_recall_approval', l: 'Recall Request' }
     ] },
   'M09-validate': { kind: 'table_report', module: 'M09', report: 'warranty_validation', title: 'Manufacturer Validation', period: false },
   'M09-repair-wty': { kind: 'table_report', module: 'M09', report: 'warranty_repairs', title: 'Repair Warranty & Rework', period: false },
@@ -303,7 +420,7 @@ export const SCREENS = {
    * engine applies - accounting configuration, not a policy sold to a
    * customer. It was titled "Protection Policy". */
   'M09-form-policy': { kind: 'model_form', model: 'fix.warranty.provision.policy',
-    title: 'Warranty Provision Policy', back: 'M09-policies',
+    title: 'Warranty Provision Policy', back: 'M09-provpolicies',
     status: { field: 'active' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -368,7 +485,8 @@ export const SCREENS = {
         { name: 'decided_by_id', label: 'Decided By', readonly: true }
       ] },
       { tab: 'relations', title: '4. Links', fields: [
-        { name: 'claim_id', label: 'Claim', required: true }
+        { name: 'claim_id', label: 'Claim', required: true },
+        { name: 'evidence_document_id', label: 'Additional Evidence (FR-WTY-049)' }
       ] },
       { tab: 'text', title: '7. Notes & Terms', fields: [
         { name: 'reason', label: 'Reason', required: true, type: 'text' }
@@ -452,6 +570,358 @@ export const SCREENS = {
     ] },
 
 
+  /* ===== M09 capture audit, second pass (2026-11-18) ===== */
+  'M09-form-void': { kind: 'model_form', model: 'fix.warranty.void',
+    title: 'Void Condition', back: 'M09-voids',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'finding', label: '1. Condition Found', bn: '১. প্রাপ্ত শর্ত', icon: '🔍' },
+      { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '⚖️' },
+      { id: 'audit', label: '3. System Audit', bn: '৩. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'finding', title: 'What voids the warranty', note: 'BRU-WTY-17: the condition is applied only with its evidence, by a Warranty Officer who did not declare it.', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'warranty_id', label: 'Warranty', required: true },
+        { name: 'condition', label: 'Void Condition', required: true },
+        { name: 'description', label: 'What Was Found', required: true, type: 'text' },
+        { name: 'evidence_file', type: 'file', label: 'Upload Photograph / Report' },
+        { name: 'evidence_filename', label: 'File Name' },
+        { name: 'evidence_document_id', label: 'Evidence Document' }
+      ] },
+      { tab: 'decision', title: 'Decision', fields: [
+        { name: 'state', label: 'State (Apply / Reject)', readonly: true },
+        { name: 'declared_by_id', label: 'Declared By', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true },
+        { name: 'decided_at', label: 'Decided At', readonly: true },
+        { name: 'decision_note', label: 'Decision Note', readonly: true, type: 'text' }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-ppolicy': { kind: 'model_form', model: 'fix.protection.policy',
+    title: 'Protection Policy', back: 'M09-policies',
+    status: { field: 'state' },
+    lines: { field: 'reserve_ids', title: 'Reserve Ledger', readonlyGrid: true,
+      note: 'Append-only (T-09): established at activation, topped up when a claim is approved, released on settlement, cancellation or expiry.',
+      fields: [
+        { name: 'movement_type', label: 'Movement' },
+        { name: 'amount', label: 'Amount' },
+        { name: 'reason', label: 'Reason' },
+        { name: 'claim_id', label: 'Claim' },
+        { name: 'at', label: 'At' }
+      ]
+    },
+    tabs: [
+      { id: 'sale', label: '1. Sale', bn: '১. বিক্রয়', icon: '🧾' },
+      { id: 'cover', label: '2. Cover & Limits', bn: '২. কভার ও সীমা', icon: '🛡️' },
+      { id: 'lifecycle', label: '3. Lifecycle', bn: '৩. জীবনচক্র', icon: '🔄' },
+      { id: 'audit', label: '4. System Audit', bn: '৪. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'sale', title: 'The plan sold', note: 'Activate Cover on Policy Lifecycle checks eligibility and the pre-sale inspection, then establishes the reserve.', fields: [
+        { name: 'name', label: 'Policy No.', readonly: true },
+        { name: 'product_id', label: 'Protection Product', required: true },
+        { name: 'partner_id', label: 'Customer', required: true },
+        { name: 'device_id', label: 'Device', required: true },
+        { name: 'premium', label: 'Premium Paid (BDT)', required: true },
+        { name: 'sale_ref', label: 'Sale Document (M36 / M38 / counter receipt)' },
+        { name: 'term_start', label: 'Cover Starts', required: true }
+      ] },
+      { tab: 'cover', title: 'Cover, limits and reserve (from the product)', fields: [
+        { name: 'term_end', label: 'Cover Ends', readonly: true },
+        { name: 'waiting_until', label: 'Waiting Period Until', readonly: true },
+        { name: 'excess', label: 'Customer Excess', readonly: true },
+        { name: 'claim_limit', label: 'Aggregate Limit', readonly: true },
+        { name: 'claimed_amount', label: 'Settled Claims', readonly: true },
+        { name: 'remaining_limit', label: 'Remaining Limit', readonly: true },
+        { name: 'reserve_balance', label: 'Reserve Balance', readonly: true },
+        { name: 'inspection_required', label: 'Pre-sale Inspection Required', readonly: true }
+      ] },
+      { tab: 'lifecycle', title: 'Lifecycle', fields: [
+        { name: 'state', label: 'State (Activate / Cancel)', readonly: true },
+        { name: 'activated_by_id', label: 'Activated By', readonly: true },
+        { name: 'activated_at', label: 'Activated At', readonly: true },
+        { name: 'cancel_reason', label: 'Cancellation Reason', readonly: true, type: 'text' },
+        { name: 'refund_amount', label: 'Refund Due (M20)', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-inspection': { kind: 'model_form', model: 'fix.protection.inspection',
+    title: 'Pre-sale Inspection', back: 'M09-inspections',
+    tabs: [
+      { id: 'general', label: '1. Inspection', bn: '১. পরিদর্শন', icon: '🔍' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The device as seen before sale', note: 'FR-WTY-017: photographed; a failed inspection declines the policy. Never edited afterwards.', fields: [
+        { name: 'policy_id', label: 'Policy (sold, awaiting activation)', required: true },
+        { name: 'condition_grade', label: 'Condition Grade', required: true },
+        { name: 'outcome', label: 'Outcome', required: true },
+        { name: 'note', label: 'Findings', type: 'text' },
+        { name: 'photo_file', type: 'file', label: 'Upload Photograph' },
+        { name: 'photo_filename', label: 'File Name' },
+        { name: 'inspector_id', label: 'Inspected By', readonly: true },
+        { name: 'inspected_at', label: 'Inspected At', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-pclaim': { kind: 'model_form', model: 'fix.protection.claim',
+    title: 'Protection Claim', back: 'M09-pclaims',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'intake', label: '1. Intake', bn: '১. গ্রহণ', icon: '📥' },
+      { id: 'assess', label: '2. Damage Assessment', bn: '২. ক্ষতি মূল্যায়ন', icon: '🔧' },
+      { id: 'decision', label: '3. Decision & Excess', bn: '৩. সিদ্ধান্ত ও এক্সেস', icon: '⚖️' },
+      { id: 'fulfil', label: '4. Fulfilment', bn: '৪. নিষ্পত্তি', icon: '📦' },
+      { id: 'audit', label: '5. System Audit', bn: '৫. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'intake', title: 'The incident', note: 'An incident inside the waiting period is rejected at intake (BRU-WTY-12).', fields: [
+        { name: 'name', label: 'Claim No.', readonly: true },
+        { name: 'policy_id', label: 'Policy', required: true },
+        { name: 'channel', label: 'Channel', required: true },
+        { name: 'incident_date', label: 'Incident Date', required: true },
+        { name: 'cause', label: 'Cause', required: true },
+        { name: 'description', label: 'Circumstances', required: true, type: 'text' },
+        { name: 'evidence_file', type: 'file', label: 'Upload Evidence' },
+        { name: 'evidence_filename', label: 'File Name' },
+        { name: 'evidence_document_id', label: 'Evidence Document' }
+      ] },
+      { tab: 'assess', title: 'Technical assessment', note: 'Fill these in, then Confirm Assessment on Protection Claims: coverage is checked and the claim scored.', fields: [
+        { name: 'assessed_value', label: 'Assessed Repair / Replace Value (BDT)' },
+        { name: 'remedy', label: 'Repair Or Replace' },
+        { name: 'damage_consistent', label: 'Damage Consistent With Declared Cause' },
+        { name: 'assessment_note', label: 'Technical Assessment', type: 'text' },
+        { name: 'assessed_by_id', label: 'Assessed By', readonly: true },
+        { name: 'fraud_score', label: 'Fraud Score', readonly: true },
+        { name: 'fraud_signals', label: 'Fraud Signals', readonly: true }
+      ] },
+      { tab: 'decision', title: 'Decision and excess', fields: [
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'approved_amount', label: 'Payable By The Plan', readonly: true },
+        { name: 'decision_reason', label: 'Decision Reason', readonly: true, type: 'text' },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true },
+        { name: 'excess_amount', label: 'Excess', readonly: true },
+        { name: 'excess_state', label: 'Excess Status', readonly: true },
+        { name: 'excess_ref', label: 'Excess Receipt / Waiver', readonly: true }
+      ] },
+      { tab: 'fulfil', title: 'How it was fulfilled', note: 'Record the fulfilment, then Settle: the policy limit is consumed and the reserve released.', fields: [
+        { name: 'fulfilment_type', label: 'Fulfilment' },
+        { name: 'fulfilment_ref', label: 'Fulfilment Reference (order / replacement / M20 payment)' },
+        { name: 'settled_at', label: 'Settled At', readonly: true },
+        { name: 'settled_by_id', label: 'Settled By', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-rule': { kind: 'model_form', model: 'fix.brand.claim.rule',
+    title: 'Brand Claim Rule', back: 'M09-brandrules',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Submission', bn: '১. দাখিল', icon: '📤' },
+      { id: 'evidence', label: '2. Evidence Required', bn: '২. প্রয়োজনীয় প্রমাণ', icon: '📸' },
+      { id: 'audit', label: '3. System Audit', bn: '৩. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'How this brand takes claims', note: 'Written by a Claim Decision Officer, activated by another. An active version is not edited: write the next version.', fields: [
+        { name: 'brand_id', label: 'Brand', required: true },
+        { name: 'version', label: 'Version', readonly: true },
+        { name: 'valid_from', label: 'Valid From', required: true },
+        { name: 'channel', label: 'Submission Channel', required: true },
+        { name: 'submission_window_days', label: 'Submission Window (days from job completion)', required: true },
+        { name: 'resubmission_window_days', label: 'Resubmission Window (days)' },
+        { name: 'labour_allowance_minutes', label: 'Standard Labour Allowance (min)' },
+        { name: 'code_scheme', label: 'Fault Code Scheme' },
+        { name: 'requires_defective_return', label: 'Defective Part Returned Before Recovery' },
+        { name: 'requires_certified_technician', label: 'Certified Technician Only' },
+        { name: 'note', label: 'Other Rules', type: 'text' },
+        { name: 'state', label: 'State (Activate / Retire)', readonly: true }
+      ] },
+      { tab: 'evidence', title: 'The evidence pack this brand requires', fields: [
+        { name: 'req_photo_before', label: 'Before Photograph' },
+        { name: 'req_photo_after', label: 'After Photograph' },
+        { name: 'req_diagnostic', label: 'Diagnostic Record' },
+        { name: 'req_parts_issued', label: 'Parts Issued Evidence' },
+        { name: 'req_device_serial', label: 'Device Serial Capture' },
+        { name: 'req_technician_cert', label: 'Technician Certification' },
+        { name: 'req_purchase_proof', label: 'Purchase Proof' }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-inforeq': { kind: 'model_form', model: 'fix.warranty.claim.info.request',
+    title: 'Brand Information Request', back: 'M09-inforeq',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Request', bn: '১. অনুরোধ', icon: '❓' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'What the brand asked for', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'claim_id', label: 'Claim (submitted / in review)', required: true },
+        { name: 'requested_on', label: 'Brand Asked On', required: true },
+        { name: 'brand_ref', label: "Brand's Reference" },
+        { name: 'request_text', label: 'What The Brand Asks For', required: true, type: 'text' },
+        { name: 'due_date', label: 'Answer Due By', required: true },
+        { name: 'response_document_id', label: 'Document Sent' },
+        { name: 'response', label: 'Our Answer (Record Answer Sent)', readonly: true, type: 'text' },
+        { name: 'state', label: 'State', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-remittance': { kind: 'model_form', model: 'fix.brand.remittance',
+    title: 'Brand Remittance', back: 'M09-remittances',
+    status: { field: 'state' },
+    lines: {
+      field: 'line_ids',
+      title: 'Claims This Payment Settles',
+      note: 'One line per claim. Match To Claims posts each line to its claim; what the lines leave unallocated stays visible.',
+      fields: [
+        { name: 'claim_id', label: 'Claim', required: true },
+        { name: 'amount', label: 'Paid On This Claim (BDT)', required: true }
+      ]
+    },
+    tabs: [
+      { id: 'general', label: '1. Bank Receipt', bn: '১. ব্যাংক প্রাপ্তি', icon: '🏦' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The money the brand sent', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'brand_id', label: 'Brand', required: true },
+        { name: 'bank_ref', label: 'Bank Reference', required: true },
+        { name: 'received_on', label: 'Received On', required: true },
+        { name: 'total_amount', label: 'Amount Received (BDT)', required: true },
+        { name: 'advice_document_id', label: 'Brand Remittance Advice' },
+        { name: 'allocated_amount', label: 'Allocated', readonly: true },
+        { name: 'unmatched_amount', label: 'Unmatched', readonly: true },
+        { name: 'state', label: 'State (Match To Claims)', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-brandrecon': { kind: 'model_form', model: 'fix.brand.reconciliation',
+    title: 'Brand Reconciliation', back: 'M09-brandrecon',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Period', bn: '১. সময়কাল', icon: '📅' },
+      { id: 'totals', label: '2. Statement', bn: '২. বিবরণী', icon: '📊' },
+      { id: 'audit', label: '3. System Audit', bn: '৩. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Brand and period', note: 'Compute Statement totals the period; a Claim Decision Officer who did not prepare it signs it, and it is frozen.', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'brand_id', label: 'Brand', required: true },
+        { name: 'date_from', label: 'From', required: true },
+        { name: 'date_to', label: 'To', required: true },
+        { name: 'note', label: 'Note', type: 'text' }
+      ] },
+      { tab: 'totals', title: 'Statement', fields: [
+        { name: 'claim_count', label: 'Claims', readonly: true },
+        { name: 'claimed', label: 'Claimed', readonly: true },
+        { name: 'approved', label: 'Approved', readonly: true },
+        { name: 'rejected', label: 'Rejected', readonly: true },
+        { name: 'paid', label: 'Paid', readonly: true },
+        { name: 'outstanding', label: 'Outstanding', readonly: true },
+        { name: 'written_off', label: 'Written Off', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'computed_by_id', label: 'Prepared By', readonly: true },
+        { name: 'signed_by_id', label: 'Signed By', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-writeoff': { kind: 'model_form', model: 'fix.claim.writeoff',
+    title: 'Claim Write-off', back: 'M09-writeoffs',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Request', bn: '১. অনুরোধ', icon: '✍️' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The unrecoverable balance', note: 'Decided by a Finance Manager who neither raised the claim nor asked for the write-off (BRU-WTY-07).', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'claim_id', label: 'Claim (approved, not fully paid)', required: true },
+        { name: 'outstanding', label: 'Outstanding On The Claim', readonly: true },
+        { name: 'amount', label: 'Amount To Write Off (BDT)', required: true },
+        { name: 'reason', label: 'Why It Cannot Be Recovered', required: true, type: 'text' },
+        { name: 'state', label: 'State (Approve / Refuse)', readonly: true },
+        { name: 'requested_by_id', label: 'Requested By', readonly: true },
+        { name: 'approved_by_id', label: 'Decided By', readonly: true },
+        { name: 'decision_note', label: 'Decision Note', readonly: true, type: 'text' }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-defreturn': { kind: 'model_form', model: 'fix.defective.return',
+    title: 'Defective Part Return', back: 'M09-defreturns',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Part & Dispatch', bn: '১. যন্ত্রাংশ ও প্রেরণ', icon: '📦' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The part going back to the brand', note: 'Mark Shipped needs the waybill, date and proof (BRU-WTY-19).', fields: [
+        { name: 'name', label: 'Reference', readonly: true },
+        { name: 'claim_id', label: 'Claim', required: true },
+        { name: 'part_description', label: 'Part', required: true },
+        { name: 'part_serial', label: 'Part Serial' },
+        { name: 'waybill_ref', label: 'Courier / Waybill Reference' },
+        { name: 'shipped_on', label: 'Shipped On' },
+        { name: 'proof_file', type: 'file', label: 'Upload Proof Of Dispatch' },
+        { name: 'proof_filename', label: 'File Name' },
+        { name: 'proof_document_id', label: 'Proof Of Dispatch' },
+        { name: 'state', label: 'State', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+  'M09-form-fraud': { kind: 'model_form', model: 'fix.warranty.fraud.review',
+    title: 'Fraud Review', back: 'M09-fraudreviews',
+    tabs: [
+      { id: 'general', label: '1. Investigation', bn: '১. তদন্ত', icon: '🕵️' },
+      { id: 'audit', label: '2. System Audit', bn: '২. সিস্টেম অডিট' }
+    ],
+    sections: [
+      { tab: 'general', title: 'One flagged claim', note: 'Either a brand claim or a protection claim. Recorded by a Claim Decision Officer who did not raise it; never edited afterwards.', fields: [
+        { name: 'claim_id', label: 'Brand Claim' },
+        { name: 'protection_claim_id', label: 'Protection Claim' },
+        { name: 'finding', label: 'Finding', required: true },
+        { name: 'note', label: 'Investigation Notes', required: true, type: 'text' },
+        { name: 'signals', label: 'Signals Reviewed', readonly: true },
+        { name: 'reviewer_id', label: 'Reviewed By', readonly: true }
+      ] },
+      { tab: 'audit', title: 'System Audit', fields: [
+        { name: 'create_uid', label: 'Created by', readonly: true },
+        { name: 'create_date', label: 'Created on', readonly: true }
+      ] }
+    ] },
+
   /* ===== master-data forms (batch 2) — D365 in-workspace ===== */
   'M09-form-warranty': {
     kind: 'model_form',
@@ -459,6 +929,15 @@ export const SCREENS = {
     title: 'Warranty Register Entry',
     back: 'M09-register',
     status: { field: 'status' },
+    lines: { field: 'void_record_ids', title: 'Void Conditions', readonlyGrid: true,
+      note: 'BRU-WTY-17: declared with evidence on Void Conditions; a Warranty Officer who did not declare it applies it.',
+      fields: [
+        { name: 'name', label: 'Reference' },
+        { name: 'condition', label: 'Condition' },
+        { name: 'state', label: 'State' },
+        { name: 'decided_by_id', label: 'Decided By' }
+      ]
+    },
     tabs: [
       { id: 'policy_header', label: '1. Warranty Registration', bn: '১. ওয়ারেন্টি নিবন্ধন', icon: '📋', badge: '6' },
       { id: 'terms_coverage', label: '2. Coverage & Validity', bn: '২. কভারেজ ও মেয়াদ', icon: '🛡️', badge: '4' },
@@ -521,7 +1000,7 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
   'M09-form-wproduct': { kind: 'model_form', model: 'fix.warranty.product',
-    title: 'Protection Product', back: 'M09-brandrules',
+    title: 'Protection Product', back: 'M09-products',
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
@@ -551,7 +1030,10 @@ export const SCREENS = {
         { name: 'currency_id', label: 'Currency', required: true }
       ] },
       { tab: 'statutory', title: '5. Statutory', fields: [
-        { name: 'waiting_days', label: 'Waiting Days' }
+        { name: 'waiting_days', label: 'Waiting Days' },
+        { name: 'max_device_age_months', label: 'Max Device Age At Sale (months, 0 = any)' },
+        { name: 'inspection_required', label: 'Pre-sale Inspection Required' },
+        { name: 'reserve_rate', label: 'Reserve Held (% of premium)' }
       ] },
       { tab: 'flags', title: '6. Status Flags', fields: [
         { name: 'active', label: 'Active' }
@@ -629,13 +1111,22 @@ export const REPORT_ROUTES = {
   'M09:Recall Coverage Report': 'M09-rpt-recall'
 };
 
-/* 'Protection Policy' is the cover sold to a customer: in this estate an
- * extended / 1000FiX cover is a warranty register row of type Extended, so
- * the chip opens the register form (it opened the provision policy). The
- * provision policy keeps its own chip on Reconciliation. */
+/* 'Protection Policy' is the plan sold to a customer: since the second pass
+ * (2026-11-18) a fix.protection.policy (it opened a warranty register row,
+ * and before that the IAS 37 provision policy, which keeps its own chip). */
 export const FORM_MODELS = {
   'M09:Brand Claim': 'fix.warranty.claim',
-  'M09:Protection Policy': 'fix.warranty',
+  'M09:Protection Policy': 'fix.protection.policy',
+  'M09:Void Condition': 'fix.warranty.void',
+  'M09:Pre-sale Inspection': 'fix.protection.inspection',
+  'M09:Protection Claim': 'fix.protection.claim',
+  'M09:Brand Claim Rule': 'fix.brand.claim.rule',
+  'M09:Brand Information Request': 'fix.warranty.claim.info.request',
+  'M09:Brand Remittance': 'fix.brand.remittance',
+  'M09:Brand Reconciliation': 'fix.brand.reconciliation',
+  'M09:Claim Write-off': 'fix.claim.writeoff',
+  'M09:Defective Part Return': 'fix.defective.return',
+  'M09:Fraud Review': 'fix.warranty.fraud.review',
   'M09:Claim Appeal': 'fix.claim.appeal',
   'M09:Recall Campaign': 'fix.warranty.recall',
   'M09:Warranty Register Entry': 'fix.warranty',
@@ -652,7 +1143,17 @@ export const FORM_CHIPS = {
   'M09:Protection Product': 'M09-form-wproduct',
   'M09:Warranty Reserve': 'M09-form-wprov',
   'M09:Brand Claim': 'M09-record',
-  'M09:Protection Policy': 'M09-form-warranty',
+  'M09:Protection Policy': 'M09-form-ppolicy',
+  'M09:Void Condition': 'M09-form-void',
+  'M09:Pre-sale Inspection': 'M09-form-inspection',
+  'M09:Protection Claim': 'M09-form-pclaim',
+  'M09:Brand Claim Rule': 'M09-form-rule',
+  'M09:Brand Information Request': 'M09-form-inforeq',
+  'M09:Brand Remittance': 'M09-form-remittance',
+  'M09:Brand Reconciliation': 'M09-form-brandrecon',
+  'M09:Claim Write-off': 'M09-form-writeoff',
+  'M09:Defective Part Return': 'M09-form-defreturn',
+  'M09:Fraud Review': 'M09-form-fraud',
   'M09:Provision Policy': 'M09-form-policy',
   'M09:Claim Appeal': 'M09-form-appeal',
   'M09:Recall Campaign': 'M09-form-recall',
@@ -665,17 +1166,39 @@ export const FORM_CHIPS = {
     'fix.warranty.provision.policy': 'M09-form-policy',
     'fix.claim.appeal': 'M09-form-appeal',
     'fix.warranty.recall': 'M09-form-recall',
-    'fix.warranty.transfer': 'M09-form-transfer'
+    'fix.warranty.transfer': 'M09-form-transfer',
+    'fix.warranty.void': 'M09-form-void',
+    'fix.protection.policy': 'M09-form-ppolicy',
+    'fix.protection.inspection': 'M09-form-inspection',
+    'fix.protection.claim': 'M09-form-pclaim',
+    'fix.brand.claim.rule': 'M09-form-rule',
+    'fix.warranty.claim.info.request': 'M09-form-inforeq',
+    'fix.brand.remittance': 'M09-form-remittance',
+    'fix.brand.reconciliation': 'M09-form-brandrecon',
+    'fix.claim.writeoff': 'M09-form-writeoff',
+    'fix.defective.return': 'M09-form-defreturn',
+    'fix.warranty.fraud.review': 'M09-form-fraud'
   },
   'M09:__by_screen__': {
     'M09-register': 'M09-form-warranty',
     'M09-evidence': 'M09-form-wevidence',
-    'M09-brandrules': 'M09-form-wproduct',
+    'M09-brandrules': 'M09-form-rule',
+    'M09-products': 'M09-form-wproduct',
+    'M09-voids': 'M09-form-void',
+    'M09-inspections': 'M09-form-inspection',
+    'M09-pclaims': 'M09-form-pclaim',
+    'M09-inforeq': 'M09-form-inforeq',
+    'M09-remittances': 'M09-form-remittance',
+    'M09-brandrecon': 'M09-form-brandrecon',
+    'M09-writeoffs': 'M09-form-writeoff',
+    'M09-defreturns': 'M09-form-defreturn',
+    'M09-fraudreviews': 'M09-form-fraud',
+    'M09-provpolicies': 'M09-form-policy',
     'M09-protection': 'M09-form-warranty',
     'M09-reserves': 'M09-form-wprov',
     'M09-claims': 'M09-record',
     'M09-remit': 'M09-record',
-    'M09-policies': 'M09-form-policy',
+    'M09-policies': 'M09-form-ppolicy',
     'M09-recalls': 'M09-form-recall',
     'M09-transfer': 'M09-form-transfer',
     'M09-appeals': 'M09-form-appeal'

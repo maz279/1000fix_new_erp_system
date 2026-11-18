@@ -16,7 +16,7 @@ CD-M09-01..05: the warranty and claims engine.
   diagnostic, parts, serial, technician certification, purchase proof
 - Events: warranty_claim.submitted/decided/remitted (AS-08)
 """,
-    "version": "19.0.2.1.0",
+    "version": "19.0.2.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Warranty",
@@ -45,6 +45,7 @@ CD-M09-01..05: the warranty and claims engine.
         "data/ir_cron_aut018.xml",
         "data/fix_recall_consumers.xml",
         "data/ir_cron.xml",
+        "data/fix_m09_capture_data.xml",
         "views/fix_warranty_claims_views.xml",
     ],
     "installable": True,

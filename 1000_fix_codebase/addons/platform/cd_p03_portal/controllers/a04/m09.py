@@ -62,6 +62,75 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_uphold", "action_reject_appeal"},
     },
+    # M09 capture audit, second pass (2026-11-18): the records eight pages
+    # could not capture. Each method checks its own role, state and SoD.
+    "fix.warranty.void": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_apply", "action_reject"},
+    },
+    "fix.protection.policy": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_cancel"},
+    },
+    "fix.protection.inspection": {
+        "order": "inspected_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.protection.reserve": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.protection.claim": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_assess",
+            "action_approve",
+            "action_reject",
+            "action_record_excess",
+            "action_waive_excess",
+            "action_settle",
+        },
+    },
+    "fix.brand.claim.rule": {
+        "order": "brand_id, version desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.warranty.claim.info.request": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_answer"},
+    },
+    "fix.brand.remittance": {
+        "order": "received_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_match"},
+    },
+    "fix.brand.reconciliation": {
+        "order": "date_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_compute", "action_sign"},
+    },
+    "fix.claim.writeoff": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_refuse"},
+    },
+    "fix.defective.return": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_ship", "action_acknowledge"},
+    },
+    "fix.warranty.fraud.review": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
+    },
 }
 
 DECIDED = ("approved", "partially_approved", "rejected", "remitted", "closed")
@@ -260,36 +329,55 @@ def evidence_completeness(env, date_from=None, date_to=None, **params):
 
 
 def loss_ratio(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
-    products = env["fix.warranty.product"].search([])
-    claimed = sum(claims.mapped("claim_amount"))
-    remitted = sum(claims.mapped("remittance_amount"))
-    exposure = sum((p.claim_limit or 0.0) for p in products)
-    rows = [
-        {"metric": "Claims raised", "value": len(claims), "basis": "fix.warranty.claim"},
-        {"metric": "Claim value", "value": round(claimed, 2), "basis": "claim_amount"},
-        {"metric": "Remitted by brands", "value": round(remitted, 2), "basis": "remittance_amount"},
-        {
-            "metric": "Product claim limits (exposure)",
-            "value": round(exposure, 2),
-            "basis": "sum of warranty-product claim_limit",
-        },
-        {
-            "metric": "Observed loss ratio",
-            "value": round(claimed / exposure * 100.0, 1) if exposure else 0.0,
-            "basis": "claim value / exposure",
-        },
-    ]
+    """FR-WTY-037: settled protection claims over the premium of the policies
+    sold, per product (M09 capture audit, second pass: policies now record
+    their premium, so the ratio is measured instead of declared a gap)."""
+    policies = env["fix.protection.policy"].search([("state", "not in", ("declined",))])
+    by_product = {}
+    for policy in policies:
+        row = by_product.setdefault(
+            policy.product_id.id,
+            {
+                "product": policy.product_id.name,
+                "policies": 0,
+                "premium": 0.0,
+                "paid": 0.0,
+                "reserve": 0.0,
+            },
+        )
+        row["policies"] += 1
+        row["premium"] += policy.premium or 0.0
+        row["paid"] += policy.claimed_amount or 0.0
+        row["reserve"] += policy.reserve_balance or 0.0
+    rows = []
+    for row in by_product.values():
+        rows.append(
+            {
+                **{k: round(v, 2) if isinstance(v, float) else v for k, v in row.items()},
+                "loss_ratio": round(row["paid"] / row["premium"] * 100.0, 1)
+                if row["premium"]
+                else 0.0,
+            }
+        )
+    rows.sort(key=lambda r: -r["loss_ratio"])
     return _pack(
         "Loss Ratio by Product",
-        ["metric", "value", "basis"],
-        {"metric": "Measure", "value": "Value", "basis": "Basis"},
+        ["product", "policies", "premium", "paid", "reserve", "loss_ratio"],
+        {
+            "product": "Protection Product",
+            "policies": "Policies",
+            "premium": "Premium Written",
+            "paid": "Claims Settled",
+            "reserve": "Reserve Held",
+            "loss_ratio": "Loss Ratio %",
+        },
         rows,
         [
-            "Observed ratio = claims / the products' claim limits. Premium revenue "
-            "is not linked to warranty products in the data model, so an actuarial "
-            "loss ratio is a declared gap — this is the observable one."
+            "Loss ratio = protection claims settled / premium written, per product, over "
+            "policies not declined. The industry band for a solvent programme is 30-50%.",
+            "Reserve Held is the balance of each policy's append-only reserve ledger.",
         ],
+        empty="No protection policy sold yet. Sell one on Protection Products (+ New Protection Policy).",
     )
 
 
@@ -549,6 +637,24 @@ def warranty_fraud(env, date_from=None, date_to=None, **params):
             "signal": "Claims raised the same day the job completed",
             "count": same_day,
             "detail": "Same-day submission can indicate fabricated failures; review.",
+        },
+    ]
+    pclaims = env["fix.protection.claim"].search([("state", "in", ("assessed", "approved"))])
+    unreviewed = pclaims.filtered(
+        lambda c: c.fraud_score >= 50
+        and not c.fraud_review_ids.filtered(lambda r: r.finding == "cleared")
+    )
+    confirmed = env["fix.warranty.fraud.review"].search_count([("finding", "=", "confirmed")])
+    rows += [
+        {
+            "signal": "Protection claims scoring 50+ with no cleared review",
+            "count": len(unreviewed),
+            "detail": "Investigated before settlement (BRU-WTY-21); record a Fraud Review.",
+        },
+        {
+            "signal": "Fraud reviews that confirmed fraud",
+            "count": confirmed,
+            "detail": "A confirmed brand claim is not submitted; a protection claim not approved.",
         },
     ]
     return _pack(

@@ -9,6 +9,12 @@
 # 1000FiX's own repair warranty is never claimed from a brand. The "Protection
 # Policy" chip opened the IAS 37 provision policy.
 #
+# Second pass (2026-11-18): a button on six pages was not capture of what
+# the spec says each page records. Pages 1/4 (evidenced void condition),
+# 5 (protection policy, inspection, reserve), 6 (protection claim), 8 (brand
+# rule set), 9 (information request), 10 (remittance batch, signed statement,
+# write-off, defective return) and 12 (fraud review) had no record to capture.
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments.
 from __future__ import annotations
@@ -72,18 +78,65 @@ console.log(JSON.stringify({ subs, formModels: Object.fromEntries(
 # an in-workspace form. 'actions': buttons on one of its lists write it.
 # 'none': nothing is typed in - the verdict or score is computed.
 CAPTURE = {
-    "1": "form",  # Warranty Register Entry (+ Warranty Transfer)
+    "1": "form",  # Warranty Register Entry, Warranty Transfer, Void Condition
     "2": "actions",  # Request Verification on the register
     "3": "actions",  # Open Comeback / Request Zero-Charge Rework (M01 order)
-    "4": "none",  # the entitlement verdict is computed at intake
-    "5": "form",  # Protection Product (+ Protection Policy = extended cover)
-    "6": "actions",  # Assemble Evidence, Key OEM decision ...
+    "4": "form",  # the verdict is computed; the void condition it applies is entered
+    "5": "form",  # Protection Policy (+ Pre-sale Inspection, Protection Product)
+    "6": "form",  # Protection Claim (inbound)
     "7": "form",  # Claim Evidence Item
-    "8": "form",  # Brand Claim
-    "9": "form",  # Claim Appeal
-    "10": "actions",  # Record Bank Receipt / Note Brand Remittance Advice
+    "8": "form",  # Brand Claim (+ Brand Claim Rule)
+    "9": "form",  # Claim Appeal (+ Brand Information Request)
+    "10": "form",  # Brand Remittance (+ statement, write-off, defective return)
     "11": "form",  # Recall Campaign
-    "12": "none",  # fraud signals are computed from claims
+    "12": "form",  # Fraud Review (signals stay computed)
+}
+
+# The record each page's "+ New" must open (the page's OWN record, by model).
+NEW_OPENS = {
+    "4": "fix.warranty.void",
+    "5": "fix.protection.policy",
+    "6": "fix.protection.claim",
+    "10": "fix.brand.remittance",
+    "12": "fix.warranty.fraud.review",
+}
+
+# Chips each page must offer (spec record -> model).
+CHIPS = {
+    "1": {"Void Condition": "fix.warranty.void"},
+    "5": {
+        "Protection Policy": "fix.protection.policy",
+        "Pre-sale Inspection": "fix.protection.inspection",
+        "Protection Product": "fix.warranty.product",
+    },
+    "8": {"Brand Claim Rule": "fix.brand.claim.rule"},
+    "9": {"Brand Information Request": "fix.warranty.claim.info.request"},
+    "10": {
+        "Brand Remittance": "fix.brand.remittance",
+        "Brand Reconciliation": "fix.brand.reconciliation",
+        "Claim Write-off": "fix.claim.writeoff",
+        "Defective Part Return": "fix.defective.return",
+    },
+}
+
+# Every new list's decision buttons must be served by the controller.
+NEW_LISTS = {
+    "M09-voids": {"action_apply", "action_reject"},
+    "M09-policies": {"action_activate", "action_cancel"},
+    "M09-pclaims": {
+        "action_assess",
+        "action_approve",
+        "action_reject",
+        "action_record_excess",
+        "action_waive_excess",
+        "action_settle",
+    },
+    "M09-brandrules": {"action_activate", "action_retire"},
+    "M09-inforeq": {"action_answer"},
+    "M09-remittances": {"action_match"},
+    "M09-brandrecon": {"action_compute", "action_sign"},
+    "M09-writeoffs": {"action_approve", "action_refuse"},
+    "M09-defreturns": {"action_ship", "action_acknowledge"},
 }
 
 
@@ -155,7 +208,18 @@ def test_each_page_offers_its_capture(m09, no):
 
 
 @pytest.mark.parametrize(
-    "screen", ["M09-brandrules", "M09-evidence", "M09-recalls", "M09-appeals", "M09-register"]
+    "screen",
+    [
+        "M09-brandrules",
+        "M09-products",
+        "M09-evidence",
+        "M09-recalls",
+        "M09-appeals",
+        "M09-register",
+        *sorted(NEW_LISTS),
+        "M09-inspections",
+        "M09-fraudreviews",
+    ],
 )
 def test_lists_of_person_entered_records_offer_new(m09, screen):
     # each model's create() takes a clerk's or officer's entry
@@ -193,14 +257,52 @@ def test_reconciliation_records_the_brands_money(m09):
     assert {"action_record_remittance", "action_record_remittance_advice"} <= allowed
 
 
-def test_protection_policy_chip_is_the_cover_not_the_reserve_basis(m09):
-    assert m09["formModels"]["M09:Protection Policy"] == "fix.warranty"
+def test_protection_policy_chip_is_the_sold_plan(m09):
+    # second pass: the plan sold is its own record, not a register row and
+    # never the IAS 37 reserve basis
+    assert m09["formModels"]["M09:Protection Policy"] == "fix.protection.policy"
     assert m09["formModels"]["M09:Provision Policy"] == "fix.warranty.provision.policy"
     assert m09["screens"]["M09-form-policy"]["title"] != "Protection Policy"
+    assert m09["screens"]["M09-policies"]["model"] == "fix.protection.policy"
+    assert m09["screens"]["M09-provpolicies"]["model"] == "fix.warranty.provision.policy"
 
 
 def test_product_form_returns_to_the_product_list(m09):
-    assert m09["screens"]["M09-form-wproduct"]["back"] == "M09-brandrules"
+    assert m09["screens"]["M09-form-wproduct"]["back"] == "M09-products"
+    assert m09["screens"]["M09-products"]["model"] == "fix.warranty.product"
+
+
+def test_brand_rules_screen_lists_brand_rules(m09):
+    assert m09["screens"]["M09-brandrules"]["model"] == "fix.brand.claim.rule"
+
+
+@pytest.mark.parametrize("no", sorted(NEW_OPENS, key=int))
+def test_new_opens_the_pages_own_record(m09, no):
+    sub = _sub(m09, no)
+    assert sub["create"], "page %s has no + New" % no
+    screen = m09["screens"][sub["create"]["screen"]]
+    assert (screen["kind"], screen["model"]) == ("model_form", NEW_OPENS[no])
+
+
+@pytest.mark.parametrize("no", sorted(CHIPS, key=int))
+def test_pages_offer_the_spec_records_as_chips(m09, no):
+    offered = {f["f"]: f["model"] for f in _sub(m09, no)["forms"] if f["opens"]}
+    for chip, model in CHIPS[no].items():
+        assert offered.get(chip) == model, (no, chip, offered)
+
+
+@pytest.mark.parametrize("screen", sorted(NEW_LISTS))
+def test_new_lists_decide_through_whitelisted_methods(m09, screen):
+    cfg = m09["screens"][screen]
+    assert NEW_LISTS[screen] <= set(cfg["actions"]), screen
+    assert NEW_LISTS[screen] <= _surfaces()[cfg["model"]]["actions"], screen
+
+
+def test_no_list_voids_a_warranty_on_a_typed_reason(m09):
+    # BRU-WTY-17: a void is an evidenced condition, applied by another officer
+    for sid, cfg in m09["screens"].items():
+        if cfg["model"] == "fix.warranty":
+            assert "action_void" not in cfg["actions"], sid
 
 
 def test_every_chip_names_its_model(m09):
