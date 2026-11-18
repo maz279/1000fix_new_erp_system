@@ -120,6 +120,29 @@
   - "Record Data Returned" is not whitelisted.
 
   The next restart (the operator's or a peer's) brings it all live. No database change is needed.
+- **Click-through on a running server with the landed code** (stands in for the restart):
+  - The fix_real backup was restored into a throwaway copy, `fix_m05live`, and upgraded like production.
+  - It was served on port 8096, without crons, and walked headless in Chromium through the real
+    workspace controls.
+  - All ten sub-module pages show their button and chips, with no error dialog and no page error:
+    1. + New Remote Session
+    2. + New Managed Estate Device
+    3. + Record a Health Reading
+    4. + Define an Alert Rule (chips include Maintenance Window)
+    5. + New On-Call Shift
+    6. + New Runbook
+    7. + New Patch Update (chips include Patch Policy)
+    8. + Log a Client Ticket
+    9. + Generate a Monthly Service Report (chips include SLA Credit)
+    10. + Start a Client Onboarding
+  - Page 10's button opens the two-tab Client Onboarding form with its checklist grid.
+  - Choosing a contract and pressing **Save** created "Onboarding: M05 VERIFY MSP 2" with its 8 steps.
+  - Through the same endpoints the screens use:
+    - "Estate discovery" was marked done;
+    - "Contact registration" was refused (no contact may raise tickets);
+    - "Record Data Returned" is whitelisted and refuses before offboarding.
+  - The Onboarding Projects list shows the new project.
+  - Two synthetic MSP contracts were seeded on the copy only. The copy was dropped afterwards.
 
 ## 6. Not built
 
