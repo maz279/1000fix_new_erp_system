@@ -14,6 +14,7 @@ from pathlib import Path
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_rate_card.tests import contract_helpers
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, inbox_task
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -294,12 +295,13 @@ def test_contract_lane_wins_in_resolution(odoo_env):
     code = "%s-RES" % TAG
     Card = odoo_env["fix.rate.card"]
     tier = Card.create({"product_code": code, "unit_price": 500.0, "min_tier": 0})
+    k = contract_helpers.contract(odoo_env)
     contract = Card.create(
-        {"product_code": code, "unit_price": 400.0, "min_tier": 99, "contract_no": "AMC-9"}
+        {"product_code": code, "unit_price": 400.0, "min_tier": 99, "contract_no": k.code}
     )
     (tier | contract)._guarded().write({"state": "released"})
     assert Card._resolve(code) == tier
-    assert Card._resolve(code, contract_no="AMC-9") == contract
+    assert Card._resolve(code, contract_no=k.code) == contract
 
 
 # --- pf_10: the estimate reads the floor ---------------------------------------

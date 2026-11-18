@@ -6,6 +6,7 @@ from decimal import Decimal
 
 import pytest
 from odoo.addons.cd_rate_card.models import fix_rate_card
+from odoo.addons.cd_rate_card.tests.contract_helpers import contract as _contract
 from odoo.exceptions import UserError
 
 # per-run product codes: the unique key never collides with a concurrent run
@@ -27,8 +28,9 @@ def test_tier_card_name_and_defaults(odoo_env):
 
 
 def test_contract_card_name(odoo_env):
-    card = _card(odoo_env, min_tier=99, contract_no="AMC-2026-0001")
-    assert card.name == f"{SRV} @ contract AMC-2026-0001"
+    k = _contract(odoo_env)
+    card = _card(odoo_env, min_tier=99, contract_no=k.code)
+    assert card.name == f"{SRV} @ contract {k.code}"
 
 
 def test_name_follows_the_tier(odoo_env):
@@ -77,11 +79,12 @@ def test_one_tier_rate_per_product(odoo_env):
 
 
 def test_one_contract_rate_per_product_and_contract(odoo_env):
-    _card(odoo_env, min_tier=99, contract_no="AMC-1")
-    other_contract = _card(odoo_env, min_tier=99, contract_no="AMC-2")
-    assert other_contract.contract_no == "AMC-2"
+    k1, k2 = _contract(odoo_env), _contract(odoo_env)
+    _card(odoo_env, min_tier=99, contract_no=k1.code)
+    other_contract = _card(odoo_env, min_tier=99, contract_no=k2.code)
+    assert other_contract.contract_no == k2.code
     with pytest.raises(Exception, match="product_tier_unique"), odoo_env.cr.savepoint():
-        _card(odoo_env, min_tier=99, contract_no="AMC-1", unit_price=380.0)
+        _card(odoo_env, min_tier=99, contract_no=k1.code, unit_price=380.0)
 
 
 def test_projects_to_the_pricing_engine_line(odoo_env, monkeypatch):
@@ -98,7 +101,7 @@ def test_projects_to_the_pricing_engine_line(odoo_env, monkeypatch):
         product_code=SRV, line_type="part", unit_price=Decimal("2000.0"), min_tier=1
     )
     # a second projection reuses the path entry (no duplicate)
-    contract = _card(odoo_env, min_tier=99, contract_no="AMC-9", unit_price=400.0)
+    contract = _card(odoo_env, min_tier=99, contract_no=_contract(odoo_env).code, unit_price=400.0)
     assert contract.to_engine_line().min_tier == 99
     assert sys.path.count(src) == 1
 

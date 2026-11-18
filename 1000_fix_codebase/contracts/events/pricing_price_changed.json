@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "pricing.price_changed",
-  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_rate_card through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -42,7 +42,7 @@
       ],
       "properties": {
         "target_model": {
-          "description": "Type not statically derivable from `target._name` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
+          "description": "Type not statically derivable at every publish site."
         },
         "target_id": {
           "type": "integer"
@@ -57,16 +57,13 @@
           "type": "string"
         },
         "old_value": {
-          "description": "Type not statically derivable from `old` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
+          "description": "Type not statically derivable at every publish site."
         },
         "new_value": {
-          "type": [
-            "number",
-            "null"
-          ]
+          "description": "Type not statically derivable at every publish site."
         },
         "approved_by_id": {
-          "description": "Type not statically derivable from `self.env.uid` (addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py:214)."
+          "description": "Type not statically derivable at every publish site."
         }
       },
       "additionalProperties": false
@@ -74,6 +71,7 @@
   },
   "x-owner-module": "cd_rate_card",
   "x-publishers": [
+    "addons/domain/c_commercial/cd_rate_card/models/fix_m11_capture.py",
     "addons/domain/c_commercial/cd_rate_card/models/fix_price_change.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"

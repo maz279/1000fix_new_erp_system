@@ -18,6 +18,27 @@
         <field name="model_id" ref="model_fix_discount_policy"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_parts_price_band_company" model="ir.rule">
+        <field name="name">fix.parts.price.band: allowed companies</field>
+        <field name="model_id" ref="model_fix_parts_price_band"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_parts_price_scheme_company" model="ir.rule">
+        <field name="name">fix.parts.price.scheme: allowed companies</field>
+        <field name="model_id" ref="model_fix_parts_price_scheme"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_adjustment_company" model="ir.rule">
+        <field name="name">fix.price.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_adjustment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_adjustment_operating_unit" model="ir.rule">
+        <field name="name">fix.price.adjustment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_price_adjustment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_ids', '=', False), ('operating_unit_ids', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_price_book_company" model="ir.rule">
         <field name="name">fix.price.book: allowed companies</field>
         <field name="model_id" ref="model_fix_price_book"/>
@@ -26,6 +47,16 @@
     <record id="rule_fix_price_change_company" model="ir.rule">
         <field name="name">fix.price.change: allowed companies</field>
         <field name="model_id" ref="model_fix_price_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_mass_change_company" model="ir.rule">
+        <field name="name">fix.price.mass.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_mass_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_mass_change_line_company" model="ir.rule">
+        <field name="name">fix.price.mass.change.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_mass_change_line"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_price_simulation_company" model="ir.rule">

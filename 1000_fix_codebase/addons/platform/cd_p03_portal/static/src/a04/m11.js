@@ -28,16 +28,21 @@ export const MODULE = {
     { en: 'Rate Cards', screens: [
       { id: 'M11-labour', en: 'Labour & Service Rate Cards', bn: 'শ্রম ও সার্ভিস রেট কার্ড', t: 'g' },
       { id: 'M11-parts', en: 'Parts Pricing Rules', bn: 'পার্টস মূল্য', t: 'g' },
+      { id: 'M11-parts-schemes', en: 'Parts Pricing Schemes', bn: 'পার্টস মূল্য পদ্ধতি', t: 'g' },
       { id: 'M11-contract', en: 'Contract Rates', bn: 'চুক্তিভিত্তিক রেট', t: 'g' },
       { id: 'M11-brand', en: 'Brand Reimbursement Rates', bn: 'ব্র্যান্ড রেট', t: 'g' },
-      { id: 'M11-adjust', en: 'Adjustment Rules', bn: 'সমন্বয় নিয়ম', t: 'g' }
+      { id: 'M11-adjust', en: 'Adjustment Rules', bn: 'সমন্বয় নিয়ম', t: 'g' },
+      { id: 'M11-premiums', en: 'Premiums & Surcharges', bn: 'প্রিমিয়াম ও সারচার্জ', t: 'g' }
     ]},
     { en: 'Pricing Governance', screens: [
       { id: 'M11-discounts', en: 'Discount Governance', bn: 'ডিসকাউন্ট গভর্নেন্স', t: 'g' },
       { id: 'M11-floors', en: 'Cost-Plus & Margin Floors', bn: 'মার্জিন ফ্লোর', t: 'g' },
       { id: 'M11-promos', en: 'Promotions', bn: 'প্রমোশন', t: 'g' },
       { id: 'M11-changes', en: 'Rate & Floor Changes', bn: 'রেট ও ফ্লোর পরিবর্তন', t: 'g' },
-      { id: 'M11-policies', en: 'Discount Ladder', bn: 'ডিসকাউন্ট ধাপ', t: 'g' }
+      { id: 'M11-policies', en: 'Discount Ladder', bn: 'ডিসকাউন্ট ধাপ', t: 'g' },
+      { id: 'M11-reasons', en: 'Discount Reason Codes', bn: 'ডিসকাউন্ট কারণ কোড', t: 'g' },
+      { id: 'M11-mass', en: 'Mass Price Changes', bn: 'একযোগে মূল্য পরিবর্তন', t: 'g' },
+      { id: 'M11-mass-lines', en: 'Mass Change Preview', bn: 'একযোগে পরিবর্তনের পূর্বরূপ', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M11-simulate', en: 'Price Simulation', bn: 'মূল্য সিমুলেশন', t: 'g' },
@@ -45,7 +50,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Realised Price vs Card', 'Discount Register by Approver', 'Rate-Card Utilisation', 'Margin by Service Line', 'Promotion Effectiveness', 'Brand Reimbursement Recovery', 'Floor vs Realised Rate'],
-  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate'],
+  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate', 'Parts Pricing Scheme', 'Price Premium', 'Mass Price Change', 'Discount Reason Code'],
   cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR', 'M09 Warranty Claims'],
   /* M11 capture audit (2026-11-13): pages 1 and 6 offered no button, 9 and 11
    * no form chip, and three pages captured the wrong record:
@@ -60,19 +65,33 @@ export const MODULE = {
    * Cost-Plus & Margin Floors, Rate & Floor Changes and the Discount Ladder
    * sat on no page. A price explanation stays engine-written (BRU-PRC-02): the
    * Pricing Engine page offers the what-if simulation an agent runs instead.
+   * Pass 2 (2026-11-18), read against the spec's FRs rather than counted:
+   *  - Parts Pricing could record a fixed price only; FR-PRC-013 (P0) prices
+   *    parts by markup on cost, banded markup or a provenance-grade
+   *    differential. "+ New" is now a Parts Pricing Scheme with cost bands.
+   *  - Adjustment Rules held only the W7 marketplace/storefront dynamic rule;
+   *    the urgency, after-hours, weekend, holiday, zone and distance premiums
+   *    of FR-PRC-018/019 had no record. "+ New" is now a Price Premium.
+   *  - Versioning & Approval moved one rate at a time; FR-PRC-024 / BRU-PRC-16
+   *    ask for a previewed, approved, scheduled mass change with rollback.
+   *  - Discount Governance took free text only; BRU-PRC-13 needs a reason
+   *    code from a governed list (Discount Reason Codes).
+   *  - A contract rate typed its contract number; it now names the M08
+   *    contract and lapses with it (FR-PRC-016, AC-08).
+   *  - The simulation asked for its inputs as JSON; they are fields now.
    * `domain` stays the LAST key (the mapping guard parses it there). */
   freg: { src: 97, sub: [
     ['1', 'Pricing Engine', 12, { model: 'fix.price.explanation', cols: ['name', 'rule_id', 'base_price', 'final_price', 'model_driven'], screens: ['M11-engine', 'M11-price-explanation', 'M11-simulate'], reports: ['Realised Price vs Card', 'Margin by Service Line'], forms: ['Price Simulation Request'], create: false }],
     ['2', 'Price Books', 10, { model: 'fix.price.book', cols: ['name', 'code', 'state', 'currency_id', 'active'], screens: ['M11-books', 'M11-versions'], reports: ['Realised Price vs Card'], forms: ['Price Book', 'Price Book Version'] }],
     ['3', 'Rate Cards', 11, { model: 'fix.rate.card', cols: ['name', 'product_code', 'line_type', 'unit_price', 'catalogue_item_id', 'min_tier', 'state'], screens: ['M11-labour'], reports: ['Rate-Card Utilisation', 'Floor vs Realised Rate'], forms: ['Rate Card'], domain: [['line_type', '!=', 'part'], ['min_tier', '!=', 99]] }],
-    ['4', 'Parts Pricing', 9, { model: 'fix.rate.card', cols: ['name', 'product_code', 'unit_price', 'catalogue_item_id', 'min_tier', 'valid_from', 'state'], screens: ['M11-parts', 'M11-floors'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Rate Card', 'Price Floor'], create: 'M11-form-card', domain: [['line_type', '=', 'part'], ['min_tier', '!=', 99]] }],
-    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.rate.card', cols: ['contract_no', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state'], screens: ['M11-contract'], reports: ['Rate-Card Utilisation'], forms: ['Rate Card'], create: 'M11-form-card', domain: [['min_tier', '=', 99]] }],
+    ['4', 'Parts Pricing', 9, { model: 'fix.parts.price.scheme', cols: ['name', 'method', 'category_id', 'brand_id', 'provenance_grade', 'markup_pct', 'valid_from', 'state'], screens: ['M11-parts-schemes', 'M11-parts', 'M11-floors'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Parts Pricing Scheme', 'Rate Card', 'Price Floor'] }],
+    ['5', 'Customer/Contract Pricing', 8, { model: 'fix.rate.card', cols: ['contract_id', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state'], screens: ['M11-contract'], reports: ['Rate-Card Utilisation'], forms: ['Rate Card'], create: 'M11-form-card', domain: [['min_tier', '=', 99]] }],
     ['6', 'Brand Reimbursement', 7, { model: 'fix.brand.reimbursement.rate', cols: ['brand_id', 'repair_level', 'labour_rate', 'parts_markup_pct', 'valid_from', 'valid_to', 'version', 'state'], screens: ['M11-brand', 'M11-rpt-brand'], reports: ['Brand Reimbursement Recovery'], forms: ['Brand Reimbursement Rate'] }],
-    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-policies', 'M11-floors', 'M11-rpt-discount'], reports: ['Discount Register by Approver', 'Floor vs Realised Rate'], forms: ['Discount Approval', 'Discount Policy', 'Price Floor'] }],
+    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-policies', 'M11-reasons', 'M11-floors', 'M11-rpt-discount'], reports: ['Discount Register by Approver', 'Floor vs Realised Rate'], forms: ['Discount Approval', 'Discount Reason Code', 'Discount Policy', 'Price Floor'] }],
     ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'], reports: ['Promotion Effectiveness'], forms: ['Promotion'] }],
-    ['9', 'Adjustment Rules', 8, { model: 'fix.dynamic.price.rule', cols: ['name', 'rule_type', 'channel', 'adjustment_pct'], screens: ['M11-adjust'], reports: [], forms: ['Dynamic Price Rule'] }],
+    ['9', 'Adjustment Rules', 8, { model: 'fix.price.adjustment', cols: ['code', 'name', 'adjustment_type', 'basis', 'value', 'applies_to', 'valid_from', 'state'], screens: ['M11-premiums', 'M11-adjust'], reports: [], forms: ['Price Premium', 'Dynamic Price Rule'] }],
     ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'], reports: [], forms: ['Price Simulation Request'] }],
-    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions', 'M11-changes'], reports: [], forms: ['Price Book Version', 'Price Change Request'] }]
+    ['11', 'Versioning & Approval', 8, { model: 'fix.price.version', cols: ['name', 'state', 'book_id', 'version', 'effective_from', 'approved_by'], screens: ['M11-versions', 'M11-changes', 'M11-mass', 'M11-mass-lines'], reports: [], forms: ['Price Book Version', 'Price Change Request', 'Mass Price Change'] }]
   ] }
 };
 
@@ -123,7 +142,7 @@ export const SCREENS = {
    * every tier rate for that contract. "+ New" starts one in that lane. */
   'M11-contract': { kind: 'model_list', model: 'fix.rate.card', stateField: 'state',
     domain: [['min_tier', '=', 99]],
-    cols: ['contract_no', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state', 'active'],
+    cols: ['contract_id', 'contract_no', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state', 'active'],
     actions: [
       { m: 'action_request_release', l: 'Request Release (Releaser approves)' },
       { m: 'action_request_change', l: 'Request Change to the Proposed Rate' },
@@ -147,7 +166,7 @@ export const SCREENS = {
       { m: 'action_enable', l: 'Re-enable Rule (Releaser, not the author)' }
     ] },
   'M11-discounts': { kind: 'model_list', model: 'fix.discount.approval', stateField: 'state',
-    cols: ['quotation_id', 'discount_pct', 'state', 'approval_state', 'approved_by', 'justification'],
+    cols: ['quotation_id', 'discount_pct', 'reason_code_id', 'state', 'approval_state', 'approved_by', 'justification'],
     // Approved or rejected from the approver's M63 inbox (A03 audit R7).
     actions: [
       { m: 'action_request_approval', l: 'Request Discount Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
@@ -189,6 +208,38 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Submission' },
       { m: 'action_retire', l: 'Retire Band (Releaser)' }
     ] },
+  /* Pass 2 (2026-11-18): FR-PRC-013, how a part's price follows from its cost. */
+  'M11-parts-schemes': { kind: 'model_list', model: 'fix.parts.price.scheme', stateField: 'state',
+    cols: ['name', 'method', 'category_id', 'brand_id', 'provenance_grade', 'markup_pct', 'valid_from', 'valid_to', 'version', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Submission', states: ['in_review'] },
+      { m: 'action_retire', l: 'Retire Scheme (Releaser)', ask: 'Why is the scheme retired?', kwarg: 'reason', states: ['active'] }
+    ] },
+  /* FR-PRC-018/019: declared premiums and surcharges, named on every price. */
+  'M11-premiums': { kind: 'model_list', model: 'fix.price.adjustment', stateField: 'state',
+    cols: ['code', 'name', 'adjustment_type', 'basis', 'value', 'applies_to', 'valid_from', 'valid_to', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Release', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Submission', states: ['in_review'] },
+      { m: 'action_retire', l: 'Retire Premium (Releaser)', ask: 'Why is the premium retired?', kwarg: 'reason', states: ['active'] }
+    ] },
+  /* BRU-PRC-13: the governed list a discount request picks its reason from. */
+  'M11-reasons': { kind: 'model_list', model: 'fix.discount.reason',
+    cols: ['code', 'name', 'description', 'use_count', 'active'] },
+  /* FR-PRC-024 / BRU-PRC-16: preview, approval, scheduled date, rollback. */
+  'M11-mass': { kind: 'model_list', model: 'fix.price.mass.change', stateField: 'state',
+    cols: ['name', 'line_type', 'product_code_prefix', 'change_kind', 'value', 'effective_date', 'line_count', 'below_floor_count', 'state', 'approval_state'],
+    actions: [
+      { m: 'action_preview', l: 'Preview Affected Rates', states: ['draft'] },
+      { m: 'action_submit', l: 'Submit for Approval', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Submission', states: ['in_review'] },
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'approved'] },
+      { m: 'action_rollback', l: 'Roll Back (Releaser)', ask: 'Why is the change rolled back?', kwarg: 'reason', states: ['applied'] }
+    ] },
+  'M11-mass-lines': { kind: 'model_list', model: 'fix.price.mass.change.line', create: false,
+    cols: ['change_id', 'product_code', 'line_type', 'current_price', 'new_price', 'floor_price', 'below_floor', 'applied'],
+    empty: 'No mass change has been previewed yet. Preview Affected Rates on a mass price change lists here every released rate it moves, with its new price and its floor.' },
   'M11-realised': { kind: 'table_report', module: 'M11', report: 'realised_vs_card', title: 'Realised-Price Analytics', period: false },
 
   /* Report chips -> their own computed pack */
@@ -246,7 +297,7 @@ export const SCREENS = {
      * VAT is M51's, surges are Adjustment Rules. */
     tabs: [
       { id: 'identity', label: '1. Identity & Scope', bn: '১. রেট পরিচিতি', icon: '🏷️', badge: '5' },
-      { id: 'pricing', label: '2. Rate & Who It Applies To', bn: '২. রেট ও প্রযোজ্যতা', icon: '💵', badge: '3' },
+      { id: 'pricing', label: '2. Rate & Who It Applies To', bn: '২. রেট ও প্রযোজ্যতা', icon: '💵', badge: '4' },
       { id: 'validity', label: '3. Validity Window', bn: '৩. মেয়াদ', icon: '📅', badge: '2' },
       { id: 'governance', label: '4. Release & Changes', bn: '৪. অনুমোদন ও পরিবর্তন', icon: '🏛️', badge: '4' }
     ],
@@ -261,11 +312,12 @@ export const SCREENS = {
           { name: 'active', label: 'Active Rate Status', readonly: true }
         ] },
       { tab: 'pricing', title: 'Rate and Who It Applies To',
-        note: 'A customer tier rate applies to that tier and above. A contract rate is tier 99 with the contract number, and overrides every tier rate for that contract (BRU-PRC-11).',
+        note: 'A customer tier rate applies to that tier and above. A contract rate names its M08 contract: it overrides every tier rate for that contract (BRU-PRC-11), stays within the contract term and lapses with it (AC-08). Left empty, the validity follows the contract term.',
         fields: [
           { name: 'unit_price', required: true, label: 'Base Rate (VAT-exclusive BDT)' },
           { name: 'min_tier', label: 'Customer Tier (99 = contract rate)' },
-          { name: 'contract_no', label: 'Contract No. (contract rates only)' }
+          { name: 'contract_id', label: 'Contract (M08), contract rates only' },
+          { name: 'contract_no', label: 'Contract No.', readonly: true }
         ] },
       { tab: 'validity', title: 'Effective Window',
         fields: [
@@ -378,16 +430,17 @@ export const SCREENS = {
     back: 'M11-discounts',
     status: { field: 'state' },
     tabs: [
-      { id: 'request', label: '1. Discount Requested', bn: '১. অনুরোধকৃত ডিসকাউন্ট', icon: '🏷️', badge: '3' },
+      { id: 'request', label: '1. Discount Requested', bn: '১. অনুরোধকৃত ডিসকাউন্ট', icon: '🏷️', badge: '4' },
       { id: 'authority', label: '2. Approval Authority', bn: '২. অনুমোদন কর্তৃপক্ষ', icon: '🔐', badge: '2' },
       { id: 'audit', label: '3. System Audit', bn: '৩. সিস্টেম অডিট', icon: '⏱️', badge: '3' }
     ],
     sections: [
       { tab: 'request', title: 'Requested Concession',
-        note: 'A discount beyond the rate card is a concession: it carries a stated justification, and the approver is not the requester.',
+        note: 'A discount beyond the rate card is a concession: it carries a reason code from the governed list (BRU-PRC-13) and a stated justification, and the approver is not the requester.',
         fields: [
           { name: 'quotation_id', required: true, label: "Quotation" },
           { name: 'discount_pct', required: true, label: "Discount Requested (%)" },
+          { name: 'reason_code_id', label: "Reason Code (governed list)" },
           { name: 'justification', label: "Commercial Justification", type: 'text' }
         ] },
       { tab: 'authority', title: 'Delegation of Financial Authority', fields: [
@@ -408,7 +461,7 @@ export const SCREENS = {
     back: 'M11-promos',
     status: { field: 'state' },
     tabs: [
-      { id: 'general', label: '1. Promotion Identity', bn: '১. সাধারণ তথ্য', icon: '🏷️', badge: '3' },
+      { id: 'general', label: '1. Promotion Identity', bn: '১. সাধারণ তথ্য', icon: '🏷️', badge: '4' },
       { id: 'commercial', label: '2. Discount Mechanics', bn: '২. বাণিজ্যিক শর্ত', icon: '💰', badge: '3' },
       { id: 'schedule', label: '3. Validity Window', bn: '৩. সময়সূচি', icon: '📅', badge: '2' },
       { id: 'audit', label: '4. System Audit', bn: '৪. সিস্টেম অডিট', icon: '⏱️', badge: '3' }
@@ -418,7 +471,8 @@ export const SCREENS = {
         fields: [
           { name: 'name', label: "Promotion Name", required: true },
           { name: 'code', label: "Promo Code", required: true },
-          { name: 'channel', label: "Sales Channel" }
+          { name: 'channel', label: "Sales Channel" },
+          { name: 'catalogue_item_ids', label: "Items It Applies To (empty = every item)" }
         ] },
       { tab: 'commercial', title: 'Discount Mechanics',
         fields: [
@@ -456,7 +510,7 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. Simulation Request', bn: '১. সাধারণ তথ্য', icon: '🧪', badge: '3' },
-      { id: 'commercial', label: '2. Inputs', bn: '২. বাণিজ্যিক শর্ত', icon: '📥', badge: '2' },
+      { id: 'commercial', label: '2. Inputs', bn: '২. বাণিজ্যিক শর্ত', icon: '📥', badge: '7' },
       { id: 'result', label: '3. Computed Result', bn: '৩. ফলাফল', icon: '📊', badge: '2' },
       { id: 'audit', label: '4. System Audit', bn: '৪. সিস্টেম অডিট', icon: '⏱️', badge: '3' }
     ],
@@ -469,8 +523,14 @@ export const SCREENS = {
           { name: 'rate_card_id', label: "Rate Card" }
         ] },
       { tab: 'commercial', title: 'Inputs',
+        note: 'The customer and the job the price is for. Premiums: any of express, emergency, after_hours, weekend, holiday (comma-separated).',
         fields: [
-          { name: 'input_json', label: "Input Parameters (JSON: quantity, customer_tier, contract_no, channel, price)", type: 'text' },
+          { name: 'quantity', label: "Quantity" },
+          { name: 'customer_tier', label: "Customer Tier" },
+          { name: 'contract_id', label: "Contract (M08)" },
+          { name: 'channel', label: "Sales Channel" },
+          { name: 'proposed_price', label: "Price to Test Against the Floor" },
+          { name: 'premium_kinds', label: "Premiums" },
           { name: 'state', label: "State", readonly: true }
         ] },
       { tab: 'result', title: 'Computed Result',
@@ -638,6 +698,190 @@ export const SCREENS = {
     ]
   },
 
+  /* FR-PRC-013: markup on cost, banded markup, grade differential or fixed. */
+  'M11-form-parts-scheme': {
+    kind: 'model_form',
+    model: 'fix.parts.price.scheme',
+    title: 'Parts Pricing Scheme',
+    back: 'M11-parts-schemes',
+    status: { field: 'state', labels: { draft: 'Draft', in_review: 'In Review', active: 'In Force', superseded: 'Superseded', retired: 'Retired' } },
+    tabs: [
+      { id: 'scope', label: '1. Parts It Prices', bn: '১. প্রযোজ্য পার্টস', icon: '🔩', badge: '4' },
+      { id: 'method', label: '2. Pricing Method', bn: '২. মূল্য পদ্ধতি', icon: '🧮', badge: '5' },
+      { id: 'grades', label: '3. Grade Differential', bn: '৩. গ্রেড পার্থক্য', icon: '🏷️', badge: '4' },
+      { id: 'bands', label: '4. Cost Bands', bn: '৪. খরচের ধাপ', icon: '📶', badge: '+' },
+      { id: 'release', label: '5. Effective Date & Release', bn: '৫. কার্যকর তারিখ ও অনুমোদন', icon: '✅', badge: '8' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Which Parts It Prices',
+        note: 'Leave a field empty to cover every value of it. The most specific scheme in force wins: one for a grade beats one for every grade, a brand beats every brand, a category beats every category.',
+        fields: [
+          { name: 'name', required: true, label: 'Scheme Name' },
+          { name: 'category_id', label: 'Part Category' },
+          { name: 'brand_id', label: 'Brand' },
+          { name: 'provenance_grade', label: 'Provenance Grade' }
+        ] },
+      { tab: 'method', title: 'How the Price Follows from Cost',
+        note: 'Markup: price = standard cost x (1 + markup). Banded: the markup of the cost band the part falls in (tab 4). Grade: the markup plus the grade adjustment (tab 3). Fixed: one price whatever the cost.',
+        fields: [
+          { name: 'method', required: true, label: 'Pricing Method' },
+          { name: 'markup_pct', label: 'Markup on Cost (%)' },
+          { name: 'fixed_price', label: 'Fixed Price (BDT)' },
+          { name: 'rounding_step', label: 'Round Selling Price To (BDT)' },
+          { name: 'currency_id', required: true, label: 'Currency' }
+        ] },
+      { tab: 'grades', title: 'Provenance-Grade Differential',
+        note: 'Grade method only: percentage points added to (or, negative, taken from) the markup for each grade. A grade can never sell below cost.',
+        fields: [
+          { name: 'genuine_adj_pct', label: 'Genuine (pts)' },
+          { name: 'oem_adj_pct', label: 'OEM (pts)' },
+          { name: 'aftermarket_adj_pct', label: 'Aftermarket (pts)' },
+          { name: 'refurbished_adj_pct', label: 'Refurbished (pts)' }
+        ] },
+      { tab: 'release', title: 'Effective Date and Release',
+        note: 'Released by a Price-Book Releaser who did not author it (BRU-PRC-07). A released scheme never changes: a new one with its own date supersedes it, and the old one keeps its window.',
+        fields: [
+          { name: 'valid_from', required: true, label: 'Effective From' },
+          { name: 'valid_to', label: 'Effective Until', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'state', label: 'Scheme State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by', label: 'Released By', readonly: true },
+          { name: 'note', label: 'Notes', type: 'text' },
+          { name: 'company_id', label: 'Legal Entity' }
+        ] }
+    ],
+    lines: {
+      field: 'band_ids',
+      tab: 'bands',
+      title: 'Cost Bands (banded method)',
+      note: 'One line per cost band, from 0 upward; each band starts where the one before ends. Leave the last "Up To" empty for no upper limit.',
+      fields: [
+        { name: 'cost_from', label: 'Cost From (BDT)', required: true },
+        { name: 'cost_to', label: 'Cost Up To (BDT)' },
+        { name: 'markup_pct', label: 'Markup (%)', required: true }
+      ]
+    }
+  },
+
+  /* FR-PRC-018/019: a declared, auditable premium or surcharge. */
+  'M11-form-premium': {
+    kind: 'model_form',
+    model: 'fix.price.adjustment',
+    title: 'Price Premium / Surcharge',
+    back: 'M11-premiums',
+    status: { field: 'state', labels: { draft: 'Draft', in_review: 'In Review', active: 'In Force', superseded: 'Superseded', retired: 'Retired' } },
+    tabs: [
+      { id: 'identity', label: '1. Premium', bn: '১. প্রিমিয়াম', icon: '⚡', badge: '4' },
+      { id: 'amount', label: '2. Amount', bn: '২. পরিমাণ', icon: '💵', badge: '3' },
+      { id: 'conditions', label: '3. When It Applies', bn: '৩. কখন প্রযোজ্য', icon: '📍', badge: '5' },
+      { id: 'release', label: '4. Effective Date & Release', bn: '৪. কার্যকর তারিখ ও অনুমোদন', icon: '✅', badge: '8' }
+    ],
+    sections: [
+      { tab: 'identity', title: 'Which Premium',
+        note: 'Express, emergency, after-hours, weekend and holiday premiums, and zone and distance surcharges for on-site and pick-and-drop work. Each appears as its own named line of the price explanation.',
+        fields: [
+          { name: 'name', required: true, label: 'Premium Name' },
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'adjustment_type', required: true, label: 'Premium Type' },
+          { name: 'applies_to', required: true, label: 'Applies To' }
+        ] },
+      { tab: 'amount', title: 'Amount',
+        fields: [
+          { name: 'basis', required: true, label: 'Basis' },
+          { name: 'value', required: true, label: 'Value (% or BDT)' },
+          { name: 'currency_id', required: true, label: 'Currency' }
+        ] },
+      { tab: 'conditions', title: 'When It Applies',
+        note: 'Zone: the branches in the zone. Distance: the band in km from the branch. After-hours: the hours (24-hour clock; a window may run past midnight). The other types apply whenever the job is booked as such.',
+        fields: [
+          { name: 'operating_unit_ids', label: 'Branches in the Zone' },
+          { name: 'distance_from_km', label: 'Distance From (km)' },
+          { name: 'distance_to_km', label: 'Distance Up To (km)' },
+          { name: 'hour_from', label: 'From Hour' },
+          { name: 'hour_to', label: 'To Hour' }
+        ] },
+      { tab: 'release', title: 'Effective Date and Release',
+        note: 'Released by a Price-Book Releaser who did not author it (BRU-PRC-07). A released premium never changes: a new version with the same code supersedes it.',
+        fields: [
+          { name: 'valid_from', required: true, label: 'Effective From' },
+          { name: 'valid_to', label: 'Effective Until', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by', label: 'Released By', readonly: true },
+          { name: 'note', label: 'Notes', type: 'text' },
+          { name: 'company_id', label: 'Legal Entity' }
+        ] }
+    ]
+  },
+
+  /* FR-PRC-024 / BRU-PRC-16: a previewed, approved, scheduled mass change. */
+  'M11-form-mass': {
+    kind: 'model_form',
+    model: 'fix.price.mass.change',
+    title: 'Mass Price Change',
+    back: 'M11-mass',
+    status: { field: 'state', labels: { draft: 'Draft', in_review: 'In Review', approved: 'Approved (scheduled)', applied: 'Applied', rolled_back: 'Rolled Back', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'scope', label: '1. Which Rates', bn: '১. কোন রেট', icon: '🎯', badge: '4' },
+      { id: 'change', label: '2. Change & Date', bn: '২. পরিবর্তন ও তারিখ', icon: '📈', badge: '4' },
+      { id: 'decision', label: '3. Preview & Approval', bn: '৩. পূর্বরূপ ও অনুমোদন', icon: '✅', badge: '8' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'Which Released Rates It Moves',
+        note: 'Every released rate card matching all the filters. Contract rates are negotiated (BRU-PRC-11) and stay out unless ticked.',
+        fields: [
+          { name: 'line_type', required: true, label: 'Line Type' },
+          { name: 'product_code_prefix', label: 'Product Code Starts With' },
+          { name: 'category_id', label: 'Catalogue Category' },
+          { name: 'include_contract', label: 'Include Contract Rates' }
+        ] },
+      { tab: 'change', title: 'The Change and When',
+        note: 'A future date is approved by a Price-Book Releaser and applied on that date. A change dated today is immediate and needs the CCO (BRU-PRC-16). The author never approves it (BRU-PRC-07).',
+        fields: [
+          { name: 'change_kind', required: true, label: 'Change By' },
+          { name: 'value', required: true, label: 'Change (+ raises, - lowers)' },
+          { name: 'effective_date', required: true, label: 'Effective Date' },
+          { name: 'reason', required: true, label: 'Reason', type: 'text' }
+        ] },
+      { tab: 'decision', title: 'Preview and Approval',
+        note: 'Preview Affected Rates lists every rate with its new price and floor (Mass Change Preview). A rate that would fall below its floor blocks submission. An applied change rolls back in one step while no rate moved since.',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'line_count', label: 'Rates Affected', readonly: true },
+          { name: 'below_floor_count', label: 'Below a Floor', readonly: true },
+          { name: 'preview_at', label: 'Previewed On', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'approved_by', label: 'Approved By', readonly: true },
+          { name: 'applied_at', label: 'Applied On', readonly: true }
+        ] }
+    ]
+  },
+
+  /* BRU-PRC-13: one entry of the governed reason list. */
+  'M11-form-reason': {
+    kind: 'model_form',
+    model: 'fix.discount.reason',
+    title: 'Discount Reason Code',
+    back: 'M11-reasons',
+    tabs: [
+      { id: 'reason', label: '1. Reason', bn: '১. কারণ', icon: '🏷️', badge: '5' }
+    ],
+    sections: [
+      { tab: 'reason', title: 'Reason Code',
+        note: 'Kept by Pricing Officers. Once the first code is active, a discount above the threshold cannot be sent for approval without one. A code that was used is archived, never renamed or deleted.',
+        fields: [
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'name', required: true, label: 'Reason' },
+          { name: 'description', label: 'When to Use It', type: 'text' },
+          { name: 'sequence', label: 'Order in the List' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
   /* ===== triage coverage screens ===== */
   'M11-price-explanation': { kind: 'model_list', model: 'fix.price.explanation', create: false,
     cols: ['name', 'company_id', 'operating_unit_id', 'rule_id', 'currency_id', 'base_price', 'final_price'],
@@ -703,7 +947,11 @@ export const FORM_MODELS = {
   'M11:Price Floor': 'fix.price.floor',
   'M11:Price Book Version': 'fix.price.version',
   'M11:Price Change Request': 'fix.price.change',
-  'M11:Brand Reimbursement Rate': 'fix.brand.reimbursement.rate'
+  'M11:Brand Reimbursement Rate': 'fix.brand.reimbursement.rate',
+  'M11:Parts Pricing Scheme': 'fix.parts.price.scheme',
+  'M11:Price Premium': 'fix.price.adjustment',
+  'M11:Mass Price Change': 'fix.price.mass.change',
+  'M11:Discount Reason Code': 'fix.discount.reason'
 };
 
 export const FORM_CHIPS = {
@@ -718,7 +966,15 @@ export const FORM_CHIPS = {
   'M11:Price Book Version': 'M11-form-version',
   'M11:Price Change Request': 'M11-form-change',
   'M11:Brand Reimbursement Rate': 'M11-form-brand-rate',
+  'M11:Parts Pricing Scheme': 'M11-form-parts-scheme',
+  'M11:Price Premium': 'M11-form-premium',
+  'M11:Mass Price Change': 'M11-form-mass',
+  'M11:Discount Reason Code': 'M11-form-reason',
   'M11:__by_model__': {
+    'fix.parts.price.scheme': 'M11-form-parts-scheme',
+    'fix.price.adjustment': 'M11-form-premium',
+    'fix.price.mass.change': 'M11-form-mass',
+    'fix.discount.reason': 'M11-form-reason',
     'fix.brand.reimbursement.rate': 'M11-form-brand-rate',
     'fix.price.explanation': 'M11-form-price-explanation',
     'fix.dynamic.price.rule': 'M11-form-pricerule',
@@ -746,7 +1002,11 @@ export const FORM_CHIPS = {
     'M11-simulate': 'M11-form-simulation',
     'M11-discounts': 'M11-form-discount-approval',
     'M11-changes': 'M11-form-change',
-    'M11-policies': 'M11-form-policy'
+    'M11-policies': 'M11-form-policy',
+    'M11-parts-schemes': 'M11-form-parts-scheme',
+    'M11-premiums': 'M11-form-premium',
+    'M11-mass': 'M11-form-mass',
+    'M11-reasons': 'M11-form-reason'
   }
 };
 

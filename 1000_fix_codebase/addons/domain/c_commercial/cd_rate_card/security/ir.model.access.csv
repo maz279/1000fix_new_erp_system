@@ -16,3 +16,12 @@ access_fix_price_change,fix.price.change,model_fix_price_change,base.group_user,
 access_fix_price_change_officer,fix.price.change officer,model_fix_price_change,group_pricing_officer,1,1,1,0
 access_fix_brand_reimbursement_rate,fix.brand.reimbursement.rate,model_fix_brand_reimbursement_rate,base.group_user,1,0,0,0
 access_fix_brand_reimbursement_rate_officer,fix.brand.reimbursement.rate officer,model_fix_brand_reimbursement_rate,group_pricing_officer,1,1,1,0
+access_fix_parts_price_scheme,fix.parts.price.scheme,model_fix_parts_price_scheme,base.group_user,1,0,0,0
+access_fix_parts_price_scheme_officer,fix.parts.price.scheme officer,model_fix_parts_price_scheme,group_pricing_officer,1,1,1,0
+access_fix_parts_price_band,fix.parts.price.band,model_fix_parts_price_band,base.group_user,1,0,0,0
+access_fix_parts_price_band_officer,fix.parts.price.band officer,model_fix_parts_price_band,group_pricing_officer,1,1,1,1
+access_fix_price_adjustment,fix.price.adjustment,model_fix_price_adjustment,base.group_user,1,0,0,0
+access_fix_price_adjustment_officer,fix.price.adjustment officer,model_fix_price_adjustment,group_pricing_officer,1,1,1,0
+access_fix_price_mass_change,fix.price.mass.change,model_fix_price_mass_change,base.group_user,1,0,0,0
+access_fix_price_mass_change_officer,fix.price.mass.change officer,model_fix_price_mass_change,group_pricing_officer,1,1,1,0
+access_fix_price_mass_change_line,fix.price.mass.change.line,model_fix_price_mass_change_line,base.group_user,1,0,0,0

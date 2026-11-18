@@ -87,6 +87,45 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_submit", "action_recall_approval", "action_cancel"},
     },
+    # M11 capture pass 2 (2026-11-18): FR-PRC-013 parts schemes, FR-PRC-018/019
+    # premiums, FR-PRC-024 mass changes, BRU-PRC-13 discount reason codes.
+    "fix.parts.price.scheme": {
+        "order": "category_id, brand_id, provenance_grade, valid_from desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_recall_approval", "action_retire"},
+    },
+    "fix.parts.price.band": {
+        "order": "scheme_id, cost_from",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.price.adjustment": {
+        "order": "adjustment_type, code, valid_from desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_recall_approval", "action_retire"},
+    },
+    "fix.price.mass.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_preview",
+            "action_submit",
+            "action_recall_approval",
+            "action_cancel",
+            "action_rollback",
+        },
+    },
+    # system-written by the preview: read only
+    "fix.price.mass.change.line": {
+        "order": "change_id desc, product_code",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.discount.reason": {
+        "order": "sequence, code",
+        "limit": 200,
+        "actions": set(),
+    },
 }
 
 
@@ -168,18 +207,21 @@ def discount_register(env, date_from=None, date_to=None, **params):
                 "pct": round(a.discount_pct, 2),
                 "state": a.state,
                 "approver": a.approved_by.name or "—",
+                "reason": (a.reason_code_id.code if "reason_code_id" in a._fields else False)
+                or "—",
                 "justification": (a.justification or "")[:80],
             }
         )
     rows.sort(key=lambda r: -r["pct"])
     return _pack(
         "Discount Register by Approver",
-        ["quotation", "pct", "state", "approver", "justification"],
+        ["quotation", "pct", "state", "approver", "reason", "justification"],
         {
             "quotation": "Quotation",
             "pct": "Discount %",
             "state": "State",
             "approver": "Approved By",
+            "reason": "Reason Code",
             "justification": "Justification",
         },
         rows,

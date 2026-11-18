@@ -43,6 +43,11 @@ INCIDENTAL = {
     ("fix.payout.run", "recovery_ids"),
     ("fix.payout.run", "reconciliation_ids"),
     ("fix.storefront.cart", "line_ids"),  # the cart has no form, only a list
+    # M11 pass 2 (2026-11-18): a mass price change's lines are its PREVIEW,
+    # written by "Preview Affected Rates" and never typed; they are listed on
+    # their own read-only screen (Mass Change Preview). A line grid in the
+    # form would offer "+ Add line" on rows nobody may write.
+    ("fix.price.mass.change", "line_ids"),
 }
 
 

@@ -6,6 +6,7 @@
 import uuid
 
 import pytest
+from odoo.addons.cd_rate_card.tests.contract_helpers import contract
 from odoo.exceptions import UserError
 
 CODE = "A4C13-RC-%s" % uuid.uuid4().hex[:6]
@@ -48,8 +49,9 @@ class TestRateCard:
         """Tier-99 is the contract lane and demands a contract number."""
         with pytest.raises(UserError, match="CONTRACT rate"), odoo_env.cr.savepoint():
             _card(odoo_env, officer, min_tier=99)
-        assert _card(odoo_env, officer, min_tier=99, contract_no="AMC-1").name.endswith(
-            "contract AMC-1"
+        k = contract(odoo_env)
+        assert _card(odoo_env, officer, min_tier=99, contract_no=k.code).name.endswith(
+            "contract %s" % k.code
         )
 
     def test_unique_per_product_tier_contract(self, odoo_env, officer):

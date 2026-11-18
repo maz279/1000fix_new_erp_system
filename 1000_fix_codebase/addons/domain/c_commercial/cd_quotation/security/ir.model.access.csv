@@ -56,3 +56,4 @@ access_fix_sales_proforma_line,fix.sales.proforma.line,model_fix_sales_proforma_
 access_fix_sales_proforma_line_author,fix.sales.proforma.line author,model_fix_sales_proforma_line,group_quotation_user,1,1,1,1
 access_fix_sales_proforma_line_manager,fix.sales.proforma.line manager,model_fix_sales_proforma_line,group_quotation_manager,1,1,1,1
 access_fix_sales_proforma_line_account,fix.sales.proforma.line billing,model_fix_sales_proforma_line,account.group_account_invoice,1,1,1,1
+access_fix_discount_reason,fix.discount.reason,model_fix_discount_reason,base.group_user,1,1,1,1

@@ -10,6 +10,14 @@
 # did not exist. Floors, rate/floor changes and the discount ladder sat on no
 # page.
 #
+# Pass 2 (2026-11-18): a "+ New" on every page was not yet a RELEVANT capture.
+# Read against the spec: Parts Pricing could not record a markup scheme
+# (FR-PRC-013, P0), Adjustment Rules had no premium/surcharge record
+# (FR-PRC-018/019), Versioning could not raise a mass change (FR-PRC-024,
+# BRU-PRC-16), Discount Governance had no governed reason code (BRU-PRC-13), a
+# contract rate typed its contract instead of naming it (FR-PRC-016), the
+# simulation took JSON and a promotion could not name its items (FR-PRC-037).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments.
 from __future__ import annotations
@@ -70,6 +78,16 @@ console.log(JSON.stringify({
   cardEmptyTabs: emptyTabs('M11-form-card'),
   brandFormFields: fields('M11-form-brand-rate'),
   brandScreen: { kind: cfgOf('M11-brand').kind || null, model: cfgOf('M11-brand').model || null },
+  schemeFields: fields('M11-form-parts-scheme'),
+  schemeLines: ((cfgOf('M11-form-parts-scheme').lines || {}).fields || []).map((f) => f.name),
+  schemeLinesField: (cfgOf('M11-form-parts-scheme').lines || {}).field || null,
+  premiumFields: fields('M11-form-premium'),
+  massFields: fields('M11-form-mass'),
+  simFields: fields('M11-form-simulation'),
+  discountFields: fields('M11-form-discount-approval'),
+  promoFields: fields('M11-form-promo'),
+  reasonFields: fields('M11-form-reason'),
+  massLines: { create: cfgOf('M11-mass-lines').create !== false, empty: !!cfgOf('M11-mass-lines').empty },
   unmappedLists: navIds.filter((id) => S[id] && S[id].kind === 'model_list' && !mapped.has(id)),
   kpis: mod.kpis,
 }));
@@ -81,14 +99,14 @@ CAPTURE = {
     "1": "form",  # explanation is engine-written; the what-if simulation is the input
     "2": "form",  # Price Book + Price Book Version
     "3": "form",  # labour / service rate card
-    "4": "form",  # parts rate card + price floor
+    "4": "form",  # parts pricing scheme (markup / bands / grade) + rate card + floor
     "5": "form",  # contract rate card (tier 99)
     "6": "form",  # brand reimbursement rate
-    "7": "form",  # discount approval request + ladder band + floor
+    "7": "form",  # discount approval request + reason code + ladder band + floor
     "8": "form",  # promotion
-    "9": "form",  # dynamic price rule
+    "9": "form",  # price premium / surcharge + dynamic price rule
     "10": "form",  # simulation request
-    "11": "form",  # version + price change request
+    "11": "form",  # version + price change request + mass price change
 }
 
 
@@ -148,18 +166,81 @@ def test_pricing_engine_never_offers_typing_an_explanation(m11):
     assert not explanation["create"] and explanation["empty"]
 
 
+def _chips(sub):
+    return {f["f"]: f for f in sub["forms"]}
+
+
 def test_rate_card_pages_are_sliced_and_preset(m11):
-    labour, parts, contract = (_sub(m11, n) for n in ("3", "4", "5"))
+    labour, contract = (_sub(m11, n) for n in ("3", "5"))
     assert ["line_type", "!=", "part"] in labour["domain"]
-    assert parts["create"]["presets"] == {"line_type": "part"}
     assert contract["model"] == "fix.rate.card"
     assert contract["create"]["presets"] == {"min_tier": 99}
 
 
-def test_a_contract_rate_can_be_recorded(m11):
-    assert "contract_no" in m11["cardFields"]
-    assert "min_tier" in m11["cardFields"]
-    assert "contract_no" in ast.literal_eval(_writable("fix.rate.card"))
+def test_a_contract_rate_names_its_m08_contract(m11):
+    """FR-PRC-016 / AC-08: the contract is picked, not typed; its number follows."""
+    assert {"contract_id", "min_tier"} <= set(m11["cardFields"])
+    allowed = ast.literal_eval(_writable("fix.rate.card"))
+    assert "contract_id" in allowed
+    assert "contract_no" not in allowed
+
+
+def test_parts_pricing_captures_a_scheme_with_cost_bands(m11):
+    """FR-PRC-013 (P0): markup on cost, banded markup, grade differential."""
+    parts = _sub(m11, "4")
+    assert parts["model"] == "fix.parts.price.scheme"
+    assert parts["create"]["screen"] == "M11-form-parts-scheme"
+    assert _chips(parts)["Rate Card"]["opens"]  # a fixed part price stays a rate card
+    for name in ("method", "markup_pct", "category_id", "provenance_grade", "genuine_adj_pct"):
+        assert name in m11["schemeFields"]
+    assert m11["schemeLinesField"] == "band_ids"
+    assert {"cost_from", "cost_to", "markup_pct"} <= set(m11["schemeLines"])
+    allowed = ast.literal_eval(_writable("fix.parts.price.scheme"))
+    assert "band_ids" in allowed
+    assert not allowed & {"state", "version", "valid_to", "approved_by"}
+
+
+def test_adjustment_rules_capture_premiums_and_surcharges(m11):
+    """FR-PRC-018/019: urgency, after-hours, weekend, holiday, zone, distance."""
+    page = _sub(m11, "9")
+    assert page["model"] == "fix.price.adjustment"
+    assert page["create"]["screen"] == "M11-form-premium"
+    assert _chips(page)["Dynamic Price Rule"]["opens"]
+    for name in ("adjustment_type", "basis", "value", "operating_unit_ids", "distance_from_km"):
+        assert name in m11["premiumFields"]
+
+
+def test_versioning_raises_a_mass_change(m11):
+    """FR-PRC-024 / BRU-PRC-16: preview, approval, scheduled date, rollback."""
+    page = _sub(m11, "11")
+    assert _chips(page)["Mass Price Change"]["opens"]
+    assert {"line_type", "product_code_prefix", "change_kind", "value", "effective_date"} <= set(
+        m11["massFields"]
+    )
+    mass = next(lst for lst in page["lists"] if lst["model"] == "fix.price.mass.change")
+    assert {"action_preview", "action_submit", "action_rollback"} <= set(mass["actions"])
+    assert m11["massLines"] == {"create": False, "empty": True}
+    allowed = ast.literal_eval(_writable("fix.price.mass.change"))
+    assert not allowed & {"state", "applied_at", "approved_by", "line_ids"}
+
+
+def test_discount_governance_records_a_reason_code(m11):
+    """BRU-PRC-13 / FR-PRC-030: a governed reason list and the request's code."""
+    page = _sub(m11, "7")
+    assert _chips(page)["Discount Reason Code"]["opens"]
+    assert "reason_code_id" in m11["discountFields"]
+    assert "reason_code_id" in ast.literal_eval(_writable("fix.discount.approval"))
+    assert {"code", "name", "active"} <= set(m11["reasonFields"])
+
+
+def test_the_simulation_asks_for_fields_not_json(m11):
+    assert "input_json" not in m11["simFields"]
+    assert {"quantity", "customer_tier", "contract_id", "channel"} <= set(m11["simFields"])
+
+
+def test_a_promotion_names_its_items(m11):
+    """FR-PRC-037: a promotion for a defined item set."""
+    assert "catalogue_item_ids" in m11["promoFields"]
 
 
 def test_rate_card_form_has_no_empty_tabs(m11):
@@ -213,3 +294,26 @@ def test_brand_rate_lifecycle_is_whitelisted():
     # the state, version and release stamps are never typed
     allowed = ast.literal_eval(_writable("fix.brand.reimbursement.rate"))
     assert not allowed & {"state", "version", "valid_to", "approved_by", "approved_at"}
+
+
+@pytest.mark.parametrize(
+    "model,actions",
+    [
+        ("fix.parts.price.scheme", {"action_submit", "action_recall_approval", "action_retire"}),
+        ("fix.price.adjustment", {"action_submit", "action_recall_approval", "action_retire"}),
+        (
+            "fix.price.mass.change",
+            {
+                "action_preview",
+                "action_submit",
+                "action_recall_approval",
+                "action_cancel",
+                "action_rollback",
+            },
+        ),
+        ("fix.price.mass.change.line", set()),
+        ("fix.discount.reason", set()),
+    ],
+)
+def test_pass2_lifecycles_are_whitelisted(model, actions):
+    assert _surfaces()[model]["actions"] == actions

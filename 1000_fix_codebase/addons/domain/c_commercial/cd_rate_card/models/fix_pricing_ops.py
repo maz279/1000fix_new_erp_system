@@ -1214,7 +1214,10 @@ class FixPriceSimulation(models.Model):
                 raise UserError("No released rate card prices %s." % (code or rec.name))
             unit = card.unit_price
             promos, discount = Promo.best_combination(
-                Promo.search([("state", "=", "active")]), unit, data.get("channel")
+                Promo.search([("state", "=", "active")]),
+                unit,
+                data.get("channel"),
+                product_code=card.product_code,
             )
             floors = Floor.search([("product_code", "=", card.product_code)])
             floor = max(floors.mapped("floor_price") or [0.0])

@@ -11,7 +11,7 @@ CD-M11-02: price books and rate cards.
 - Discount governance lives in cd_quotation (the quotation lifecycle's control)
 - Dynamic pricing (CD-M11-05/06) is explicitly W7 (roadmap P06-M06-T08)
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Pricing",
@@ -24,6 +24,10 @@ CD-M11-02: price books and rate cards.
         # (FF-46).
         "cd_catalogue",
         "cd_workflow_engine",
+        # M11 capture pass 2 (18 Nov 2026): a contract rate names its M08
+        # contract (FR-PRC-016) and lapses with it (AC-08). No cycle:
+        # cd_contract_core does not depend on this module.
+        "cd_contract_core",
     ],
     "data": [
         # A04 audit (2026-11-04): the pricing roles, before the ACLs naming them

@@ -6,7 +6,9 @@
     date has come becomes Active and supersedes the version in force.
   - Promotions: an approved promotion starts on its first day; an active one
     ends after its last day or once its budget or usage cap is spent.
-  Both run daily just after midnight Dhaka time (18:01 / 18:02 UTC) and are
+  - Mass price changes (FR-PRC-024): an approved change whose date has
+    come is applied to every previewed rate.
+  All run daily just after midnight Dhaka time (18:01 / 18:02 UTC) and are
   idempotent.
 -->
 <odoo>
@@ -29,6 +31,16 @@
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:02:00')"/>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_m11_mass_change_apply" model="ir.cron">
+            <field name="name">M11: apply approved mass price changes on their effective date</field>
+            <field name="model_id" ref="model_fix_price_mass_change"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:03:00')"/>
             <field name="active" eval="True"/>
         </record>
     </data>

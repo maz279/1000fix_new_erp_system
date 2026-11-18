@@ -226,6 +226,7 @@ WRITABLE = {
             "justification",
             "operating_unit_id",
             "quotation_id",
+            "reason_code_id",
             "state",
         }
     ),
@@ -239,6 +240,15 @@ WRITABLE = {
             "name",
             "requires_approval",
             "role",
+        }
+    ),
+    "fix.discount.reason": frozenset(
+        {
+            "active",
+            "code",
+            "description",
+            "name",
+            "sequence",
         }
     ),
     "fix.dynamic.price.rule": frozenset(
@@ -431,6 +441,47 @@ WRITABLE = {
             "rate",
         }
     ),
+    "fix.parts.price.band": frozenset(),
+    "fix.parts.price.scheme": frozenset(
+        {
+            "aftermarket_adj_pct",
+            "band_ids",
+            "brand_id",
+            "category_id",
+            "company_id",
+            "currency_id",
+            "fixed_price",
+            "genuine_adj_pct",
+            "markup_pct",
+            "method",
+            "name",
+            "note",
+            "oem_adj_pct",
+            "provenance_grade",
+            "refurbished_adj_pct",
+            "rounding_step",
+            "valid_from",
+        }
+    ),
+    "fix.price.adjustment": frozenset(
+        {
+            "adjustment_type",
+            "applies_to",
+            "basis",
+            "code",
+            "company_id",
+            "currency_id",
+            "distance_from_km",
+            "distance_to_km",
+            "hour_from",
+            "hour_to",
+            "name",
+            "note",
+            "operating_unit_ids",
+            "valid_from",
+            "value",
+        }
+    ),
     "fix.price.book": frozenset(
         {
             "active",
@@ -464,12 +515,30 @@ WRITABLE = {
             "proposed_override_price",
         }
     ),
+    "fix.price.mass.change": frozenset(
+        {
+            "category_id",
+            "change_kind",
+            "effective_date",
+            "include_contract",
+            "line_type",
+            "product_code_prefix",
+            "reason",
+            "value",
+        }
+    ),
+    "fix.price.mass.change.line": frozenset(),
     "fix.price.simulation": frozenset(
         {
             "catalogue_item_id",
+            "channel",
             "company_id",
-            "input_json",
+            "contract_id",
+            "customer_tier",
             "name",
+            "premium_kinds",
+            "proposed_price",
+            "quantity",
             "rate_card_id",
         }
     ),
@@ -486,6 +555,7 @@ WRITABLE = {
         {
             "active",
             "budget_amount",
+            "catalogue_item_ids",
             "channel",
             "code",
             "company_id",
@@ -584,7 +654,7 @@ WRITABLE = {
         {
             "catalogue_item_id",
             "change_reason",
-            "contract_no",
+            "contract_id",
             "line_type",
             "min_tier",
             "product_code",
