@@ -159,4 +159,12 @@ Together with the pass-1 guard and the rental domain suite: **159 passed, 0 fail
 
 ## 7. State
 
-_(filled in at landing)_
+**Committed and pushed; not landed, not deployed (19 Nov).**
+
+- Commit `304b3575` on `fix/m13-capture-pass2`, rebased on the shared tip `946c088f` and pushed to origin.
+- **Not landed on `fix/a03-live-data-and-pending-work`.** Landing places new stored fields in the main checkout. A restart by any session before the `-u` would boot fix_real on code whose columns do not exist yet. So landing and deploying are done together, once the owner approves.
+- **Deploy needed:**
+  1. backups of fix_real and fix_dev;
+  2. `-u cd_rental_asset,cd_p03_portal` on both;
+  3. one restart of 8069 and 8090, coordinated with the other sessions' deploy wave (M18 asked about a combined `-u`).
+- The private clone `fix_test_m13c2` is kept for re-checks; the baseline clone was dropped.
