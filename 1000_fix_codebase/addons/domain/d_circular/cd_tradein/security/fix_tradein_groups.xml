@@ -47,5 +47,25 @@
             <field name="comment">Approves governed price-grid rows and any valuation that overrides the grid. Never their own entry (A05 audit P2, governed valuation grid).</field>
         </record>
 
+
+        <!-- M14 capture pass 2 (19 Nov 2026), also shipped EMPTY:
+             - Refurbishment Supervisor (BRU-TRF-13, T-07, FR-TRF-020): overrides
+               a computed grade with a justification, never on a unit whose QA
+               they ran; routes a unit to parts only; decides a return.
+             - Refurbishment Write-off Approver (BRU-TRF-19, §13): approves the
+               write-off of a parts-only unit's accumulated cost, never one they
+               routed. -->
+        <record id="group_refurb_supervisor" model="res.groups">
+            <field name="name">Refurbishment Supervisor</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Overrides a computed grade with a recorded justification (never on a unit whose QA they ran), routes an unsellable unit to parts only, and decides a refurbished return (M14 BRU-TRF-13, T-07, FR-TRF-020).</field>
+        </record>
+
+        <record id="group_refurb_writeoff_approver" model="res.groups">
+            <field name="name">Refurbishment Write-off Approver</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Approves the write-off of the accumulated cost of a unit routed to parts only. Never a routing they made (M14 BRU-TRF-19, spec section 13).</field>
+        </record>
+
     </data>
 </odoo>

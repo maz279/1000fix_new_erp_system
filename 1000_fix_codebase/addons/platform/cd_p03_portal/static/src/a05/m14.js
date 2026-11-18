@@ -19,6 +19,7 @@ export const MODULE = {
   groups: [
     { en: 'Trade-In', screens: [
       { id: 'M14-intake', en: 'Trade-In Intake', bn: 'ট্রেড-ইন গ্রহণ', t: 'g' },
+      { id: 'M14-intake-check', en: 'Physical Intake Verification', bn: 'প্রাপ্তিকালীন যাচাই', t: 'g' },
       { id: 'M14-bulk', en: 'Corporate Bulk Buy-Back', bn: 'কর্পোরেট বাল্ক বাই-ব্যাক', t: 'g' },
       { id: 'M14-valuation', en: 'Automated Valuation', bn: 'স্বয়ংক্রিয় মূল্যায়ন', t: 'g' },
       { id: 'M14-grid', en: 'Governed Price Grid', bn: 'মূল্য গ্রিড', t: 'g' },
@@ -30,6 +31,7 @@ export const MODULE = {
       { id: 'M14-orders', en: 'Refurb Work Orders', bn: 'রিফার্বিশমেন্ট কার্যআদেশ', t: 'g' },
       { id: 'M14-qa', en: 'QA & Battery Health', bn: 'কিউএ ও ব্যাটারি স্বাস্থ্য', t: 'g' },
       { id: 'M14-grading', en: 'A–D Grading', bn: 'গ্রেডিং নির্ধারণ', t: 'g' },
+      { id: 'M14-writeoff', en: 'Parts-Only Routing & Write-off', bn: 'যন্ত্রাংশ-কেবল রাউটিং ও অবলোপন', t: 'g' },
       { id: 'M14-harvest', en: 'Harvest to Parts', bn: 'যন্ত্রাংশ সংগ্রহ', t: 'g' }
     ]},
     { en: 'Resale', screens: [
@@ -37,6 +39,7 @@ export const MODULE = {
       { id: 'M14-stock', en: 'Graded Stock', bn: 'গ্রেডেড স্টক', t: 'g' },
       { id: 'M14-listings', en: 'Resale Listings', bn: 'পুনর্বিক্রয় তালিকা', t: 'r' },
       { id: 'M14-wty', en: 'Refurb Warranty', bn: 'রিফার্বিশড ওয়ারেন্টি', t: 'g' },
+      { id: 'M14-returns', en: 'Refurbished Returns', bn: 'রিফার্বিশড ফেরত', t: 'g' },
       { id: 'M14-economics', en: 'Unit Economics', bn: 'ইউনিট অর্থনীতি', t: 'r' }
     ]}
   ],
@@ -62,11 +65,14 @@ export const MODULE = {
     'Harvest to Parts Dossier',
     'Destruction Certificate Attachment',
     'Resale Listing Preparation',
-    'Corporate Bulk Buy-Back Lot'
+    'Corporate Bulk Buy-Back Lot',
+    'Physical Intake Verification',
+    'Refurbished Unit Return',
+    'Parts-Only Routing & Write-off'
   ],
   cross: ['M06 destruction gate', 'M31 refurb repairs', 'M15 graded stock', 'M38 online resale', 'M18 recycle routing'],
   freg: { src: 84, sub: [
-    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake'], reports: ['Valuation Queue'], forms: ['Trade-In Intake Dossier'] }],
+    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake', 'M14-intake-check'], reports: ['Valuation Queue'], forms: ['Trade-In Intake Dossier', 'Physical Intake Verification'] }],
     ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'], reports: ['Valuation Queue', 'Trade-In Margin by Model'], forms: ['Automated Valuation File', 'Governed Price Grid Row'] }],
     ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'], reports: [], forms: ['Provenance Screening & Anti-Theft'] }],
     ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'], reports: ['Unit Economics'], forms: ['Settlement & Four-Eyes Payout'], create: 'M14-form-settlement' }],
@@ -79,8 +85,13 @@ export const MODULE = {
     ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-gate', 'M14-orders'], reports: [], forms: ['Destruction Certificate Attachment'], create: 'M14-form-wipe', domain: [['state', 'in', ['collected', 'wiped']]] }],
     ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'], reports: ['Refurb Cost per Grade'], forms: ['Refurbishment Work Order'] }],
     ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'], reports: ['Refurb Cost per Grade'], forms: ['Grading Certificate', 'QA & Battery Health Dossier'] }],
-    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-resale-prep', 'M14-stock', 'M14-listings', 'M14-wty', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: ['Resale Listing Preparation'], create: 'M14-form-resale' }],
-    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-harvest'], reports: ['Harvest Yield'], forms: ['Harvest to Parts Dossier'] }]
+    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-resale-prep', 'M14-stock', 'M14-listings', 'M14-wty', 'M14-returns', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: ['Resale Listing Preparation', 'Refurbished Unit Return'], create: 'M14-form-resale' }],
+    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-writeoff', 'M14-harvest'], reports: ['Harvest Yield'], forms: ['Parts-Only Routing & Write-off', 'Harvest to Parts Dossier'], create: 'M14-form-harvest' }]
+    /* M14 capture pass 2 (2026-11-19), read against FR-TRF-001..039:
+     * p1 also verifies the unit as received (FR-TRF-005, BRU-TRF-09); p9
+     * captures a return of a sold unit (FR-TRF-026); p10 routes an
+     * unsellable unit to parts only with an approved write-off before any
+     * harvest (FR-TRF-020, BRU-TRF-19). */
   ] }
 };
 
@@ -123,8 +134,15 @@ export const SCREENS = {
       { m: 'action_open_intakes', l: 'Receive Lot & Open Intakes', states: ['draft', 'received'] },
       { m: 'action_close', l: 'Close Lot (all reconciled)', states: ['received'] }
     ] },
+  /* FR-TRF-005 / BRU-TRF-09: the unit as received, against the declaration.
+   * A value below the accepted offer needs a worse condition, its description
+   * and photographs; Confirm makes it the graded value the customer accepts. */
+  'M14-intake-check': { kind: 'model_list', model: 'fix.tradein.intake.check', stateField: 'state',
+    cols: ['name', 'tradein_id', 'declared_condition', 'verified_condition', 'condition_differs', 'accepted_value', 'verified_value', 'checked_by_id', 'state'],
+    actions: [{ m: 'action_confirm', l: 'Confirm Verification', states: ['draft'] }],
+    empty: 'No unit has been verified at intake. Verify each accepted unit as received with + Physical Intake Verification.' },
   'M14-valuation': { kind: 'model_list', model: 'fix.tradein.valuation', stateField: 'state',
-    cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer', 'override_state', 'state'],
+    cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer', 'resale_estimate', 'modelled_margin_pct', 'override_state', 'state'],
     actions: [
       { m: 'action_request_override_approval', l: 'Request Override Approval' },
       { m: 'action_approve_override', l: 'Approve Override' },
@@ -164,6 +182,16 @@ export const SCREENS = {
     actions: [{ m: 'action_submit_result', l: 'Submit Result (QA Inspector)' }] },
   'M14-grading': { kind: 'model_list', model: 'fix.tradein.grade',
     cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'screen_grade', 'cosmetic_grade', 'functional_grade', 'graded_on'] },
+  /* FR-TRF-020 / BRU-TRF-19: a supervisor routes the unit to parts only and a
+   * write-off approver (another person) approves its accumulated cost. */
+  'M14-writeoff': { kind: 'model_list', model: 'fix.refurb.writeoff', stateField: 'state',
+    cols: ['name', 'tradein_id', 'cause', 'destination', 'accumulated_cost', 'requested_by_id', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_request', l: 'Route to Parts Only (Supervisor)', states: ['draft', 'rejected'] },
+      { m: 'action_approve', l: 'Approve Write-off', states: ['pending'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the write-off is rejected', kwarg: 'reason', states: ['pending'] }
+    ],
+    empty: 'No unit has been routed to parts only. A unit that failed QA or cannot be sold profitably is routed here before it is harvested or recycled.' },
   'M14-harvest': { kind: 'model_list', model: 'fix.tradein.harvest', stateField: 'state',
     cols: ['name', 'tradein_id', 'component', 'part_id', 'quantity', 'total_value', 'target', 'receipt_id', 'state'],
     actions: [
@@ -187,6 +215,14 @@ export const SCREENS = {
     empty: 'No refurbished warranty issued yet. A warranty is issued automatically when a refurbished unit is resold; it cannot be typed in.',
     actions: [{ m: 'action_void', l: 'Void (Warranty Officer)', ask: 'Reason for voiding', kwarg: 'reason' }] },
   'M14-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: false },
+  /* FR-TRF-026 / AUT-TRF-18: a sold refurbished unit comes back. */
+  'M14-returns': { kind: 'model_list', model: 'fix.refurb.return', stateField: 'state',
+    cols: ['name', 'tradein_id', 'grade_at_sale', 'return_date', 'reason', 'failure_code', 'within_terms', 'outcome', 'state'],
+    actions: [
+      { m: 'action_receive', l: 'Receive Return', states: ['draft'] },
+      { m: 'action_decide', l: 'Decide (Supervisor)', states: ['received'] }
+    ],
+    empty: 'No refurbished unit has been returned. Record a return of a sold unit with + Refurbished Unit Return.' },
 
   /* Report chips -> their own computed packs (All 8 active) */
   'M14-rpt-margin': { kind: 'table_report', module: 'M14', report: 'tradein_margin', title: 'Trade-In Margin by Model', period: false },
@@ -222,8 +258,24 @@ export const SCREENS = {
           { name: 'name', label: 'Trade-In Reference', readonly: true },
           { name: 'customer_id', required: true, label: 'Customer' },
           { name: 'customer_nid', label: 'National ID (10-digit Smart / 17-digit NID)' },
+          { name: 'intake_channel', required: true, label: 'Intake Channel (portal / app / counter / field / corporate)' },
           { name: 'acceptance_channel', label: 'Acceptance Channel' },
           { name: 'state', label: 'Intake State', readonly: true }
+        ] },
+      { tab: 'general', title: "Customer's Declaration (FR-TRF-001 / FR-TRF-035)",
+        note: 'What the customer declares is what the offer is built on: it freezes once the offer is sent. The unit is then verified against it at intake.',
+        fields: [
+          { name: 'declared_condition', required: true, label: 'Declared Condition' },
+          { name: 'declared_faults', label: 'Declared Faults' },
+          { name: 'declared_age_months', label: 'Declared Age (months)' },
+          { name: 'oem_warranty_status', label: 'OEM Warranty Status' },
+          { name: 'condition_photo_id', label: 'Condition Photographs' },
+          { name: 'acc_charger', label: 'Charger' },
+          { name: 'acc_cable', label: 'Cable' },
+          { name: 'acc_box', label: 'Original Box' },
+          { name: 'acc_earphones', label: 'Earphones' },
+          { name: 'acc_documents', label: 'Purchase Documents' },
+          { name: 'accessories_notes', label: 'Other Accessories' }
         ] },
       { tab: 'general', title: 'Intake Device Reference',
         fields: [
@@ -235,7 +287,7 @@ export const SCREENS = {
         fields: [
           { name: 'offered_value', label: 'Offer Value (draft only, from the applied valuation)' },
           { name: 'accepted_offer_value', label: 'Offer Accepted by Customer', readonly: true },
-          { name: 'graded_value', label: 'Post-Inspection Value' },
+          { name: 'graded_value', label: 'Post-Inspection Value (below the offer only through a Physical Intake Verification)' },
           { name: 'revision_state', label: 'Revised Offer', readonly: true },
           { name: 'revision_accepted_value', label: 'Revised Value Accepted', readonly: true },
           { name: 'payout_amount', label: 'Payout Queued', readonly: true },
@@ -254,7 +306,7 @@ export const SCREENS = {
         ] },
       { tab: 'technical', title: 'Technical Grading & Diagnostic',
         fields: [
-          { name: 'grade', label: 'Preliminary Grade' },
+          { name: 'grade', label: 'Grade (from the grading certificate)', readonly: true },
           { name: 'refurb_grade_id', label: 'Final Graded Class' },
           { name: 'battery_health_pct', label: 'Battery Health (%)' },
           { name: 'wipe_certificate_id', label: 'Data Sanitization Certificate' }
@@ -266,11 +318,15 @@ export const SCREENS = {
           { name: 'labour_cost', label: 'Direct Labour Cost', readonly: true },
           { name: 'parts_cost', label: 'Direct Parts Cost', readonly: true },
           { name: 'steps_cost', label: 'Costed Refurbishment Steps', readonly: true },
+          { name: 'first_pass_cost', label: 'First-Pass Work', readonly: true },
+          { name: 'rework_cost', label: 'Rework After a Failed QA', readonly: true },
           { name: 'refurbishment_cost', label: 'Total Refurbishment Cost', readonly: true },
           { name: 'inventory_valuation', label: 'Inventory Valuation', readonly: true }
         ] },
       { tab: 'governance', title: 'Four-Eyes Settlement Approval (M63)',
         fields: [
+          { name: 'settlement_method', required: true, label: 'Settlement Method' },
+          { name: 'settlement_bank_account_id', label: "Seller's Bank Account (bank transfer)" },
           { name: 'payout_approval_state', label: 'Payout Approval State', readonly: true },
           { name: 'approval_state', label: 'Routed Approval', readonly: true },
           { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
@@ -329,6 +385,20 @@ export const SCREENS = {
           { name: 'final_offer', label: 'Final Commercial Offer' },
           { name: 'applied_offer', label: 'Offer Applied', readonly: true },
           { name: 'currency_id', label: 'Currency' }
+        ] },
+      { tab: 'pricing', title: 'Offer Economics (FR-TRF-033, BRU-TRF-10)',
+        note: 'Every offer is the resale estimate minus the expected refurbishment, logistics, data destruction and channel cost. A modelled margin below the floor is an override a valuation manager approves.',
+        fields: [
+          { name: 'resale_estimate', required: true, label: 'Resale Estimate' },
+          { name: 'expected_refurb_cost', label: 'Expected Refurbishment Cost' },
+          { name: 'expected_logistics_cost', label: 'Expected Logistics Cost' },
+          { name: 'expected_destruction_cost', label: 'Expected Data Destruction Cost' },
+          { name: 'expected_channel_cost', label: 'Expected Channel Cost' },
+          { name: 'expected_cost_total', label: 'Expected Cost', readonly: true },
+          { name: 'modelled_margin', label: 'Modelled Margin', readonly: true },
+          { name: 'modelled_margin_pct', label: 'Modelled Margin (%)', readonly: true },
+          { name: 'margin_floor_pct', label: 'Margin Floor (%)', readonly: true },
+          { name: 'below_margin_floor', label: 'Below the Floor (needs approval)', readonly: true }
         ] },
       { tab: 'technical', title: 'Depreciation & Age Factors',
         fields: [
@@ -479,9 +549,15 @@ export const SCREENS = {
           { name: 'customer_nid', label: 'National ID / Tax Identity' },
           { name: 'state', label: 'Trade-In State', readonly: true }
         ] },
+      { tab: 'pricing', title: 'How the Seller Is Paid (FR-TRF-007)',
+        note: 'Mobile money, bank transfer or cash. The payout approval covers the method and the account: changing either after it voids the approval.',
+        fields: [
+          { name: 'settlement_method', required: true, label: 'Settlement Method' },
+          { name: 'settlement_bank_account_id', label: "Seller's Bank Account (bank transfer)" }
+        ] },
       { tab: 'pricing', title: 'Settlement & Statutory Withholding (ITA 2023)',
         fields: [
-          { name: 'graded_value', label: 'Graded Payout Value' },
+          { name: 'graded_value', label: 'Graded Payout Value (below the offer only through a Physical Intake Verification)' },
           { name: 'revision_state', label: 'Revised Offer', readonly: true },
           { name: 'tds_applicable', label: 'TDS Applicable' },
           { name: 'tds_section', label: 'TDS Section' },
@@ -565,12 +641,25 @@ export const SCREENS = {
         fields: [
           { name: 'notes', label: 'Step Procedure & Diagnostic Notes' }
         ] },
+      { tab: 'lifecycle', title: 'Rework After a Failed QA (FR-TRF-036)',
+        note: 'A step added while the latest QA of the unit failed is rework: it states its cause, and its cost is kept apart from first-pass work.',
+        fields: [
+          { name: 'is_rework', label: 'Rework', readonly: true },
+          { name: 'rework_qa_id', label: 'Failed QA', readonly: true },
+          { name: 'rework_cause', label: 'Rework Cause' },
+          { name: 'rework_notes', label: 'Rework Detail' }
+        ] },
       { tab: 'governance', title: 'Corporate Entity',
         fields: [
           { name: 'company_id', label: 'Company' }
         ] },
-      { tab: 'vault', title: 'Evidence & Document Vault',
+      { tab: 'vault', title: 'Work Evidence (FR-TRF-013, FR-TRF-014)',
+        note: 'Cosmetic work is recorded with before and after photographs. An activation lock is removed only on the documented proof of ownership given by the seller (BRU-TRF-22).',
         fields: [
+          { name: 'before_photo_id', label: 'Before Photo' },
+          { name: 'after_photo_id', label: 'After Photo' },
+          { name: 'activation_lock_removed', label: 'Activation Lock Removed' },
+          { name: 'ownership_proof_id', label: "Seller's Proof of Ownership" }
           ] }
     ]
   },
@@ -602,6 +691,7 @@ export const SCREENS = {
           { name: 'pass_pct', label: 'Diagnostic Pass Rate (%)', readonly: true }
         ] },
       { tab: 'technical', title: 'Battery Health & Automated Suite',
+        note: 'With test results recorded in the protocol grid, the totals are counted from them when the result is submitted.',
         fields: [
           { name: 'battery_health_pct', label: 'Battery Health (%)' },
           { name: 'tests_passed', label: 'Automated Tests Passed' },
@@ -621,7 +711,19 @@ export const SCREENS = {
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
           ] }
-    ]
+    ],
+    lines: {
+      field: 'test_ids',
+      title: 'QA Protocol - one row per test (FR-TRF-017)',
+      note: 'Hardware, ports, display, camera, connectivity, thermal, battery and software: each measured result with its outcome. Frozen once the result is submitted.',
+      fields: [
+        { name: 'test_code', required: true, label: 'Test' },
+        { name: 'expected', label: 'Expected' },
+        { name: 'measured', label: 'Measured' },
+        { name: 'outcome', required: true, label: 'Outcome' },
+        { name: 'equipment_ref', label: 'Equipment / Tool' }
+      ]
+    }
   },
 
   'M14-form-grade': {
@@ -643,9 +745,17 @@ export const SCREENS = {
           { name: 'name', label: 'Grade Certificate ID', readonly: true },
           { name: 'tradein_id', required: true, label: 'Trade-In Request (in refurbishment)', domain: [['state', '=', 'refurbished']] }
         ] },
-      { tab: 'pricing', title: 'Grade Classification',
+      { tab: 'pricing', title: 'Grade Classification (BRU-TRF-12/13/14)',
+        note: 'The grade is computed from the axes and the battery health: the worst axis sets it, and a battery below the minimum of a grade drops it. Leave the grade blank to take the computed one. A different grade is an override by a Refurbishment Supervisor with a justification, never by the person who ran the QA.',
         fields: [
-          { name: 'grade', required: true, label: 'Commercial Resale Grade (A/B/C/D/E)' }
+          { name: 'computed_grade', label: 'Computed Grade', readonly: true },
+          { name: 'grade', label: 'Grade Recorded (blank = computed)' },
+          { name: 'battery_minimum_pct', label: 'Battery Minimum of the Grade (%)', readonly: true },
+          { name: 'is_override', label: 'Supervisor Override', readonly: true },
+          { name: 'override_reason', label: 'Override Justification' },
+          { name: 'override_by_id', label: 'Overridden By', readonly: true },
+          { name: 'override_at', label: 'Overridden At', readonly: true },
+          { name: 'qa_id', label: 'QA Result Used', readonly: true }
         ] },
       { tab: 'technical', title: 'Multi-Axis Assessment',
         fields: [
@@ -900,6 +1010,133 @@ export const SCREENS = {
           { name: 'resale_listed_on', label: 'Listing Date' }
         ] }
     ]
+  },
+
+  /* ============ M14 CAPTURE PASS 2 (2026-11-19) ======================= */
+  'M14-form-intake-check': {
+    kind: 'model_form',
+    model: 'fix.tradein.intake.check',
+    title: 'Physical Intake Verification',
+    back: 'M14-intake-check',
+    status: { field: 'state', labels: { draft: 'Draft', confirmed: 'Confirmed' } },
+    tabs: [
+      { id: 'general', label: '1. Unit & Declaration', bn: '১. ইউনিট ও ঘোষণা', icon: '📱', badge: '5' },
+      { id: 'technical', label: '2. As Received', bn: '২. প্রাপ্ত অবস্থা', icon: '🔍', badge: '6' },
+      { id: 'governance', label: '3. Value & Sign-off', bn: '৩. মূল্য ও স্বাক্ষর', icon: '✍️', badge: '5' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The Unit and What the Customer Declared',
+        fields: [
+          { name: 'name', label: 'Verification Reference', readonly: true },
+          { name: 'tradein_id', required: true, label: 'Trade-In (accepted, payout not yet requested)',
+            domain: [['state', 'in', ['accepted', 'collected', 'wiped', 'refurbished', 'graded', 'resale_ready']], ['payout_approval_state', 'not in', ['pending', 'approved']]] },
+          { name: 'declared_condition', label: 'Declared Condition', readonly: true },
+          { name: 'accepted_value', label: 'Accepted Offer', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { tab: 'technical', title: 'Verified on Receipt (FR-TRF-005)',
+        note: 'Check the unit received against the declaration. Where it is worse, describe the difference and attach the photographs: only then may the value go below the accepted offer (BRU-TRF-09).',
+        fields: [
+          { name: 'identity_matches', label: 'Serial / IMEI Matches the Request' },
+          { name: 'verified_condition', required: true, label: 'Verified Condition' },
+          { name: 'condition_differs', label: 'Worse Than Declared', readonly: true },
+          { name: 'accessories_as_declared', label: 'Accessories as Declared' },
+          { name: 'accessories_notes', label: 'Accessories Missing or Extra' },
+          { name: 'difference_notes', label: 'What Differs From the Declaration' },
+          { name: 'evidence_attachment_id', label: 'Photographic Evidence' }
+        ] },
+      { tab: 'governance', title: 'Verified Value',
+        note: 'Confirm Verification on Physical Intake Verification makes this the graded value of the trade-in. A lower value is a revised offer the customer must accept. The person who valued the unit does not confirm it.',
+        fields: [
+          { name: 'verified_value', required: true, label: 'Verified Value (BDT)' },
+          { name: 'checked_by_id', label: 'Verified By', readonly: true },
+          { name: 'checked_at', label: 'Verified At', readonly: true },
+          { name: 'company_id', label: 'Company' }
+        ] }
+    ]
+  },
+
+  'M14-form-return': {
+    kind: 'model_form',
+    model: 'fix.refurb.return',
+    title: 'Refurbished Unit Return',
+    back: 'M14-returns',
+    status: { field: 'state', labels: { draft: 'Draft', received: 'Received', decided: 'Decided' } },
+    tabs: [
+      { id: 'general', label: '1. Sold Unit', bn: '১. বিক্রীত ইউনিট', icon: '📦', badge: '6' },
+      { id: 'technical', label: '2. Failure', bn: '২. ত্রুটি', icon: '⚠️', badge: '5' },
+      { id: 'governance', label: '3. Decision', bn: '৩. সিদ্ধান্ত', icon: '⚖️', badge: '6' }
+    ],
+    sections: [
+      { tab: 'general', title: 'The Sold Refurbished Unit',
+        fields: [
+          { name: 'name', label: 'Return Reference', readonly: true },
+          { name: 'tradein_id', required: true, label: 'Sold Unit (trade-in)', domain: [['graded_stock_id.state', '=', 'sold']] },
+          { name: 'graded_stock_id', label: 'Graded Stock Unit', readonly: true },
+          { name: 'warranty_id', label: 'Refurbished Warranty', readonly: true },
+          { name: 'grade_at_sale', label: 'Grade at Sale', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { tab: 'technical', title: 'What Came Back (FR-TRF-026)',
+        note: 'The failure code is what the grading analysis reads each period (BRU-TRF-24). The unit is taken back within the return window or its refurbished warranty.',
+        fields: [
+          { name: 'return_date', required: true, label: 'Return Date' },
+          { name: 'reason', required: true, label: 'Return Reason' },
+          { name: 'failure_code', label: 'Failure Code' },
+          { name: 'description', label: 'What the Buyer Reports' },
+          { name: 'evidence_attachment_id', label: 'Evidence' }
+        ] },
+      { tab: 'governance', title: 'Supervisor Decision',
+        note: 'Receive Return on Refurbished Returns, then a Refurbishment Supervisor who did not receive it decides.',
+        fields: [
+          { name: 'within_terms', label: 'Within Return Window or Warranty', readonly: true },
+          { name: 'outcome', label: 'Decision' },
+          { name: 'decision_notes', label: 'Decision Notes' },
+          { name: 'received_by_id', label: 'Received By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'company_id', label: 'Company' }
+        ] }
+    ]
+  },
+
+  'M14-form-writeoff': {
+    kind: 'model_form',
+    model: 'fix.refurb.writeoff',
+    title: 'Parts-Only Routing & Write-off',
+    back: 'M14-writeoff',
+    status: { field: 'state', labels: { draft: 'Draft', pending: 'Approval Pending', approved: 'Approved', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'general', label: '1. Unit & Cause', bn: '১. ইউনিট ও কারণ', icon: '🔧', badge: '5' },
+      { id: 'pricing', label: '2. Cost', bn: '২. খরচ', icon: '৳', badge: '4' },
+      { id: 'governance', label: '3. Approval', bn: '৩. অনুমোদন', icon: '🏛️', badge: '5' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Why the Unit Cannot Be Sold (FR-TRF-020)',
+        fields: [
+          { name: 'name', label: 'Routing Reference', readonly: true },
+          { name: 'tradein_id', required: true, label: 'Unit (trade-in in refurbishment or graded)', domain: [['state', 'in', ['refurbished', 'graded']]] },
+          { name: 'cause', required: true, label: 'Cause' },
+          { name: 'cause_notes', required: true, label: 'Why the Unit Cannot Be Sold' },
+          { name: 'destination', required: true, label: 'Route To' }
+        ] },
+      { tab: 'pricing', title: 'Cost Written Off',
+        note: 'For a cost-to-complete routing the cost to complete must exceed the resale estimate. The accumulated cost is taken from the unit when the routing is requested.',
+        fields: [
+          { name: 'resale_estimate', label: 'Resale Estimate' },
+          { name: 'cost_to_complete', label: 'Cost to Complete' },
+          { name: 'accumulated_cost', label: 'Accumulated Cost Written Off', readonly: true },
+          { name: 'currency_id', label: 'Currency' }
+        ] },
+      { tab: 'governance', title: 'Two Signatures (BRU-TRF-19, section 13)',
+        note: 'A Refurbishment Supervisor routes the unit; a Write-off Approver who did not route it approves. A harvest is refused until the routing to harvest is approved.',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'requested_by_id', label: 'Routed By', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true },
+          { name: 'rejection_reason', label: 'Rejection Reason', readonly: true },
+          { name: 'company_id', label: 'Company' }
+        ] }
+    ]
   }
 };
 
@@ -926,7 +1163,10 @@ export const FORM_MODELS = {
   'M14:Harvest to Parts Dossier': 'fix.tradein.harvest',
   'M14:Destruction Certificate Attachment': 'fix.tradein.request',
   'M14:Resale Listing Preparation': 'fix.tradein.request',
-  'M14:Corporate Bulk Buy-Back Lot': 'fix.bulk.buyback'
+  'M14:Corporate Bulk Buy-Back Lot': 'fix.bulk.buyback',
+  'M14:Physical Intake Verification': 'fix.tradein.intake.check',
+  'M14:Refurbished Unit Return': 'fix.refurb.return',
+  'M14:Parts-Only Routing & Write-off': 'fix.refurb.writeoff'
 };
 
 export const FORM_CHIPS = {
@@ -942,6 +1182,9 @@ export const FORM_CHIPS = {
   'M14:Destruction Certificate Attachment': 'M14-form-wipe',
   'M14:Resale Listing Preparation': 'M14-form-resale',
   'M14:Corporate Bulk Buy-Back Lot': 'M14-form-bulk',
+  'M14:Physical Intake Verification': 'M14-form-intake-check',
+  'M14:Refurbished Unit Return': 'M14-form-return',
+  'M14:Parts-Only Routing & Write-off': 'M14-form-writeoff',
   'M14:__by_model__': {
     'fix.tradein.request': 'M14-form-request',
     'fix.tradein.valuation': 'M14-form-valuation',
@@ -952,7 +1195,10 @@ export const FORM_CHIPS = {
     'fix.tradein.grade': 'M14-form-grade',
     'fix.tradein.harvest': 'M14-form-harvest',
     'fix.tradein.warranty': 'M14-form-warranty',
-    'fix.bulk.buyback': 'M14-form-bulk'
+    'fix.bulk.buyback': 'M14-form-bulk',
+    'fix.tradein.intake.check': 'M14-form-intake-check',
+    'fix.refurb.return': 'M14-form-return',
+    'fix.refurb.writeoff': 'M14-form-writeoff'
   },
   'M14:__by_screen__': {
     'M14-intake': 'M14-form-request',
@@ -967,7 +1213,10 @@ export const FORM_CHIPS = {
     'M14-qa': 'M14-form-qa',
     'M14-grading': 'M14-form-grade',
     'M14-harvest': 'M14-form-harvest',
-    'M14-wty': 'M14-form-warranty'
+    'M14-wty': 'M14-form-warranty',
+    'M14-intake-check': 'M14-form-intake-check',
+    'M14-returns': 'M14-form-return',
+    'M14-writeoff': 'M14-form-writeoff'
   }
 };
 

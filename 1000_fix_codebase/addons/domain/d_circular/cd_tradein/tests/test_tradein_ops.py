@@ -44,6 +44,7 @@ def test_valuation_computes_and_applies(odoo_env):
         {
             "tradein_id": request.id,
             "market_ref_price": 60000,
+            "resale_estimate": 70000,
             "age_months": 24,
             "age_factor_pct": 70,
             "condition_factor_pct": 75,
@@ -69,6 +70,7 @@ def test_valuation_manual_override_needs_reason_and_approval(odoo_env):
             "age_factor_pct": 80,
             "condition_factor_pct": 80,
             "final_offer": 28000,
+            "resale_estimate": 56000,
             "method": "manual",
         }
     )
@@ -91,6 +93,7 @@ def test_valuation_refuses_after_acceptance(odoo_env):
         {
             "tradein_id": request.id,
             "market_ref_price": 10000,
+            "resale_estimate": 20000,
             "age_factor_pct": 100,
             "condition_factor_pct": 100,
         }

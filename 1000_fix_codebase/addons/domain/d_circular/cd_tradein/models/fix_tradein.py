@@ -1713,14 +1713,18 @@ class FixTradeinRequest(models.Model):
                         "fix.tradein.request",
                         rec.id,
                         rec.customer_id,
-                        False,
+                        # FR-TRF-007 (M14 capture pass 2): the settlement
+                        # method chosen on the trade-in, pinned by the approval
+                        rec.settlement_bank_account_id
+                        if rec.settlement_method == "bank_transfer"
+                        else False,
                         net_to_seller,
                         rec.currency_id,
                         rec.name,
                         rec.payout_approved_by_id,
                         operating_unit_id=rec._operating_unit().id,
                         payee=rec.customer_id.name,
-                        method="mobile_fs",  # default bKash/Nagad
+                        method=rec.settlement_method or "mobile_fs",
                     )
                 )
             # M14-15: the stock is capitalised at what the seller is paid

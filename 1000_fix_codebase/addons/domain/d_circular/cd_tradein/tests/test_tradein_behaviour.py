@@ -106,6 +106,14 @@ def _finish_refurbishment(env, rec):
     )
 
 
+def _certify(env, rec, axis):
+    """The grading certificate measuring `axis` (M14 capture pass 2: the grade
+    and its master come from the certificate, never from a typed grade)."""
+    return env["fix.tradein.grade"].create(
+        {"tradein_id": rec.id, "cosmetic_grade": axis, "battery_health_pct": 100}
+    )
+
+
 def _in(env, state, evidence=True, **vals):
     """A request set to `state` by the superuser, with the evidence that state
     implies (A05 audit E4: the gates of the later steps re-check it). Before
@@ -440,14 +448,19 @@ def test_grade_only_from_refurbished(odoo_env):
 
 def test_grade_required(odoo_env):
     rec = _in(odoo_env, "refurbished")
-    with pytest.raises(UserError, match="A grade is required"):
+    # M14 capture pass 2: the grade is the grading certificate's (BRU-TRF-12)
+    with pytest.raises(UserError, match="no grading certificate"):
         rec.action_grade()
 
 
 def test_grade_selection_derived_from_master_grade(odoo_env):
     master = _grade(odoo_env, "C")
-    rec = _in(odoo_env, "refurbished", refurb_grade_id=master.id, offered_value=10000)
+    rec = _in(
+        odoo_env, "refurbished", refurb_grade_id=_grade(odoo_env, "A").id, offered_value=10000
+    )
+    _certify(odoo_env, rec, "c")  # the measured grade, not the typed master, decides
     rec.action_grade()
+    assert rec.refurb_grade_id == master
     assert rec.state == "graded"
     assert rec.grade == "c"
     assert rec.resale_value == pytest.approx(10000 * 1.6 * master.price_multiplier)
@@ -458,6 +471,7 @@ def test_grade_selection_derived_from_master_grade(odoo_env):
 
 def test_master_grade_linked_from_selection(odoo_env):
     rec = _in(odoo_env, "refurbished", grade="a", offered_value=20000)
+    _certify(odoo_env, rec, "a")
     rec.action_grade()
     assert rec.refurb_grade_id == _grade(odoo_env, "A")
 
@@ -465,6 +479,7 @@ def test_master_grade_linked_from_selection(odoo_env):
 def test_selection_without_master_grade_prices_at_benchmark(odoo_env):
     _grade(odoo_env, "D").write({"active": False})
     rec = _in(odoo_env, "refurbished", grade="d", offered_value=300)
+    _certify(odoo_env, rec, "d")
     rec.action_grade()
     assert not rec.refurb_grade_id
     # floor benchmark of 1000 BDT, multiplier 1.0 without a master grade
@@ -476,8 +491,9 @@ def test_selection_without_master_grade_prices_at_benchmark(odoo_env):
 def test_both_grades_set_and_manual_resale_value_kept(odoo_env):
     master = _grade(odoo_env, "B")
     rec = _in(odoo_env, "refurbished", grade="a", refurb_grade_id=master.id, resale_value=55000)
+    _certify(odoo_env, rec, "b")
     rec.action_grade()
-    assert rec.grade == "a"
+    assert rec.grade == "b"  # the certificate's, not the typed "a"
     assert rec.refurb_grade_id == master
     assert rec.resale_value == 55000
 
@@ -661,7 +677,7 @@ def test_full_journey(odoo_env):
     rec.action_wipe()
     rec.action_refurbish()
     _finish_refurbishment(odoo_env, rec)
-    rec.write({"grade": "b"})
+    _certify(odoo_env, rec, "b")
     rec.action_grade()
     rec.write({"hold_until": fields.Date.today()})  # the hold period has run
     rec.action_resale_ready()

@@ -81,6 +81,25 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_open_intakes", "action_close"},
     },
+    # M14 capture pass 2 (2026-11-19): physical intake verification
+    # (FR-TRF-005), the refurbished return (FR-TRF-026) and the parts-only
+    # routing with its write-off approval (FR-TRF-020). The QA protocol rows
+    # (fix.refurb.qa.test) are written as the QA form's child grid.
+    "fix.tradein.intake.check": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_confirm"},
+    },
+    "fix.refurb.return": {
+        "order": "return_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_receive", "action_decide"},
+    },
+    "fix.refurb.writeoff": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request", "action_approve", "action_reject"},
+    },
 }
 
 _RESALE_STATES = ("graded", "resale_ready", "closed")

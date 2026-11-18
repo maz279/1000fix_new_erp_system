@@ -196,3 +196,130 @@ def test_every_capture_button_is_whitelisted():
         "fix.tradein.request"
     ]["actions"]
     assert surfaces["fix.bulk.buyback"]["actions"] == {"action_open_intakes", "action_close"}
+
+
+# ============================================ capture pass 2 (2026-11-19)
+# Read against FR-TRF-001..039: the forms the spec names on pages 1, 9 and
+# 10, and the fields the spec says the existing forms capture.
+PASS2_CHIPS = {
+    "1": "M14-form-intake-check",
+    "9": "M14-form-return",
+    "10": "M14-form-writeoff",
+}
+
+
+@pytest.mark.parametrize("no", sorted(PASS2_CHIPS, key=int))
+def test_pass2_pages_offer_the_spec_record(m14, no):
+    sub = next(s for s in m14["subs"] if s["no"] == no)
+    assert any(f["opens"] and f["id"] == PASS2_CHIPS[no] for f in sub["forms"]), (
+        "page %s does not offer %s" % (no, PASS2_CHIPS[no])
+    )
+
+
+SPEC_FIELDS = {
+    # FR-TRF-001 / 035: channel, declaration, accessories
+    "M14-form-request": {
+        "intake_channel",
+        "declared_condition",
+        "declared_faults",
+        "declared_age_months",
+        "oem_warranty_status",
+        "condition_photo_id",
+        "acc_charger",
+        "settlement_method",
+    },
+    # FR-TRF-005 / BRU-TRF-09
+    "M14-form-intake-check": {
+        "verified_condition",
+        "difference_notes",
+        "evidence_attachment_id",
+        "verified_value",
+        "identity_matches",
+    },
+    # FR-TRF-033
+    "M14-form-valuation": {
+        "resale_estimate",
+        "expected_refurb_cost",
+        "expected_logistics_cost",
+        "expected_destruction_cost",
+        "expected_channel_cost",
+    },
+    # FR-TRF-007
+    "M14-form-settlement": {"settlement_method", "settlement_bank_account_id"},
+    # FR-TRF-036 / 013 / BRU-TRF-22
+    "M14-form-refurb": {
+        "rework_cause",
+        "before_photo_id",
+        "after_photo_id",
+        "activation_lock_removed",
+        "ownership_proof_id",
+    },
+    # FR-TRF-019 / BRU-TRF-13
+    "M14-form-grade": {"grade", "override_reason", "screen_grade", "battery_health_pct"},
+    # FR-TRF-026
+    "M14-form-return": {"tradein_id", "reason", "failure_code", "outcome"},
+    # FR-TRF-020
+    "M14-form-writeoff": {"tradein_id", "cause", "cause_notes", "destination"},
+}
+
+
+@pytest.mark.parametrize("form", sorted(SPEC_FIELDS))
+def test_pass2_forms_capture_the_spec_fields(m14, form):
+    fields = m14["screens"][form]["fields"]
+    editable = {n for n, f in fields.items() if not f["readonly"]}
+    missing = SPEC_FIELDS[form] - editable
+    assert not missing, "%s cannot capture %s" % (form, sorted(missing))
+
+
+def test_pass2_computed_and_stamped_values_are_never_typed(m14):
+    grade = m14["screens"]["M14-form-grade"]["fields"]
+    for name in ("computed_grade", "is_override", "override_by_id", "override_at", "qa_id"):
+        assert grade[name]["readonly"], name
+    request = m14["screens"]["M14-form-request"]["fields"]
+    assert request["grade"]["readonly"]  # it is the certificate's
+    check = m14["screens"]["M14-form-intake-check"]["fields"]
+    assert check["condition_differs"]["readonly"] and check["checked_by_id"]["readonly"]
+    wo = m14["screens"]["M14-form-writeoff"]["fields"]
+    assert wo["accumulated_cost"]["readonly"] and wo["approved_by_id"]["readonly"]
+    assert m14["screens"]["M14-form-qa"]["lines"] == "test_ids"
+
+
+def test_pass2_lists_and_whitelists(m14):
+    surfaces = _surfaces()
+    expect = {
+        "M14-intake-check": ("fix.tradein.intake.check", ["action_confirm"]),
+        "M14-returns": ("fix.refurb.return", ["action_receive", "action_decide"]),
+        "M14-writeoff": (
+            "fix.refurb.writeoff",
+            ["action_request", "action_approve", "action_reject"],
+        ),
+    }
+    for screen, (model, actions) in expect.items():
+        lst = m14["screens"][screen]
+        assert lst["model"] == model and lst["actions"] == actions and lst["empty"]
+        assert set(actions) == surfaces[model]["actions"]
+    picks = {
+        "M14-form-return": [["graded_stock_id.state", "=", "sold"]],
+        "M14-form-writeoff": [["state", "in", ["refurbished", "graded"]]],
+    }
+    for form, domain in picks.items():
+        assert m14["screens"][form]["fields"]["tradein_id"]["domain"] == domain
+
+
+def test_pass2_writable_whitelist_matches_the_forms():
+    tree = ast.parse((ROOT / "controllers" / "a05" / "writable.py").read_text(encoding="utf-8"))
+    node = next(n.value for n in tree.body if isinstance(n, ast.Assign))
+    text = ast.unparse(node)
+    for model, name in (
+        ("fix.tradein.intake.check", "verified_value"),
+        ("fix.refurb.return", "failure_code"),
+        ("fix.refurb.writeoff", "destination"),
+        ("fix.tradein.grade", "override_reason"),
+        ("fix.refurb.qa", "test_ids"),
+        ("fix.tradein.valuation", "resale_estimate"),
+        ("fix.tradein.request", "settlement_method"),
+    ):
+        assert model in text and name in text, (model, name)
+    # stamps and computed values are never writable
+    for name in ("override_by_id", "accumulated_cost", "checked_by_id", "within_terms"):
+        assert "'%s'" % name not in text, name

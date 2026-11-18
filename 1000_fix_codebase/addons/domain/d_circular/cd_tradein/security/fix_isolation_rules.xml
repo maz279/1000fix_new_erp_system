@@ -29,6 +29,21 @@
         <field name="model_id" ref="model_fix_refurb_qa"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_refurb_qa_test_company" model="ir.rule">
+        <field name="name">fix.refurb.qa.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_refurb_qa_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_refurb_return_company" model="ir.rule">
+        <field name="name">fix.refurb.return: allowed companies</field>
+        <field name="model_id" ref="model_fix_refurb_return"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_refurb_writeoff_company" model="ir.rule">
+        <field name="name">fix.refurb.writeoff: allowed companies</field>
+        <field name="model_id" ref="model_fix_refurb_writeoff"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_refurbishment_company" model="ir.rule">
         <field name="name">fix.refurbishment: allowed companies</field>
         <field name="model_id" ref="model_fix_refurbishment"/>
@@ -48,6 +63,11 @@
     <record id="rule_fix_tradein_harvest_company" model="ir.rule">
         <field name="name">fix.tradein.harvest: allowed companies</field>
         <field name="model_id" ref="model_fix_tradein_harvest"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tradein_intake_check_company" model="ir.rule">
+        <field name="name">fix.tradein.intake.check: allowed companies</field>
+        <field name="model_id" ref="model_fix_tradein_intake_check"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_tradein_provenance_company" model="ir.rule">

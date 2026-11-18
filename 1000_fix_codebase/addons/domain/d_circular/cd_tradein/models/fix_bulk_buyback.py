@@ -223,6 +223,8 @@ class FixBulkBuyback(models.Model):
                     "customer_id": rec.partner_id.id,
                     "company_id": rec.company_id.id,
                     "currency_id": rec.currency_id.id,
+                    # FR-TRF-001: the fifth intake channel
+                    "intake_channel": "corporate",
                 }
                 if len(device) == 1:
                     vals["device_id"] = device.id

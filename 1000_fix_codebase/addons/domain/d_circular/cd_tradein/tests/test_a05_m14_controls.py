@@ -74,6 +74,9 @@ def m(odoo_env):
     x.tech = _user(env, "tech", [], ou)
     env["hr.employee"].create({"name": "A05 M14 Technician", "user_id": x.tech.id})
     x.wofficer = _user(env, "wofficer", ["cd_device_registry.group_warranty_officer"], ou)
+    # M14 capture pass 2: grade override / parts-only routing, and the write-off
+    x.supervisor = _user(env, "supervisor", ["cd_tradein.group_refurb_supervisor"], ou)
+    x.woapprover = _user(env, "woapprover", ["cd_tradein.group_refurb_writeoff_approver"], ou)
     brand = env["fix.brand"].create({"name": "A05 M14 Brand", "code": "A5M14C"})
     x.model = env["fix.device.model"].create({"name": "A05 M14 Phone", "brand_id": brand.id})
     grid = (
@@ -139,7 +142,12 @@ def request(x, user=None, **vals):
 
 def valued(x, rec):
     """The offer from an applied valuation on the governed grid (20,000)."""
-    val = x.env["fix.tradein.valuation"].with_user(x.clerk).create({"tradein_id": rec.id})
+    # FR-TRF-033: every offer carries its economics (50% modelled margin)
+    val = (
+        x.env["fix.tradein.valuation"]
+        .with_user(x.clerk)
+        .create({"tradein_id": rec.id, "resale_estimate": 40000})
+    )
     val.action_apply_to_tradein()
     return rec
 
@@ -197,13 +205,65 @@ def qa(x, rec, passed=12, total=12):
     return row
 
 
+def certify(x, rec, grade="b"):
+    """The grading certificate whose measured axes compute `grade` (BRU-TRF-12):
+    the worst axis sets A-D; a battery below grade D's minimum is parts only."""
+    if grade == "e":
+        vals = {"functional_grade": "d", "battery_health_pct": 50}
+    else:
+        vals = {"cosmetic_grade": grade, "battery_health_pct": 100}
+    row = x.env["fix.tradein.grade"].with_user(x.clerk).create({"tradein_id": rec.id, **vals})
+    assert row.grade == grade and not row.is_override
+    return row
+
+
 def graded(x, rec=None, grade="b", **kw):
     rec = refurbishing(x, rec, **kw)
     finish_steps(x, rec)
     qa(x, rec)
-    rec.write({"grade": grade})
+    certify(x, rec, grade)
     rec.action_grade()
     return rec
+
+
+def routed_to_parts(x, rec, destination="harvest"):
+    """FR-TRF-020 / BRU-TRF-19: the supervisor's routing, approved by another."""
+    row = (
+        x.env["fix.refurb.writeoff"]
+        .with_user(x.supervisor)
+        .create(
+            {
+                "tradein_id": rec.id,
+                "cause": "unrecoverable_fault",
+                "cause_notes": "Board corrosion beyond repair",
+                "destination": destination,
+            }
+        )
+    )
+    row.action_request()
+    row.with_user(x.woapprover).action_approve()
+    return row
+
+
+def intake_verified(x, rec, value, user=None):
+    """BRU-TRF-09: a value below the accepted offer is a verified, photographed
+    difference, confirmed by someone who did not value the unit."""
+    photo = x.env["ir.attachment"].create({"name": "intake.jpg", "raw": b"jpg"})
+    row = (
+        x.env["fix.tradein.intake.check"]
+        .with_user(user or x.clerk2)
+        .create(
+            {
+                "tradein_id": rec.id,
+                "verified_condition": "poor",
+                "difference_notes": "Cracked back glass not declared",
+                "evidence_attachment_id": photo.id,
+                "verified_value": value,
+            }
+        )
+    )
+    row.action_confirm()
+    return row
 
 
 def resale(x, rec=None, **kw):
@@ -213,7 +273,10 @@ def resale(x, rec=None, **kw):
 
 
 def approved(x, rec, value=20000.0, approver=None):
-    rec.write({"graded_value": value})
+    if value < (rec.accepted_offer_value or rec.offered_value) - 0.005:
+        intake_verified(x, rec, value)  # BRU-TRF-09: a lower value is evidenced
+    else:
+        rec.write({"graded_value": value})
     if rec.revision_state == "pending":
         rec.action_accept_revision()
     rec.action_request_payout_approval()
@@ -333,7 +396,7 @@ def test_offer_must_come_from_the_governed_grid(m):
     val = (
         m.env["fix.tradein.valuation"]
         .with_user(m.clerk)
-        .create({"tradein_id": rec.id, "market_ref_price": 60000})
+        .create({"tradein_id": rec.id, "market_ref_price": 60000, "resale_estimate": 120000})
     )
     assert val.is_override
     refused(val.action_apply_to_tradein, "state its reason")
@@ -579,6 +642,8 @@ def test_grade_needs_every_step_done_and_a_measured_qa_pass(m):
     assert failed.qa_state == "fail"
     refused(rec.action_grade, "no passed QA")
     qa(m, rec, passed=12, total=12)
+    refused(rec.action_grade, "grading certificate")
+    certify(m, rec)
     rec.action_grade()
     assert rec.state == "graded"
 
@@ -609,7 +674,7 @@ def test_step_costs_roll_up_into_the_request_and_the_stock(m):
     assert steps_total == 4 * 1500.0
     assert rec.refurbishment_cost == steps_total
     qa(m, rec)
-    rec.write({"grade": "b"})
+    certify(m, rec)
     rec.action_grade()
     rec.action_resale_ready()
     assert rec.graded_stock_id.refurbishment_cost == steps_total
@@ -687,14 +752,14 @@ def test_approval_pins_payee_net_tds_and_nid(m):
     rec.write({"tds_applicable": False})
     assert rec.payout_approval_state == "none"
     approved(m, rec, value=20000)
-    rec.write({"graded_value": 19000})
+    rec.write({"graded_value": 21000})
     assert rec.payout_approval_state == "none" and not rec.dofa_approved
 
 
 def test_revised_offer_needs_the_customers_reacceptance(m):
     rec = resale(m)
-    rec.write({"graded_value": 15000})
-    assert rec.revision_state == "pending"
+    intake_verified(m, rec, 15000)
+    assert rec.graded_value == 15000 and rec.revision_state == "pending"
     refused(rec.action_request_payout_approval, "revised value")
     res = p03_action(m, TRD, rec, "action_accept_revision")
     assert res["success"], res
@@ -906,6 +971,7 @@ def test_harvest_workflow_hands_parts_to_m15_stock(m):
     """M14-16 (H_01): harvest ran from a free state write and reached no
     inventory. It now runs from a graded parts-only unit into an M15 receipt."""
     unit = graded(m, grade="e")
+    routed_to_parts(m, unit)
     Harvest = m.env["fix.tradein.harvest"].with_user(m.clerk)
     line = Harvest.create(
         {
