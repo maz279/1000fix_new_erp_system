@@ -70,8 +70,15 @@ All in `cd_itsm` 19.0.0.2.0, `models/fix_integration_capture.py` (imported last,
 ## State
 
 - **Landed and pushed** on `fix/a03-live-data-and-pending-work`: fix, test and this report. The feature branch `fix/m28-capture-pass2` is pushed too.
-- **Not deployed yet.** It needs `-u cd_itsm,cd_p03_portal` on fix_real and fix_dev and one restart of 8069 and 8090. The restart is needed because there is a new controller route and new `SURFACES` entries, which are read at process start. That waits on the owner's OK and on coordination with the peer sessions that deploy in the same wave.
-- **Pre-deploy checks:**
-  - The new tables are additive (7 new models, 4 new nullable columns on `fix_connector`).
-  - No existing row is changed by the upgrade. The 8 live connectors keep their state; the gate applies at their next go-live request.
-- Private DB `fix_test_m28c2`, launch entry `odoo-m28-cap2` (port 8143) and worktree `m28base-wt` remain until the deploy.
+- **Deployed 19 Nov 2026.** `-u cd_itsm,cd_p03_portal` ran on fix_real and fix_dev inside the combined, owner-approved wave run by the M22 session (with M22/M23/M25/M26/M27/M29/M30). There was one restart at 10:57 local: 8069 is PID 64400, 8090 is PID 77212.
+- **Post-deploy checks.** All are read-only and all pass on both databases:
+  - `cd_itsm` is 19.0.0.2.0 (installed).
+  - The 7 new tables and the 4 `fix_connector` columns exist, and the BFX sequence is present.
+  - The connectors are unchanged (8 in total, 6 live). None declares a pattern or priority yet; that is owner data.
+  - `POST /hooks/v1/inbound/nope` answers 401 JSON "Unknown source or bad signature" on 8069 and 8090.
+  - The current backend bundle (`57ed71c`) carries the new forms and screens.
+  - The new processes logged no "Failed to load registry", and 8069 logged 0 ERROR lines. 8090 logged one asset-attachment DELETE serialization failure, which Odoo retried, and the request then answered 200. It is unrelated to M28.
+- **Live walk.** Headless Chromium on 8069/fix_real, with no saves:
+  - The 8 pages show the same buttons as on the private server.
+  - All 16 new or changed screens render with 0 console errors.
+  - In-Process Subscriptions lists the 191 real rows.
