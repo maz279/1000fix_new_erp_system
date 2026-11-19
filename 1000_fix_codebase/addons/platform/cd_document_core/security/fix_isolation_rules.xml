@@ -8,6 +8,11 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_disposal_batch_company" model="ir.rule">
+        <field name="name">fix.disposal.batch: allowed companies</field>
+        <field name="model_id" ref="model_fix_disposal_batch"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_document_company" model="ir.rule">
         <field name="name">fix.document: allowed companies</field>
         <field name="model_id" ref="model_fix_document"/>
@@ -18,5 +23,50 @@
         <field name="model_id" ref="model_fix_document"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_document_acknowledgement_company" model="ir.rule">
+        <field name="name">fix.document.acknowledgement: allowed companies</field>
+        <field name="model_id" ref="model_fix_document_acknowledgement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_document_class_company" model="ir.rule">
+        <field name="name">fix.document.class: allowed companies</field>
+        <field name="model_id" ref="model_fix_document_class"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_document_distribution_company" model="ir.rule">
+        <field name="name">fix.document.distribution: allowed companies</field>
+        <field name="model_id" ref="model_fix_document_distribution"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_document_exception_company" model="ir.rule">
+        <field name="name">fix.document.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_document_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_evidence_pack_company" model="ir.rule">
+        <field name="name">fix.evidence.pack: allowed companies</field>
+        <field name="model_id" ref="model_fix_evidence_pack"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_external_release_company" model="ir.rule">
+        <field name="name">fix.external.release: allowed companies</field>
+        <field name="model_id" ref="model_fix_external_release"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_legal_hold_order_company" model="ir.rule">
+        <field name="name">fix.legal.hold.order: allowed companies</field>
+        <field name="model_id" ref="model_fix_legal_hold_order"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_physical_record_company" model="ir.rule">
+        <field name="name">fix.physical.record: allowed companies</field>
+        <field name="model_id" ref="model_fix_physical_record"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_retention_violation_company" model="ir.rule">
+        <field name="name">fix.retention.violation: allowed companies</field>
+        <field name="model_id" ref="model_fix_retention_violation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

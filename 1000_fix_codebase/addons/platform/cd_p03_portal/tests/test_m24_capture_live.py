@@ -9,9 +9,9 @@
 #   * Signature Envelope: the signers travel with the envelope in the same
 #     write, and only then can it be sent; with no signer Send is refused.
 #   * Controlled Document: starts as a draft controlled document.
-#   * Place Legal Hold / Dispose of Document: Records Officer only; the hold
-#     writes the register row, the disposal writes the permanent disposal
-#     record, its certificate, and wipes the file.
+#   * Place Legal Hold: Records Officer only; the hold writes the register
+#     row. Disposal (pass 2, 19 Nov) is refused outside an approved batch,
+#     and a held document is excluded from the batch.
 import base64
 import itertools
 from unittest import mock
@@ -217,32 +217,25 @@ def test_only_a_records_officer_places_a_hold(call, clerk, records_officer, ou):
     assert hold.state == "held" and hold.placed_by_id == records_officer.user
 
 
-def test_disposal_of_an_expired_document(call, clerk, records_officer, ou):
+def test_a_lone_disposal_is_refused_even_to_a_records_officer(call, clerk, records_officer, ou):
+    """Pass 2 (19 Nov): disposal is an approved batch (FR-DMS-038, SOD-23);
+    the 13 Nov direct disposal by one Records Officer is refused. The batch
+    path is proven in cd_document_core/tests/test_m24_capture_pass2.py."""
     doc = _upload(call, clerk, ou)
     # what the daily retention sweep does when the class elapses
     doc.sudo()._guarded().write({"state": "expired"})
-    refused = call(
-        clerk,
-        "model_action",
-        model="fix.document",
-        ids=[doc.id],
-        method="action_dispose",
-        kwargs={"method": "secure_wipe"},
-    )
-    assert not refused.get("success"), refused
-    ok = call(
-        records_officer,
-        "model_action",
-        model="fix.document",
-        ids=[doc.id],
-        method="action_dispose",
-        kwargs={"method": "secure_wipe"},
-    )
-    assert ok.get("success"), ok
-    record = records_officer["fix.disposal.record"].sudo().search([("document_id", "=", doc.id)])
-    assert record and record.certificate_doc_id
+    for who in (clerk, records_officer):
+        out = call(
+            who,
+            "model_action",
+            model="fix.document",
+            ids=[doc.id],
+            method="action_dispose",
+            kwargs={"method": "secure_wipe"},
+        )
+        assert not out.get("success") and "Disposal Batch" in (out.get("error") or ""), out
     doc.invalidate_recordset()
-    assert doc.sudo().state == "destroyed"
+    assert doc.sudo().state == "expired"
 
 
 def test_a_held_document_cannot_be_disposed(call, clerk, records_officer, ou):
@@ -256,12 +249,20 @@ def test_a_held_document_cannot_be_disposed(call, clerk, records_officer, ou):
         method="action_legal_hold",
         kwargs={"matter_ref": "AUDIT-7"},
     ).get("success")
-    out = call(
-        records_officer,
-        "model_action",
-        model="fix.document",
-        ids=[doc.id],
-        method="action_dispose",
-        kwargs={"method": "secure_wipe"},
+    # the batch for its class leaves it out and lists it as held
+    rc = (
+        records_officer["fix.retention.class"]
+        .sudo()
+        .create({"code": "M24H%d" % next(_SEQ), "name": "Held test class", "retention_years": 1})
     )
-    assert not out.get("success") and "hold" in (out.get("error") or "").lower(), out
+    doc.sudo()._guarded().write({"retention_class_id": rc.id})
+    doc.sudo().invalidate_recordset()
+    res = call(
+        records_officer,
+        "model_write",
+        model="fix.disposal.batch",
+        values={"retention_class_id": rc.id, "cutoff_on": "2099-12-31", "method": "secure_wipe"},
+    )
+    assert "id" in res, res
+    batch = records_officer["fix.disposal.batch"].browse(res["id"])
+    assert doc not in batch.document_ids and doc in batch.excluded_held_ids

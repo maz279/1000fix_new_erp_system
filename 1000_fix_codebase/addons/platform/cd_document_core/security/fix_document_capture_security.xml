@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M24 capture pass 2 (19 Nov 2026): FR-DMS-038, SOD-23.
+
+     Disposal used to be one Records Officer's act, with no approval at all.
+     A disposal batch is now prepared by a Records Officer and approved by a
+     Disposal Approver (the class owner / Quality Manager, M24 Q-10) who did
+     not prepare it. The dev admin is a member so daily work keeps running;
+     segregation of duties still stops the admin approving a batch the admin
+     prepared. Appointing the real holder is an owner decision. -->
+<odoo>
+    <data noupdate="1">
+        <record id="group_disposal_approver" model="res.groups">
+            <field name="name">Disposal Approver (Class Owner / Quality Manager)</field>
+            <field name="privilege_id" ref="privilege_documents"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Approves a disposal batch prepared by a Records Officer; never one they prepared themselves (FR-DMS-038, SOD-23).</field>
+        </record>
+
+        <record id="param_external_release_max_days" model="ir.config_parameter">
+            <field name="key">cd_document_core.external_release_max_days</field>
+            <field name="value">30</field>
+        </record>
+        <record id="param_over_retention_grace_days" model="ir.config_parameter">
+            <field name="key">cd_document_core.over_retention_grace_days</field>
+            <field name="value">90</field>
+        </record>
+    </data>
+</odoo>

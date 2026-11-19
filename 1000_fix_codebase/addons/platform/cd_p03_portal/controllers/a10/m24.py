@@ -19,19 +19,113 @@ SURFACES = {
             "action_new_revision",
         },
     },
-    "fix.document.template": {"order": "name", "limit": 200, "actions": set()},
+    "fix.document.template": {
+        "order": "code, version desc",
+        "limit": 200,
+        # capture pass 2: a version is approved by a Document Controller who did
+        # not write it, and changed only by a new version (FR-DMS-021)
+        "actions": {"action_approve", "action_new_version", "action_retire"},
+    },
     "fix.retention.class": {"order": "name", "limit": 100, "actions": set()},
     "fix.legal.hold": {"order": "id desc", "limit": 200, "actions": {"action_release"}},
     "fix.disposal.record": {"order": "id desc", "limit": 200, "actions": set()},
     "fix.esignature.envelope": {
         "order": "id desc",
         "limit": 400,
-        "actions": {"action_send", "action_check_complete", "action_void"},
+        "actions": {"action_send", "action_check_complete", "action_void", "action_verify"},
     },
     "fix.esignature.signer": {
         "order": "envelope_id, sequence",
         "limit": 500,
         "actions": {"action_sign", "action_decline"},
+    },
+    # ---- capture pass 2 (2026-11-19): the spec records that had no model ----
+    "fix.document.class": {
+        "order": "code",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+        "pickers": {"retention_class_id": [("active", "=", True)]},
+    },
+    "fix.document.exception": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_resolve"},
+        "pickers": {"doc_class_id": [("state", "=", "active")]},
+    },
+    "fix.physical.record": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_record_destruction"},
+        "pickers": {"document_id": [("state", "!=", "destroyed")]},
+    },
+    "fix.document.integrity.check": {"order": "id desc", "limit": 100, "actions": set()},
+    "fix.document.integrity.divergence": {"order": "id", "limit": 300, "actions": set()},
+    "fix.document.distribution": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_distribute"},
+        "pickers": {
+            "document_id": [
+                ("is_controlled", "=", True),
+                ("control_state", "=", "published"),
+                ("is_current", "=", True),
+            ],
+            "recipient_ids": [("share", "=", False)],
+        },
+    },
+    "fix.document.acknowledgement": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_acknowledge"},
+    },
+    "fix.disposal.batch": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {
+            "action_refresh",
+            "action_submit",
+            "action_approve",
+            "action_reject",
+            "action_execute",
+        },
+    },
+    "fix.retention.violation": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_investigate", "action_close"},
+    },
+    "fix.legal.hold.order": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_apply", "action_release"},
+    },
+    "fix.evidence.pack": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_collect", "action_assemble", "action_verify"},
+        "pickers": {"document_ids": [("state", "!=", "destroyed")]},
+    },
+    "fix.external.release": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request", "action_grant", "action_revoke"},
+        "pickers": {
+            "pack_id": [("state", "=", "sealed")],
+            "document_ids": [("state", "!=", "destroyed"), ("isolation_tier", "!=", "T5")],
+        },
+    },
+    "fix.document.access.log": {"order": "id desc", "limit": 500, "actions": set()},
+    "fix.esignature.wet.signature": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
+        "pickers": {
+            "envelope_id": [("state", "in", ("sent", "partially_signed"))],
+            "signer_id": [
+                ("signed_at", "=", False),
+                ("envelope_id.state", "in", ("sent", "partially_signed")),
+            ],
+        },
     },
 }
 
@@ -229,5 +323,9 @@ def kpis(env):
         "search_p95": None,
         "pending_esignatures": pending,
         "legal_holds": held,
-        "evidence_packs_5min": len(envelopes.filtered(lambda e: e.state == "completed")),
+        # capture pass 2: this KPI counted completed signature envelopes; it is
+        # the evidence packs sealed within the five-minute target (KPI-C24-04)
+        "evidence_packs_5min": env["fix.evidence.pack"].search_count(
+            [("state", "=", "sealed"), ("assembly_seconds", "<=", 300)]
+        ),
     }

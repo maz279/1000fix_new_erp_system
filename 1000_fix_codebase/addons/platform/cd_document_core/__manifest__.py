@@ -15,7 +15,7 @@ Owns:
 Templates, e-signature envelopes, approval chains, legal hold and Mayan EDMS
 integration stay in W3/W5 — this is the kernel only.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Documents",
@@ -23,10 +23,12 @@ integration stay in W3/W5 — this is the kernel only.
     "data": [
         "security/fix_isolation_rules.xml",
         "security/fix_document_groups.xml",
+        "security/fix_document_capture_security.xml",
         "security/ir.model.access.csv",
         "data/fix_document_handoff_consumers.xml",
         "views/fix_document_views.xml",
         "data/fix_document_cron.xml",
+        "data/fix_document_capture_cron.xml",
         "data/fix_document_consumers.xml",
     ],
     "installable": True,

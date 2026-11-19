@@ -13,7 +13,18 @@ from datetime import date, timedelta
 from unittest import mock
 
 import pytest
+from odoo.addons.cd_document_core.models.fix_document_capture import (  # pass 2: disposal
+    _BATCH_TOKEN,
+    BATCH_KEY,
+)
 from odoo.exceptions import UserError, ValidationError
+
+
+def _via_batch(rec):
+    """What an approved fix.disposal.batch passes to action_dispose (pass 2,
+    19 Nov 2026): a lone action_dispose is refused (FR-DMS-038, SOD-23)."""
+    return rec.with_context(**{BATCH_KEY: _BATCH_TOKEN})
+
 
 MAYAN_KEYS = ("mayan_edms.base_url", "mayan_edms.token")
 
@@ -347,7 +358,9 @@ def test_a_bare_delete_never_leaves_a_register_entry(odoo_env):
 def test_disposal_records_the_destruction_and_wipes_the_file(odoo_env, method):
     doc = _attach(odoo_env, name="Expired batch %s" % method, raw=b"shred me")
     doc.write({"state": "expired"})
-    assert doc.action_dispose(method) is True
+    with _rejects(odoo_env, UserError, match="Disposal Batch"):
+        doc.action_dispose(method)
+    assert _via_batch(doc).action_dispose(method) is True
 
     (register,) = odoo_env["fix.disposal.record"].search([("document_id", "=", doc.id)])
     assert register.name == "DISPOSAL/Expired batch %s" % method
@@ -367,7 +380,7 @@ def test_disposal_records_the_destruction_and_wipes_the_file(odoo_env, method):
 def test_disposal_register_is_permanent(odoo_env):
     doc = _attach(odoo_env)
     doc.write({"state": "expired"})
-    doc.action_dispose()
+    _via_batch(doc).action_dispose()
     (register,) = odoo_env["fix.disposal.record"].search([("document_id", "=", doc.id)])
     with _rejects(odoo_env, UserError, match="permanent"):
         register.with_user(odoo_env.ref("base.user_admin")).unlink()

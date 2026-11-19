@@ -75,11 +75,11 @@ console.log(JSON.stringify({ subs,
 CAPTURE = {
     "1": "module",  # an uploaded document
     "2": "M24-form-template",  # the template a transaction generates from
-    "3": "module",  # an uploaded document, classified at capture
+    "3": "M24-form-class",  # the class taxonomy (pass 2, FR-DMS-004)
     "4": "M24-form-controlled",  # a controlled document draft
     "5": "M24-form-envelope",  # a signature envelope with its signers
     "6": "M24-form-hold",  # a legal hold on an existing document
-    "7": None,  # packs are filed by the workshop / claim: chip to M31's form
+    "7": "M24-form-pack",  # an assembled, sealed evidence pack (pass 2, FR-DMS-041)
 }
 
 
@@ -128,11 +128,15 @@ def _served_actions():
 
 
 def _model_source(model):
-    for py in ADDONS.rglob("models/*.py"):
+    """Every source that declares the model, joined: since pass 2 (19 Nov)
+    an extending file may repeat the _name to add a mixin."""
+    found = []
+    for py in sorted(ADDONS.rglob("models/*.py")):
         text = py.read_text(encoding="utf-8", errors="ignore")
         if re.search(r'_name = ["\']%s["\']' % re.escape(model), text):
-            return text
-    raise AssertionError("no source declares %s" % model)
+            found.append(text)
+    assert found, "no source declares %s" % model
+    return "\n".join(found)
 
 
 @pytest.mark.parametrize("no", sorted(CAPTURE, key=int))
@@ -155,7 +159,9 @@ def test_only_the_repository_pages_offer_an_upload(m24):
     template, a hold or a pack."""
     assert m24["module_create"]["screen"] == "M24-form-document"
     upload = sorted(s["no"] for s in m24["subs"] if s["create"] == "module")
-    assert upload == ["1", "3"]
+    assert upload == ["1"]
+    # classification still reaches the upload as a chip
+    assert "Upload" in [f["f"] for f in _sub(m24, "3")["forms"]]
 
 
 def test_auto_filing_lists_filed_documents_and_captures_templates(m24):
@@ -213,15 +219,22 @@ def test_a_hold_is_placed_through_the_served_method(m24):
     assert reason["readonly"] and reason["required"]
 
 
-def test_disposal_is_offered_only_for_expired_unheld_documents(m24):
-    form = m24["screens"]["M24-form-dispose"]
-    dom = form["pick"]["domain"]
-    assert ["legal_hold", "=", False] in dom
-    assert ["state", "in", ["expired", "pending_destruction"]] in dom
-    assert form["saveAction"]["method"] == "action_dispose"
-    assert "action_dispose" in _served_actions()["fix.document"]
+def test_disposal_runs_through_an_approved_batch(m24):
+    """Pass 2 (19 Nov): the 13 Nov 'Dispose of Document' form let one Records
+    Officer dispose of a document with no approval (FR-DMS-038, SOD-23). It is
+    gone; disposal is a batch prepared by one officer and approved by
+    another."""
+    assert "M24-form-dispose" not in m24["screens"]
     on_page = [f["f"] for f in _sub(m24, "6")["forms"]]
-    assert on_page == ["Place Legal Hold", "Dispose of Document", "Retention Policy"]
+    assert on_page == [
+        "Place Legal Hold",
+        "Legal Hold Order",
+        "Disposal Batch",
+        "Retention Violation",
+        "Retention Policy",
+    ]
+    acts = {a["m"] for a in m24["screens"]["M24-batches"]["actions"]}
+    assert {"action_submit", "action_approve", "action_execute"} <= acts
 
 
 def test_every_list_action_is_served(m24):
@@ -236,16 +249,16 @@ def test_every_list_action_is_served(m24):
     assert not bad, bad
 
 
-def test_the_document_browser_reaches_hold_and_disposal(m24):
+def test_the_document_browser_reaches_holds_but_not_lone_disposal(m24):
     acts = {a["m"]: a["asks"] for a in m24["screens"]["M24-browser"]["actions"]}
     assert acts.get("action_legal_hold") == ["matter_ref"]
     assert acts.get("action_release_hold") == ["reason"]
-    assert "action_dispose" in acts
+    assert "action_dispose" not in acts
 
 
 def test_evidence_packs_chip_to_the_workshop_evidence_form(m24):
     sub = _sub(m24, "7")
-    assert ["document_type", "=", "evidence_pack"] in sub["domain"]
+    assert sub["model"] == "fix.evidence.pack"
     chip = next(f for f in sub["forms"] if f["f"] == "Workshop Evidence Item")
     assert chip["id"] == "M31-form-evidence" and chip["model"] == "fix.workshop.evidence"
     # the workshop factory files its upload as an evidence-pack document

@@ -15,12 +15,23 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_document_core.models.fix_document_capture import (  # pass 2: disposal
+    _BATCH_TOKEN,
+    BATCH_KEY,
+)
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as g
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
     approve_via_inbox,
     assigned,
 )
 from odoo.exceptions import AccessError, UserError
+
+
+def _via_batch(rec):
+    """What an approved fix.disposal.batch passes to action_dispose (pass 2,
+    19 Nov 2026): a lone action_dispose is refused (FR-DMS-038, SOD-23)."""
+    return rec.with_context(**{BATCH_KEY: _BATCH_TOKEN})
+
 
 RECORDS = "cd_document_core.group_document_records"
 CONTROLLER = "cd_document_core.group_document_controller"
@@ -75,9 +86,7 @@ def p03(x, endpoint, user=None, **kw):
 
 def _doc(x, user=None, raw=b"policy bytes", **vals):
     """A document created by `user` (default: the author) over a fixture file."""
-    attachment = x.env["ir.attachment"].create(
-        {"name": "file", "datas": base64.b64encode(raw)}
-    )
+    attachment = x.env["ir.attachment"].create({"name": "file", "datas": base64.b64encode(raw)})
     return (
         x.env["fix.document"]
         .with_user(user or x.author)
@@ -118,8 +127,9 @@ def test_hold_authority_is_records_only_and_needs_the_matter(w):
     for vals in ({"legal_hold": False}, {"legal_hold_reason": "typed"}):
         with pytest.raises(UserError, match=GUARD):
             doc.with_user(w.records).write(vals)
-    out = p03(w, _MW, user=w.records, model="fix.document", record_id=doc.id,
-              values={"legal_hold": False})
+    out = p03(
+        w, _MW, user=w.records, model="fix.document", record_id=doc.id, values={"legal_hold": False}
+    )
     assert "error" in out and GUARD in out["error"]
 
 
@@ -129,8 +139,14 @@ def test_hold_freezes_the_file_until_records_releases_it(w):
     # the record's content is frozen…
     with pytest.raises(UserError, match=GUARD):
         doc.with_user(w.records).write({"name": "renamed under hold"})
-    out = p03(w, _MW, user=w.author, model="fix.document", record_id=doc.id,
-              values={"description": "rewritten under hold"})
+    out = p03(
+        w,
+        _MW,
+        user=w.author,
+        model="fix.document",
+        record_id=doc.id,
+        values={"description": "rewritten under hold"},
+    )
     assert "error" in out
     # …and so is the underlying file: the audit swapped it past the record
     with pytest.raises(UserError, match="e-signature seal"):
@@ -177,24 +193,34 @@ def test_retention_state_moves_only_through_the_cron(w):
     doc = _doc(w)
     with pytest.raises(UserError, match=GUARD):
         doc.with_user(w.records).write({"state": "expired"})
-    out = p03(w, _MW, user=w.records, model="fix.document", record_id=doc.id,
-              values={"state": "destroyed"})
+    out = p03(
+        w,
+        _MW,
+        user=w.records,
+        model="fix.document",
+        record_id=doc.id,
+        values={"state": "destroyed"},
+    )
     assert "error" in out and GUARD in out["error"]
     with pytest.raises(UserError, match=GUARD):
         w.env["fix.document"].with_user(w.clerk).create(
-            {"name": "Born destroyed", "attachment_id": doc.attachment_id.id,
-             "state": "destroyed"}
+            {"name": "Born destroyed", "attachment_id": doc.attachment_id.id, "state": "destroyed"}
         )
 
 
 def test_disposal_is_records_only_and_records_everything(w):
     doc = _expired(w)
-    with pytest.raises(UserError, match="Only a Records Officer"):
-        doc.with_user(w.clerk).action_dispose()
-    out = p03(w, _MA, user=w.clerk, model="fix.document", ids=doc.ids, method="action_dispose")
+    # pass 2: nobody disposes outside an approved batch, a Records Officer included
+    for who in (w.clerk, w.records):
+        with pytest.raises(UserError, match="Disposal Batch"):
+            doc.with_user(who).action_dispose()
+    out = p03(w, _MA, user=w.records, model="fix.document", ids=doc.ids, method="action_dispose")
     assert out.get("success") is False
+    # inside a batch the Records-only rule still holds
+    with pytest.raises(UserError, match="Only a Records Officer"):
+        _via_batch(doc.with_user(w.clerk)).action_dispose()
 
-    doc.with_user(w.records).action_dispose("physical_shredding")
+    _via_batch(doc.with_user(w.records)).action_dispose("physical_shredding")
     (register,) = w.env["fix.disposal.record"].sudo().search([("document_id", "=", doc.id)])
     assert register.method == "physical_shredding"
     assert register.performed_by_id == w.records
@@ -210,7 +236,7 @@ def test_disposal_is_records_only_and_records_everything(w):
     held = _expired(w, name="Held expiry")
     held.with_user(w.records).action_legal_hold("Litigation 44/2026")
     with pytest.raises(UserError, match="strictly blocked"):
-        held.with_user(w.records).action_dispose()
+        _via_batch(held.with_user(w.records)).action_dispose()
     assert held.state == "expired"  # untouched
 
 
@@ -219,8 +245,9 @@ def test_mayan_sync_never_claims_an_endpoint_it_does_not_have(w):
     w.env["ir.config_parameter"].search(
         [("key", "in", ("mayan_edms.base_url", "mayan_edms.token"))]
     ).unlink()
-    out = p03(w, _MA, user=w.clerk, model="fix.document", ids=doc.ids,
-              method="action_sync_to_mayan")
+    out = p03(
+        w, _MA, user=w.clerk, model="fix.document", ids=doc.ids, method="action_sync_to_mayan"
+    )
     assert out.get("success") is False
     assert doc.mayan_sync_status == "not_synced" and not doc.mayan_document_id
     # and the fingerprint is derived, never typed
@@ -235,8 +262,12 @@ def test_controlled_documents_are_born_draft_and_move_via_actions(w):
     )
     with pytest.raises(UserError, match=GUARD):
         w.env["fix.document"].with_user(w.author).create(
-            {"name": "Born published", "attachment_id": attachment.id,
-             "is_controlled": True, "control_state": "published"}
+            {
+                "name": "Born published",
+                "attachment_id": attachment.id,
+                "is_controlled": True,
+                "control_state": "published",
+            }
         )
     doc = _doc(w, is_controlled=True, document_type="other")
     assert (doc.control_state, doc.is_current) == ("draft", True)
@@ -305,19 +336,39 @@ def test_publishing_a_revision_supersedes_the_previous_version(w):
 
 def test_p03_document_actions_run_the_real_journeys(w):
     doc = _doc(w, is_controlled=True, name="SOP-3 Via P03")
-    out = p03(w, _MA, user=w.author, model="fix.document", ids=doc.ids,
-              method="action_submit_review", kwargs={"justification": "from the workspace"})
+    out = p03(
+        w,
+        _MA,
+        user=w.author,
+        model="fix.document",
+        ids=doc.ids,
+        method="action_submit_review",
+        kwargs={"justification": "from the workspace"},
+    )
     assert out.get("success") is True and doc.control_state == "in_review"
     approve_via_inbox(doc, w.controller)
     out = p03(w, _MA, user=w.author, model="fix.document", ids=doc.ids, method="action_publish")
     assert out.get("success") is True and doc.control_state == "published"
 
     plain = _doc(w, name="Operational via P03")
-    out = p03(w, _MA, user=w.records, model="fix.document", ids=plain.ids,
-              method="action_legal_hold", kwargs={"matter_ref": "Notice 7/2026"})
+    out = p03(
+        w,
+        _MA,
+        user=w.records,
+        model="fix.document",
+        ids=plain.ids,
+        method="action_legal_hold",
+        kwargs={"matter_ref": "Notice 7/2026"},
+    )
     assert out.get("success") is True and plain.legal_hold
-    out = p03(w, _MA, user=w.records, model="fix.legal.hold",
-              ids=w.env["fix.legal.hold"].sudo().search([("document_id", "=", plain.id)]).ids,
-              method="action_release", kwargs={"reason": "notice withdrawn"})
+    out = p03(
+        w,
+        _MA,
+        user=w.records,
+        model="fix.legal.hold",
+        ids=w.env["fix.legal.hold"].sudo().search([("document_id", "=", plain.id)]).ids,
+        method="action_release",
+        kwargs={"reason": "notice withdrawn"},
+    )
     plain.invalidate_recordset()  # the action ran in another env's cache
     assert out.get("success") is True and not plain.legal_hold

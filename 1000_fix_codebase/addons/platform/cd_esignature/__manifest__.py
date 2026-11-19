@@ -12,7 +12,7 @@ CD-M24-03: e-signature envelopes.
   (a written OSS-alternative review is a governance item); the envelope is
   deliberately provider-independent
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.2.0.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/Documents",

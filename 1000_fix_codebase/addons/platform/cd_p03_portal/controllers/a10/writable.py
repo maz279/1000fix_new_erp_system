@@ -87,6 +87,15 @@ WRITABLE = {
             "risk_id",
         }
     ),
+    "fix.disposal.batch": frozenset(
+        {
+            "company_id",
+            "cutoff_on",
+            "method",
+            "note",
+            "retention_class_id",
+        }
+    ),
     "fix.disposal.record": frozenset(),
     "fix.document": frozenset(
         {
@@ -96,11 +105,64 @@ WRITABLE = {
             "isolation_tier",
             "name",
             "name_bn",
+            "res_id",
+            "res_model",
             "retention_class_id",
             "upload_file",
             "upload_filename",
         }
     ),
+    "fix.document.access.log": frozenset(),
+    "fix.document.acknowledgement": frozenset(),
+    "fix.document.class": frozenset(
+        {
+            "code",
+            "company_id",
+            "document_type",
+            "isolation_tier",
+            "name",
+            "name_bn",
+            "need_description",
+            "need_link",
+            "need_name_bn",
+            "need_operating_unit",
+            "note",
+            "parent_id",
+            "requires_signature",
+            "retention_class_id",
+            "signature_assurance_level",
+            "template_id",
+        }
+    ),
+    "fix.document.distribution": frozenset(
+        {
+            "company_id",
+            "document_id",
+            "due_on",
+            "note",
+            "recipient_ids",
+        }
+    ),
+    "fix.document.exception": frozenset(
+        {
+            "assigned_to_id",
+            "doc_class_id",
+            "doc_description",
+            "doc_name_bn",
+            "doc_operating_unit_id",
+            "doc_res_id",
+            "doc_res_model",
+            "resolution_note",
+        }
+    ),
+    "fix.document.integrity.check": frozenset(
+        {
+            "line_ids",
+            "note",
+            "retention_class_id",
+        }
+    ),
+    "fix.document.integrity.divergence": frozenset(),
     "fix.document.template": frozenset(
         {
             "bilingual",
@@ -121,6 +183,38 @@ WRITABLE = {
         }
     ),
     "fix.esignature.signer": frozenset(),
+    "fix.esignature.wet.signature": frozenset(
+        {
+            "envelope_id",
+            "identity_checked",
+            "note",
+            "scan_file",
+            "signed_on",
+            "signer_id",
+        }
+    ),
+    "fix.evidence.pack": frozenset(
+        {
+            "company_id",
+            "document_ids",
+            "purpose",
+            "requirement_ids",
+            "subject_id",
+            "subject_label",
+            "subject_model",
+        }
+    ),
+    "fix.external.release": frozenset(
+        {
+            "company_id",
+            "document_ids",
+            "expires_on",
+            "pack_id",
+            "partner_id",
+            "purpose",
+            "watermark",
+        }
+    ),
     "fix.grc.authority": frozenset(),
     "fix.grc.control.test": frozenset(
         {
@@ -429,6 +523,21 @@ WRITABLE = {
     ),
     "fix.knowledge.tree.node": frozenset(),
     "fix.legal.hold": frozenset(),
+    "fix.legal.hold.order": frozenset(
+        {
+            "company_id",
+            "instructed_by",
+            "instructed_on",
+            "instruction_ref",
+            "matter_ref",
+            "scope_date_from",
+            "scope_date_to",
+            "scope_document_type",
+            "scope_res_id",
+            "scope_res_model",
+            "scope_retention_class_id",
+        }
+    ),
     "fix.ncr": frozenset(
         {
             "clause_ref",
@@ -442,6 +551,18 @@ WRITABLE = {
             "order_id",
             "severity",
             "source",
+        }
+    ),
+    "fix.physical.record": frozenset(
+        {
+            "box_ref",
+            "company_id",
+            "condition",
+            "custodian_id",
+            "document_id",
+            "evidence_file",
+            "location",
+            "received_on",
         }
     ),
     "fix.qms.audit.finding": frozenset(
@@ -661,6 +782,14 @@ WRITABLE = {
             "expiry_action",
             "name",
             "retention_years",
+        }
+    ),
+    "fix.retention.violation": frozenset(
+        {
+            "company_id",
+            "detail",
+            "document_id",
+            "violation_type",
         }
     ),
     "fix.risk.appetite": frozenset(
