@@ -21,7 +21,7 @@ CD-M36-02/03: quotation and estimation.
   guarantees with routed DOFA release / claim and an expiry cron; roles
   (Quotation Author, Bid Coordinator, Tender Committee, Commercial Manager)
 """,
-    "version": "19.0.1.5.0",
+    "version": "19.0.1.5.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Quotations",

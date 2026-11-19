@@ -45,11 +45,14 @@ TERM_TYPES = [
     ("assumption", "Assumption"),
     ("exclusion", "Exclusion"),
 ]
-QUOTE_TYPES = [
-    ("service", "Service order scope (M01)"),
-    ("contract", "Contract (M08)"),
-    ("subscription", "Subscription plan (M39)"),
-]
+
+
+def _quote_types(model):
+    """Every kind of quotation fix.quotation knows, including the ones other
+    files add (P2 "project"): a fixed list refused the live templates' types."""
+    return model.env["fix.quotation"]._fields["quote_type"].selection
+
+
 DEVIATION_STATES = [
     ("standard", "Standard (no approval needed)"),
     ("pending", "Deviation awaiting approval"),
@@ -82,7 +85,7 @@ class FixQuotationStandardTerm(models.Model):
     name = fields.Char(string="Title", required=True)
     term_type = fields.Selection(TERM_TYPES, string="Kind", required=True, default="term")
     quote_type = fields.Selection(
-        QUOTE_TYPES, string="Applies To", help="Empty: every kind of quotation."
+        _quote_types, string="Applies To", help="Empty: every kind of quotation."
     )
     text_en = fields.Text(string="Wording (English)", required=True)
     text_bn = fields.Text(string="Wording (Bengali)")

@@ -227,6 +227,26 @@ def test_new_wording_needs_new_approval_and_a_rejection_blocks(x):
     _submit(c, q)
 
 
+def test_the_library_knows_every_kind_of_quotation(x):
+    """Seeding the library from the live templates failed: three of the four
+    are "project" quotations, which a fixed three-type list refused."""
+    c = x
+    kinds = dict(c.env["fix.quotation"]._fields["quote_type"].selection)
+    assert "project" in kinds
+    std = _std(c, "PRJ-DEL", "Delivery within 30 days.", quote_type="project")
+    assert std.quote_type == "project"
+    q = _quote(c, quote_type="project")
+    q.with_user(c.author).action_apply_standard_terms()
+    assert std in q.term_ids.mapped("standard_term_id")
+    contract_q = _quote(c)
+    try:
+        with c.env.cr.savepoint():
+            contract_q.with_user(c.author).action_apply_standard_terms()
+    except UserError:
+        pass  # nothing else in the library applies to it
+    assert std not in contract_q.term_ids.mapped("standard_term_id")
+
+
 def test_a_mandatory_standard_term_is_attached_before_submission(x, act):
     c = x
     std = _std(c, "VAT", "Prices include VAT at 15%.", mandatory=True, quote_type="contract")
