@@ -119,3 +119,18 @@ Other workspace changes:
    - the side-by-side version comparison (FR-QTE-013);
    - the tokenised customer view (T-05; pass 1 owner gap 4).
 5. **Still open from pass 1:** the diagnostic-fee invoice policy; a second Tender Committee member on fix_real.
+
+## 5. Deployed (19 Nov 2026, approved by the user)
+
+- **Landed and pushed:** `15b41d7c` on `fix/a03-live-data-and-pending-work`, together with `fix/m36-capture-pass2`.
+- **Backups:** `all_working_folder/1000fix-2/_migration/backups/fix_{real,dev}_pre_m36_capture2_2026-11-19.dump` (54.8 MB / 50.3 MB).
+- **Upgrade:** `-u cd_quotation,cd_p03_portal` on fix_real, then on fix_dev.
+  - Exit 0 and 0 ERROR lines on both.
+  - cd_quotation is at 19.0.1.4.0.
+  - The new tables exist.
+  - The upgrade cascade also took cd_workshop and cd_subscription.
+- **Restart:** one restart of 8069/8090, done by the M35 session as part of the combined wave, after the version gap was empty on both DBs.
+  - 8069 = PID 52556 (fix_real), 8090 = PID 80704 (fix_dev), both started 20:51:04.
+- **Live check:** a read-only headless walk with the dev login and no saves.
+  - On both 8069 and 8090: all 10 pages show their "+ New" and every new chip.
+  - 21 screens render, with **0 console errors**.
