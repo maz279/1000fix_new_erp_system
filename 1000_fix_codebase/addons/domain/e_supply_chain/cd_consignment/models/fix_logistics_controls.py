@@ -213,8 +213,11 @@ class FixConsignmentControls(models.Model):
             )
         return True
 
-    def _check_dispatch_controls(self):
-        """Gates of Confirm for Dispatch beyond the declared value itself."""
+    def _check_dispatch_controls(self, confirming=True):
+        """Gates of Confirm for Dispatch beyond the declared value itself.
+        A02 ERP audit M03-F2: run again at Start Transit (confirming=False),
+        where the dual-signature rule (the countersigner does not confirm) is
+        not re-applied: the confirmation already happened."""
         for rec in self:
             if rec.high_value:
                 if not rec.insurance_flag:
@@ -230,7 +233,11 @@ class FixConsignmentControls(models.Model):
                         "%s is a high-value consignment: a second person must countersign its "
                         "declared value before dispatch (BRU-LOG-03)." % rec.name
                     )
-                if rec.dispatch_countersigned_by_id == self.env.user and not self.env.su:
+                if (
+                    confirming
+                    and rec.dispatch_countersigned_by_id == self.env.user
+                    and not self.env.su
+                ):
                     raise UserError(
                         "You countersigned %s; a different person confirms its dispatch "
                         "(dual signature, BRU-LOG-03)." % rec.name

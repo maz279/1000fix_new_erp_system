@@ -15,8 +15,11 @@ from odoo.exceptions import UserError
 
 logger = logging.getLogger(__name__)
 
+# A02 ERP audit M31-F13: unit_cost was typed by the bench, and every
+# ceiling check reads the subtotal it drives. It is the part's standard cost
+# when the line is added and the M15 issue cost when the part is fitted.
 GUARDED_LINE_FIELDS = frozenset(
-    {"reservation_state", "consumption_ref", "consumed_at", "consumed_by_id"}
+    {"reservation_state", "consumption_ref", "consumed_at", "consumed_by_id", "unit_cost"}
 )
 # what a consumed line, or any line of a closed job, records: frozen
 LINE_FROZEN_FIELDS = frozenset(
@@ -207,11 +210,23 @@ class FixWorkshopPartLine(models.Model):
         # onchange did this; a line added from the workspace (M31 Part
         # Fitment, 2026-11-12) runs no onchange and cost 0, so the job's
         # parts total and the estimate check missed the part entirely.
-        Product = self.env["product.product"]
+        # A02 ERP audit M31-F13: and the cost is the system's, never typed:
+        # a caller may only echo the standard cost (the backend onchange).
+        Product = self.env["product.product"].sudo()
+        trusted = self._fix_guard_open()
+        costs = []
         for vals in vals_list:
-            if vals.get("product_id") and "unit_cost" not in vals:
-                vals["unit_cost"] = Product.browse(vals["product_id"]).standard_price
-        return super().create(vals_list)
+            standard = (
+                Product.browse(vals["product_id"]).standard_price if vals.get("product_id") else 0.0
+            )
+            given = vals.pop("unit_cost", None)
+            if given is not None and not trusted and abs((given or 0.0) - standard) > 1e-6:
+                self._fix_guard_refuse({"unit_cost"})
+            costs.append(given if (trusted and given is not None) else standard)
+        records = super().create(vals_list)
+        for rec, cost in zip(records, costs, strict=True):
+            rec._guarded().write({"unit_cost": cost})
+        return records
 
     def write(self, vals):
         touched = LINE_FROZEN_FIELDS & set(vals)
@@ -229,7 +244,13 @@ class FixWorkshopPartLine(models.Model):
                             "consumed" if rec.reservation_state == "consumed" else "closed job's",
                         )
                     )
-        return super().write(vals)
+        result = super().write(vals)
+        # A02 ERP audit M31-F13: a part changed on an open line takes the new
+        # part's standard cost (the cost is not typed)
+        if "product_id" in vals and not self._fix_guard_open():
+            for rec in self.filtered(lambda r: r.reservation_state in ("draft", "reserved")):
+                rec._guarded().write({"unit_cost": rec.product_id.sudo().standard_price})
+        return result
 
     def unlink(self):
         # A02 audit M31-4 / P31-09b: a consumed line was deleted without trace

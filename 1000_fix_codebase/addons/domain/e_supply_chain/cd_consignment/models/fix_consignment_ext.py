@@ -12,6 +12,7 @@ import hmac
 import logging
 import os
 import secrets
+from datetime import timedelta
 
 from odoo import fields, models
 from odoo.exceptions import UserError
@@ -31,6 +32,10 @@ from .fix_consignment import (
 _logger = logging.getLogger(__name__)
 
 POD_HMAC_SCOPE = "cd_consignment.pod_otp"
+# A02 ERP audit M03-F20: how many hours after its scheduled dispatch an
+# own-fleet leg is promised to arrive. A business figure (OWNER): unset, an
+# own-fleet leg is not judged on-time or late.
+OWN_FLEET_SLA_PARAM = "cd_consignment.own_fleet_sla_hours"
 # FLAW-03.3: the hub scale tolerance (today's value; a policy number).
 WEIGHT_TOLERANCE_G = 20.0
 
@@ -123,12 +128,14 @@ class FixConsignmentExt(models.Model):
                     "Only confirmed consignments can start transit (current: %s)."
                     % consignment.state
                 )
-            # BRU-LOG-05/10: a certification may have lapsed since assignment
-            problem = consignment._restricted_carrier_problem(
-                fields.Date.context_today(consignment)
-            )
-            if problem:
-                raise UserError(problem)
+            # A02 ERP audit M03-F2: the dispatch gates run again at hand-over
+            # (BRU-LOG-12 value, BRU-LOG-03 insurance and countersignature,
+            # BRU-LOG-05/10 carrier certification, which may have lapsed)
+            if consignment.declared_value_bdt <= 0:
+                raise UserError(
+                    "%s has no declared value: it cannot leave (BRU-LOG-12)." % consignment.name
+                )
+            consignment._check_dispatch_controls(confirming=False)
             # in_transit first, so the scans the transition stamps are legal
             consignment._guarded().write({"state": "in_transit"})
             if not consignment.custody_ids:
@@ -281,13 +288,12 @@ class FixConsignmentExt(models.Model):
                     "%s has no hub intake yet; run the hub intake (seal and weight check) "
                     "before confirming receipt." % consignment.name
                 )
-            if (
-                consignment.seal_status == "tampered_mismatch"
-                and not consignment.hold_released_by_id
-            ):
+            # A02 ERP audit M03-F1: the intake itself, not only its scan
+            missing = consignment._hub_intake_missing()
+            if missing:
                 raise UserError(
-                    "%s failed its seal check; a logistics manager must release the hold."
-                    % consignment.name
+                    "%s cannot be received: its hub intake is not complete (%s)."
+                    % (consignment.name, missing)
                 )
             consignment._scan("delivered", location_branch_id=consignment.dest_branch_id.id)
             consignment._guarded().write(
@@ -295,6 +301,48 @@ class FixConsignmentExt(models.Model):
             )
             consignment.action_deliver()
         return True
+
+    def _m03_due_at(self):
+        """When the leg was promised to arrive, or None (A02 ERP audit
+        M03-F20). The scheduled date is the planned dispatch (every create
+        path stamps it at creation), so on-time was ~0%. The promise is that
+        date plus the courier's contractual SLA, or, for our own riders, the
+        own-fleet SLA hours setting (OWNER figure: unset = the leg is not
+        judged, never judged late)."""
+        self.ensure_one()
+        if not self.scheduled_date:
+            return None
+        hours = 0.0
+        if self.courier_partner_id:
+            hours = float(self.courier_partner_id.sudo().sla_delivery_hours or 0)
+        else:
+            raw = self.env["ir.config_parameter"].sudo().get_param(OWN_FLEET_SLA_PARAM)
+            try:
+                hours = float(raw) if raw not in (None, False, "") else 0.0
+            except (TypeError, ValueError):
+                hours = 0.0
+        if hours <= 0:
+            return None
+        return self.scheduled_date + timedelta(hours=hours)
+
+    def _hub_intake_missing(self):
+        """What the hub intake still lacks, or '' when it is complete
+        (A02 ERP audit M03-F1). A hold a logistics manager released, with a
+        written reason, stands for the checks it reviewed. Otherwise: the
+        seal verified when an outbound seal was fitted, and a receive weight
+        within tolerance when a dispatch weight was recorded."""
+        self.ensure_one()
+        if self.seal_status == "tampered_mismatch":
+            return "" if self.hold_released_by_id else "the seal or weight check failed"
+        missing = []
+        if (self.outbound_seal_number or "").strip() and self.seal_status != "verified":
+            missing.append("the inbound seal is not verified")
+        if self.dispatch_weight_g > 0:
+            if not self.receive_weight_g:
+                missing.append("no receive weight")
+            elif abs(self.receive_weight_g - self.dispatch_weight_g) > WEIGHT_TOLERANCE_G:
+                missing.append("the receive weight is outside tolerance")
+        return "; ".join(missing)
 
     def _hold_for_tamper(self, reason):
         """A02 audit M03-8: record the tamper verdict and stop the
@@ -533,14 +581,13 @@ class FixServiceOrderConsignmentBridge(models.Model):
             else:
                 origin, dest = branch.id, False
             # M03 audit 2026-11-13: a second press made a second live leg for
-            # the same move (two riders sent for one device)
-            live = order.consignment_ids.filtered(
-                lambda c, t=ctype: c.consignment_type == t and c.state not in FROZEN_STATES
-            )
+            # the same move (two riders sent for one device). A02 ERP audit
+            # M03-F3: any live leg, of any type (the model checks it again)
+            live = order.consignment_ids.filtered(lambda c: c.state not in FROZEN_STATES)
             if live:
                 raise UserError(
-                    "Order %s already has a live %s leg (%s); finish or return it before "
-                    "raising another." % (order.name, ctype, ", ".join(live.mapped("name")))
+                    "Order %s already has a live leg (%s); finish or return it before "
+                    "raising another." % (order.name, ", ".join(live.mapped("name")))
                 )
             ou = order.operating_unit_id or branch.operating_unit_id
             created |= Consignment.create(

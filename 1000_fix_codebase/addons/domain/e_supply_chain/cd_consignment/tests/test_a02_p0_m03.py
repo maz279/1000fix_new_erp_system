@@ -25,9 +25,10 @@ def w(odoo_env, monkeypatch):
     env = odoo_env
     ou = env["operating.unit"].search([], limit=1)
     co = env.company
-    entity = env["fix.entity"].create(
-        {"code": "A2PM03", "legal_name": "A02 P0 M03 entity", "company_id": co.id}
-    )
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", co.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "A2PM03", "legal_name": "A02 P0 M03 entity", "company_id": co.id})
     branch = env["fix.branch"].create(
         {
             "name": "A02 P0 M03 Branch",
@@ -98,7 +99,38 @@ def w(odoo_env, monkeypatch):
         lambda self, phone, code: sms.append((phone, code)),
     )
 
+    def free_order():
+        """The shared order, or a fresh one when it already has a live leg
+        (A02 ERP audit M03-F3: one device, one live leg)."""
+        live = env["fix.consignment"].search_count(
+            [
+                ("service_order_id", "=", order.id),
+                ("state", "not in", ("delivered", "lost", "returned")),
+            ]
+        )
+        if not live:
+            return order
+        n = env["fix.service.order"].search_count([("customer_id", "=", customer.id)])
+        other = env["fix.device"].create(
+            {
+                "device_model_id": model.id,
+                "owner_id": customer.id,
+                "serial_number": "SN-A2P0-3-%d" % n,
+            }
+        )
+        return env["fix.service.order"].create(
+            {
+                "device_id": other.id,
+                "customer_id": customer.id,
+                "branch_id": branch.id,
+                "fault_description": "pick&drop P0 (device %d)" % n,
+                "service_type": "collection",
+            }
+        )
+
     def cons(state="draft", ctype="delivery", **kw):
+        if "service_order_id" not in kw:
+            kw["service_order_id"] = free_order().id
         rec = env["fix.consignment"].create(
             {
                 "consignment_type": ctype,
@@ -106,7 +138,6 @@ def w(odoo_env, monkeypatch):
                 "scheduled_date": fields.Datetime.now(),
                 "operating_unit_id": ou.id,
                 "dest_branch_id": branch.id,
-                "service_order_id": order.id,
                 "rider_id": rider_emp.id,
                 **kw,
             }
@@ -139,6 +170,8 @@ def w(odoo_env, monkeypatch):
                     "operating_unit_id": ou.id,
                     "description": "screen cracked in transit",
                     "claimed_amount": amount,
+                    # A02 ERP audit M03-F11: a payout is decided on a decided liability
+                    "liability": kw.pop("liability", "carrier"),
                     "dofa_justification": kw.pop(
                         "justification", "Photos and the hub report agree."
                     ),
@@ -153,6 +186,7 @@ def w(odoo_env, monkeypatch):
         branch=branch,
         order=order,
         customer=customer,
+        free_order=free_order,
         cons=cons,
         moving=moving,
         at_door=at_door,
@@ -286,7 +320,8 @@ def test_dispatch_evidence_is_fixed_once_in_transit(w):
     c.with_user(w.hub).action_confirm()
     c.with_user(w.rider).action_start_transit()
     err = refused(w.env, lambda: c.with_user(w.hub).write({"outbound_seal_number": "SEAL-C"}))
-    assert err and "left dispatch" in err
+    # A02 ERP audit M03-F2: fixed from confirm on (it was "left dispatch")
+    assert err and "in custody" in err
     err = refused(w.env, lambda: c.with_user(w.hub).write({"declared_value_bdt": 900000.0}))
     assert err
 
@@ -315,6 +350,9 @@ def test_delivered_is_not_returned_but_a_moving_leg_is(w):
     assert refused(w.env, lambda: back.with_user(w.hub).action_return())  # a reason is required
     assert refused(w.env, lambda: back.with_user(w.rider).action_return(reason="x"))  # hub role
     back.with_user(w.hub).action_return(reason="Customer absent twice")
+    # A02 ERP audit M03-F4: closed by the origin hub's receipt, not the declaration
+    assert back.state == "returning"
+    back.with_user(w.hub).action_receive_return()
     assert back.state == "returned"
     assert back.custody_ids.sorted("id")[-1:].step == "returned"
     assert events(w.env, "consignment.returned", "fix.consignment", back.id)
@@ -415,7 +453,9 @@ def test_scans_are_server_stamped(w):
         .with_user(w.clerk)
         .create({"consignment_id": c.id, "step": "hub_scan"}),
     )
-    s = Scan.create({"consignment_id": c.id, "step": "hub_scan"})
+    # A02 ERP audit M03-F1: a hub scan is the intake's; a typed step still
+    # gets the server's stamps
+    s = Scan.create({"consignment_id": c.id, "step": "out_for_delivery"})
     assert s.scanned_by_user_id == w.hub and s.scanned_by.user_id == w.hub
     rider_scans = c.custody_ids.filtered(lambda x: x.step in ("picked_up", "in_transit"))
     assert rider_scans and rider_scans.scanned_by_user_id == w.rider

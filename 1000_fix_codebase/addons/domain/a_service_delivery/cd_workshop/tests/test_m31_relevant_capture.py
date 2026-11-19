@@ -285,7 +285,8 @@ def test_results_are_fixed_once_the_job_passed_qc(m31, ui):  # noqa: F811
         record_id=res["id"],
         values={"measured_value": 4.0},
     )
-    assert "error" in res and "passed QC" in res["error"], res
+    # A02 ERP audit M31-F15: a recorded result is never edited (before QC too)
+    assert "error" in res and "not edited" in res["error"], res
     res = ui.write(
         m31.tech,
         model="fix.workshop.test.result",

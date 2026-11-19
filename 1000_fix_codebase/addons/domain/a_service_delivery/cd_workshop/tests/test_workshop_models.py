@@ -100,6 +100,8 @@ def _passed_checklist(env, order):
         {
             "order_id": order.id,
             "state": "passed",
+            # M01 reads the checklist of the order's current QC round
+            "qc_round": order.qc_round,
             "item_ids": [(0, 0, {"name": "Functional test", "passed": True})],
         }
     )
@@ -563,6 +565,9 @@ def test_parts_and_labour_cost_the_job(ws):
     lines = env["fix.workshop.part.line"]
     lines.create({"job_id": job.id, "product_id": screen.id, "quantity": 2, "unit_cost": 150.0})
     lines.create({"job_id": job.id, "product_id": paste.id, "unit_cost": 75.5})
+    # A02 ERP audit M31-F12: a part costs the job once it is fitted
+    assert (job.parts_total, job.total_repair_cost) == (0.0, 200.0)
+    job.part_line_ids._guarded().write({"reservation_state": "consumed"})  # setup: fitted
     # parts 2 x 150 + 1 x 75.50 = 375.50; + labour 200 = 575.50
     assert (job.parts_total, job.total_repair_cost) == (375.5, 575.5)
     assert job.part_line_ids.mapped("part_number") == ["WS-SCR", "WS-PST"]

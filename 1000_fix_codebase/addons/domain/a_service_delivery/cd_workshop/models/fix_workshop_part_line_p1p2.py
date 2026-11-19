@@ -116,7 +116,9 @@ class FixWorkshopPartLineApproval(models.Model):
             self.job_id.name,
         )
 
-    @api.depends("subtotal", "reservation_state", "job_id.labour_total")
+    @api.depends(
+        "subtotal", "reservation_state", "job_id.labour_cost", "job_id.consumable_ids.subtotal"
+    )
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 

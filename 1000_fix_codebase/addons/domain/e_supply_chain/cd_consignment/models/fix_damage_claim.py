@@ -195,7 +195,7 @@ class FixDamageClaim(models.Model):
         self.ensure_one()
         return "damage claim %s payout of BDT %.2f" % (self.name, self._dofa_amount())
 
-    def _claim_ceiling(self) -> float:
+    def _claim_insured_basis(self) -> float:
         """What the consignment was insured for: its declared value, else the
         carrier's transit liability cap. 0 means no insured basis."""
         self.ensure_one()
@@ -203,6 +203,33 @@ class FixDamageClaim(models.Model):
         if consignment.declared_value_bdt > 0:
             return consignment.declared_value_bdt
         return consignment.courier_partner_id.insurance_max_bdt or 0.0
+
+    def _claim_other_exposure(self) -> float:
+        """A02 ERP audit M03-F10: what the OTHER claims on the same
+        consignment already take out of its insured value - settled at the
+        amount paid, approved at the amount approved, open at the payout
+        asked (else the amount claimed). Rejected claims take nothing."""
+        self.ensure_one()
+        others = self.consignment_id.sudo().damage_claim_ids.filtered(
+            lambda c: c.id != self._origin.id and c.state in ("open", "approved", "settled")
+        )
+        total = 0.0
+        for claim in others:
+            if claim.state == "settled":
+                total += claim.settled_amount or 0.0
+            elif claim.state == "approved":
+                total += claim.approved_amount or 0.0
+            else:
+                total += claim.requested_payout or claim.claimed_amount or 0.0
+        return total
+
+    def _claim_ceiling(self) -> float:
+        """The insured value still available to this claim (A02 ERP audit
+        M03-F10): the insured basis less the other claims on the leg. Each
+        claim used to be measured against the whole declared value, so ten
+        claims under it each paid out at a low tier."""
+        self.ensure_one()
+        return max(0.0, self._claim_insured_basis() - self._claim_other_exposure())
 
     def _dofa_current_tier(self) -> str:
         """A02 audit M03-5: a payout above the insured value (declared value,
@@ -219,26 +246,53 @@ class FixDamageClaim(models.Model):
             tier = order[min(bumped, len(order) - 1)]
         return tier
 
-    @api.depends(
+    _CEILING_DEPENDS = (
         "claimed_amount",
         "requested_payout",
         "approved_amount",
         "consignment_id.declared_value_bdt",
         "consignment_id.courier_partner_id.insurance_max_bdt",
+        "consignment_id.damage_claim_ids.state",
+        "consignment_id.damage_claim_ids.claimed_amount",
+        "consignment_id.damage_claim_ids.requested_payout",
+        "consignment_id.damage_claim_ids.approved_amount",
+        "consignment_id.damage_claim_ids.settled_amount",
     )
+
+    @api.depends(*_CEILING_DEPENDS)
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
-    @api.depends(
-        "claimed_amount",
-        "requested_payout",
-        "approved_amount",
-        "consignment_id.declared_value_bdt",
-        "consignment_id.courier_partner_id.insurance_max_bdt",
-    )
+    @api.depends(*_CEILING_DEPENDS)
     def _compute_dofa_tier(self):
         for rec in self:
             rec.dofa_tier = rec._dofa_current_tier()
+
+    @api.constrains("claimant", "liability")
+    def _check_claimant_not_liable(self):
+        """A02 ERP audit M03-F11: a courier claiming on a leg where the
+        carrier is liable would be paid out and charged back by the same
+        party. The courier cannot claim against its own liability."""
+        for rec in self:
+            if rec.claimant == "courier" and rec.liability == "carrier":
+                raise UserError(
+                    "Claim %s: the courier partner cannot claim for damage the carrier is "
+                    "liable for (it would be both the payee and the debtor)." % rec.name
+                )
+
+    def _claim_assert_liability_decided(self):
+        """A02 ERP audit M03-F11: the payout is decided on a decided
+        liability; 'pending' was approved and settled."""
+        for rec in self:
+            if rec.liability == "pending":
+                raise UserError(
+                    "Claim %s: decide who is liable (carrier, branch, customer or shared) "
+                    "before the payout is put for approval." % rec.name
+                )
+
+    def action_request_approval(self, justification=None):
+        self._claim_assert_liability_decided()
+        return super().action_request_approval(justification=justification)
 
     @api.constrains("requested_payout", "claimed_amount")
     def _check_requested_payout(self):
@@ -372,6 +426,7 @@ class FixDamageClaim(models.Model):
         needs a higher tier."""
         self._approval_assert_routed()
         self._claim_require_approver("Approving a damage claim")
+        self._claim_assert_liability_decided()
         for rec in self:
             if rec.state != "open":
                 raise UserError("Only an open claim can be approved")
@@ -425,6 +480,9 @@ class FixDamageClaim(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Settle an approved claim")
+            rec._claim_assert_liability_decided()
+            # A02 ERP audit M03-F10: re-judged now - another claim on the leg
+            # settled since the approval raises the tier this payout needs
             rec._dofa_assert_approved("Damage-claim settlement")
             amount = amount_in if amount_in is not None else rec.approved_amount
             ceiling = min(rec.approved_amount or 0.0, rec.dofa_approved_amount or 0.0)

@@ -163,12 +163,40 @@ class FixWorkshopPartLineM15(models.Model):
             rec._guarded().write({"reservation_state": "released"})
         return True
 
+    def _a06_m15_issue_cost(self):
+        """The cost M15 will issue this line at (its store bucket's average
+        cost), or None when M15 will not issue it. A02 ERP audit M31-F13."""
+        self.ensure_one()
+        if self.stock_move_id or self.m15_consumption_id:
+            return None
+        part = self._a06_m15_part()
+        job = self.job_id.sudo()
+        store = job.workshop_id._a06_m15_store() if part and job.workshop_id else False
+        if not part or not store:
+            return None
+        from odoo.addons.cd_inventory.models.fix_inventory_approval import location_class
+
+        bucket = self.env["fix.stock.onhand"]._bucket(part, store, location_class(store, "owned"))
+        return bucket.unit_cost if bucket else None
+
     def action_consume_part(self):
+        # A02 ERP audit M31-F13: the approved-amount checks read the line's
+        # subtotal, and M15 issues at its average cost, not the standard cost
+        # the line was added at. The line takes the issue cost FIRST, so the
+        # ceiling is judged on what the part will cost the job.
+        for rec in self:
+            if rec.reservation_state not in ("draft", "reserved"):
+                continue
+            cost = rec._a06_m15_issue_cost()
+            if cost is not None and abs(cost - (rec.unit_cost or 0.0)) > 1e-6:
+                rec._guarded().write({"unit_cost": cost})
         result = super().action_consume_part()
         for rec in self.filtered(lambda r: not r.stock_move_id and not r.m15_consumption_id):
             issue = rec._a06_issue_from_m15()
             if issue:
-                rec._guarded().write(
-                    {"m15_consumption_id": issue.id, "consumption_ref": issue.name}
-                )
+                vals = {"m15_consumption_id": issue.id, "consumption_ref": issue.name}
+                issued_at = issue.sudo().unit_cost
+                if abs((issued_at or 0.0) - (rec.unit_cost or 0.0)) > 1e-6:
+                    vals["unit_cost"] = issued_at
+                rec._guarded().write(vals)
         return result

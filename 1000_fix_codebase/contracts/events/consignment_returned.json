@@ -33,10 +33,29 @@
       "type": "object",
       "required": [
         "consignment",
+        "consignment_type",
+        "service_order_id",
+        "reason",
         "returned_at"
       ],
       "properties": {
         "consignment": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "consignment_type": {
+          "type": "string"
+        },
+        "service_order_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "reason": {
           "type": [
             "string",
             "boolean"

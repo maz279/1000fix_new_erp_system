@@ -123,7 +123,16 @@ class FixWorkshopBench(models.Model):
             (
                 "state",
                 "in",
-                ["intake", "diagnostic", "waiting_parts", "in_repair", "burn_in", "qc_pending"],
+                # A02 ERP audit M31-F18: qc_failed keeps the bench for rework
+                [
+                    "intake",
+                    "diagnostic",
+                    "waiting_parts",
+                    "in_repair",
+                    "burn_in",
+                    "qc_pending",
+                    "qc_failed",
+                ],
             )
         ],
     )

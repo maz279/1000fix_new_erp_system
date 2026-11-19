@@ -205,6 +205,8 @@ export const SCREENS = {
       { m: 'action_confirm_receipt', l: 'Confirm Receipt at Hub' },
       { m: 'action_out_for_delivery', l: 'Out for Delivery' },
       { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
+      /* A02 ERP audit M03-F4: a return stays open until the origin hub has the device back */
+      { m: 'action_receive_return', l: 'Receive Return at Origin Hub' },
       { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' },
       { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' },
       /* BRU-LOG-03: a second person vouches for a high-value dispatch */
@@ -213,7 +215,9 @@ export const SCREENS = {
   'M03-record': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'service_order_id', 'custody_summary', 'chain_broken',
       'chain_problem', 'pod_verified_at', 'pod_verified_by', 'delivered_at', 'create_date'],
-    stateField: 'state' },
+    stateField: 'state',
+    /* A02 ERP audit X-17: the waybill / delivery note */
+    actions: [{ m: 'p03_print_document', print: 'a4', l: 'Print Waybill / Delivery Note' }] },
   /* M03 capture audit 2026-11-18: "Multi-Leg Journeys" listed custody
    * scans (sub-module 3's records, already on Chain-of-Custody). A journey
    * is the legs of one service order: pickup, transfers, the delivery back. */
@@ -248,16 +252,20 @@ export const SCREENS = {
   'M03-couriers': { kind: 'model_list', model: 'fix.courier.partner', cols: ['name', 'code', 'service_area', 'base_rate', 'cod_supported', 'cod_cycle_days', 'active'] },
   'M03-bookings': { kind: 'model_list', model: 'fix.courier.booking', stateField: 'state', cols: ['name', 'partner_id', 'consignment_id', 'awb_no', 'booked_on', 'weight_kg', 'charged_amount', 'cod_amount', 'pod_attachment_id', 'state'], actions: [
       { m: 'action_pick_up', l: 'Handed to Courier' },
-      { m: 'action_deliver', l: 'Mark Delivered (needs POD)' }
+      { m: 'action_deliver', l: 'Mark Delivered (needs POD)' },
+      /* A02 ERP audit M03-F6: the two closes that were unreachable */
+      { m: 'action_cancel', l: 'Cancel Booking (not picked up)', ask: 'Why is the booking cancelled?', kwarg: 'reason' },
+      { m: 'action_mark_returned', l: 'Close as Returned (parcel back)', ask: 'Why did the parcel come back?', kwarg: 'reason' }
     ] },
   'M03-recon': { kind: 'table_report', module: 'M03', report: 'courier_performance', title: 'Courier Performance & COD', period: false },
   'M03-exc': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'chain_broken', 'chain_problem', 'seal_status', 'hold_reason', 'custody_summary', 'rider_id'],
-    domain: ['|', '|', ['chain_broken', '=', true], ['state', '=', 'lost'], ['state', '=', 'held']],
+    domain: ['|', '|', '|', ['chain_broken', '=', true], ['state', '=', 'lost'], ['state', '=', 'held'], ['state', '=', 'returning']],
     stateField: 'state',
     actions: [
       { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' },
       { m: 'action_return', l: 'Return to Origin', ask: 'Reason for the return', kwarg: 'reason' },
+      { m: 'action_receive_return', l: 'Receive Return at Origin Hub' },
       { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' }
     ] },
   'M03-charges': { kind: 'table_report', module: 'M03', report: 'zone_charges', title: 'Distance & Zone Charging', period: false },

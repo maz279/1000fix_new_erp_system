@@ -236,6 +236,21 @@ def _booking(w, c, **kw):
     )
 
 
+def _pod(w, booking):
+    """The courier's signed POD scan, uploaded on the booking (as the P03
+    upload links it). A02 ERP audit M03-F7: a file attached elsewhere is
+    not the booking's proof of delivery."""
+    return w.env["ir.attachment"].create(
+        {
+            "name": "courier-pod.pdf",
+            "raw": b"%PDF-1.4 signed",
+            "mimetype": "application/pdf",
+            "res_model": booking._name,
+            "res_id": booking.id,
+        }
+    )
+
+
 def test_courier_pickup_starts_the_consignment(w, monkeypatch):
     c = w.cons()
     c.with_user(w.hub).action_confirm()
@@ -256,7 +271,7 @@ def test_courier_pod_closes_the_consignment(w):
     b = _booking(w, c)
     # no proof: refused; a booking never closes over a moving consignment
     assert refused(w.env, lambda: b.with_user(w.hub).action_deliver())
-    pod = w.env["ir.attachment"].create({"name": "courier-pod.pdf", "raw": b"signed"})
+    pod = _pod(w, b)
     b.with_user(w.hub).action_record_pod(attachment_id=pod.id)
     b.with_user(w.hub).action_deliver()
     assert b.state == "delivered"
@@ -268,11 +283,10 @@ def test_courier_pod_closes_the_consignment(w):
 
 
 def test_a_booking_does_not_close_over_a_held_or_branch_leg(w):
-    pod = w.env["ir.attachment"].create({"name": "courier-pod.pdf", "raw": b"signed"})
     held = w.moving(dispatch_weight_g=500.0)
     held.with_user(w.hub).action_verify_hub_intake(receive_weight_g=600)
     b = _booking(w, held)
-    b.with_user(w.hub).action_record_pod(attachment_id=pod.id)
+    b.with_user(w.hub).action_record_pod(attachment_id=_pod(w, b).id)
     err = refused(w.env, lambda: b.with_user(w.hub).action_deliver())
     assert err and "cannot close while" in err
     branch_leg = w.moving(ctype="pickup")
@@ -281,7 +295,7 @@ def test_a_booking_does_not_close_over_a_held_or_branch_leg(w):
         .with_user(w.hub)
         .create({"partner_id": b.partner_id.id, "consignment_id": branch_leg.id})
     )
-    b2.with_user(w.hub).action_record_pod(attachment_id=pod.id)
+    b2.with_user(w.hub).action_record_pod(attachment_id=_pod(w, b2).id)
     err = refused(w.env, lambda: b2.with_user(w.hub).action_deliver())
     assert err and "confirm receipt" in err
     assert branch_leg.state == "in_transit" and b2.state == "booked"

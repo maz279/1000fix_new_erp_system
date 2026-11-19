@@ -208,6 +208,8 @@ def _passed_checklist(m, order):
         {
             "order_id": order.id,
             "state": "passed",
+            # M01 reads the checklist of the order's current QC round
+            "qc_round": order.qc_round,
             "item_ids": [(0, 0, {"name": "Functional test", "passed": True})],
         }
     )
@@ -627,6 +629,8 @@ def test_the_rework_loop_still_runs_against_the_order(m31):
     job.action_start_repair()
     assert job.sudo().state == "in_repair"
     job.action_submit_qc()
+    # M01 reads the checklist of the new QC round
+    _passed_checklist(m31, job.order_id)
     _as(m31, m31.qc, job).action_pass_qc()
     assert (job.sudo().state, job.order_id.state) == ("ready", "ready")
 
@@ -635,13 +639,17 @@ def test_the_rework_loop_still_runs_against_the_order(m31):
 
 
 def _line(m31, job, qty=1.0, cost=500.0):
-    return (
+    """A part line added by the technician. A02 ERP audit M31-F13: the bench
+    no longer types the cost (it is the part's standard cost); a test that
+    needs another cost sets it up as the system, as a dearer part would."""
+    line = (
         m31.env["fix.workshop.part.line"]
         .with_user(m31.tech)
-        .create(
-            {"job_id": job.id, "product_id": m31.product.id, "quantity": qty, "unit_cost": cost}
-        )
+        .create({"job_id": job.id, "product_id": m31.product.id, "quantity": qty})
     )
+    if abs((line.unit_cost or 0.0) - cost) > 1e-6:
+        line.sudo()._guarded().write({"unit_cost": cost})
+    return line
 
 
 def test_p31_09_parts_are_consumed_only_in_repair_and_within_the_estimate(m31):

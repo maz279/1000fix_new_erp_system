@@ -168,10 +168,17 @@ class TestWorkshopCore:
         mock_job.__iter__.return_value = [mock_job]
         line1 = MagicMock()
         line1.subtotal = 3500.0
+        line1.reservation_state = "consumed"
         line2 = MagicMock()
         line2.subtotal = 1200.0
-        mock_job.part_line_ids = [line1, line2]
+        line2.reservation_state = "consumed"
+        # A02 ERP audit M31-F12: a line that was never fitted costs nothing
+        line3 = MagicMock()
+        line3.subtotal = 999.0
+        line3.reservation_state = "reserved"
+        mock_job.part_line_ids = [line1, line2, line3]
         mock_job.labour_total = 800.0
+        mock_job._m31_fitted_parts_cost = lambda: FixWorkshopJob._m31_fitted_parts_cost(mock_job)
 
         FixWorkshopJob._compute_totals(mock_job)
         assert mock_job.parts_total == 4700.0

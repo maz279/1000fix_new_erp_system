@@ -38,7 +38,10 @@ VALID_JOB_TRANSITIONS = {
     "diagnostic": {"waiting_parts", "in_repair", "unrepairable", "cancelled"},
     "waiting_parts": {"in_repair", "unrepairable", "cancelled"},
     "in_repair": {"burn_in", "qc_pending", "waiting_parts", "unrepairable", "cancelled"},
-    "burn_in": {"qc_pending", "in_repair", "qc_failed"},
+    # A02 ERP audit M31-F19: no burn_in -> qc_failed edge. The order is
+    # still in repair during burn-in and M01 has no repair -> QC-failed move,
+    # so that edge raised against M01; a failed burn-in goes back to the bench.
+    "burn_in": {"qc_pending", "in_repair"},
     "qc_pending": {"ready", "qc_failed"},
     "qc_failed": {"in_repair", "diagnostic", "unrepairable", "cancelled"},
     "ready": {"delivered"},
@@ -71,6 +74,11 @@ GUARDED_JOB_FIELDS = frozenset(
         "certification_waiver_by_id",
         "certification_waiver_at",
         "certification_waiver_technician_id",
+        # A02 ERP audit M31-F14: the typed labour figure defeated the BRU-WSR-11
+        # cost gate. Labour comes from the work clock at the workshop rate;
+        # the typed figure is used only where no rate is set, and is recorded
+        # by a supervisor through action_record_labour.
+        "labour_total",
         # release / rework / write-off stamps
         "completed_at",
         "dofa_writeoff_tier",
@@ -540,10 +548,21 @@ class FixWorkshopJob(models.Model):
     def _read_group_states(self, states, domain, order):
         return [s[0] for s in WORKSHOP_JOB_STATES]
 
-    @api.depends("part_line_ids.subtotal", "labour_total")
+    def _m31_fitted_parts_cost(self) -> float:
+        """A02 ERP audit M31-F12: only parts consumed on the bench cost the
+        job. A draft, reserved or released line was counted, so a reserved
+        part that went back to stores still sat in the cost and the BER
+        write-off."""
+        self.ensure_one()
+        return sum(
+            line.subtotal for line in self.part_line_ids if line.reservation_state == "consumed"
+        )
+
+    @api.depends("part_line_ids.subtotal", "part_line_ids.reservation_state", "labour_total")
     def _compute_totals(self):
+        # labour and consumables are added by the work clock (capture2)
         for rec in self:
-            parts = sum(line.subtotal for line in rec.part_line_ids)
+            parts = rec._m31_fitted_parts_cost()
             rec.parts_total = parts
             rec.total_repair_cost = parts + (rec.labour_total or 0.0)
 

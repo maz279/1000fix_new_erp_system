@@ -69,6 +69,9 @@ class TestCustodyChain:
         source = inspect.getsource(
             __import__(
                 "odoo.addons.cd_consignment.models.fix_consignment", fromlist=["FixConsignment"]
-            ).FixConsignment.action_return
+            ).FixConsignment._m03_publish_returned
         )
+        # A02 ERP audit M03-F4: published when the return ARRIVES (receipt at
+        # the origin hub), not at the declaration; behaviour is tested in
+        # test_a02erp_m03.test_f4_a_return_closes_only_on_the_origin_receipt
         assert '"consignment.returned"' in source

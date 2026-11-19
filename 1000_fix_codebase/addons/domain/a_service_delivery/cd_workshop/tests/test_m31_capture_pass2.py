@@ -524,6 +524,11 @@ def test_a_booked_in_job_moves_workshop_only_by_a_confirmed_transfer(m31, ui):  
     assert transfer.state == "in_transit"
     assert transfer.consignment_id.consignment_type == "branch_transfer"
     assert transfer.consignment_id.service_order_id == job.order_id
+    # A02 ERP audit M31-F17: received once its consignment is delivered
+    assert "is delivered" in _err(
+        _act(ui, m31.tech, "fix.workshop.transfer", transfer, "action_receive")
+    )
+    transfer.consignment_id.sudo().write({"state": "delivered"})  # setup: M03 delivered it
     _ok(_act(ui, m31.tech, "fix.workshop.transfer", transfer, "action_receive"))
 
 

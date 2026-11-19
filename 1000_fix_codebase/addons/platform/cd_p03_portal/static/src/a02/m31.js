@@ -88,7 +88,7 @@ export const MODULE = {
        * The protocol library and the evidence upload are its chips. */
       ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.test.result', cols: ['job_id', 'step_id', 'measured_value', 'unit', 'passed', 'tested_by_id', 'tested_at'], screens: ['M31-testing', 'M31-testresults', 'M31-protocols', 'M31-burnin-sessions'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result', 'Test Protocol', 'Test Evidence', 'Burn-In Run'], create: 'M31-form-testresult' }],
       ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfers', 'M31-reworks', 'M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: ['Workshop Transfer', 'Job Routing'], create: 'M31-form-transfer', domain: [['is_rework', '=', true]] }],
-      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput', 'M31-timelogs', 'M31-cost-jobs', 'M31-costlines'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost', 'Work Clock'], create: 'M31-form-labour' }]
+      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_cost', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput', 'M31-timelogs', 'M31-cost-jobs', 'M31-costlines'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost', 'Work Clock'], create: 'M31-form-labour' }]
     ]
   }
 };
@@ -130,10 +130,11 @@ export const SCREENS = {
     actions: [...JOB_FLOW, ...JOB_EXCEPTIONS] },
   'M31-record': { kind: 'model_list', model: 'fix.workshop.job', create: false,
     cols: ['name', 'order_reference', 'workshop_id', 'bench_id', 'technician_id', 'repair_level', 'state',
-      'burn_in_passed', 'qc_passed', 'is_rework', 'rework_count', 'parts_total', 'labour_total', 'total_repair_cost',
+      'burn_in_passed', 'qc_passed', 'is_rework', 'rework_count', 'parts_total', 'labour_cost', 'total_repair_cost',
       'intake_date', 'completed_at'],
     stateField: 'state',
-    actions: [...JOB_FLOW, ...JOB_EXCEPTIONS] },
+    /* A02 ERP audit X-17: the job card / repair report */
+    actions: [...JOB_FLOW, ...JOB_EXCEPTIONS, { m: 'p03_print_document', print: 'a4', l: 'Print Job Card' }] },
   'M31-transfer': { kind: 'table_report', module: 'M31', report: 'bench_utilisation', period: false },
   'M31-benches': { kind: 'model_list', model: 'fix.workshop.bench',
     cols: ['code', 'name', 'workshop_id', 'repair_level', 'state', 'current_job_count', 'max_concurrent_jobs', 'technician_id', 'is_esd_safe'],
@@ -288,7 +289,10 @@ export const SCREENS = {
           { name: 'actual_logged_minutes', label: "Actual Logged Bench Minutes" },
           { name: 'labor_efficiency_pct', label: "Labor Productivity Efficiency (%)", readonly: true },
           { name: 'parts_total', label: "Spare Parts Total (BDT)", readonly: true },
-          { name: 'labour_total', label: "Labour Cost Allocation (BDT)" },
+          /* A02 ERP audit M31-F14: labour is the clock at the workshop rate;
+           * the typed figure (no rate) is recorded by a supervisor */
+          { name: 'labour_cost', label: "Labour Cost (clock x rate, BDT)", readonly: true },
+          { name: 'labour_total', label: "Recorded Labour Figure (no rate, BDT)", readonly: true },
           { name: 'total_repair_cost', label: "Total Direct Repair Cost (BDT)", readonly: true },
           { name: 'dofa_writeoff_tier', label: "DOFA Scrap / BER Write-Off Tier (derived)", readonly: true }
         ] },
@@ -608,7 +612,7 @@ export const SCREENS = {
       note: 'Open jobs. A delivered, written-off or cancelled job is the record of the repair and is not changed.',
       search: 'Search job / order / serial',
       choose: 'Record labour',
-      cols: ['name', 'order_reference', 'repair_level', 'technician_id', 'labour_total', 'total_repair_cost', 'state'],
+      cols: ['name', 'order_reference', 'repair_level', 'technician_id', 'labour_cost', 'total_repair_cost', 'state'],
       domain: [['state', 'not in', ['delivered', 'unrepairable', 'cancelled']]],
       empty: 'No open repair job.'
     },
@@ -622,7 +626,8 @@ export const SCREENS = {
           { name: 'state', label: 'Job State', readonly: true },
           { name: 'sam_standard_minutes', label: 'Standard Allowed Minutes (SAM)' },
           { name: 'actual_logged_minutes', label: 'Actual Bench Minutes' },
-          { name: 'labour_total', label: 'Labour Cost (BDT)' },
+          { name: 'labour_cost', label: 'Labour Cost (clock x rate, BDT)', readonly: true },
+          { name: 'labour_total', label: 'Recorded Labour Figure (no rate, BDT)', readonly: true },
           { name: 'labor_efficiency_pct', label: 'Labour Efficiency (%)', readonly: true },
           { name: 'parts_total', label: 'Parts Cost (BDT)', readonly: true },
           { name: 'total_repair_cost', label: 'Total Repair Cost (BDT)', readonly: true },
@@ -1004,9 +1009,13 @@ export const SCREENS = {
     ]
   },
   'M31-cost-jobs': { kind: 'model_list', model: 'fix.workshop.job', title: 'Cost Sheets', create: false,
-    cols: ['name', 'repair_level', 'logged_active_minutes', 'parts_total', 'consumables_total', 'full_cost', 'estimate_ceiling', 'cost_variance', 'cost_variance_flag'],
+    cols: ['name', 'repair_level', 'logged_active_minutes', 'labour_cost', 'parts_total', 'consumables_total', 'total_repair_cost', 'full_cost', 'estimate_ceiling', 'cost_variance', 'cost_variance_flag'],
     domain: [['state', '!=', 'draft']],
-    actions: [{ m: 'action_build_cost_sheet', l: 'Build Cost Sheet' }] },
+    actions: [
+      { m: 'action_build_cost_sheet', l: 'Build Cost Sheet' },
+      /* A02 ERP audit M31-F14: only where the workshop has no labour rate */
+      { m: 'action_record_labour', l: 'Record Labour Figure (no rate, Supervisor)', ask: 'Labour cost in BDT', kwarg: 'amount' }
+    ] },
   'M31-costlines': { kind: 'model_list', model: 'fix.workshop.cost.line', title: 'Cost Build-Up', create: false,
     cols: ['job_id', 'cost_type', 'description', 'quantity', 'rate', 'amount', 'built_at'] },
 

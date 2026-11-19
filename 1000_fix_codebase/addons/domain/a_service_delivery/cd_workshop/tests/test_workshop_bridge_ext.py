@@ -118,6 +118,7 @@ def test_bridge_refuses_closed_orders(ws):
         {
             "order_id": order.id,
             "state": "passed",
+            "qc_round": order.qc_round,
             "item_ids": [(0, 0, {"name": "Functional test", "passed": True})],
         }
     )

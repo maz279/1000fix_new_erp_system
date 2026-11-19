@@ -49,9 +49,16 @@ RECEIPT_TYPES = ("pickup", "branch_transfer")
 # A02 audit M03-7: these states end the consignment. Nothing moves out of
 # them and the record no longer changes.
 FROZEN_STATES = ("delivered", "lost", "returned")
+# A02 ERP audit M03-F5: the states in which the device is in someone's
+# custody on the road. The carrier is fixed there: the POD is bound to the
+# assigned rider and the COD cash is attributed to him.
+CUSTODY_STATES = ("in_transit", "held", "returning")
+# A02 ERP audit M03-F5: who carries the leg, fixed once custody starts.
+CARRIER_LOCKED = frozenset({"rider_id", "courier_partner_id"})
 # Dispatch evidence that the hub verifies against, and the leg type that
-# decides the required chain: fixed once the consignment leaves the draft
-# and confirmed states, so they cannot be edited to match what arrived.
+# decides the required chain. A02 ERP audit M03-F2: fixed once the
+# consignment is CONFIRMED for dispatch (it stayed editable while confirmed,
+# so the seal and weight the hub checks could be rewritten after the gate).
 TRANSIT_LOCKED = frozenset(
     {
         "consignment_type",
@@ -155,6 +162,10 @@ class FixConsignment(models.Model):
             # A02 audit M03-8: a seal or weight mismatch at hub intake holds
             # the consignment here; only a logistics manager releases it.
             ("held", "Exception Hold"),
+            # A02 ERP audit M03-F4: a return is declared on the road and the
+            # leg stays open until the origin hub receives the device back
+            # (the old body closed it as 'returned' at the declaration).
+            ("returning", "Returning to Origin"),
             ("delivered", "Delivered"),
             ("returned", "Returned"),
             ("lost", "Lost"),
@@ -172,6 +183,8 @@ class FixConsignment(models.Model):
     service_order_id = fields.Many2one("fix.service.order", string="Service Order", index=True)
     purchase_order_id = fields.Many2one("fix.purchase.order", string="Purchase Order", index=True)
     custody_ids = fields.One2many("fix.custody.scan", "consignment_id", string="Custody Chain")
+    # A02 ERP audit M03-F10: the claims against this leg share its insured value
+    damage_claim_ids = fields.One2many("fix.damage.claim", "consignment_id", string="Damage Claims")
     chain_broken = fields.Boolean(compute="_compute_chain", store=True, string="Chain Broken")
     custody_summary = fields.Char(compute="_compute_chain", store=True)
     chain_problem = fields.Char(
@@ -371,10 +384,10 @@ class FixConsignment(models.Model):
             return locked
         if rec.state in FROZEN_STATES:
             return locked | rec._fix_frozen_fields()
-        if rec.state not in ("draft", "confirmed"):
-            locked |= TRANSIT_LOCKED
         if rec.state != "draft":
-            locked |= {"consignment_type"}
+            locked |= TRANSIT_LOCKED
+        if rec.state in CUSTODY_STATES:
+            locked |= CARRIER_LOCKED
         return locked
 
     def write(self, vals):
@@ -394,12 +407,17 @@ class FixConsignment(models.Model):
                 if rec.state in FROZEN_STATES:
                     names = rec._fix_frozen_fields() & set(vals)
                     reason = "it is %s and its record is closed" % rec.state
-                elif rec.state not in ("draft", "confirmed"):
-                    names = TRANSIT_LOCKED & set(vals)
-                    reason = "it has left dispatch (%s)" % rec.state
+                elif rec.state in CUSTODY_STATES:
+                    names = (TRANSIT_LOCKED | CARRIER_LOCKED) & set(vals)
+                    reason = (
+                        "it is in custody on the road (%s): the POD and the COD cash are "
+                        "bound to its carrier" % rec.state
+                    )
                 elif rec.state != "draft":
-                    names = {"consignment_type"} & set(vals)
-                    reason = "it is confirmed"
+                    # A02 ERP audit M03-F2: Confirm for Dispatch checked this
+                    # evidence; it is fixed from then on
+                    names = TRANSIT_LOCKED & set(vals)
+                    reason = "it is confirmed for dispatch (%s)" % rec.state
                 else:
                     names = set()
                 changed = [n for n in names if rec._fix_guard_differs(n, vals[n], rec[n])]
@@ -472,6 +490,32 @@ class FixConsignment(models.Model):
                 if ou:
                     vals["operating_unit_id"] = ou.id
         return super().create(vals_list)
+
+    @api.constrains("service_order_id", "state")
+    def _check_one_live_leg(self):
+        """A02 ERP audit M03-F3: a device is on one live leg at a time. The
+        only guard was in M01's Create Consignment, for the same leg type;
+        the workshop transfer and any direct create put the same device on
+        two live legs (two riders, two custody chains). Every create path
+        lands here, the superuser's included."""
+        for rec in self:
+            order = rec.service_order_id
+            if not order or rec.state in FROZEN_STATES:
+                continue
+            other = self.sudo().search(
+                [
+                    ("service_order_id", "=", order.id),
+                    ("state", "not in", FROZEN_STATES),
+                    ("id", "!=", rec.id),
+                ],
+                limit=1,
+            )
+            if other:
+                raise UserError(
+                    "Service order %s already has a live consignment (%s, %s): one device is on "
+                    "one leg at a time. Deliver, return or report that leg lost first."
+                    % (order.sudo().name, other.name, other.state)
+                )
 
     def _derive_operating_unit(self, vals):
         """The unit a consignment raised without one belongs to: its service
@@ -557,6 +601,8 @@ class FixConsignment(models.Model):
             if reason and str(reason).strip():
                 vals["exception_note"] = str(reason).strip()
             consignment._guarded().write(vals)
+            # A02 ERP audit M03-F6: the courier booking closes with its leg
+            consignment._m03_close_courier_bookings("lost")
             publish(
                 self.env,
                 "consignment.lost",
@@ -619,41 +665,111 @@ class FixConsignment(models.Model):
 
         A02 audit M03-7: only a consignment still on its way (confirmed, in
         transit or on exception hold) can be returned; a delivered one is
-        closed, and reversing it needs a new return leg."""
+        closed, and reversing it needs a new return leg.
+
+        A02 ERP audit M03-F4: the declaration no longer closes the leg. A leg
+        with custody scans goes to 'returning' and stays live until the
+        origin hub receives the device (action_receive_return): that receipt
+        is the arrival proof and writes the 'returned' scan. A confirmed leg
+        that never left (no custody scan) closes at once: nothing is on the
+        road."""
         self._logistics_require(GROUP_HUB, what="Returning a consignment")
         reason = (str(reason).strip() if reason else "") or False
         if not reason:
             raise UserError("Give the reason for the return (customer absent, refused, …).")
-        Scan = self.env["fix.custody.scan"]
         for consignment in self:
             if consignment.state not in ("confirmed", "in_transit", "held"):
                 raise UserError(
                     "Only a consignment that is confirmed, in transit or on hold can be "
                     "returned (%s is %s)." % (consignment.name, consignment.state)
                 )
-            if consignment.custody_ids:
-                Scan._guarded().create(
-                    {
-                        "consignment_id": consignment.id,
-                        "step": "returned",
-                        "exception_reason": reason,
-                        "device_serial": consignment.service_order_id.device_serial or "",
-                    }
+            if not consignment.custody_ids:
+                consignment._guarded().write(
+                    {"state": "returned", "exception_note": reason, "rto_flag": True}
                 )
+                consignment._m03_close_courier_bookings("returned")
+                consignment._m03_publish_returned()
+                continue
             consignment._guarded().write(
-                {"state": "returned", "exception_note": reason, "rto_flag": True}
+                {"state": "returning", "exception_note": reason, "rto_flag": True}
             )
-            publish(
-                self.env,
-                "consignment.returned",
-                "fix.consignment",
-                consignment.id,
-                {
-                    "consignment": consignment.name,
-                    "returned_at": fields.Datetime.to_string(fields.Datetime.now()),
-                },
+            consignment.message_post(
+                body="Return to origin declared: %s. The leg stays open until the origin hub "
+                "receives the device." % reason
             )
         return True
+
+    def action_receive_return(self):
+        """A02 ERP audit M03-F4: the origin hub receives a returning device.
+        This is the arrival proof: it stamps the 'returned' custody scan at
+        the receiving branch and closes the leg. Signed by a hub operator who
+        is not the rider who carried it (segregation of duties)."""
+        self._logistics_require(GROUP_HUB, what="Receiving a returned consignment")
+        for consignment in self:
+            if consignment.state != "returning":
+                raise UserError(
+                    "%s is not returning to origin (it is %s)."
+                    % (consignment.name, consignment.state)
+                )
+            rider_user = consignment.rider_id.user_id
+            if rider_user and rider_user == self.env.user and not self.env.su:
+                raise UserError(
+                    "Segregation of duties: the rider who carried %s cannot sign its return."
+                    % consignment.name
+                )
+            branch = consignment.origin_branch_id or consignment.dest_branch_id
+            self.env["fix.custody.scan"]._guarded().create(
+                {
+                    "consignment_id": consignment.id,
+                    "step": "returned",
+                    "exception_reason": consignment.exception_note or "returned to origin",
+                    "location_branch_id": branch.id or False,
+                    "device_serial": consignment.service_order_id.device_serial or "",
+                }
+            )
+            consignment._guarded().write({"state": "returned"})
+            consignment._m03_close_courier_bookings("returned")
+            consignment._m03_publish_returned()
+        return True
+
+    def _m03_publish_returned(self):
+        self.ensure_one()
+        publish(
+            self.env,
+            "consignment.returned",
+            "fix.consignment",
+            self.id,
+            {
+                "consignment": self.name,
+                "consignment_type": self.consignment_type,
+                "service_order_id": self.service_order_id.id or None,
+                "reason": self.exception_note or "",
+                "returned_at": fields.Datetime.to_string(fields.Datetime.now()),
+            },
+        )
+
+    def _m03_close_courier_bookings(self, outcome):
+        """A02 ERP audit M03-F6: a courier booking whose consignment came
+        back or was lost closes with it (it stayed open for ever: 'returned'
+        and 'cancelled' were unreachable). A booking the courier never picked
+        up is cancelled; one it picked up is returned."""
+        bookings = (
+            self.env["fix.courier.booking"]
+            .sudo()
+            .search([("consignment_id", "in", self.ids), ("state", "in", ("booked", "picked_up"))])
+        )
+        for booking in bookings:
+            booking._guarded().write(
+                {
+                    "state": "returned" if booking.state == "picked_up" else "cancelled",
+                    "close_reason": "Consignment %s %s: %s"
+                    % (
+                        booking.consignment_id.name,
+                        outcome,
+                        booking.consignment_id.exception_note or "-",
+                    ),
+                }
+            )
 
 
 class FixCustodyScan(models.Model):
@@ -727,13 +843,20 @@ class FixCustodyScan(models.Model):
                     )
                 consignment = Consignment.browse(vals.get("consignment_id"))
                 step = vals.get("step")
-                if step in ("delivered", "returned") and not trusted:
+                # A02 ERP audit M03-F1: a typed 'hub_scan' satisfied Confirm
+                # Receipt without the seal and weight check. The hub scan is
+                # stamped by the hub intake once its checks pass.
+                if step in ("delivered", "returned", "hub_scan") and not trusted:
                     raise UserError(
-                        "A '%s' scan is recorded by its transition (POD verification, hub "
-                        "receipt or return), not entered directly." % step
+                        "A '%s' scan is recorded by its transition (hub intake, POD "
+                        "verification, hub receipt or return), not entered directly." % step
                     )
                 state = consignment.state
-                if state in FROZEN_STATES or (state == "held" and step != "returned"):
+                if (
+                    state in FROZEN_STATES
+                    or (state == "held" and step != "returned")
+                    or (state == "returning" and not trusted)
+                ):
                     raise UserError(
                         "%s is %s; its custody chain takes no further scans."
                         % (consignment.name, state)

@@ -123,11 +123,14 @@ class FixCourierBooking(models.Model):
     )
     delivered_on = fields.Date(readonly=True, copy=False)
     cod_settled_on = fields.Date(readonly=True, copy=False)
+    # A02 ERP audit M03-F6: why a booking was cancelled or came back
+    close_reason = fields.Char(string="Cancel / Return Reason", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M03-1: the booking's lifecycle and its delivery evidence
         # change only through the actions below.
         return super()._fix_guarded_fields() | {
+            "close_reason",
             "state",
             "delivered_on",
             "cod_settled_on",
@@ -164,12 +167,28 @@ class FixCourierBooking(models.Model):
     def action_record_pod(self, attachment_id=None):
         """Record the courier's signed waybill / POD scan for a 3PL delivery."""
         self._courier_require_hub("Recording a courier POD")
-        attachment = self.env["ir.attachment"].browse(int(attachment_id or 0)).exists()
+        attachment = self.env["ir.attachment"].sudo().browse(int(attachment_id or 0)).exists()
         if not attachment:
             raise UserError("Attach the courier's signed POD scan.")
+        # A02 ERP audit M03-F7: any attachment id was accepted (another
+        # record's file, a logo). The scan is a PDF or an image uploaded to
+        # THIS booking, and it proves one delivery only.
+        mimetype = attachment.mimetype or ""
+        if not (mimetype == "application/pdf" or mimetype.startswith("image/")):
+            raise UserError("The courier POD is a PDF or a photo of the signed waybill.")
         for rec in self:
             if rec.state not in ("booked", "picked_up"):
                 raise UserError("The POD is recorded before the booking is closed.")
+            if attachment.res_model != rec._name or attachment.res_id != rec.id:
+                raise UserError(
+                    "Upload the signed POD scan on booking %s itself; a file attached "
+                    "elsewhere is not its proof of delivery." % rec.name
+                )
+            reused = self.sudo().search(
+                [("pod_attachment_id", "=", attachment.id), ("id", "!=", rec.id)], limit=1
+            )
+            if reused:
+                raise UserError("That POD scan already proves booking %s." % reused.name)
             rec._guarded().write(
                 {"pod_attachment_id": attachment.id, "pod_recorded_by_id": self.env.user.id}
             )
@@ -195,15 +214,16 @@ class FixCourierBooking(models.Model):
                             rec.partner_id.name,
                         )
                     )
-                if consignment.state == "confirmed":
-                    consignment.action_start_transit()
-                elif consignment.state != "in_transit":
+                if consignment.state != "confirmed":
                     raise UserError(
                         "%s is %s; only a confirmed consignment is handed to a courier."
                         % (consignment.name, consignment.state)
                     )
+                # A02 ERP audit M03-F5: the carrier is fixed once custody
+                # starts, so it is named before the transit begins
                 if not consignment.courier_partner_id:
                     consignment.write({"courier_partner_id": rec.partner_id.id})
+                consignment.action_start_transit()
                 consignment.message_post(
                     body="Handed to courier %s (booking %s, AWB %s)."
                     % (rec.partner_id.name, rec.name, rec.awb_no or "-")
@@ -263,4 +283,46 @@ class FixCourierBooking(models.Model):
             rec._guarded().write(
                 {"state": "delivered", "delivered_on": fields.Date.context_today(rec)}
             )
+        return True
+
+    # A02 ERP audit M03-F6: 'returned' and 'cancelled' were in the selection
+    # and reachable by nothing, so a booking whose parcel came back stayed
+    # open for ever (and its COD stayed "held by the courier").
+    def action_cancel(self, reason=None):
+        """Cancel a booking the courier has not picked up."""
+        self._courier_require_hub("Cancelling a courier booking")
+        reason = (str(reason).strip() if reason else "") or False
+        if not reason:
+            raise UserError("Give the reason for cancelling the booking.")
+        for rec in self:
+            if rec.state != "booked":
+                raise UserError(
+                    "Only a booking the courier has not picked up is cancelled (%s is %s); "
+                    "a picked-up parcel comes back as a return." % (rec.name, rec.state)
+                )
+            rec._guarded().write({"state": "cancelled", "close_reason": reason})
+        return True
+
+    def action_mark_returned(self, reason=None):
+        """The courier brought the parcel back. A booking with a consignment
+        closes when its consignment is received back or reported lost (it
+        follows the leg); one without a consignment is closed here, with a
+        reason."""
+        self._courier_require_hub("Closing a returned courier booking")
+        reason = (str(reason).strip() if reason else "") or False
+        for rec in self:
+            if rec.state != "picked_up":
+                raise UserError(
+                    "Only a picked-up booking comes back (%s is %s)." % (rec.name, rec.state)
+                )
+            consignment = rec.consignment_id
+            if consignment and consignment.state not in ("returned", "lost"):
+                raise UserError(
+                    "Booking %s follows consignment %s (%s): declare the return on the "
+                    "consignment and receive it back at the hub; the booking closes with it."
+                    % (rec.name, consignment.name, consignment.state)
+                )
+            if not reason:
+                raise UserError("Give the reason the parcel came back.")
+            rec._guarded().write({"state": "returned", "close_reason": reason})
         return True

@@ -187,6 +187,13 @@ class FixWorkshopTestResult(models.Model):
             self._m31_check_job_open(Job.browse(vals.get("job_id")).exists())
         records = super().create(vals_list)
         for rec in records:
+            # A02 ERP audit M31-F16 (BRU-WSR-09): a measurement is evidence
+            # only from a fit instrument - the same M45 gate the QC
+            # instrument passes (calibrated, in service, issued to the tester
+            # or to the job's technician)
+            if rec.equipment_id:
+                holder = self.env.user.sudo().employee_ids | rec.job_id.sudo().technician_id
+                rec.equipment_id.action_assert_usable(holder=holder)
             rec.job_id.message_post(
                 body="Test result: %s - %s%s"
                 % (
@@ -197,16 +204,29 @@ class FixWorkshopTestResult(models.Model):
             )
         return records
 
+    # A02 ERP audit M31-F15: a recorded result is the measurement. It was
+    # editable and deletable until QC, so a failed reading was rewritten or
+    # removed before the inspector looked. A result is append-only: a re-test
+    # is a new result, and the latest result of each test is what QC judges.
+    _MESSAGE_FIELDS = frozenset(
+        {"message_follower_ids", "message_ids", "message_main_attachment_id", "activity_ids"}
+    )
+
     def write(self, vals):
         if {"tested_by_id", "tested_at"} & set(vals):
             raise UserError("Who tested and when are stamped by the system.")
-        self._m31_check_job_open(self.mapped("job_id"))
-        if "job_id" in vals:
-            self._m31_check_job_open(self.env["fix.workshop.job"].browse(vals["job_id"]))
+        if not self.env.su and set(vals) - self._MESSAGE_FIELDS:
+            raise UserError(
+                "A recorded test result is the measurement and is not edited: record a re-test "
+                "as a new result."
+            )
         return super().write(vals)
 
     def unlink(self):
-        self._m31_check_job_open(self.mapped("job_id"))
+        if not self.env.su:
+            raise UserError(
+                "A recorded test result is never deleted: record a re-test as a new result."
+            )
         return super().unlink()
 
 
@@ -215,10 +235,40 @@ class FixWorkshopJobTests(models.Model):
 
     test_result_ids = fields.One2many("fix.workshop.test.result", "job_id", string="Test Results")
     test_result_count = fields.Integer(compute="_compute_test_results", string="Tests Recorded")
-    test_failed_count = fields.Integer(compute="_compute_test_results", string="Tests Failed")
+    test_failed_count = fields.Integer(
+        compute="_compute_test_results",
+        string="Tests Failed",
+        help="Tests whose latest recorded result failed (a passing re-test clears one).",
+    )
 
-    @api.depends("test_result_ids.passed")
+    def _m31_failed_tests(self):
+        """The latest result of each test, where it failed."""
+        self.ensure_one()
+        latest = {}
+        for result in self.sudo().test_result_ids.sorted(
+            lambda r: (r.tested_at or fields.Datetime.now(), r.id)
+        ):
+            latest[result.step_id.id] = result
+        return self.env["fix.workshop.test.result"].browse(
+            [r.id for r in latest.values() if not r.passed]
+        )
+
+    @api.depends("test_result_ids.passed", "test_result_ids.tested_at", "test_result_ids.step_id")
     def _compute_test_results(self):
         for rec in self:
             rec.test_result_count = len(rec.test_result_ids)
-            rec.test_failed_count = len(rec.test_result_ids.filtered(lambda r: not r.passed))
+            rec.test_failed_count = len(rec._m31_failed_tests())
+
+    def action_pass_qc(self, notes=""):
+        """A02 ERP audit M31-F15: QC does not pass a job whose latest
+        measured result of any test is a failure (test_failed_count was
+        computed and read by nothing)."""
+        for rec in self:
+            failed = rec._m31_failed_tests()
+            if failed:
+                raise UserError(
+                    "Job %s cannot pass QC: %d test(s) failed on their latest result (%s). "
+                    "Rework and re-test, or fail QC."
+                    % (rec.name, len(failed), ", ".join(failed.mapped("step_id.display_name")))
+                )
+        return super().action_pass_qc(notes=notes)

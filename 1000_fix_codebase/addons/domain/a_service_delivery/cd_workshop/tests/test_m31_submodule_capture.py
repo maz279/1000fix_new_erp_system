@@ -235,10 +235,22 @@ def test_routing_diagnosis_and_labour_save_on_the_picked_job(m31, ui):
             "diagnostic_findings": "U7000 PMIC short to ground on PP_VDD_MAIN",
             "repair_action_summary": "Replaced U7000, reflowed, rail checked",
         },
-        {"sam_standard_minutes": 90, "actual_logged_minutes": 75, "labour_total": 800},
+        {"sam_standard_minutes": 90, "actual_logged_minutes": 75},
     ):
         res = ui.write(m31.tech, model="fix.workshop.job", record_id=job.id, values=values)
         assert "error" not in res, (values, res)
+    # A02 ERP audit M31-F14: the labour figure is not typed on the form; a
+    # supervisor records it (only where the workshop has no labour rate)
+    res = ui.write(m31.tech, model="fix.workshop.job", record_id=job.id, values={"labour_total": 1})
+    assert "error" in res, res
+    res = ui.action(
+        m31.supv,
+        model="fix.workshop.job",
+        ids=[job.id],
+        method="action_record_labour",
+        kwargs={"amount": 800},
+    )
+    assert res.get("success"), res
     job.invalidate_recordset()
     assert job.repair_level == "l2" and job.bench_id == m31.l2
     assert job.diagnostic_findings.startswith("U7000")

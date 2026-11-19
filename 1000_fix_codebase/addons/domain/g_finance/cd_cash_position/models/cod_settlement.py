@@ -52,6 +52,11 @@ PARAM_COD_TOLERANCE = "cd_cash_position.cod_shortage_tolerance"
 PARAM_COD_ESCALATION = "cd_cash_position.cod_shortage_escalation_threshold"
 # Who receives the recovery hand-off; the payroll addon is not a dependency.
 PAYROLL_MANAGER_GROUP = "cd_payroll_bd.group_payroll_manager"
+# A02 ERP audit M03-F8: a shortage recovered by payroll deduction is debited
+# to this role's account (cd_cash_position.account_code.rider_shortage_payroll,
+# e.g. the salaries-payable clearing account). OWNER: the account is the
+# finance team's choice; unset, a payroll recovery is refused (fail closed).
+PAYROLL_RECOVERY_ROLE = "rider_shortage_payroll"
 
 
 class FixCodSettlement(models.Model):
@@ -150,6 +155,20 @@ class FixCodSettlement(models.Model):
         "(BRU-TRE-04).",
     )
     recovery_ref = fields.Char(string="Recovery Reference", tracking=True)
+    # A02 ERP audit M03-F8: the recovery is a ledger entry, not a label
+    recovery_method = fields.Selection(
+        [("cash", "Repaid by the Rider"), ("payroll", "Payroll Deduction")],
+        string="Recovered By",
+        readonly=True,
+        copy=False,
+    )
+    recovery_move_id = fields.Many2one(
+        "account.move", string="Recovery GL Entry", readonly=True, copy=False
+    )
+    recovered_by_id = fields.Many2one(
+        "res.users", string="Recovery Posted By", readonly=True, copy=False
+    )
+    recovered_at = fields.Datetime(string="Recovered At", readonly=True, copy=False)
 
     _COD_GUARDED = frozenset(
         {
@@ -164,6 +183,10 @@ class FixCodSettlement(models.Model):
             "shortage_approval_note",
             "recovery_requested_at",
             "recovery_state",
+            "recovery_method",
+            "recovery_move_id",
+            "recovered_by_id",
+            "recovered_at",
         }
     )
     _COD_TERMS = (
@@ -246,10 +269,35 @@ class FixCodSettlement(models.Model):
         for rec in self:
             rec.shortage_tier = rec._shortage_tier()
 
+    def _rider_partner(self):
+        """The rider as a ledger party (A02 ERP audit M03-F8: the shortage
+        line carried no partner, so nobody's balance ever showed it)."""
+        self.ensure_one()
+        partner = self.rider_id.sudo().work_contact_id
+        if not partner:
+            raise UserError(
+                "Rider %s has no work contact: the shortage is booked against the rider, so "
+                "give the employee a work contact first." % self.rider_id.name
+            )
+        return partner
+
+    @staticmethod
+    def _cod_receipt_pending(order) -> bool:
+        """A02 ERP audit M03-F9: the order's cash-on-delivery receipt is not
+        booked yet (the courier remittance already refused these)."""
+        return "posting_state" in order._fields and order.posting_state == "pending"
+
     def _check_orders(self):
         """Every order is a delivered COD order of THIS rider in this company,
         not in another live settlement."""
         for rec in self:
+            pending = rec.order_ids.sudo().filtered(rec._cod_receipt_pending)
+            if pending:
+                raise UserError(
+                    "%s carries orders whose cash-on-delivery receipt is not booked yet: %s. "
+                    "Settle them once their receipt is posted."
+                    % (rec.name, ", ".join(pending.mapped("name")))
+                )
             bad = rec.order_ids.sudo().filtered(
                 lambda o, r=rec: (
                     o.payment_rail != "cod"
@@ -327,7 +375,10 @@ class FixCodSettlement(models.Model):
         ).mapped("order_ids")
         # G10: an order in a live courier remittance is the courier's
         settled |= live_cod_orders(self.env, company)
-        return (orders - settled).filtered(lambda o: not o.sudo()._fix_cod_paid_elsewhere())
+        return (orders - settled).filtered(
+            lambda o: not o.sudo()._fix_cod_paid_elsewhere()
+            and not self._cod_receipt_pending(o.sudo())
+        )
 
     def action_load_orders(self):
         """Pull every delivered, unsettled COD order of the rider."""
@@ -430,12 +481,24 @@ class FixCodSettlement(models.Model):
             if rec.variance < -0.005:
                 shortage = treasury_account(self.env, rec.company_id, "rider_shortage")
                 lines.append(
-                    (shortage, "Rider short %s" % rec.rider_id.name, -rec.variance, 0.0, None)
+                    (
+                        shortage,
+                        "Rider short %s" % rec.rider_id.name,
+                        -rec.variance,
+                        0.0,
+                        rec._rider_partner(),
+                    )
                 )
             elif rec.variance > 0.005:
                 shortage = treasury_account(self.env, rec.company_id, "rider_shortage")
                 lines.append(
-                    (shortage, "Rider over %s" % rec.rider_id.name, 0.0, rec.variance, None)
+                    (
+                        shortage,
+                        "Rider over %s" % rec.rider_id.name,
+                        0.0,
+                        rec.variance,
+                        rec._rider_partner(),
+                    )
                 )
             lines.append((clearing, "COD collected %s" % rec.name, 0.0, rec.expected_amount, None))
             move = post_treasury_move(
@@ -503,16 +566,75 @@ class FixCodSettlement(models.Model):
                 user_id=user.id,
             )
 
-    def action_mark_recovered(self, reference=None):
-        """The rider's shortage was recovered (HR deduction / repayment)."""
+    def action_mark_recovered(self, reference=None, method=None, journal_id=None):
+        """The rider's shortage was recovered: post it (A02 ERP audit M03-F8).
+
+        The settlement debited the shortage to the rider; this closed the
+        variance with a label and posted nothing, so the rider_shortage
+        account only ever grew. The recovery now credits rider_shortage with
+        the rider as partner, against
+          - cash: the cash / bank journal the rider repaid into, or
+          - payroll: the payroll-deduction account (setting, fail closed).
+        It is posted by an Accounting Administrator other than the one who
+        settled the shortage (maker-checker)."""
         require_role(self.env, GROUP_ADMIN, "Closing a rider shortage")
+        method = (method or "").strip() or "cash"
+        if method not in ("cash", "payroll"):
+            raise UserError("A shortage is recovered by cash repayment or payroll deduction.")
         for rec in self:
             if rec.recovery_state != "open":
                 raise UserError("%s has no open shortage." % rec.name)
+            require_other_person(
+                self.env, rec.settled_by_id, "Posting the recovery of %s" % rec.name
+            )
             ref = (reference or rec.recovery_ref or "").strip()
             if not ref:
                 raise UserError("Record the recovery reference (HR deduction / receipt) first.")
-            rec._guarded().write({"recovery_state": "recovered", "recovery_ref": ref})
+            amount = rec._shortage()
+            if method == "cash":
+                journal = (
+                    self.env["account.journal"].browse(int(journal_id)).exists()
+                    if journal_id
+                    else rec.remittance_journal_id
+                )
+                debit_account = bank_account_of(journal)
+                label = "Rider repaid shortage %s (%s)" % (rec.name, ref)
+            else:
+                debit_account = treasury_account(self.env, rec.company_id, PAYROLL_RECOVERY_ROLE)
+                label = "Payroll deduction for shortage %s (%s)" % (rec.name, ref)
+            shortage_account = treasury_account(self.env, rec.company_id, "rider_shortage")
+            partner = rec._rider_partner()
+            move = post_treasury_move(
+                self.env,
+                rec.company_id,
+                fields.Date.context_today(rec),
+                "COD shortage recovered %s — %s" % (rec.name, rec.rider_id.name),
+                [
+                    (debit_account, label, amount, 0.0, partner if method == "payroll" else None),
+                    (
+                        shortage_account,
+                        "Rider shortage recovered %s" % rec.name,
+                        0.0,
+                        amount,
+                        partner,
+                    ),
+                ],
+                branch=rec.branch_id,
+                source="treasury",
+            )
+            rec._guarded().write(
+                {
+                    "recovery_state": "recovered",
+                    "recovery_ref": ref,
+                    "recovery_method": method,
+                    "recovery_move_id": move.id,
+                    "recovered_by_id": self.env.uid,
+                    "recovered_at": fields.Datetime.now(),
+                }
+            )
+            rec.sudo().activity_ids.filtered(
+                lambda a: a.summary == "Recover rider COD shortage"
+            ).action_feedback(feedback="Recovered (%s): %s" % (method, ref))
         return True
 
     def action_dispute(self, reason=None):

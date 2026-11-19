@@ -14,9 +14,10 @@ from odoo.exceptions import UserError
 def lg(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "LGEXT", "legal_name": "Logistics Ext Entity", "company_id": env.company.id}
-    )
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "LGEXT", "legal_name": "Logistics Ext Entity", "company_id": env.company.id})
     branch = env["fix.branch"].create(
         {
             "name": "LG Ext Branch",
@@ -188,7 +189,10 @@ def test_bridge_refuses_closed(lg):
     lg.order.state = "approved"
     lg.order.state = "in_repair"
     lg.order.state = "qc_pending"
-    lg.env["fix.qc.checklist"].create({"order_id": lg.order.id, "state": "passed"})
+    # M01 reads the checklist of the current QC round (qc_round)
+    lg.env["fix.qc.checklist"].create(
+        {"order_id": lg.order.id, "state": "passed", "qc_round": lg.order.qc_round}
+    )
     lg.order.state = "ready"
     lg.order.state = "delivered"
     lg.order.state = "closed"
@@ -222,7 +226,9 @@ def _ready(order):
         "qc_pending",
     ):
         order.state = state
-    order.env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
+    order.env["fix.qc.checklist"].create(
+        {"order_id": order.id, "state": "passed", "qc_round": order.qc_round}
+    )
     order.state = "ready"
 
 
@@ -244,7 +250,7 @@ def test_bridge_raises_the_delivery_back_when_the_order_is_ready(lg):
     assert back.consignment_type == "delivery"
     assert back.origin_branch_id == lg.branch and not back.dest_branch_id
     assert back.service_order_id == lg.order
-    with pytest.raises(UserError, match="already has a live delivery leg"):
+    with pytest.raises(UserError, match="already has a live leg"):
         lg.order.action_create_consignment()
 
 

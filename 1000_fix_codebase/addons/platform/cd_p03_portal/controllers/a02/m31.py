@@ -2,13 +2,13 @@
 # may read, the workflow methods they may call (/p03/model/records,
 # /p03/model/action), the module KPI payload (/p03/workshop/kpis) and the
 # built-in reports (/p03/model/report). Same contract as a02/m01 + m02.
-import datetime
 import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from .m05 import _period_domain, _period_note
 
 _logger = logging.getLogger(__name__)
 
@@ -66,6 +66,8 @@ SURFACES = {
             "action_recall_approval",
             # capture pass 2, sub-module 9: the cost build-up (FR-WSR-043/044)
             "action_build_cost_sheet",
+            # A02 ERP audit M31-F14: the labour figure where no rate is set
+            "action_record_labour",
         },
     },
     "fix.workshop.bench": {
@@ -238,15 +240,31 @@ def _jobs(env):
     return env["fix.workshop.job"].sudo().with_context(lang="en_US")
 
 
+def _scope(env, date_from=None, date_to=None, field="create_date"):
+    """A02 ERP audit M31-F21: the reports read as the system; they are held
+    to the caller's companies and to the period asked."""
+    return [
+        ("company_id", "in", env.companies.ids),
+        *_period_domain(env, field, date_from, date_to),
+    ]
+
+
+def _first_pass(job) -> bool:
+    """A02 ERP audit M31-F20: first pass = no QC failure AND no failed burn-in
+    (a burn-in failure is a rework loop too; FPY counted it as first pass)."""
+    return not job.is_rework and not job.rework_count and not job.rework_ids
+
+
 def kpis(env):
     """The M31 module-tile KPI row (registry-canonical metrics)."""
     Job = _jobs(env)
     domain = [("company_id", "in", env.companies.ids)]
-    now = datetime.datetime.now()
+    # UTC, like create_date (datetime.now() was the server's local clock)
+    now = fields.Datetime.now()
 
     on_bench = Job.search_count([*domain, ("bench_id", "!=", False), ("state", "in", _WIP_STATES)])
     completed = Job.search([*domain, ("state", "=", "delivered")], limit=500)
-    passed_first = sum(1 for j in completed if not j.is_rework and j.rework_count == 0)
+    passed_first = sum(1 for j in completed if _first_pass(j))
     first_pass_yield = round(100.0 * passed_first / len(completed), 1) if completed else None
 
     l3_waiting = Job.search(
@@ -268,10 +286,11 @@ def kpis(env):
     ]
     avg_bench_days = round(sum(durations_days) / len(durations_days), 1) if durations_days else None
 
-    lines_with_serial = (
-        env["fix.workshop.part.line"].sudo().search_count([("lot_serial_number", "!=", False)])
-    )
-    lines_total = env["fix.workshop.part.line"].sudo().search_count([])
+    # A02 ERP audit M31-F21: the caller's companies, fitted lines only
+    Line = env["fix.workshop.part.line"].sudo()
+    fitted = [("company_id", "in", env.companies.ids), ("reservation_state", "=", "consumed")]
+    lines_with_serial = Line.search_count([*fitted, ("lot_serial_number", "!=", False)])
+    lines_total = Line.search_count(fitted)
     parts_fitment = round(100.0 * lines_with_serial / lines_total, 1) if lines_total else None
 
     internal_rework = Job.search_count([*domain, ("is_rework", "=", True)])
@@ -292,7 +311,7 @@ def kpis(env):
 def _bench_utilisation_report(env, **params):
     Workshop = env["fix.workshop"].sudo()
     rows = []
-    for w in Workshop.search([]):
+    for w in Workshop.search([("company_id", "in", env.companies.ids)]):
         rows.append(
             {
                 "workshop": w.name,
@@ -319,12 +338,15 @@ def _bench_utilisation_report(env, **params):
     }
 
 
-def _cycle_time_report(env, **params):
+def _cycle_time_report(env, date_from=None, date_to=None, **params):
     """Repair Cycle Time by Level: draft→completed days per L1/L2/L3."""
     Job = _jobs(env)
+    scope = _scope(env, date_from, date_to, "completed_at")
     rows = []
     for level in ("l1", "l2", "l3"):
-        done = Job.search([("repair_level", "=", level), ("state", "=", "delivered")], limit=300)
+        done = Job.search(
+            [*scope, ("repair_level", "=", level), ("state", "=", "delivered")], limit=300
+        )
         durations = [
             (j.completed_at - j.create_date).total_seconds() / 86400.0
             for j in done
@@ -350,14 +372,15 @@ def _cycle_time_report(env, **params):
         "rows": rows,
         "notes": [
             "Cycle time runs from the creation of the repair job to its completion; "
-            "only delivered jobs are counted."
+            "only delivered jobs are counted.",
+            _period_note(date_from, date_to),
         ],
     }
 
 
-def _rework_loop_report(env, **params):
+def _rework_loop_report(env, date_from=None, date_to=None, **params):
     Job = _jobs(env)
-    reworks = Job.search([("is_rework", "=", True)], limit=300)
+    reworks = Job.search([*_scope(env, date_from, date_to), ("is_rework", "=", True)], limit=300)
     by_reason = {}
     for j in reworks:
         by_reason[j.rework_reason or "unspecified"] = (
@@ -374,17 +397,20 @@ def _rework_loop_report(env, **params):
         "rows": rows,
         "notes": [
             "A rework loop is a job sent back to repair after failing its quality check; "
-            "counts are live."
+            "counts are live.",
+            _period_note(date_from, date_to),
         ],
     }
 
 
-def _cost_report(env, **params):
+def _cost_report(env, date_from=None, date_to=None, **params):
     Job = _jobs(env)
+    scope = _scope(env, date_from, date_to, "completed_at")
     rows = []
     for level in ("l1", "l2", "l3"):
         done = Job.search(
-            [("repair_level", "=", level), ("state", "in", ("ready", "delivered"))], limit=300
+            [*scope, ("repair_level", "=", level), ("state", "in", ("ready", "delivered"))],
+            limit=300,
         )
         if not done:
             rows.append(
@@ -403,7 +429,7 @@ def _cost_report(env, **params):
                 "level": level.upper(),
                 "jobs": n,
                 "avg_parts": round(sum(done.mapped("parts_total")) / n, 2),
-                "avg_labour": round(sum(done.mapped("labour_total")) / n, 2),
+                "avg_labour": round(sum(done.mapped("labour_cost")) / n, 2),
                 "avg_total": round(sum(done.mapped("total_repair_cost")) / n, 2),
             }
         )
@@ -419,14 +445,21 @@ def _cost_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Parts from consumed part lines; labour is the recorded workshop figure (no rate card yet)."
+            "Parts from fitted (consumed) part lines at their issue cost; labour from the work "
+            "clock at the workshop rate (the supervisor-recorded figure where a workshop has "
+            "no rate); the total adds the consumables.",
+            _period_note(date_from, date_to),
         ],
     }
 
 
-def _genealogy_report(env, **params):
+def _genealogy_report(env, date_from=None, date_to=None, **params):
     Line = env["fix.workshop.part.line"].sudo()
-    lines = Line.search([("lot_serial_number", "!=", False)], order="id desc", limit=200)
+    lines = Line.search(
+        [*_scope(env, date_from, date_to), ("lot_serial_number", "!=", False)],
+        order="id desc",
+        limit=200,
+    )
     rows = [
         {
             "job": ln.job_id.name,
@@ -445,17 +478,34 @@ def _genealogy_report(env, **params):
     }
 
 
-def _burnin_report(env, **params):
+def _burnin_report(env, date_from=None, date_to=None, **params):
+    """A02 ERP audit M31-F20: 'failed' was started - passed, so a run still
+    going counted as a failure and a job that failed twice counted once.
+    Failed runs are the burn-in rework records; running is the live state."""
     Job = _jobs(env)
-    tested = Job.search([("burn_in_started_at", "!=", False)], limit=300)
+    tested = Job.search(
+        [
+            *_scope(env, date_from, date_to, "burn_in_started_at"),
+            ("burn_in_started_at", "!=", False),
+        ],
+        limit=300,
+    )
     passed = sum(1 for j in tested if j.burn_in_passed)
+    running = sum(1 for j in tested if j.state == "burn_in")
+    failed_runs = (
+        env["fix.workshop.rework"]
+        .sudo()
+        .search_count([("job_id", "in", tested.ids), ("failed_at_state", "=", "burn_in")])
+    )
+    judged = passed + failed_runs
     rows = [
-        {"measure": "Burn-in started", "value": len(tested)},
+        {"measure": "Jobs burn-in tested", "value": len(tested)},
+        {"measure": "Still running", "value": running},
         {"measure": "Burn-in passed", "value": passed},
-        {"measure": "Failed after burn-in", "value": len(tested) - passed},
+        {"measure": "Failed runs (back to the bench)", "value": failed_runs},
         {
-            "measure": "Pass rate %",
-            "value": round(100.0 * passed / len(tested), 1) if tested else None,
+            "measure": "Pass rate % (passed / passed + failed runs)",
+            "value": round(100.0 * passed / judged, 1) if judged else None,
         },
     ]
     return {
@@ -463,7 +513,11 @@ def _burnin_report(env, **params):
         "cols": ["measure", "value"],
         "labels": {"measure": "Measure", "value": "Jobs"},
         "rows": rows,
-        "notes": ["L2/L3 jobs are burn-in gated before QC — these are the recorded outcomes."],
+        "notes": [
+            "L2/L3 jobs are burn-in gated before QC — these are the recorded outcomes. Each "
+            "failed run is counted (a job may fail more than once).",
+            _period_note(date_from, date_to),
+        ],
     }
 
 

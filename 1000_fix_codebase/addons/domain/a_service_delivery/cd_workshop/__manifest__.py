@@ -17,7 +17,7 @@ Key Features:
 - Domain events emitted via fix_events outbox (AS-08)
 - 100% Bilingual support (English + Bengali)
 """,
-    "version": "19.0.2.2.0",
+    "version": "19.0.2.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Workshop",

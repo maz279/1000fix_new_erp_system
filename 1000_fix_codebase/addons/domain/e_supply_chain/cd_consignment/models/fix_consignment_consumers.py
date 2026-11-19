@@ -10,6 +10,7 @@ from odoo.exceptions import AccessError
 from .fix_consignment import GROUP_MANAGER
 
 TAMPER_SUMMARY = "Tamper hold: %s"
+LOST_SUMMARY = "Lost consignment: %s"
 
 
 class FixConsignmentConsumers(models.Model):
@@ -64,3 +65,51 @@ class FixConsignmentConsumers(models.Model):
             )
             scheduled += 1
         return {"scheduled": scheduled}
+
+    @api.model
+    def consume_lost(self, event: dict) -> dict:
+        """A02 ERP audit M03-F4: consignment.lost had no reader - a lost
+        device waited for someone to notice the state. The loss is opened as
+        a damage claim (kind 'missing', at the declared value the leg was
+        insured for, liability still to be decided) and put in the logistics
+        managers' queue to adjudicate. Idempotent: a leg that already carries
+        a live claim gets no second one, a manager no second to-do."""
+        self._assert_system_consumer()
+        payload = event.get("payload") or {}
+        rec_id = event.get("aggregate_id") or payload.get("consignment_id")
+        consignment = self.browse(int(rec_id or 0)).exists()
+        if not consignment:
+            return {"claim": False, "reason": "no such consignment"}
+        if consignment.state != "lost":
+            return {"claim": False, "reason": "consignment is %s" % consignment.state}
+        Claim = self.env["fix.damage.claim"]
+        claim = consignment.damage_claim_ids.filtered(lambda c: c.state != "rejected")[:1]
+        if not claim:
+            claim = Claim.create(
+                {
+                    "consignment_id": consignment.id,
+                    "company_id": consignment.company_id.id,
+                    "operating_unit_id": consignment.operating_unit_id.id,
+                    "claimant": "customer" if consignment.service_order_id else "branch",
+                    "damage_kind": "missing",
+                    "liability": "pending",
+                    "claimed_amount": consignment.declared_value_bdt or 0.0,
+                    "description": "Lost in transit: %s"
+                    % (consignment.exception_note or "no reason recorded"),
+                }
+            )
+        summary = LOST_SUMMARY % consignment.name
+        open_todo = consignment.activity_ids.filtered(lambda a: a.summary == summary)
+        scheduled = 0
+        for user in consignment._tamper_supervisors():
+            if open_todo.filtered(lambda a, u=user: a.user_id == u):
+                continue
+            consignment.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary=summary,
+                note="Damage claim %s opened for the loss: decide the liability and the payout."
+                % claim.name,
+                user_id=user.id,
+            )
+            scheduled += 1
+        return {"claim": claim.id, "scheduled": scheduled}

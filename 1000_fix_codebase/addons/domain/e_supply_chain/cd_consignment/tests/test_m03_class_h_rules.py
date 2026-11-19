@@ -21,9 +21,10 @@ def m3(odoo_env):
     env = odoo_env
     env["ir.config_parameter"].sudo().set_param(HIGH_VALUE_PARAM, "50000")
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "M3CH", "legal_name": "M03 Class-H Entity", "company_id": env.company.id}
-    )
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "M3CH", "legal_name": "M03 Class-H Entity", "company_id": env.company.id})
     a, b = env["fix.branch"].create(
         [
             {

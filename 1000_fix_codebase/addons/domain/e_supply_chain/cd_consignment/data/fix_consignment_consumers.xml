@@ -13,5 +13,15 @@
             <field name="module">cd_consignment</field>
         </record>
 
+        <!-- A02 ERP audit M03-F4: a lost leg opens its damage claim and
+             reaches the logistics managers (consignment.lost had no reader). -->
+        <record id="consumer_consignment_lost" model="fix.event.consumer">
+            <field name="name">M03: a lost consignment opens its claim</field>
+            <field name="event_type">consignment.lost</field>
+            <field name="model">fix.consignment</field>
+            <field name="method">consume_lost</field>
+            <field name="module">cd_consignment</field>
+        </record>
+
     </data>
 </odoo>

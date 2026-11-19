@@ -175,7 +175,14 @@ class FixWorkshopJobLifecycle(models.Model):
         lines = job.part_line_ids.filtered(
             lambda ln: ln.reservation_state == "consumed" and not ln.dofa_approved
         )
-        return sum(lines.mapped("subtotal")) + (job.labour_total or 0.0) + (extra or 0.0)
+        # A02 ERP audit M31-F14: the clocked labour (labour_cost, not the typed
+        # figure) and the consumables count against the approved amount
+        return (
+            sum(lines.mapped("subtotal"))
+            + (job.labour_cost or 0.0)
+            + job._m31_consumables_cost()
+            + (extra or 0.0)
+        )
 
     def _m31_check_cost_within_estimate(self):
         """BRU-WSR-11: when the job's cost rises above what was approved, the

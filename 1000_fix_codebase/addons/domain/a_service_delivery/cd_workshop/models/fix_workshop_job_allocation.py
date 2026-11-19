@@ -18,7 +18,10 @@ from .fix_workshop_job import (
     TECHNICIAN_LOCKED_STATES,
 )
 
-# a bench's active load (the states fix.workshop.bench.active_job_ids counts)
+# a bench's active load (the states fix.workshop.bench.active_job_ids counts).
+# A02 ERP audit M31-F18: a job that failed QC keeps its bench for the rework
+# (it goes back to in_repair on it), so it holds the bench's capacity; it was
+# not counted and the bench was booked to a second job meanwhile.
 ACTIVE_BENCH_STATES = (
     "intake",
     "diagnostic",
@@ -26,6 +29,7 @@ ACTIVE_BENCH_STATES = (
     "in_repair",
     "burn_in",
     "qc_pending",
+    "qc_failed",
 )
 LEVEL_RANK = {"l1": 1, "l2": 2, "l3": 3}
 

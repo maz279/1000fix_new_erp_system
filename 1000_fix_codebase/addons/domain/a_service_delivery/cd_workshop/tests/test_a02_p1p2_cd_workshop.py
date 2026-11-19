@@ -102,7 +102,8 @@ def test_the_cap_is_the_latest_approved_version_and_counts_labour(m31):
     # P0 summed v1 + v2: a 25,000 part fitted under a 10,000 approval
     with refused(m31.env, UserError, "BRU-WSR-11"):
         _line(m31, job, cost=ceiling + 1).action_consume_part()
-    job.write({"labour_total": ceiling - 1000.0})
+    # A02 ERP audit M31-F14: the labour figure (no workshop rate) is a supervisor's
+    job.with_user(m31.supv).action_record_labour(amount=ceiling - 1000.0)
     with refused(m31.env, UserError, "BRU-WSR-11"):
         _line(m31, job, cost=2000.0).action_consume_part()
     small = _line(m31, job, cost=900.0)
@@ -115,7 +116,7 @@ def test_cost_rising_after_approval_stops_qc_until_re_approved(m31):
     _approved_estimate(m31, so, 5000.0)
     job = _to_repair(m31, m31.job(so=so))
     _line(m31, job, cost=4000.0).action_consume_part()
-    job.write({"labour_total": 3000.0})
+    job.with_user(m31.supv).action_record_labour(amount=3000.0)
     job.invalidate_recordset()
     assert job.cost_over_estimate
     with refused(m31.env, UserError, "rose after approval"):

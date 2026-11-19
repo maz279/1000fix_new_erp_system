@@ -1318,6 +1318,16 @@ class FixWorkshopTransfer(models.Model):
                 "cd_workshop.group_fix_workshop_user"
             ):
                 raise UserError("The receiving workshop records the arrival.")
+            # A02 ERP audit M31-F17: the arrival is the consignment's. A
+            # transfer was "received" while its consignment was still a draft
+            # (the device had not left), or after it was returned or lost.
+            consignment = rec.consignment_id.sudo()
+            if consignment.state != "delivered":
+                raise UserError(
+                    "Transfer of job %s is received when its consignment %s is delivered at "
+                    "the receiving hub (it is %s)."
+                    % (rec.job_id.name, consignment.name or "-", consignment.state or "missing")
+                )
             rec._guarded().write(
                 {
                     "state": "received",
@@ -1340,12 +1350,55 @@ class FixWorkshopTransfer(models.Model):
         return True
 
     def action_cancel(self, note=None):
+        """Cancel a requested transfer, or (A02 ERP audit M31-F17) close one
+        in transit whose move failed: its consignment came back or was lost,
+        or never left (still a draft, which is withdrawn). The job returns
+        to the workshop it came from. A consignment still on the road is
+        returned or reported lost in M03 first."""
         for rec in self:
-            if rec.state != "requested":
-                raise UserError("Only a requested transfer is cancelled.")
-            if rec.requested_by_id != self.env.user and not _is_supervisor(self.env):
-                raise UserError("The requester or a supervisor cancels a transfer.")
-            rec._guarded().write({"state": "cancelled", "decline_note": note or False})
+            if rec.state not in ("requested", "in_transit"):
+                raise UserError("Only a requested or in-transit transfer is cancelled.")
+            if rec.state == "requested":
+                if rec.requested_by_id != self.env.user and not _is_supervisor(self.env):
+                    raise UserError("The requester or a supervisor cancels a transfer.")
+                rec._guarded().write({"state": "cancelled", "decline_note": note or False})
+                continue
+            if not (
+                rec.requested_by_id == self.env.user
+                or _is_supervisor(self.env)
+                or rec._is_receiving_side()
+            ):
+                raise UserError("The requester, the receiving workshop or a supervisor does this.")
+            if not (note or "").strip():
+                raise UserError("Say why the transfer did not arrive.")
+            consignment = rec.consignment_id.sudo()
+            if consignment and consignment.state not in ("draft", "returned", "lost"):
+                raise UserError(
+                    "Consignment %s is %s: the device is on its way. Receive it, or return it / "
+                    "report it lost in Logistics (M03), before closing the transfer."
+                    % (consignment.name, consignment.state)
+                )
+            outcome = consignment.state if consignment else "missing"
+            if consignment and consignment.state == "draft":
+                # nothing moved: the planned leg is withdrawn, the device
+                # stays where it is (and is free for its next leg)
+                consignment.unlink()
+                outcome = "withdrawn before dispatch"
+            job = rec.job_id
+            job.with_context(m31_workshop_transfer=True)._guarded().write(
+                {
+                    "workshop_id": rec.from_workshop_id.id,
+                    "bench_id": False,
+                    "current_location_id": False,
+                }
+            )
+            rec._guarded().write(
+                {"state": "cancelled", "decline_note": "%s (consignment %s)" % (note, outcome)}
+            )
+            job.message_post(
+                body="Transfer to %s closed without arrival (consignment %s): %s. The job is "
+                "back at %s." % (rec.to_workshop_id.name, outcome, note, rec.from_workshop_id.name)
+            )
         return True
 
 
@@ -1513,6 +1566,17 @@ class FixWorkshopJobCapture2(models.Model):
         string="Clocked Waiting Minutes", compute="_compute_clock"
     )
     consumables_total = fields.Float(string="Consumables (BDT)", compute="_compute_full_cost")
+    # A02 ERP audit M31-F14: the labour the cost gate and the cost carry. The
+    # work clock at the workshop's hourly rate; only a workshop with no rate
+    # uses the recorded figure (labour_total, guarded: action_record_labour).
+    labour_cost = fields.Monetary(
+        string="Labour Cost (BDT)",
+        compute="_compute_labour_cost",
+        store=True,
+        currency_field="currency_id",
+        help="Clocked active minutes at the workshop's labour rate; the figure recorded by "
+        "a supervisor only where the workshop has no rate.",
+    )
     full_cost = fields.Float(string="Full Repair Cost (BDT)", compute="_compute_full_cost")
     cost_variance = fields.Float(string="Cost vs Approved (BDT)", compute="_compute_full_cost")
     cost_variance_flag = fields.Boolean(
@@ -1532,6 +1596,68 @@ class FixWorkshopJobCapture2(models.Model):
             rec.logged_waiting_minutes = sum(
                 logs.filtered(lambda t: t.activity == "waiting").mapped("minutes")
             )
+
+    @api.depends(
+        "time_log_ids.minutes",
+        "time_log_ids.activity",
+        "workshop_id.labour_rate_per_hour",
+        "labour_total",
+    )
+    def _compute_labour_cost(self):
+        for rec in self:
+            rate = rec.workshop_id.sudo().labour_rate_per_hour or 0.0
+            if rate:
+                minutes = sum(
+                    rec.time_log_ids.filtered(lambda t: t.activity == "active").mapped("minutes")
+                )
+                rec.labour_cost = round(minutes / 60.0 * rate, 2)
+            else:
+                rec.labour_cost = rec.labour_total or 0.0
+
+    def _m31_consumables_cost(self) -> float:
+        self.ensure_one()
+        return round(sum(self.sudo().consumable_ids.mapped("subtotal")), 2)
+
+    @api.depends(
+        "part_line_ids.subtotal",
+        "part_line_ids.reservation_state",
+        "labour_total",
+        "labour_cost",
+        "consumable_ids.subtotal",
+    )
+    def _compute_totals(self):
+        """A02 ERP audit M31-F14: the total repair cost is fitted parts, the
+        clocked labour and the consumables (consumables were left out)."""
+        for rec in self:
+            parts = rec._m31_fitted_parts_cost()
+            rec.parts_total = parts
+            rec.total_repair_cost = parts + (rec.labour_cost or 0.0) + rec._m31_consumables_cost()
+
+    def action_record_labour(self, amount=None, note=None):
+        """The labour figure for a workshop that has no hourly rate: recorded
+        by a workshop supervisor, never typed by the bench (A02 ERP audit
+        M31-F14). Where a rate is set the clock is the labour record."""
+        self._m31_require_group((GROUP_SUPERVISOR,), "Recording a labour figure")
+        try:
+            value = float(str(amount).strip()) if amount not in (None, False, "") else None
+        except (TypeError, ValueError):
+            raise UserError("The labour figure must be an amount in BDT.") from None
+        if value is None or value < 0:
+            raise UserError("Give the labour figure in BDT (zero or more).")
+        for rec in self:
+            _check_job_open(rec, "labour figure")
+            rate = rec.workshop_id.sudo().labour_rate_per_hour
+            if rate:
+                raise UserError(
+                    "Workshop %s costs labour at BDT %.2f an hour from the work clock: book the "
+                    "time on job %s instead of a figure." % (rec.workshop_id.name, rate, rec.name)
+                )
+            rec._guarded().write({"labour_total": value})
+            rec.message_post(
+                body="Labour figure BDT %.2f recorded by %s%s"
+                % (value, self.env.user.name, (": %s" % note) if note else ".")
+            )
+        return True
 
     @api.depends("cost_line_ids.amount", "consumable_ids.subtotal", "estimate_ceiling")
     def _compute_full_cost(self):
@@ -1701,7 +1827,9 @@ class FixWorkshopJobCapture2(models.Model):
         now = fields.Datetime.now()
         for rec in self:
             ws = rec.workshop_id.sudo()
-            minutes = rec.logged_active_minutes or rec.actual_logged_minutes or 0.0
+            # A02 ERP audit M31-F14: the clock only (the typed bench minutes,
+            # 60 by default, were costed when nothing was clocked)
+            minutes = rec.logged_active_minutes or 0.0
             lines = []
             if ws.labour_rate_per_hour:
                 lines.append(
@@ -1719,15 +1847,16 @@ class FixWorkshopJobCapture2(models.Model):
                         "labour",
                         "Recorded labour figure (the workshop has no hourly rate)",
                         1.0,
-                        rec.labour_total or 0.0,
-                        rec.labour_total or 0.0,
+                        rec.labour_cost or 0.0,
+                        rec.labour_cost or 0.0,
                     )
                 )
-            parts = rec.sudo().part_line_ids
+            # A02 ERP audit M31-F12: fitted parts only
+            parts = rec.sudo().part_line_ids.filtered(lambda ln: ln.reservation_state == "consumed")
             lines.append(
                 (
                     "parts",
-                    "%d part line(s) at standard cost" % len(parts),
+                    "%d fitted part line(s) at their issue cost" % len(parts),
                     float(len(parts)),
                     0.0,
                     round(sum(parts.mapped("subtotal")), 2),

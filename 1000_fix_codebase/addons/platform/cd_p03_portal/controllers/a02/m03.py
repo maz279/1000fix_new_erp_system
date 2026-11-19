@@ -8,6 +8,7 @@ from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from .m05 import _period_domain, _period_note
 
 _logger = logging.getLogger(__name__)
 
@@ -29,6 +30,8 @@ SURFACES = {
             "action_verify_pod",
             "action_confirm_receipt",
             "action_return",
+            # A02 ERP audit M03-F4: the origin hub's receipt closes a return
+            "action_receive_return",
             "action_report_lost",
             "action_release_hold",
             # BRU-LOG-03: the second signature on a high-value dispatch
@@ -43,7 +46,15 @@ SURFACES = {
         # delivery closes it on the courier's POD. M03 audit 2026-11-13: the
         # POD itself could not be recorded (guarded field, method not served),
         # so no courier booking could ever be marked delivered.
-        "actions": {"action_pick_up", "action_record_pod", "action_deliver"},
+        # A02 ERP audit M03-F6: a booking is cancelled before pick-up, or
+        # closed as returned once its parcel is back
+        "actions": {
+            "action_pick_up",
+            "action_record_pod",
+            "action_deliver",
+            "action_cancel",
+            "action_mark_returned",
+        },
     },
     "fix.damage.claim": {
         "order": "claimed_on desc, id desc",
@@ -75,6 +86,15 @@ def _cons(env):
     return env["fix.consignment"].sudo().with_context(lang="en_US")
 
 
+def _scope(env, date_from=None, date_to=None, field="create_date"):
+    """A02 ERP audit M03-F21: a report reads as the system, so it is held to
+    the caller's companies and to the period asked (reader's calendar days)."""
+    return [
+        ("company_id", "in", env.companies.ids),
+        *_period_domain(env, field, date_from, date_to),
+    ]
+
+
 def kpis(env):
     """The M03 module-tile KPI row (registry-canonical metrics)."""
     Cons = _cons(env)
@@ -85,17 +105,19 @@ def kpis(env):
     in_transit = Cons.search_count([*domain, ("state", "=", "in_transit")])
 
     delivered = Cons.search([*domain, ("state", "=", "delivered")], limit=500)
-    # A02 audit M03-13: the stamped delivery moment, not write_date (any later
-    # edit moved it); rows delivered before the stamp existed fall back.
-    on_time = sum(
-        1
-        for c in delivered
-        if c.scheduled_date
-        and (c.delivered_at or c.write_date)
-        and (c.delivered_at or c.write_date) <= c.scheduled_date
-    )
-    # on-time = closed by the scheduled date (schedule = promised window end)
-    on_time_pct = round(100.0 * on_time / len(delivered), 1) if delivered else None
+    # A02 ERP audit M03-F20: the scheduled date is the planned dispatch
+    # (stamped at creation), so "delivered by the scheduled date" was ~0%.
+    # On-time = delivered by the promise: dispatch + the courier's SLA, or the
+    # own-fleet SLA setting. A leg with no promise is not judged.
+    judged = on_time = 0
+    for c in delivered:
+        due = c._m03_due_at()
+        closed = c.delivered_at or c.write_date
+        if not due or not closed:
+            continue
+        judged += 1
+        on_time += 1 if closed <= due else 0
+    on_time_pct = round(100.0 * on_time / judged, 1) if judged else None
 
     # M03 audit 2026-11-13: a lost leg with a broken chain was counted twice,
     # and a seal or weight tamper hold (the headline custody exception) not at all
@@ -119,7 +141,9 @@ def kpis(env):
             [
                 ("company_id", "in", env.companies.ids),
                 ("settlement_date", "=", today),
-                ("state", "!=", "disputed"),
+                # A02 ERP audit M03-F20: handed over = submitted or settled,
+                # never a draft sheet still being prepared
+                ("state", "in", ("submitted", "settled")),
             ]
         )
         cod_today = round(sum(todays.mapped("remitted_amount")), 2)
@@ -161,12 +185,17 @@ def _closed_at(consignment):
     return max(returned.mapped("scanned_at")) if returned else None
 
 
-def _cycle_time_report(env, **params):
+def _cycle_time_report(env, date_from=None, date_to=None, **params):
     Cons = _cons(env)
+    scope = _scope(env, date_from, date_to)
     rows = []
     for ctype in ("pickup", "delivery", "branch_transfer", "return_to_vendor"):
         done = Cons.search(
-            [("consignment_type", "=", ctype), ("state", "in", ("delivered", "returned"))],
+            [
+                *scope,
+                ("consignment_type", "=", ctype),
+                ("state", "in", ("delivered", "returned")),
+            ],
             limit=300,
         )
         spans = [
@@ -195,12 +224,13 @@ def _cycle_time_report(env, **params):
         "notes": [
             "Creation → close, delivered/returned consignments only. Close is the "
             "delivery stamp or the returned custody scan; legs closed before those "
-            "stamps existed are left out."
+            "stamps existed are left out.",
+            _period_note(date_from, date_to),
         ],
     }
 
 
-def _custody_exception_report(env, **params):
+def _custody_exception_report(env, date_from=None, date_to=None, **params):
     """Custody Exception Register (spec §14: seal breaks, discrepancies,
     unexplained gaps). M03 audit 2026-11-13: it listed broken chains and lost
     legs only - a seal or weight tamper hold, the headline exception, was
@@ -212,6 +242,7 @@ def _custody_exception_report(env, **params):
     seals = _labels(Cons, "seal_status")
     found = Cons.search(
         [
+            *_scope(env, date_from, date_to),
             "|",
             "|",
             "|",
@@ -279,12 +310,31 @@ def _custody_exception_report(env, **params):
     }
 
 
-def _courier_performance_report(env, **params):
+def _date_scope(field, date_from=None, date_to=None):
+    """A period on a Date field (the business day itself, no zone shift)."""
+    domain = []
+    if date_from:
+        domain.append((field, ">=", str(date_from)[:10]))
+    if date_to:
+        domain.append((field, "<=", str(date_to)[:10]))
+    return domain
+
+
+def _courier_performance_report(env, date_from=None, date_to=None, **params):
     """Courier performance from the real booking records. M03 audit
     2026-11-13: on-time used a fixed 3 days although each partner carries its
     contractual SLA, and 'COD not settled' summed cash on returned and
     cancelled bookings, which the courier never collected."""
-    bookings = env["fix.courier.booking"].sudo().search([("company_id", "in", env.companies.ids)])
+    bookings = (
+        env["fix.courier.booking"]
+        .sudo()
+        .search(
+            [
+                ("company_id", "in", env.companies.ids),
+                *_date_scope("booked_on", date_from, date_to),
+            ]
+        )
+    )
     partners = env["fix.courier.partner"].sudo().search([("company_id", "in", env.companies.ids)])
     rows = []
     for partner in partners:
@@ -347,7 +397,7 @@ def _courier_performance_report(env, **params):
     }
 
 
-def _cod_settlement_report(env, **params):
+def _cod_settlement_report(env, date_from=None, date_to=None, **params):
     """Rider cash hand-overs (M50 settlements). M03 audit 2026-11-13: it had
     no rider column although BRU-LOG-06 reconciles per rider, and showed raw
     state keys."""
@@ -356,7 +406,10 @@ def _cod_settlement_report(env, **params):
         Settlement = env["fix.cod.settlement"].sudo()
         states = _labels(Settlement, "state")
         for s in Settlement.search(
-            [("company_id", "in", env.companies.ids)],
+            [
+                ("company_id", "in", env.companies.ids),
+                *_date_scope("settlement_date", date_from, date_to),
+            ],
             order="settlement_date desc, id desc",
             limit=200,
         ):
@@ -405,7 +458,7 @@ def _cod_settlement_report(env, **params):
     }
 
 
-def _reverse_volume_report(env, **params):
+def _reverse_volume_report(env, date_from=None, date_to=None, **params):
     """Reverse logistics: returns to vendor (FR-LOG-024) and legs returned to
     origin (FR-LOG-026). M03 audit 2026-11-13: it counted returned-to-origin
     legs only - every return to vendor was missing."""
@@ -413,7 +466,12 @@ def _reverse_volume_report(env, **params):
     types = _labels(Cons, "consignment_type")
     states = _labels(Cons, "state")
     found = Cons.search(
-        ["|", ("state", "=", "returned"), ("consignment_type", "=", "return_to_vendor")],
+        [
+            *_scope(env, date_from, date_to),
+            "|",
+            ("state", "in", ("returning", "returned")),
+            ("consignment_type", "=", "return_to_vendor"),
+        ],
         order="scheduled_date desc, id desc",
         limit=300,
     )
@@ -422,7 +480,7 @@ def _reverse_volume_report(env, **params):
             "consignment": c.name,
             "flow": "Return to vendor"
             if c.consignment_type == "return_to_vendor"
-            else "Returned to origin",
+            else ("Returning to origin" if c.state == "returning" else "Returned to origin"),
             "type": types.get(c.consignment_type, c.consignment_type),
             "state": states.get(c.state, c.state),
             "reference": c.purchase_order_id.display_name or c.service_order_id.display_name or "",
@@ -444,7 +502,10 @@ def _reverse_volume_report(env, **params):
             "chain": "Chain",
         },
         "rows": rows,
-        "notes": ["Returns to vendor (any state) and legs returned to origin."],
+        "notes": [
+            "Returns to vendor (any state) and legs returned (or returning) to origin.",
+            _period_note(date_from, date_to),
+        ],
         "empty": "No reverse logistics movement yet.",
     }
 
@@ -478,7 +539,9 @@ def _damage_claims_report(env, **params):
         for c in claims
     ]
     claimed = set(claims.mapped("consignment_id").ids)
-    for c in Cons.search([("state", "=", "lost")], limit=200):
+    for c in Cons.search(
+        [("company_id", "in", env.companies.ids), ("state", "=", "lost")], limit=200
+    ):
         if c.id in claimed:
             continue
         rows.append(
@@ -525,14 +588,14 @@ def _damage_claims_report(env, **params):
     }
 
 
-def _zone_charges_report(env, **params):
+def _zone_charges_report(env, date_from=None, date_to=None, **params):
     """Distance & Zone Charging: the freight leg's own charging basis —
     origin branch → destination branch with weight and the money columns
     (M03 sweep audit 2026-11-06: the screen previously borrowed the courier
     report; this is the consignment's own charge register)."""
     Cons = _cons(env)
     groups = {}
-    for c in Cons.search([], limit=400):
+    for c in Cons.search(_scope(env, date_from, date_to), limit=400):
         key = (
             c.origin_branch_id.name or "—",
             c.dest_branch_id.name or "—",
@@ -596,7 +659,7 @@ def _zone_charges_report(env, **params):
     }
 
 
-def _manifest_register_report(env, **params):
+def _manifest_register_report(env, date_from=None, date_to=None, **params):
     """Item Manifests: the dispatch manifest per consignment — packaging,
     security bag, seals, weights and declared value (M03 sweep audit
     2026-11-06: the screen previously borrowed the cycle-time report)."""
@@ -605,7 +668,9 @@ def _manifest_register_report(env, **params):
     state_labels = dict(Cons._fields["state"].selection)
     pkg_labels = dict(Cons._fields["packaging_type"].selection)
     rows = []
-    for c in Cons.search([], order="scheduled_date desc, id desc", limit=200):
+    for c in Cons.search(
+        _scope(env, date_from, date_to), order="scheduled_date desc, id desc", limit=200
+    ):
         rows.append(
             {
                 "name": c.name,
@@ -639,13 +704,15 @@ def _manifest_register_report(env, **params):
     }
 
 
-def _rider_day_report(env, **params):
+def _rider_day_report(env, date_from=None, date_to=None, **params):
     """The rider's day: assigned legs per rider per run date with the live
     state mix and carried weight. Serves Route Manifests and the Rider App
     (P09) preview (route_manifest / rider_day below)."""
     Cons = _cons(env)
     groups = {}
-    for c in Cons.search([("rider_id", "!=", False)], limit=400):
+    for c in Cons.search(
+        [*_scope(env, date_from, date_to, "scheduled_date"), ("rider_id", "!=", False)], limit=400
+    ):
         stamp = c.scheduled_date or c.create_date
         day = stamp.date() if hasattr(stamp, "date") else stamp
         key = (c.rider_id.name, day)
@@ -655,7 +722,7 @@ def _rider_day_report(env, **params):
         row["jobs"] += 1
         if c.state in ("draft", "confirmed"):
             row["open"] += 1
-        elif c.state in ("in_transit", "held"):
+        elif c.state in ("in_transit", "held", "returning"):
             row["transit"] += 1
         elif c.state in ("delivered", "returned"):
             row["delivered"] += 1
@@ -706,12 +773,14 @@ def _rider_day_report(env, **params):
     }
 
 
-def _route_manifest_report(env, **params):
+def _route_manifest_report(env, date_from=None, date_to=None, **params):
     """Route Manifests: the same rider-day grouping, titled for the
     coordinator (there is no stored manifest record; stop sequencing and route
     optimisation are not built - FR-LOG-014)."""
     return _rider_day_report(
         env,
+        date_from=date_from,
+        date_to=date_to,
         _title="Route Manifests",
         _note="Each rider's legs per run date with the load carried (weight and declared "
         "value, for FR-LOG-029 load limits). Stop order is not sequenced yet.",
