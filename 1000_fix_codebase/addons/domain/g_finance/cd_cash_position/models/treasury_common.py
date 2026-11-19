@@ -18,6 +18,8 @@ ACCOUNT_ROLES = {
     "cash_in_transit": "Cash-in-transit (deposits between branch and bank)",
     "cod_clearing": "Rider COD receivable / clearing",
     "rider_shortage": "Rider shortage recoverable",
+    # A02 ERP audit M03-F8: a recovered shortage deducted from the rider's pay
+    "rider_shortage_payroll": "Rider shortage recovered through payroll deduction",
     "gateway_fees": "Gateway / MFS merchant fees (MDR)",
     "gateway_fee_vat": "VAT on gateway fees (optional; else included in fees)",
     "cash_shortage": "Cash shortage / over (under investigation)",

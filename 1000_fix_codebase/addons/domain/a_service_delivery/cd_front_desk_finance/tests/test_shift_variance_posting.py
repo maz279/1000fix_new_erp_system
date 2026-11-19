@@ -56,9 +56,11 @@ def var(fin):
         tolerance) from the inbox and reconcile as the branch manager."""
         s = m.shift()
         m.count(s, **denoms)
-        s.action_confirm_closed()
+        # BRU-FRD-03 (A02 ERP audit M04-F16): the variance is approved BEFORE
+        # the shift closes; a closed shift with an open shortage is refused
         if approve and abs(s.sudo().variance) > 100.0:
             approve_via_inbox(s, m.manager, requester=m.cashier)
+        s.action_confirm_closed()
         m.as_(m.manager, s).action_reconcile()
         s.invalidate_recordset()
         return s

@@ -157,3 +157,26 @@ def test_the_basket_page_is_on_the_counter_sales_submodule(screens, odoo_env):
     offered = odoo_env["fix.payment.method"].search(domain)
     # and it offers exactly the tenders a counter sale confirms
     assert set(offered.mapped("code")) == set(COUNTER_METHOD) - {"SSLCZ"}
+
+
+def test_a_below_list_basket_waits_for_its_price_approval_then_confirms(fin):
+    """A02 ERP audit M04-F6: a basket with a discounted line could never
+    confirm; now its sales wait, drafted, for the price approval."""
+    from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
+
+    m = fin
+    m.product.lst_price = 1150.0
+    basket = _basket(
+        m,
+        "CASH",
+        [{"product_id": m.product.id, "quantity": 1, "unit_price": 900.0}],
+    )
+    m.shift()
+    basket.with_user(m.cashier).action_confirm()
+    assert basket.state == "draft"
+    (sale,) = basket.sale_ids
+    assert sale.state == "draft" and sale.approval_state == "pending"
+    approve_via_inbox(sale, m.manager, requester=m.cashier)
+    basket.with_user(m.cashier).action_confirm()
+    assert basket.state == "confirmed" and sale.state == "confirmed"
+    assert sale.unit_price == 900.0

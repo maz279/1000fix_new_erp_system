@@ -35,7 +35,7 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
-from odoo.addons.cd_billing_engine.models.fix_ar_engine import AR_ACCOUNTS, _ar_journal
+from odoo.addons.cd_billing_engine.models.fix_ar_engine import AR_ACCOUNTS, _ar_invoice_journal
 from odoo.addons.cd_billing_engine.models.fix_billing_engine import (
     _issue_mushak_row,
     m51_determine,
@@ -478,9 +478,12 @@ class FixCounterSalePosting(models.Model):
         """Post one balanced entry through M19 (chart rules, dimensions,
         posting log, journal.posted). lines: [(account, label, debit, credit)]."""
         company = self.company_id
-        journal = _ar_journal(self.env, company)
+        # C11: a counter sale and its refund are sales: the Sales journal (INV)
+        journal = _ar_invoice_journal(self.env, company)
         if not journal:
-            raise UserError("No general journal in %s to post counter sales to." % company.name)
+            raise UserError(
+                "No sales or general journal in %s to post counter sales to." % company.name
+            )
         kept = [ln for ln in lines if round(ln[2], 2) or round(ln[3], 2)]
         dims = self.env["fix.ar.invoice"]._ar_posting_dims(self._cdff_branch().id)
         move_vals = {

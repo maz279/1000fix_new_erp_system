@@ -116,7 +116,7 @@ export const SCREENS = {
   'M50-ridercod': { kind: 'model_list', model: 'fix.cod.settlement',
     cols: ['name','rider_id','settlement_date','order_count','expected_amount','remitted_amount','variance','shortage_tier','recovery_state','state'],
     stateField: 'state',
-    actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_approve_shortage',l:'Approve Shortage',ask:'Why is the shortage accepted? (required above the escalation threshold)',kwarg:'note'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute',ask:'Reason for the dispute',kwarg:'reason'},{m:'action_mark_recovered',l:'Shortage Recovered',ask:'Recovery reference (HR deduction / receipt)',kwarg:'reference'}] },
+    actions: [{m:'action_load_orders',l:'Load COD Orders'},{m:'action_submit',l:'Submit'},{m:'action_approve_shortage',l:'Approve Shortage',ask:'Why is the shortage accepted? (required above the escalation threshold)',kwarg:'note'},{m:'action_settle',l:'Settle'},{m:'action_dispute',l:'Dispute',ask:'Reason for the dispute',kwarg:'reason'},{m:'action_mark_recovered',l:'Shortage Recovered',asks:[{label:'Recovery reference (cash receipt / HR deduction no.)',kwarg:'reference'},{label:'Recovered by: type cash or payroll',kwarg:'method'}]}] },
   /* G10 (owner decision 12 Nov 2026): a third-party courier's COD payout,
    * net of its charges; an accountant prepares, another Accounting
    * Administrator settles. Orders are loaded by the system, never typed. */

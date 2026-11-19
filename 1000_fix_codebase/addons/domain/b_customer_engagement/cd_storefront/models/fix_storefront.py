@@ -839,7 +839,8 @@ class FixStorefrontOrder(models.Model):
                         "Order %s needs its M03 delivery consignment to be dispatched "
                         "(A04 audit M38-11)." % rec.name
                     )
-                if consignment.state in ("lost", "returned"):
+                # A02 ERP audit M03-F4: a leg on its way back ("returning") carries nothing
+                if consignment.state in ("lost", "returned", "returning"):
                     raise UserError(
                         "Consignment %s is %s; it cannot carry order %s."
                         % (consignment.name, consignment.state, rec.name)

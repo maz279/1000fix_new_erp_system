@@ -189,6 +189,25 @@ class FixFinanceHandback(models.AbstractModel):
     def _refund_method(self, order):
         """Back the way the money came: the M20 receipt's tender, the counter's
         cash; else a bank transfer (treasury may change it before release)."""
+        # A02 ERP audit X-06: every verified settlement is now an M20 receipt
+        # naming the order; the refund goes back by that receipt's tender (a
+        # bKash counter payment is not refunded in drawer cash).
+        if "source_order_id" in self.env["fix.ar.receipt"]._fields:
+            paid = (
+                self.env["fix.ar.receipt"]
+                .sudo()
+                .search(
+                    [
+                        ("source_order_id", "=", order.id),
+                        ("state", "=", "confirmed"),
+                        ("is_order_advance", "=", False),
+                    ],
+                    order="amount desc, id",
+                    limit=1,
+                )
+            )
+            if paid:
+                return RECEIPT_REFUND_METHOD.get(paid.method, "bank_transfer")
         if order.settlement_source == "m20_receipt" and order.invoice_ref:
             receipt = (
                 self.env["fix.ar.receipt"]

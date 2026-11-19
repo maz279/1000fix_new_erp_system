@@ -3809,6 +3809,13 @@ export class P03Workspace extends Component {
         const row = gl.mlSelected;
         if (!row) { this.showToast("Select a row first"); return; }
         const cfg = (gl.modelCfg.actions || []).find((a) => a.m === method) || {};
+        // `print`: the record's professional document (A02 ERP audit X-17) -
+        // a client action, no server method: /p03/doc/print_url maps the model
+        // to its report and checks read access ('a4' or 'receipt')
+        if (cfg.print) {
+            await this.docPrint(gl.modelCfg.model, row.id, cfg.print);
+            return;
+        }
         // `form`: the action is captured on a NEW record of another form for
         // this row ("Record Proforma" on a purchase order); `prefill` names the
         // field of that form that takes the selected row

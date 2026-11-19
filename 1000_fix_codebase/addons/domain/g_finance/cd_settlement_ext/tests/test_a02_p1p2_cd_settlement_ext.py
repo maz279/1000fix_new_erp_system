@@ -152,6 +152,8 @@ def so(odoo_env):
         _user(env, "drawer", "cd_front_desk.group_fd_cashier") if "fix.cash.shift" in env else None
     )
     x.accountant = _user(env, "acct", ACCOUNTANT)
+    # A02 ERP audit M01-F10: only a Service Supervisor cancels a PAID order
+    x.supervisor = _user(env, "sosup", "cd_service_order.group_so_supervisor")
     x.branch = _branch(env)
     x.customer = env["res.partner"].create({"name": "A02 HB Customer", "phone": "01711000444"})
     brand = env["fix.brand"].create({"name": "A02HBBrand", "code": "A2HB"})
@@ -264,7 +266,7 @@ def _invoice(env, o, total):
 
 def test_a_cancelled_paid_order_raises_a_pending_treasury_refund(so):
     o = _paid_order(so)
-    o.with_user(so.clerk).action_cancel(reason_code="customer_declined")
+    o.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     assert o.payment_settlement_state == "refund_due"
     assert not _executions(so.env, o)  # the cancel itself pays nothing
     _relay(so.env)
@@ -295,7 +297,7 @@ def test_a_cancelled_paid_order_raises_a_pending_treasury_refund(so):
 
 def test_a_refund_instruction_is_pinned_to_its_source(so):
     o = _paid_order(so)
-    o.with_user(so.clerk).action_cancel(reason_code="customer_declined")
+    o.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     _relay(so.env)
     (pay,) = _executions(so.env, o)
     acct = so.accountant
@@ -340,7 +342,7 @@ def test_a_refund_instruction_is_pinned_to_its_source(so):
 def test_a_refund_with_an_invoice_raises_a_draft_credit_note(so):
     o = _paid_order(so)
     invoice = _invoice(so.env, o, 3000.0)
-    o.with_user(so.clerk).action_cancel(reason_code="customer_declined")
+    o.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     _relay(so.env)
     (note,) = _credit_notes(so.env, o)
     # the invoice can credit 3,000 of the 3,450 settled
@@ -382,7 +384,7 @@ def test_a_forged_refund_event_is_refused(so):
         {"order_id": live.id, "amount_bdt": 3450.0},
     )
     cancelled = _paid_order(so)
-    cancelled.with_user(so.clerk).action_cancel(reason_code="customer_declined")
+    cancelled.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     # a second event for the real refund, with an inflated amount
     publish(
         so.env,
@@ -408,7 +410,7 @@ def test_a_forged_refund_event_is_refused(so):
 
 def test_the_consumers_refuse_a_non_superuser(so):
     o = _paid_order(so)
-    o.with_user(so.clerk).action_cancel(reason_code="customer_declined")
+    o.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     event = (
         so.env["fix.event.outbox"]
         .search(
@@ -605,7 +607,6 @@ def test_a_forged_claim_event_is_refused(dc):
             "consignment_type": "delivery",
             "scheduled_date": fields.Datetime.now(),
             "operating_unit_id": dc.ou.id,
-            "service_order_id": dc.order.id,
         }
     )
     open_claim = (
@@ -617,6 +618,8 @@ def test_a_forged_claim_event_is_refused(dc):
                 "operating_unit_id": dc.ou.id,
                 "description": "forged",
                 "claimed_amount": 900000.0,
+                # M03-F11: liability is decided before a payout is approved
+                "liability": "carrier",
             }
         )
     )
@@ -627,7 +630,7 @@ def test_a_forged_claim_event_is_refused(dc):
         open_claim.id,
         {"claim": open_claim.name, "amount": 900000.0, "claimant": "customer"},
     )
-    settled = _settled_claim(dc, 1000.0)
+    settled = _settled_claim(dc, 1000.0, liability="carrier")
     # a forged copy for a settled claim that inflates the amount
     publish(
         dc.env,

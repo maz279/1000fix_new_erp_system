@@ -19,13 +19,14 @@ class TestAutoInvoice:
         assert hasattr(FixArInvoice, "_source_key_unique")  # Odoo 19 models.Constraint attr
 
     def test_closed_only_gate(self):
-        """BRU-SRM-05: the method refuses non-closed orders."""
+        """BRU-SRM-05: the method refuses orders not yet delivered or closed
+        (A02 ERP audit X-03: the tax point is the delivery)."""
         source = inspect.getsource(
             __import__(
                 "odoo.addons.cd_billing_engine.models.fix_billing_engine", fromlist=["FixArInvoice"]
             ).FixArInvoice.from_closed_service_order
         )
-        assert 'state != "closed"' in source
+        assert 'state not in ("delivered", "closed")' in source
 
     def test_determination_is_synchronous_import(self):
         """AR-006 pair 7: M20 calls M51 synchronously (an import, never an

@@ -43,11 +43,14 @@ def books(fin):
 
     m.ar = account("AR", "asset_receivable", "receivable")
     m.rev = account("REV", "income", "service revenue")
+    # head-office cash differs from the branch drawer: counter cash must land
+    # on the DRAWER (the account the M50 deposit credits), not the AR cash role
+    m.ho_cash = account("HOC", "asset_cash", "head office cash")
     for role, acc in (
         ("ar", m.ar),
         ("revenue", m.rev),
         ("vat_output", m.acc.vat),
-        ("cash", m.acc.drawer),
+        ("cash", m.ho_cash),
         ("channel_mfs", m.acc.mfs),
     ):
         m.params.set_param(BILLING + role, acc.code)
@@ -87,6 +90,7 @@ def books(fin):
         "socash", "cd_service_order.group_so_cashier", "cd_front_desk.group_fd_cashier"
     )
     m.fin_manager = user("finmgr", "account.group_account_manager")
+    m.fd_cashier = user("fdcash", "cd_front_desk.group_fd_cashier")  # drawer only
 
     def job(price=1000.0, customer=None, state="ready"):
         customer = customer or env["res.partner"].create({"name": "Order books customer %d" % n})
@@ -331,3 +335,23 @@ def test_a_credit_customer_is_released_by_finance_within_the_limit(books):
     invoice.invalidate_recordset()
     assert invoice.state == "issued" and invoice.amount_residual == 1150.0
     assert m.ar_of(order.customer_id) == 1150.0
+
+
+def test_a_drawer_cashier_verifies_field_cash_but_never_her_own(books):
+    """M02 Accept Field Cash: the front-desk cashier at the drawer verifies the
+    collection (she need not be a Service Order Cashier); segregation holds."""
+    m = books
+    order = m.job(500.0, state="in_repair")
+    # the technician's declaration, recorded by the drawer cashier herself
+    order.with_user(m.fd_cashier).sudo().with_context(
+        fd_settlement_tender="cash"
+    )._fix_record_settlement(575.0, "COD/FO-TEST", "field_collection")
+    assert order.settlement_recorded_by == m.fd_cashier
+    with pytest.raises(UserError, match="Segregation of duties"):
+        order.with_user(m.fd_cashier).action_verify_settlement()
+    assert not m.fd_cashier.has_group("cd_service_order.group_so_cashier")
+    other = m.fd_cashier.copy({"login": "a02.omb.fdcash2.%d@test" % order.id})
+    order.invalidate_recordset()
+    order.with_user(other).action_verify_settlement()
+    assert order.settlement_verified and order.settlement_verified_by == other
+    assert order.settlement_receipt_id.account_id == m.acc.drawer

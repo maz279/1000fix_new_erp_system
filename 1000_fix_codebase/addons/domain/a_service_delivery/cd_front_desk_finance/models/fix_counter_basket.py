@@ -130,6 +130,13 @@ class FixCounterBasket(models.Model):
             raise UserError("A confirmed basket is final; refund its sales instead.")
         return super().write(vals)
 
+    def _fdf_drop_draft_sales(self):
+        """A changed basket drops the draft sales drafted from its old lines
+        (and their price requests): a stale price is never confirmed."""
+        drafts = self.sudo().sale_ids.filtered(lambda s: s.state == "draft")
+        if drafts:
+            drafts.unlink()
+
     def action_confirm(self):
         """One counter sale per line, confirmed by the counter sale's own
         rules (cashier, price approval, TrxID, open cash shift)."""
@@ -151,7 +158,13 @@ class FixCounterBasket(models.Model):
                     "Basket %s: BDT %.2f tendered does not cover the BDT %.2f total."
                     % (rec.name, rec.tendered_amount, rec.total)
                 )
-            with self.env.cr.savepoint():
+            # A02 ERP audit M04-F6: a basket with a below-list line could never
+            # confirm (the price approval was requested on a sale that rolled
+            # back with the refusal). Its sales are drafted once and kept; every
+            # price approval is requested before anything confirms; the basket
+            # confirms once all are approved.
+            sales = rec.sale_ids.filtered(lambda s: s.state == "draft")
+            if not sales:
                 sales = Sale.create(
                     [
                         {
@@ -171,6 +184,14 @@ class FixCounterBasket(models.Model):
                         for line in rec.line_ids
                     ]
                 )
+            if hasattr(sales, "_fd_price_blocked") and sales._fd_price_blocked():
+                waiting = sales.action_request_price_approvals()
+                rec.message_post(
+                    body="Awaiting price approval for %s; the basket confirms once every "
+                    "below-list price is approved." % ", ".join(waiting.mapped("name"))
+                )
+                continue
+            with self.env.cr.savepoint():
                 sales.action_confirm()
             rec.sudo().write({"state": "confirmed"})
             rec.message_post(
@@ -211,6 +232,7 @@ class FixCounterBasketLine(models.Model):
         lines = super().create(vals_list)
         if lines.basket_id.filtered(lambda b: b.state != "draft"):
             raise UserError("A confirmed basket is final.")
+        lines.basket_id._fdf_drop_draft_sales()
         return lines
 
     @api.constrains("quantity", "unit_price")
@@ -224,9 +246,11 @@ class FixCounterBasketLine(models.Model):
     def write(self, vals):
         if any(line.basket_id.state != "draft" for line in self):
             raise UserError("A confirmed basket is final.")
+        self.basket_id._fdf_drop_draft_sales()
         return super().write(vals)
 
     def unlink(self):
         if any(line.basket_id.state != "draft" for line in self):
             raise UserError("A confirmed basket is final.")
+        self.basket_id._fdf_drop_draft_sales()
         return super().unlink()

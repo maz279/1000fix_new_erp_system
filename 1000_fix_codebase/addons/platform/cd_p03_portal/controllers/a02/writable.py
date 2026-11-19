@@ -408,7 +408,6 @@ WRITABLE = {
             "signed_estimate_attachment_id",
             "tender_ref",
             "valid_days",
-            "version",
         }
     ),
     "fix.fault.code": frozenset(
@@ -463,7 +462,9 @@ WRITABLE = {
     "fix.field.route": frozenset(
         {
             "date",
+            "depot_latitude",
             "depot_location",
+            "depot_longitude",
             "field_order_ids",
             "notes",
             "technician_id",
@@ -802,6 +803,7 @@ WRITABLE = {
     "fix.service.order": frozenset(
         {
             "accessory_bag_barcode",
+            "ber_photo_attachment_id",
             "branch_id",
             "catalog_item_id",
             "collector_authority_attachment_id",
@@ -823,7 +825,6 @@ WRITABLE = {
             "lci_tripped",
             "order_category",
             "passcode_type",
-            "passcode_value",
             "priority",
             "promised_delivery_date",
             "recipient_name",
@@ -1089,7 +1090,6 @@ WRITABLE = {
             "high_value_device",
             "ipc_class_target",
             "ipc_visual_inspection_passed",
-            "labour_total",
             "order_id",
             "post_rework_photo_attachment_id",
             "pre_rework_photo_attachment_id",

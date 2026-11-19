@@ -19,6 +19,7 @@ from . import (
     fix_payment_method,
     fix_tds_certificate,
     fix_vds_certificate,
+    fix_warranty_remittance,
 )
 
 # NOTE: the bounced-cheque AR re-open (A08 cheque.bounced consumer) lives in
