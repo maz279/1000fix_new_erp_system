@@ -100,7 +100,13 @@ WRITABLE = {
             "requires_identity",
         }
     ),
-    "fix.assistant.ask": frozenset(),
+    "fix.assistant.ask": frozenset(
+        {
+            "draft_reply",
+            "review_note_input",
+            "review_verdict",
+        }
+    ),
     "fix.assistant.dataset": frozenset(
         {
             "attachment_id",
@@ -146,6 +152,8 @@ WRITABLE = {
             "name",
             "note",
             "rule",
+            "severity",
+            "stage",
         }
     ),
     "fix.assistant.handoff.trigger": frozenset(
@@ -160,8 +168,10 @@ WRITABLE = {
     "fix.assistant.intent": frozenset(
         {
             "active",
+            "category",
             "code",
             "company_id",
+            "confidence_threshold",
             "description",
             "grounding",
             "handoff_on_failure",
@@ -169,6 +179,7 @@ WRITABLE = {
             "name_bn",
             "sample_bn",
             "sample_en",
+            "threshold_basis",
         }
     ),
     "fix.assistant.intent.candidate": frozenset(
@@ -197,6 +208,13 @@ WRITABLE = {
             "name",
             "reference",
             "source_type",
+        }
+    ),
+    "fix.assistant.unresolved": frozenset(
+        {
+            "disposition_input",
+            "gap_ref_input",
+            "note_input",
         }
     ),
     "fix.attribution.model": frozenset(

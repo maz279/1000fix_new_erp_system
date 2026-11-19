@@ -1109,10 +1109,19 @@ class FixConversation(models.Model):
             )
             if speaker == "customer" and conv.state in ("new", "with_ai"):
                 engine, _release = self.env["fix.assistant.dataset"].runtime_engine()
-                res = engine.classify_intent(text)
+                # T-05: per-intent calibrated thresholds (M32 capture pass 2).
+                res = engine.classify_intent(
+                    text, self.env["fix.assistant.intent"].confidence_thresholds()
+                )
                 conv.write({"intent": res.matched_intent or ""})
                 confident = bool(res.resolvable or getattr(res, "requires_grounding", False))
-                result = Ask.ask(
+                # An unconfident guess is written on the conversation for the
+                # record, but must not be answered: ask() would otherwise
+                # ground on conversation.intent and send the authored answer
+                # for a message the gate said to clarify (REQ-32.1; found by
+                # M32 capture pass 2 - per-intent thresholds had no effect).
+                asker = Ask if confident else Ask.with_context(assistant_intent_unconfirmed=True)
+                result = asker.ask(
                     text,
                     intent=res.matched_intent if confident else None,
                     conversation=conv,

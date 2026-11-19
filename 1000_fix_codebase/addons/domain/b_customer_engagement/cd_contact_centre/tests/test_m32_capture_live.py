@@ -558,8 +558,19 @@ def test_accept_and_reject_carry_the_reviewer_note(c, p03):
     Cand = c.env["fix.assistant.intent.candidate"].sudo()
     a = Cand.create({"phrase": "m32cap a", "normalised": "m32cap a"})
     r = Cand.create({"phrase": "m32cap r", "normalised": "m32cap r"})
-    got = p03.action(
+    # Pass 2 (19 Nov): the improvement queue is the Customer Service Manager's
+    # (spec 13). A plain agent no longer decides it.
+    refused = p03.action(
         c.agent,
+        model="fix.assistant.intent.candidate",
+        record_id=a.id,
+        method="action_accept",
+        kwargs={"note": "agent"},
+    )
+    assert _err(refused), refused
+    assert a.state == "proposed"
+    got = p03.action(
+        c.sup1,
         model="fix.assistant.intent.candidate",
         record_id=a.id,
         method="action_accept",
@@ -567,7 +578,7 @@ def test_accept_and_reject_carry_the_reviewer_note(c, p03):
     )
     assert not _err(got), got
     got = p03.action(
-        c.agent,
+        c.sup1,
         model="fix.assistant.intent.candidate",
         record_id=r.id,
         method="action_reject",

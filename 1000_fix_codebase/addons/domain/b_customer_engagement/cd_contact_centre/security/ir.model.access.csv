@@ -1,7 +1,9 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_conversation,fix.conversation,model_fix_conversation,base.group_user,1,1,1,0
 access_fix_conversation_turn,fix.conversation.turn,model_fix_conversation_turn,base.group_user,1,1,1,1
-access_fix_assistant_intent,fix.assistant.intent,model_fix_assistant_intent,base.group_user,1,1,1,0
+access_fix_assistant_intent,fix.assistant.intent,model_fix_assistant_intent,base.group_user,1,0,0,0
+access_fix_assistant_intent_sup,fix.assistant.intent supervisor,model_fix_assistant_intent,cd_contact_centre.group_cc_supervisor,1,1,1,0
+access_fix_assistant_intent_sys,fix.assistant.intent system,model_fix_assistant_intent,base.group_system,1,1,1,1
 access_fix_cc_queue,fix.cc.queue,model_fix_cc_queue,base.group_user,1,1,1,1
 access_fix_cc_disposition,fix.cc.disposition,model_fix_cc_disposition,base.group_user,1,1,1,1
 access_fix_cc_routing,fix.cc.routing.rule,model_fix_cc_routing_rule,base.group_user,1,1,1,1
@@ -11,8 +13,12 @@ access_fix_cc_template,fix.cc.notif.template,model_fix_cc_notif_template,base.gr
 access_fix_cc_qa,fix.cc.qa.evaluation,model_fix_cc_qa_evaluation,base.group_user,1,1,1,0
 access_fix_cc_qa_supervisor,fix.cc.qa.evaluation supervisor,model_fix_cc_qa_evaluation,cd_contact_centre.group_cc_supervisor,1,1,1,1
 access_fix_cc_wfm,fix.cc.wfm.shift,model_fix_cc_wfm_shift,base.group_user,1,1,1,1
-access_fix_assistant_dialogue,fix.assistant.dialogue,model_fix_assistant_dialogue,base.group_user,1,1,1,1
-access_fix_assistant_rag,fix.assistant.rag.source,model_fix_assistant_rag_source,base.group_user,1,1,1,1
+access_fix_assistant_dialogue,fix.assistant.dialogue,model_fix_assistant_dialogue,base.group_user,1,0,0,0
+access_fix_assistant_dialogue_sup,fix.assistant.dialogue supervisor,model_fix_assistant_dialogue,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_dialogue_sys,fix.assistant.dialogue system,model_fix_assistant_dialogue,base.group_system,1,1,1,1
+access_fix_assistant_rag,fix.assistant.rag.source,model_fix_assistant_rag_source,base.group_user,1,0,0,0
+access_fix_assistant_rag_sup,fix.assistant.rag.source supervisor,model_fix_assistant_rag_source,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_rag_sys,fix.assistant.rag.source system,model_fix_assistant_rag_source,base.group_system,1,1,1,1
 access_fix_assistant_guardrail,fix.assistant.guardrail,model_fix_assistant_guardrail,base.group_user,1,0,0,0
 access_fix_assistant_guardrail_sup,fix.assistant.guardrail supervisor,model_fix_assistant_guardrail,cd_contact_centre.group_cc_supervisor,1,1,1,1
 access_fix_assistant_dataset,fix.assistant.dataset,model_fix_assistant_dataset,base.group_user,1,1,1,0
@@ -38,7 +44,9 @@ access_fix_cc_knowledge_binding,fix.cc.knowledge.binding,model_fix_cc_knowledge_
 access_fix_cc_script_completion,fix.cc.script.completion,model_fix_cc_script_completion,base.group_user,1,1,1,0
 access_fix_cc_qa_rubric,fix.cc.qa.rubric,model_fix_cc_qa_rubric,base.group_user,1,1,1,1
 access_fix_cc_qa_criterion,fix.cc.qa.criterion,model_fix_cc_qa_criterion,base.group_user,1,1,1,1
-access_fix_assistant_intent_candidate,fix.assistant.intent.candidate,model_fix_assistant_intent_candidate,base.group_user,1,1,1,0
+access_fix_assistant_intent_candidate,fix.assistant.intent.candidate,model_fix_assistant_intent_candidate,base.group_user,1,0,0,0
+access_fix_assistant_intent_candidate_sup,fix.assistant.intent.candidate supervisor,model_fix_assistant_intent_candidate,cd_contact_centre.group_cc_supervisor,1,1,0,0
+access_fix_assistant_intent_candidate_sys,fix.assistant.intent.candidate system,model_fix_assistant_intent_candidate,base.group_system,1,1,1,1
 access_fix_assistant_intent_candidate_mgr,fix.assistant.intent.candidate manager,model_fix_assistant_intent_candidate,cd_entity_config.group_dofa_tier_3,1,1,1,1
 access_fix_assistant_llm_provider,fix.assistant.llm.provider,model_fix_assistant_llm_provider,base.group_user,1,0,0,0
 access_fix_assistant_llm_provider_mgr,fix.assistant.llm.provider manager,model_fix_assistant_llm_provider,cd_entity_config.group_dofa_tier_3,1,1,1,1
@@ -67,3 +75,6 @@ access_fix_cc_notif_throttle,fix.cc.notif.throttle,model_fix_cc_notif_throttle,b
 access_fix_cc_notif_throttle_sup,fix.cc.notif.throttle supervisor,model_fix_cc_notif_throttle,cd_contact_centre.group_cc_supervisor,1,1,1,1
 access_fix_cc_channel_preference,fix.cc.channel.preference,model_fix_cc_channel_preference,base.group_user,1,1,1,0
 access_fix_cc_urgency_challenge,fix.cc.urgency.challenge,model_fix_cc_urgency_challenge,base.group_user,1,1,1,0
+access_fix_assistant_unresolved,fix.assistant.unresolved,model_fix_assistant_unresolved,base.group_user,1,0,0,0
+access_fix_assistant_unresolved_sup,fix.assistant.unresolved supervisor,model_fix_assistant_unresolved,cd_contact_centre.group_cc_supervisor,1,1,0,0
+access_fix_assistant_unresolved_sys,fix.assistant.unresolved system,model_fix_assistant_unresolved,base.group_system,1,1,1,1

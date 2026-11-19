@@ -47,7 +47,8 @@ SURFACES = {
         "limit": 300,
         # Review is four-eyes, and an answer that needs review is sent only
         # after it (A03 audit M32 G12).
-        "actions": {"action_mark_reviewed", "action_send_to_customer"},
+        # Capture pass 2: a supervisor reviews a guard-rail firing (spec 14).
+        "actions": {"action_mark_reviewed", "action_send_to_customer", "action_review_guardrail"},
     },
     # The NLU release bundle (A03 audit M32 G4): digest, a measured
     # benchmark, then a four-eyes release routed through M63. There is no
@@ -60,6 +61,8 @@ SURFACES = {
             "action_run_benchmark",
             "action_request_approval",
             "action_recall_approval",
+            # Capture pass 2: T-11 / BRU-CAI-14 shadow evaluation.
+            "action_run_shadow",
         },
     },
     "fix.assistant.intent.candidate": {
@@ -84,6 +87,14 @@ SURFACES = {
         "order": "category, signal",
         "limit": 50,
         "actions": set(),
+    },
+    # --- M32 capture pass 2 (19 Nov 2026): the unresolved queue (spec 10.1
+    # fix.unresolved.intent). Logged by the assistant on a no-answer handoff;
+    # reviewed and closed by a supervisor through the two actions.
+    "fix.assistant.unresolved": {
+        "order": "logged_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_review", "action_close_gap"},
     },
 }
 
@@ -111,15 +122,16 @@ def _assistant_code(env):
     return set(env["fix.assistant.intent"].sudo().search([]).mapped("code"))
 
 
-def _engine():
-    from odoo.addons.cd_contact_centre.models.assistant_engine import AssistantEngine
-
-    return AssistantEngine()
-
-
-def _classify(text):
+def _classify(env, text):
+    """The engine the live bot runs: the released bundle (or the explicit
+    built-in fallback) at the per-intent thresholds. It used a fresh built-in
+    engine, so once a bundle was released the playground no longer showed
+    what customers got (M32 capture pass 2)."""
     try:
-        res = _engine().classify_intent(text or "")
+        engine, _release = env["fix.assistant.dataset"].runtime_engine()
+        res = engine.classify_intent(
+            text or "", env["fix.assistant.intent"].confidence_thresholds()
+        )
     except Exception:
         return None
     matched = getattr(res, "matched_intent", None)
@@ -252,39 +264,72 @@ def guardrail_status(env, date_from=None, date_to=None, **params):
     rows = []
     for rule in rules:
         prefix = "Guardrail '%s'" % rule.name
-        blocked = sum(1 for a in blocked_asks if (a.guardrail_reason or "").startswith(prefix))
-        flags = sum(1 for a in flagged_asks if rule.name in (a.guardrail_reason or ""))
+        fired = [a for a in blocked_asks if (a.guardrail_reason or "").startswith(prefix)]
+        flagged = [a for a in flagged_asks if rule.name in (a.guardrail_reason or "")]
+        reviews = [a.guardrail_review for a in (*fired, *flagged) if a.guardrail_review]
+        right = reviews.count("confirmed") + reviews.count("attempted_injection")
         rows.append(
             {
                 "name": rule.name,
                 "rule": rule.rule,
+                "stage": rule.stage,
+                "severity": rule.severity,
                 "action": rule.action,
                 "active": "✓" if rule.active else "✗",
-                "blocked": blocked,
-                "flagged": flags,
+                "blocked": len(fired),
+                "flagged": len(flagged),
+                "reviewed": len(reviews),
+                "false_positive": reviews.count("false_positive"),
+                "injection": reviews.count("attempted_injection"),
+                "precision": round(100.0 * right / len(reviews), 1) if reviews else None,
             }
         )
+    cols = [
+        "name",
+        "rule",
+        "stage",
+        "severity",
+        "action",
+        "active",
+        "blocked",
+        "flagged",
+        "reviewed",
+        "false_positive",
+        "injection",
+        "precision",
+    ]
     return _pack(
         "Guard-Rail Intervention Log",
-        ["name", "rule", "action", "active", "blocked", "flagged"],
+        cols,
         {
             "name": "Guard Rail",
             "rule": "Condition",
+            "stage": "Stage",
+            "severity": "Severity",
             "action": "Action",
             "active": "Active",
             "blocked": "Blocked / Handed Off",
             "flagged": "Flagged",
+            "reviewed": "Reviewed",
+            "false_positive": "False Positives",
+            "injection": "Attempted Injections",
+            "precision": "Precision %",
         },
         rows,
         [
             "Counts come from the grounded-answer log, which records the verdict and "
-            "the rule that fired on every assistant answer. These are input guard rails; "
-            "the output filter (FR-CAI-032) is not a configurable rule yet."
+            "the rule that fired on every assistant answer. A rule runs on the customer's "
+            "message (input), on a generated answer (output) or on both.",
+            "Precision counts only the firings a supervisor reviewed (Review a Guard-Rail "
+            "Firing): correct and attempted-injection reviews over all reviews.",
         ],
         totals={
             "name": "Total",
             "blocked": sum(r["blocked"] for r in rows),
             "flagged": sum(r["flagged"] for r in rows),
+            "reviewed": sum(r["reviewed"] for r in rows),
+            "false_positive": sum(r["false_positive"] for r in rows),
+            "injection": sum(r["injection"] for r in rows),
         }
         if rows
         else None,
@@ -469,7 +514,7 @@ def suggested_replies(env, date_from=None, date_to=None, **params):
     for c in convs[:20]:
         last_customer = c.turn_ids.filtered(lambda t: t.speaker == "customer")
         text = last_customer[-1].text if last_customer else ""
-        result = _classify(text)
+        result = _classify(env, text)
         if not result:
             continue
         rows.append(
@@ -534,6 +579,73 @@ def conversation_analytics(env, date_from=None, date_to=None, **params):
     )
 
 
+def knowledge_gap_report(env, date_from=None, date_to=None, **params):
+    """Spec 14 Knowledge gap report (AUT-CAI-10, KPI-184): the questions the
+    assistant could not answer, ranked by frequency, and how fast the gaps
+    reviewers sent to M61 were closed."""
+    domain = []
+    if date_from:
+        domain.append(("logged_at", ">=", date_from))
+    if date_to:
+        domain.append(("logged_at", "<=", "%s 23:59:59" % date_to))
+    rows_by = {}
+    for u in env["fix.assistant.unresolved"].sudo().search(domain):
+        key = u.best_guess_intent or "(no intent)"
+        r = rows_by.setdefault(
+            key,
+            {
+                "intent": key,
+                "questions": 0,
+                "open": 0,
+                "gaps": 0,
+                "gaps_closed": 0,
+                "closed_in_30": 0,
+                "sample": (u.question or "")[:120],
+            },
+        )
+        r["questions"] += 1
+        r["open"] += int(u.state == "open")
+        if u.disposition == "knowledge_gap":
+            r["gaps"] += 1
+            if u.state == "closed":
+                r["gaps_closed"] += 1
+                r["closed_in_30"] += int(u.gap_days <= 30)
+    rows = sorted(rows_by.values(), key=lambda r: (-r["questions"], r["intent"]))
+    gaps = sum(r["gaps"] for r in rows)
+    within = sum(r["closed_in_30"] for r in rows)
+    kpi = "%.0f%% (%d of %d)" % (100.0 * within / gaps, within, gaps) if gaps else "no gaps yet"
+    return _pack(
+        "Knowledge Gap Report",
+        ["intent", "questions", "open", "gaps", "gaps_closed", "closed_in_30", "sample"],
+        {
+            "intent": "Best-Guess Intent",
+            "questions": "Unanswered",
+            "open": "Awaiting Review",
+            "gaps": "Knowledge Gaps",
+            "gaps_closed": "Gaps Closed",
+            "closed_in_30": "Closed in 30 Days",
+            "sample": "Example (PII-scrubbed)",
+        },
+        rows,
+        [
+            "Every handoff where the assistant had no answer (low confidence, out of "
+            "scope, nothing retrieved) is logged to the unresolved queue (AUT-CAI-06/08).",
+            "KPI-184, knowledge gaps closed within 30 days: %s." % kpi,
+        ],
+        totals={
+            "intent": "Total",
+            "questions": sum(r["questions"] for r in rows),
+            "open": sum(r["open"] for r in rows),
+            "gaps": gaps,
+            "gaps_closed": sum(r["gaps_closed"] for r in rows),
+            "closed_in_30": within,
+        }
+        if rows
+        else None,
+        empty="The assistant has not failed to answer anything yet.",
+    )
+
+
 REPORTS = {
     "intent_coverage_fcr": intent_coverage_fcr,
     "handoff_reasons": handoff_reasons,
@@ -544,6 +656,7 @@ REPORTS = {
     "handoff_packages": handoff_packages,
     "suggested_replies": suggested_replies,
     "conversation_analytics": conversation_analytics,
+    "knowledge_gap_report": knowledge_gap_report,
 }
 
 
@@ -583,7 +696,7 @@ class P03AssistantApi(http.Controller):
     def assistant_classify(self, text=None, **kw):
         """The playground: classify a typed utterance with the REAL engine."""
         _require_internal(request.env)
-        result = _classify(text)
+        result = _classify(request.env, text)
         if result is None:
             return {"error": "The assistant engine could not be loaded."}
         return result

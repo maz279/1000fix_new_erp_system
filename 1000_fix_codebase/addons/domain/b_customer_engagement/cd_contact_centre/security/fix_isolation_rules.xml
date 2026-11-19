@@ -38,6 +38,11 @@
         <field name="model_id" ref="model_fix_assistant_llm_provider"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_assistant_unresolved_company" model="ir.rule">
+        <field name="name">fix.assistant.unresolved: allowed companies</field>
+        <field name="model_id" ref="model_fix_assistant_unresolved"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_cc_agent_state_company" model="ir.rule">
         <field name="name">fix.cc.agent.state: allowed companies</field>
         <field name="model_id" ref="model_fix_cc_agent_state"/>

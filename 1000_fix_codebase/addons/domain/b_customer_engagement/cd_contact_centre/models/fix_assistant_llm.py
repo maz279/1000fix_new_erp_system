@@ -325,8 +325,21 @@ class FixAssistantAsk(models.Model):
         if self.requires_human and self.human_reviewed_by == self.asked_by:
             raise UserError("The asker's own review does not count (four eyes).")
 
-    def action_send_to_customer(self):
-        """Put the answer on the conversation transcript (the send)."""
+    def _ai_reply_text(self):
+        """The AI's answer in the conversation's language (what it drafted)."""
+        self.ensure_one()
+        return (self.answer_bn if self.language == "bn" else self.answer_en) or (
+            self.answer_bn or self.answer_en
+        )
+
+    def action_send_to_customer(self, reply=None):
+        """Put the answer on the conversation transcript (the send).
+
+        FR-CAI-038: a suggestion is "always editable and never auto-sent". The
+        agent may send ``reply`` instead of the AI's text (M32 capture pass 2):
+        the edited reply goes on the transcript as the agent's turn, the AI's
+        draft stays on this record, and the correction is published for M26
+        (spec 12.2, "override and correction signals")."""
         Turn = self.env["fix.conversation.turn"]
         for rec in self:
             rec._assert_sendable()
@@ -337,20 +350,38 @@ class FixAssistantAsk(models.Model):
                 )
             if conv.state in ("resolved_ai", "resolved_agent", "abandoned"):
                 raise UserError("The conversation is closed; the answer can no longer be sent.")
-            text = (rec.answer_bn if rec.language == "bn" else rec.answer_en) or (
-                rec.answer_bn or rec.answer_en
-            )
+            drafted = rec._ai_reply_text() or ""
+            typed = (reply or "").strip() if isinstance(reply, str) else ""
+            edited = bool(typed) and " ".join(typed.split()) != " ".join(drafted.split())
+            text = typed if edited else drafted
             seq = max(conv.turn_ids.mapped("sequence"), default=0) + 10
             Turn.create(
                 {
                     "conversation_id": conv.id,
                     "sequence": seq,
-                    "speaker": "ai",
+                    # an edited reply is the agent's words, not the assistant's
+                    "speaker": "agent" if edited else "ai",
                     "text": text,
                     "lang": "bn" if rec.language == "bn" else "en",
                 }
             )
-            rec._guarded().write({"sent_at": fields.Datetime.now(), "sent_by": self.env.user.id})
+            vals = {"sent_at": fields.Datetime.now(), "sent_by": self.env.user.id}
+            if "sent_text" in rec._fields:
+                vals.update(sent_text=text, edited_by_agent=edited)
+            rec._guarded().write(vals)
+            if edited:
+                publish(
+                    self.env,
+                    "assistant.answer_corrected",
+                    "fix.assistant.ask",
+                    rec.id,
+                    {
+                        "intent": rec.intent or None,
+                        "engine": rec.engine,
+                        "consumer": rec.consumer,
+                        "note": "The agent edited the AI answer before sending it.",
+                    },
+                )
         return True
 
 
@@ -422,7 +453,7 @@ class FixAssistantGroundingService(models.Model):
             }
 
         # 1. guardrails on the INPUT
-        verdict = self._evaluate_guardrails(question)
+        verdict = self._evaluate_guardrails(question, stage="input")
         if verdict["blocked"]:
             record = Ask.sudo().create(
                 dict(
@@ -537,14 +568,19 @@ class FixAssistantGroundingService(models.Model):
         }
 
     @api.model
-    def _evaluate_guardrails(self, text):
-        """Run the configured guardrails over a question."""
+    def _evaluate_guardrails(self, text, stage="input"):
+        """Run the configured guardrails over a question (stage "input") or a
+        generated answer (stage "output"). A rule runs at its own stage or at
+        both (spec 10.1 fix.guardrail.rule.stage, M32 capture pass 2)."""
         Guardrail = self.env.get("fix.assistant.guardrail")
         if Guardrail is None:
             return {"blocked": False, "reason": ""}
         lowered = (text or "").lower()
         flagged = []
-        for guardrail in Guardrail.sudo().search([("active", "=", True)]):
+        domain = [("active", "=", True)]
+        if "stage" in Guardrail._fields:
+            domain.append(("stage", "in", (stage, "both")))
+        for guardrail in Guardrail.sudo().search(domain):
             # fix.assistant.guardrail stores the condition in `rule` as
             # authored prose. Matching is a containment test over its
             # significant words rather than the whole sentence, because a
@@ -591,7 +627,9 @@ class FixAssistantGroundingService(models.Model):
             {"channel": "chat", "operating_unit_id": False}
         )
         resolved_intent = intent
-        if not resolved_intent:
+        if not resolved_intent and not self.env.context.get("assistant_intent_unconfirmed"):
+            # The conversation's intent, unless the bot just said it is only a
+            # guess below the confidence gate (fix.conversation.intake_message).
             resolved_intent = getattr(host, "intent", "") or ""
         try:
             answer = host._ground_intent_response(resolved_intent, question)
@@ -726,7 +764,7 @@ class FixAssistantGroundingService(models.Model):
         # input was checked before grounding; this is the second half, and
         # without it a guardrail only ever policed the customer's words and
         # never the model's.
-        verdict = self._evaluate_guardrails(result.text)
+        verdict = self._evaluate_guardrails(result.text, stage="output")
         if verdict["blocked"]:
             return {
                 "ok": False,

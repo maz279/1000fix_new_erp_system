@@ -11,6 +11,15 @@
  * triggers (registers the spec gives the Customer Service Manager, built in
  * cd_contact_centre/models/fix_assistant_registers.py), the review and send
  * of AI answers, and the review of mined candidate intents.
+ *
+ * Capture audit pass 2 (2026-11-19), read against spec 10.1 / 13 / 14:
+ *   1 intent category + per-intent confidence threshold (T-05), and a
+ *     shadow evaluation before a bundle replaces production (BRU-CAI-14);
+ *   6 guard-rail stage + severity, and the review of a firing (spec 14
+ *     "false-positive review");
+ *   8 the agent edits the AI answer before sending it (FR-CAI-038);
+ *   9 the unresolved queue: review a question the assistant could not
+ *     answer, and close a knowledge gap against its M61 article (KPI-184).
  */
 
 export const MODULE = {
@@ -43,6 +52,7 @@ export const MODULE = {
     { en: 'Grounding & Safety', bn: 'গ্রাউন্ডিং ও সুরক্ষা', screens: [
       { id: 'M32-rag', en: 'RAG Knowledge Sources', bn: 'আরএজি জ্ঞান ভাণ্ডার', t: 'g' },
       { id: 'M32-guardrails', en: 'Guard Rails', bn: 'গার্ডরেইল', t: 'g' },
+      { id: 'M32-guardrail-firings', en: 'Guard-Rail Firings', bn: 'গার্ডরেইল সক্রিয়তা', t: 'g' },
       { id: 'M32-handoff', en: 'Handoff Packages', bn: 'হ্যান্ডঅফ প্যাকেজ', t: 'r' }
     ]},
     { en: 'Agent Assist', bn: 'এজেন্ট সহায়তা', screens: [
@@ -60,14 +70,19 @@ export const MODULE = {
       { id: 'M32-form-review-answer', en: 'Review an AI Answer', bn: 'এআই উত্তর পর্যালোচনা', t: 'f' },
       { id: 'M32-form-send-answer', en: 'Send a Reviewed Answer', bn: 'পর্যালোচিত উত্তর পাঠান', t: 'f' },
       { id: 'M32-form-candidate-accept', en: 'Accept a Candidate Intent', bn: 'প্রস্তাবিত ইনটেন্ট গ্রহণ', t: 'f' },
-      { id: 'M32-form-candidate-reject', en: 'Reject a Candidate Intent', bn: 'প্রস্তাবিত ইনটেন্ট বাতিল', t: 'f' }
+      { id: 'M32-form-candidate-reject', en: 'Reject a Candidate Intent', bn: 'প্রস্তাবিত ইনটেন্ট বাতিল', t: 'f' },
+      { id: 'M32-form-shadow', en: 'Shadow-Evaluate a Release Bundle', bn: 'শ্যাডো মূল্যায়ন', t: 'f' },
+      { id: 'M32-form-guardrail-review', en: 'Review a Guard-Rail Firing', bn: 'গার্ডরেইল সক্রিয়তা পর্যালোচনা', t: 'f' },
+      { id: 'M32-form-unresolved-review', en: 'Review an Unresolved Question', bn: 'অমীমাংসিত প্রশ্ন পর্যালোচনা', t: 'f' },
+      { id: 'M32-form-gap-close', en: 'Close a Knowledge Gap', bn: 'জ্ঞান ঘাটতি বন্ধ', t: 'f' }
     ]},
     { en: 'Assistant Reports', bn: 'রিপোর্ট', screens: [
       { id: 'M32-rpt-coverage', en: 'Intent Coverage & FCR', bn: 'ইনটেন্ট কভারেজ ও এফসিআর', t: 'r' },
       { id: 'M32-rpt-handoffrsn', en: 'Handoff Reasons', bn: 'হ্যান্ডঅফ কারণ', t: 'r' },
       { id: 'M32-rpt-guardlog', en: 'Guard-Rail Intervention Log', bn: 'গার্ডরেইল হস্তক্ষেপ লগ', t: 'r' },
       { id: 'M32-rpt-langperf', en: 'Bengali vs English Performance', bn: 'বাংলা-ইংরেজি পারফরম্যান্স', t: 'r' },
-      { id: 'M32-rpt-csat', en: 'Assistant CSAT', bn: 'অ্যাসিস্ট্যান্ট সিএসএটি', t: 'r' }
+      { id: 'M32-rpt-csat', en: 'Assistant CSAT', bn: 'অ্যাসিস্ট্যান্ট সিএসএটি', t: 'r' },
+      { id: 'M32-rpt-gaps', en: 'Knowledge Gap Report', bn: 'জ্ঞান ঘাটতি রিপোর্ট', t: 'r' }
     ]},
     { en: 'Grounding Service (S7)', bn: 'গ্রাউন্ডিং সার্ভিস', screens: [
       { id: 'M32-llm-providers', en: 'Model Providers & Residency', bn: 'মডেল প্রোভাইডার', t: 'g' },
@@ -79,20 +94,22 @@ export const MODULE = {
       { id: 'M32-form-dataset', en: 'NLU Release Bundle', bn: 'রিলিজ বান্ডেল ফর্ম', t: 'f' }
     ]},
     { en: 'Intent Mining', bn: 'ইনটেন্ট মাইনিং', screens: [
+      { id: 'M32-unresolved', en: 'Unresolved Questions', bn: 'অমীমাংসিত প্রশ্ন', t: 'g' },
       { id: 'M32-intent-candidates', en: 'Candidate Intents', bn: 'প্রস্তাবিত ইনটেন্ট', t: 'g' }
     ]}
   ],
-  reports: ['Intent Coverage & FCR', 'Handoff Reasons', 'Guard-Rail Intervention Log', 'Bengali vs English Performance', 'Assistant CSAT'],
+  reports: ['Intent Coverage & FCR', 'Handoff Reasons', 'Guard-Rail Intervention Log', 'Bengali vs English Performance', 'Assistant CSAT', 'Knowledge Gap Report'],
   forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'NLU Release Bundle',
     'Entity Definition', 'Action Authority Rule', 'Handoff Trigger', 'Review an AI Answer', 'Send a Reviewed Answer',
-    'Accept a Candidate Intent', 'Reject a Candidate Intent'],
+    'Accept a Candidate Intent', 'Reject a Candidate Intent', 'Shadow-Evaluate a Release Bundle',
+    'Review a Guard-Rail Firing', 'Review an Unresolved Question', 'Close a Knowledge Gap'],
   cross: ['M27 Contact Centre', 'M33 Party Master', 'M01 Service Orders Central Hub', 'M61 Knowledge Base'],
   freg: {
     src: 62,
     sub: [
       /* 1 Intent Recognition (FR-CAI-001..008): the intent library is the
        * module's own record; a corpus reaches production as a release bundle. */
-      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'active', 'name_bn', 'description', 'sample_bn'], screens: ['M32-intents', 'M32-chat', 'M32-datasets', 'M32-rpt-coverage'], reports: ['Intent Coverage & FCR'], forms: ['Intent', 'NLU Release Bundle'] }],
+      ['1', 'Intent Recognition (bn/en/mixed)', 9, { model: 'fix.assistant.intent', cols: ['name', 'code', 'category', 'confidence_threshold', 'active', 'name_bn', 'sample_bn'], screens: ['M32-intents', 'M32-chat', 'M32-datasets', 'M32-rpt-coverage'], reports: ['Intent Coverage & FCR'], forms: ['Intent', 'NLU Release Bundle', 'Shadow-Evaluate a Release Bundle'], create: 'M32-form-intent' }],
       /* 2 Entity Extraction (FR-CAI-003, spec 10.1 fix.entity.definition):
        * what the assistant extracts, proved against examples when saved. */
       ['2', 'Entity Extraction', 7, { model: 'fix.assistant.entity', cols: ['code', 'name', 'entity_type', 'validation', 'pattern', 'active'], screens: ['M32-entity-defs', 'M32-entities'], reports: [], forms: ['Entity Definition'], create: 'M32-form-entity' }],
@@ -102,7 +119,7 @@ export const MODULE = {
        * Customer Service Manager owns. The assistant's own actions are
        * system-written; this is what it is allowed to do. */
       ['5', 'Authenticated Actions', 6, { model: 'fix.assistant.action.authority', cols: ['action_type', 'assistant_may_perform', 'requires_identity', 'requires_confirmation', 'approval_limit_bdt', 'never_delegable', 'active'], screens: ['M32-authority', 'M32-sessions'], reports: [], forms: ['Action Authority Rule'], create: 'M32-form-authority' }],
-      ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'active', 'rule', 'action', 'note'], screens: ['M32-guardrails', 'M32-rpt-guardlog'], reports: ['Guard-Rail Intervention Log'], forms: ['Guard-Rail Rule'] }],
+      ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'stage', 'severity', 'rule', 'action', 'active'], screens: ['M32-guardrails', 'M32-guardrail-firings', 'M32-rpt-guardlog'], reports: ['Guard-Rail Intervention Log'], forms: ['Guard-Rail Rule', 'Review a Guard-Rail Firing'], create: 'M32-form-guardrail' }],
       /* 7 Handoff Decision (FR-CAI-036/037): the triggers, each independently
        * tunable; handoffs themselves are written by the assistant. */
       ['7', 'Handoff Decision', 5, { model: 'fix.assistant.handoff.trigger', cols: ['signal', 'category', 'priority', 'notify_supervisor', 'mandatory', 'active'], screens: ['M32-handoff-triggers', 'M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: ['Handoff Trigger'], create: 'M32-form-handoff-trigger' }],
@@ -111,7 +128,7 @@ export const MODULE = {
       ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human', 'human_reviewed_by', 'sent_at'], screens: ['M32-assist', 'M32-asks'], reports: [], forms: ['Review an AI Answer', 'Send a Reviewed Answer'], create: 'M32-form-review-answer', domain: [['consumer', '=', 'm27_agent_assist']] }],
       /* 9 Analytics (spec 14, AUT-CAI-08/10): the improvement loop - phrases
        * the assistant could not place are mined and reviewed here. */
-      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-intent-candidates', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'], reports: ['Bengali vs English Performance', 'Assistant CSAT', 'Intent Coverage & FCR'], forms: ['Accept a Candidate Intent', 'Reject a Candidate Intent'], create: 'M32-form-candidate-accept' }]
+      ['9', 'Analytics', 7, { model: 'fix.conversation', cols: ['started_at', 'channel', 'intent', 'ai_resolved', 'state'], screens: ['M32-analytics', 'M32-unresolved', 'M32-intent-candidates', 'M32-rpt-gaps', 'M32-rpt-langperf', 'M32-rpt-csat', 'M32-sessions'], reports: ['Knowledge Gap Report', 'Bengali vs English Performance', 'Assistant CSAT', 'Intent Coverage & FCR'], forms: ['Review an Unresolved Question', 'Close a Knowledge Gap', 'Accept a Candidate Intent', 'Reject a Candidate Intent'], create: 'M32-form-unresolved-review' }]
     ]
   }
 };
@@ -124,12 +141,17 @@ export const SCREENS = {
     cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'intent', 'ai_resolved', 'handoff_reason', 'ended_at'],
     stateField: 'state' },
   'M32-intents': { kind: 'model_list', model: 'fix.assistant.intent', create: true,
-    cols: ['code', 'name', 'name_bn', 'description', 'company_id'] },
+    cols: ['code', 'name', 'name_bn', 'category', 'confidence_threshold', 'company_id'],
+    note: 'Empty threshold = the global 0.75. A calibrated threshold is applied by the live bot, the playground and the benchmark.' },
   'M32-entities': { kind: 'table_report', module: 'M32', report: 'entity_catalog', title: 'Entity Extraction', period: false },
   'M32-dialogue': { kind: 'model_list', model: 'fix.assistant.dialogue', create: true,
     cols: ['name', 'channel', 'version', 'active'] },
   'M32-guardrails': { kind: 'model_list', model: 'fix.assistant.guardrail', create: true,
-    cols: ['name', 'rule', 'action', 'active'] },
+    cols: ['name', 'stage', 'severity', 'rule', 'action', 'active'] },
+  'M32-guardrail-firings': { kind: 'model_list', model: 'fix.assistant.ask', create: false,
+    domain: [['guardrail_fired', '=', true]],
+    cols: ['asked_at', 'consumer', 'question', 'guardrail_verdict', 'guardrail_reason', 'guardrail_review', 'guardrail_reviewed_by'],
+    note: 'Every answer a guard rail blocked or flagged. A supervisor says whether the rail was right: the guard-rail log measures precision from these reviews.' },
   'M32-rag': { kind: 'model_list', model: 'fix.assistant.rag.source', create: true,
     cols: ['name', 'source_type', 'reference', 'chunk_count', 'active'] },
   'M32-handoff': { kind: 'table_report', module: 'M32', report: 'handoff_packages', title: 'Handoff Packages', period: true },
@@ -142,6 +164,7 @@ export const SCREENS = {
   'M32-rpt-guardlog': { kind: 'table_report', module: 'M32', report: 'guardrail_status', title: 'Guard-Rail Intervention Log', period: true },
   'M32-rpt-langperf': { kind: 'table_report', module: 'M32', report: 'bengali_vs_english', title: 'Bengali vs English Performance', period: true },
   'M32-rpt-csat': { kind: 'table_report', module: 'M32', report: 'assistant_csat', title: 'Assistant CSAT', period: true },
+  'M32-rpt-gaps': { kind: 'table_report', module: 'M32', report: 'knowledge_gap_report', title: 'Knowledge Gap Report', period: true },
 
   /* ==================================================================
    * D365 IN-WORKSPACE RECORD FORMS (Dynamics 365 Multi-Tab Forms)
@@ -162,6 +185,7 @@ export const SCREENS = {
         { name: 'name', required: true, label: 'Intent Name (English)' },
         { name: 'name_bn', label: 'Intent Name (Bengali Bangla)' },
         { name: 'description', label: 'Intent Semantic Scope & Business Purpose', type: 'text' },
+        { name: 'category', label: 'Taxonomy Category (FR-CAI-002)' },
         { name: 'active', label: 'Model Production Active Flag' },
         { name: 'company_id', label: 'Operating Legal Entity' },
       ]},
@@ -183,8 +207,10 @@ export const SCREENS = {
         note: 'REQ-32.5: every training corpus, golden benchmark and model artifact is registered on fix.assistant.dataset with a SHA-256 digest taken over the file itself. Production release is refused below 92% golden-benchmark accuracy, refused for machine-translated Bengali (REQ-32.2), and requires DOFA Tier 3 authority.',
         fields: []},
       { tab: 'guardrails', title: 'Confidence Gating, PII Scrubbing & System Governance',
-        note: 'REQ-32.1 three-tier gating, as the engine implements it: confidence >= 0.75 replies automatically, 0.50-0.74 asks the customer to disambiguate, below 0.50 hands off to a human agent. Credit card numbers, MFS PINs and National IDs are scrubbed before any message is written to disk (REQ-32.3).',
+        note: 'REQ-32.1 three-tier gating: at or above this intent\'s threshold (empty = 0.75) the assistant answers, from 0.50 it asks the customer to clarify, below 0.50 it hands off. T-05: a threshold is calibrated per intent from the labelled evaluation set (0.60-0.99), and its evidence is recorded. Credit card numbers, MFS PINs and National IDs are scrubbed before any message is written to disk (REQ-32.3).',
         fields: [
+          { name: 'confidence_threshold', label: 'Confidence Threshold (T-05)' },
+          { name: 'threshold_basis', label: 'Calibration Evidence' },
           { name: 'create_date', label: 'Model Registration Timestamp', readonly: true },
           { name: 'write_date', label: 'Last Training Update Timestamp', readonly: true },
         ]}
@@ -228,6 +254,8 @@ export const SCREENS = {
       { tab: 'definition', title: 'Guardrail Identification', fields: [
         { name: 'name', required: true, label: 'Guardrail Rule Name' },
         { name: 'action', required: true, label: 'Interception Action (Block / Redact / Escalate)' },
+        { name: 'stage', required: true, label: 'Stage (Input / Output / Both)' },
+        { name: 'severity', required: true, label: 'Severity' },
         { name: 'active', label: 'Active Status' },
       ]},
       { tab: 'patterns', title: 'Blocked Lexical Patterns & Rationale', fields: [
@@ -378,11 +406,12 @@ export const SCREENS = {
     ]
   },
   'M32-datasets': { kind: 'model_list', model: 'fix.assistant.dataset', create: true,
-    cols: ['name', 'dataset_type', 'language', 'prompt_version', 'benchmark_accuracy_pct', 'approval_state', 'state', 'released_at'],
+    cols: ['name', 'dataset_type', 'language', 'prompt_version', 'benchmark_accuracy_pct', 'shadow_state', 'approval_state', 'state', 'released_at'],
     stateField: 'state',
     actions: [
       { m: 'action_compute_digest', l: 'Compute Digest' },
       { m: 'action_run_benchmark', l: 'Run Benchmark' },
+      { m: 'action_run_shadow', l: 'Run Shadow Evaluation' },
       { m: 'action_request_approval', l: 'Request Release Approval', ask: 'Why should this bundle go to production?', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Request' }
     ],
@@ -395,7 +424,8 @@ export const SCREENS = {
       { id: 'bundle', label: '1. Bundle', bn: '১. বান্ডেল', icon: '📦' },
       { id: 'runtime', label: '2. Model & Prompt', bn: '২. মডেল ও প্রম্পট', icon: '🤖' },
       { id: 'evidence', label: '3. Benchmark Evidence', bn: '৩. বেঞ্চমার্ক প্রমাণ', icon: '📏' },
-      { id: 'release', label: '4. Release', bn: '৪. রিলিজ', icon: '🚀' }
+      { id: 'shadow', label: '4. Shadow Evaluation', bn: '৪. শ্যাডো মূল্যায়ন', icon: '👥' },
+      { id: 'release', label: '5. Release', bn: '৫. রিলিজ', icon: '🚀' }
     ],
     sections: [
       {
@@ -435,6 +465,23 @@ export const SCREENS = {
         { name: 'benchmark_run_by', label: 'Benchmark Run By', readonly: true },
         { name: 'benchmark_training_sha256', label: 'Corpus Digest Measured', readonly: true },
         { name: 'benchmark_set_sha256', label: 'Golden Set Digest Used', readonly: true }
+        ]
+      },
+      {
+        tab: 'shadow',
+        title: 'Shadow Evaluation On Live Traffic (T-11)',
+        note: 'BRU-CAI-14: a bundle replaces the one in production only after passing the golden set AND a shadow run: the PII-scrubbed customer turns of the last 30 days are replayed through production and the candidate, without answering anyone. It passes when the candidate answers at least as many turns and changes at most 2% of the answers production gave. The first release has nothing to shadow.',
+        fields: [
+        { name: 'shadow_state', label: 'Shadow Result', readonly: true },
+        { name: 'shadow_baseline_id', label: 'Measured Against (Production)', readonly: true },
+        { name: 'shadow_window_days', label: 'Window (days)', readonly: true },
+        { name: 'shadow_turns', label: 'Live Turns Replayed', readonly: true },
+        { name: 'shadow_baseline_confident', label: 'Answered by Production', readonly: true },
+        { name: 'shadow_candidate_confident', label: 'Answered by Candidate', readonly: true },
+        { name: 'shadow_agreement', label: 'Same Answer', readonly: true },
+        { name: 'shadow_regressions', label: 'Regressions', readonly: true },
+        { name: 'shadow_run_at', label: 'Run At', readonly: true },
+        { name: 'shadow_run_by', label: 'Run By', readonly: true }
         ]
       },
       {
@@ -638,13 +685,14 @@ export const SCREENS = {
         '|', ['requires_human', '=', false], ['human_reviewed_by', '!=', false]],
       empty: 'No reviewed answer is waiting to be sent.'
     },
-    saveAction: { method: 'action_send_to_customer', label: 'Send to Customer', done: 'Sent: the answer is on the conversation transcript', kwargs: {} },
+    saveAction: { method: 'action_send_to_customer', label: 'Send to Customer', done: 'Sent: the reply is on the conversation transcript', kwargs: { reply: 'draft_reply' } },
     sections: [
-      { title: 'Step 2 of 2: Confirm What The Customer Receives',
-        note: 'The answer in the conversation\'s language is added to the transcript. A closed conversation, a refused or ungrounded answer, or one still awaiting review is refused by the server.',
+      { title: 'Step 2 of 2: Edit, Then Send What The Customer Receives',
+        note: 'FR-CAI-038: a suggestion is always editable and never auto-sent. Edit the reply as you see fit: an edited reply goes on the transcript as your turn, the AI draft stays on record, and the correction is reported to M26. A closed conversation, a refused or ungrounded answer, or one still awaiting review is refused by the server.',
         fields: [
         { name: 'question', label: 'Question', readonly: true },
         { name: 'language', label: 'Language', readonly: true },
+        { name: 'draft_reply', label: 'Reply To Send (editable)', type: 'text', required: true },
         { name: 'answer_bn', label: 'Answer (Bengali)', readonly: true },
         { name: 'answer_en', label: 'Answer (English)', readonly: true },
         { name: 'human_reviewed_by', label: 'Reviewed By', readonly: true },
@@ -709,6 +757,157 @@ export const SCREENS = {
       ]}
     ]
   },
+
+  /* ==================================================================
+   * CAPTURE AUDIT PASS 2 2026-11-19
+   * ================================================================== */
+  /* 1 Intent Recognition: BRU-CAI-14 shadow evaluation of a benchmarked bundle. */
+  'M32-form-shadow': {
+    kind: 'model_form', model: 'fix.assistant.dataset',
+    title: 'Shadow-Evaluate a Release Bundle', back: 'M32-datasets',
+    newLabel: 'Shadow-Evaluate a Release Bundle',
+    status: { field: 'shadow_state', labels: { none: 'Not run', passed: 'Passed', failed: 'Failed', no_traffic: 'No live traffic' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the benchmarked bundle',
+      note: 'Bundles that passed the golden benchmark. A bundle replaces the one in production only after a passing shadow run.',
+      search: 'Search bundle',
+      choose: 'Evaluate this bundle',
+      cols: ['name', 'language', 'prompt_version', 'benchmark_accuracy_pct', 'shadow_state'],
+      domain: [['dataset_type', '=', 'intent_corpus'], ['state', '=', 'benchmarked']],
+      empty: 'No benchmarked bundle is waiting for a shadow run.'
+    },
+    saveAction: { method: 'action_run_shadow', label: 'Run Shadow Evaluation', done: 'Shadow evaluation recorded on the bundle', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: Replay 30 Days Of Live Traffic',
+        note: 'Production and this candidate classify the same PII-scrubbed customer turns; nobody is answered. Only counts are kept. The result is measured, never typed.',
+        fields: [
+        { name: 'name', label: 'Bundle', readonly: true },
+        { name: 'benchmark_accuracy_pct', label: 'Golden Benchmark (%)', readonly: true },
+        { name: 'shadow_state', label: 'Shadow Result', readonly: true },
+        { name: 'shadow_baseline_id', label: 'Measured Against (Production)', readonly: true },
+        { name: 'shadow_window_days', label: 'Window (days)', readonly: true },
+        { name: 'shadow_turns', label: 'Live Turns Replayed', readonly: true },
+        { name: 'shadow_baseline_confident', label: 'Answered by Production', readonly: true },
+        { name: 'shadow_candidate_confident', label: 'Answered by Candidate', readonly: true },
+        { name: 'shadow_agreement', label: 'Same Answer', readonly: true },
+        { name: 'shadow_regressions', label: 'Regressions', readonly: true },
+        { name: 'shadow_run_at', label: 'Run At', readonly: true },
+        { name: 'shadow_run_by', label: 'Run By', readonly: true }
+      ]}
+    ]
+  },
+
+  /* 6 Guard Rails: a supervisor reviews a firing (spec 14 false-positive review). */
+  'M32-form-guardrail-review': {
+    kind: 'model_form', model: 'fix.assistant.ask',
+    title: 'Review a Guard-Rail Firing', back: 'M32-guardrail-firings',
+    newLabel: 'Review a Guard-Rail Firing',
+    status: { field: 'guardrail_verdict', labels: { pass: 'Passed', blocked: 'Blocked', not_run: 'Not run' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the firing to review',
+      note: 'Answers a guard rail blocked or flagged that nobody has reviewed yet.',
+      search: 'Search question / reason',
+      choose: 'Review this firing',
+      cols: ['asked_at', 'consumer', 'question', 'guardrail_verdict', 'guardrail_reason'],
+      domain: [['guardrail_fired', '=', true], ['guardrail_review', '=', false]],
+      empty: 'No guard-rail firing is waiting for review.'
+    },
+    saveAction: { method: 'action_review_guardrail', label: 'Record Review', done: 'Reviewed: the guard-rail log counts it', kwargs: { verdict: 'review_verdict', note: 'review_note_input' } },
+    sections: [
+      { title: 'Step 2 of 2: Was The Rail Right?',
+        note: 'A false positive needs a note: it is what the rule\'s owner tunes from. Only a Contact Centre Supervisor can record a review.',
+        fields: [
+        { name: 'question', label: 'Question', readonly: true },
+        { name: 'guardrail_verdict', label: 'Verdict', readonly: true },
+        { name: 'guardrail_reason', label: 'Rule That Fired', readonly: true },
+        { name: 'answer_bn', label: 'Answer (Bengali)', readonly: true },
+        { name: 'answer_en', label: 'Answer (English)', readonly: true },
+        { name: 'review_verdict', label: 'Review', required: true },
+        { name: 'review_note_input', label: 'Note (required for a false positive)' }
+      ]}
+    ]
+  },
+
+  /* 9 Analytics: the unresolved queue (spec 10.1 fix.unresolved.intent). */
+  'M32-unresolved': { kind: 'model_list', model: 'fix.assistant.unresolved', create: false,
+    cols: ['logged_at', 'question', 'best_guess_intent', 'confidence', 'handoff_reason', 'state', 'disposition', 'knowledge_gap_ref', 'gap_days'],
+    stateField: 'state',
+    note: 'Every handoff where the assistant had no answer is logged here (AUT-CAI-06/08). A supervisor says what it needs; a knowledge gap is closed against the M61 article that answers it (KPI-184).' },
+  'M32-form-unresolved': {
+    kind: 'model_form', model: 'fix.assistant.unresolved',
+    title: 'Unresolved Question', back: 'M32-unresolved',
+    create: false, pick: 'Unresolved questions are logged by the assistant: review one with Review an Unresolved Question.',
+    status: { field: 'state', labels: { open: 'Open', reviewed: 'Reviewed', closed: 'Gap Closed' } },
+    sections: [
+      { title: 'What The Assistant Could Not Answer', fields: [
+        { name: 'logged_at', label: 'Logged At', readonly: true },
+        { name: 'conversation_id', label: 'Conversation', readonly: true },
+        { name: 'question', label: 'Question (PII-scrubbed)', readonly: true },
+        { name: 'best_guess_intent', label: 'Best-Guess Intent', readonly: true },
+        { name: 'confidence', label: 'Confidence', readonly: true },
+        { name: 'handoff_reason', label: 'Handoff Reason', readonly: true },
+        { name: 'disposition', label: 'Disposition', readonly: true },
+        { name: 'knowledge_gap_ref', label: 'M61 Reference', readonly: true },
+        { name: 'review_note', label: 'Reviewer Note', readonly: true },
+        { name: 'reviewed_by', label: 'Reviewed By', readonly: true },
+        { name: 'gap_closed_at', label: 'Gap Closed At', readonly: true }
+      ]}
+    ]
+  },
+  'M32-form-unresolved-review': {
+    kind: 'model_form', model: 'fix.assistant.unresolved',
+    title: 'Review an Unresolved Question', back: 'M32-unresolved',
+    newLabel: 'Review an Unresolved Question',
+    status: { field: 'state', labels: { open: 'Open', reviewed: 'Reviewed', closed: 'Gap Closed' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the question to review',
+      note: 'Questions the assistant handed off because it had no answer, newest first.',
+      search: 'Search question / intent',
+      choose: 'Review this question',
+      cols: ['logged_at', 'question', 'best_guess_intent', 'confidence', 'handoff_reason'],
+      domain: [['state', '=', 'open']],
+      empty: 'No unresolved question is waiting for review.'
+    },
+    saveAction: { method: 'action_review', label: 'Record Disposition', done: 'Reviewed: a knowledge gap is sent to M61', kwargs: { disposition: 'disposition_input', note: 'note_input', gap_ref: 'gap_ref_input' } },
+    sections: [
+      { title: 'Step 2 of 2: What Does It Need?',
+        note: 'A knowledge gap is published to M61 (assistant.knowledge_gap). "Out of scope" and "No action" need a reason.',
+        fields: [
+        { name: 'question', label: 'Question (PII-scrubbed)', readonly: true },
+        { name: 'best_guess_intent', label: 'Best-Guess Intent', readonly: true },
+        { name: 'confidence', label: 'Confidence', readonly: true },
+        { name: 'handoff_reason', label: 'Handoff Reason', readonly: true },
+        { name: 'disposition_input', label: 'Disposition', required: true },
+        { name: 'gap_ref_input', label: 'M61 Article / Request (if known)' },
+        { name: 'note_input', label: 'Reviewer Note' }
+      ]}
+    ]
+  },
+  'M32-form-gap-close': {
+    kind: 'model_form', model: 'fix.assistant.unresolved',
+    title: 'Close a Knowledge Gap', back: 'M32-unresolved',
+    newLabel: 'Close a Knowledge Gap',
+    status: { field: 'state', labels: { open: 'Open', reviewed: 'Reviewed', closed: 'Gap Closed' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the knowledge gap M61 has now answered',
+      note: 'Reviewed knowledge gaps that are still open. KPI-184 counts the ones closed within 30 days.',
+      search: 'Search question / intent',
+      choose: 'Close this gap',
+      cols: ['logged_at', 'question', 'best_guess_intent', 'knowledge_gap_ref', 'reviewed_at'],
+      domain: [['state', '=', 'reviewed'], ['disposition', '=', 'knowledge_gap']],
+      empty: 'No knowledge gap is open.'
+    },
+    saveAction: { method: 'action_close_gap', label: 'Close Gap', done: 'Closed: the gap is answered in M61', kwargs: { gap_ref: 'gap_ref_input' } },
+    sections: [
+      { title: 'Step 2 of 2: The Article That Answers It',
+        fields: [
+        { name: 'question', label: 'Question (PII-scrubbed)', readonly: true },
+        { name: 'best_guess_intent', label: 'Best-Guess Intent', readonly: true },
+        { name: 'review_note', label: 'Reviewer Note', readonly: true },
+        { name: 'gap_ref_input', label: 'M61 Article That Answers It', required: true }
+      ]}
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -716,10 +915,16 @@ export const REPORT_ROUTES = {
   'M32:Handoff Reasons': 'M32-rpt-handoffrsn',
   'M32:Guard-Rail Intervention Log': 'M32-rpt-guardlog',
   'M32:Bengali vs English Performance': 'M32-rpt-langperf',
-  'M32:Assistant CSAT': 'M32-rpt-csat'
+  'M32:Assistant CSAT': 'M32-rpt-csat',
+  'M32:Knowledge Gap Report': 'M32-rpt-gaps'
 };
 
 export const FORM_CHIPS = {
+  'M32:Shadow-Evaluate a Release Bundle': 'M32-form-shadow',
+  'M32:Review a Guard-Rail Firing': 'M32-form-guardrail-review',
+  'M32:Review an Unresolved Question': 'M32-form-unresolved-review',
+  'M32:Close a Knowledge Gap': 'M32-form-gap-close',
+  'M32:Unresolved Question': 'M32-form-unresolved',
   'M32:Entity Definition': 'M32-form-entity',
   'M32:Action Authority Rule': 'M32-form-authority',
   'M32:Handoff Trigger': 'M32-form-handoff-trigger',
@@ -736,6 +941,7 @@ export const FORM_CHIPS = {
   'M32:Guard-Rail Rule': 'M32-form-guardrail',
   'M32:RAG Knowledge Source': 'M32-form-rag',
   'M32:__by_model__': {
+    'fix.assistant.unresolved': 'M32-form-unresolved',
     'fix.assistant.entity': 'M32-form-entity',
     'fix.assistant.action.authority': 'M32-form-authority',
     'fix.assistant.handoff.trigger': 'M32-form-handoff-trigger',
@@ -749,6 +955,8 @@ export const FORM_CHIPS = {
     'fix.assistant.rag.source': 'M32-form-rag'
   },
   'M32:__by_screen__': {
+    'M32-unresolved': 'M32-form-unresolved',
+    'M32-guardrail-firings': 'M32-form-ask',
     'M32-entity-defs': 'M32-form-entity',
     'M32-authority': 'M32-form-authority',
     'M32-handoff-triggers': 'M32-form-handoff-trigger',
@@ -765,6 +973,11 @@ export const FORM_CHIPS = {
 };
 
 export const FORM_MODELS = {
+  'M32:Shadow-Evaluate a Release Bundle': 'fix.assistant.dataset',
+  'M32:Review a Guard-Rail Firing': 'fix.assistant.ask',
+  'M32:Review an Unresolved Question': 'fix.assistant.unresolved',
+  'M32:Close a Knowledge Gap': 'fix.assistant.unresolved',
+  'M32:Unresolved Question': 'fix.assistant.unresolved',
   'M32:Entity Definition': 'fix.assistant.entity',
   'M32:Action Authority Rule': 'fix.assistant.action.authority',
   'M32:Handoff Trigger': 'fix.assistant.handoff.trigger',

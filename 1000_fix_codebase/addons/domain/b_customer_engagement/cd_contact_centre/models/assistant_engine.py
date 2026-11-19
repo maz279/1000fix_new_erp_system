@@ -436,6 +436,11 @@ ORDER_STATE_TEXT: dict[str, tuple[str, str]] = {
 }
 
 
+# Tier 1 (answer) and tier 2 (disambiguate) floors of the three-tier gate.
+CONFIDENT_THRESHOLD = 0.75
+DISAMBIGUATION_FLOOR = 0.50
+
+
 class AssistantEngine:
     """Transactional NLU Classifier and Dialogue Manager."""
 
@@ -457,8 +462,15 @@ class AssistantEngine:
                     if norm:
                         self.sample_map.append((code, norm, lang))
 
-    def classify_intent(self, utterance: str) -> IntentMatchResult:
-        """Classify customer utterance against registered transactional intents."""
+    def classify_intent(
+        self, utterance: str, thresholds: dict[str, float] | None = None
+    ) -> IntentMatchResult:
+        """Classify customer utterance against registered transactional intents.
+
+        ``thresholds`` maps an intent code to its own confidence threshold
+        (T-05: calibrated per intent class, M32 capture pass 2). An intent
+        without one uses the global 0.75; the 0.50 disambiguation floor is
+        the same for every intent."""
         norm_input = normalize_text(utterance)
         input_tokens = set(norm_input.split())
 
@@ -509,7 +521,8 @@ class AssistantEngine:
         # Tier 2: Disambiguation (0.50 <= confidence < 0.75) -> Disambiguation prompt
         # Tier 3: Low confidence (< 0.50) -> Immediate human agent handoff
         confidence = round(best_score, 4)
-        if best_intent and confidence >= 0.75:
+        threshold = (thresholds or {}).get(best_intent) or CONFIDENT_THRESHOLD
+        if best_intent and confidence >= threshold:
             defn = self.intents[best_intent]
             if defn.auto_handoff:
                 return IntentMatchResult(
@@ -571,7 +584,7 @@ class AssistantEngine:
                 )
 
         # Tier 2: Disambiguation (0.50 <= confidence < 0.75) (FLAW-32.1 / REQ-32.1)
-        if best_intent and confidence >= 0.50:
+        if best_intent and confidence >= DISAMBIGUATION_FLOOR:
             defn = self.intents[best_intent]
             return IntentMatchResult(
                 matched_intent=best_intent,

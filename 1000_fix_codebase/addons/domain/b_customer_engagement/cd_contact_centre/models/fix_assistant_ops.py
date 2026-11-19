@@ -10,7 +10,12 @@ import logging
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .assistant_engine import INTENT_REGISTRY, AssistantEngine, default_assistant_engine
+from .assistant_engine import (
+    CONFIDENT_THRESHOLD,
+    INTENT_REGISTRY,
+    AssistantEngine,
+    default_assistant_engine,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -21,6 +26,14 @@ _ENGINE_CACHE: dict = {}
 _FALLBACK_LOGGED: set = set()
 
 TIER_3 = "cd_entity_config.group_dofa_tier_3"
+
+
+def _answers(result, thresholds) -> bool:
+    """Whether a classification is at the tier the live bot acts on."""
+    code = result.matched_intent
+    if not code:
+        return False
+    return result.confidence >= ((thresholds or {}).get(code) or CONFIDENT_THRESHOLD)
 
 
 class FixAssistantDialogue(models.Model):
@@ -360,10 +373,13 @@ class FixAssistantDataset(models.Model):
             if not cases:
                 raise ValidationError("The golden set '%s' holds no cases." % golden.name)
             engine = rec._build_engine()
+            # T-05: each intent is judged at its own calibrated threshold, the
+            # one the live bot applies (M32 capture pass 2).
+            thresholds = self.env["fix.assistant.intent"].confidence_thresholds()
             correct = 0
             for case in cases:
-                result = engine.classify_intent(str(case.get("text") or ""))
-                predicted = result.matched_intent if result.confidence >= 0.75 else None
+                result = engine.classify_intent(str(case.get("text") or ""), thresholds)
+                predicted = result.matched_intent if _answers(result, thresholds) else None
                 correct += int(predicted == (case.get("intent") or None))
             accuracy = round(100.0 * correct / len(cases), 2)
             passed = accuracy >= self.MIN_BENCHMARK_ACCURACY

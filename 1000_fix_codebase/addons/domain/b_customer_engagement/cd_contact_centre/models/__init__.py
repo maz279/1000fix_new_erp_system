@@ -42,3 +42,9 @@ from . import fix_assistant_registers
 # forecast, calibration, coaching, throttle, preference centre and urgency
 # challenges. Extends fix.cc.queue and fix.notif.delivery, so it imports last.
 from . import fix_cc_capture2
+
+# M32 capture audit pass 2: intent thresholds, shadow evaluation, guard-rail
+# stage and firing review, the unresolved queue. Extends fix.assistant.intent,
+# .dataset, .guardrail, .ask and fix.conversation (after
+# fix_assistant_registers, whose handoff stamp it reads), so it imports last.
+from . import fix_assistant_capture2

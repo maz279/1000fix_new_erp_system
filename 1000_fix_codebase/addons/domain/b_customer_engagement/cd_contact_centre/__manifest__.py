@@ -18,7 +18,7 @@ CD-M27-nn + CD-M32-nn (P07-M05):
   infra/observability/ollama; this module is the Odoo-side register
 - The M27<->M32 co-design pair is one increment here (AR-006 pair 16)
 """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Contact Centre",

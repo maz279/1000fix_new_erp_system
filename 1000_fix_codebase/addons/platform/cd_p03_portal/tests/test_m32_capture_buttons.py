@@ -92,7 +92,9 @@ CAPTURES = {
     "6": ["M32-form-guardrail"],
     "7": ["M32-form-handoff-trigger"],
     "8": ["M32-form-review-answer", "M32-form-send-answer"],
-    "9": ["M32-form-candidate-accept", "M32-form-candidate-reject"],
+    # Pass 2 (19 Nov): the unresolved queue is the page's own capture (spec 13:
+    # the Customer Service Manager owns it); the mined candidates stay chips.
+    "9": ["M32-form-unresolved-review", "M32-form-candidate-accept", "M32-form-candidate-reject"],
 }
 
 # The record each page lists (its grid).
@@ -257,7 +259,9 @@ def test_pick_forms_act_on_an_existing_record_through_its_workflow(m32, sid):
     assert cfg["save"]["method"] in _surfaces()[cfg["model"]], "%s is not served" % sid
     # what the record says is shown, never retyped: only a reviewer's note
     typed = {f["name"] for f in cfg["fields"] if not f["readonly"]}
-    assert typed <= {"review_note"}, "%s lets %s be typed" % (sid, sorted(typed))
+    # FR-CAI-038 (pass 2): the reply itself is editable before it is sent.
+    allowed = {"review_note"} | ({"draft_reply"} if sid == "M32-form-send-answer" else set())
+    assert typed <= allowed, "%s lets %s be typed" % (sid, sorted(typed))
     for kwarg_field in cfg["save"]["kwargs"].values():
         assert kwarg_field in typed, "%s passes %s, which the form does not offer" % (
             sid,
