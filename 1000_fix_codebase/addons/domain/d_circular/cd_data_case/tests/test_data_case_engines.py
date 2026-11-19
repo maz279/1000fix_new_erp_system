@@ -263,7 +263,7 @@ def test_backup_plan_test_log_and_compliance(ds):
     )
     plan.invalidate_recordset()
     assert plan.last_test_result == "passed"
-    assert plan.next_test_due == fields.Date.today() + timedelta(days=30)
+    assert plan.next_test_due == fields.Date.context_today(plan) + timedelta(days=30)
     assert plan.compliant
     assert "data_case.backup_test_logged" in _events(env, "fix.data.backup.plan", plan.id).mapped(
         "event_type"

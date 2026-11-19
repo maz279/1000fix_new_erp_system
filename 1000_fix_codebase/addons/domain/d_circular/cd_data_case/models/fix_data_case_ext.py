@@ -1447,7 +1447,11 @@ class FixDataBackupPlan(models.Model):
             plan.compliant = bool(
                 last
                 and last.result == "passed"
-                and (not plan.next_test_due or plan.next_test_due >= date.today())
+                and (
+                    not plan.next_test_due
+                    or plan.next_test_due
+                    >= fields.Date.context_today(plan.with_context(tz="Asia/Dhaka"))
+                )
             )
 
     test_overdue_notified_on = fields.Date(
@@ -1460,16 +1464,18 @@ class FixDataBackupPlan(models.Model):
         # plan was never due. The first test falls due one interval out.
         for vals in vals_list:
             if not vals.get("next_test_due"):
-                vals["next_test_due"] = date.today() + timedelta(
-                    days=vals.get("test_frequency_days") or 90
-                )
+                # the Dhaka business day (date.today() is the UTC day 00-06 BST)
+                vals["next_test_due"] = fields.Date.context_today(
+                    self.with_context(tz="Asia/Dhaka")
+                ) + timedelta(days=vals.get("test_frequency_days") or 90)
         return super().create(vals_list)
 
     @api.model
     def cron_restore_test_due(self):
         """B4: a to-do for every plan whose restore test is overdue, once per
         due date (idempotent). Plans with no date get one from their creation."""
-        today = date.today()
+        # the business day is Dhaka's, whatever the cron user's zone
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
         undated = self.sudo().search([("next_test_due", "=", False)])
         for plan in undated:
             start = (plan.create_date or fields.Datetime.now()).date()

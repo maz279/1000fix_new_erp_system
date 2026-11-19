@@ -20,6 +20,7 @@
 # pattern-matched. Same harness as test_a08_m19_registry.py.
 from __future__ import annotations
 
+import inspect
 import json
 import re
 import shutil
@@ -200,6 +201,17 @@ def test_list_buttons_are_actions_the_surface_allows(registry):
             continue
         allowed = (api.SURFACES.get(cfg.get("model")) or {}).get("actions", set())
         for action in cfg.get("actions") or []:
+            # `print`: the record's document through /p03/doc/print_url - no
+            # server method; the model must be one that route can print
+            if action.get("print"):
+                from odoo.addons.cd_p03_portal.controllers import p03_commercial_docs as docs
+
+                source = inspect.getsource(docs)
+                if '"%s":' % cfg.get("model") not in source:
+                    refused.append(
+                        "%s %s print (no document for the model)" % (sid, cfg.get("model"))
+                    )
+                continue
             # `form`: opens a NEW record of another form for the row (Record
             # Proforma) - no server call; that form must exist and take the row
             if action.get("form"):

@@ -387,6 +387,7 @@ def test_the_inventory_is_recorded_per_file_type_and_sums_to_the_case(m6):  # no
     # frozen once handed over
     m6.image(case)
     case.action_recovered()
+    m6.settle(case)  # M06-F1: a billable case goes out paid, on credit or waived
     case.write({"handover_recipient_id": m6.contact.id, "encrypted_target_serial": "T-INV2"})
     case.action_confirm_target_serial("T-INV2")
     m6.receipt(case)
@@ -559,7 +560,7 @@ def test_two_failed_runs_in_a_row_raise_one_incident(m6):  # noqa: F811
 
 def test_a_passed_restore_test_needs_its_evidence_and_rolls_the_due_date(m6):  # noqa: F811
     plan = _plan(m6)
-    plan.sudo().write({"next_test_due": fields.Date.today() - timedelta(days=3)})
+    plan.sudo().write({"next_test_due": fields.Date.context_today(plan) - timedelta(days=3)})
     vals = {
         "plan_id": plan.id,
         "result": "passed",
@@ -577,7 +578,9 @@ def test_a_passed_restore_test_needs_its_evidence_and_rolls_the_due_date(m6):  #
     assert "id" in out, out
     test = m6.env[TEST].browse(out["id"])
     assert test.tested_by == m6.tech and test.evidence_attachment_id.res_model == TEST
-    assert plan.compliant and plan.next_test_due == fields.Date.today() + timedelta(days=30)
+    assert plan.compliant and plan.next_test_due == fields.Date.context_today(plan) + timedelta(
+        days=30
+    )
     res = _write(m6, m6.tech, TEST, {"result": "failed"}, record=test)
     assert "error" in res
     # a failed test needs no evidence, and is logged as such

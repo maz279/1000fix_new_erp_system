@@ -151,7 +151,7 @@ export const SCREENS = {
      * captured through the technician app's evidence channel. */
     actions: [
       /* A02 ERP audit X-17: the field service report */
-      { m: 'p03_print_document', print: 'a4', l: 'Print Field Service Report' },
+      { m: 'p03_print_document', print: 'a4', l: 'Print Field Service Report', states: ['completed'] },
       { m: 'action_decline', l: 'Decline', ask: 'Reason for declining the job', kwarg: 'reason', states: ['dispatched'] },
       { m: 'action_arrive', l: 'Mark Arrival', ask: 'Your position: latitude, longitude (e.g. 23.8103, 90.4125)', kwarg: 'position', states: ['en_route'] },
       { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment', states: ['arrived', 'in_progress'] },

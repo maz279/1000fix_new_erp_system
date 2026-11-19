@@ -91,7 +91,8 @@ def test_every_m03_screen_binds_real_fields_methods_and_reports(reg, odoo_env):
             ]
             names += [c[0] for c in cfg.get("domain", []) if isinstance(c, list)]
             bad += ["%s: no field %s" % (sid, n) for n in names if n not in fields]
-            methods = [a["m"] for a in cfg.get("actions", [])]
+            # a `print` action is client-side (/p03/doc/print_url): no server method
+            methods = [a["m"] for a in cfg.get("actions", []) if not a.get("print")]
             if cfg.get("saveAction"):
                 methods.append(cfg["saveAction"]["method"])
             for m in methods:

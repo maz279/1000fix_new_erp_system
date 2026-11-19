@@ -30,6 +30,7 @@ from odoo.addons.cd_data_case.tests.test_a02_p1p2_cd_data_case import (  # noqa:
     m6,
 )
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
+from odoo.exceptions import UserError
 
 SRC = Path(__file__).resolve().parents[1] / "static" / "src"
 IMPORT = re.compile(r'from\s+"(\./a\d\d/\w+)"')
@@ -226,6 +227,7 @@ def test_the_inventory_is_recorded_by_the_case_staff_and_frozen_at_handover(reg,
 
     m6.image(case)
     case.action_recovered()
+    m6.settle(case)  # M06-F1: a billable case goes out paid, on credit or waived
     case.write({"handover_recipient_id": m6.contact.id, "encrypted_target_serial": "T-INV"})
     case.action_confirm_target_serial("T-INV")
     m6.receipt(case)
@@ -277,6 +279,7 @@ def test_an_attempt_outcome_closes_the_open_attempt(reg, m6):  # noqa: F811 - th
 def test_the_handover_takes_the_uploaded_receipt(reg, m6):  # noqa: F811 - the imported fixture
     sid = "M06-form-handover"
     case = m6.recovered(m6.new_case())
+    m6.settle(case)  # M06-F1: a billable case goes out paid, on credit or waived
     case.with_user(m6.tech).write(
         {"handover_recipient_id": m6.contact.id, "encrypted_target_serial": "TGT-UP"}
     )
@@ -329,6 +332,14 @@ def test_media_moves_and_a_witnessed_seal_break(reg, m6):  # noqa: F811 - the im
     assert not out["success"] and unit.seal_state == "sealed"
     out = _run(m6, reg, "M06-form-seal-break", m6.tech, unit, {"witness_user_id": m6.tech2.id})
     assert out["success"], out
+    # A02 ERP audit M06-F11: naming the witness only asks; the seal opens when
+    # the witness confirms in their own session
+    unit.invalidate_recordset()
+    assert unit.seal_state == "sealed"
+    with pytest.raises(UserError):
+        unit.with_user(m6.tech).action_confirm_seal_break()
+    unit.with_user(m6.tech2).action_confirm_seal_break()
+    unit.invalidate_recordset()
     assert unit.seal_state == "opened_in_lab" and unit.witness_user_id == m6.tech2
 
 

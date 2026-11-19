@@ -15,7 +15,7 @@ only the M06 roles they need (the superuser is trusted by the guards).
 """
 
 import itertools
-from datetime import date, timedelta
+from datetime import timedelta
 from types import SimpleNamespace
 from unittest import mock
 
@@ -475,8 +475,8 @@ def test_b4_restore_test_due_is_scheduled_and_reminded_once(m6):
     plan = Plan.create(
         {"name": "NAS 3-2-1", "customer_id": m6.customer.id, "test_frequency_days": 30}
     )
-    assert plan.next_test_due == date.today() + timedelta(days=30)
-    plan.write({"next_test_due": date.today() - timedelta(days=2)})
+    assert plan.next_test_due == fields.Date.context_today(plan) + timedelta(days=30)
+    plan.write({"next_test_due": fields.Date.context_today(plan) - timedelta(days=2)})
     Plan = m6.env["fix.data.backup.plan"]
     assert Plan.cron_restore_test_due() >= 1
     todo = plan.activity_ids.filtered(lambda a: "Restore test overdue" in (a.summary or ""))
@@ -492,7 +492,9 @@ def test_b4_restore_test_due_is_scheduled_and_reminded_once(m6):
         .create({"name": "restore-report.pdf", "raw": b"%PDF restore ok"})
     )
     plan.with_user(m6.tech).action_log_test(result="passed", evidence_attachment_id=evidence.id)
-    assert plan.compliant and plan.next_test_due == date.today() + timedelta(days=30)
+    assert plan.compliant and plan.next_test_due == fields.Date.context_today(plan) + timedelta(
+        days=30
+    )
 
 
 def test_b4_a_case_handed_over_before_the_clock_gets_a_retention_date(m6):
