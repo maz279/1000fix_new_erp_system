@@ -162,4 +162,29 @@ The first run left one survivor, "contact proposals never applied". The test app
 
 ## 7. State
 
-_Filled in at landing and deploy._
+**Landed:** 83305725 on `fix/a03-live-data-and-pending-work`, rebased onto 5c8a4783 with no conflicts. Pushed. On the rebased tree, 643 static checks pass and `a09/writable.py` has no drift. The feature branch's remote copy keeps the pre-rebase commit bd3c96b1, with the same content; a force-push was refused.
+
+**Deployed 19 Nov 2026, with the user's approval of the combined wave:**
+
+1. **Backups**, in `all_working_folder/1000fix-2/_migration/backups`:
+   - `fix_{real,dev}_pre_m21_capture2_2026-11-19.dump`;
+   - `fix_{real,dev}_pre_wave_m21_2026-11-19.dump`.
+2. **Version gap before the wave.** Peers' landed code sat ahead of both DBs: cd_device_registry (M17), cd_marketplace (M12), cd_requisition and cd_inventory (M16/M15), cd_billing_engine (M20), cd_tradein (M14), cd_rental_asset (M13), cd_ewaste (M18) and cd_gl_ext (M19).
+   - M16's own `-u cd_requisition,cd_p03_portal` brought several of these current.
+3. **One `-u cd_hr_core,cd_device_registry,cd_ewaste,cd_rental_asset,cd_p03_portal`** on fix_real, then fix_dev. Both exited 0.
+4. **M19 ran `-u cd_gl_ext`** on both DBs. M18 asked to be excluded at first, then landed and was included.
+5. **Final gap check: nothing behind** on either DB.
+6. **One restart at 08:06:51 local.** 8069 = PID 81988 (fix_real), 8090 = PID 21792 (fix_dev). Both answer 200.
+
+**Live check (signed-in probe, dev login, both servers):**
+
+- The three new lists are served with every declared column; none was dropped.
+- The probation picker answers. It offers 0 employees: neither DB holds an active probation contract.
+- The Establishment Register, Attrition Analysis and Probation Conversion reports run.
+- The live asset bundle carries `M21-form-probation-review`, `M21-form-assignment`, `M21-form-exit-handover` and the KPI.
+- cd_hr_core is 19.0.0.6.0 on both DBs, and the 3 tables exist.
+
+**Next for the business:**
+
+- Probation decisions now need the line manager's review. Managers record it from ESS / MSS.
+- An exit's HR clearance waits for the successor to accept the handover.
