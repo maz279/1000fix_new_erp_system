@@ -128,6 +128,8 @@ def test_cost_rising_after_approval_stops_qc_until_re_approved(m31):
 
 
 def test_a_zero_charge_order_is_held_to_the_cap(m31):
+    # the live estate sets its own cap: this test starts from none
+    m31.env["ir.config_parameter"].sudo().set_param("cd_workshop.zero_charge_parts_cap_bdt", "0")
     so = m31.order()  # approved on an entitlement: no estimate
     job = _to_repair(m31, m31.job(so=so))
     with refused(m31.env, UserError, "BRU-WSR-11"):

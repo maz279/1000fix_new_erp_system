@@ -16,6 +16,7 @@ import pytest
 from odoo import fields
 
 from . import test_a02_p0_m31 as a02
+from ._m45_decided import calibrations_decided  # noqa: F401 - autouse fixture
 from .test_a07_p0_m45_qc import PARAM, _meter
 
 m31 = a02.m31

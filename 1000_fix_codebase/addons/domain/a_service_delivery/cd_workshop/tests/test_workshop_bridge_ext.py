@@ -15,9 +15,10 @@ from odoo.exceptions import UserError
 def ws(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "WSEXT", "legal_name": "WS Ext Entity", "company_id": env.company.id}
-    )
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "WSEXT", "legal_name": "WS Ext Entity", "company_id": env.company.id})
     branch = env["fix.branch"].create(
         {
             "name": "WS Ext Branch",

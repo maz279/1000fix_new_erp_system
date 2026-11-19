@@ -13,6 +13,7 @@ from odoo import fields
 from odoo.exceptions import UserError
 
 from . import test_a02_p0_m31 as a02
+from ._m45_decided import calibrations_decided  # noqa: F401 - autouse fixture
 
 # the A02 M31 users and job factory, shared as a fixture
 m31 = a02.m31

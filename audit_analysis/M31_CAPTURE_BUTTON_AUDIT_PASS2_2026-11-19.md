@@ -107,10 +107,13 @@ All new records carry company isolation rules and workshop-role ACLs; system sta
   receiving-side and requester checks on transfers and escalations, rework written and never edited, one
   running clock, calibration review, failed ESD, shift count and supervisor); the guard went red every time.
 - **Regression:** cd_workshop's whole suite plus the portal's A02 control suite, write whitelists (A02, A12),
-  sub-module button and picker tests, run on the change and on the unchanged code against the same database.
-  **No failure is new.** The 33 that remain fail identically on the unchanged code: the live
-  `qc_requires_instrument` switch, M45's calibration usage decision, M22 certification, and other fixtures'
-  legal-entity clash.
+  sub-module button and picker tests: **405 passed, 0 failed**. Before the harness fixes below, 33 of them
+  failed identically on the unchanged code, because the tests read the live estate's own settings.
+- **Test-harness isolation** (tests only, no product change): the A02 M31 fixture pins the QC-instrument switch off
+  (the live estate has it on); the zero-charge cap test starts from no cap (live is 5,000); the M22 gate tests stop
+  the database's own dispatch-gating competencies from gating (a smartphone one on the live clone); calibrations the
+  M31 tests record are accepted, as M45's own tests do (`tests/_m45_decided.py`); the bridge and model fixtures
+  reuse the company's legal entity.
 - Test-fixture repair: `test_a02_p0_m31.py` created a second legal entity for the company, which a peer's
   new `fix_entity_company_unique` constraint refuses, so 62 M31 tests could not even set up. It now reuses the
   company's entity, and those 62 pass again.
@@ -127,3 +130,13 @@ All new records carry company isolation rules and workshop-role ACLs; system sta
 - **Harvesting into stock** (FR-WSR-023): a harvested part keeps its donor serial on the part line; booking it
   into M15 inventory with provenance is not built.
 - **Rates:** no workshop has a labour rate yet, so cost sheets use the typed labour figure until one is set.
+
+## Deployment (19 Nov 2026)
+
+- Owner approved "Deploy both now". Backups: `1000 fix/backups/fix_{real,dev}_pre_m31_capture2_2026-11-19.dump`.
+- M35's combined wave already carried `-u cd_workshop,cd_p03_portal` on fix_real and fix_dev, so M31 ran no
+  upgrade of its own. Verified read-only on both: cd_workshop 19.0.2.2.0, 15 new tables, 3 new job columns,
+  ACLs and company rules.
+- M35's single restart: 8069 = PID 52556 (fix_real), 8090 = PID 80704 (fix_dev); version gap empty at 36878e82.
+- **Live walk** (read-only, no saves) on **8069/fix_real and 8090/fix_dev**: all 9 pages, 15 chips, 30 screens
+  served, **0 console errors** on each.

@@ -13,6 +13,8 @@ from odoo import fields
 from odoo.addons.cd_workshop.models.fix_workshop_job import WORKSHOP_JOB_STATES
 from odoo.exceptions import UserError, ValidationError
 
+from ._m45_decided import calibrations_decided  # noqa: F401 - autouse fixture
+
 
 @contextmanager
 def _refused(env, exc, match=None):
@@ -208,8 +210,19 @@ def test_repair_needs_bench_technician_and_an_active_technician(ws):
     assert job.state == "in_repair"
 
 
+def _only_this_tests_competencies_gate(env):
+    """The database may carry its own dispatch-gating competencies (a
+    smartphone one on a clone of the live estate). This test is about the
+    competencies it creates, so the others stop gating for its duration
+    (rolled back with the test)."""
+    env["fix.competency"].search([("required_for_dispatch", "=", True)]).write(
+        {"required_for_dispatch": False}
+    )
+
+
 def test_l2_repair_requires_m22_certification_unless_waived(ws):
     env = ws.env
+    _only_this_tests_competencies_gate(env)
     brand = env["fix.brand"].create({"name": "WsBrand", "code": "WSBR"})
     model = env["fix.device.model"].create({"name": "WsPhone", "brand_id": brand.id})
     device = env["fix.device"].create({"device_model_id": model.id, "serial_number": "SN-WS-1"})
@@ -220,7 +233,7 @@ def test_l2_repair_requires_m22_certification_unless_waived(ws):
         {"code": "WS-SOLDER", "name": "Micro-soldering", "required_for_dispatch": True}
     )
     with _refused(
-        env, UserError, "M22 Certification Gate .* holds no dispatch-gating certification"
+        env, UserError, "M22 Certification Gate .* holds no (dispatch-gating|ACTIVE) certification"
     ):
         job.action_start_repair()
     env["fix.certification"].create({"employee_id": ws.job_tech.id, "competency_id": competency.id})
@@ -433,9 +446,10 @@ def test_failed_qc_without_notes(ws):
 def so(ws):
     env = ws.env
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "WSOENT", "legal_name": "WS Entity", "company_id": env.company.id}
-    )
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "WSOENT", "legal_name": "WS Entity", "company_id": env.company.id})
     branch = env["fix.branch"].create(
         {"name": "WS Branch", "code": "WSOB", "entity_id": entity.id, "operating_unit_id": ou.id}
     )
@@ -610,6 +624,7 @@ def test_l2_gate_passes_the_brand_and_tier_to_m22(ws):
 
 def test_l2_gate_refuses_a_technician_certified_for_another_brand(ws):
     env = ws.env
+    _only_this_tests_competencies_gate(env)
     apple = env["fix.brand"].create({"name": "ZtApple", "code": "ZTAP"})
     other = env["fix.brand"].create({"name": "ZtGeneric", "code": "ZTGN"})
     model = env["fix.device.model"].create({"name": "ZtPhone", "brand_id": apple.id})

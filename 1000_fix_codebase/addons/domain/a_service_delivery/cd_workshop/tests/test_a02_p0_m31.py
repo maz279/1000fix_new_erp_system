@@ -84,6 +84,9 @@ def _set_order_state(order, state):
 @pytest.fixture
 def m31(odoo_env):
     env = odoo_env
+    # the QC-instrument business switch is on in the live estate; these
+    # controls predate it, so they run with it off unless a test turns it on
+    env["ir.config_parameter"].sudo().set_param("cd_workshop.qc_requires_instrument", "0")
     G_TECH = env.ref("cd_workshop.group_fix_workshop_user")
     G_QC = env.ref("cd_workshop.group_fix_workshop_qc_inspector")
     G_SUPV = env.ref("cd_workshop.group_fix_workshop_manager")

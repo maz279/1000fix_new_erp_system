@@ -13,6 +13,7 @@ from odoo.exceptions import UserError
 
 from . import test_a02_p0_m31 as a02
 from . import test_a07_p0_m45_qc as p0
+from ._m45_decided import calibrations_decided  # noqa: F401 - autouse fixture
 
 m31 = a02.m31
 _as, refused = a02._as, a02.refused
