@@ -82,6 +82,14 @@ def allocate_discount(grosses: list[Decimal], discount: Decimal) -> list[Decimal
     return shares
 
 
+def dhaka_date(moment):
+    """The Asia/Dhaka calendar day of a UTC datetime (or a datetime string)."""
+    import pytz
+
+    moment = fields.Datetime.to_datetime(moment) or fields.Datetime.now()
+    return moment.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
 def m51_determine(env, lines, on_date=None, company=None):
     """M51's sales VAT determination (B5 contract, A08 M51-5): the Tax Rate
     Master in force and the tariff rows. Falls back to the pure engine only
@@ -1253,12 +1261,20 @@ class FixArInvoice(models.Model):
             )
             for line, qty, price, line_discount in billed_lines
         ]
+        # The tax point is the supply: the delivery, on its Dhaka business day
+        # (UTC "today" put a 00:00-06:00 delivery on the previous day, and at a
+        # month end into the previous VAT period). The invoice belongs to the
+        # order's company, never the delivering user's current company.
+        tax_point = order.delivered_at or closed_event_at or fields.Datetime.now()
+        invoice_date = dhaka_date(tax_point)
         determination = m51_determine(
-            self.env, lines, on_date=fields.Date.context_today(self), company=order.company_id
+            self.env, lines, on_date=invoice_date, company=order.company_id
         )
 
-        invoice = self.create(
+        invoice = self.with_company(order.company_id).create(
             {
+                "company_id": order.company_id.id,
+                "invoice_date": invoice_date,
                 "customer_id": order.customer_id.id,
                 # the order's OU is optional; its (required) branch always has one
                 "operating_unit_id": (
@@ -1382,7 +1398,11 @@ class FixArInvoice(models.Model):
         for receipt in order.sudo()._fix_settlement_receipts():
             self.invalidate_recordset(["amount_residual"])
             receipt.invalidate_recordset(["unapplied_amount"])
-            if receipt.state != "confirmed" or receipt.customer_id != self.customer_id:
+            if (
+                receipt.state != "confirmed"
+                or receipt.customer_id.commercial_partner_id
+                != self.customer_id.commercial_partner_id
+            ):
                 continue
             amount = round(min(receipt.unapplied_amount, self.amount_residual), 2)
             if amount <= 0.005:

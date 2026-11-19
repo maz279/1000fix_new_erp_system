@@ -56,6 +56,16 @@ GROUP_QC_INSPECTOR = "cd_service_order.group_so_qc_inspector"
 GROUP_COMMERCIAL_APPROVER = "cd_service_order.group_so_commercial_approver"
 # A02 audit B3: holds, SLA clock decisions and breach escalations.
 GROUP_SUPERVISOR = "cd_service_order.group_so_supervisor"
+# who may propose / confirm a beyond-economic-repair write-off (BRU-SRM-12)
+BER_TECHNICAL_GROUPS = (
+    "cd_workshop.group_fix_workshop_user",
+    "cd_workshop.group_fix_workshop_qc_inspector",
+    "cd_workshop.group_fix_workshop_manager",
+    "cd_field_service.group_fix_field_service_user",
+    "cd_field_service.group_fix_field_service_manager",
+    "cd_service_order.group_so_qc_inspector",
+    GROUP_SUPERVISOR,
+)
 # A02 audit B3: the clock every order gets when no policy matches its
 # channel and priority (data/fix_sla_default_policy.xml).
 DEFAULT_SLA_POLICY = "cd_service_order.sla_policy_m01_default"
@@ -1094,7 +1104,13 @@ class FixServiceOrder(models.Model):
         approved_estimates = self.estimate_ids.filtered(
             lambda e: e.state == "approved" and e.grand_total > 0
         )
-        if approved_estimates and self.payment_settlement_state == "unpaid":
+        # what is still DUE decides, not the estimate's face value: advances
+        # already received (the walk-in diagnostic fee) can cover it in full
+        if (
+            approved_estimates
+            and self.payment_settlement_state == "unpaid"
+            and self._fix_amount_due() > 0.005
+        ):
             total_due = self._fix_amount_due()
             raise UserError(
                 f"FLAW-01.1 Financial Settlement Gate: Order {self.name} has an approved "
@@ -1221,8 +1237,12 @@ class FixServiceOrder(models.Model):
             self._check_warranty_gate()
         if vals.get("technician_id"):
             # A02 ERP audit M01-F15/F20: assigning the technician is the
-            # response (spec: "assignment to first action").
-            self.filtered(lambda o: o.state not in _SLA_FINISHED_STATES)._fix_mark_response()
+            # response (spec: "assignment to first action"). A draft order has
+            # no clock yet: stamping it there made intake skip the response
+            # clock, and the order fell out of response-SLA reporting.
+            self.filtered(
+                lambda o: o.state not in _SLA_FINISHED_STATES and o.state != "draft"
+            )._fix_mark_response()
         return result
 
     def _fix_refuse_direct_changes(self, vals) -> None:
@@ -1302,6 +1322,10 @@ class FixServiceOrder(models.Model):
             self._guarded().write(stamps)
         if new_state == "intake":
             self._fix_start_sla()
+            if self.technician_id:
+                # assigned while still a draft: the response is met as the
+                # clock starts, and the clock exists to record it
+                self._fix_mark_response()
         if new_state == "diagnostic":
             self._fix_mark_response()
         if new_state == "delivered":
@@ -1523,12 +1547,22 @@ class FixServiceOrder(models.Model):
             for inst in Instance.for_record(order):
                 if inst.kpi_code not in ("resolution", RESPONSE_KPI):
                     continue
+                # the same target a fresh start would take (start_for): the
+                # policy's item for the KPI when it has one, else the header
+                item = policy.item_ids.filtered(
+                    lambda i, code=inst.kpi_code: i.kpi_code == code and i.active
+                )[:1]
                 new_hours = (
-                    policy.resolution_hours
-                    if inst.kpi_code == "resolution"
-                    else policy.response_hours
+                    item.target_hours
+                    if item
+                    else (
+                        policy.resolution_hours
+                        if inst.kpi_code == "resolution"
+                        else policy.response_hours
+                    )
                 )
-                calendar = Instance._effective_calendar(policy, None)
+                warn_pct = (item.warn_at_pct if item else 0.0) or 80.0
+                calendar = Instance._effective_calendar(policy, item or None)
                 old_calendar = inst.calendar_id or None
                 now = fields.Datetime.now()
                 upto = inst.paused_at if inst.state == "paused" else now
@@ -1552,7 +1586,9 @@ class FixServiceOrder(models.Model):
                         "target_hours": new_hours,
                         "started_at": now,
                         "target_at": target,
-                        "warn_at": Instance.add_business_hours(now, remaining * 0.8, calendar),
+                        "warn_at": Instance.add_business_hours(
+                            now, remaining * warn_pct / 100.0, calendar
+                        ),
                         "elapsed_pause_minutes": inst.elapsed_pause_minutes,
                         "supersedes_id": inst.id,
                         "series_index": inst.series_index + 1,
@@ -1753,6 +1789,23 @@ class FixServiceOrder(models.Model):
         self.ensure_one()
         return bool(self.env.su or self.ber_confirmed_at or self._fix_m31_ber_job())
 
+    def _fix_is_technical(self, user) -> bool:
+        """BRU-SRM-12's "technician": the order's assigned technician, or a
+        holder of a technical role. Being an employee was enough, so a
+        front-desk clerk could be the second technician and write the device
+        off (A02 ERP review, 20 Nov 2026). The workshop and field groups are
+        read by xmlid: M01 does not depend on M31 / M02."""
+        self.ensure_one()
+        if self.env.su:
+            return True
+        employee = user.employee_id
+        if employee and self.technician_id and employee == self.technician_id:
+            return True
+        for xmlid in BER_TECHNICAL_GROUPS:
+            if self.env.ref(xmlid, raise_if_not_found=False) and user.has_group(xmlid):
+                return True
+        return False
+
     def _fix_propose_ber(self, reason) -> None:
         self.ensure_one()
         if not (reason or "").strip():
@@ -1763,8 +1816,16 @@ class FixServiceOrder(models.Model):
                 "BRU-SRM-12: a beyond-economic-repair proposal needs photographic evidence. "
                 "Attach the photo of the device (BER Photo Evidence) to order %s first." % self.name
             )
-        if not self.env.user.employee_id:
-            raise UserError("Only a technician (an employee) proposes a BER.")
+        if photo.sudo().res_model != self._name or photo.sudo().res_id != self.id:
+            raise UserError(
+                "BRU-SRM-12: upload the BER photo on order %s itself; a file attached to another "
+                "record is not this device's evidence." % self.name
+            )
+        if not self._fix_is_technical(self.env.user):
+            raise UserError(
+                "BRU-SRM-12: a BER is proposed by a technician (the order's own, a workshop or "
+                "field technician, a QC inspector or a Service Supervisor)."
+            )
         self._guarded().write(
             {
                 "ber_proposed_by": self.env.user.id,
@@ -1788,10 +1849,10 @@ class FixServiceOrder(models.Model):
                 "BRU-SRM-12: the BER of order %s was proposed by you; a second technician "
                 "confirms it." % self.name
             )
-        if not user.employee_id:
+        if not self._fix_is_technical(user):
             raise UserError(
-                "BRU-SRM-12: a second TECHNICIAN (an employee) confirms the BER of order %s."
-                % self.name
+                "BRU-SRM-12: a second TECHNICIAN (a workshop or field technician, a QC "
+                "inspector or a Service Supervisor) confirms the BER of order %s." % self.name
             )
         self._guarded().write(
             {"ber_confirmed_by": user.id, "ber_confirmed_at": fields.Datetime.now()}
@@ -1928,6 +1989,16 @@ class FixServiceOrder(models.Model):
                 and (r.amount or 0.0) + 0.005 >= amount
             )
         )
+        # A receipt the finance bridge already tied to an order (a settlement
+        # or top-up of another order, or any order's advance such as the
+        # diagnostic fee) is not free money: it released a device or is netted
+        # from an amount due already (A02 ERP review, 20 Nov 2026).
+        fields_ = receipts._fields
+        if "source_order_id" in fields_:
+            receipts = receipts.filtered(
+                lambda r: r.source_order_id.id in (False, self.id)
+                and not ("is_order_advance" in fields_ and r.is_order_advance)
+            )
         # One receipt settles one order. It is found by its number OR its
         # reference, so another order may already hold it under either key
         # (checking only the key typed here let one receipt release two devices).

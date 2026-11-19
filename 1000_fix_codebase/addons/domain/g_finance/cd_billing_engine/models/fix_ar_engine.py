@@ -960,7 +960,12 @@ class FixArAllocation(models.Model):
                     "Payments are rejected against %s invoices (FR-ARB-025)"
                     % (invoice.state or "non-issued")
                 )
-            if receipt.customer_id != invoice.customer_id:
+            # one customer = one commercial partner: a company's receipt pays
+            # the invoice raised on its contact person (A02 ERP review)
+            if (
+                receipt.customer_id.commercial_partner_id
+                != invoice.customer_id.commercial_partner_id
+            ):
                 raise UserError(
                     "Cross-customer allocation refused — receipt %s vs invoice %s"
                     % (receipt.name, invoice.name)

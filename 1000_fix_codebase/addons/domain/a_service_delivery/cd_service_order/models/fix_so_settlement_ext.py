@@ -35,6 +35,14 @@ class FixServiceOrderSettlementRules(models.Model):
         if self.payment_settlement_state == "settled" and self.settlement_verified:
             return self._fix_record_topup(amount, reference, source)
         due = self._fix_amount_due()
+        if due <= CENT and self._fix_governing_estimate():
+            # advances already received (the diagnostic fee) cover the
+            # estimate: the device is released without new money, and taking
+            # some anyway would only leave it unapplied on the customer
+            raise UserError(
+                "Order %s owes nothing more: what was already received covers its estimate. "
+                "Deliver it without a new payment." % self.name
+            )
         if due > CENT and amount > due + CENT:
             if source == "m20_receipt":
                 # the receipt may carry more (the customer paid ahead); the

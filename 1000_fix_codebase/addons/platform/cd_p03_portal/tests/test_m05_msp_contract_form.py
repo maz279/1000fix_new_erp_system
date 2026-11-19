@@ -195,6 +195,10 @@ def test_a_contract_is_created_and_edited_through_the_form(m05, odoo_env, call, 
     assert (msp.device_count, msp.per_device_monthly, msp.sla_target_pct) == (40, 450.0, 95.0)
     assert msp.monitoring_scope == "endpoints_network"
 
+    # A02 ERP audit M05-F3: once saved, the SLA / commercial terms are not
+    # re-typed through the form (an engineer lowered a live contract's target
+    # and price, and with them the SLA credit owed); they change through Amend
+    # Terms, by an SLA credit approver, with the reason on the chatter
     edited = call(
         env,
         "model_write",
@@ -202,9 +206,23 @@ def test_a_contract_is_created_and_edited_through_the_form(m05, odoo_env, call, 
         record_id=msp.id,
         values={"device_count": 55, "alert_resolve_hours_major": 2},
     )
-    assert "error" not in edited, edited
+    assert "workflow" in (edited.get("error") or ""), edited
+    msp.action_amend_terms(
+        device_count=55,
+        alert_resolve_hours_major=2,
+        reason="Client added 15 branch endpoints (addendum 2)",
+    )
     msp.invalidate_recordset()
     assert (msp.device_count, msp.alert_resolve_hours_major) == (55, 2.0)
+    # the name is not a term: the form still edits it
+    renamed = call(
+        env,
+        "model_write",
+        model="fix.msp.contract",
+        record_id=msp.id,
+        values={"name": "Head office endpoints"},
+    )
+    assert "error" not in renamed, renamed
 
     shown = call(
         env, "model_form", model="fix.msp.contract", fields=declared, record_id=msp.id, lines=grid

@@ -114,7 +114,40 @@ class FixServiceOrderDrawer(models.Model):
             return super().action_verify_settlement()
         if not any(user.has_group(g) for g in FD_VERIFIER_GROUPS):
             return super().action_verify_settlement()  # refuses with its own message
+        # sudo() below lifts record rules, so the scope is checked here first
+        # (A02 ERP review, 20 Nov 2026: any front-desk cashier could verify any
+        # branch's order, or field cash still in the technician's pocket)
+        for order in self:
+            order._fd_check_verifier_scope(user)
         return super(FixServiceOrderDrawer, self.sudo()).action_verify_settlement()
+
+    def _fd_check_verifier_scope(self, user):
+        """A front-desk verifier acts for the order's own branch, and verifies
+        field CASH only once it is counted into a drawer (M02 Accept Field
+        Cash, which verifies as part of the acceptance)."""
+        self.ensure_one()
+        order = self.sudo()
+        unit = order.operating_unit_id or order.branch_id.operating_unit_id
+        if unit and "operating_unit_ids" in user._fields and unit not in user.operating_unit_ids:
+            raise UserError(
+                "Order %s belongs to %s, which is not one of your operating units: its "
+                "settlement is verified at its own branch." % (order.name, unit.display_name)
+            )
+        if (
+            order.payment_settlement_state == "settled"
+            and not order.settlement_verified
+            and order.settlement_source == "field_collection"
+            and (order.settlement_tender or "cash") == "cash"
+        ):
+            FieldOrder = self.env.get("fix.field.order")
+            in_drawer = FieldOrder is not None and FieldOrder.sudo().search_count(
+                [("order_id", "=", order.id), ("cash_shift_id", "!=", False)]
+            )
+            if not in_drawer:
+                raise UserError(
+                    "The field cash of %s is not in a drawer yet: accept it into the cash shift "
+                    "(Accept Field Cash), which verifies the settlement." % order.name
+                )
 
     def _fd_post_counter_noncash(self):
         """A wallet / card payment at the counter: no drawer cash. The

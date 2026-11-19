@@ -962,7 +962,24 @@ class FixFieldOrder(models.Model):
             if rec.state != "accepted":
                 raise UserError("Technician must accept the order before starting travel.")
             rec._fix_require_assigned_technician("start travel on")
-            rec._guarded().write({"state": "en_route", "en_route_at": fields.Datetime.now()})
+            now = fields.Datetime.now()
+            rec._guarded().write({"state": "en_route", "en_route_at": now})
+            # AUT-FSM-04: the technician departs; M27 tells the customer
+            publish(
+                rec.env,
+                "field.order.en_route",
+                "fix.field.order",
+                rec.id,
+                {
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "service_order_id": rec.order_id.id if rec.order_id else None,
+                    "service_order_ref": rec.order_id.name if rec.order_id else "",
+                    "technician_id": rec.technician_id.id,
+                    "technician_name": rec.technician_id.name,
+                    "en_route_at": fields.Datetime.to_string(now),
+                },
+            )
 
     @staticmethod
     def _fix_parse_position(position):
@@ -1450,12 +1467,27 @@ class FixFieldOrder(models.Model):
             )
         if self.env.su:
             return
-        for rec in self:
-            tech_user = rec.sudo().technician_id.user_id
+        # sudo for the reads: a cashier holds no field-order ACL (the role map
+        # gives role r29 only the cashier groups), so reading the order as the
+        # cashier raised AccessError in a fresh request and field cash could
+        # never be accepted (tests passed only on a warm cache)
+        for rec in self.sudo():
+            tech_user = rec.technician_id.user_id
             if user == tech_user or user == rec.cash_declared_by_id:
                 raise AccessError(
                     "Segregation of duties: the technician who collected the cash of %s, or "
                     "whoever declared it handed over, cannot accept it into a drawer." % rec.name
+                )
+            # the cashier of the order's own branch (operating unit) counts it
+            unit = rec.order_id.operating_unit_id or rec.order_id.branch_id.operating_unit_id
+            if (
+                unit
+                and "operating_unit_ids" in user._fields
+                and unit not in user.operating_unit_ids
+            ):
+                raise AccessError(
+                    "The field cash of %s belongs to %s, which is not one of your operating "
+                    "units: a cashier of that branch accepts it." % (rec.name, unit.display_name)
                 )
 
     def _fix_field_cash_settlement_recorded(self) -> bool:
@@ -1478,7 +1510,10 @@ class FixFieldOrder(models.Model):
         finance bridge raises its receipt on verification)."""
         self._fix_require_field_cash_acceptor()
         Shift = self.env["fix.cash.shift"]
-        for rec in self:
+        # the authority checks above are this action's; the reads are sudo
+        # (the cashier holds no field-order ACL). The M01 verification below
+        # runs as the cashier, so its segregation of duties applies to her.
+        for rec in self.sudo():
             if rec.state != "completed" or rec.onsite_payment_state != "pending_acceptance":
                 raise UserError(
                     "Order %s has no declared field cash waiting for a cashier (payment "
@@ -1530,7 +1565,7 @@ class FixFieldOrder(models.Model):
             pay_state = "pending_settlement"
             if rec._fix_field_cash_settlement_recorded():
                 # as the cashier: segregation of duties and the M20 receipt
-                order.action_verify_settlement()
+                order.with_env(self.env).action_verify_settlement()
                 pay_state = "settled" if order.sudo().settlement_verified else "pending_settlement"
             rec.sudo()._guarded().write({"onsite_payment_state": pay_state})
             rec.sudo().message_post(

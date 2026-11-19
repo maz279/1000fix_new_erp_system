@@ -131,3 +131,19 @@ def test_f20_cod_today_is_cash_handed_over_not_drafts(c):
     assert m03.kpis(c.env)["cod_today"] == 0.0  # a draft sheet is not cash handed over
     s.with_user(c.acct).action_submit()
     assert m03.kpis(c.env)["cod_today"] == 1200.0
+
+
+def test_a_recovery_into_another_companys_journal_is_refused(c):
+    """A02 ERP review (20 Nov 2026): the repayment journal must be the
+    settlement's own company's, or the rider's money lands in another
+    company's bank while this company's shortage is cleared."""
+    s = _short(c)
+    other = c.env["res.company"].create({"name": "Other company COD probe"})
+    journal = c.env["account.journal"].create(
+        {"name": "Other bank", "code": "OBXP", "type": "bank", "company_id": other.id}
+    )
+    with pytest.raises(UserError, match="belongs to"):
+        s.with_user(c.mgr).action_mark_recovered(
+            reference="RCPT-X", method="cash", journal_id=journal.id
+        )
+    assert s.recovery_state == "open"

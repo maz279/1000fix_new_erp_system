@@ -233,6 +233,8 @@ def test_f8_passcode_needs_consent_is_masked_and_purged(w):
 # ===================================================================== M01-F9
 def test_f9_ber_needs_photo_evidence_and_a_second_technician(w):
     t1, t2 = _tech(w, "ber_one"), _tech(w, "ber_two")
+    for t in (t1, t2):  # BRU-SRM-12: technicians, not merely employees
+        t.write({"group_ids": [Command.link(w.env.ref(so_mod.GROUP_QC_INSPECTOR).id)]})
     o = order(w)
     o.action_intake()
     o.action_start_diagnostic()
@@ -243,11 +245,35 @@ def test_f9_ber_needs_photo_evidence_and_a_second_technician(w):
     assert "BRU-SRM-12" in attempt(
         w, lambda: o.with_user(w.clerk).action_cancel(reason_code="unrepairable")
     )
-    photo = w.env["ir.attachment"].create({"name": "ber.png", "datas": base64.b64encode(PNG)})
+    # a photo uploaded to another record is not this device's evidence
+    elsewhere = w.env["ir.attachment"].create(
+        {
+            "name": "other.png",
+            "datas": base64.b64encode(PNG),
+            "res_model": "res.partner",
+            "res_id": w.env.user.partner_id.id,
+        }
+    )
+    o.with_user(w.clerk).write({"ber_photo_attachment_id": elsewhere.id})
+    assert "on order" in attempt(w, lambda: o.with_user(t1).action_mark_unrepairable("burnt"))
+    o.sudo()._guarded().write({"ber_photo_attachment_id": False})
+    photo = w.env["ir.attachment"].create(
+        {"name": "ber.png", "datas": base64.b64encode(PNG), "res_model": o._name, "res_id": o.id}
+    )
     o.with_user(w.clerk).write({"ber_photo_attachment_id": photo.id})
+    # an employee with no technical role (the front-desk clerk) cannot propose
+    clerk_emp = w.clerk.employee_id or w.env["hr.employee"].create(
+        {"name": "clerk emp", "user_id": w.clerk.id}
+    )
+    assert clerk_emp
+    assert "technician" in attempt(
+        w, lambda: o.with_user(w.clerk).action_mark_unrepairable("board burnt")
+    )
     o.with_user(t1).action_mark_unrepairable("board burnt")
     assert (o.state, o.ber_proposed_by) == ("diagnostic", t1)
     assert "proposed by you" in attempt(w, lambda: o.with_user(t1).action_mark_unrepairable("x"))
+    # nor confirm as the second technician
+    assert "TECHNICIAN" in attempt(w, lambda: o.with_user(w.clerk).action_mark_unrepairable("ok"))
     assert "frozen" in attempt(
         w, lambda: o.with_user(w.clerk).write({"ber_photo_attachment_id": False})
     )

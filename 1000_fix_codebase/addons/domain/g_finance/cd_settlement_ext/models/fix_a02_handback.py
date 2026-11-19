@@ -229,6 +229,65 @@ class FixFinanceHandback(models.AbstractModel):
             return "cash"
         return "bank_transfer"
 
+    def _refund_order_receipts(self, order, amount):
+        """Request an M20 refund (fix.ar.refund) of the cancelled order's money
+        from the receipts that hold it, largest first. Returns the refunds and
+        the part of ``amount`` no receipt holds, and whether this call
+        requested them. Replays find the refunds already requested for the
+        order and request nothing twice."""
+        Refund = self.env["fix.ar.refund"].sudo()
+        Receipt = self.env["fix.ar.receipt"].sudo()
+        if "source_order_id" not in Receipt._fields:
+            return Refund, amount, False
+        receipts = Receipt.search(
+            [
+                ("source_order_id", "=", order.id),
+                ("state", "=", "confirmed"),
+                ("is_order_advance", "=", False),
+            ],
+            order="amount desc, id",
+        )
+        tag = "Cancelled service order %s" % order.name
+        done = Refund.search(
+            [
+                ("receipt_id", "in", receipts.ids),
+                ("reason", "=like", tag + "%"),
+                ("state", "!=", "rejected"),
+            ]
+        )
+        if done:
+            return done, round(amount - sum(done.mapped("amount")), 2), False
+        cash_max = float(
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param("cd_billing_engine.refund_cash_max", 10000.0)
+            or 10000.0
+        )
+        refunds = Refund
+        rest = round(amount, 2)
+        for receipt in receipts:
+            if rest <= 0.005:
+                break
+            receipt.invalidate_recordset(["unapplied_amount"])
+            take = round(min(rest, receipt.unapplied_amount), 2)
+            if take <= 0.005:
+                continue
+            method = {"cash": "cash", "bkash": "bkash", "nagad": "nagad"}.get(
+                receipt.method, "bank_transfer"
+            )
+            if method == "cash" and take > cash_max + 0.005:
+                method = "bank_transfer"  # BRU-ARB-11: large cash refunds go to an account
+            refunds |= Refund.create(
+                {
+                    "receipt_id": receipt.id,
+                    "amount": take,
+                    "method": method,
+                    "reason": ("%s (%s)" % (tag, order.cancel_reason_code or "cancelled"))[:250],
+                }
+            )
+            rest = round(rest - take, 2)
+        return refunds, rest, bool(refunds)
+
     @api.model
     def consume_service_order_refund_requested(self, event: dict) -> dict:
         """R8 consumer of service_order.refund_requested (A02 audit M01-12/B2).
@@ -311,6 +370,36 @@ class FixFinanceHandback(models.AbstractModel):
             note.message_post(body="Raised from cancelled order %s: %s" % (order.name, body))
             self._handback_note(order, marker, body)
             return {"model": note._name, "id": note.id, "created": True}
+        # No invoice to credit. The settlement is a confirmed M20 receipt on
+        # the customer's AR (A02 ERP audit): refunding it with a bare M50
+        # instruction emptied AR in the GL but left the receipt "unapplied" in
+        # the sub-ledger, where auto-match offered the refunded money to the
+        # customer's next invoice. The money goes back as an M20 refund of
+        # that receipt (accountant authorises, treasury pays), which takes it
+        # off the receipt; only money no receipt holds (an order settled
+        # before receipts existed) is still a direct treasury instruction.
+        refunds, amount, created = self._refund_order_receipts(order, amount)
+        if refunds and amount <= 0.005:
+            if not created:  # a replay: requested already, nothing more
+                return {"model": refunds._name, "id": refunds[:1].id, "created": False}
+            body = (
+                "M20 refund %s of BDT %.2f requested against the order's receipt(s), for an "
+                "accountant to authorise; treasury pays it once authorised."
+                % (
+                    ", ".join(refunds.mapped("name")),
+                    sum(refunds.mapped("amount")),
+                )
+            )
+            self._handback_note(order, marker, body)
+            return {"model": refunds._name, "id": refunds[:1].id, "created": True}
+        if refunds and created:
+            self._handback_note(
+                order,
+                marker,
+                "M20 refund %s of BDT %.2f requested against the order's receipt(s); the other "
+                "BDT %.2f is held on no receipt and goes to treasury directly."
+                % (", ".join(refunds.mapped("name")), sum(refunds.mapped("amount")), amount),
+            )
         pay = self._handback_instruction(
             order,
             {

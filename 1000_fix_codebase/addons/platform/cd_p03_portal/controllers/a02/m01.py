@@ -412,11 +412,24 @@ def wip_ageing_report(env, **params):
     }
 
 
+def _dhaka_day_start_utc(day):
+    """00:00 of a Dhaka business day as the naive-UTC datetime the ORM stores."""
+    import pytz
+
+    tz = pytz.timezone("Asia/Dhaka")
+    start = tz.localize(datetime.datetime.combine(fields.Date.to_date(day), datetime.time.min))
+    return start.astimezone(pytz.utc).replace(tzinfo=None)
+
+
 def _period(domain, field, date_from=None, date_to=None):
+    """``field`` within the Dhaka days date_from..date_to. The bounds were UTC
+    days, so an order resolved between 00:00 and 06:00 Dhaka counted on the
+    previous day (A02 ERP review, 20 Nov 2026; M02-M31 already used Dhaka)."""
     if date_from:
-        domain.append((field, ">=", date_from))
+        domain.append((field, ">=", _dhaka_day_start_utc(date_from)))
     if date_to:
-        domain.append((field, "<=", "%s 23:59:59" % date_to))
+        end = _dhaka_day_start_utc(date_to) + datetime.timedelta(days=1)
+        domain.append((field, "<", end))
     return domain
 
 

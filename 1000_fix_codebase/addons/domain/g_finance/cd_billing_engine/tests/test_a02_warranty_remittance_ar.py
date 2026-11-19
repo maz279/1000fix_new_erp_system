@@ -72,3 +72,63 @@ def test_a_short_remittance_leaves_the_rest_owing(remit):
     assert w.invoice.state == "issued"
     assert round(w.invoice.amount_residual, 2) == round(total - 1000.0, 2)
     assert w.claim.remittance_mismatch
+
+
+# A02 ERP review (20 Nov 2026): a remittance is booked once.
+def _finance_receipt(w, amount, reference):
+    receipt = (
+        w.env["fix.ar.receipt"]
+        .sudo()
+        .create(
+            {
+                "company_id": w.invoice.company_id.id,
+                "customer_id": w.invoice.customer_id.id,
+                "amount": amount,
+                "method": "bank_transfer",
+                "reference": reference,
+            }
+        )
+    )
+    receipt.action_confirm()
+    return receipt
+
+
+def test_a_remittance_finance_already_booked_is_matched_not_booked_again(remit):
+    w = remit
+    w.invoice.sudo().action_issue()
+    total = w.invoice.total_payable
+    booked = _finance_receipt(w, total, "BANK-BYHAND")
+    before = w.env["fix.ar.receipt"].search_count([])
+    w.claim.with_user(w.officer).action_record_remittance(w.claim.approved_amount, "BANK-BYHAND")
+    assert w.env["fix.ar.receipt"].search_count([]) == before  # no second Dr bank
+    assert w.claim.remittance_receipt_ids == booked
+    w.invoice.invalidate_recordset()
+    assert w.invoice.state == "paid"
+
+
+def test_a_remittance_on_a_paid_invoice_is_not_booked_twice(remit):
+    w = remit
+    w.invoice.sudo().action_issue()
+    total = w.invoice.total_payable
+    other = _finance_receipt(w, total, "BANK-OTHER-REF")
+    w.env["fix.ar.allocation"].sudo().create(
+        {"receipt_id": other.id, "invoice_id": w.invoice.id, "amount": total}
+    )
+    w.invoice.invalidate_recordset()
+    assert w.invoice.state == "paid"
+    before = w.env["fix.ar.receipt"].search_count([])
+    w.claim.with_user(w.officer).action_record_remittance(w.claim.approved_amount, "BANK-LATE")
+    assert w.env["fix.ar.receipt"].search_count([]) == before
+    assert not w.claim.remittance_receipt_ids
+
+
+def test_a_remittance_in_two_parts_keeps_both_bank_references(remit):
+    w = remit
+    half = round(w.claim.approved_amount / 2, 2)
+    w.claim.with_user(w.officer).action_record_remittance(half, "BANK-P1")
+    w.claim.with_user(w.officer).action_record_remittance(
+        round(w.claim.approved_amount - half, 2), "BANK-P2"
+    )
+    w.invoice.sudo().action_issue()
+    (receipt,) = w.claim.remittance_receipt_ids
+    assert "BANK-P1" in receipt.reference and "BANK-P2" in receipt.reference

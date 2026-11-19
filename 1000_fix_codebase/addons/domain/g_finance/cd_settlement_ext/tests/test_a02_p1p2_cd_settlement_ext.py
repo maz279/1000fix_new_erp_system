@@ -130,6 +130,24 @@ def _executions(env, record):
     )
 
 
+def _order_refunds(env, order):
+    """M20 refunds (fix.ar.refund) of the receipts that hold the order's money."""
+    receipts = (
+        env["fix.ar.receipt"].sudo().search([("source_order_id", "=", order.id)])
+        if "source_order_id" in env["fix.ar.receipt"]._fields
+        else env["fix.ar.receipt"]
+    )
+    return env["fix.ar.refund"].sudo().search([("receipt_id", "in", receipts.ids)])
+
+
+def _as_legacy(env, order):
+    """An order settled before settlements were M20 receipts: no receipt
+    names it, so its refund is a direct treasury instruction."""
+    if "source_order_id" in env["fix.ar.receipt"]._fields:
+        receipts = env["fix.ar.receipt"].sudo().search([("source_order_id", "=", order.id)])
+        receipts._guarded().write({"source_order_id": False})
+
+
 def _credit_notes(env, record):
     return (
         env["fix.credit.note"]
@@ -270,16 +288,15 @@ def test_a_cancelled_paid_order_raises_a_pending_treasury_refund(so):
     assert o.payment_settlement_state == "refund_due"
     assert not _executions(so.env, o)  # the cancel itself pays nothing
     _relay(so.env)
-    (pay,) = _executions(so.env, o)
-    assert (pay.state, pay.amount, pay.partner_id, pay.method) == (
-        "pending",
-        3450.0,
-        so.customer,
-        "cash",  # settled at the counter: refunded at the counter
-    )
-    # the customer's money sits on AR control (M20's role), so the refund clears it
-    assert pay.debit_account_id == _account(so.env, "121000")
-    assert not _credit_notes(so.env, o)  # no invoice: nothing to credit
+    # A02 ERP review: the counter money is an M20 receipt on the customer's
+    # AR, so it goes back as an M20 refund OF that receipt (an accountant
+    # authorises, treasury pays); a bare instruction left the receipt
+    # "unapplied" and auto-match offered refunded money to the next invoice
+    (refund,) = _order_refunds(so.env, o)
+    assert (refund.state, refund.amount, refund.method) == ("requested", 3450.0, "cash")
+    refund.receipt_id.invalidate_recordset()
+    assert refund.receipt_id.unapplied_amount == 0.0
+    assert not _executions(so.env, o) and not _credit_notes(so.env, o)
     assert _notes(o, "Finance hand-back (refund):") == 1
     (delivery,) = _deliveries(so.env, "service_order.refund_requested", o.id)
     assert delivery.state == "done"
@@ -291,12 +308,20 @@ def test_a_cancelled_paid_order_raises_a_pending_treasury_refund(so):
     result = so.env["fix.finance.handback"].consume_service_order_refund_requested(
         event._relay_event_dict()
     )
-    assert result == {"model": "fix.payment.execution", "id": pay.id, "created": False}
-    assert len(_executions(so.env, o)) == 1 and _notes(o, "Finance hand-back (refund):") == 1
+    assert result == {"model": "fix.ar.refund", "id": refund.id, "created": False}
+    assert len(_order_refunds(so.env, o)) == 1 and _notes(o, "Finance hand-back (refund):") == 1
+
+    # authorised by an accountant, it is a pending treasury instruction that
+    # clears the customer's AR (Dr AR control / Cr cash)
+    refund.with_user(so.accountant).action_authorise()
+    (pay,) = _executions(so.env, refund)
+    assert (pay.state, pay.amount) == ("pending", 3450.0)
+    assert pay.debit_account_id == _account(so.env, "121000")
 
 
 def test_a_refund_instruction_is_pinned_to_its_source(so):
     o = _paid_order(so)
+    _as_legacy(so.env, o)  # the direct-instruction path: no receipt holds the money
     o.with_user(so.supervisor).action_cancel(reason_code="customer_declined")
     _relay(so.env)
     (pay,) = _executions(so.env, o)
@@ -404,8 +429,8 @@ def test_a_forged_refund_event_is_refused(so):
     assert (
         "record says BDT 3450.00" in deliveries.filtered(lambda d: d.state == "failed").last_error
     )
-    (pay,) = _executions(so.env, cancelled)
-    assert pay.amount == 3450.0
+    (refund,) = _order_refunds(so.env, cancelled)
+    assert refund.amount == 3450.0
 
 
 def test_the_consumers_refuse_a_non_superuser(so):

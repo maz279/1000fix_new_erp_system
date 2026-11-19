@@ -138,10 +138,17 @@ def test_lifecycle_emits_dispatch_accept_events(fs):
     order.action_complete()
     assert order.state == "completed"
     # A02 audit B2: completion now also publishes the M01 hand-back
-    dispatched, accepted, completed = _events(env, "fix.field.order", order.id)
-    assert (dispatched.event_type, accepted.event_type, completed.event_type) == (
+    # A02 ERP review: starting travel tells the customer (AUT-FSM-04)
+    dispatched, accepted, en_route, completed = _events(env, "fix.field.order", order.id)
+    assert (
+        dispatched.event_type,
+        accepted.event_type,
+        en_route.event_type,
+        completed.event_type,
+    ) == (
         "field.order.dispatched",
         "field.order.accepted",
+        "field.order.en_route",
         "field.order.completed",
     )
     assert json.loads(dispatched.payload) == {

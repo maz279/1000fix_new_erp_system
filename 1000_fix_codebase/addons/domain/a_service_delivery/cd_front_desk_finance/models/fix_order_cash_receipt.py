@@ -22,7 +22,9 @@
 # High-value cash: the statutory NID is the M04 High-Value Cash ID Check on the
 # order, which keeps only the last 4 digits; the receipt takes that check as
 # its NID evidence instead of a typed number.
+import pytz
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account
 from odoo.exceptions import UserError
 
 from .fix_counter_sale_posting import resolve_account
@@ -63,8 +65,25 @@ class FixServiceOrderSettlementReceipt(models.Model):
             Check = self.env["fix.cash.id.check"]
             for order in self:
                 Check._hv_require(order, float(amount_bdt or 0.0), True)
+        self.ensure_one()
+        # A top-up adds to a verified settlement. The receipt books exactly the
+        # money THIS call took, by THIS call's tender and reference: the order's
+        # settlement_tender / settlement_source / invoice_ref describe the first
+        # payment (a bKash settlement topped up in cash booked the cash to the
+        # bKash clearing, and a top-up on an order first settled from an M20
+        # receipt booked nothing at all; A02 ERP review, 20 Nov 2026).
+        before = (
+            self.amount_settled_bdt or 0.0
+            if self.payment_settlement_state == "settled" and self.settlement_verified
+            else 0.0
+        )
         result = super()._fix_record_settlement(amount_bdt, reference, source)
-        self._fdf_receipt_if_verified()
+        if source == "counter" and self.settlement_verified:
+            taken = round((self.amount_settled_bdt or 0.0) - before, 2)
+            if taken > 0.005:
+                self._fdf_raise_settlement_receipt(
+                    taken, tender=fd_tender(self.env), reference=reference
+                )
         return result
 
     def action_verify_settlement(self):
@@ -73,13 +92,13 @@ class FixServiceOrderSettlementReceipt(models.Model):
         return result
 
     def _fdf_receipt_if_verified(self):
-        """Raise the receipt for whatever verified counter / field money the
-        books do not hold yet: the settlement, or a later top-up."""
+        """Raise the receipt for a field collection once a cashier verifies
+        it (a counter settlement raises its own when it is taken)."""
         for order in self:
             if not (
                 order.payment_settlement_state == "settled"
                 and order.settlement_verified
-                and order.settlement_source in ("counter", "field_collection")
+                and order.settlement_source == "field_collection"
             ):
                 continue
             if order._fdf_existing_m20_receipt():
@@ -109,6 +128,9 @@ class FixServiceOrderSettlementReceipt(models.Model):
         self.ensure_one()
         if self.settlement_source != "field_collection" or not self.invoice_ref:
             return self.env["fix.ar.receipt"]
+        # the customer's own receipt only: another customer's receipt carrying
+        # the same TrxID must not stand in for this order's money
+        partner = self.customer_id.commercial_partner_id
         return (
             self.env["fix.ar.receipt"]
             .sudo()
@@ -116,6 +138,7 @@ class FixServiceOrderSettlementReceipt(models.Model):
                 [
                     ("state", "=", "confirmed"),
                     ("source_order_id", "in", (False, self.id)),
+                    ("is_order_advance", "=", False),
                     (
                         "id",
                         "not in",
@@ -129,18 +152,19 @@ class FixServiceOrderSettlementReceipt(models.Model):
                     "|",
                     ("name", "=", self.invoice_ref),
                     ("reference", "=", self.invoice_ref),
-                ],
-                limit=1,
+                ]
             )
+            .filtered(lambda r: r.customer_id.commercial_partner_id == partner)[:1]
         )
 
     # ------------------------------------------------------------ the receipt
-    def _fdf_raise_settlement_receipt(self, amount):
+    def _fdf_raise_settlement_receipt(self, amount, tender=None, reference=None):
         self.ensure_one()
         amount = round(amount or 0.0, 2)
         if amount <= 0:
             return self.env["fix.ar.receipt"]
-        tender = self.settlement_tender or "cash"
+        tender = tender or self.settlement_tender or "cash"
+        reference = (reference or "").strip() or self.invoice_ref
         method = TENDER_RECEIPT_METHOD.get(tender)
         if not method:
             raise UserError(
@@ -170,14 +194,15 @@ class FixServiceOrderSettlementReceipt(models.Model):
                     "customer_id": self.customer_id.id,
                     "amount": amount,
                     "method": method,
-                    "reference": self.invoice_ref,
-                    "receipt_date": fields.Date.context_today(self),
+                    "reference": reference,
+                    "receipt_date": dhaka_today(),
                     "source_order_id": self.id,
                     "cash_id_check_id": check.id or False,
                 }
             )
         )
         receipt.action_confirm()
+        assert_receipt_posted(receipt, "Settlement of %s" % self.name)
         if not self.settlement_receipt_id:
             self._guarded().write({"settlement_receipt_id": receipt.id})
         self.message_post(
@@ -193,6 +218,30 @@ class FixServiceOrderSettlementReceipt(models.Model):
 
 def fd_tender(env) -> str:
     return env.context.get("fd_settlement_tender") or "cash"
+
+
+def dhaka_today():
+    """The business day in Dhaka (UTC+6), whoever is signed in: a payment
+    taken between 00:00 and 06:00 local belongs to that local day."""
+    now = fields.Datetime.now().replace(tzinfo=pytz.UTC)
+    return now.astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
+def assert_receipt_posted(receipt, what):
+    """Money taken for an order is on the books or not taken at all. M20
+    confirms a receipt with only a gl_note when it cannot post (no AR
+    control, no general journal); for counter / field money that would be
+    cash in hand with no ledger entry, so the payment rolls back instead.
+    A company with no AR control account at all (no GL configured) is the
+    one case M20 itself records as 'not posted'."""
+    if receipt.posted_move_id:
+        return
+    if not _ar_account(receipt.env, receipt.company_id, "ar"):
+        return
+    raise UserError(
+        "%s refused: receipt %s could not be posted to the ledger (%s)."
+        % (what, receipt.name, receipt.gl_note or "no journal entry")
+    )
 
 
 class FixArReceiptServiceOrder(models.Model):

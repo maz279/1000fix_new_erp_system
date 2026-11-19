@@ -18,6 +18,7 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from .fix_counter_sale_posting import resolve_account
+from .fix_order_cash_receipt import assert_receipt_posted, dhaka_today
 
 FEE_CHANNEL_METHOD = {"cash": "cash", "bkash": "bkash", "nagad": "nagad", "card": "card"}
 
@@ -48,8 +49,10 @@ class FixWalkinIntakeFeeReceipt(models.Model):
         method = FEE_CHANNEL_METHOD.get(self.payment_channel or "")
         if fee <= 0 or not method or self.diagnostic_fee_receipt_id:
             return self.env["fix.ar.receipt"]
-        if method == "cash" and not self.diagnostic_fee_shift_id:
-            return self.env["fix.ar.receipt"]  # taken outside any drawer (branch switch off)
+        # Cash taken with no open shift (the branch switched the shift rule
+        # off) is still the customer's money: it is booked like any counter
+        # settlement taken the same way (Dr drawer cash / Cr AR), so the
+        # repair settlement nets it instead of charging the fee again.
         order = self.service_order_id
         company = self.company_id or self.env.company
         if method == "cash":
@@ -71,13 +74,14 @@ class FixWalkinIntakeFeeReceipt(models.Model):
                     "method": method,
                     "reference": (self.payment_trx_ref or "").strip()
                     or "DIAG/%s" % (self.display_name or self.id),
-                    "receipt_date": fields.Date.context_today(self),
+                    "receipt_date": dhaka_today(),
                     "source_order_id": order.id if order else False,
                     "is_order_advance": True,
                 }
             )
         )
         receipt.action_confirm()
+        assert_receipt_posted(receipt, "Diagnostic fee of %s" % self.display_name)
         self._guarded().write({"diagnostic_fee_receipt_id": receipt.id})
         self.message_post(
             body="Diagnostic fee BDT %.2f posted to the books as receipt %s%s."

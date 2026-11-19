@@ -679,7 +679,13 @@ def test_cancelling_a_settled_order_raises_the_refund_hand_off(w):
     o = order(w)
     approved(w, o, 3000)
     o.with_user(w.cashier).action_mark_settled("POS-55", 3450.0)
-    o.with_user(w.clerk).action_cancel(reason_code="customer_declined")
+    # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
+    assert "only a Service Supervisor" in attempt(
+        w, lambda: o.with_user(w.clerk).action_cancel(reason_code="customer_declined")
+    )
+    from odoo.addons.cd_service_order.tests.test_a02_p1p2_cd_service_order import supervisor
+
+    o.with_user(supervisor(w)).action_cancel(reason_code="customer_declined")
     assert o.payment_settlement_state == "refund_due"
     ev = w.env["fix.event.outbox"].search(
         [("event_type", "=", "service_order.refund_requested"), ("aggregate_id", "=", o.id)]
@@ -913,10 +919,12 @@ def test_mark_unrepairable_needs_a_reason_and_cancels(w):
     # technician (the full flow: test_a02erp_m01_b5.test_f9_*)
     techs = []
     for login in ("ber_a", "ber_b"):
-        user = _user(w.env, login)
+        user = _user(w.env, login, ("cd_service_order.group_so_qc_inspector",))
         w.env["hr.employee"].create({"name": user.name, "user_id": user.id})
         techs.append(user)
-    photo = w.env["ir.attachment"].create({"name": "ber.png", "datas": _PNG_B64})
+    photo = w.env["ir.attachment"].create(
+        {"name": "ber.png", "datas": _PNG_B64, "res_model": o._name, "res_id": o.id}
+    )
     o.with_user(w.clerk).write({"ber_photo_attachment_id": photo.id})
     o.with_user(techs[0]).action_mark_unrepairable("Board corroded beyond repair")
     assert o.state == "diagnostic"

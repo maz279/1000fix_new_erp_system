@@ -66,6 +66,19 @@ class FixCounterSaleMethod(models.Model):
         return super().write(vals)
 
 
+# the header values the drafted sales copy: changing one re-drafts them
+BASKET_HEADER_FIELDS = frozenset(
+    {
+        "payment_method_id",
+        "transaction_ref",
+        "customer_id",
+        "branch_id",
+        "operating_unit_id",
+        "company_id",
+    }
+)
+
+
 class FixCounterBasket(models.Model):
     _name = "fix.counter.basket"
     _description = "Counter Basket (multi-item counter sale)"
@@ -128,13 +141,25 @@ class FixCounterBasket(models.Model):
             raise UserError("A basket is confirmed by its action only.")
         if set(vals) - {"state"} and any(b.state != "draft" for b in self):
             raise UserError("A confirmed basket is final; refund its sales instead.")
-        return super().write(vals)
+        result = super().write(vals)
+        # The sales are drafted from the header too: a basket switched from
+        # bKash to cash (or to another TrxID / customer / branch) while a
+        # price approval was pending would otherwise confirm sales that post
+        # the old tender (A02 ERP review, 20 Nov 2026).
+        if set(vals) & BASKET_HEADER_FIELDS:
+            self._fdf_drop_draft_sales()
+        return result
 
     def _fdf_drop_draft_sales(self):
         """A changed basket drops the draft sales drafted from its old lines
         (and their price requests): a stale price is never confirmed."""
         drafts = self.sudo().sale_ids.filtered(lambda s: s.state == "draft")
         if drafts:
+            # a price approval still waiting in an approver's M63 inbox is
+            # withdrawn with the sale it was asked for (the request is
+            # evidence and stays, voided), never left pointing at nothing
+            if hasattr(drafts, "_approval_void"):
+                drafts._approval_void("the basket changed; its sales are drafted again")
             drafts.unlink()
 
     def action_confirm(self):

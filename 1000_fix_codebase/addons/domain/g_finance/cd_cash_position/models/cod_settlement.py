@@ -597,6 +597,16 @@ class FixCodSettlement(models.Model):
                     if journal_id
                     else rec.remittance_journal_id
                 )
+                if journal and journal.company_id != rec.company_id:
+                    raise UserError(
+                        "Journal %s belongs to %s; settlement %s is %s's money."
+                        % (
+                            journal.display_name,
+                            journal.company_id.name,
+                            rec.name,
+                            rec.company_id.name,
+                        )
+                    )
                 debit_account = bank_account_of(journal)
                 label = "Rider repaid shortage %s (%s)" % (rec.name, ref)
             else:

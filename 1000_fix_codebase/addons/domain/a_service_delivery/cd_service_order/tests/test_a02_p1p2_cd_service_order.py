@@ -309,7 +309,8 @@ def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
     o.with_user(w.cashier).action_mark_settled(amount_bdt=3450.0, reference="CASH-P1-2")
     leg = _leg(w, o, "delivery")
     leg._guarded().write({"state": "confirmed"})
-    o.with_user(w.clerk).action_cancel(reason="customer_declined: will not collect")
+    # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
+    o.with_user(supervisor(w)).action_cancel(reason="customer_declined: will not collect")
     assert (o.state, o.payment_settlement_state) == ("cancelled", "refund_due")
     assert leg.state == "returned"
 
@@ -391,10 +392,12 @@ def test_unrepairable_from_a_failed_qc(w):
     # A02 ERP audit M01-F9 / BRU-SRM-12: photo evidence and a second technician
     techs = []
     for login in ("ber_qc_a", "ber_qc_b"):
-        user = _user(w.env, login)
+        user = _user(w.env, login, ("cd_service_order.group_so_qc_inspector",))
         w.env["hr.employee"].create({"name": user.name, "user_id": user.id})
         techs.append(user)
-    photo = w.env["ir.attachment"].create({"name": "ber.png", "datas": _PNG_B64})
+    photo = w.env["ir.attachment"].create(
+        {"name": "ber.png", "datas": _PNG_B64, "res_model": o._name, "res_id": o.id}
+    )
     o.with_user(w.clerk).write({"ber_photo_attachment_id": photo.id})
     o.with_user(techs[0]).action_mark_unrepairable("Board corroded after rework")
     o.with_user(techs[1]).action_mark_unrepairable("Confirmed on the bench")

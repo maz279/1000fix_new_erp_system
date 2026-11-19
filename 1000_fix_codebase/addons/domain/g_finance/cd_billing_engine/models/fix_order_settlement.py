@@ -15,10 +15,12 @@
 #    so the invoice is raised at delivery; the hourly service_order.closed
 #    drain stays as the safety net (idempotent on the order).
 import logging
+from decimal import ROUND_HALF_UP, Decimal
 
-from odoo import fields, models
+from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .fix_billing_engine import TWO_PLACES, allocate_discount
 from .fix_finance_approval import GROUP_ADMINISTRATOR, has_role
 
 _logger = logging.getLogger(__name__)
@@ -102,7 +104,8 @@ class FixServiceOrderSettlementReceipts(models.Model):
                     "%s is on credit hold (%s)."
                     % (customer.display_name, profile.hold_reason or "no reason recorded")
                 )
-            room = round(profile.credit_limit - (profile.exposure or 0.0), 2)
+            exposure = order._fix_live_credit_exposure(customer, company)
+            room = round(profile.credit_limit - exposure, 2)
             if due > room + 0.005:
                 raise UserError(
                     "Order %s owes BDT %.2f; %s has BDT %.2f left under its BDT %.2f limit."
@@ -118,9 +121,52 @@ class FixServiceOrderSettlementReceipts(models.Model):
             order.message_post(
                 body="Released on credit by %s: BDT %.2f on account (limit BDT %.2f, exposure "
                 "BDT %.2f). The tax invoice is raised at delivery and collected on terms."
-                % (self.env.user.name, due, profile.credit_limit, profile.exposure or 0.0)
+                % (self.env.user.name, due, profile.credit_limit, exposure)
             )
         return True
+
+    def _fix_live_credit_exposure(self, customer, company) -> float:
+        """What the customer owes on account right now, read at the moment of
+        release (the profile's stored exposure is recomputed only when its
+        limit or customer changes, so it went stale; and it counted neither
+        invoices raised on the customer's contact persons nor orders already
+        released on credit that are not invoiced yet, so a Finance Manager
+        could release order after order against the same room):
+          open residuals of issued invoices of the commercial partner and its
+          contacts in the company
+        + the amount due of the customer's OTHER orders released on credit
+          that carry no invoice yet."""
+        self.ensure_one()
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        invoices = Invoice.search(
+            [
+                ("customer_id", "child_of", customer.id),
+                ("state", "=", "issued"),
+                ("company_id", "=", company.id),
+            ]
+        )
+        exposure = sum(invoices.mapped("amount_residual"))
+        others = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("customer_id", "child_of", customer.id),
+                ("company_id", "=", company.id),
+                ("payment_settlement_state", "=", "credit_approved"),
+                ("state", "not in", ("cancelled",)),
+            ]
+        )
+        if others:
+            invoiced = set(
+                Invoice.search(
+                    [
+                        ("source_model", "=", "fix.service.order"),
+                        ("source_id", "in", others.ids),
+                        ("state", "!=", "cancelled"),
+                    ]
+                ).mapped("source_id")
+            )
+            exposure += sum(o._fix_amount_due() for o in others if o.id not in invoiced)
+        return round(exposure, 2)
 
     def _fix_settlement_receipts(self):
         """Confirmed fix.ar.receipt records that paid this order: those that
@@ -209,3 +255,49 @@ class FixServiceOrderSettlementReceipts(models.Model):
             return False
         self.message_post(body="Tax invoice %s raised at delivery." % invoice.name)
         return invoice
+
+
+class FixEstimateInvoiceVat(models.Model):
+    """The estimate charges the VAT its invoice will charge.
+
+    The estimate took VAT once on the header (subtotal x rate, unrounded);
+    the invoice (from_closed_service_order) allocates the header discount
+    over the lines and rounds VAT half-up per line, as M51 requires. The
+    customer settled the estimate's grand total, so any paisa between the
+    two left the invoice open on a few paisa (aged, dunned) or the receipt
+    over-applied (A02 ERP review, 20 Nov 2026). The estimate now computes
+    its VAT the invoice's way, so what is collected is what is invoiced."""
+
+    _inherit = "fix.estimate"
+
+    @api.depends(
+        "line_ids.line_total",
+        "line_ids.line_type",
+        "line_ids.quantity",
+        "line_ids.unit_price",
+        "discount",
+        "vat_rate",
+    )
+    def _compute_totals(self):
+        super()._compute_totals()
+        for est in self:
+            if not est.line_ids:
+                continue
+            grosses = [
+                (Decimal(str(line.quantity or 1)) * Decimal(str(line.unit_price or 0.0))).quantize(
+                    TWO_PLACES, ROUND_HALF_UP
+                )
+                for line in est.line_ids
+            ]
+            total = sum(grosses, Decimal("0"))
+            discount = Decimal(str(est.discount or 0.0))
+            if total <= 0 or discount > total:
+                continue  # the estimate's own constraint refuses it
+            rate = Decimal(str(est.vat_rate or 0.0))
+            vat = Decimal("0")
+            for gross, share in zip(grosses, allocate_discount(grosses, discount), strict=True):
+                taxable = (gross - share).quantize(TWO_PLACES, ROUND_HALF_UP)
+                vat += (taxable * rate / Decimal("100")).quantize(TWO_PLACES, ROUND_HALF_UP)
+            subtotal = total - discount.quantize(TWO_PLACES, ROUND_HALF_UP)
+            est.vat_amount = float(vat)
+            est.grand_total = float(subtotal + vat)
