@@ -103,6 +103,22 @@ Private clone `fix_test_m37c3` (from fix_test_m25c2, upgraded with this pass's f
 | test_a04_register_reconciliation::test_f5 | under half of A04 forms carry a document vault (62/160). Every form added here has one. |
 | cd_competency test_a09_m22_controls / round2 (4) | M22 dispatch surface and work-order flags (M22) |
 
+### 5.2 Deployment (user-approved, 19 Nov 2026)
+
+- **Landed** a1d445cb (code) and 1c234e57 (report) on `fix/a03-live-data-and-pending-work`, by fast-forward with a compare-and-swap ref update; **pushed** together with `fix/m37-capture-pass3`.
+- **Backups:** `_migration/backups/fix_{real,dev}_pre_m37_capture3_2026-11-19.dump` (53 MB and 49 MB).
+- **Upgrade:** `-u cd_catalogue,cd_service_order,cd_competency,cd_warranty_claims,cd_p03_portal,cd_partner` on fix_real, then on fix_dev. Both rc 0, with no ERROR and no missing table (155 and 151 modules). `cd_partner` (M40's) was in the version gap and is included by agreement with the M40 session.
+- **Restart:** one restart of 8069 / 8090 at 13:24 UTC, done by the M40 session after both upgrades had exited. The gap check came back empty: 8069 = PID 60036, 8090 = PID 83644.
+- **Live read-only checks, on both DBs:**
+  - module versions 1.4.0 / 2.3.0 / 0.5.0 / 2.3.0;
+  - the six new tables, 14 new ACL rows and 6 isolation rules exist;
+  - the served bundle `01944e2` carries the new screens.
+- **Live headless walk** on 8069 (fix_real) and on 8090 (fix_dev), signed in with the dev login, with no saves:
+  - all 13 pages show their "+ New";
+  - the five new chips open their forms;
+  - 12 lists and 12 new or changed forms render their new tabs and sections;
+  - **0 console errors** on either estate.
+
 ## 6. fix_real facts (read-only, 19 Nov)
 
 16,178 items, of which 78 are service / inspection items and 0 labour (repair operation) items; 0 device models; 24 fault codes; 0 rBOM lines; 5 refurb grades; 0 rental SKUs; 0 kits; 0 protection products; 4 competencies; 1,357 categories. Nobody holds Catalogue Officer directly; admin holds Publisher, which implies Officer.
