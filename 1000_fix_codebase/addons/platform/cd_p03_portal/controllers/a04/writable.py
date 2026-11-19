@@ -1016,12 +1016,107 @@ WRITABLE = {
             "statutory_reference",
         }
     ),
-    "fix.storefront.cart": frozenset(),
+    "fix.stock.exposure.policy": frozenset(
+        {
+            "buffer_pct",
+            "buffer_qty",
+            "category_id",
+            "enabled",
+            "location_ids",
+            "max_promise_days",
+            "name",
+            "product_id",
+        }
+    ),
+    "fix.storefront.cart": frozenset(
+        {
+            "client_approval_ref",
+            "client_approver_id",
+            "corporate_account_id",
+            "customer_id",
+            "delivery_address",
+            "delivery_method",
+            "line_ids",
+            "payment_method",
+            "po_reference",
+            "slot_id",
+            "terms_method",
+            "terms_reference",
+        }
+    ),
+    "fix.storefront.cod.rule": frozenset(
+        {
+            "history_value",
+            "max_open_cod_orders",
+            "max_order_value",
+            "min_delivered_orders",
+            "name",
+        }
+    ),
+    "fix.storefront.collection": frozenset(
+        {
+            "anchor_product_id",
+            "audience",
+            "category_id",
+            "code",
+            "collection_type",
+            "name",
+            "name_bn",
+            "product_ids",
+            "sequence",
+            "valid_from",
+            "valid_to",
+        }
+    ),
+    "fix.storefront.content": frozenset(
+        {
+            "audience",
+            "body_bn",
+            "body_en",
+            "code",
+            "content_type",
+            "image",
+            "image_filename",
+            "link_url",
+            "name",
+            "name_bn",
+            "slot",
+            "valid_from",
+            "valid_to",
+        }
+    ),
+    "fix.storefront.corporate.account": frozenset(
+        {
+            "approval_threshold",
+            "approver_ids",
+            "category_ids",
+            "partner_id",
+            "po_required",
+        }
+    ),
     "fix.storefront.order": frozenset(
         {
             "line_ids",
             "shipping_address",
             "shipping_method",
+        }
+    ),
+    "fix.storefront.order.change": frozenset(
+        {
+            "change_type",
+            "new_address",
+            "new_method",
+            "new_slot_id",
+            "order_id",
+            "reason",
+        }
+    ),
+    "fix.storefront.recovery.attempt": frozenset(
+        {
+            "cart_id",
+            "channel",
+            "note",
+            "outcome",
         }
     ),
     "fix.storefront.return": frozenset(
@@ -1038,6 +1133,14 @@ WRITABLE = {
             "refund_amount",
         }
     ),
+    "fix.storefront.return.policy": frozenset(
+        {
+            "category_id",
+            "name",
+            "restocking_fee_pct",
+            "window_days",
+        }
+    ),
     "fix.storefront.rma": frozenset(
         {
             "customer_id",
@@ -1047,6 +1150,18 @@ WRITABLE = {
             "reason",
             "refund_amount",
             "requested_on",
+        }
+    ),
+    "fix.storefront.service.booking": frozenset(
+        {
+            "branch_id",
+            "channel",
+            "customer_id",
+            "device_id",
+            "fault_description",
+            "photo",
+            "photo_filename",
+            "slot_id",
         }
     ),
     "fix.storefront.slot": frozenset(

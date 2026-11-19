@@ -5,7 +5,11 @@
  * Registry-faithful: 4 groups / 11 screens / 6 reports / 4 forms / freg 92.
  * Carts, storefront orders and graded stock are real; RMA and slots are new.
  * Payment mix comes from the order's payment rail; refurb GMV by grade is a
- * declared gap (no order↔grade link). */
+ * declared gap (no order↔grade link).
+ * Capture audit (19 Nov 2026): every sub-module page now captures its own
+ * record - content, collections, assisted/corporate carts, COD rules, order
+ * changes, exposure and return policies, corporate accounts, recovery
+ * contacts and service bookings (cd_storefront fix_storefront_capture.py). */
 
 export const MODULE = {
   area: 'A04', code: 'M38', en: 'E-Commerce Storefront', title: 'M38 · E-Commerce Storefront',
@@ -24,6 +28,8 @@ export const MODULE = {
       { id: 'M38-storefront-return', en: "Storefront Return", bn: "Storefront Return", t: 'g' }
     ]},
     { en: 'Storefront', screens: [
+      { id: 'M38-content', en: 'Banners & Pages', bn: 'ব্যানার ও পেজ', t: 'g' },
+      { id: 'M38-collections', en: 'Collections & Cross-sell', bn: 'কালেকশন', t: 'g' },
       { id: 'M38-storefront', en: 'Storefront Preview', bn: 'স্টোরফ্রন্ট', t: 'r' },
       { id: 'M38-merch', en: 'Merchandising', bn: 'মার্চেন্ডাইজিং', t: 'r' },
       { id: 'M38-compat', en: 'Compatibility Filters', bn: 'কম্প্যাটিবিলিটি', t: 'r' }
@@ -32,32 +38,44 @@ export const MODULE = {
       { id: 'M38-carts', en: 'Carts & Abandonment', bn: 'কার্ট', t: 'g' },
       { id: 'M38-checkout', en: 'Checkout & Payment Orchestration', bn: 'চেকআউট', t: 'r' },
       { id: 'M38-delivery', en: 'Delivery Options', bn: 'ডেলিভারি', t: 'r' },
-      { id: 'M38-slots', en: 'Delivery Slots', bn: 'ডেলিভারি স্লট', t: 'g' }
+      { id: 'M38-slots', en: 'Delivery Slots', bn: 'ডেলিভারি স্লট', t: 'g' },
+      { id: 'M38-cod-rules', en: 'COD Eligibility Rules', bn: 'ক্যাশ অন ডেলিভারি নিয়ম', t: 'g' },
+      { id: 'M38-service-bookings', en: 'Service Bookings', bn: 'সার্ভিস বুকিং', t: 'g' }
     ]},
     { en: 'Orders', screens: [
       { id: 'M38-orders', en: 'Online Orders', bn: 'অনলাইন অর্ডার', t: 'g' },
       { id: 'M38-returns', en: 'Returns & RMA', bn: 'রিটার্ন', t: 'g' },
-      { id: 'M38-stock', en: 'Stock Exposure Policy', bn: 'স্টক এক্সপোজার', t: 'g' }
+      { id: 'M38-order-changes', en: 'Order Changes', bn: 'অর্ডার পরিবর্তন', t: 'g' },
+      { id: 'M38-exposure', en: 'Stock Exposure Policy', bn: 'স্টক এক্সপোজার', t: 'g' },
+      { id: 'M38-stock', en: 'Refurbished Stock (from M15)', bn: 'রিফার্বিশড স্টক', t: 'g' },
+      { id: 'M38-return-policies', en: 'Return Policies', bn: 'রিটার্ন নীতি', t: 'g' }
+    ]},
+    { en: 'B2B Commerce', screens: [
+      { id: 'M38-corporate-accounts', en: 'Corporate Commerce Accounts', bn: 'কর্পোরেট অ্যাকাউন্ট', t: 'g' },
+      { id: 'M38-corporate-orders', en: 'Corporate Orders', bn: 'কর্পোরেট অর্ডার', t: 'g' }
     ]},
     { en: 'Commerce Marketing', screens: [
       { id: 'M38-promos', en: 'Checkout Promotions (from M11)', bn: 'প্রমোশন (M11)', t: 'g' },
-      { id: 'M38-recovery', en: 'Abandoned-Cart Recovery', bn: 'কার্ট রিকভারি', t: 'r' }
+      { id: 'M38-recovery', en: 'Abandoned-Cart Recovery', bn: 'কার্ট রিকভারি', t: 'r' },
+      { id: 'M38-recovery-attempts', en: 'Recovery Contacts', bn: 'রিকভারি যোগাযোগ', t: 'g' }
     ]}
   ],
   reports: ['Funnel & Conversion', 'Payment Method Mix', 'Refurb GMV by Grade', 'Delivery Performance', 'RMA & Returns Report', 'Abandonment Recovery Rate'],
-  forms: ['Online Order', 'RMA Request', 'Storefront Slot', 'Delivery Slot'],
+  forms: ['Online Order', 'RMA Request', 'Storefront Slot', 'Delivery Slot', 'Storefront Content',
+    'Storefront Collection', 'Assisted Cart', 'COD Rule', 'Order Change', 'Stock Exposure Policy',
+    'Return Policy', 'Corporate Commerce Account', 'Corporate Order', 'Cart Recovery Contact', 'Service Booking'],
   cross: ['M20 AR', 'M37 Catalogue', 'M11 Pricing', 'M31 Refurb'],
   freg: { src: 92, sub: [
-    ['1', 'Storefront & Browse', 12, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-storefront', 'M38-rpt-funnel', 'M38-carts'], reports: ['Funnel & Conversion'], forms: [] }],
-    ['2', 'Merchandising', 7, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M38-merch', 'M38-compat', 'M38-stock'], reports: ['Refurb GMV by Grade'], forms: [] }],
-    ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'state', 'customer_id', 'total', 'order_id'], screens: ['M38-carts'], reports: ['Abandonment Recovery Rate'], forms: [] }],
-    ['4', 'Checkout & Payments', 14, { model: 'fix.storefront.order', cols: ['name', 'customer_id', 'payment_rail', 'total_amount', 'state'], screens: ['M38-checkout', 'M38-rpt-pay', 'M38-orders'], reports: ['Payment Method Mix', 'Funnel & Conversion'], forms: [], create: false }],
-    ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['state'], screens: ['M38-orders'], reports: ['Payment Method Mix'], forms: ['Online Order'] }],
-    ['6', 'Stock Exposure', 6, { model: 'fix.graded.stock', cols: ['name', 'state', 'device_id', 'grade_id', 'location_id'], screens: ['M38-stock', 'M38-rpt-refurb'], reports: ['Refurb GMV by Grade'], forms: [] }],
-    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-rpt-rma'], reports: ['RMA & Returns Report'], forms: ['RMA Request'] }],
-    ['8', 'B2B Commerce', 11, { model: 'fix.storefront.return', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'refund_amount'], screens: ['M38-storefront-return'], reports: ['RMA & Returns Report'], forms: [] }],
-    ['9', 'Recovery & Analytics', 9, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-recovery', 'M38-rpt-recovery', 'M38-carts'], reports: ['Abandonment Recovery Rate'], forms: [], domain: [['state', 'in', ['open', 'checkout']]] }],
-    ['10', 'Service Booking Commerce', 6, { model: 'fix.storefront.slot', cols: ['name', 'slot_date', 'capacity', 'booked', 'state'], screens: ['M38-delivery', 'M38-rpt-delivery'], reports: ['Delivery Performance'], forms: ['Storefront Slot', 'Delivery Slot'] }]
+    ['1', 'Storefront & Browse', 12, { model: 'fix.storefront.content', cols: ['name', 'content_type', 'slot', 'audience', 'valid_from', 'valid_to', 'state'], screens: ['M38-content', 'M38-storefront', 'M38-rpt-funnel'], reports: ['Funnel & Conversion'], forms: ['Storefront Content'] }],
+    ['2', 'Merchandising', 7, { model: 'fix.storefront.collection', cols: ['name', 'collection_type', 'anchor_product_id', 'valid_from', 'valid_to', 'state'], screens: ['M38-collections', 'M38-merch', 'M38-compat'], reports: ['Refurb GMV by Grade'], forms: ['Storefront Collection'] }],
+    ['3', 'Cart', 9, { model: 'fix.storefront.cart', cols: ['name', 'channel', 'customer_id', 'state', 'total', 'order_id'], screens: ['M38-carts'], reports: ['Abandonment Recovery Rate'], forms: ['Assisted Cart'] }],
+    ['4', 'Checkout & Payments', 14, { model: 'fix.storefront.cod.rule', cols: ['name', 'max_order_value', 'history_value', 'min_delivered_orders', 'max_open_cod_orders', 'state'], screens: ['M38-cod-rules', 'M38-checkout', 'M38-promos', 'M38-rpt-pay', 'M38-orders'], reports: ['Payment Method Mix', 'Funnel & Conversion'], forms: ['COD Rule'] }],
+    ['5', 'Online Orders', 9, { model: 'fix.storefront.order', cols: ['name', 'customer_id', 'order_date', 'total_amount', 'shipping_method', 'state'], screens: ['M38-orders', 'M38-order-changes'], reports: ['Payment Method Mix'], forms: ['Online Order', 'Order Change'], create: 'M38-form-order-change', createLabel: 'Request Order Change' }],
+    ['6', 'Stock Exposure', 6, { model: 'fix.stock.exposure.policy', cols: ['name', 'product_id', 'category_id', 'buffer_qty', 'buffer_pct', 'enabled', 'state'], screens: ['M38-exposure', 'M38-stock', 'M38-rpt-refurb'], reports: ['Refurb GMV by Grade'], forms: ['Stock Exposure Policy'] }],
+    ['7', 'Returns & RMA', 9, { model: 'fix.storefront.rma', cols: ['name', 'state', 'customer_id', 'order_id', 'reason', 'requested_on', 'refund_amount'], screens: ['M38-returns', 'M38-storefront-return', 'M38-return-policies', 'M38-rpt-rma'], reports: ['RMA & Returns Report'], forms: ['RMA Request', 'Return Policy'] }],
+    ['8', 'B2B Commerce', 11, { model: 'fix.storefront.corporate.account', cols: ['name', 'approval_threshold', 'po_required', 'state'], screens: ['M38-corporate-accounts', 'M38-corporate-orders'], reports: [], forms: ['Corporate Commerce Account', 'Corporate Order'] }],
+    ['9', 'Recovery & Analytics', 9, { model: 'fix.storefront.cart', cols: ['name', 'customer_id', 'state', 'total', 'create_date'], screens: ['M38-recovery', 'M38-recovery-attempts', 'M38-rpt-recovery', 'M38-carts'], reports: ['Abandonment Recovery Rate'], forms: ['Cart Recovery Contact'], domain: [['state', 'in', ['open', 'checkout']]], create: 'M38-form-recovery', createLabel: 'Record Recovery Contact' }],
+    ['10', 'Service Booking Commerce', 6, { model: 'fix.storefront.service.booking', cols: ['name', 'customer_id', 'device_id', 'branch_id', 'slot_id', 'state'], screens: ['M38-service-bookings', 'M38-slots', 'M38-delivery', 'M38-rpt-delivery'], reports: ['Delivery Performance'], forms: ['Service Booking', 'Storefront Slot', 'Delivery Slot'] }]
   ] }
 };
 
@@ -65,9 +83,17 @@ export const SCREENS = {
   'M38-storefront': { kind: 'table_report', module: 'M38', report: 'funnel_conversion', title: 'Storefront Preview', period: false },
   'M38-merch': { kind: 'table_report', module: 'M38', report: 'merchandising', title: 'Merchandising', period: false },
   'M38-compat': { kind: 'table_report', module: 'M38', report: 'stock_availability', title: 'Compatibility Filters', period: false },
-  'M38-carts': { kind: 'model_list', create: false, model: 'fix.storefront.cart', stateField: 'state',
-    cols: ['name', 'customer_id', 'state', 'total', 'order_id'],
-    empty: 'No cart yet. Carts are opened by customers on the online storefront; they are not typed in here.' },
+  /* Capture audit (19 Nov 2026): customers open carts on the storefront;
+   * staff capture an ASSISTED cart for a customer on the phone or at a branch
+   * (spec §13: R08/R34 assisted ordering) - priced by the server, placed
+   * through the same checkout. */
+  'M38-carts': { kind: 'model_list', model: 'fix.storefront.cart', stateField: 'state',
+    cols: ['name', 'channel', 'customer_id', 'state', 'total', 'terms_accepted_at', 'order_id'],
+    empty: 'No cart yet. Customers open carts on the storefront; "+ New" captures an assisted cart for a customer.',
+    actions: [
+      { m: 'action_record_terms', l: 'Record Terms Acceptance', states: ['open', 'checkout'] },
+      { m: 'action_place_assisted_order', l: 'Place Order', states: ['open', 'checkout'] }
+    ] },
   'M38-checkout': { kind: 'table_report', module: 'M38', report: 'checkout_conversion', title: 'Checkout & Payment Orchestration', period: false },
   'M38-delivery': { kind: 'table_report', module: 'M38', report: 'delivery_performance', title: 'Delivery Options', period: false },
   /* A04 audit (2026-11-04) C3: the order lifecycle runs from these buttons;
@@ -94,8 +120,11 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject Return', ask: 'Reason for rejecting', kwarg: 'reason', states: ['requested', 'approved', 'received'] },
       { m: 'action_record_credit_note', l: 'Record M20 Credit Note', ask: 'M20 credit note number (Mushak 6.7)', kwarg: 'credit_note', states: ['refund_approved'] }
     ] },
-  'M38-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state',
-    cols: ['device_id', 'grade_id', 'acquisition_cost', 'state'] },
+  /* Graded refurb units are graded and valued in M14/M15; the storefront
+   * sells them (capture audit 19 Nov 2026: this list offered "+ New"). */
+  'M38-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state', create: false,
+    cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'],
+    empty: 'No refurbished unit yet. Units are graded in M14 and stocked in M15; the storefront sells them.' },
   // Promotions are MASTERED in M11 (Pricing & Rate Cards). This is the
   // storefront's scoped view of that master - online-facing promotions
   // only - not a second copy of it. It used to repeat M11-promos column
@@ -109,6 +138,65 @@ export const SCREENS = {
     actions: [
       { m: 'action_close', l: 'Close Slot', states: ['open', 'full'] },
       { m: 'action_reopen', l: 'Reopen Slot', states: ['closed'] }
+    ] },
+  /* ============ capture audit (19 Nov 2026): the pages' own records ============ */
+  'M38-content': { kind: 'model_list', model: 'fix.storefront.content', stateField: 'state',
+    cols: ['code', 'name', 'name_bn', 'content_type', 'slot', 'audience', 'valid_from', 'valid_to', 'state'],
+    actions: [
+      { m: 'action_publish', l: 'Publish', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'published'] }
+    ] },
+  'M38-collections': { kind: 'model_list', model: 'fix.storefront.collection', stateField: 'state',
+    cols: ['code', 'name', 'name_bn', 'collection_type', 'anchor_product_id', 'category_id', 'valid_from', 'valid_to', 'state'],
+    actions: [
+      { m: 'action_publish', l: 'Publish', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'published'] }
+    ] },
+  'M38-cod-rules': { kind: 'model_list', model: 'fix.storefront.cod.rule', stateField: 'state',
+    cols: ['name', 'max_order_value', 'history_value', 'min_delivered_orders', 'max_open_cod_orders', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Approve & Activate', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'active'] }
+    ] },
+  'M38-order-changes': { kind: 'model_list', model: 'fix.storefront.order.change', stateField: 'state',
+    cols: ['name', 'order_id', 'customer_id', 'change_type', 'reason', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_apply', l: 'Apply Change', states: ['requested'] },
+      { m: 'action_refuse', l: 'Refuse', ask: 'Reason for refusing', kwarg: 'reason', states: ['requested'] }
+    ] },
+  'M38-exposure': { kind: 'model_list', model: 'fix.stock.exposure.policy', stateField: 'state',
+    cols: ['name', 'product_id', 'category_id', 'buffer_qty', 'buffer_pct', 'max_promise_days', 'enabled', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Approve & Activate', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'active'] }
+    ] },
+  'M38-return-policies': { kind: 'model_list', model: 'fix.storefront.return.policy', stateField: 'state',
+    cols: ['name', 'category_id', 'window_days', 'restocking_fee_pct', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Approve & Activate', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'active'] }
+    ] },
+  'M38-corporate-accounts': { kind: 'model_list', model: 'fix.storefront.corporate.account', stateField: 'state',
+    cols: ['name', 'approval_threshold', 'po_required', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Approve & Activate', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire', states: ['draft', 'active'] }
+    ] },
+  'M38-corporate-orders': { kind: 'model_list', model: 'fix.storefront.cart', stateField: 'state',
+    domain: [['corporate_account_id', '!=', false]],
+    cols: ['name', 'corporate_account_id', 'customer_id', 'po_reference', 'total', 'client_approved_at', 'state', 'order_id'],
+    empty: 'No corporate order yet. The Corporate Order chip captures one for an active corporate account.',
+    actions: [
+      { m: 'action_record_client_approval', l: 'Record Client Approval', states: ['open', 'checkout'] },
+      { m: 'action_place_assisted_order', l: 'Place Order', states: ['open', 'checkout'] }
+    ] },
+  'M38-recovery-attempts': { kind: 'model_list', model: 'fix.storefront.recovery.attempt',
+    cols: ['cart_id', 'customer_id', 'cart_total', 'channel', 'outcome', 'contacted_by_id', 'contacted_at', 'converted'] },
+  'M38-service-bookings': { kind: 'model_list', model: 'fix.storefront.service.booking', stateField: 'state',
+    cols: ['name', 'customer_id', 'device_id', 'branch_id', 'slot_id', 'channel', 'service_order_id', 'state'],
+    actions: [
+      { m: 'action_confirm', l: 'Confirm (raise M01 service order)', states: ['requested'] },
+      { m: 'action_cancel', l: 'Cancel Booking', ask: 'Reason for cancelling', kwarg: 'reason', states: ['requested'] }
     ] },
   'M38-recovery': { kind: 'table_report', module: 'M38', report: 'abandonment_recovery', title: 'Abandoned-Cart Recovery', period: false },
 
@@ -281,8 +369,11 @@ export const SCREENS = {
 
 
   /* ===== master-data forms (batch 2) — D365 in-workspace ===== */
+  /* Graded refurb units are created and valued in M14/M15 (capture audit
+   * 19 Nov 2026: the storefront offered "+ New Graded Stock Item"). */
   'M38-form-gstock': { kind: 'model_form', model: 'fix.graded.stock',
-    title: 'Graded Stock Item', back: 'M38-stock',
+    title: 'Graded Stock Item', back: 'M38-stock', create: false,
+    pick: 'A refurbished unit is graded in M14 and stocked in M15: open one from Refurbished Stock.',
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
       { id: 'commercial', label: '2. Commercial', bn: '২. বাণিজ্যিক শর্ত' },
@@ -386,8 +477,311 @@ export const SCREENS = {
         { name: 'write_date', label: 'Last Updated on', readonly: true }
       ] },
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
-    ] }
+    ] },
 
+  /* ===== capture audit (19 Nov 2026): one form per page record ===== */
+  'M38-form-content': { kind: 'model_form', model: 'fix.storefront.content',
+    title: 'Storefront Content', back: 'M38-content',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'content', label: '1. Content', bn: '১. বিষয়বস্তু' },
+      { id: 'placement', label: '2. Placement & Validity', bn: '২. স্থান ও মেয়াদ' },
+      { id: 'docs', label: '3. Image', bn: '৩. ছবি' },
+      { id: 'audit', label: '4. Publication', bn: '৪. প্রকাশ' }
+    ],
+    sections: [
+      { tab: 'content', title: 'Bilingual Content', note: 'Bengali is the storefront default: nothing is published in one language only. A banner needs its image; a page needs its text in both languages. Published content is fixed - retire it and record a new one.', fields: [
+        { name: 'code', required: true, label: 'Code' },
+        { name: 'content_type', required: true, label: 'Type' },
+        { name: 'name', required: true, label: 'Title (English)' },
+        { name: 'name_bn', label: 'Title (Bengali)' },
+        { name: 'body_en', type: 'text', label: 'Content (English)' },
+        { name: 'body_bn', type: 'text', label: 'Content (Bengali)' },
+        { name: 'link_url', label: 'Link' }
+      ] },
+      { tab: 'placement', title: 'Where and When', fields: [
+        { name: 'slot', label: 'Placement Slot' },
+        { name: 'audience', required: true, label: 'Audience' },
+        { name: 'valid_from', required: true, label: 'Valid From' },
+        { name: 'valid_to', label: 'Valid To' }
+      ] },
+      { tab: 'docs', title: 'Banner Image', fields: [
+        { name: 'image', type: 'binary', filename: 'image_filename', label: 'Upload Image' },
+        { name: 'image_filename', label: 'File Name' }
+      ] },
+      { tab: 'audit', title: 'Publication', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'published_by_id', readonly: true, label: 'Published By' },
+        { name: 'published_at', readonly: true, label: 'Published At' }
+      ] }
+    ] },
+
+  'M38-form-collection': { kind: 'model_form', model: 'fix.storefront.collection',
+    title: 'Storefront Collection', back: 'M38-collections',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'set', label: '1. Collection', bn: '১. কালেকশন' },
+      { id: 'items', label: '2. Items', bn: '২. পণ্য' },
+      { id: 'audit', label: '3. Publication', bn: '৩. প্রকাশ' }
+    ],
+    sections: [
+      { tab: 'set', title: 'Merchandising Set', note: 'A cross- or up-sell offers its items on the page and cart line of the item it is shown with. Only items for sale online can be published.', fields: [
+        { name: 'code', required: true, label: 'Code' },
+        { name: 'collection_type', required: true, label: 'Type' },
+        { name: 'name', required: true, label: 'Name (English)' },
+        { name: 'name_bn', label: 'Name (Bengali)' },
+        { name: 'sequence', label: 'Display Order' },
+        { name: 'audience', required: true, label: 'Audience' },
+        { name: 'valid_from', required: true, label: 'Valid From' },
+        { name: 'valid_to', label: 'Valid To' }
+      ] },
+      { tab: 'items', title: 'What It Holds', fields: [
+        { name: 'anchor_product_id', label: 'Shown With (cross- / up-sell)' },
+        { name: 'product_ids', label: 'Items' },
+        { name: 'category_id', label: 'Rule: Every Item of Category' }
+      ] },
+      { tab: 'audit', title: 'Publication', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'published_by_id', readonly: true, label: 'Published By' },
+        { name: 'published_at', readonly: true, label: 'Published At' }
+      ] }
+    ] },
+
+  /* An assisted or corporate cart: the staff capture of a customer's order.
+   * Prices are the server's; the order is placed through the storefront
+   * checkout with every storefront rule (exposure, COD, terms, corporate
+   * approval). */
+  'M38-form-cart': { kind: 'model_form', model: 'fix.storefront.cart',
+    title: 'Assisted Cart', back: 'M38-carts',
+    status: { field: 'state' },
+    lines: {
+      field: 'line_ids',
+      title: 'Cart Lines',
+      note: 'Pick the item (or the refurbished unit) and the quantity; the price is the catalogue\'s, set by the server.',
+      fields: [
+        { name: 'product_id', label: 'Item' },
+        { name: 'graded_stock_id', label: 'Refurbished Unit' },
+        { name: 'quantity', label: 'Qty' },
+        { name: 'unit_price', label: 'Unit Price', readonly: true },
+        { name: 'subtotal', label: 'Subtotal', readonly: true }
+      ]
+    },
+    tabs: [
+      { id: 'customer', label: '1. Customer', bn: '১. গ্রাহক' },
+      { id: 'checkout', label: '2. Delivery & Payment', bn: '২. ডেলিভারি ও পেমেন্ট' },
+      { id: 'terms', label: '3. Terms Acceptance', bn: '৩. শর্ত গ্রহণ' },
+      { id: 'corporate', label: '4. Corporate Order', bn: '৪. কর্পোরেট অর্ডার' },
+      { id: 'audit', label: '5. Captured', bn: '৫. রেকর্ড' }
+    ],
+    sections: [
+      { tab: 'customer', title: 'Customer and Cart', fields: [
+        { name: 'name', readonly: true, label: 'Cart (auto)' },
+        { name: 'customer_id', required: true, label: 'Customer' },
+        { name: 'channel', readonly: true, label: 'Channel' },
+        { name: 'total', readonly: true, label: 'Total (BDT)' }
+      ] },
+      { tab: 'checkout', title: 'Checkout', note: 'Placed with "Place Order" on the cart list. Cash on delivery is offered only within the active COD rule; stock only within its exposure policy.', fields: [
+        { name: 'delivery_address', type: 'text', label: 'Delivery Address (blank: the customer\'s address)' },
+        { name: 'delivery_method', label: 'Delivery Mode' },
+        { name: 'slot_id', label: 'Delivery / Pickup Slot' },
+        { name: 'payment_method', label: 'Payment Method' }
+      ] },
+      { tab: 'terms', title: 'Item Terms (refurbished condition, warranty)', note: 'A cart with a refurbished unit is placed only after the customer\'s acceptance is recorded ("Record Terms Acceptance"). An OTP, signed form or recorded call carries its reference.', fields: [
+        { name: 'terms_method', label: 'How the Customer Accepted' },
+        { name: 'terms_reference', label: 'Reference (OTP / form / call)' },
+        { name: 'terms_accepted_at', readonly: true, label: 'Terms Recorded At' },
+        { name: 'terms_accepted_by_id', readonly: true, label: 'Recorded By' }
+      ] },
+      { tab: 'corporate', title: 'Corporate Order (P04)', note: 'For a corporate client: its active account, its PO reference, and - above the account\'s threshold - the approval of one of its own approvers ("Record Client Approval"). Approved lines are fixed.', fields: [
+        { name: 'corporate_account_id', label: 'Corporate Account' },
+        { name: 'po_reference', label: 'Client PO Reference' },
+        { name: 'client_approver_id', label: 'Client Approver' },
+        { name: 'client_approval_ref', label: 'Client Approval Reference' },
+        { name: 'client_approved_at', readonly: true, label: 'Client Approval Recorded At' }
+      ] },
+      { tab: 'audit', title: 'Captured', fields: [
+        { name: 'assisted_by_id', readonly: true, label: 'Captured By' },
+        { name: 'order_id', readonly: true, label: 'Order Placed' },
+        { name: 'create_date', readonly: true, label: 'Opened On' }
+      ] }
+    ] },
+
+  'M38-form-cod-rule': { kind: 'model_form', model: 'fix.storefront.cod.rule',
+    title: 'COD Rule', back: 'M38-cod-rules',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'limits', label: '1. Limits', bn: '১. সীমা' },
+      { id: 'approval', label: '2. Approval', bn: '২. অনুমোদন' }
+    ],
+    sections: [
+      { tab: 'limits', title: 'Cash-on-Delivery Eligibility', note: 'Checked at every order placement while the rule is active. A new rule replaces the active one when it is approved by a Storefront Manager who did not write it.', fields: [
+        { name: 'name', required: true, label: 'Rule Name' },
+        { name: 'max_order_value', required: true, label: 'Largest COD Order (BDT)' },
+        { name: 'history_value', label: 'Delivery History Needed Above (BDT)' },
+        { name: 'min_delivered_orders', label: 'Delivered Orders Needed' },
+        { name: 'max_open_cod_orders', label: 'Open COD Orders Allowed (0 = no limit)' }
+      ] },
+      { tab: 'approval', title: 'Approval', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+        { name: 'approved_at', readonly: true, label: 'Approved At' }
+      ] }
+    ] },
+
+  'M38-form-order-change': { kind: 'model_form', model: 'fix.storefront.order.change',
+    title: 'Order Change', newLabel: 'Request Order Change', back: 'M38-order-changes',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'change', label: '1. Change', bn: '১. পরিবর্তন' },
+      { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত' }
+    ],
+    sections: [
+      { tab: 'change', title: 'What the Customer Asks to Change', note: 'Accepted until dispatch (the delivery mode only before payment). Another operator applies it.', fields: [
+        { name: 'name', readonly: true, label: 'Reference (auto)' },
+        { name: 'order_id', required: true, label: 'Online Order' },
+        { name: 'change_type', required: true, label: 'Change' },
+        { name: 'new_address', type: 'text', label: 'New Address' },
+        { name: 'new_slot_id', label: 'New Slot' },
+        { name: 'new_method', label: 'New Delivery Mode' },
+        { name: 'reason', type: 'text', required: true, label: 'Customer\'s Reason' }
+      ] },
+      { tab: 'decision', title: 'Decision', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'decided_by_id', readonly: true, label: 'Decided By' },
+        { name: 'decided_at', readonly: true, label: 'Decided At' },
+        { name: 'refusal_reason', readonly: true, label: 'Refusal Reason' }
+      ] }
+    ] },
+
+  'M38-form-exposure': { kind: 'model_form', model: 'fix.stock.exposure.policy',
+    title: 'Stock Exposure Policy', back: 'M38-exposure',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'scope', label: '1. Scope', bn: '১. পরিধি' },
+      { id: 'buffer', label: '2. Locations & Buffer', bn: '২. লোকেশন ও বাফার' },
+      { id: 'approval', label: '3. Approval', bn: '৩. অনুমোদন' }
+    ],
+    sections: [
+      { tab: 'scope', title: 'What It Covers', note: 'One item, or one category (and its sub-categories). An item\'s own policy wins over its category\'s. "Sold Online" off withdraws it from online sale.', fields: [
+        { name: 'name', required: true, label: 'Policy Name' },
+        { name: 'product_id', label: 'Item' },
+        { name: 'category_id', label: 'Category' },
+        { name: 'enabled', label: 'Sold Online' }
+      ] },
+      { tab: 'buffer', title: 'Where From, What Is Kept Back', note: 'Online sale is limited to the stock on hand in these locations less the buffer (the larger of the units and the share).', fields: [
+        { name: 'location_ids', label: 'Locations Sold From (empty: all internal)' },
+        { name: 'buffer_qty', label: 'Buffer (units)' },
+        { name: 'buffer_pct', label: 'Buffer (%)' },
+        { name: 'max_promise_days', label: 'Longest Promise (days)' }
+      ] },
+      { tab: 'approval', title: 'Approval', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+        { name: 'approved_at', readonly: true, label: 'Approved At' }
+      ] }
+    ] },
+
+  'M38-form-return-policy': { kind: 'model_form', model: 'fix.storefront.return.policy',
+    title: 'Return Policy', back: 'M38-return-policies',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'policy', label: '1. Policy', bn: '১. নীতি' },
+      { id: 'approval', label: '2. Approval', bn: '২. অনুমোদন' }
+    ],
+    sections: [
+      { tab: 'policy', title: 'Return Window and Restocking', note: 'A return is accepted within the longest window of the policies its order\'s items fall under; without an active policy the configured default applies.', fields: [
+        { name: 'name', required: true, label: 'Policy Name' },
+        { name: 'category_id', label: 'Category (empty: the default)' },
+        { name: 'window_days', required: true, label: 'Return Window (days)' },
+        { name: 'restocking_fee_pct', label: 'Change-of-mind Restocking Fee (%)' }
+      ] },
+      { tab: 'approval', title: 'Approval', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+        { name: 'approved_at', readonly: true, label: 'Approved At' }
+      ] }
+    ] },
+
+  'M38-form-corporate-account': { kind: 'model_form', model: 'fix.storefront.corporate.account',
+    title: 'Corporate Commerce Account', back: 'M38-corporate-accounts',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'client', label: '1. Client', bn: '১. ক্লায়েন্ট' },
+      { id: 'approval_chain', label: '2. Approval Chain', bn: '২. অনুমোদন শৃঙ্খল' },
+      { id: 'catalogue', label: '3. Agreed Catalogue', bn: '৩. সম্মত ক্যাটালগ' },
+      { id: 'approval', label: '4. Activation', bn: '৪. সক্রিয়করণ' }
+    ],
+    sections: [
+      { tab: 'client', title: 'Corporate Client', fields: [
+        { name: 'partner_id', required: true, label: 'Corporate Client' },
+        { name: 'po_required', label: 'PO Reference Required' }
+      ] },
+      { tab: 'approval_chain', title: 'The Client\'s Own Approvers', note: 'Orders above the threshold (0: every order) are placed only after one of these people - the client\'s own staff - approves them.', fields: [
+        { name: 'approver_ids', label: 'Client Approvers' },
+        { name: 'approval_threshold', label: 'Client Approval Above (BDT)' }
+      ] },
+      { tab: 'catalogue', title: 'What the Client May Order', fields: [
+        { name: 'category_ids', label: 'Agreed Categories (empty: all)' }
+      ] },
+      { tab: 'approval', title: 'Activation', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+        { name: 'approved_at', readonly: true, label: 'Approved At' }
+      ] }
+    ] },
+
+  'M38-form-recovery': { kind: 'model_form', model: 'fix.storefront.recovery.attempt',
+    title: 'Cart Recovery Contact', newLabel: 'Record Recovery Contact', back: 'M38-recovery-attempts',
+    tabs: [
+      { id: 'contact', label: '1. Contact', bn: '১. যোগাযোগ' },
+      { id: 'result', label: '2. Result', bn: '২. ফলাফল' }
+    ],
+    sections: [
+      { tab: 'contact', title: 'Who Was Contacted, How', note: 'A log entry: only an open, unordered cart is followed up, and the contact stays as recorded.', fields: [
+        { name: 'cart_id', required: true, label: 'Abandoned Cart' },
+        { name: 'customer_id', readonly: true, label: 'Customer' },
+        { name: 'cart_total', readonly: true, label: 'Cart Value' },
+        { name: 'channel', required: true, label: 'Channel' },
+        { name: 'outcome', required: true, label: 'Outcome' },
+        { name: 'note', label: 'Note' }
+      ] },
+      { tab: 'result', title: 'Result', fields: [
+        { name: 'contacted_by_id', readonly: true, label: 'Contacted By' },
+        { name: 'contacted_at', readonly: true, label: 'Contacted At' },
+        { name: 'converted', readonly: true, label: 'Ordered After Contact' }
+      ] }
+    ] },
+
+  'M38-form-service-booking': { kind: 'model_form', model: 'fix.storefront.service.booking',
+    title: 'Service Booking', back: 'M38-service-bookings',
+    status: { field: 'state' },
+    tabs: [
+      { id: 'booking', label: '1. Booking', bn: '১. বুকিং' },
+      { id: 'docs', label: '2. Fault Photo', bn: '২. ত্রুটির ছবি' },
+      { id: 'outcome', label: '3. Service Order', bn: '৩. সার্ভিস অর্ডার' }
+    ],
+    sections: [
+      { tab: 'booking', title: 'Repair Appointment', note: 'The device must be registered to the customer and the slot a service slot with room. Confirming raises the M01 service order, which then owns the repair.', fields: [
+        { name: 'name', readonly: true, label: 'Reference (auto)' },
+        { name: 'customer_id', required: true, label: 'Customer' },
+        { name: 'device_id', required: true, label: 'Device' },
+        { name: 'branch_id', required: true, label: 'Branch' },
+        { name: 'slot_id', required: true, label: 'Appointment Slot' },
+        { name: 'channel', required: true, label: 'Booked Through' },
+        { name: 'fault_description', type: 'text', required: true, label: 'Fault Description' }
+      ] },
+      { tab: 'docs', title: 'Fault Photograph', fields: [
+        { name: 'photo', type: 'binary', filename: 'photo_filename', label: 'Upload Photo' },
+        { name: 'photo_filename', label: 'File Name' }
+      ] },
+      { tab: 'outcome', title: 'Service Order', fields: [
+        { name: 'state', readonly: true, label: 'Status' },
+        { name: 'service_order_id', readonly: true, label: 'M01 Service Order' },
+        { name: 'confirmed_by_id', readonly: true, label: 'Confirmed By' },
+        { name: 'confirmed_at', readonly: true, label: 'Confirmed At' },
+        { name: 'cancel_reason', readonly: true, label: 'Cancel Reason' }
+      ] }
+    ] }
 };
 
 export const REPORT_ROUTES = {
@@ -400,6 +794,17 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_MODELS = {
+  'M38:Storefront Content': 'fix.storefront.content',
+  'M38:Storefront Collection': 'fix.storefront.collection',
+  'M38:Assisted Cart': 'fix.storefront.cart',
+  'M38:Corporate Order': 'fix.storefront.cart',
+  'M38:COD Rule': 'fix.storefront.cod.rule',
+  'M38:Order Change': 'fix.storefront.order.change',
+  'M38:Stock Exposure Policy': 'fix.stock.exposure.policy',
+  'M38:Return Policy': 'fix.storefront.return.policy',
+  'M38:Corporate Commerce Account': 'fix.storefront.corporate.account',
+  'M38:Cart Recovery Contact': 'fix.storefront.recovery.attempt',
+  'M38:Service Booking': 'fix.storefront.service.booking',
   'M38:Online Order': 'fix.storefront.order',
   'M38:RMA Request': 'fix.storefront.rma',
   'M38:Storefront Slot': 'fix.storefront.slot',
@@ -415,7 +820,28 @@ export const FORM_CHIPS = {
   'M38:RMA Request': 'M38-form-rma',
   'M38:Storefront Slot': 'M38-form-delivery-slot',
   'M38:Delivery Slot': 'M38-form-delivery-slot',
+  'M38:Storefront Content': 'M38-form-content',
+  'M38:Storefront Collection': 'M38-form-collection',
+  'M38:Assisted Cart': 'M38-form-cart',
+  'M38:Corporate Order': 'M38-form-cart',
+  'M38:COD Rule': 'M38-form-cod-rule',
+  'M38:Order Change': 'M38-form-order-change',
+  'M38:Stock Exposure Policy': 'M38-form-exposure',
+  'M38:Return Policy': 'M38-form-return-policy',
+  'M38:Corporate Commerce Account': 'M38-form-corporate-account',
+  'M38:Cart Recovery Contact': 'M38-form-recovery',
+  'M38:Service Booking': 'M38-form-service-booking',
   'M38:__by_model__': {
+    'fix.storefront.content': 'M38-form-content',
+    'fix.storefront.collection': 'M38-form-collection',
+    'fix.storefront.cart': 'M38-form-cart',
+    'fix.storefront.cod.rule': 'M38-form-cod-rule',
+    'fix.storefront.order.change': 'M38-form-order-change',
+    'fix.stock.exposure.policy': 'M38-form-exposure',
+    'fix.storefront.return.policy': 'M38-form-return-policy',
+    'fix.storefront.corporate.account': 'M38-form-corporate-account',
+    'fix.storefront.recovery.attempt': 'M38-form-recovery',
+    'fix.storefront.service.booking': 'M38-form-service-booking',
     'fix.storefront.return': 'M38-form-storefront-return',
     'fix.graded.stock': 'M38-form-gstock',
     'fix.promotion': 'M11-form-promo',
@@ -424,6 +850,17 @@ export const FORM_CHIPS = {
     'fix.storefront.slot': 'M38-form-delivery-slot'
   },
   'M38:__by_screen__': {
+    'M38-content': 'M38-form-content',
+    'M38-collections': 'M38-form-collection',
+    'M38-carts': 'M38-form-cart',
+    'M38-corporate-orders': 'M38-form-cart',
+    'M38-cod-rules': 'M38-form-cod-rule',
+    'M38-order-changes': 'M38-form-order-change',
+    'M38-exposure': 'M38-form-exposure',
+    'M38-return-policies': 'M38-form-return-policy',
+    'M38-corporate-accounts': 'M38-form-corporate-account',
+    'M38-recovery-attempts': 'M38-form-recovery',
+    'M38-service-bookings': 'M38-form-service-booking',
     'M38-storefront-return': 'M38-form-storefront-return',
     'M38-stock': 'M38-form-gstock',
     'M38-promos': 'M11-form-promo',
@@ -434,5 +871,6 @@ export const FORM_CHIPS = {
   }
 };
 
-/* No "+ New Online Order": orders come from storefront checkout (see M38-form-order). */
+/* No "+ New Online Order": orders come from storefront checkout (see M38-form-order);
+ * staff place them through an assisted cart (M38-form-cart). */
 export const CREATE = {};

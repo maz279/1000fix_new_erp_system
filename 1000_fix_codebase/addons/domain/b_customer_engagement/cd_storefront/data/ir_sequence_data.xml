@@ -36,4 +36,21 @@
         <field name="padding">6</field>
         <field name="company_id" eval="False"/>
     </record>
+
+    <!-- M38 capture audit (19 Nov 2026) -->
+    <record id="seq_fix_storefront_order_change" model="ir.sequence">
+        <field name="name">Storefront Order Change</field>
+        <field name="code">fix.storefront.order.change</field>
+        <field name="prefix">SFC/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+
+    <record id="seq_fix_storefront_service_booking" model="ir.sequence">
+        <field name="name">Storefront Service Booking</field>
+        <field name="code">fix.storefront.service.booking</field>
+        <field name="prefix">SFB/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
 </odoo>

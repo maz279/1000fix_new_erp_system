@@ -379,6 +379,10 @@ def _refurb_order(w, item, user=None, **kw):
             "unit_price": 1,
         }
     )
+    # BRU-ECM-07 (capture audit 19 Nov 2026): the refurbished-condition terms
+    # are accepted before a refurbished unit is ordered
+    cart.write({"terms_method": "checkbox"})
+    cart.action_record_terms()
     return cart.action_place_order(shipping_address="Road 7", **kw)
 
 

@@ -231,6 +231,9 @@ class FixStorefrontRefundMixin(models.AbstractModel):
         )
 
     def _sf_window_days(self) -> int:
+        # a return on an order: that order's window (its return policy)
+        if len(self) == 1 and self.order_id:
+            return self.order_id.sudo()._sf_window_days()
         raw = self.env["ir.config_parameter"].sudo().get_param(RETURN_WINDOW_PARAM)
         try:
             return int(raw) if raw else RETURN_WINDOW_DAYS_DEFAULT
@@ -271,7 +274,7 @@ class FixStorefrontRefundMixin(models.AbstractModel):
         if order.returns_closed or (deadline and today > deadline):
             raise ValidationError(
                 "%s: the %d-day return window of order %s closed on %s."
-                % (what, self._sf_window_days(), order.name, deadline)
+                % (what, order._sf_window_days(), order.name, deadline)
             )
 
     def _sf_assert_returnable(self, what):
@@ -346,12 +349,9 @@ class FixStorefrontRefundMixin(models.AbstractModel):
             return requested
         if condition == "scrap":
             return 0.0
-        raw = self.env["ir.config_parameter"].sudo().get_param(RESTOCKING_FEE_PARAM)
-        try:
-            fee = float(raw) if raw else RESTOCKING_FEE_PCT_DEFAULT
-        except ValueError:
-            fee = RESTOCKING_FEE_PCT_DEFAULT
-        fee = min(max(fee, 0.0), 100.0)
+        # the order's return policy (M38 capture audit, 19 Nov 2026), else
+        # the configured default
+        fee = self.order_id.sudo()._sf_restocking_pct()
         return self.currency_id.round(requested * (100.0 - fee) / 100.0)
 
     def action_receive_and_inspect(self, condition=None):

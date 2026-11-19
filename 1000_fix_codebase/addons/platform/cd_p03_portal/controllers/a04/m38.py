@@ -28,7 +28,13 @@ SURFACES = {
     "fix.storefront.cart": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # capture audit (19 Nov 2026): the assisted / corporate cart is placed
+        # through the storefront checkout with every storefront rule
+        "actions": {
+            "action_record_terms",
+            "action_record_client_approval",
+            "action_place_assisted_order",
+        },
     },
     "fix.storefront.order": {
         "order": "order_date desc, id desc",
@@ -56,6 +62,52 @@ SURFACES = {
         "order": "id desc",
         "limit": 300,
         "actions": set(),
+    },
+    # capture audit (19 Nov 2026): each sub-module page's own record
+    "fix.storefront.content": {
+        "order": "valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_publish", "action_retire"},
+    },
+    "fix.storefront.collection": {
+        "order": "sequence, id desc",
+        "limit": 300,
+        "actions": {"action_publish", "action_retire"},
+    },
+    "fix.storefront.cod.rule": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.storefront.order.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_apply", "action_refuse"},
+    },
+    "fix.stock.exposure.policy": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.storefront.return.policy": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.storefront.corporate.account": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.storefront.recovery.attempt": {
+        "order": "contacted_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.storefront.service.booking": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_cancel"},
     },
     # fix.promotion is owned by M11 (a04) — read through the merged registry.
     "fix.storefront.return": {
@@ -280,11 +332,21 @@ def rma_report(env, date_from=None, date_to=None, **params):
 
 
 def abandonment_recovery(env, date_from=None, date_to=None, **params):
+    """Open carts and every cart someone followed up (capture audit 19 Nov
+    2026: the recovery contacts are recorded, so recovery is measured as a
+    followed-up cart that went on to become an order)."""
     carts = _carts(env)
     today = datetime.date.today()
-    open_carts = carts.filtered(lambda c: c.state in ("open", "checkout"))
+    contacts = env["fix.storefront.recovery.attempt"].sudo().search([])
+    by_cart = {}
+    for contact in contacts:
+        by_cart.setdefault(contact.cart_id.id, env["fix.storefront.recovery.attempt"].sudo())
+        by_cart[contact.cart_id.id] |= contact
+    outcomes = dict(env["fix.storefront.recovery.attempt"]._fields["outcome"].selection)
     rows = []
-    for cart in open_carts:
+    for cart in carts.filtered(lambda c: c.state in ("open", "checkout") or c.id in by_cart):
+        mine = by_cart.get(cart.id) or env["fix.storefront.recovery.attempt"].sudo()
+        last = mine.sorted(lambda a: a.contacted_at or datetime.datetime.min)[-1:] if mine else mine
         age = (today - cart.create_date.date()).days if cart.create_date else 0
         rows.append(
             {
@@ -293,29 +355,34 @@ def abandonment_recovery(env, date_from=None, date_to=None, **params):
                 "state": cart.state,
                 "value": round(cart.total or 0.0, 2),
                 "age_days": age,
-                "recovered": "✓" if cart.order_id else "✗",
+                "contacts": len(mine),
+                "last_outcome": outcomes.get(last.outcome, "—") if last else "—",
+                "recovered": "✓" if any(mine.mapped("converted")) else "✗",
             }
         )
     rows.sort(key=lambda r: -r["age_days"])
-    recovered = len([r for r in rows if r["recovered"] == "✓"])
+    followed = [r for r in rows if r["contacts"]]
+    recovered = len([r for r in followed if r["recovered"] == "✓"])
     return _pack(
         "Abandonment Recovery Rate",
-        ["cart", "customer", "state", "value", "age_days", "recovered"],
+        ["cart", "customer", "state", "value", "age_days", "contacts", "last_outcome", "recovered"],
         {
             "cart": "Cart",
             "customer": "Customer",
             "state": "State",
             "value": "Value",
             "age_days": "Age (days)",
+            "contacts": "Recovery Contacts",
+            "last_outcome": "Last Outcome",
             "recovered": "Recovered",
         },
         rows[:200],
         [
-            "Recovery = a cart that produced an order. Recovery rate: %d of %d open "
-            "carts (%.1f%%). No recovery-campaign model exists (declared gap)."
-            % (recovered, len(rows), recovered / len(rows) * 100.0 if rows else 0.0)
+            "Recovered = a followed-up cart that became an order after the contact. "
+            "Recovery rate: %d of %d followed-up carts (%.1f%%)."
+            % (recovered, len(followed), recovered / len(followed) * 100.0 if followed else 0.0)
         ],
-        empty="No open carts — nothing to recover.",
+        empty="No open or followed-up carts.",
     )
 
 
