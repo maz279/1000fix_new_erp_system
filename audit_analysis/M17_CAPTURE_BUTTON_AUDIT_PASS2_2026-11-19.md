@@ -1,6 +1,6 @@
 # M17 Device & Asset Registry: capture audit, pass 2
 
-**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Status:** see §7
+**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Status:** LIVE on 8069 and 8090 (landed 4d8e44cf, pushed)
 
 ## 1. The question
 
@@ -94,3 +94,22 @@ Controllers: 8 surfaces in `controllers/a07/m17.py` and the `action_add_identifi
 **Live walk on a private server (port 8097, the branch's code, headless Chromium):** all 11 pages render. Each page shows its "+ New", every chip opens its form with inputs, and the console logged 0 errors. Through the same endpoints the forms use, an accessory, a configuration, an identifier, a stewardship issue and an end-of-life decision were saved, and all 8 new models are served.
 
 **Test-template note:** every peer template (`fix_test_m1xc2`) lacks some foreign keys and carries orphans: 3 part-compatibility rows on a deleted model, and 11 columns referencing a deleted entity. They were repaired in the private copy only. `fix_dev` has the same 3 orphan part-compatibility rows, but its foreign key exists, so an upgrade there is not blocked. Clean-up is for the owner.
+
+**Landed and pushed:** 4d8e44cf on fix/a03-live-data-and-pending-work (`422b005b..4d8e44cf`), and branch `fix/m17-capture-pass2`.
+
+**Deployed 19 Nov (the user approved "deploy all 7 together"):**
+- The upgrade was combined with the other modules waiting on both databases: cd_hr_core (M21), cd_marketplace (M12), cd_tradein (M14), cd_inventory (M15), cd_requisition (M16), cd_billing_engine, cd_ewaste and cd_rental_asset, plus cd_p03_portal.
+- The M21 session ran it as one combined `-u` per database, with backups first, then a single restart at 08:06.
+- 8069 = PID 81988 (fix_real) and 8090 = PID 21792 (fix_dev). No module was behind on either database before the restart.
+
+**Read-only verification on both databases:**
+- `cd_device_registry` 19.0.1.2.0.
+- 8 tables, 10 access rights and 8 record rules, 6 sequences, and the stewardship sweep active.
+- `population`, `estate_node_id` and `asset_tag` on the device; `derivation_basis` on the warranty.
+- Each database's newest web bundle carries the new forms.
+
+**Live walk on 8069 (fix_real), headless and read-only:**
+- All 11 pages render. Each page offers the "+ New" and chips listed in §4.2, and every chip opens its form with inputs.
+- All 8 new models are served. They hold 0 records: fix_real has no devices yet.
+- 0 console errors.
+- Nothing was written to fix_real.
