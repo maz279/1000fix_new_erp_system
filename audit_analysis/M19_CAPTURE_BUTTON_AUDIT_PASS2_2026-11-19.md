@@ -95,4 +95,15 @@ All runs used a private clone, `fix_test_m19c2` (from `fix_test_m55`, then `-u a
 
 - **Landed** `f98fd00f` (fix) and `2ea571e7` (tests) on `fix/a03-live-data-and-pending-work`, by compare-and-swap from `a62539f3`. The main checkout was fast-forwarded with `read-tree -m -u` and is clean.
 - **Pushed** `a62539f3..2ea571e7`, plus branch `fix/m19-capture-pass2`.
-- **Not yet deployed.** fix_real (8069) and fix_dev (8090) need `-u cd_gl_ext,cd_p03_portal` and one restart before users see the new pages. That waits on the owner's go-ahead and is coordinated with the M18 session, which also needs a restart.
+**DEPLOYED 19 Nov 2026 on fix_real (8069) and fix_dev (8090).** The owner chose "Deploy now" and to leave the company fiscal-year end as it is (§6.1).
+
+- **Backups** first, both verified with `pg_restore -l` (1,862 and 1,859 table-data entries): `1000 fix/backups/fix_real_pre_m19_capture2_2026-11-19.dump` and `fix_dev_pre_m19_capture2_2026-11-19.dump`.
+- **Deploy wave:**
+  - The M21 session ran `-u cd_hr_core,cd_device_registry,cd_ewaste,cd_rental_asset,cd_p03_portal` on both databases (this covers M18 and `cd_p03_portal`).
+  - Then this session ran `-u cd_gl_ext` from the main checkout at `a6ca660a`: exit 0 on fix_real (155 modules) and fix_dev (151 modules), no ERROR.
+  - **One restart** by M21 at 08:06:51 local: 8069 is PID 81988 (fix_real), 8090 is PID 21792 (fix_dev). M21's gap check found nothing behind on either database.
+- **Read-only checks on both databases:** `cd_gl_ext` 19.0.2.5.0, the 4 new tables, 18 ACL rows, 2 global auditor rules and the expiry job.
+  - The served bundle `220cfc5` on both ports contains the five new forms (`M19-form-posting-rule`, `-auditor-grant`, `-fx-rate`, `-crossval`, `-fiscal-year`).
+  - Both registries loaded with no "has no table" warning for the new models.
+  - fix_dev's log is clean. fix_real's single ERROR is an automatic, retried serialization conflict during another session's sign-in, not M19.
+- **Not done on live:** a signed-in click-through on fix_real. The permission classifier refused it, so the click-through stands on the private clone (§5).
