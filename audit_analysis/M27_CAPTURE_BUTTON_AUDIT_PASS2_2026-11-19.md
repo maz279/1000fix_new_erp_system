@@ -125,5 +125,14 @@ Two no-op hooks were added to the base file. They are implemented in `fix_cc_cap
 
 ## 6. State
 
-- Committed on `fix/m27-capture-pass2`.
-- **Not yet deployed.** It needs `-u cd_contact_centre,cd_p03_portal` on fix_real and fix_dev, plus one restart (new surfaces), with the owner's go-ahead.
+- Committed on `fix/m27-capture-pass2`. Landed on `fix/a03-live-data-and-pending-work` (code 3195c3a0, report 21b9ef2f) and pushed.
+- **Deployed 19 Nov 2026.** The M22 session ran it as one combined wave, which the owner approved in that session. `-u` covered 11 modules, including `cd_contact_centre` and `cd_p03_portal`, and exited 0 on fix_real and fix_dev. There was one restart at 10:57 BST: 8069 is PID 64400, 8090 is PID 77212. Backups were taken before it: `backups/fix_{real,dev}_pre_m27_capture2_2026-11-19.dump` and `backups/fix_{real,dev}_pre_combined_m22_m23_m26_m27_2026-11-19.dump`.
+- **Verified live, read-only, on both DBs:**
+  - `cd_contact_centre` is at 19.0.1.1.0.
+  - All 10 `fix_cc_*` tables exist.
+  - `fix_notif_delivery` has `preference_id`, `throttle_id` and `throttled_until`.
+  - The `ir_cron_cc_callback_missed` cron is active.
+  - All 14 ACL rows are present.
+  - Signed in with the dev login, `/p03/model/records` serves all 9 new lists (0 rows so far).
+  - The live bundle `web.assets_web.min.js` (6dcb240) contains `M27-form-callback`.
+  - Since the restart: 8069 has logged 0 ERRORs. 8090 has logged 1, a serialization failure in the asset-attachment cleanup that was retried and then served 200. Neither log has "Failed to load registry".
