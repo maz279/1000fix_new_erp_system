@@ -107,18 +107,17 @@ Other workspace changes:
   - **0 console errors**.
 - **Live data impact:** fix_real holds 0 quotations, tenders, estimates, credit profiles and in-force contracts, so no existing record meets the new gates.
 
-## 4. Left for the owner
+## 4. Owner decisions (taken 19-20 Nov 2026)
 
-1. **Name the CCO and CFO.** The estate has no such roles. The Commercial Manager (Quotations) signs for the CCO and the Accounting Administrator for the CFO; neither may be the author, and the two must be different people.
-2. **The standard terms library is empty on fix_real.** Until the Commercial Manager loads it, every term written on a quotation is a deviation, and nothing is mandatory.
-3. **Credit profiles.** The gate reads M20's `fix.credit.profile`. A customer without a profile is not gated.
-4. **Built in pass 3 (§6):** the five spec items this list held after pass 2.
-   - The renewal cron.
-   - The reminders.
-   - The bulk estate quotation.
-   - The version comparison.
-   - The tokenised customer view.
-5. **Still open from pass 1:** the diagnostic-fee invoice policy; a second Tender Committee member on fix_real.
+1. **CCO / CFO: the stand-ins are confirmed.** The Commercial Manager (Quotations) signs the CCO slot and the Accounting Administrator the CFO slot. They are always two different people and never the quotation's or the term's author.
+2. **Standard terms library: seeded from the live templates.**
+   - 8 terms, from the delivery and warranty wording of the 4 quotation templates, codes `TPL<id>-DEL` / `TPL<id>-WTY`.
+   - None is mandatory.
+   - Seeded on fix_real and fix_dev (§7). The Commercial Manager edits or archives them.
+3. **Diagnostic fee on a declined repair: confirmed as a task, not an invoice.** The decline gives the service order a "return or collect the device" task showing the fee owed, and front desk collects it.
+4. **Credit profiles:** the gate reads M20's credit profile, so a customer without one is not gated. This follows M20's design; it is not an M36 gap.
+5. **Placement of Tender Win/Loss and the Compliance Matrix:** both sit on page 9 Tender & Bid, enforced by `test_compliance_sits_with_the_tender` and `test_every_page_report_opens_its_pack`.
+6. **Still pass-1 data:** fix_real has 1 Tender Committee member. Winning a tender in the system needs a second member who did not prepare the bid.
 
 ## 5. Deployed (19 Nov 2026, approved by the user)
 
@@ -170,3 +169,40 @@ Other workspace changes:
   - `/quote/view/<unknown>` answers 404;
   - the headless walk with the dev login and no saves passed on **8069 and 8090**: all 10 pages, every chip including the three pass-3 forms, 26/26 screens, **0 console errors**.
 - **Lesson:** land a schema change only when no peer is about to restart. Otherwise run `-u` immediately after landing; the gap check before a restart catches it only if it runs after the land.
+
+## 7. Every new capture saved, and the library seeded (20 Nov 2026)
+
+**Save walk on the private server** (`fix_test_m36c2`).
+- Prerequisites were made through the real workflows: submit, then the M63 inbox approval, then issue; a revision; an estimate; an active contract; a draft tender and a submitted one.
+- Each capture was then saved through the workspace's own save endpoints (`/p03/model/write`, `/p03/model/action`), in a browser session as non-admin users: a Commercial Manager with Finance and Bid Coordinator roles, a Quotation Author, and a Finance user.
+- Each saved record was read back. **18 of 18 saved and checked:**
+  - Standard term.
+  - Quotation term, standard and deviation.
+  - The deviation decided by the CCO slot, then the CFO slot (approved).
+  - Credit override.
+  - Renewal quotation: value 105,000, which is 100,000 plus 5% escalation.
+  - Estate upload: value 11,000.
+  - Version comparison.
+  - Technical review requested, then cleared.
+  - Legal hold placed, then released.
+  - Tender document.
+  - Tender outcome, with the governed code stamped on the tender.
+  - Approval link sent; the public page answers 200 and shows no cost.
+  - Phone acceptance (`acceptance_method = phone`).
+
+The pass-1 captures are saved by their own live suite (`test_m36_capture_live.py`, green).
+
+**Defect found by seeding, and fixed (cd_quotation 19.0.1.5.1).**
+- The library offered a fixed list of three quotation types. Three of the four live templates are "project" quotations, so their terms could not be typed.
+- The type list now follows the quotation's own types.
+- A test covers it, and the M36 pass-2/3 suites pass 50/50.
+
+**Deployed (user-approved):**
+- Backups: `fix_{real,dev}_pre_m36_terms_2026-11-20.dump`.
+- Landed `49c184b3`, then `-u cd_quotation` on both DBs straight away: 0 errors, 19.0.1.5.1.
+- The seed made 8 terms on each DB. A rerun on the private copy made 0 duplicates.
+- Pushed.
+- One restart: 8069 = PID 28820, 8090 = PID 19788.
+- After the restart, both servers offer all four quotation types for a standard term, and both list the 8 seeded terms.
+- **Read-only walk after the restart** (dev login, no saves):
+  - 8069 and 8090 each pass all 10 pages, **26/26 chips found and opening**, 26/26 screens, **0 console errors**.
