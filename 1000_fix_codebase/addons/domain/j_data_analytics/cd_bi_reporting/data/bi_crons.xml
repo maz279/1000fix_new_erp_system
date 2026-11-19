@@ -38,5 +38,16 @@
             <field name="active" eval="True"/>
         </record>
 
+        <!-- M25 pass 2 (BRU-BID-14): an unacknowledged alert escalates -->
+        <record id="ir_cron_bi_alert_escalation" model="ir.cron">
+            <field name="name">M25: BI alert escalation</field>
+            <field name="model_id" ref="model_fix_bi_alert_instance"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_escalate()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+
     </data>
 </odoo>

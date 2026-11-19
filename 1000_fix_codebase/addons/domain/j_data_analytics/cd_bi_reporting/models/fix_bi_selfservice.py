@@ -259,6 +259,16 @@ class FixBiDistributionSchedule(models.Model):
         default="csv",
     )
     active = fields.Boolean(default=True)
+    # FR-BID-028: a branch on a poor connection gets the figures as a short
+    # text summary with no attachment (mobile page captures these).
+    channel = fields.Selection(
+        [
+            ("email", "E-mail with the pack attached"),
+            ("low_bandwidth", "Low-bandwidth text summary"),
+        ],
+        required=True,
+        default="email",
+    )
     last_sent_at = fields.Datetime(readonly=True)
     last_status = fields.Selection(
         [("never", "Never Sent"), ("sent", "Sent"), ("failed", "Failed"), ("partial", "Partial")],
@@ -356,8 +366,9 @@ class FixBiDistributionSchedule(models.Model):
         """Send one schedule now: validate the key, re-check every
         recipient's entitlement, mail the entitled ones, log the dispatch."""
         self.ensure_one()
-        art = self._pack_artifact()
-        out = art["out"]
+        low = self.channel == "low_bandwidth"
+        art = None if low else self._pack_artifact()
+        out = self._pack_out() if low else art["out"]
         required_group = _pack_required_group(self.report_key)
         sent, skipped = 0, []
         for email in self._recipients_list():
@@ -370,24 +381,29 @@ class FixBiDistributionSchedule(models.Model):
             if reason:
                 skipped.append("%s (%s)" % (email, reason))
                 continue
+            if low:
+                body = self._low_bandwidth_text(out)
+                attachments = []
+            else:
+                body = out.get("title") or self.report_key
+                attachments = [
+                    (
+                        0,
+                        0,
+                        {
+                            "name": art["filename"],
+                            "datas": base64.b64encode(art["data"]).decode("ascii"),
+                            "mimetype": art["mimetype"].split(";")[0],
+                        },
+                    )
+                ]
             self.env["mail.mail"].sudo().create(
                 {
                     "subject": "[1000FiX BI] %s" % (out.get("title") or self.report_key),
-                    "body_html": "<pre>%s</pre>"
-                    % ((out.get("title") or self.report_key).replace("<", "&lt;")),
+                    "body_html": "<pre>%s</pre>" % body.replace("&", "&amp;").replace("<", "&lt;"),
                     "email_to": email,
                     "auto_delete": False,
-                    "attachment_ids": [
-                        (
-                            0,
-                            0,
-                            {
-                                "name": art["filename"],
-                                "datas": base64.b64encode(art["data"]).decode("ascii"),
-                                "mimetype": art["mimetype"].split(";")[0],
-                            },
-                        )
-                    ],
+                    "attachment_ids": attachments,
                 }
             )
             sent += 1
@@ -396,7 +412,7 @@ class FixBiDistributionSchedule(models.Model):
                 "user_id": self.env.user.id,
                 "pack": self.report_key,
                 "channel": "distribution",
-                "format": self.format or "csv",
+                "format": "text" if low else (self.format or "csv"),
                 "company_ids": self.company_id.name,
                 "row_count": len(out.get("rows") or []),
             }
@@ -411,6 +427,25 @@ class FixBiDistributionSchedule(models.Model):
             }
         )
         return status
+
+    LOW_BANDWIDTH_ROWS = 10
+
+    def _low_bandwidth_text(self, out):
+        """The pack as plain text: title, the first rows as `label: value`
+        lines, and how many rows were left out (FR-BID-028)."""
+        cols = out.get("cols") or []
+        labels = out.get("labels") if isinstance(out.get("labels"), dict) else {}
+        rows = list(out.get("rows") or [])
+        lines = [out.get("title") or self.report_key]
+        for row in rows[: self.LOW_BANDWIDTH_ROWS]:
+            lines.append(
+                " | ".join("%s: %s" % (labels.get(c, c), row.get(c, "")) for c in cols if c in row)
+            )
+        if len(rows) > self.LOW_BANDWIDTH_ROWS:
+            lines.append("(+%d more rows in the workspace)" % (len(rows) - self.LOW_BANDWIDTH_ROWS))
+        if not rows:
+            lines.append("No rows in this period.")
+        return "\n".join(lines)
 
     def action_send_now(self):
         for rec in self:

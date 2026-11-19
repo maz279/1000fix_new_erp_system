@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M25 second capture pass (19 Nov 2026). FR-BID-019: personal exploration is
+  separated from published content. A personal exploration is its author's
+  alone; a shared one is visible to the other analysts. The BI Data Steward
+  sees every exploration (group rules are OR-ed).
+-->
+<odoo>
+    <record id="rule_fix_bi_exploration_personal" model="ir.rule">
+        <field name="name">fix.bi.exploration: personal stays with its author</field>
+        <field name="model_id" ref="model_fix_bi_exploration"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('workspace', '=', 'shared'), ('author_id', '=', user.id)]</field>
+    </record>
+    <record id="rule_fix_bi_exploration_steward" model="ir.rule">
+        <field name="name">fix.bi.exploration: the data steward sees all</field>
+        <field name="model_id" ref="model_fix_bi_exploration"/>
+        <field name="groups" eval="[(4, ref('group_bi_certifier'))]"/>
+        <field name="domain_force">[(1, '=', 1)]</field>
+    </record>
+</odoo>

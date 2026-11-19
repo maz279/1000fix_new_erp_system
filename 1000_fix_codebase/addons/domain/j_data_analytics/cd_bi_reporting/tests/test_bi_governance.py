@@ -63,6 +63,16 @@ def _task_of(record, user):
     )
 
 
+def _business_owner(env):
+    """M25 pass 2 (BRU-BID-07): the functional head who accepts the content."""
+    n = env["res.users"].search_count([]) + 1
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create({"name": "Business Owner %d" % n, "login": "m25.bo.%d@governance.test" % n})
+    )
+
+
 def _dashboard(env, author_user):
     steward = env["hr.employee"].create({"name": "Steward of BI"})
     return (
@@ -73,9 +83,14 @@ def _dashboard(env, author_user):
                 "name": "CEO Cockpit (probe)",
                 "role": "ceo",
                 "steward_id": steward.id,
+                "business_owner_id": _business_owner(env).id,
+                "decision_supported": "Weekly revenue and backlog calls",
             }
         )
     )
+
+
+VERIFIED = "definition, scope behaviour and Bengali rendering checked"
 
 
 def _config(env, **vals):
@@ -168,6 +183,7 @@ class TestDashboardLifecycle:
         certifier = make_user(CERTIFIER)
         dash = _dashboard(env, author)
         dash.with_user(author).action_submit_review()
+        dash.with_user(certifier).action_steward_verify(note=VERIFIED)
         # the direct call is refused even for the certifier (routed, M63)
         with pytest.raises(UserError, match="(?i)from the approver"):
             dash.with_user(certifier).action_certify()
@@ -188,6 +204,7 @@ class TestDashboardLifecycle:
         other = make_user(CERTIFIER)  # the deciding certifier
         dash = _dashboard(env, author)
         dash.with_user(author).action_submit_review()
+        dash.with_user(other).action_steward_verify(note=VERIFIED)
         dash.with_user(author).action_request_approval(justification="self certify")
         assert not _task_of(dash, author), "engine must not route the author their own task"
         assert _task_of(dash, other), "another certifier holds the deciding task"
@@ -204,6 +221,7 @@ class TestDashboardLifecycle:
         certifier = make_user(CERTIFIER)
         dash = _dashboard(env, author)
         dash.with_user(author).action_submit_review()
+        dash.with_user(certifier).action_steward_verify(note=VERIFIED)
         dash.with_user(author).action_request_approval()
         _task_of(dash, certifier).with_user(certifier).action_approve(comment="ok")
         dash.invalidate_recordset()

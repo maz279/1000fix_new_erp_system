@@ -72,19 +72,22 @@ console.log(JSON.stringify({ subs,
 # What each page captures (the form its "+ New" opens).
 CAPTURE = {
     "1": "module",  # a saved dashboard bound to a role cockpit
-    "2": "M25-form-schedule",  # the library's packs are computed: a schedule sends one
-    "3": "module",  # a saved (draft) dashboard - governed self-service
+    "2": "M25-form-reportdef",  # the library entry: owner, definition, certification
+    "3": "M25-form-exploration",  # a saved question in a personal workspace
     "4": "M25-form-schedule",  # a distribution schedule (alert via its chip)
-    "5": "M25-form-sync",  # an analytics dataset connection
-    "6": "module",  # a dashboard (mobile renders the role cockpits)
+    "5": "M25-form-embedded",  # the chart placed inside an operational screen
+    "6": "M25-form-schedule",  # a low-bandwidth summary (the page presets the channel)
     "7": "M25-form-pack",  # a manual pack on the spreadsheet-retirement register
 }
 
 # The chips each page must offer (a capture that page owns but its + New is not).
+# Second pass 2026-11-19 (see test_m25_capture_pass2.py).
 CHIPS = {
-    "2": {"Distribution Schedule"},
+    "1": {"Dashboard", "Annotation"},
+    "2": {"Report Definition", "Distribution Schedule"},
+    "3": {"Exploration", "Dashboard"},
     "4": {"Distribution Schedule", "Alert Subscription"},
-    "5": {"Sync Connection"},
+    "5": {"Embedded Surface", "Sync Connection"},
     "6": {"Dashboard", "Distribution Schedule"},
     "7": {"Manual Pack", "Dashboard"},
 }
@@ -158,20 +161,20 @@ def _metric_keys():
     return set(re.findall(r'm\["([a-z0-9_]+)"\]\s*=', body))
 
 
-def _model_source(model):
+def _model_fields(model):
+    """Fields of the class declaring the model plus every class extending it
+    with `_inherit = "<model>"` (the second pass adds dashboard and alert
+    fields that way)."""
+    decl = re.compile(r'_(?:name|inherit) = ["\']%s["\']' % re.escape(model))
+    names = set()
     for py in ADDONS.rglob("models/*.py"):
         text = py.read_text(encoding="utf-8", errors="ignore")
-        if re.search(r'_name = ["\']%s["\']' % re.escape(model), text):
-            return text
-    raise AssertionError("no source declares %s" % model)
-
-
-def _model_fields(model):
-    text = _model_source(model)
-    start = re.search(r'_name = ["\']%s["\']' % re.escape(model), text).start()
-    nxt = re.search(r"^class ", text[start:], re.M)
-    body = text[start : start + nxt.start()] if nxt else text[start:]
-    return set(re.findall(r"^    ([a-z_0-9]+) = fields\.", body, re.M))
+        for hit in decl.finditer(text):
+            nxt = re.search(r"^class ", text[hit.start() :], re.M)
+            body = text[hit.start() : hit.start() + nxt.start()] if nxt else text[hit.start() :]
+            names |= set(re.findall(r"^    ([a-z_0-9]+) = fields\.", body, re.M))
+    assert names, "no source declares %s" % model
+    return names
 
 
 @pytest.mark.parametrize("no", sorted(CAPTURE, key=int))
@@ -220,8 +223,17 @@ def test_every_declared_action_is_served(m25):
 
 def test_the_dashboard_lifecycle_is_on_the_builder(m25):
     acts = {a["m"]: a for a in m25["screens"]["M25-builder"]["actions"]}
-    assert set(acts) == {"action_submit_review", "action_request_approval", "action_retire"}
+    assert set(acts) == {
+        "action_submit_review",
+        "action_steward_verify",
+        "action_request_approval",
+        "action_retire",
+    }
     assert acts["action_submit_review"]["states"] == ["draft"]
+    # pass 2: the steward verifies in review, and only then is it requested
+    assert acts["action_steward_verify"]["states"] == ["review"]
+    assert "note" in acts["action_steward_verify"]["asks"]
+    assert acts["action_request_approval"]["states"] == ["review"]
     assert acts["action_retire"]["states"] == ["certified"]
     assert "justification" in acts["action_request_approval"]["asks"]
     assert m25["screens"]["M25-builder"]["stateField"] == "state"
@@ -262,7 +274,7 @@ def test_schedule_sends_now_and_says_why_it_failed(m25):
 
 
 def test_schedule_report_choices_are_the_library(m25):
-    for sid in ("M25-form-schedule", "M25-form-pack"):
+    for sid in ("M25-form-schedule", "M25-form-pack", "M25-form-reportdef"):
         field = next(
             f
             for f in m25["screens"][sid]["fields"]

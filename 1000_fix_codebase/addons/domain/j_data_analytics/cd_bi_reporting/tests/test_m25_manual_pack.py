@@ -204,9 +204,18 @@ class TestDashboardSharing:
         dash = (
             env["fix.bi.dashboard"]
             .with_user(author)
-            .create({"name": "CFO cockpit", "role": "cfo", "steward_id": steward.id})
+            .create(
+                {
+                    "name": "CFO cockpit",
+                    "role": "cfo",
+                    "steward_id": steward.id,
+                    "business_owner_id": certifier.id,
+                    "decision_supported": "Month-end close review",
+                }
+            )
         )
         dash.with_user(author).action_submit_review()
+        dash.with_user(certifier).action_steward_verify(note="scope and Bengali checked")
         dash.with_user(author).action_request_approval(justification="month-end")
         task = dash.approval_request_id.task_ids.filtered(
             lambda t: t.assigned_user_id == certifier and t.state == "pending"

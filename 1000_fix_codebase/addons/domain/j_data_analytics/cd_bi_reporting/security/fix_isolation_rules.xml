@@ -8,24 +8,44 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
-    <record id="rule_fix_bi_alert_subscription_company" model="ir.rule">
-        <field name="name">fix.bi.alert.subscription: allowed companies</field>
-        <field name="model_id" ref="model_fix_bi_alert_subscription"/>
+    <record id="rule_fix_bi_alert_instance_company" model="ir.rule">
+        <field name="name">fix.bi.alert.instance: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_alert_instance"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
-    <record id="rule_fix_bi_dashboard_company" model="ir.rule">
-        <field name="name">fix.bi.dashboard: allowed companies</field>
-        <field name="model_id" ref="model_fix_bi_dashboard"/>
+    <record id="rule_fix_bi_annotation_company" model="ir.rule">
+        <field name="name">fix.bi.annotation: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_annotation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
-    <record id="rule_fix_bi_distribution_schedule_company" model="ir.rule">
-        <field name="name">fix.bi.distribution.schedule: allowed companies</field>
-        <field name="model_id" ref="model_fix_bi_distribution_schedule"/>
+    <record id="rule_fix_bi_content_usage_company" model="ir.rule">
+        <field name="name">fix.bi.content.usage: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_content_usage"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bi_embedded_surface_company" model="ir.rule">
+        <field name="name">fix.bi.embedded.surface: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_embedded_surface"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bi_exploration_company" model="ir.rule">
+        <field name="name">fix.bi.exploration: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_exploration"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_bi_manual_pack_company" model="ir.rule">
         <field name="name">fix.bi.manual.pack: allowed companies</field>
         <field name="model_id" ref="model_fix_bi_manual_pack"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bi_report_definition_company" model="ir.rule">
+        <field name="name">fix.bi.report.definition: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_report_definition"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_bi_report_run_company" model="ir.rule">
+        <field name="name">fix.bi.report.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_bi_report_run"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_bi_sync_config_company" model="ir.rule">

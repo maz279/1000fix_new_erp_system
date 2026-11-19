@@ -15,7 +15,7 @@ import datetime
 import logging
 
 from odoo import http
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -40,7 +40,13 @@ SURFACES = {
         # only from an approved request in the approver's inbox.
         "order": "role, name",
         "limit": 200,
-        "actions": {"action_submit_review", "action_request_approval", "action_retire"},
+        # M25 pass 2: the steward's verification (BRU-BID-10) before the request
+        "actions": {
+            "action_submit_review",
+            "action_steward_verify",
+            "action_request_approval",
+            "action_retire",
+        },
     },
     "fix.bi.distribution.schedule": {
         "order": "name",
@@ -64,6 +70,37 @@ SURFACES = {
             "action_retire",
         },
     },
+    # M25 second capture pass (19 Nov 2026): the records the spec names for
+    # each page. Lifecycle fields move only through these actions.
+    "fix.bi.annotation": {"order": "create_date desc, id desc", "limit": 200, "actions": set()},
+    "fix.bi.report.definition": {
+        "order": "report_key",
+        "limit": 200,
+        "actions": {"action_certify", "action_retire", "action_generate_run"},
+    },
+    "fix.bi.report.run": {
+        "order": "generated_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_flag_restatement"},
+    },
+    "fix.bi.exploration": {
+        "order": "write_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_run", "action_share", "action_promote"},
+    },
+    "fix.bi.alert.instance": {
+        "order": "raised_at desc, id desc",
+        "limit": 200,
+        "actions": {"action_acknowledge", "action_close"},
+    },
+    "fix.bi.embedded.surface": {
+        "order": "host_module, host_screen",
+        "limit": 200,
+        "actions": {"action_activate", "action_retire"},
+        # an internal audience is an internal group, never a portal one
+        "pickers": {"audience_group_id": [("share", "=", False)]},
+    },
+    "fix.bi.content.usage": {"order": "viewed_at desc, id desc", "limit": 200, "actions": set()},
     # E6/BRU-BID-11: the export audit trail (append-only, no actions).
     "fix.bi.export.log": {
         "order": "ran_at desc, id desc",
@@ -499,7 +536,8 @@ class P03BiApi(http.Controller):
         _require_company_wide(request.env)
         return _exec_payload(request.env)
 
-    @http.route("/p03/bi/role", type="jsonrpc", auth="user", readonly=True)
+    # not readonly: a view writes its usage row (FR-BID-033)
+    @http.route("/p03/bi/role", type="jsonrpc", auth="user")
     def bi_role(self, role="ceo", **kw):
         _require_internal(request.env)
         role = role or "ceo"
@@ -509,7 +547,51 @@ class P03BiApi(http.Controller):
             _require_finance_reader(request.env)
         elif role == "all":
             _require_company_wide(request.env)
-        return _role_payload(request.env, role)
+        payload = _role_payload(request.env, role)
+        payload["notes"] = payload["notes"] + _annotation_notes(request.env, role)
+        # FR-BID-033: who viewed which cockpit from which device class
+        try:
+            agent = request.httprequest.headers.get("User-Agent")
+        except Exception:
+            agent = None
+        if "fix.bi.content.usage" in request.env:
+            request.env["fix.bi.content.usage"]._log_view("role_dashboard", "M25:%s" % role, agent)
+        return payload
+
+    @http.route("/p03/bi/embed/token", type="jsonrpc", auth="user")
+    def bi_embed_token(self, surface_id=None, record_ref=None, **kw):
+        """AUT-BID-16: a short-lived, scope-bound, single-use embed token."""
+        # sudo reads the placement only; the viewer is still env.user, and
+        # _issue_token checks THEM against the surface's audience
+        surface = (
+            request.env["fix.bi.embedded.surface"].sudo().browse(int(surface_id or 0)).exists()
+        )
+        if not surface:
+            return {"error": "Unknown embedded surface"}
+        try:
+            return surface._issue_token(record_ref=record_ref)
+        except (UserError, AccessError) as exc:
+            return {"error": str(exc.args[0] if exc.args else exc)}
+
+
+def _annotation_notes(env, role):
+    """FR-BID-009: the owners' explanations shown to the cockpit's audience."""
+    try:
+        rows = env["fix.bi.annotation"]._for_role(role)
+    except Exception:
+        return []
+    return [
+        "%s (%s%s, %s): %s%s"
+        % (
+            a.name,
+            a.period,
+            (" · %s" % a.metric_key) if a.metric_key else "",
+            a.author_id.name,
+            a.text_en,
+            (" / %s" % a.text_bn) if a.text_bn else "",
+        )
+        for a in rows
+    ]
 
 
 def _weekly_usage(env):
@@ -837,8 +919,8 @@ def _role_payload(env, role):
         "notes": [
             "Every tile is a live read of the operational tables (orders, estimates, "
             "AR, complaints, NCRs, CRM, HR). A tile with no readable source stays '—'.",
-            "Dashboard-level usage telemetry and p95 load time have no model yet — they "
-            "are never invented.",
+            "Each view of this cockpit is logged with its device class (FR-BID-033); "
+            "p95 load time has no measurement yet and is never invented.",
         ],
     }
 
@@ -1263,9 +1345,20 @@ def report_library(env, date_from=None, date_to=None, **params):
         exports.check_access("read")
     except Exception:
         exports = None  # the export audit is a steward/operator read
+    try:
+        defs = {
+            d.report_key: d
+            for d in _read(env, "fix.bi.report.definition").search(
+                _bi_domain(env, "fix.bi.report.definition", [])
+            )
+        }
+    except Exception:
+        defs = {}
+    states = {"draft": "Draft", "certified": "Certified", "retired": "Retired"}
     rows = []
     for key, title, audience, entitlement in STANDARD_REPORTS:
         pack = "M25:%s" % key
+        definition = defs.get(pack)
         scheduled = schedules.search_count(
             _bi_domain(
                 env,
@@ -1285,6 +1378,8 @@ def report_library(env, date_from=None, date_to=None, **params):
                 "key": pack,
                 "audience": audience,
                 "entitlement": entitlement,
+                "owner": definition.business_owner_id.name if definition else "Not registered",
+                "certification": states.get(definition.certification_state) if definition else "—",
                 "schedules": scheduled,
                 "exports_30d": used,
                 "last_export": last_txt,
@@ -1292,12 +1387,24 @@ def report_library(env, date_from=None, date_to=None, **params):
         )
     return _pack(
         "Standard Report Library — every canonical pack and its use",
-        ["report", "key", "audience", "entitlement", "schedules", "exports_30d", "last_export"],
+        [
+            "report",
+            "key",
+            "audience",
+            "entitlement",
+            "owner",
+            "certification",
+            "schedules",
+            "exports_30d",
+            "last_export",
+        ],
         {
             "report": "Report",
             "key": "Report Key",
             "audience": "Audience",
             "entitlement": "Who May Open It",
+            "owner": "Business Owner",
+            "certification": "Certification",
             "schedules": "Active Schedules",
             "exports_30d": "Exports (30 days)",
             "last_export": "Last Export",
@@ -1305,6 +1412,8 @@ def report_library(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Each pack is computed live from the transaction tables; open it from its chip. "
+            "+ New Report Definition registers a pack's business owner and definition for "
+            "a steward to certify (FR-BID-011); Generate Run stamps a reproducible run. "
             "To receive one by e-mail on a cadence, add a Distribution Schedule.",
             "Exports are read from the append-only export log (BRU-BID-11); a user who may "
             "not read that log sees '—'.",
