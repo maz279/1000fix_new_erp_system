@@ -76,8 +76,41 @@ Workspace (`static/src/a08/m20.js`, `controllers/a08/m20.py`, regenerated `contr
 - **The reconciliation job reads service orders only.** The other revenue streams are reported by hand until their modules raise billable events.
 - **No suppression for page 1's failed events.** BRU-ARB-01 "approved suppression" is covered for unbilled work, but not for failed billable events on page 1. That needs a decision on who approves it.
 - **The segment comes from the customer's company flag** (corporate vs individual). M33 has no AR segment field. Brand partners and strategic accounts use named-account ladders.
+- **Four reference prefixes are shared with other modules' sequences:**
+
+  | Prefix | M20 record | Other module's record |
+  |---|---|---|
+  | `DEP/` | AR deposit | rental deposit |
+  | `DLV/` | invoice delivery | project deliverable |
+  | `PPL/` | payment plan | protection policy |
+  | `STM/` | customer statement | seller statement |
+
+  Each sequence has its own code, so numbers do not collide inside one model. But a printed `DEP/2026/00001` can name either record. Renaming the M20 prefixes is a one-line data change each, if the owner wants distinct references.
 
 ## 5. Verification and deployment state
 
-- **Committed** `fix(CD-M20-02)` on `fix/m20-capture-pass2`, rebased onto `83305725`. Pre-commit hooks pass.
-- **Not yet deployed** to fix_real (8069) or fix_dev (8090). The deploy needs `-u cd_billing_engine,cd_p03_portal` on both databases, plus a restart: `controllers/a08/m20.py` adds 10 surfaces, which a running server does not reload. The M18 session will also need a restart; one combined upgrade and one restart is proposed. Neither runs without the owner's OK.
+- **Committed** `fix(CD-M20-02)` (`9ec25ec3`, docs `565f7ee9`), landed fast-forward on `fix/a03-live-data-and-pending-work` and pushed.
+- **Deployed 19 Nov 2026** after the owner's OK ("Yes, deploy both"):
+  - The deploy ran in the combined wave with M12, M14, M15, M16, M17 and M21. M16's portal cascade took `cd_billing_engine` to 19.0.2.5.0 on both databases.
+  - The pre-wave backups are `backups/fix_{real,dev}_pre_m16_capture2_2026-11-19.dump`.
+  - The M21 session ran the single restart at 08:06: 8069 = PID 81988 (fix_real), 8090 = PID 21792 (fix_dev).
+  - M18's `cd_ewaste` was not landed and was not part of the wave.
+- **Read-only verification, both databases:**
+  - `cd_billing_engine` is at 19.0.2.5.0, installed.
+  - 10 tables and 10 models.
+  - 44 ACL lines and 16 company / operating-unit rules.
+  - 8 sequences (COL, PTP, PPL, DLV, STM, DEP, RFD, UBX).
+  - 4 crons, all active.
+  - The newest `web.assets_web` bundle (`17a52539…`) carries all 9 new forms.
+- **Live walk on 8069 (fix_real)**, headless, signed in with the dev login:
+  - Pages 2 and 4–10 show their "+ New" and chips as built; pages 1 and 3 show none.
+    - Page 4: Invoice Delivery, Customer Statement.
+    - Page 5: Deposit / Retention.
+    - Page 8: Promise to Pay, Payment Plan, Collection Case, Dunning Policy.
+    - Page 9: Credit Note and Refund, now separate.
+    - Page 10: Unbilled Exception.
+  - All 10 lists open with their columns.
+  - All 9 forms open with their inputs and Save / Save & Close. The dunning-policy form shows its Policy / Ladder tabs, and the plan form its Plan / Instalments tabs.
+  - The records endpoint serves all 9 new models.
+  - 0 JavaScript errors.
+  - No record was saved on fix_real; saving was proven on the test database (§3).
