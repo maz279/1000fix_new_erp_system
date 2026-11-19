@@ -55,7 +55,7 @@ class FixWorkOrder(models.Model):
         if not employee:
             raise UserError("Choose the technician to assign.")
         for wo in self:
-            if wo.state in ("completed", "failed"):
+            if wo.state in ("completed", "failed", "cancelled"):
                 raise UserError("Work order %s is %s." % (wo.name, wo.state))
             wo._guarded().write({"technician_id": employee.id, "state": "assigned"})
         return True
@@ -79,6 +79,8 @@ class FixWorkOrder(models.Model):
             ("in_progress", "In Progress"),
             ("completed", "Completed"),
             ("failed", "Failed"),
+            # A02 ERP audit M01-F11: the order was cancelled under it
+            ("cancelled", "Cancelled"),
         ],
         default="pending",
         required=True,

@@ -5,6 +5,7 @@ import logging
 import uuid
 from datetime import timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -75,6 +76,44 @@ DELIVERY_EVIDENCE_PARAM = "cd_service_order.delivery_evidence_required"
 WARRANTY_VERIFIED_PARAM = "cd_service_order.warranty_requires_verified"
 #  - an AMC zero-charge job needs its contract on the order: a control, "1".
 AMC_CONTRACT_PARAM = "cd_service_order.amc_requires_contract"
+#  - A02 ERP audit M01-F14: liquid damage (a tripped LCI) or a customer-induced
+#    fault (a coded fault in the 'physical' category, "Physical / Liquid
+#    Damage") voids warranty zero-charge. Default "1" (exclude), as warranty
+#    terms commonly do; the business confirms (OWNER).
+WARRANTY_EXCLUDES_DAMAGE_PARAM = "cd_service_order.warranty_excludes_customer_damage"
+_CUSTOMER_INDUCED_CATEGORIES = ("physical",)
+#  - A02 ERP audit M01-F19 / BRU-SRM-10: the priority a loyalty tier marked
+#    "Priority Diagnostics" (M10 fix.loyalty.tier.priority_diagnostic) gets at
+#    intake. "off" (any value that is not a priority) switches it off. Which
+#    level is "priority-1" is the CCO's call (OWNER); default 'urgent'.
+LOYALTY_PRIORITY_PARAM = "cd_service_order.loyalty_priority"
+# A02 ERP audit M01-F8: who may read a customer's unlock code (OWNER: confirm).
+PASSCODE_READERS = (
+    "cd_service_order.group_so_qc_inspector,cd_service_order.group_so_supervisor,"
+    "base.group_system"
+)
+# A02 ERP audit M01-F20: the KPI code of the response clock (fix.sla.item
+# kpi_code; the policy's response_hours when no item names it).
+RESPONSE_KPI = "first_response"
+# Priority order, lowest first (a loyalty tier never LOWERS a priority).
+_PRIORITY_RANK = {"normal": 0, "high": 1, "urgent": 2, "emergency": 3}
+# A02 ERP audit M01-F11: the order states in which parts are issued to it.
+PARTS_ISSUE_STATES = ("approved", "in_repair", "qc_failed")
+# A02 ERP audit M01-F11: the order states in which a technician's work order
+# is live work (shown on the technician's queue): not delivered, closed or
+# cancelled.
+WORK_ORDER_LIVE_ORDER_STATES = (
+    "draft",
+    "intake",
+    "diagnostic",
+    "estimate_pending",
+    "estimate_sent",
+    "awaiting_approval",
+    "approved",
+    "in_repair",
+    "qc_pending",
+    "qc_failed",
+)
 
 # Fields frozen once the order is handed over or cancelled (A1): the record of
 # what was repaired, for whom, and the handover evidence.
@@ -95,6 +134,15 @@ _FROZEN_WHEN_DONE = frozenset(
 # Fields set at intake and changed afterwards only through their action
 # (M01-1 re-classification to warranty; FR-SRM-080 priority override).
 _SET_AT_INTAKE = frozenset({"order_category", "priority"})
+
+
+_DHAKA = pytz.timezone("Asia/Dhaka")
+
+
+def _dhaka_date(stamp=None):
+    """The Asia/Dhaka business date of a naive-UTC datetime (now if empty)."""
+    stamp = stamp or fields.Datetime.now()
+    return pytz.utc.localize(stamp).astimezone(_DHAKA).date()
 
 
 def _param_on(env, key, default):
@@ -215,6 +263,20 @@ class FixServiceOrder(models.Model):
             "is_abandoned",
             "abandoned_at",
             "abandon_reason",
+            # A02 ERP audit (2026-11-19): the QC round (M01-F4), the pinned
+            # rework amount (M01-F2), the BER evidence (M01-F9) and the
+            # customer's unlock code and its consent (M01-F8).
+            "qc_round",
+            "rework_approved_amount_bdt",
+            "ber_proposed_by",
+            "ber_proposed_at",
+            "ber_reason",
+            "ber_confirmed_by",
+            "ber_confirmed_at",
+            "passcode_value",
+            "passcode_consent_at",
+            "passcode_consent_by",
+            "passcode_purged_at",
         }
     )
 
@@ -472,6 +534,30 @@ class FixServiceOrder(models.Model):
         "res.users", string="Repair Warranty Issued By", readonly=True, copy=False
     )
 
+    # A02 ERP audit M01-F4: each entry to QC Pending opens a new QC round; the
+    # Ready gate reads the newest inspection of the current round, so one
+    # failed inspection no longer blocks the order for ever.
+    qc_round = fields.Integer(string="QC Round", readonly=True, copy=False, default=0)
+
+    # A02 ERP audit M01-F9 / BRU-SRM-12: beyond economic repair needs photo
+    # evidence and a second technician's confirmation.
+    ber_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="BER Photo Evidence",
+        copy=False,
+        help="Photograph proving the device is beyond economic repair (BRU-SRM-12). "
+        "Attach it before proposing the BER; it is frozen once proposed.",
+    )
+    ber_proposed_by = fields.Many2one(
+        "res.users", string="BER Proposed By", readonly=True, copy=False
+    )
+    ber_proposed_at = fields.Datetime(string="BER Proposed At", readonly=True, copy=False)
+    ber_reason = fields.Text(string="BER Reason", readonly=True, copy=False)
+    ber_confirmed_by = fields.Many2one(
+        "res.users", string="BER Confirmed By (Second Technician)", readonly=True, copy=False
+    )
+    ber_confirmed_at = fields.Datetime(string="BER Confirmed At", readonly=True, copy=False)
+
     # FR-SRM-065: Data Services Case Intake
     is_data_service = fields.Boolean(string="Data Recovery / Migration", default=False)
     data_confidentiality_level = fields.Selection(
@@ -543,6 +629,14 @@ class FixServiceOrder(models.Model):
     )
     rework_approved_at = fields.Datetime(readonly=True, copy=False)
     rework_reason = fields.Text(string="Rework Confirmation Reason", readonly=True, copy=False)
+    # A02 ERP audit M01-F2: the amount the zero-charge rework confirmation
+    # covers, pinned when it is given; a higher amount due voids it.
+    rework_approved_amount_bdt = fields.Monetary(
+        string="Rework Waiver Covers (BDT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
 
     # FR-SRM-076: Loan Device Management
     loan_device_id = fields.Many2one("fix.device", string="Temporary Loan Device")
@@ -573,10 +667,30 @@ class FixServiceOrder(models.Model):
         default="none",
         tracking=True,
     )
+    # A02 ERP audit M01-F8 / BRU-SRM-20: the customer's unlock code was plain
+    # text any user read and wrote, and it outlived the job. It is captured
+    # only with the customer's explicit consent (Record Passcode), read only
+    # by the roles that test the device, and purged at handover/cancel.
     passcode_value = fields.Char(
         string="Diagnostic Passcode / Pattern",
-        help="Encrypted or masked diagnostic unlock code for QC verification.",
+        copy=False,
+        groups=PASSCODE_READERS,
+        help="The customer's unlock code, captured with consent (Record Passcode) "
+        "and purged when the device is handed over or the order is cancelled.",
     )
+    passcode_on_file = fields.Boolean(
+        string="Passcode On File",
+        compute="_compute_passcode_on_file",
+        compute_sudo=True,
+        help="Shown instead of the code: whether one is held for this order.",
+    )
+    passcode_consent_at = fields.Datetime(
+        string="Passcode Consent Given At", readonly=True, copy=False
+    )
+    passcode_consent_by = fields.Many2one(
+        "res.users", string="Passcode Consent Recorded By", readonly=True, copy=False
+    )
+    passcode_purged_at = fields.Datetime(string="Passcode Purged At", readonly=True, copy=False)
     cosmetic_condition_notes = fields.Text(
         string="Cosmetic Condition Matrix",
         help="4-angle housing, screen, bezel, and port scratch/dent inspection log.",
@@ -779,6 +893,11 @@ class FixServiceOrder(models.Model):
     def _read_group_states(self, states, domain, order):
         return [state[0] for state in SERVICE_ORDER_STATES]
 
+    @api.depends("passcode_value")
+    def _compute_passcode_on_file(self):
+        for order in self:
+            order.passcode_on_file = bool(order.sudo().passcode_value)
+
     # --- State machine enforcement (AS-06/DP-01) ---
     def _validate_transition(self, new_state: str) -> None:
         self.ensure_one()
@@ -811,31 +930,52 @@ class FixServiceOrder(models.Model):
             # approved), or the job is a zero-charge entitlement.
             self._check_close_gate()
 
+    def _fix_release_checklist(self):
+        """The inspection that decides Ready: the newest checklist of the
+        current QC round (A02 ERP audit M01-F4).
+
+        Every checklist used to have to pass, and a completed one is frozen
+        evidence (no unlink), so ONE failed inspection blocked the order for
+        ever, through every rework. Each entry to QC Pending opens a round
+        (qc_round); a checklist belongs to the round it was completed in, and
+        one completed in an earlier round no longer decides.
+        An inspection started after the newest one (pending / in progress) is
+        the newest one, so Ready waits for it."""
+        self.ensure_one()
+        # an inspection completed in an EARLIER round is history; one never
+        # stamped (legacy rows, trusted data loads) still counts by recency
+        checklists = self.qc_checklist_ids.filtered(
+            lambda c: not (c.qc_round and c.qc_round < self.qc_round)
+        )
+        return checklists.sorted(lambda c: c.id)[-1:] if checklists else checklists
+
+    def _fix_qc_gate_passes(self) -> bool:
+        self.ensure_one()
+        newest = self._fix_release_checklist()
+        return bool(newest) and newest.state == "passed" and (bool(newest.item_ids) or self.env.su)
+
     def _check_qc_gate(self) -> None:
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
         quality checklist — a hard gate, not a warning."""
         self.ensure_one()
-        checklists = self.qc_checklist_ids
-        if not checklists:
+        newest = self._fix_release_checklist()
+        if not newest:
             raise UserError(
-                "Order %s has no QC checklist — Ready requires one (BRU-SRM-04)" % self.name
+                "Order %s has no QC checklist for this QC round — Ready requires one "
+                "(BRU-SRM-04)" % self.name
             )
-        failed = checklists.filtered(lambda c: c.state != "passed")
-        if failed:
+        if newest.state != "passed":
             raise UserError(
-                "Order %s cannot be Ready: %d QC checklist(s) not passed (BRU-SRM-04)"
-                % (self.name, len(failed))
+                "Order %s cannot be Ready: its latest QC checklist is %s, not passed "
+                "(BRU-SRM-04)" % (self.name, newest.state)
             )
         # A02 audit M01-6: 5 of 8 live passed checklists had no items - a
         # checklist with nothing checked is not an inspection. (Only trusted
         # superuser code can still write such a row: the state is guarded.)
-        empty = self.env["fix.qc.checklist"]
-        if not self.env.su:
-            empty = checklists.filtered(lambda c: not c.item_ids)
-        if empty:
+        if not self.env.su and not newest.item_ids:
             raise UserError(
-                "Order %s cannot be Ready: %d passed QC checklist(s) have no inspection "
-                "items (BRU-SRM-04)" % (self.name, len(empty))
+                "Order %s cannot be Ready: its passed QC checklist has no inspection "
+                "items (BRU-SRM-04)" % self.name
             )
 
     # --- commercial basis: what is due, and what makes a job zero-charge ---
@@ -864,7 +1004,7 @@ class FixServiceOrder(models.Model):
         system can check, or an approval stamped by a commercial approver."""
         self.ensure_one()
         category = self.order_category
-        if category == "warranty":
+        if category == "warranty" and not self._fix_warranty_exclusion():
             day = (self.create_date or fields.Datetime.now()).date()
             require = _param_on(self.env, WARRANTY_VERIFIED_PARAM, "0")
             if self.device_id.is_under_warranty(day, require_verified=require):
@@ -878,10 +1018,49 @@ class FixServiceOrder(models.Model):
         # it (create, Change Category) and it waived the estimate and the
         # settlement gates. Such an intake is free on a commercial approver's
         # stamp, like any other zero-charge job (Request Goodwill).
+        return self._fix_approved_waiver_basis()
+
+    def _fix_approved_waiver_basis(self) -> str:
+        """A goodwill approval or a rework confirmation, while it still covers
+        the amount due (A02 ERP audit M01-F2).
+
+        The approval was pinned at the amount due when it was requested -
+        BDT 0 before any estimate - and then waived ANY later amount: a
+        goodwill granted at intake made a BDT 50,000 repair free. The basis
+        now holds only while the amount due is within what was approved; a
+        higher amount voids it (request again on the new amount)."""
+        self.ensure_one()
+        due = None
         if self.is_goodwill and self.goodwill_approved_by:
-            return "goodwill approved by %s" % self.goodwill_approved_by.name
+            due = self._fix_amount_due()
+            if due <= (self.goodwill_cost_attribution_bdt or 0.0) + 0.005:
+                return "goodwill approved by %s" % self.goodwill_approved_by.name
         if self.is_rework and self.rework_approved_by:
-            return "rework confirmed by %s" % self.rework_approved_by.name
+            due = self._fix_amount_due() if due is None else due
+            if due <= (self.rework_approved_amount_bdt or 0.0) + 0.005:
+                return "rework confirmed by %s" % self.rework_approved_by.name
+        return ""
+
+    def _fix_warranty_exclusion(self) -> str:
+        """Why the warranty does not cover this job, or '' (A02 ERP audit
+        M01-F14): a tripped liquid-contact indicator, or a coded fault of a
+        customer-induced category (Physical / Liquid Damage). Behind
+        WARRANTY_EXCLUDES_DAMAGE_PARAM (default on)."""
+        self.ensure_one()
+        if not _param_on(self.env, WARRANTY_EXCLUDES_DAMAGE_PARAM, "1"):
+            return ""
+        if self.lci_tripped:
+            return "liquid contact indicator tripped"
+        codes = [c for c in self.fault_line_ids.mapped("fault_code") if c]
+        if codes:
+            induced = (
+                self.env["fix.fault.code"]
+                .sudo()
+                .with_context(active_test=False)
+                .search([("code", "in", codes), ("category", "in", _CUSTOMER_INDUCED_CATEGORIES)])
+            )
+            if induced:
+                return "customer-induced fault %s" % ", ".join(induced.mapped("code"))
         return ""
 
     def _check_commercial_clearance(self) -> None:
@@ -1040,18 +1219,34 @@ class FixServiceOrder(models.Model):
             # M01-1 / BRU-SRM-02: a re-classification re-runs the warranty gate
             # (it only ran in create, so a standard order became 'warranty').
             self._check_warranty_gate()
+        if vals.get("technician_id"):
+            # A02 ERP audit M01-F15/F20: assigning the technician is the
+            # response (spec: "assignment to first action").
+            self.filtered(lambda o: o.state not in _SLA_FINISHED_STATES)._fix_mark_response()
         return result
 
     def _fix_refuse_direct_changes(self, vals) -> None:
         guarded = self._fix_guarded_fields() & set(vals)
+        # read through sudo: a guarded field may also be group-restricted
+        # (passcode_value), and the refusal must be the guard's, not a read error
         changed = {
             name
             for rec in self
             for name in guarded
-            if rec._fix_guard_differs(name, vals[name], rec[name])
+            if rec._fix_guard_differs(name, vals[name], rec.sudo()[name])
         }
         if changed:
             self._fix_guard_refuse(changed)
+        if "ber_photo_attachment_id" in vals:
+            for rec in self.filtered("ber_proposed_at"):
+                if rec._fix_guard_differs(
+                    "ber_photo_attachment_id",
+                    vals["ber_photo_attachment_id"],
+                    rec.ber_photo_attachment_id,
+                ):
+                    raise UserError(
+                        "The BER of order %s is proposed: its photo evidence is frozen." % rec.name
+                    )
         for rec in self:
             frozen = rec.state in ("delivered", "closed", "cancelled")
             names = set(vals) & (_SET_AT_INTAKE | (_FROZEN_WHEN_DONE if frozen else set()))
@@ -1081,23 +1276,41 @@ class FixServiceOrder(models.Model):
         now = fields.Datetime.now()
         stamps = {}
 
-        # SLA clock events
+        # SLA clock events. A02 ERP audit M01-F15: the resolution promise is
+        # "intake to ready" (fix.sla.policy.resolution_hours), and the
+        # resolution clock succeeds at Ready, so Ready is the resolution time
+        # (it was stamped at delivery, so the compliance report and TAT counted
+        # the customer's collection delay against the repair). The response
+        # is the first diagnostic action or assignment (_fix_mark_response),
+        # not the start of repair.
         if new_state == "ready":
             stamps["ready_at"] = now
+            if not self.sla_resolution_at:
+                stamps["sla_resolution_at"] = now
         if new_state == "intake" and not self.intake_completed_at:
             stamps["intake_completed_at"] = now
-        if new_state == "in_repair" and not self.sla_response_at:
-            stamps["sla_response_at"] = now
         if new_state in ("delivered", "closed") and not self.sla_resolution_at:
-            stamps["sla_resolution_at"] = now
+            stamps["sla_resolution_at"] = now  # a legacy order that never stamped Ready
         if new_state == "delivered" and not self.delivered_at:
             stamps["delivered_at"] = now
         if new_state == "closed" and not self.closed_at:
             stamps["closed_at"] = now
+        if new_state == "qc_pending":
+            # A02 ERP audit M01-F4: a new QC round
+            stamps["qc_round"] = (self.qc_round or 0) + 1
         if stamps:
             self._guarded().write(stamps)
         if new_state == "intake":
             self._fix_start_sla()
+        if new_state == "diagnostic":
+            self._fix_mark_response()
+        if new_state == "delivered":
+            # A02 ERP audit M01-F21 (FR-SRM-020/045): OUR repair warranty is
+            # issued with the handover, from the order's warranty days.
+            self._fix_auto_issue_repair_warranty()
+        if new_state in ("delivered", "cancelled"):
+            # A02 ERP audit M01-F8 / BRU-SRM-20: purged at handover
+            self._fix_purge_passcode()
         if new_state in _SLA_FINISHED_STATES:
             if self.sla_clock_paused:
                 self._guarded().write(self._fix_resume_stamps(now))
@@ -1204,11 +1417,15 @@ class FixServiceOrder(models.Model):
         """Called by fix.sla.kpi.instance when a resumed clock gets its new
         deadline: the order's own deadline follows it (see
         _fix_notify_target_moved for why that matters)."""
-        if instance.kpi_code != "resolution":
+        field = {
+            "resolution": "sla_resolution_deadline",
+            RESPONSE_KPI: "sla_response_deadline",
+        }.get(instance.kpi_code)
+        if not field:
             return
         for order in self:
-            if order.sla_resolution_deadline != instance.target_at:
-                order._guarded().write({"sla_resolution_deadline": instance.target_at})
+            if order[field] != instance.target_at:
+                order._guarded().write({field: instance.target_at})
 
     def _fix_resume_stamps(self, now) -> dict:
         minutes = self.sla_total_paused_minutes or 0.0
@@ -1225,22 +1442,9 @@ class FixServiceOrder(models.Model):
         """Start the resolution clock at intake from the order's policy (or
         the active policy for its channel and priority). Best effort: a policy
         problem is logged, never blocks the intake."""
-        Policy = self.env["fix.sla.policy"].sudo()
         Instance = self.env["fix.sla.kpi.instance"].sudo()
         for order in self:
-            policy = order.sla_policy_id or Policy.search(
-                [
-                    ("service_type", "=", order.service_type),
-                    ("priority", "=", order.priority),
-                    ("active", "=", True),
-                    ("company_id", "in", [order.company_id.id, False]),
-                    # the contact centre's per-queue answer targets (CC-*)
-                    # are walk_in/normal too; they are not repair promises
-                    ("code", "not =like", "CC-%"),
-                ],
-                order="id",
-                limit=1,
-            )
+            policy = order.sla_policy_id.sudo() or order._fix_match_sla_policy(order.priority)
             if not policy:
                 # A02 audit B3: an order whose channel or priority matched no
                 # policy got no clock at all (0 of 930 had a deadline).
@@ -1254,15 +1458,121 @@ class FixServiceOrder(models.Model):
                     start = order.intake_completed_at or fields.Datetime.now()
                     inst = Instance.start_for(order, policy, "resolution", started_at=start)
                     vals = {"sla_resolution_deadline": inst.target_at}
-                    if not order.sla_response_deadline:
-                        vals["sla_response_deadline"] = Instance.add_business_hours(
-                            start, policy.response_hours, Instance._effective_calendar(policy, None)
-                        )
+                    # A02 ERP audit M01-F20: the response promise is a clock of
+                    # its own (it was a deadline nothing ever measured).
+                    if not order.sla_response_at:
+                        response = Instance.start_for(order, policy, RESPONSE_KPI, started_at=start)
+                        vals["sla_response_deadline"] = response.target_at
                     if not order.sla_policy_id:
                         order.sudo().sla_policy_id = policy.id
                     order._guarded().write(vals)
             except (UserError, ValidationError) as exc:
                 logger.warning("SLA clock not started for %s: %s", order.name, exc)
+
+    def _fix_match_sla_policy(self, priority):
+        """The active repair SLA policy for this order's channel and
+        ``priority``, or an empty recordset."""
+        self.ensure_one()
+        return (
+            self.env["fix.sla.policy"]
+            .sudo()
+            .search(
+                [
+                    ("service_type", "=", self.service_type),
+                    ("priority", "=", priority),
+                    ("active", "=", True),
+                    ("company_id", "in", [self.company_id.id, False]),
+                    # the contact centre's per-queue answer targets (CC-*)
+                    # are walk_in/normal too; they are not repair promises
+                    ("code", "not =like", "CC-%"),
+                ],
+                order="id",
+                limit=1,
+            )
+        )
+
+    def _fix_mark_response(self) -> None:
+        """A02 ERP audit M01-F15/F20: the first response - the diagnostic
+        starts or a technician is assigned, whichever is first - is stamped
+        once and ends the response clock (met or breached against its
+        target, fix.sla.kpi.instance.succeed)."""
+        now = fields.Datetime.now()
+        Instance = self.env["fix.sla.kpi.instance"].sudo()
+        for order in self.filtered(lambda o: not o.sla_response_at):
+            order._guarded().write({"sla_response_at": now})
+            for inst in Instance.for_record(order, kpi_code=RESPONSE_KPI):
+                try:
+                    with self.env.cr.savepoint():
+                        inst.succeed(when=now)
+                except (UserError, ValidationError) as exc:
+                    logger.warning("Response clock of %s not closed: %s", order.name, exc)
+
+    def _fix_reselect_sla(self, reason: str) -> None:
+        """A02 ERP audit M01-F19: a priority change re-selects the SLA policy
+        for the new priority and moves the live clocks to it. The business
+        time already used is kept: the new deadline is the new target minus
+        the time used, from now (a held clock stays held)."""
+        Instance = self.env["fix.sla.kpi.instance"].sudo()
+        for order in self:
+            policy = order._fix_match_sla_policy(order.priority)
+            if not policy or policy == order.sla_policy_id:
+                continue
+            old_policy = order.sla_policy_id
+            order.sudo().sla_policy_id = policy.id
+            vals = {}
+            for inst in Instance.for_record(order):
+                if inst.kpi_code not in ("resolution", RESPONSE_KPI):
+                    continue
+                new_hours = (
+                    policy.resolution_hours
+                    if inst.kpi_code == "resolution"
+                    else policy.response_hours
+                )
+                calendar = Instance._effective_calendar(policy, None)
+                old_calendar = inst.calendar_id or None
+                now = fields.Datetime.now()
+                upto = inst.paused_at if inst.state == "paused" else now
+                left = Instance.business_minutes_between(upto, inst.target_at, old_calendar) / 60.0
+                used = max(0.0, (inst.target_hours or 0.0) - left)
+                remaining = max(0.0, new_hours - used)
+                was_paused = inst.state == "paused"
+                inst.cancel(
+                    "Priority changed to %s: re-selected policy %s (was %s). %s"
+                    % (order.priority, policy.code, old_policy.code or "-", reason)
+                )
+                target = Instance.add_business_hours(now, remaining, calendar)
+                successor = Instance.create(
+                    {
+                        "res_model": order._name,
+                        "res_id": order.id,
+                        "partner_id": inst.partner_id.id,
+                        "policy_id": policy.id,
+                        "kpi_code": inst.kpi_code,
+                        "calendar_id": calendar.id if calendar else False,
+                        "target_hours": new_hours,
+                        "started_at": now,
+                        "target_at": target,
+                        "warn_at": Instance.add_business_hours(now, remaining * 0.8, calendar),
+                        "elapsed_pause_minutes": inst.elapsed_pause_minutes,
+                        "supersedes_id": inst.id,
+                        "series_index": inst.series_index + 1,
+                    }
+                )
+                inst._guarded().write({"superseded_by_id": successor.id})
+                if was_paused:
+                    successor.pause(inst.pause_reason or "held")
+                field = (
+                    "sla_resolution_deadline"
+                    if inst.kpi_code == "resolution"
+                    else "sla_response_deadline"
+                )
+                vals[field] = target
+            if vals:
+                order._guarded().write(vals)
+            order.message_post(
+                body="SLA policy re-selected for priority %s: %s (was %s)."
+                % (order.priority, policy.display_name, old_policy.display_name or "-")
+            )
 
     def _fix_sla_instances(self, verb: str, reason: str = "") -> None:
         Instance = self.env["fix.sla.kpi.instance"].sudo()
@@ -1396,17 +1706,100 @@ class FixServiceOrder(models.Model):
         """Beyond economic repair (M31 BER confirmation, spec §5 exceptions):
         the order leaves through the cancellation path with reason
         'unrepairable', so its estimate, field order and workshop job are
-        closed and a settled amount is handed to M20 for refund."""
-        if not (reason or "").strip():
-            raise UserError("Give the reason the device cannot be repaired.")
+        closed and a settled amount is handed to M20 for refund.
+
+        A02 ERP audit M01-F9 / BRU-SRM-12 (H): a BER needs photographic
+        evidence and a SECOND technician's confirmation; one press with a
+        reason wrote the device off. Now two steps:
+          1. a technician proposes it, with the photo attached
+             (ber_photo_attachment_id) and the reason;
+          2. another technician confirms it: the order is cancelled.
+        A BER the workshop (M31) already proposed with evidence and had
+        confirmed by a second technician closes the order at once."""
         for order in self:
             if order.state not in ("diagnostic", "in_repair", "qc_pending", "qc_failed"):
                 raise UserError(
                     "Order %s is %s: it is marked unrepairable from diagnosis, repair or QC."
                     % (order.name, order.state)
                 )
-            order.action_cancel(reason_code="unrepairable", note=reason.strip())
+            if order._fix_ber_evidenced():
+                order.action_cancel(
+                    reason_code="unrepairable",
+                    note=(reason or "").strip() or order.ber_reason or "Beyond economic repair",
+                )
+            elif not order.ber_proposed_at:
+                order._fix_propose_ber(reason)
+            else:
+                order._fix_confirm_ber(reason)
         return True
+
+    def _fix_m31_ber_job(self):
+        """A workshop job of this order whose BER M31 proposed (with its
+        evidence) and a different person confirmed (cd_workshop, read through
+        the registry: M01 does not depend on M31)."""
+        self.ensure_one()
+        if "workshop_job_ids" not in self._fields:
+            return None
+        return self.sudo().workshop_job_ids.filtered(
+            lambda j: j.ber_proposed_at
+            and j.ber_confirmed_at
+            and j.ber_confirmed_by_id
+            and j.ber_confirmed_by_id != j.ber_proposed_by_id
+        )[:1]
+
+    def _fix_ber_evidenced(self) -> bool:
+        """BRU-SRM-12 is satisfied: confirmed here by a second technician, or
+        confirmed in the workshop, or trusted service code decides."""
+        self.ensure_one()
+        return bool(self.env.su or self.ber_confirmed_at or self._fix_m31_ber_job())
+
+    def _fix_propose_ber(self, reason) -> None:
+        self.ensure_one()
+        if not (reason or "").strip():
+            raise UserError("Give the reason the device cannot be repaired.")
+        photo = self.ber_photo_attachment_id
+        if not photo or not (photo.sudo().mimetype or "").startswith("image/"):
+            raise UserError(
+                "BRU-SRM-12: a beyond-economic-repair proposal needs photographic evidence. "
+                "Attach the photo of the device (BER Photo Evidence) to order %s first." % self.name
+            )
+        if not self.env.user.employee_id:
+            raise UserError("Only a technician (an employee) proposes a BER.")
+        self._guarded().write(
+            {
+                "ber_proposed_by": self.env.user.id,
+                "ber_proposed_at": fields.Datetime.now(),
+                "ber_reason": reason.strip(),
+            }
+        )
+        self.message_post(
+            body="Beyond economic repair proposed by %s: %s. A second technician confirms it "
+            "(Mark Unrepairable) before the order is closed (BRU-SRM-12)."
+            % (self.env.user.name, reason.strip())
+        )
+
+    def _fix_confirm_ber(self, reason) -> None:
+        self.ensure_one()
+        user = self.env.user
+        if user == self.ber_proposed_by or (
+            user.employee_id and user.employee_id == self.ber_proposed_by.employee_id
+        ):
+            raise UserError(
+                "BRU-SRM-12: the BER of order %s was proposed by you; a second technician "
+                "confirms it." % self.name
+            )
+        if not user.employee_id:
+            raise UserError(
+                "BRU-SRM-12: a second TECHNICIAN (an employee) confirms the BER of order %s."
+                % self.name
+            )
+        self._guarded().write(
+            {"ber_confirmed_by": user.id, "ber_confirmed_at": fields.Datetime.now()}
+        )
+        note = self.ber_reason or ""
+        if (reason or "").strip():
+            note = "%s (confirmed: %s)" % (note, reason.strip())
+        self.action_cancel(reason_code="unrepairable", note=note)
 
     def action_ready(self):
         """BRU-SRM-04 (H): an order cannot reach Ready without a PASSED
@@ -1713,6 +2106,16 @@ class FixServiceOrder(models.Model):
             )
         if reason_code == "other" and not (note or "").strip():
             raise UserError("Describe the reason when cancelling for 'Other'.")
+        if reason_code == "unrepairable":
+            # A02 ERP audit M01-F9: Cancel with reason 'unrepairable' was the
+            # second door around BRU-SRM-12.
+            for order in self:
+                if not order._fix_ber_evidenced():
+                    raise UserError(
+                        "Order %s: 'unrepairable' needs the BER evidence and a second "
+                        "technician's confirmation (BRU-SRM-12). Use Mark Unrepairable."
+                        % order.name
+                    )
         for order in self:
             refund = order.payment_settlement_state == "settled" and order.amount_settled_bdt > 0
             order._fix_cancel_downstream(reason_code, note)
@@ -1784,7 +2187,57 @@ class FixServiceOrder(models.Model):
                         "finish or fail the bench work first." % (self.name, job.name, job.state)
                     )
                 job.action_cancel()
+        self._fix_cancel_work_orders(label, reason_code)
         self._fix_cancel_consignments(label, note)
+
+    # A02 ERP audit M01-F11: why an M15 issue of a cancelled order goes back.
+    _PART_RETURN_REASON = {
+        "customer_declined": "customer_refusal",
+        "estimate_declined": "customer_refusal",
+        "unrepairable": "wrong_diagnosis",
+    }
+
+    def _fix_cancel_work_orders(self, label, reason_code) -> None:
+        """A02 ERP audit M01-F11: the technicians' work orders were left live
+        on a cancelled order (still on their queue, still able to draw van
+        stock). Each unfinished one is cancelled, and the parts M15 issued to
+        it go back to the location they came from (M15's own return). A part
+        issued to a COMPLETED work order is fitted in the device: it is
+        reported on the order for the store to decide, not returned blindly."""
+        self.ensure_one()
+        work_orders = self.sudo().work_order_ids
+        live = work_orders.filtered(lambda w: w.state not in ("completed", "failed", "cancelled"))
+        if live:
+            live._guarded().write({"state": "cancelled", "end_time": fields.Datetime.now()})
+        returned, kept, stuck = [], [], []
+        why = self._PART_RETURN_REASON.get(reason_code, "excess_draw")
+        for line in work_orders.mapped("parts_consumed_ids"):
+            issue = line.m15_consumption_id if "m15_consumption_id" in line._fields else None
+            if not issue or issue.state != "consumed":
+                continue
+            if line.work_order_id.state == "completed":
+                kept.append(issue.name)
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    issue.action_return_part(reason=why, notes=label)
+                returned.append(issue.name)
+            except (UserError, ValidationError) as exc:
+                stuck.append("%s (%s)" % (issue.name, exc))
+        notes = []
+        if live:
+            notes.append("work order(s) %s cancelled" % ", ".join(live.mapped("name")))
+        if returned:
+            notes.append("parts returned to stock: %s" % ", ".join(returned))
+        if kept:
+            notes.append(
+                "parts fitted on completed work: %s - return them through M15 if removed"
+                % ", ".join(kept)
+            )
+        if stuck:
+            notes.append("parts NOT returned (return them in M15): %s" % "; ".join(stuck))
+        if notes:
+            self.message_post(body="%s: %s." % (label, "; ".join(notes)))
 
     def _fix_cancel_consignments(self, label, note) -> None:
         """A02 audit M01-P2: a cancelled order left its pick&drop legs live,
@@ -1910,6 +2363,8 @@ class FixServiceOrder(models.Model):
                     "rework_approved_by": self.env.user.id,
                     "rework_approved_at": fields.Datetime.now(),
                     "rework_reason": reason.strip(),
+                    # M01-F2: the confirmation covers this amount, no more
+                    "rework_approved_amount_bdt": order._fix_amount_due(),
                 }
             )
             order.message_post(
@@ -1948,6 +2403,10 @@ class FixServiceOrder(models.Model):
             raise UserError("Unknown priority: %s." % priority)
         if not (reason or "").strip():
             raise UserError("Give the justification for the priority override.")
+        # A02 ERP audit M01-F19 / FR-SRM-080: "authorised roles" - any user
+        # re-prioritised any order. A priority moves the SLA promise, so it is
+        # the Service Supervisor's call, as a hold is.
+        self._fix_assert_supervisor("Overriding an order's priority")
         for order in self:
             if order.state in ("delivered", "closed", "cancelled"):
                 raise UserError("Order %s is %s." % (order.name, order.state))
@@ -1958,7 +2417,44 @@ class FixServiceOrder(models.Model):
                     "priority_override_user_id": self.env.user.id,
                 }
             )
+            # ... and the SLA follows the new priority (it kept the old clock)
+            if order.state not in _SLA_FINISHED_STATES and order.state != "draft":
+                order._fix_reselect_sla(reason.strip())
         return True
+
+    def _fix_apply_loyalty_priority(self) -> None:
+        """BRU-SRM-10 (C): a member whose M10 tier is marked Priority
+        Diagnostics gets the priority-1 SLA automatically, whatever the
+        service type (the rule was a comment on fix.sla.policy). Read through
+        the registry: cd_loyalty depends on this module. The level is
+        LOYALTY_PRIORITY_PARAM; a priority already higher is kept."""
+        Account = self.env.get("fix.loyalty.account")
+        if Account is None or "priority_diagnostic" not in self.env["fix.loyalty.tier"]._fields:
+            return
+        level = (
+            self.env["ir.config_parameter"].sudo().get_param(LOYALTY_PRIORITY_PARAM, "urgent") or ""
+        ).strip()
+        if level not in _PRIORITY_RANK:
+            return
+        for order in self:
+            if _PRIORITY_RANK.get(order.priority, 0) >= _PRIORITY_RANK[level]:
+                continue
+            partner = order.customer_id.commercial_partner_id or order.customer_id
+            account = Account.sudo().search(
+                [
+                    ("partner_id", "in", (partner | order.customer_id).ids),
+                    ("state", "=", "active"),
+                    ("tier_id.priority_diagnostic", "=", True),
+                ],
+                limit=1,
+            )
+            if not account:
+                continue
+            order._guarded().write({"priority": level})
+            order.message_post(
+                body="BRU-SRM-10: priority set to %s for %s member %s."
+                % (level, account.tier_id.display_name, account.name)
+            )
 
     # --- delivery handover OTP (A5, M01-10) ---
     def action_send_delivery_otp(self):
@@ -2053,10 +2549,26 @@ class FixServiceOrder(models.Model):
                     "Repair warranty for %s was already issued (valid until %s)."
                     % (order.name, order.service_warranty_until)
                 )
+            order._fix_issue_repair_warranty()
+
+    def _fix_auto_issue_repair_warranty(self) -> None:
+        """A02 ERP audit M01-F21 (FR-SRM-020/045): the warranty was issued
+        only when someone pressed Issue Repair Warranty, and a comeback was
+        refused on every order nobody pressed it for. It is issued at the
+        handover now, from the order's warranty days (default 30; the period
+        by device category / repair level is spec question Q-03, OWNER)."""
+        for order in self.filtered(lambda o: not o.service_warranty_until):
+            if (order.service_warranty_days or 0) <= 0:
+                continue
+            order._fix_issue_repair_warranty()
+
+    def _fix_issue_repair_warranty(self) -> None:
+        """Issue the repair warranty from the handover day (Dhaka)."""
+        for order in self:
             days = order.service_warranty_days or 30
-            base = (
-                order.sla_resolution_at.date() if order.sla_resolution_at else fields.Date.today()
-            )
+            # the warranty runs from the handover; the resolution (Ready) day
+            # is only the fallback of a legacy order with no delivery stamp
+            base = _dhaka_date(order.delivered_at or order.sla_resolution_at)
             order._guarded().write(
                 {
                     "service_warranty_until": base + timedelta(days=days),
@@ -2168,6 +2680,95 @@ class FixServiceOrder(models.Model):
             self._fix_event_payload(),
         )
 
+    @api.model
+    def _cron_resume_deferred(self):
+        """A02 ERP audit M01-F18 / BRU-SRM-15 ("resumes automatically on
+        release"): deferred_until was read by nothing, so a hold never ended
+        and its SLA clock stayed paused for ever. A hold whose resumption
+        date has come (Dhaka business day) is lifted, as the system."""
+        today = _dhaka_date()
+        due = self.sudo().search(
+            [
+                ("is_deferred_block", "=", True),
+                ("deferred_until", "!=", False),
+                ("deferred_until", "<=", today),
+                ("state", "not in", _SLA_FINISHED_STATES),
+            ]
+        )
+        resumed = 0
+        for order in due:
+            try:
+                with self.env.cr.savepoint():
+                    order._fix_lift_hold(
+                        "Deferred hold lifted automatically: its resumption date %s has come."
+                        % order.deferred_until
+                    )
+                    resumed += 1
+            except Exception:
+                logger.exception("Deferred hold of %s not lifted", order.name)
+        return resumed
+
+    def _fix_lift_hold(self, message) -> None:
+        """Lift the deferred hold as the system (cron, parts arrival)."""
+        for order in self.sudo():
+            if not order.is_deferred_block:
+                continue
+            order._guarded().write({"is_deferred_block": False})
+            order._fix_sync_sla_pause()
+            order.message_post(body=message)
+            publish(
+                self.env,
+                "service_order.resumed",
+                "fix.service.order",
+                order.id,
+                order._fix_event_payload(),
+            )
+
+    # --- the customer's unlock code (A02 ERP audit M01-F8, BRU-SRM-20) ---
+    def action_record_passcode(self, passcode=None, consent=None):
+        """Record the customer's unlock code for diagnosis and QC, only with
+        the customer's explicit consent. Any desk user records it; only the
+        roles in PASSCODE_READERS read it back, and it is purged at handover.
+
+        No fix.consent purpose covers device data access (M33 lists service
+        updates, marketing, research, collections, profiling, call recording):
+        the consent is recorded on the order (who, when) - OWNER: add a
+        purpose to the M33 consent register if it must live there."""
+        code = (passcode or "").strip()
+        if not code:
+            raise UserError("Enter the unlock code the customer gave.")
+        if str(consent or "").strip().lower() not in ("1", "true", "yes", "y"):
+            raise UserError(
+                "BRU-SRM-20: the unlock code is captured only with the customer's explicit "
+                "consent. Ask the customer, and answer 'yes' to record it."
+            )
+        for order in self:
+            if order.state in ("delivered", "closed", "cancelled"):
+                raise UserError(
+                    "Order %s is %s: an unlock code is no longer needed."
+                    % (order.name, order.state)
+                )
+            order.sudo()._guarded().write(
+                {
+                    "passcode_value": code,
+                    "passcode_consent_at": fields.Datetime.now(),
+                    "passcode_consent_by": self.env.user.id,
+                    "passcode_purged_at": False,
+                }
+            )
+            order.message_post(
+                body="Customer unlock code recorded with the customer's consent by %s (not "
+                "shown; purged at handover)." % self.env.user.name
+            )
+        return True
+
+    def _fix_purge_passcode(self) -> None:
+        for order in self.sudo().filtered("passcode_value"):
+            order._guarded().write(
+                {"passcode_value": False, "passcode_purged_at": fields.Datetime.now()}
+            )
+            order.message_post(body="Customer unlock code purged at %s (BRU-SRM-20)." % order.state)
+
     # --- Idempotency (T08, DI-04) ---
     @api.model_create_multi
     def create(self, vals_list):
@@ -2222,9 +2823,13 @@ class FixServiceOrder(models.Model):
         for rec in records:
             rec._check_warranty_gate()
             rec._flag_rework()
+            # BRU-SRM-10, before the clock starts so it runs on the new priority
+            rec._fix_apply_loyalty_priority()
             if rec.state == "intake":
                 rec._guarded().write({"intake_completed_at": fields.Datetime.now()})
                 rec._fix_start_sla()
+                if rec.technician_id:
+                    rec._fix_mark_response()
             publish(
                 self.env,
                 "service_order.created",
@@ -2305,8 +2910,13 @@ class FixServiceOrder(models.Model):
 
         Same device AND same fault category (A02 audit M01-1: the device alone
         flagged 413 of 930 orders, an unrelated cracked screen included). An
-        order with no coded fault yet is checked again when diagnosis ends."""
-        cutoff = fields.Date.today() - timedelta(days=30)
+        order with no coded fault yet is checked again when diagnosis ends.
+
+        A02 ERP audit M01-F21: the 30 days counted from the earlier order's
+        CREATION (a repair that took three weeks left a one-week window) and
+        a draft or a still-open order counted as the "original". The window
+        runs from the handover of a delivered (or closed) repair."""
+        cutoff = fields.Datetime.now() - timedelta(days=30)
         for order in self:
             if order.is_rework:
                 continue
@@ -2317,10 +2927,14 @@ class FixServiceOrder(models.Model):
                 [
                     ("device_id", "=", order.device_id.id),
                     ("id", "!=", order.id),
-                    ("state", "not in", ("cancelled",)),
-                    ("create_date", ">=", cutoff),
+                    ("state", "in", ("delivered", "closed")),
+                    "|",
+                    ("delivered_at", ">=", cutoff),
+                    "&",
+                    ("delivered_at", "=", False),
+                    ("closed_at", ">=", cutoff),
                 ],
-                order="create_date desc",
+                order="delivered_at desc, id desc",
             )
             original = next((c for c in candidates if c._fix_fault_categories() & categories), None)
             if original:

@@ -636,6 +636,7 @@ def test_van_stock_without_the_inventory_module(world):
 
 
 def test_van_stock_consume_by_product_id(world):
+    _so_to(world.so, "approved")  # A02 ERP M01-F11: parts go to an approved order
     ctrl = TechnicianApiController()
     with _as(world.env, world.tech_user):
         missing = ctrl.van_stock_consume(work_order_id=world.wo.id)
@@ -656,6 +657,7 @@ def test_van_stock_consume_by_product_id(world):
 
 
 def test_van_stock_consume_by_barcode(world):
+    _so_to(world.so, "approved")  # A02 ERP M01-F11: parts go to an approved order
     with _as(world.env, world.tech_user):
         ok = TechnicianApiController().van_stock_consume(
             work_order_id=world.wo.id, barcode_or_code="BC-TAB-1"
@@ -664,10 +666,17 @@ def test_van_stock_consume_by_barcode(world):
 
 
 def test_queue_carries_service_order_context(world):
+    # the part line is written directly: the API issues parts only to an
+    # approved order (A02 ERP M01-F11), and this draft order is the context
+    world.env["fix.work.order.part"].create(
+        {
+            "work_order_id": world.wo.id,
+            "product_id": world.part.id,
+            "quantity": 1.0,
+            "unit_cost": world.part.list_price,
+        }
+    )
     with _as(world.env, world.tech_user):
-        TechnicianApiController().van_stock_consume(
-            work_order_id=world.wo.id, product_id=world.part.id
-        )
         res = TechnicianApiController().technician_queue()
     (row,) = res["queue"]
     assert row["service_order"] == {
@@ -724,6 +733,7 @@ def test_sync_skips_entries_without_a_command_id(world):
 
 def test_resubmitted_batch_is_acknowledged_without_re_executing(world):
     """DI-05: the client lost the response of a successful sync and uploads again."""
+    _so_to(world.so, "approved")  # A02 ERP M01-F11: parts go to an approved order
     batch = [
         _cmd("u-in", "clock_in", geo_lat=23.8, geo_long=90.4),
         _cmd(
@@ -768,6 +778,7 @@ def test_resubmitted_batch_is_acknowledged_without_re_executing(world):
 
 
 def test_batch_mixing_new_and_applied_commands_runs_only_the_new_ones(world):
+    _so_to(world.so, "approved")  # A02 ERP M01-F11: parts go to an approved order
     ctrl = TechnicianApiController()
     applied = _cmd("m-part-1", "consume_part", work_order_id=world.wo.id, product_id=world.part.id)
     with _as(world.env, world.tech_user):

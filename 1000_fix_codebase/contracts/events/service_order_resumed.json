@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "service_order.resumed",
-  "description": "Published by cd_service_order through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_service_order through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -32,7 +32,7 @@
     "payload": {
       "type": "object",
       "additionalProperties": true,
-      "description": "Payload built dynamically (`self._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_service_order.py:2145); its keys are not statically derivable."
+      "description": "Payload built dynamically (`self._fix_event_payload()`, addons/domain/a_service_delivery/cd_service_order/models/fix_service_order.py:2675); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_service_order",

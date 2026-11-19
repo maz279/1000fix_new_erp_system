@@ -102,24 +102,27 @@ def test_full_lifecycle_records_history_events_and_sla_clocks(base):
     assert len(_events(env, "fix.service.order", order.id, "service_order.created")) == 1
 
     order.state = "intake"
+    assert not order.sla_response_at
     order.action_start_diagnostic()
+    # A02 ERP audit M01-F15: the response is the first diagnostic action
+    response_at = order.sla_response_at
+    assert response_at
     order.state = "estimate_pending"
     order.action_send_estimate()
     order.state = "awaiting_approval"
     order.action_approve()
-    assert not order.sla_response_at
     order.action_start_repair()
-    response_at = order.sla_response_at
-    assert response_at  # the response clock stops at the first in_repair
+    assert order.sla_response_at == response_at  # stamped once
     order.action_submit_qc()
     env["fix.qc.checklist"].create(
         {"order_id": order.id, "state": "passed", "item_ids": [Command.create({"name": "Boot"})]}
     )
     order.action_ready()
-    assert not order.sla_resolution_at
-    order.action_deliver()
+    # ... and the resolution is Ready (the resolution promise is intake to ready)
     resolved_at = order.sla_resolution_at
-    assert resolved_at
+    assert resolved_at and resolved_at == order.ready_at
+    order.action_deliver()
+    assert order.sla_resolution_at == resolved_at
     order.action_close()
     assert order.state == "closed"
     assert order.sla_resolution_at == resolved_at  # not re-stamped on close
@@ -137,6 +140,8 @@ def test_full_lifecycle_records_history_events_and_sla_clocks(base):
         f"Order {name}: in_repair -> qc_pending",
         f"Order {name}: qc_pending -> ready",
         f"Order {name}: ready -> delivered",
+        # A02 ERP audit M01-F21: the repair warranty is issued with the handover
+        f"Repair warranty issued with order {name}: 30 days",
         f"Order {name}: delivered -> closed",
     ]
     assert set(base.device.history_ids.mapped("service_order_id")) == {order}
@@ -187,7 +192,8 @@ def test_ready_requires_a_passed_qc_checklist(base):
         order.action_ready()
     base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
     base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "failed"})
-    with _refused(base.env, UserError, r"1 QC checklist\(s\) not passed"):
+    # A02 ERP audit M01-F4: the newest inspection decides
+    with _refused(base.env, UserError, "latest QC checklist is failed"):
         order.action_ready()
     assert order.state == "qc_pending"
 
@@ -203,7 +209,7 @@ def test_plain_write_to_ready_is_held_by_the_qc_gate(base):
     with _refused(base.env, UserError, "has no QC checklist"):
         order.write({"state": "ready"})
     base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "failed"})
-    with _refused(base.env, UserError, r"1 QC checklist\(s\) not passed"):
+    with _refused(base.env, UserError, "latest QC checklist is failed"):
         order.state = "ready"
     assert order.state == "qc_pending"
     order.qc_checklist_ids.write({"state": "passed"})
@@ -356,6 +362,12 @@ def test_return_within_30_days_is_flagged_as_rework(base):
     # A02 M01-1 / BRU-SRM-06: same device AND same fault category.
     fault = [Command.create({"fault_code": "DSP-01", "description": "No display"})]
     original = _order(base, fault_line_ids=fault)
+    # A02 ERP audit M01-F21: the original is a repair handed back (delivered)
+    base.env.cr.execute(
+        "UPDATE fix_service_order SET state = 'delivered', delivered_at = %s WHERE id = %s",
+        (odoo_fields.Datetime.now(), original.id),
+    )
+    original.invalidate_recordset()
     unrelated = _order(base, fault_description="Battery swelling")
     assert not unrelated.is_rework
     repeat = _order(base, fault_description="No display again", fault_line_ids=fault)

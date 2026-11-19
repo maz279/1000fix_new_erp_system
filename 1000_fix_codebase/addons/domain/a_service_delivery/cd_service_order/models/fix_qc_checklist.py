@@ -26,6 +26,7 @@ class FixQC(models.Model):
             "checked_at",
             "inspector_id",
             "inspected_by",
+            "qc_round",
         }
 
     # A completed inspection is evidence: its results are frozen.
@@ -80,6 +81,9 @@ class FixQC(models.Model):
         tracking=True,
     )
     checked_at = fields.Datetime(readonly=True, copy=False)
+    # A02 ERP audit M01-F4: the order's QC round this inspection was completed
+    # in; the Ready gate reads the newest inspection of the current round.
+    qc_round = fields.Integer(string="QC Round", readonly=True, copy=False, default=0)
     notes = fields.Text()
 
     # --- A02 Enterprise Data Capture (M01 QC Checklist Multi-Tab Specification) ---
@@ -146,6 +150,13 @@ class FixQC(models.Model):
             | self.work_order_id.technician_id
             | order.work_order_ids.mapped("technician_id")
         )
+        # A02 ERP audit M01-F23: the workshop bench technician (M31) and the
+        # field technician (M02) repaired the device too; read through the
+        # registry, M01 depends on neither.
+        sudo_order = order.sudo()
+        for link in ("workshop_job_ids", "field_order_ids"):
+            if link in sudo_order._fields:
+                technicians |= sudo_order[link].mapped("technician_id")
         employee = user.employee_id
         if (employee and employee in technicians) or user in technicians.mapped("user_id"):
             raise UserError(
@@ -200,6 +211,7 @@ class FixQC(models.Model):
                     "checked_at": fields.Datetime.now(),
                     "inspected_by": self.env.user.id,
                     "inspector_id": employee.id if employee else rec.inspector_id.id,
+                    "qc_round": rec.order_id.qc_round,
                 }
             )
             # A failed inspection sends the order back to rework.

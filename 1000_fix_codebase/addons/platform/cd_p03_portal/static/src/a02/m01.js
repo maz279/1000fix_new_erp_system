@@ -168,9 +168,16 @@ const SO_ACTIONS = [
    * browser prompt, and the resume date could not be given at all */
   { id: 'defer', m: 'action_defer_order', l: 'Defer / Hold (supervisor)', states: SO_HOLDABLE,
     form: 'M01-form-hold' },
-  { id: 'unrepairable', m: 'action_mark_unrepairable', l: 'Mark Unrepairable',
+  /* BRU-SRM-12: the first press PROPOSES (photo attached on the order record), a second
+   * technician's press CONFIRMS and cancels the order */
+  { id: 'unrepairable', m: 'action_mark_unrepairable', l: 'Mark Unrepairable (propose / confirm)',
     states: ['diagnostic', 'in_repair', 'qc_pending', 'qc_failed'],
     asks: [{ kwarg: 'reason', label: 'Why the device cannot be repaired' }] },
+  /* A02 ERP audit M01-F8 / BRU-SRM-20: captured only with the customer's consent */
+  { id: 'passcode', m: 'action_record_passcode', l: 'Record Passcode (customer consent)',
+    states: SO_HOLDABLE,
+    asks: [{ kwarg: 'passcode', label: 'Unlock code / pattern the customer gave' },
+      { kwarg: 'consent', label: 'Did the customer explicitly consent to us holding it? (yes / no)' }] },
   { id: 'cancel', m: 'action_cancel', l: 'Cancel Order', states: SO_OPEN,
     asks: [{ kwarg: 'reason', label: 'Reason: customer_declined, estimate_declined, duplicate, unrepairable, customer_unreachable, abandoned, or other: <note>' }] },
   { id: 'comeback', m: 'action_reopen_comeback', l: 'Open Comeback (repair warranty)', states: ['delivered', 'closed'],
@@ -220,7 +227,9 @@ export const SCREENS = {
         { name: 'device_id', required: true, label: 'Registered Device' },
         { name: 'device_serial', label: 'Device Serial Number (S/N)', readonly: true },
         { name: 'passcode_type', label: 'Device Lock / Auth Type' },
-        { name: 'passcode_value', label: 'Diagnostic Passcode / PIN' },
+        /* A02 ERP audit M01-F8 / BRU-SRM-20: the code itself is never shown or typed here;
+         * it is recorded with the customer's consent (Record Passcode) and purged at handover */
+        { name: 'passcode_on_file', label: 'Diagnostic Passcode On File (masked)', readonly: true },
         { name: 'lci_tripped', label: 'Liquid Contact Indicator (LCI) Tripped' },
         { name: 'accessory_bag_barcode', label: 'Accessory Bag Barcode' },
         { name: 'sim_memory_removed', label: 'SIM & Memory Card Returned at Counter' },
@@ -236,6 +245,10 @@ export const SCREENS = {
         { name: 'rework_of_id', label: 'Original Service Order (if rework)', readonly: true },
         { name: 'fault_description', required: true, label: 'Customer Reported Fault & Symptoms', type: 'text' },
         { name: 'diagnostic_notes', label: 'Bench / Technical Diagnostic Notes', type: 'text' },
+        /* A02 ERP audit M01-F9 / BRU-SRM-12: the photo a BER proposal needs */
+        { name: 'ber_photo_attachment_id', label: 'BER Photo Evidence (beyond economic repair)' },
+        { name: 'ber_proposed_by', label: 'BER Proposed By', readonly: true },
+        { name: 'ber_confirmed_by', label: 'BER Confirmed By (Second Technician)', readonly: true },
       ]},
       { tab: 'sla', title: 'SLA Countdown & Deferred Hold Governance (FLAW-01.3)',
         note: 'SLA clock automatically pauses when awaiting customer estimate approval or when placed on deferred hold.',
@@ -382,7 +395,9 @@ export const SCREENS = {
         { name: 'device_id', required: true, label: 'Registered Device' },
         { name: 'device_serial', label: 'Device Serial Number (S/N)', readonly: true },
         { name: 'passcode_type', label: 'Device Lock / Auth Type' },
-        { name: 'passcode_value', label: 'Diagnostic Passcode / PIN' },
+        /* A02 ERP audit M01-F8 / BRU-SRM-20: the code itself is never shown or typed here;
+         * it is recorded with the customer's consent (Record Passcode) and purged at handover */
+        { name: 'passcode_on_file', label: 'Diagnostic Passcode On File (masked)', readonly: true },
         { name: 'lci_tripped', label: 'Liquid Contact Indicator (LCI) Tripped' },
         { name: 'accessory_bag_barcode', label: 'Accessory Bag Barcode' },
         { name: 'sim_memory_removed', label: 'SIM & Memory Card Returned at Counter' },
@@ -398,6 +413,10 @@ export const SCREENS = {
         { name: 'rework_of_id', label: 'Original Service Order (if rework)', readonly: true },
         { name: 'fault_description', required: true, label: 'Customer Reported Fault & Symptoms', type: 'text' },
         { name: 'diagnostic_notes', label: 'Bench / Technical Diagnostic Notes', type: 'text' },
+        /* A02 ERP audit M01-F9 / BRU-SRM-12: the photo a BER proposal needs */
+        { name: 'ber_photo_attachment_id', label: 'BER Photo Evidence (beyond economic repair)' },
+        { name: 'ber_proposed_by', label: 'BER Proposed By', readonly: true },
+        { name: 'ber_confirmed_by', label: 'BER Confirmed By (Second Technician)', readonly: true },
       ]},
       { tab: 'sla', title: 'SLA Countdown & Deferred Hold Governance (FLAW-01.3)',
         note: 'SLA clock automatically pauses when awaiting customer estimate approval or when placed on deferred hold.',
@@ -800,7 +819,9 @@ export const SCREENS = {
     cols: ['started_at', 'display_label', 'res_model', 'res_id', 'kpi_code', 'state', 'target_at', 'elapsed_pause_minutes', 'series_index'],
     stateField: 'state',
     actions: [
-      /* A02 audit B3: Service Supervisor only (enforced by the model) */
+      /* A02 audit B3: Service Supervisor only (enforced by the model). A02 ERP audit
+       * M01-F17: a SERVICE ORDER's clock follows the order (Defer / Resume there); the
+       * model refuses these on it, so they apply to contact-centre and complaint clocks */
       { m: 'pause', l: 'Pause (supervisor)', ask: 'Reason for the pause', kwarg: 'reason' },
       { m: 'resume', l: 'Resume (supervisor)' },
       { m: 'succeed', l: 'Succeed (supervisor)' }

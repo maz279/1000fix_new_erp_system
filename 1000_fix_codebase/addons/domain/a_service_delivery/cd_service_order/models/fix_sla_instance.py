@@ -37,6 +37,7 @@
 # exposes on slakpiinstance and which nothing in the estate was tracking.
 from datetime import datetime, time, timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -183,7 +184,21 @@ class FixSlaKpiInstance(models.Model):
         """Service code (the order's own transitions, the contact centre, the
         complaint lifecycle) calls these as superuser; a person needs the
         Service Supervisor role."""
-        if self.env.su or self.env.user.has_group(SLA_SUPERVISOR_GROUP):
+        if self.env.su:
+            return
+        # A02 ERP audit M01-F17: a service order's clock follows the ORDER's
+        # hold (Defer / Resume), which pauses, resumes and re-times it and the
+        # order's own deadline together. Paused here by hand, the clock and
+        # the order disagreed (the order still showed running, its deadline
+        # never moved).
+        orders = self.filtered(lambda r: r.res_model == "fix.service.order")
+        if orders:
+            raise UserError(
+                "The SLA clock of a service order follows the order: put the order on "
+                "hold (Defer / Hold) or lift the hold (Resume) instead of changing its "
+                "clock by hand."
+            )
+        if self.env.user.has_group(SLA_SUPERVISOR_GROUP):
             return
         raise UserError(
             "Only a Service Supervisor can %s an SLA clock by hand; the clock otherwise "
@@ -294,9 +309,39 @@ class FixSlaKpiInstance(models.Model):
                 windows.append((start, end))
         return sorted(windows)
 
+    # A02 ERP audit M01-F7: fix.working.calendar lines are LOCAL hours
+    # (Asia/Dhaka, fix.working.calendar.timezone) and holidays local dates,
+    # while every Datetime is naive UTC. The windows were applied as UTC, so a
+    # 09:00-18:00 branch ran its clock 15:00-24:00 Dhaka time and a holiday
+    # closed the wrong six hours. The arithmetic now runs in the calendar's
+    # zone and converts back; with no calendar (24/7) the zone is irrelevant.
+    @api.model
+    def _fix_calendar_tz(self, calendar):
+        return pytz.timezone((calendar and calendar.timezone) or "Asia/Dhaka")
+
+    @api.model
+    def _fix_to_local(self, stamp, calendar):
+        if not calendar or not stamp:
+            return stamp
+        tz = self._fix_calendar_tz(calendar)
+        return pytz.utc.localize(stamp).astimezone(tz).replace(tzinfo=None)
+
+    @api.model
+    def _fix_to_utc(self, stamp, calendar):
+        if not calendar or not stamp:
+            return stamp
+        tz = self._fix_calendar_tz(calendar)
+        return tz.localize(stamp).astimezone(pytz.utc).replace(tzinfo=None)
+
     @api.model
     def add_business_hours(self, start, hours, calendar=None):
-        """The datetime `hours` of WORKING time after `start`."""
+        """The datetime `hours` of WORKING time after `start` (naive UTC in,
+        naive UTC out; the calendar is read in its own time zone)."""
+        local = self._add_business_hours_local(self._fix_to_local(start, calendar), hours, calendar)
+        return self._fix_to_utc(local, calendar)
+
+    @api.model
+    def _add_business_hours_local(self, start, hours, calendar=None):
         remaining = timedelta(hours=max(0.0, hours))
         if remaining <= timedelta(0):
             return start
@@ -331,6 +376,8 @@ class FixSlaKpiInstance(models.Model):
         """
         if not end or not start or end <= start:
             return 0.0
+        start = self._fix_to_local(start, calendar)
+        end = self._fix_to_local(end, calendar)
         total = 0.0
         cursor = start
         for _ in range(MAX_CALENDAR_DAYS):
@@ -561,14 +608,27 @@ class FixSlaKpiInstance(models.Model):
             record._fix_sla_target_moved(successor)
 
     def succeed(self, when=None):
-        """The promise was met."""
+        """The promised event happened at ``when``: the promise was MET if
+        that was by the deadline, otherwise it is recorded as BREACHED.
+
+        A02 ERP audit M01-F16: succeed() never compared with target_at, so a
+        clock finished a day late (before the 15-minute breach cron ran, or on
+        a held clock the cron skips) was reported met. A held clock's time
+        stopped at its pause, so it is judged at paused_at."""
         self._fix_assert_clock_supervisor("succeed")
         for rec in self:
             if rec.state not in ("in_progress", "paused"):
                 continue
-            rec._guarded().write(
-                {"state": "succeeded", "succeeded_at": when or fields.Datetime.now()}
-            )
+            done = when or fields.Datetime.now()
+            judged = rec.paused_at if rec.state == "paused" and rec.paused_at else done
+            if rec.target_at and judged > rec.target_at:
+                # the record is the evidence; no breach event: the escalation
+                # it triggers is for a clock still running
+                rec._guarded().write(
+                    {"state": "breached", "breached_at": done, "succeeded_at": done}
+                )
+                continue
+            rec._guarded().write({"state": "succeeded", "succeeded_at": done})
             publish(
                 self.env,
                 "sla.instance_succeeded",

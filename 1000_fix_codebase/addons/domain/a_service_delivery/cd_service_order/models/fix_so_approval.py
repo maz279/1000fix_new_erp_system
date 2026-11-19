@@ -124,6 +124,10 @@ class FixSoApproval(models.Model):
         if live:
             raise UserError("%s is already awaiting approval." % live.name)
         amount = estimate.grand_total if kind == "manager_key" else order._fix_amount_due()
+        # A02 ERP audit M01-F2: the amount is the waiver's ceiling. A request
+        # at BDT 0 (an e-waste / recycling intake with nothing to charge) is
+        # still allowed, but it covers BDT 0 only: the order's basis lapses as
+        # soon as a price appears (fix.service.order._fix_approved_waiver_basis).
         req = self._guarded().create(
             {
                 "kind": kind,

@@ -24,7 +24,10 @@ PRICE_FLOOR_PARAM = "cd_service_order.estimate_price_floor"
 # What an approved estimate may no longer change: the price the customer
 # approved (A02 audit M01-5). Revise it instead.
 _PRICED_FIELDS = frozenset({"line_ids", "discount", "vat_rate", "currency_id", "order_id"})
-_DECIDED_STATES = ("approved", "rejected", "expired")
+# A02 ERP audit M01-F3: 'superseded' is an approved version a later approved
+# version replaced. It is decided (frozen) and never governs the money: an
+# order keeps exactly ONE approved estimate.
+_DECIDED_STATES = ("approved", "rejected", "expired", "superseded")
 # A new version is cut from an estimate the customer has seen or decided; a
 # draft is edited instead.
 _REVISABLE_STATES = ("sent", "approved", "rejected", "expired")
@@ -87,6 +90,9 @@ class FixEstimate(models.Model):
             "customer_approved_total",
             "customer_otp_expires_at",
             "customer_otp_attempts",
+            # A02 ERP audit M01-F3: the version decides which estimate governs
+            # the order's money; it is set only by Revise.
+            "version",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -161,6 +167,7 @@ class FixEstimate(models.Model):
             ("approved", "Approved"),
             ("rejected", "Rejected"),
             ("expired", "Expired"),
+            ("superseded", "Superseded by a Later Version"),
         ],
         default="draft",
         required=True,
@@ -467,6 +474,8 @@ class FixEstimate(models.Model):
             # A02 audit M01-5: the customer approved BDT 4,600 and staff then
             # added a BDT 50,000 line to the approved estimate. A decided
             # estimate's price is frozen; a new price is a revision.
+            if "order_id" in vals:
+                self._fix_assert_order_link_open(vals["order_id"])
             priced = _PRICED_FIELDS & set(vals)
             frozen = self.filtered(lambda e: e.state in _DECIDED_STATES)
             if priced == {"order_id"} and not frozen.filtered("order_id"):
@@ -494,6 +503,30 @@ class FixEstimate(models.Model):
                 )
         self._fix_void_on_raise()
         return result
+
+    def _fix_assert_order_link_open(self, order_value) -> None:
+        """A02 ERP audit M01-F3: an estimate that is with the customer, or
+        carries any approval, belongs to its order. Moving a sent estimate
+        that held the customer's OTP approval to another order carried that
+        approval (and its price) onto a job the customer never saw. A draft
+        estimate may still be re-pointed; a CRM quote with no order is
+        adopted by the order its deal converts into."""
+        for est in self:
+            if not est.order_id or not est._fix_guard_differs(
+                "order_id", order_value, est.order_id
+            ):
+                continue
+            if (
+                est.state != "draft"
+                or est.customer_approval_ref
+                or est.manager_approval_uid
+                or est.dofa_approved_by
+            ):
+                raise UserError(
+                    "Estimate %s is %s and belongs to order %s: it cannot be moved to "
+                    "another order. Raise a new estimate on that order instead."
+                    % (est.display_name, est.state, est.order_id.name)
+                )
 
     def _fix_void_on_raise(self) -> None:
         """M01-5 (S4): an approval covers the amount it saw. A higher grand
@@ -595,6 +628,12 @@ class FixEstimate(models.Model):
                     "This estimate expired on %s (BRU-SRM-13). Revise it and send the new "
                     "version to the customer." % est.expiry_date
                 )
+            newer = est._fix_newer_live_versions()
+            if newer:
+                raise UserError(
+                    "Estimate %s is superseded by version %d, which is with the customer. "
+                    "Approve the latest version." % (est.display_name, max(newer.mapped("version")))
+                )
             if est.grand_total > dual_threshold:
                 if not est.customer_approval_ref:
                     raise UserError(
@@ -642,8 +681,38 @@ class FixEstimate(models.Model):
                     "approved_total": est.grand_total,
                 }
             )
+            est._fix_supersede_other_versions()
             publish(self.env, "estimate.approved", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("approved")
+
+    def _fix_other_versions(self):
+        self.ensure_one()
+        if not self.order_id:
+            return self.browse()
+        return self.sudo().order_id.estimate_ids.filtered(lambda e: e.id != self.id)
+
+    def _fix_newer_live_versions(self):
+        """Later versions of this estimate that are with the customer or
+        approved: an older version is no longer the price on the table."""
+        self.ensure_one()
+        return self._fix_other_versions().filtered(
+            lambda e: e.version > self.version and e.state in ("sent", "approved")
+        )
+
+    def _fix_supersede_other_versions(self) -> None:
+        """A02 ERP audit M01-F3: approving a version retires every other
+        version still with the customer or approved, so the order has exactly
+        one approved estimate (the billing engine and the settlement read
+        ``estimate_ids.filtered(state == 'approved')``)."""
+        for est in self:
+            others = est._fix_other_versions().filtered(lambda e: e.state in ("sent", "approved"))
+            if not others:
+                continue
+            others._guarded().write({"state": "superseded"})
+            for other in others:
+                other.message_post(
+                    body="Superseded: version %d of this estimate was approved." % est.version
+                )
 
     def action_request_manager_key(self, justification=None):
         """Route the BRU-SRM-08 second key to a branch manager's M63 inbox
@@ -854,7 +923,9 @@ class FixEstimate(models.Model):
             )
         # the revision carries the rate this estimate already has
         carrier = self.with_context(**{_VAT_CARRY_KEY: _VAT_CARRY_TOKEN})
-        new = carrier.copy({"version": self.version + 1, "state": "draft"})
+        # the version is guarded (M01-F3): only a revision numbers one
+        new = carrier._guarded().copy({"version": self.version + 1, "state": "draft"})
+        new = new.with_env(self.env)
         return {
             "type": "ir.actions.act_window",
             "res_model": "fix.estimate",

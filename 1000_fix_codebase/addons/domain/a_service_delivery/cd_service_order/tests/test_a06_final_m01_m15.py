@@ -13,6 +13,12 @@ world = base.world
 _as = base._as
 
 
+@pytest.fixture(autouse=True)
+def _approved_order(world):
+    """A02 ERP audit M01-F11: parts are issued to an approved order only."""
+    base._so_to(world.so, "approved")
+
+
 @pytest.fixture
 def mapped(world):
     env = world.env

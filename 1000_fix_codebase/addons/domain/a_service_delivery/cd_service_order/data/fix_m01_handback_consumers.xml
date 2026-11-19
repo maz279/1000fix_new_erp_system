@@ -47,5 +47,16 @@
             <field name="module">cd_service_order</field>
         </record>
 
+        <!-- A02 ERP audit M01-F18: parts reserved for an order held for
+             parts lift its deferred hold (BRU-SRM-15). noupdate: a new record
+             in this file is still created on upgrade. -->
+        <record id="consumer_stock_reserved_service_order" model="fix.event.consumer">
+            <field name="name">M01: parts reserved for an order held for parts lift its hold</field>
+            <field name="event_type">stock.reserved</field>
+            <field name="model">fix.service.order</field>
+            <field name="method">consume_stock_reserved</field>
+            <field name="module">cd_service_order</field>
+        </record>
+
     </data>
 </odoo>

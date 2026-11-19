@@ -163,12 +163,9 @@ class FixServiceOrderContract(models.Model):
             # paid by the per-device fee rather than drawn from a line
             return "AMC contract %s (managed asset under MSP)" % self.contract_id.display_name
         # the contract does not cover this order: only an approved goodwill
-        # or a confirmed rework still waives the charge
-        if self.is_goodwill and self.goodwill_approved_by:
-            return "goodwill approved by %s" % self.goodwill_approved_by.name
-        if self.is_rework and self.rework_approved_by:
-            return "rework confirmed by %s" % self.rework_approved_by.name
-        return ""
+        # or a confirmed rework still waives the charge - within the amount it
+        # was approved for (A02 ERP audit M01-F2, the one M01 check)
+        return self._fix_approved_waiver_basis()
 
     def _fix_consume_contract_entitlement(self):
         """Draw one unit of the covering entitlement, once per order."""
@@ -189,10 +186,17 @@ class FixServiceOrderContract(models.Model):
                 {"contract_entitlement_id": line.id, "contract_entitlement_qty": 1.0}
             )
 
-    def action_approve(self):
-        result = super().action_approve()
-        self.filtered(lambda o: o.state == "approved")._fix_consume_contract_entitlement()
-        return result
+    def _on_state_change(self, new_state, old_state):
+        """A02 ERP audit M01-F13: the entitlement was drawn only by the
+        order's own Approve button; an order approved through its estimate
+        (fix.estimate.action_approve drives the order) drew nothing, so the
+        AMC job was free AND the contract kept its unit. It is drawn in the
+        transition itself, whichever path makes it. A unit used up refuses
+        the transition. (A cancelled order gives it back:
+        fix_contract_capture.FixServiceOrderEntitlementRestore.)"""
+        super()._on_state_change(new_state, old_state)
+        if new_state == "approved":
+            self._fix_consume_contract_entitlement()
 
     # The cost comes from the latest estimate, so it must follow the estimates:
     # depending on contract_id alone left it at whatever the first compute saw,

@@ -18,6 +18,8 @@ from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_in
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
+# a 1x1 PNG: a beyond-economic-repair proposal needs an IMAGE (BRU-SRM-12)
+_PNG_B64 = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
 GUARD = "changes only through its workflow"
 _SEQ = itertools.count(1)
 
@@ -254,8 +256,13 @@ def test_category_and_priority_change_only_through_their_actions(w):
     # FR-SRM-080
     assert "set at intake" in attempt(w, lambda: o.with_user(w.clerk).write({"priority": "urgent"}))
     assert attempt(w, lambda: o.with_user(w.clerk).action_override_priority("urgent", ""))
-    o.with_user(w.clerk).action_override_priority("urgent", "VIP escalation")
-    assert (o.priority, o.priority_override_user_id) == ("urgent", w.clerk)
+    # A02 ERP audit M01-F19: FR-SRM-080 "authorised roles" - a Service Supervisor
+    assert "Supervisor" in attempt(
+        w, lambda: o.with_user(w.clerk).action_override_priority("urgent", "VIP escalation")
+    )
+    sup = _user(w.env, "supervisor", ["cd_service_order.group_so_supervisor"])
+    o.with_user(sup).action_override_priority("urgent", "VIP escalation")
+    assert (o.priority, o.priority_override_user_id) == ("urgent", sup)
 
 
 # =========================================================================== A4: order <-> estimate
@@ -628,7 +635,13 @@ def test_goodwill_needs_an_independent_approver(w):
 def test_rework_needs_the_same_fault_and_an_approval(w):
     dev = device(w)
     fault = [Command.create({"fault_code": "DSP-01", "description": "No display"})]
-    order(w, dev=dev, fault_line_ids=fault)
+    first = order(w, dev=dev, fault_line_ids=fault)
+    # A02 ERP audit M01-F21: the window runs from the handover of the repair
+    w.env.cr.execute(
+        "UPDATE fix_service_order SET state = 'delivered', delivered_at = %s WHERE id = %s",
+        (fields.Datetime.now(), first.id),
+    )
+    first.invalidate_recordset()
     unrelated = order(w, dev=dev, fault_description="Cracked back glass")
     assert not unrelated.is_rework  # same device, unrelated fault (A02 dlv_06)
     o = order(w, dev=dev, fault_line_ids=fault)
@@ -891,10 +904,21 @@ def test_p03_whitelists_the_new_actions(w):
 def test_mark_unrepairable_needs_a_reason_and_cancels(w):
     o = order(w)
     o.action_intake()
-    assert "repaired" in attempt(w, lambda: o.with_user(w.clerk).action_mark_unrepairable(""))
     assert "from diagnosis, repair or QC" in attempt(
         w, lambda: o.with_user(w.clerk).action_mark_unrepairable("board dead")
     )
     o.action_start_diagnostic()
-    o.with_user(w.clerk).action_mark_unrepairable("Board corroded beyond repair")
+    assert "repaired" in attempt(w, lambda: o.with_user(w.clerk).action_mark_unrepairable(""))
+    # A02 ERP audit M01-F9 / BRU-SRM-12: photo evidence, then a second
+    # technician (the full flow: test_a02erp_m01_b5.test_f9_*)
+    techs = []
+    for login in ("ber_a", "ber_b"):
+        user = _user(w.env, login)
+        w.env["hr.employee"].create({"name": user.name, "user_id": user.id})
+        techs.append(user)
+    photo = w.env["ir.attachment"].create({"name": "ber.png", "datas": _PNG_B64})
+    o.with_user(w.clerk).write({"ber_photo_attachment_id": photo.id})
+    o.with_user(techs[0]).action_mark_unrepairable("Board corroded beyond repair")
+    assert o.state == "diagnostic"
+    o.with_user(techs[1]).action_mark_unrepairable("Confirmed")
     assert (o.state, o.cancel_reason_code) == ("cancelled", "unrepairable")

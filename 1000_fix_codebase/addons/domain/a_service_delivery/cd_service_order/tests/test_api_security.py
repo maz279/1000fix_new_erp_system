@@ -317,6 +317,11 @@ def test_van_stock_shows_only_own_van_location(world):
 
 
 def test_van_stock_consume_scoped_to_own_work_order_and_validated(world):
+    # A02 ERP audit M01-F11: parts are issued to an approved order only
+    for state in ("intake", "diagnostic", "estimate_pending", "estimate_sent"):
+        world.so.state = state
+    for state in ("awaiting_approval", "approved"):
+        world.so.state = state
     ctrl = TechnicianApiController()
     with _as(world.env, world.tech_a_user):
         foreign = ctrl.van_stock_consume(work_order_id=world.wo_b.id, product_id=world.part.id)

@@ -12,6 +12,8 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
+from .fix_service_order import PARTS_ISSUE_STATES
+
 M15_REQUIRED_PARAM = "cd_service_order.m15_issue_required"
 
 
@@ -126,6 +128,23 @@ class FixWorkOrderPartM15(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # A02 ERP audit M01-F11: stock is issued only to an order that is
+        # approved for repair (or back from a failed QC). Parts were drawn
+        # against draft, unapproved and cancelled orders. Trusted service code
+        # (data loads) is exempt; the technician API checks the state itself.
+        if not self.env.su:
+            work_orders = (
+                self.env["fix.work.order"]
+                .sudo()
+                .browse([v["work_order_id"] for v in vals_list if v.get("work_order_id")])
+            )
+            for wo in work_orders:
+                if wo.state == "cancelled" or wo.order_id.state not in PARTS_ISSUE_STATES:
+                    raise UserError(
+                        "Parts are issued to an approved order in repair. Order %s is %s "
+                        "(work order %s is %s)."
+                        % (wo.order_id.name, wo.order_id.state, wo.name, wo.state)
+                    )
         lines = super().create(vals_list)
         for line in lines:
             issue = line._a06_issue_from_m15()

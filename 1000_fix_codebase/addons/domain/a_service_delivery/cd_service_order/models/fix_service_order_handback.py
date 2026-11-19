@@ -112,15 +112,15 @@ class FixServiceOrderHandback(models.Model):
         if not order:
             return {"moved": False, "reason": "no service order"}
         result = order._fix_handback_to_qc("Workshop job delivered")
-        if order.state == "qc_pending":
-            checklists = order.qc_checklist_ids
-            if checklists and all(c.state == "passed" and c.item_ids for c in checklists):
-                try:
-                    with self.env.cr.savepoint():
-                        order.action_ready()
-                    result = {"moved": True, "state": order.state}
-                except (UserError, ValidationError) as exc:
-                    logger.info("Order %s stays in QC: %s", order.name, exc)
+        # A02 ERP audit M01-F4: the newest inspection of this QC round decides
+        # (one old failed checklist blocked the release for ever)
+        if order.state == "qc_pending" and order._fix_qc_gate_passes():
+            try:
+                with self.env.cr.savepoint():
+                    order.action_ready()
+                result = {"moved": True, "state": order.state}
+            except (UserError, ValidationError) as exc:
+                logger.info("Order %s stays in QC: %s", order.name, exc)
         return result
 
     @api.model
@@ -174,6 +174,35 @@ class FixServiceOrderHandback(models.Model):
             body="Delivered to the customer by logistics leg %s (POD verified)." % leg.name
         )
         return {"moved": True, "state": order.state}
+
+    # ------------------------------------- parts arrival (A02 ERP audit M01-F18)
+    @api.model
+    def consume_stock_reserved(self, event: dict) -> dict:
+        """M15 reserved stock for a job: when the job is a service order held
+        for parts (deferred hold 'parts_backorder'), the parts are here and the
+        hold lifts (BRU-SRM-15: the clock resumes automatically on release).
+        The hold named no part; the reservation names the order
+        (service_order_ref), which is what links the two. Any other hold
+        reason is the supervisor's to lift."""
+        self._fix_assert_relay()
+        payload = event.get("payload") or {}
+        ref = (payload.get("service_order_ref") or "").strip()
+        if not ref:
+            return {"resumed": False, "reason": "no service order on the reservation"}
+        order = self.sudo().search([("name", "=", ref)], limit=1)
+        if not order:
+            return {"resumed": False, "reason": "no service order %s" % ref}
+        if not (order.is_deferred_block and order.deferred_reason == "parts_backorder"):
+            return {"resumed": False, "reason": "the order is not held for parts"}
+        order._fix_lift_hold(
+            "Parts hold lifted: M15 reserved %s x %s for this order (%s)."
+            % (
+                payload.get("quantity") or "",
+                payload.get("part_number") or "the part",
+                payload.get("reservation") or "",
+            )
+        )
+        return {"resumed": True, "state": order.state}
 
     # ------------------------------------------------- recall routing (A10 P1-7)
     @api.model

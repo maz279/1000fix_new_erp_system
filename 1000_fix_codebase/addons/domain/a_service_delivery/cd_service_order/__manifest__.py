@@ -10,7 +10,7 @@ The largest single module in the programme. AS-06: state transitions declared
 in one place per model (DP-01). SLA computation lives in services/ so it is
 unit-testable without a database (AR-007 section 3.1).
 """,
-    "version": "19.0.2.3.0",
+    "version": "19.0.2.3.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Orders",

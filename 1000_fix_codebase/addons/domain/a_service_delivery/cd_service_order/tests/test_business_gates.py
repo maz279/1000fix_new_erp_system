@@ -22,7 +22,9 @@ class TestBrmSrm04QcGate(unittest.TestCase):
     """The gate lives in _check_qc_gate, called from _validate_transition (so
     every write path is gated) and from action_ready."""
 
-    GATE = ORDER[ORDER.index("def _check_qc_gate") : ORDER.index("def write")]
+    # A02 ERP audit M01-F4: the checklist that decides is chosen by
+    # _fix_release_checklist (the newest of the current QC round)
+    GATE = ORDER[ORDER.index("def _fix_release_checklist") : ORDER.index("def write")]
 
     def test_ready_checks_checklists(self):
         self.assertIn("qc_checklist_ids", self.GATE)
@@ -94,8 +96,10 @@ class TestBrmSrm06ReworkFlag(unittest.TestCase):
         self.assertIn("rework_of_id", source)
 
     def test_excludes_cancelled(self):
+        # A02 ERP audit M01-F21: only a DELIVERED (or closed) repair is an
+        # original; cancelled and draft orders are excluded by construction
         source = ORDER[ORDER.index("def _flag_rework") :]
-        self.assertIn("cancelled", source)
+        self.assertIn('("state", "in", ("delivered", "closed"))', source)
 
     def test_runs_on_create(self):
         create_body = ORDER[ORDER.index("def create") : ORDER.index("def _check_warranty_gate")]

@@ -483,7 +483,7 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: '1. General', fields: [
-        { name: 'version', label: 'Version', required: true },
+        { name: 'version', label: 'Version (set by Revise)', readonly: true },
         { name: 'state', label: 'State', readonly: true },
         { name: 'customer_approval_ref', label: 'Customer Approval Ref', readonly: true },
         { name: 'dofa_tier_required', label: 'DOFA Discount Tier', readonly: true },

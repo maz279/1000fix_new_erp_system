@@ -16,6 +16,7 @@ from unittest import mock
 import pytest
 from odoo import Command, fields
 from odoo.addons.cd_service_order.tests.test_a02_p0_m01 import (  # noqa: F401 (fixture)
+    _PNG_B64,
     GUARD,
     _user,
     approved,
@@ -252,20 +253,25 @@ def test_deferred_hold_is_a_supervisors_and_pauses_the_clock(w):
     assert GUARD in attempt(w, lambda: o.with_user(w.clerk).write({"is_deferred_block": True}))
     assert "Service Supervisor" in attempt(w, lambda: o.with_user(w.clerk).action_defer_order())
     o.with_user(boss).action_defer_order(reason="parts_backorder", notes="LCD on order")
-    inst = w.env["fix.sla.kpi.instance"].for_record(o)
+    inst = w.env["fix.sla.kpi.instance"].for_record(o, kpi_code="resolution")
     assert o.sla_clock_paused and inst.state == "paused"
     assert inst.pause_reason == "Awaiting parts (deferred hold)"
     assert "Service Supervisor" in attempt(w, lambda: o.with_user(w.clerk).action_resume_order())
     o.with_user(boss).action_resume_order()
     assert not o.sla_clock_paused
-    assert w.env["fix.sla.kpi.instance"].for_record(o).state == "in_progress"
+    assert w.env["fix.sla.kpi.instance"].for_record(o, kpi_code="resolution").state == "in_progress"
 
 
 def test_sla_clock_decisions_are_a_supervisors(w):
     boss = supervisor(w)
     o = order(w)
     o.with_user(w.clerk).action_intake()
-    inst = w.env["fix.sla.kpi.instance"].for_record(o).with_user(w.clerk)
+    # A02 ERP audit M01-F17: a service order's clock follows the order's hold,
+    # so nobody moves it by hand; other records' clocks are a supervisor's
+    order_clock = w.env["fix.sla.kpi.instance"].for_record(o, kpi_code="resolution")
+    assert "follows the order" in attempt(w, lambda: order_clock.with_user(boss).pause("lunch"))
+    Instance = w.env["fix.sla.kpi.instance"].sudo()
+    inst = Instance.start_for(w.customer, o.sla_policy_id, "resolution").with_user(w.clerk)
     assert "Service Supervisor" in attempt(w, lambda: inst.succeed())
     assert "Service Supervisor" in attempt(w, lambda: inst.pause("lunch"))
     assert GUARD in attempt(w, lambda: inst.write({"state": "succeeded"}))
@@ -319,17 +325,22 @@ def _delivered(w, amount=3000):
 
 def test_comeback_within_the_repair_warranty_opens_a_linked_rework(w):
     o = _delivered(w)
-    assert "no repair warranty" in attempt(
-        w, lambda: o.with_user(w.clerk).action_reopen_comeback("x")
+    # A02 ERP audit M01-F21: the warranty is issued with the handover
+    assert o.service_warranty_until
+    assert "already issued" in attempt(
+        w, lambda: o.with_user(w.clerk).action_issue_repair_warranty()
     )
-    o.with_user(w.clerk).action_issue_repair_warranty()
+    bare = _delivered(w)
+    bare.sudo()._guarded().write({"service_warranty_until": False})
+    assert "no repair warranty" in attempt(
+        w, lambda: bare.with_user(w.clerk).action_reopen_comeback("x")
+    )
     ids = o.with_user(w.clerk).action_reopen_comeback("Same charging fault")
     rework = w.env["fix.service.order"].browse(ids)
     assert (rework.rework_of_id, rework.is_rework, rework.state) == (o, True, "intake")
     assert not rework.rework_approved_by  # still charged until an approver confirms it
     assert "open comeback" in attempt(w, lambda: o.with_user(w.clerk).action_reopen_comeback("y"))
     late = _delivered(w)
-    late.with_user(w.clerk).action_issue_repair_warranty()
     late._guarded().write({"service_warranty_until": fields.Date.today() - timedelta(days=1)})
     assert "ended" in attempt(w, lambda: late.with_user(w.clerk).action_reopen_comeback("z"))
 
@@ -377,7 +388,16 @@ def test_unrepairable_from_a_failed_qc(w):
     o.action_start_repair()
     o.action_submit_qc()
     o.action_qc_fail()
-    o.with_user(w.clerk).action_mark_unrepairable("Board corroded after rework")
+    # A02 ERP audit M01-F9 / BRU-SRM-12: photo evidence and a second technician
+    techs = []
+    for login in ("ber_qc_a", "ber_qc_b"):
+        user = _user(w.env, login)
+        w.env["hr.employee"].create({"name": user.name, "user_id": user.id})
+        techs.append(user)
+    photo = w.env["ir.attachment"].create({"name": "ber.png", "datas": _PNG_B64})
+    o.with_user(w.clerk).write({"ber_photo_attachment_id": photo.id})
+    o.with_user(techs[0]).action_mark_unrepairable("Board corroded after rework")
+    o.with_user(techs[1]).action_mark_unrepairable("Confirmed on the bench")
     assert (o.state, o.cancel_reason_code) == ("cancelled", "unrepairable")
 
 

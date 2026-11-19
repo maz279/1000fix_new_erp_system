@@ -44,6 +44,8 @@ from odoo.http import request
 
 from libs.py.fix_api_edge import api_edge
 
+from ..models.fix_service_order import PARTS_ISSUE_STATES, WORK_ORDER_LIVE_ORDER_STATES
+
 _logger = logging.getLogger(__name__)
 
 # The ``{"error": {"code", "message"}}`` object every route returns on refusal.
@@ -542,8 +544,17 @@ class TechnicianApiController(http.Controller):
 
         env = _su_env()
         # Query work orders assigned to this technician
+        # A02 ERP audit M01-F11: only live work - a cancelled, delivered or
+        # closed order's work orders (and cancelled work orders) stayed on
+        # the technician's queue.
         wos = env["fix.work.order"].search(
-            [("technician_id", "=", emp.id)], order="sequence asc, id desc", limit=50
+            [
+                ("technician_id", "=", emp.id),
+                ("state", "!=", "cancelled"),
+                ("order_id.state", "in", list(WORK_ORDER_LIVE_ORDER_STATES)),
+            ],
+            order="sequence asc, id desc",
+            limit=50,
         )
 
         queue = []
@@ -733,6 +744,11 @@ class TechnicianApiController(http.Controller):
         wo = _own_work_order(env, emp, wo_id)
         if not wo:
             return _error("no_work_order", "Work order not found or not assigned to you")
+        if wo.state == "cancelled" or wo.order_id.state not in WORK_ORDER_LIVE_ORDER_STATES:
+            return _error(
+                "order_not_live",
+                f"Work order {wo.name} is {wo.state} on an order that is {wo.order_id.state}",
+            )
 
         now = fields.Datetime.now()
         so = wo.order_id
@@ -762,10 +778,23 @@ class TechnicianApiController(http.Controller):
                     "end_time": now,
                 }
             )
-            if so and so.state == "in_repair":
+            # A02 ERP audit M01-F12: the FIRST completed work order sent the
+            # whole order to QC while other technicians' work was still open.
+            # QC follows the last one (failed / cancelled work is finished
+            # work; at least one must have completed).
+            siblings = so.work_order_ids if so else wo
+            all_done = all(w.state in ("completed", "failed", "cancelled") for w in siblings)
+            any_completed = any(w.state == "completed" for w in siblings)
+            if so and so.state == "in_repair" and all_done and any_completed:
                 try:
                     with env.cr.savepoint():
                         so.action_submit_qc()
+                        # A02 ERP audit M01-F23: this route runs as the
+                        # superuser, so the repair was "completed" by the
+                        # system and QC's segregation check saw nobody. The
+                        # technician who completed the work is recorded.
+                        if emp.user_id:
+                            so._guarded().write({"repair_completed_by": emp.user_id.id})
                 except Exception as ex:
                     _logger.warning("Could not transition SO %s to qc_pending: %s", so.id, ex)
 
@@ -948,6 +977,15 @@ class TechnicianApiController(http.Controller):
         wo = _own_work_order(env, emp, wo_id)
         if not wo:
             return _error("no_work_order", "Work order not found or not assigned to you")
+        # A02 ERP audit M01-F11: van stock left M15 against draft, unapproved
+        # and cancelled orders (this route runs as the superuser, so the model
+        # check does not apply here and is made explicitly).
+        if wo.state == "cancelled" or wo.order_id.state not in PARTS_ISSUE_STATES:
+            return _error(
+                "order_not_approved",
+                f"Parts are issued to an approved order in repair; order {wo.order_id.name} "
+                f"is {wo.order_id.state}",
+            )
 
         prod = env["product.product"]
         if product_id:

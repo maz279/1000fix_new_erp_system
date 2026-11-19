@@ -58,6 +58,8 @@ SURFACES = {
             "action_override_priority",
             "action_fail_qc",
             "action_mark_unrepairable",
+            # A02 ERP audit M01-F8: the customer's unlock code, with consent
+            "action_record_passcode",
             # M02 bridge (defined in cd_field_service's extension): hand an
             # on-site order to the dispatch pipeline
             "action_create_field_order",
@@ -118,6 +120,8 @@ SURFACES = {
             # M04 queue extensions (defined in cd_front_desk's ext file)
             "action_no_show",
             "action_cancel",
+            # A02 ERP audit M04-F12: call the next waiting token by priority lane
+            "action_call_next",
         },
     },
     "fix.walkin.intake": {
@@ -213,6 +217,9 @@ _OPEN_STATES = [
     "qc_pending",
     "qc_failed",
 ]
+# A02 ERP audit M01-F15: resolved = reached Ready (the resolution promise is
+# "intake to ready"); Ready, delivered and closed orders are resolved.
+_RESOLVED_STATES = ["ready", "delivered", "closed"]
 _WIP_STATES = [
     "intake",
     "diagnostic",
@@ -247,12 +254,19 @@ def kpis(env):
         ]
     )
 
-    # TAT: closed orders resolved within 24h of response start (IT target)
-    closed = Order.search([*company_domain, ("state", "=", "closed")], limit=500)
+    # TAT: orders resolved (Ready) within 24h of intake (IT target). A02 ERP
+    # audit M01-F15: measured intake -> Ready, the resolution promise; it
+    # read start-of-repair -> delivery, so the customer's collection delay
+    # counted and the diagnosis and estimate wait did not.
+    closed = Order.search(
+        [*company_domain, ("state", "in", _RESOLVED_STATES), ("sla_resolution_at", "!=", False)],
+        order="sla_resolution_at desc",
+        limit=500,
+    )
     tat_total = 0
     tat_24 = 0
     for order in closed:
-        started = order.sla_response_at
+        started = order.intake_completed_at
         resolved = order.sla_resolution_at
         if started and resolved:
             tat_total += 1
@@ -398,12 +412,32 @@ def wip_ageing_report(env, **params):
     }
 
 
-def sla_compliance_report(env, **params):
-    """SLA Compliance: closed orders resolved before their deadline; open
-    orders already past it. Measured off the real SLA clock fields."""
+def _period(domain, field, date_from=None, date_to=None):
+    if date_from:
+        domain.append((field, ">=", date_from))
+    if date_to:
+        domain.append((field, "<=", "%s 23:59:59" % date_to))
+    return domain
+
+
+def sla_compliance_report(env, date_from=None, date_to=None, **params):
+    """SLA Compliance: orders resolved (Ready) before their deadline, first
+    responses (diagnosis or assignment) before theirs; open orders already
+    past the deadline. Measured off the real SLA clock fields.
+
+    A02 ERP audit M01-F15: resolution was read at DELIVERY (and only on
+    delivered / closed orders) while the clock it was compared with stops at
+    Ready, so the customer's collection delay counted as late repair; the
+    response was never reported."""
     Order = _orders(env)
     company_domain = [("company_id", "in", env.companies.ids)]
-    closed = Order.search([*company_domain, ("state", "in", ("closed", "delivered"))], limit=1000)
+    resolved_domain = _period(
+        [*company_domain, ("state", "in", _RESOLVED_STATES), ("sla_resolution_at", "!=", False)],
+        "sla_resolution_at",
+        date_from,
+        date_to,
+    )
+    closed = Order.search(resolved_domain, limit=1000)
     met = late = 0
     for order in closed:
         if order.sla_resolution_deadline and order.sla_resolution_at:
@@ -411,6 +445,21 @@ def sla_compliance_report(env, **params):
                 met += 1
             else:
                 late += 1
+    responded = Order.search(
+        _period(
+            [
+                *company_domain,
+                ("sla_response_at", "!=", False),
+                ("sla_response_deadline", "!=", False),
+            ],
+            "sla_response_at",
+            date_from,
+            date_to,
+        ),
+        limit=1000,
+    )
+    resp_met = sum(1 for o in responded if o.sla_response_at <= o.sla_response_deadline)
+    resp_late = len(responded) - resp_met
     open_late = Order.search_count(
         [
             *company_domain,
@@ -437,10 +486,15 @@ def sla_compliance_report(env, **params):
             },
             {"measure": "Open & past deadline (at risk)", "value": open_late},
             {"measure": "Clocks paused (holds)", "value": paused},
+            {"measure": "First response on time", "value": resp_met},
+            {"measure": "First response late", "value": resp_late},
         ],
         "notes": [
-            "On time means the order was resolved before its SLA deadline. The deadline moves "
-            "later by the time an order spends on hold or waiting for the customer's decision."
+            "On time means the order was resolved (ready for collection) before its SLA "
+            "deadline. The deadline moves later by the time an order spends on hold or "
+            "waiting for the customer's decision.",
+            "The first response is the start of diagnosis or the technician's assignment, "
+            "whichever came first.",
         ],
     }
 
@@ -505,18 +559,29 @@ def rework_analysis_report(env, **params):
     }
 
 
-def tat_distribution_report(env, **params):
-    """Order Cycle-Time (TAT) distribution: hours between response start and
-    resolution for closed orders."""
+def tat_distribution_report(env, date_from=None, date_to=None, **params):
+    """Order Cycle-Time (TAT) distribution: hours from intake to resolution
+    (Ready) for resolved orders (A02 ERP audit M01-F15: it read start of
+    repair to delivery, on closed orders only)."""
     Order = _orders(env)
     closed = Order.search(
-        [("company_id", "in", env.companies.ids), ("state", "=", "closed")], limit=1000
+        _period(
+            [
+                ("company_id", "in", env.companies.ids),
+                ("state", "in", _RESOLVED_STATES),
+                ("sla_resolution_at", "!=", False),
+            ],
+            "sla_resolution_at",
+            date_from,
+            date_to,
+        ),
+        limit=1000,
     )
     buckets = {"< 4h": 0, "4–24h": 0, "24–72h": 0, "> 72h": 0}
     for order in closed:
-        if not (order.sla_response_at and order.sla_resolution_at):
+        if not (order.intake_completed_at and order.sla_resolution_at):
             continue
-        hours = (order.sla_resolution_at - order.sla_response_at).total_seconds() / 3600.0
+        hours = (order.sla_resolution_at - order.intake_completed_at).total_seconds() / 3600.0
         if hours < 4:
             buckets["< 4h"] += 1
         elif hours <= 24:
@@ -528,44 +593,51 @@ def tat_distribution_report(env, **params):
     return {
         "title": "Order Cycle-Time (TAT) Distribution",
         "cols": ["bucket", "orders"],
-        "labels": {"bucket": "Turnaround", "orders": "Closed Orders"},
+        "labels": {"bucket": "Turnaround", "orders": "Resolved Orders"},
         "rows": [{"bucket": k, "orders": v} for k, v in buckets.items()],
         "notes": [
-            "Turnaround time is measured on closed orders, from the start of repair to "
-            "resolution."
+            "Turnaround time is measured from intake to the moment the device was ready for "
+            "collection."
         ],
     }
 
 
 def uncollected_register_report(env, **params):
-    """Uncollected Device Register: repaired orders waiting on the customer
-    (ready for collection or delivered but not closed) — devices in our
-    custody that are not yet collected."""
+    """Uncollected Device Register: repaired devices Ready and not collected,
+    oldest first, aged from the moment they became Ready.
+
+    A02 ERP audit M01-F22: the register listed DELIVERED orders (collected:
+    not in our custody) and aged every row from its last write, so any edit
+    made an old device look new."""
     Order = _orders(env)
     domain = [
         ("company_id", "in", env.companies.ids),
-        ("state", "in", ("ready", "delivered")),
+        ("state", "=", "ready"),
     ]
+    now = fields.Datetime.now()
     rows = []
-    for order in Order.search(domain, order="write_date desc", limit=300):
+    for order in Order.search(domain, order="ready_at asc, id asc", limit=300):
+        since = order.ready_at or order.write_date
         rows.append(
             {
                 "order": order.name,
                 "customer": order.customer_id.name or "—",
                 "device": order.device_id.name or order.device_serial or "—",
                 "state": order.state,
-                "ready_since": _fmt_day(order.write_date),
+                "ready_since": _fmt_day(since),
+                "days_uncollected": (now - since).days if since else None,
             }
         )
     return {
         "title": "Uncollected Device Register",
-        "cols": ["order", "customer", "device", "state", "ready_since"],
+        "cols": ["order", "customer", "device", "state", "ready_since", "days_uncollected"],
         "labels": {
             "order": "Order",
             "customer": "Customer",
             "device": "Device",
             "state": "State",
-            "ready_since": "Since",
+            "ready_since": "Ready Since",
+            "days_uncollected": "Days Uncollected",
         },
         "rows": rows,
         "notes": [

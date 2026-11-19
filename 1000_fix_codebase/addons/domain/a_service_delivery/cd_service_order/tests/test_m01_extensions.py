@@ -11,6 +11,7 @@ from types import SimpleNamespace
 
 import pytest
 from odoo import Command
+from odoo.addons.cd_service_order.models.fix_service_order import _dhaka_date
 from odoo.exceptions import UserError
 
 
@@ -109,11 +110,11 @@ def test_fault_code_must_be_unique(base):
 
 def test_repair_warranty_issues_once_with_history_and_event(base):
     env = base.env
+    # A02 ERP audit M01-F21: issued WITH the handover, from the delivery day
     order = _walk_to_delivered(_order(base))
-    order.action_issue_repair_warranty()
 
     assert order.service_warranty_until  # issued
-    expected_until = (order.sla_resolution_at.date()) + timedelta(days=30)
+    expected_until = _dhaka_date(order.delivered_at) + timedelta(days=30)
     assert order.service_warranty_until == expected_until  # default 30 days
     assert order.service_warranty_issued_by == env.user
 
@@ -150,8 +151,7 @@ def test_repair_warranty_refused_before_delivery(base):
 
 def test_repair_warranty_honours_configured_days(base):
     order = _walk_to_delivered(_order(base, service_warranty_days=90))
-    order.action_issue_repair_warranty()
-    expected_until = (order.sla_resolution_at.date()) + timedelta(days=90)
+    expected_until = _dhaka_date(order.delivered_at) + timedelta(days=90)
     assert order.service_warranty_until == expected_until
 
 
