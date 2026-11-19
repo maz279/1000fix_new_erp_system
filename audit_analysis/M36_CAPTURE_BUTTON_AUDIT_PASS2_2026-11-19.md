@@ -155,3 +155,18 @@ Other workspace changes:
   - The others cover: the old token kept; a link sent before issue; the view not recorded; cost on the page; reminders twice or after a decision; the unviewed follow-up repeated or chasing viewed ones; renewals outside the lead time, duplicated or authored by the system; the estate grouping; a bad number accepted; a price change hidden.
 - **Regression on `fix_test_m36c2`: 1,075 passed.** The 26 failures and errors were all peers' tables missing from the clone (storefront, campaign, workshop, M32/M34). After upgrading those 8 lagging modules on the clone, every affected file passes: **204/204**.
 - **UI walk** (private server, worktree code): pages 2, 3 and 5 show the new chips and each opens its form; 26 screens render; **0 console errors**. An unknown token on `/quote/view/` answers **404**.
+
+**Pass 3 deployed (19 Nov 2026, approved by the user):**
+- **Landed and pushed** at `86dc8754`.
+- **What happened.** The M32 session's approved restart of 8069/8090 (21:54:16, PIDs 78392 / 60064) fell in the same second as this landing. The servers loaded cd_quotation 1.5.0 code against a 1.4.0 schema: `column fix_quotation.reminders_sent does not exist`, so full quotation reads failed.
+- **Fix:**
+  - The user approved the fix.
+  - Backups: `fix_{real,dev}_pre_m36_capture3_2026-11-19.dump`.
+  - `-u cd_quotation` on fix_real and fix_dev: exit 0, 0 ERROR lines, 19.0.1.5.0.
+  - The 5 new quotation columns exist, and both daily jobs are installed and active.
+  - No restart was needed: the running processes already held the new code.
+- **Verified live, read-only:**
+  - quotation and quotation-line reads now succeed on both servers;
+  - `/quote/view/<unknown>` answers 404;
+  - the headless walk with the dev login and no saves passed on **8069 and 8090**: all 10 pages, every chip including the three pass-3 forms, 26/26 screens, **0 console errors**.
+- **Lesson:** land a schema change only when no peer is about to restart. Otherwise run `-u` immediately after landing; the gap check before a restart catches it only if it runs after the land.
