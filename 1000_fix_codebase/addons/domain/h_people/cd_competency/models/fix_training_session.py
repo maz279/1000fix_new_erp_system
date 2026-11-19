@@ -96,13 +96,18 @@ class FixTrainingSession(models.Model):
             locked = locked | self._FROZEN_WHEN_HELD
         return locked
 
-    @api.depends("enrollment_ids", "enrollment_ids.attendance")
+    @api.depends("enrollment_ids", "enrollment_ids.attendance", "enrollment_ids.state")
     def _compute_seats(self):
         for rec in self:
-            rec.seats_taken = len(rec.enrollment_ids)
+            # a withdrawn trainee gives the seat back (FR-LMS-021)
+            rec.seats_taken = len(rec._fix_seated())
             rec.attended_count = len(
                 rec.enrollment_ids.filtered(lambda e: e.attendance == "attended")
             )
+
+    def _fix_seated(self):
+        self.ensure_one()
+        return self.enrollment_ids.filtered(lambda e: e.state != "withdrawn")
 
     @api.constrains("date_start", "date_end")
     def _check_window(self):
@@ -163,7 +168,7 @@ class FixTrainingSession(models.Model):
                     "course": rec.course_id.code,
                     "start": fields.Datetime.to_string(rec.date_start),
                     "end": fields.Datetime.to_string(rec.date_end),
-                    "employee_ids": rec.enrollment_ids.mapped("employee_id").ids,
+                    "employee_ids": rec._fix_seated().mapped("employee_id").ids,
                 },
             )
         return True
@@ -174,7 +179,7 @@ class FixTrainingSession(models.Model):
         for rec in self:
             if rec.state != "scheduled":
                 raise UserError("Only a scheduled session is marked held (%s)." % rec.name)
-            open_rows = rec.enrollment_ids.filtered(lambda e: e.attendance == "pending")
+            open_rows = rec._fix_seated().filtered(lambda e: e.attendance == "pending")
             if open_rows:
                 raise UserError(
                     "Record the attendance of %s before closing %s (FR-LMS-023)."
@@ -233,7 +238,7 @@ class FixTrainingEnrollmentSession(models.Model):
                     "Session %s delivers %s, not %s."
                     % (sess.name, sess.course_id.code, rec.course_id.code)
                 )
-            if sess.capacity and len(sess.enrollment_ids) > sess.capacity:
+            if sess.capacity and len(sess._fix_seated()) > sess.capacity:
                 raise ValidationError(
                     "Session %s is full (%d seats, FR-LMS-021)." % (sess.name, sess.capacity)
                 )

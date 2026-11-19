@@ -29,3 +29,16 @@ access_fix_training_budget_exception_training,fix.training.budget.exception.trai
 access_fix_training_budget_exception_approver,fix.training.budget.exception.approver,model_fix_training_budget_exception,cd_competency.group_training_budget_approver,1,1,0,0
 access_fix_training_session,fix.training.session,model_fix_training_session,base.group_user,1,0,0,0
 access_fix_training_session_role,fix.training.session.role,model_fix_training_session,cd_competency.group_training,1,1,1,0
+access_fix_role_competency,fix.role.competency,model_fix_role_competency,base.group_user,1,0,0,0
+access_fix_role_competency_training,fix.role.competency.training,model_fix_role_competency,cd_competency.group_training,1,1,1,1
+access_fix_training_need,fix.training.need,model_fix_training_need,base.group_user,1,0,0,0
+access_fix_training_need_training,fix.training.need.training,model_fix_training_need,cd_competency.group_training,1,1,1,0
+access_fix_training_plan,fix.training.plan,model_fix_training_plan,base.group_user,1,0,0,0
+access_fix_training_plan_training,fix.training.plan.training,model_fix_training_plan,cd_competency.group_training,1,1,1,0
+access_fix_training_plan_approver,fix.training.plan.approver,model_fix_training_plan,cd_competency.group_training_budget_approver,1,1,0,0
+access_fix_training_feedback,fix.training.feedback,model_fix_training_feedback,base.group_user,1,0,1,0
+access_fix_mentoring,fix.mentoring,model_fix_mentoring,base.group_user,1,0,0,0
+access_fix_mentoring_training,fix.mentoring.training,model_fix_mentoring,cd_competency.group_training,1,1,1,0
+access_fix_mentoring_interaction,fix.mentoring.interaction,model_fix_mentoring_interaction,base.group_user,1,1,1,0
+access_fix_training_effectiveness,fix.training.effectiveness,model_fix_training_effectiveness,base.group_user,1,0,0,0
+access_fix_training_effectiveness_training,fix.training.effectiveness.training,model_fix_training_effectiveness,cd_competency.group_training,1,1,1,0

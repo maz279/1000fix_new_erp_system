@@ -29,8 +29,11 @@ degrades to M61, accepted AR-006 5.4):
   safety certification class escalated to M59 on lapse; the yearly training
   budget with routed over-budget approval; the attempt-limit escalation;
   the repair tier on work orders
+- M22 capture pass 2: role competency requirements and the gap analysis,
+  training needs and plans, participant feedback, enrolment withdrawal and
+  substitution, mentoring with its interactions, effectiveness evaluation
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Learning",
@@ -47,6 +50,7 @@ degrades to M61, accepted AR-006 5.4):
         "security/fix_a09_groups.xml",
         "security/ir.model.access.csv",
         "security/fix_a09_privacy_rules.xml",
+        "security/fix_a09_m22_capture2_rules.xml",
         "data/competency_ops_sequences.xml",
         "data/fix_a09_competency_data.xml",
         "data/fix_a09_m22_r2_data.xml",

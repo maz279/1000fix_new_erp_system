@@ -25,7 +25,16 @@ SURFACES = {
     "fix.training.enrollment": {
         "order": "id desc",
         "limit": 500,
-        "actions": {"action_pass", "action_fail", "action_mark_attended", "action_mark_absent"},
+        "pickers": {"session_id": [("state", "in", ("planned", "scheduled"))]},
+        "actions": {
+            "action_pass",
+            "action_fail",
+            "action_mark_attended",
+            "action_mark_absent",
+            # FR-LMS-021 (capture pass 2): cancellation and substitution
+            "action_withdraw",
+            "action_substitute",
+        },
     },
     # FR-LMS-020/021/023: the scheduled delivery of a course (M22 capture
     # audit 2026-11-13: "Schedule & Attendance" had no session to capture).
@@ -48,7 +57,48 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
     },
-    "fix.learning.path": {"order": "name", "limit": 100, "actions": set()},
+    # FR-LMS-002 / 005 (capture pass 2): a path is the role requirement; its
+    # gaps raise training needs
+    "fix.learning.path": {"order": "name", "limit": 100, "actions": {"action_raise_gap_needs"}},
+    "fix.role.competency": {"order": "path_id, competency_id", "limit": 500, "actions": set()},
+    # FR-LMS-031 / 032: the need register and the plan that consolidates it
+    "fix.training.need": {
+        "order": "raised_on desc, id desc",
+        "limit": 500,
+        "pickers": {"plan_id": [("state", "=", "draft")]},
+        "actions": {"action_enrol", "action_cancel"},
+    },
+    "fix.training.plan": {
+        "order": "year desc, id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_return", "action_cancel"},
+    },
+    # FR-LMS-036: the trainee's own feedback on a training they attended
+    "fix.training.feedback": {
+        "order": "submitted_on desc, id desc",
+        "limit": 500,
+        "pickers": {"enrollment_id": [("state", "!=", "withdrawn")]},
+        "actions": set(),
+    },
+    # FR-LMS-028: the mentoring and its interactions
+    "fix.mentoring": {
+        "order": "date_start desc, id desc",
+        "limit": 300,
+        "actions": {"action_start", "action_close", "action_cancel"},
+    },
+    "fix.mentoring.interaction": {
+        "order": "date desc, id desc",
+        "limit": 500,
+        "pickers": {"mentoring_id": [("state", "=", "active")]},
+        "actions": set(),
+    },
+    # FR-LMS-035 / BRU-LMS-15: before / after on the measure the training targeted
+    "fix.training.effectiveness": {
+        "order": "id desc",
+        "limit": 300,
+        "pickers": {"session_id": [("state", "=", "done")]},
+        "actions": {"action_evaluate"},
+    },
     "fix.ojt.record": {
         "order": "date_from desc, id desc",
         "limit": 300,
@@ -180,7 +230,13 @@ def training_effectiveness(env, date_from=None, date_to=None, **params):
     courses = env["fix.training.course"].search([])
     rows = []
     for course in courses:
-        enrolments = env["fix.training.enrollment"].search([("course_id", "=", course.id)])
+        enrolments = env["fix.training.enrollment"].search(
+            [("course_id", "=", course.id), ("state", "!=", "withdrawn")]
+        )
+        # FR-LMS-035: the evaluated before / after on the targeted measure
+        evals = env["fix.training.effectiveness"].search(
+            [("course_id", "=", course.id), ("state", "=", "evaluated")]
+        )
         # A09 M22-28: the model's completion state is 'passed' ('completed'
         # never existed, so the KPI was always 0 %).
         completed = len(enrolments.filtered(lambda e: e.state == "passed"))
@@ -192,28 +248,36 @@ def training_effectiveness(env, date_from=None, date_to=None, **params):
                 "enrolments": total,
                 "completed": completed,
                 "completion_pct": round(completed / total * 100.0, 1) if total else 0.0,
+                "evaluated": len(evals),
+                "improved": len(evals.filtered(lambda e: e.result == "improved")),
             }
         )
     rows.sort(key=lambda r: -r["enrolments"])
     return _pack(
         "Training Effectiveness",
-        ["course", "code", "enrolments", "completed", "completion_pct"],
+        ["course", "code", "enrolments", "completed", "completion_pct", "evaluated", "improved"],
         {
             "course": "Course",
             "code": "Code",
             "enrolments": "Enrolments",
             "completed": "Completed",
             "completion_pct": "Completion %",
+            "evaluated": "Evaluations",
+            "improved": "Measure Improved",
         },
         rows,
         [
-            "Completion counts enrolments in the passed state; a course with no enrolments "
-            "shows zero rather than a fabricated rate."
+            "Completion counts enrolments in the passed state (withdrawn seats excluded); a "
+            "course with no enrolments shows zero rather than a fabricated rate.",
+            "Evaluations are effectiveness records (before / after on the operational measure "
+            "the training targeted, FR-LMS-035) evaluated with a conclusion.",
         ],
         totals={
             "course": "Total",
             "enrolments": sum(r["enrolments"] for r in rows),
             "completed": sum(r["completed"] for r in rows),
+            "evaluated": sum(r["evaluated"] for r in rows),
+            "improved": sum(r["improved"] for r in rows),
         },
         empty="No courses recorded.",
     )
@@ -335,7 +399,68 @@ def audit_evidence_pack(env, date_from=None, date_to=None, **params):
     )
 
 
+def role_gap_analysis(env, date_from=None, date_to=None, **params):
+    """FR-LMS-005: each employee in a role's positions against each competency
+    requirement of that role in force; one row per requirement not met. Read
+    as the caller, so assessment results stay S2 (BRU-LMS-12)."""
+    levels = {"l1": "L1", "l2": "L2", "l3": "L3", "l4": "L4"}
+    rows = []
+    for gap in env["fix.learning.path"].search([])._fix_gap_rows():
+        req, emp = gap["requirement"], gap["employee"]
+        rows.append(
+            {
+                "employee": emp.name,
+                "position": emp.position_id.display_name or "",
+                "role": gap["path"].target_role or gap["path"].name,
+                "competency": req.competency_id.name,
+                "required": levels[req.min_level],
+                "held": levels.get(gap["held"], "None"),
+                "gap": gap["gap"],
+                "mandatory": "Yes" if req.mandatory else "No",
+                "need": "Open" if gap["open_need"] else "None",
+            }
+        )
+    rows.sort(key=lambda r: (r["mandatory"] != "Yes", -r["gap"], r["employee"]))
+    return _pack(
+        "Role Gap Analysis - employees against their role's competency requirements",
+        [
+            "employee",
+            "position",
+            "role",
+            "competency",
+            "required",
+            "held",
+            "gap",
+            "mandatory",
+            "need",
+        ],
+        {
+            "employee": "Employee",
+            "position": "Position",
+            "role": "Role / Path",
+            "competency": "Competency",
+            "required": "Required",
+            "held": "Held",
+            "gap": "Gap (levels)",
+            "mandatory": "Mandatory",
+            "need": "Training Need",
+        },
+        rows,
+        [
+            "Held = the latest passed assessment by an independent assessor; a granted "
+            "certification in date counts as L3. A learning path measures the employees in "
+            "its Applies-to-Positions against its competency requirements in force.",
+            "Raise Training Needs from Gaps on the Learning Paths list opens a need for "
+            "every gap that has none.",
+        ],
+        totals={"employee": "Total gaps: %d" % len(rows)},
+        empty="No gaps: every measured employee meets the requirements, or no learning path "
+        "names its positions and requirements yet.",
+    )
+
+
 REPORTS = {
+    "role_gap_analysis": role_gap_analysis,
     "certification_coverage": certification_coverage,
     "expiry_forecast": expiry_forecast,
     "training_effectiveness": training_effectiveness,

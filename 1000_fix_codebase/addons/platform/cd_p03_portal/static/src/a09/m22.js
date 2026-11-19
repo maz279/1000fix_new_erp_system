@@ -2,7 +2,12 @@
 /* A09 · People & Workforce — M22 Learning & Certification.
  * Registry-faithful: 4 groups / 11 screens / 5 reports / 4 forms / freg 52.
  * Capture audit 2026-11-13: every sub-module page captures the records it
- * covers (device categories, role paths, budget, over-budget, waivers). */
+ * covers (device categories, role paths, budget, over-budget, waivers).
+ * Capture audit pass 2 (2026-11-19): role competency requirements on the
+ * path (FR-LMS-002) and the role gap analysis (FR-LMS-005), training needs
+ * (FR-LMS-031) and plans (FR-LMS-032), participant feedback (FR-LMS-036),
+ * withdrawal / substitution (FR-LMS-021), mentoring and its interactions
+ * (FR-LMS-028) and the effectiveness evaluation (FR-LMS-035). */
 
 export const MODULE = {
   area: 'A09', code: 'M22', en: 'Learning & Certification', title: 'M22 · Learning & Certification',
@@ -21,6 +26,7 @@ export const MODULE = {
       { id: 'M22-framework', en: 'Competency Framework', bn: 'দক্ষতা কাঠামো', t: 'g' },
       { id: 'M22-devices', en: 'Device Categories & Tiers', bn: 'ডিভাইস ক্যাটাগরি ও স্তর', t: 'g' },
       { id: 'M22-matrix', en: 'Skill Matrix', bn: 'দক্ষতা ম্যাট্রিক্স', t: 'r' },
+      { id: 'M22-role-gaps', en: 'Role Gap Analysis', bn: 'ভূমিকা অনুযায়ী দক্ষতা ঘাটতি', t: 'r' },
       { id: 'M22-assessments', en: 'Assessments', bn: 'মূল্যায়ন', t: 'g' }
     ]},
     { en: 'Certifications', screens: [
@@ -30,28 +36,35 @@ export const MODULE = {
       { id: 'M22-waivers', en: 'Certification Waivers', bn: 'সার্টিফিকেশন ছাড়', t: 'g' }
     ]},
     { en: 'Training', screens: [
+      { id: 'M22-needs', en: 'Training Needs', bn: 'প্রশিক্ষণের প্রয়োজন', t: 'g' },
+      { id: 'M22-plans', en: 'Training Plans', bn: 'প্রশিক্ষণ পরিকল্পনা', t: 'g' },
       { id: 'M22-catalogue', en: 'Course Catalogue', bn: 'কোর্স তালিকা', t: 'g' },
       { id: 'M22-paths', en: 'Learning Paths', bn: 'শেখার পথ', t: 'g' },
       { id: 'M22-sessions', en: 'Training Sessions', bn: 'প্রশিক্ষণ সেশন', t: 'g' },
       { id: 'M22-schedule', en: 'Schedule & Attendance', bn: 'সূচি ও উপস্থিতি', t: 'g' },
+      { id: 'M22-feedback', en: 'Participant Feedback', bn: 'অংশগ্রহণকারীর মতামত', t: 'g' },
       { id: 'M22-budget', en: 'Training Budget', bn: 'প্রশিক্ষণ বাজেট', t: 'g' },
       { id: 'M22-budget-exceptions', en: 'Over-Budget Requests', bn: 'বাজেট-অতিরিক্ত অনুরোধ', t: 'g' },
-      { id: 'M22-ojt', en: 'OJT & Mentoring', bn: 'কর্মস্থল প্রশিক্ষণ', t: 'g' }
+      { id: 'M22-ojt', en: 'OJT & Mentoring', bn: 'কর্মস্থল প্রশিক্ষণ', t: 'g' },
+      { id: 'M22-mentoring', en: 'Mentoring', bn: 'মেন্টরিং', t: 'g' },
+      { id: 'M22-mentoring-log', en: 'Mentoring Interactions', bn: 'মেন্টরিং সাক্ষাৎ', t: 'g' }
     ]},
     { en: 'Evidence', screens: [
-      { id: 'M22-iso', en: 'ISO / Brand Audit Evidence', bn: 'আইএসও প্রমাণ', t: 'g' }
+      { id: 'M22-iso', en: 'ISO / Brand Audit Evidence', bn: 'আইএসও প্রমাণ', t: 'g' },
+      { id: 'M22-effectiveness', en: 'Effectiveness Evaluations', bn: 'প্রশিক্ষণের কার্যকারিতা', t: 'g' }
     ]}
   ],
   reports: ['Certification Coverage by Brand', 'Expiry Forecast', 'Training Effectiveness', 'Skill-Gap Heatmap', 'Audit Evidence Pack'],
-  forms: ['Certification', 'Course', 'Learning Path', 'Assessment', 'Device Category', 'Training Session', 'Training Budget', 'Over-Budget Request'],
+  forms: ['Certification', 'Course', 'Learning Path', 'Assessment', 'Device Category', 'Training Session', 'Training Budget', 'Over-Budget Request',
+          'Training Need', 'Training Plan', 'Training Feedback', 'Mentoring', 'Mentoring Interaction', 'Effectiveness Evaluation'],
   cross: ['M02 Dispatch eligibility', 'M21 Workforce', 'M57 Incentives'],
   freg: { src: 52, sub: [
     ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices', 'M22-paths'], reports: ['Skill-Gap Heatmap'], forms: ['Device Category', 'Learning Path'] }],
-    ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix'], reports: ['Skill-Gap Heatmap'], forms: ['Assessment'] }],
+    ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix', 'M22-role-gaps', 'M22-needs'], reports: ['Skill-Gap Heatmap'], forms: ['Assessment', 'Training Need'] }],
     ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility', 'M22-waivers'], reports: ['Certification Coverage by Brand', 'Expiry Forecast'], forms: ['Certification'] }],
-    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-catalogue', 'M22-paths', 'M22-sessions', 'M22-schedule', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Course', 'Learning Path', 'Training Session', 'Training Budget', 'Over-Budget Request'] }],
-    ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt'], reports: ['Training Effectiveness'], forms: [] }],
-    ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso'], reports: ['Audit Evidence Pack'], forms: [] }]
+    ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-needs', 'M22-plans', 'M22-catalogue', 'M22-paths', 'M22-sessions', 'M22-schedule', 'M22-feedback', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Training Need', 'Training Plan', 'Course', 'Learning Path', 'Training Session', 'Training Feedback', 'Training Budget', 'Over-Budget Request'] }],
+    ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt', 'M22-mentoring', 'M22-mentoring-log'], reports: ['Training Effectiveness'], forms: ['Mentoring', 'Mentoring Interaction'] }],
+    ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso', 'M22-effectiveness'], reports: ['Audit Evidence Pack', 'Training Effectiveness'], forms: ['Effectiveness Evaluation'] }]
   ] }
 };
 
@@ -87,7 +100,31 @@ export const SCREENS = {
     cols: ['code', 'name', 'competency_id', 'cost_per_seat', 'content_ref'],
     actions: [{ m: 'action_enroll', l: 'Enroll Techs', ask: 'Employee ids to enroll, comma-separated', kwarg: 'employees' }] },
   'M22-paths': { kind: 'model_list', model: 'fix.learning.path',
-    cols: ['name', 'target_role', 'min_level', 'active'] },
+    cols: ['name', 'target_role', 'position_ids', 'requirement_count', 'min_level', 'active'],
+    actions: [{ m: 'action_raise_gap_needs', l: 'Raise Training Needs from Gaps' }] },
+  'M22-role-gaps': { kind: 'table_report', module: 'M22', report: 'role_gap_analysis', title: 'Role Gap Analysis', period: false },
+  'M22-needs': { kind: 'model_list', model: 'fix.training.need', stateField: 'state',
+    cols: ['name', 'employee_id', 'competency_id', 'course_id', 'source', 'priority', 'due_date', 'plan_id', 'enrollment_id', 'state'],
+    actions: [{ m: 'action_enrol', l: 'Enrol (closes on a pass)' },
+              { m: 'action_cancel', l: 'Cancel Need', ask: 'Why is the need cancelled?', kwarg: 'reason' }] },
+  'M22-plans': { kind: 'model_list', model: 'fix.training.plan', stateField: 'state',
+    cols: ['name', 'operating_unit_id', 'period', 'year', 'quarter', 'need_count', 'planned_cost', 'budget', 'approved_by_id', 'state'],
+    actions: [{ m: 'action_submit', l: 'Submit for Approval' },
+              { m: 'action_approve', l: 'Approve (Training Budget Approver)' },
+              { m: 'action_return', l: 'Return to Draft', ask: 'Why is the plan returned?', kwarg: 'reason' },
+              { m: 'action_cancel', l: 'Cancel Plan' }] },
+  'M22-feedback': { kind: 'model_list', model: 'fix.training.feedback',
+    cols: ['employee_id', 'course_id', 'session_id', 'trainer_id', 'rating_content', 'rating_trainer', 'rating_applicability', 'would_recommend', 'submitted_on'] },
+  'M22-mentoring': { kind: 'model_list', model: 'fix.mentoring', stateField: 'state',
+    cols: ['name', 'mentee_id', 'mentor_id', 'competency_id', 'date_start', 'date_end', 'interaction_count', 'last_interaction_on', 'outcome', 'state'],
+    actions: [{ m: 'action_start', l: 'Start Mentoring' },
+              { m: 'action_close', l: 'Close (mentor)', ask: 'Outcome: achieved, partly or not_achieved', kwarg: 'outcome' },
+              { m: 'action_cancel', l: 'Cancel', ask: 'Why is the mentoring cancelled?', kwarg: 'reason' }] },
+  'M22-mentoring-log': { kind: 'model_list', model: 'fix.mentoring.interaction',
+    cols: ['mentoring_id', 'mentee_id', 'mentor_id', 'date', 'mode', 'duration_hours', 'topics', 'recorded_by_id'] },
+  'M22-effectiveness': { kind: 'model_list', model: 'fix.training.effectiveness', stateField: 'state',
+    cols: ['name', 'course_id', 'session_id', 'target_measure', 'baseline_value', 'after_value', 'change', 'result', 'evaluated_by_id', 'state'],
+    actions: [{ m: 'action_evaluate', l: 'Record Evaluation' }] },
   'M22-sessions': { kind: 'model_list', model: 'fix.training.session', stateField: 'state',
     cols: ['name', 'course_id', 'delivery_mode', 'trainer_id', 'venue', 'date_start', 'date_end', 'capacity', 'seats_taken', 'attended_count', 'state'],
     actions: [{ m: 'action_schedule', l: 'Schedule (publish to the roster)' },
@@ -96,7 +133,9 @@ export const SCREENS = {
   'M22-schedule': { kind: 'model_list', model: 'fix.training.enrollment', stateField: 'state',
     cols: ['course_id', 'session_id', 'employee_id', 'attendance', 'cost', 'budget_year', 'budget_exception_id', 'completed_on', 'evidence_id', 'state'],
     actions: [{ m: 'action_mark_attended', l: 'Mark Attended' }, { m: 'action_mark_absent', l: 'Mark Absent' },
-              { m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' }] },
+              { m: 'action_pass', l: 'Mark Passed (drafts the certificate)' }, { m: 'action_fail', l: 'Mark Failed' },
+              { m: 'action_withdraw', l: 'Withdraw (frees the seat and its cost)', ask: 'Reason for the withdrawal', kwarg: 'reason' },
+              { m: 'action_substitute', l: 'Substitute Trainee', ask: 'Substitute: employee id, name or badge', kwarg: 'employee' }] },
   'M22-budget': { kind: 'model_list', model: 'fix.training.budget',
     cols: ['name', 'year', 'company_id', 'amount', 'consumed', 'remaining'] },
   'M22-budget-exceptions': { kind: 'model_list', model: 'fix.training.budget.exception', stateField: 'state',
@@ -209,8 +248,23 @@ export const SCREENS = {
     title: 'Learning Path',
     back: 'M22-paths',
     tabs: [
-      { id: 'path', label: 'Role, Competencies & Courses', bn: 'ভূমিকা, দক্ষতা ও কোর্স', icon: '🗺️', badge: '4' },
+      { id: 'path', label: 'Role, Competencies & Courses', bn: 'ভূমিকা, দক্ষতা ও কোর্স', icon: '🗺️', badge: '5' },
+      { id: 'grid', label: 'Competency Requirements', bn: 'দক্ষতার প্রয়োজনীয়তা', icon: '📋', badge: 'FR-002' },
       { id: 'requirements', label: 'Level & Status', bn: 'স্তর ও অবস্থা', icon: '🎖️', badge: '3' }
+    ],
+    grids: [
+      {
+        field: 'requirement_ids', tab: 'grid', title: 'Required Competencies and Minimum Levels (FR-LMS-002)',
+        addLabel: '+ Add requirement',
+        empty: 'No requirement yet. One line per competency the role needs, with its minimum level.',
+        note: 'Each line is one competency the role requires, its minimum level, whether it is mandatory and from when it applies. The Role Gap Analysis measures every employee in the positions above against these lines.',
+        fields: [
+          { name: 'competency_id', label: 'Competency' },
+          { name: 'min_level', label: 'Minimum Level' },
+          { name: 'mandatory', label: 'Mandatory' },
+          { name: 'effective_from', label: 'Effective From' }
+        ]
+      }
     ],
     sections: [
       {
@@ -220,7 +274,8 @@ export const SCREENS = {
         fields: [
           { name: 'name', required: true, label: 'Path Title' },
           { name: 'target_role', label: 'Target Role (the role this path qualifies for)' },
-          { name: 'competency_ids', label: 'Required Competencies (FR-LMS-002)' },
+          { name: 'position_ids', label: 'Applies to Positions (measured by the Role Gap Analysis)' },
+          { name: 'competency_ids', label: 'Target Competencies' },
           { name: 'course_ids', label: 'Courses in the Path (FR-LMS-018)' }
         ]
       },
@@ -229,7 +284,7 @@ export const SCREENS = {
         title: 'Proficiency Level & Activation',
         note: 'Minimum required proficiency level (1–5) and path activation flag.',
         fields: [
-          { name: 'min_level', required: true, label: 'Minimum Required Level (1-5)' },
+          { name: 'min_level', required: true, label: 'Default Minimum Level (L1-L4)' },
           { name: 'company_id', label: 'Company' },
           { name: 'active', label: 'Active Status' }
         ]
@@ -356,7 +411,7 @@ export const SCREENS = {
     title: 'Training Schedule & Enrollment',
     back: 'M22-schedule',
     status: { field: 'state', labels: {
-      enrolled: 'Enrolled', passed: 'Passed', failed: 'Failed' } },
+      enrolled: 'Enrolled', passed: 'Passed', failed: 'Failed', withdrawn: 'Withdrawn' } },
     tabs: [
       { id: 'enrollment', label: 'Course, Session & Trainee', bn: 'কোর্স, সেশন ও প্রশিক্ষণার্থী', icon: '📚', badge: '4' },
       { id: 'completion', label: 'Completion & Certification', bn: 'সমাপ্তি ও সনদ', icon: '🎓', badge: '2' }
@@ -386,7 +441,9 @@ export const SCREENS = {
           { name: 'cost', readonly: true, label: 'Seat Cost (BDT)' },
           { name: 'budget_year', readonly: true, label: 'Budget Year' },
           { name: 'budget_exception_id', readonly: true, label: 'Over-Budget Approval' },
-          { name: 'evidence_id', readonly: true, label: 'Competence Evidence (ISO 9001 cl. 7.2)' }
+          { name: 'evidence_id', readonly: true, label: 'Competence Evidence (ISO 9001 cl. 7.2)' },
+          { name: 'withdraw_reason', readonly: true, label: 'Withdrawal Reason' },
+          { name: 'substitute_of_id', readonly: true, label: 'Substitute For' }
         ]
       }
     ]
@@ -539,6 +596,261 @@ export const SCREENS = {
     ]
   },
 
+  'M22-form-need': {
+    kind: 'model_form',
+    model: 'fix.training.need',
+    title: 'Training Need',
+    back: 'M22-needs',
+    status: { field: 'state', labels: {
+      identified: 'Identified', planned: 'Planned', enrolled: 'Enrolled', closed: 'Closed (trained)', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'need', label: 'Employee & Need', bn: 'কর্মী ও প্রয়োজন', icon: '🎯', badge: '6' },
+      { id: 'source', label: 'Source & Plan', bn: 'উৎস ও পরিকল্পনা', icon: '🧭', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'need',
+        title: 'Identified Need (FR-LMS-031, lifecycle 8.2)',
+        note: 'One employee, the competency they lack or the course that closes it, and why. A need is closed by a passed enrolment; a failed or withdrawn one sends it back to be planned.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Need Reference' },
+          { name: 'employee_id', required: true, label: 'Employee' },
+          { name: 'competency_id', label: 'Competency Lacking' },
+          { name: 'course_id', label: 'Course to Close It' },
+          { name: 'description', required: true, type: 'text', label: 'Need Statement' },
+          { name: 'priority', required: true, label: 'Priority (a safety need is always Mandatory)' },
+          { name: 'due_date', label: 'Needed By' }
+        ]
+      },
+      {
+        tab: 'source',
+        title: 'Where the Need Came From',
+        note: 'The trigger: a role gap, an M57 performance gap, an M23 non-conformance, an M59 incident, a new product line or brand (BRU-LMS-13), a role change, or a manager request.',
+        fields: [
+          { name: 'source', required: true, label: 'Source' },
+          { name: 'source_ref', label: 'Source Reference (NC / incident / review no.)' },
+          { name: 'raised_on', required: true, label: 'Raised On' },
+          { name: 'plan_id', label: 'Training Plan (draft plans only)' },
+          { name: 'company_id', label: 'Company' },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'enrollment_id', readonly: true, label: 'Enrolment' },
+          { name: 'raised_by_id', readonly: true, label: 'Raised By' },
+          { name: 'closed_on', readonly: true, label: 'Closed On' },
+          { name: 'cancel_reason', readonly: true, label: 'Cancellation Reason' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-plan': {
+    kind: 'model_form',
+    model: 'fix.training.plan',
+    title: 'Training Plan',
+    back: 'M22-plans',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Submitted', approved: 'Approved', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'period', label: 'Period, Branch & Budget', bn: 'সময়কাল, শাখা ও বাজেট', icon: '📆', badge: '7' },
+      { id: 'decision', label: 'Needs & Decision', bn: 'প্রয়োজন ও সিদ্ধান্ত', icon: '🖋️', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'period',
+        title: 'Annual / Quarterly Training Plan (FR-LMS-032)',
+        note: 'A plan consolidates training needs for a branch and period. Needs join it from the Training Needs list while it is a draft. It is submitted with every need costed, inside its budget, and approved by a Training Budget Approver other than the submitter; a planned need is enrolled only once its plan is approved.',
+        fields: [
+          { name: 'name', required: true, label: 'Plan Name' },
+          { name: 'period', required: true, label: 'Period' },
+          { name: 'year', required: true, label: 'Year' },
+          { name: 'quarter', label: 'Quarter (quarterly plans)' },
+          { name: 'operating_unit_id', label: 'Branch / Operating Unit' },
+          { name: 'target_role', label: 'Role / Population' },
+          { name: 'budget', label: 'Plan Budget (BDT)' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'decision',
+        title: 'Consolidated Needs & Approval',
+        note: 'Planned cost = the seat cost of each need\'s course.',
+        fields: [
+          { name: 'need_count', readonly: true, label: 'Needs in Plan' },
+          { name: 'planned_cost', readonly: true, label: 'Planned Cost (BDT)' },
+          { name: 'notes', type: 'text', label: 'Notes' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'submitted_by_id', readonly: true, label: 'Submitted By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'approved_at', readonly: true, label: 'Approved At' },
+          { name: 'return_reason', readonly: true, label: 'Returned Because' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-feedback': {
+    kind: 'model_form',
+    model: 'fix.training.feedback',
+    title: 'Participant Feedback',
+    back: 'M22-feedback',
+    tabs: [
+      { id: 'rating', label: 'Ratings', bn: 'মূল্যায়ন', icon: '⭐', badge: '5' },
+      { id: 'about', label: 'Training', bn: 'প্রশিক্ষণ', icon: '📚', badge: '6' }
+    ],
+    sections: [
+      {
+        tab: 'rating',
+        title: 'Your Feedback (FR-LMS-036)',
+        note: 'Given by the trainee after attending (a Training Manager records it for a trainee with no account). One per enrolment; it is not changed once submitted.',
+        fields: [
+          { name: 'enrollment_id', required: true, label: 'Enrolment (course and trainee)' },
+          { name: 'rating_content', required: true, label: 'Content' },
+          { name: 'rating_trainer', required: true, label: 'Trainer' },
+          { name: 'rating_applicability', required: true, label: 'Applicability to My Work' },
+          { name: 'would_recommend', label: 'Would Recommend' },
+          { name: 'comments', type: 'text', label: 'Comments' }
+        ]
+      },
+      {
+        tab: 'about',
+        title: 'The Training Rated',
+        note: 'Filled from the enrolment.',
+        fields: [
+          { name: 'employee_id', readonly: true, label: 'Trainee' },
+          { name: 'course_id', readonly: true, label: 'Course' },
+          { name: 'session_id', readonly: true, label: 'Session' },
+          { name: 'trainer_id', readonly: true, label: 'Trainer' },
+          { name: 'submitted_on', readonly: true, label: 'Submitted On' },
+          { name: 'recorded_by_id', readonly: true, label: 'Recorded By' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-mentoring': {
+    kind: 'model_form',
+    model: 'fix.mentoring',
+    title: 'Mentoring Assignment',
+    back: 'M22-mentoring',
+    status: { field: 'state', labels: {
+      draft: 'Draft', active: 'Active', closed: 'Closed', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'pair', label: 'Mentee, Mentor & Objectives', bn: 'মেন্টি, মেন্টর ও লক্ষ্য', icon: '🤝', badge: '6' },
+      { id: 'progress', label: 'Interactions & Outcome', bn: 'সাক্ষাৎ ও ফলাফল', icon: '📈', badge: '7' }
+    ],
+    sections: [
+      {
+        tab: 'pair',
+        title: 'Mentor Assignment (FR-LMS-028)',
+        note: 'A Training Manager pairs a new technician with a mentor and states what the mentoring should achieve. The pair is fixed once it starts.',
+        fields: [
+          { name: 'name', readonly: true, label: 'Mentoring Reference' },
+          { name: 'mentee_id', required: true, label: 'Mentee' },
+          { name: 'mentor_id', required: true, label: 'Mentor' },
+          { name: 'competency_id', label: 'Focus Competency' },
+          { name: 'objectives', required: true, type: 'text', label: 'Objectives' },
+          { name: 'date_start', required: true, label: 'Starts' },
+          { name: 'date_end', label: 'Planned End' },
+          { name: 'operating_unit_id', label: 'Operating Unit' }
+        ]
+      },
+      {
+        tab: 'progress',
+        title: 'Recorded Interactions & Closing Outcome',
+        note: 'The mentor records each interaction on the Mentoring Interactions list; the mentor or a Training Manager closes the mentoring on that record, never the mentee.',
+        fields: [
+          { name: 'interaction_count', readonly: true, label: 'Interactions' },
+          { name: 'hours_logged', readonly: true, label: 'Hours Logged' },
+          { name: 'last_interaction_on', readonly: true, label: 'Last Interaction' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'outcome', readonly: true, label: 'Outcome' },
+          { name: 'closed_by_id', readonly: true, label: 'Closed By' },
+          { name: 'closing_note', readonly: true, label: 'Cancellation Note' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-mentoring-log': {
+    kind: 'model_form',
+    model: 'fix.mentoring.interaction',
+    title: 'Mentoring Interaction',
+    back: 'M22-mentoring-log',
+    tabs: [
+      { id: 'meeting', label: 'Interaction', bn: 'সাক্ষাৎ', icon: '🗣️', badge: '6' },
+      { id: 'who', label: 'Pair', bn: 'জুটি', icon: '👥', badge: '3' }
+    ],
+    sections: [
+      {
+        tab: 'meeting',
+        title: 'What Was Covered (FR-LMS-028)',
+        note: 'Recorded by the mentor (or a Training Manager) on an active mentoring, after it happens; never by the mentee.',
+        fields: [
+          { name: 'mentoring_id', required: true, label: 'Mentoring (active)' },
+          { name: 'date', required: true, label: 'Date' },
+          { name: 'mode', required: true, label: 'Mode' },
+          { name: 'duration_hours', label: 'Duration (hours)' },
+          { name: 'topics', required: true, type: 'text', label: 'Topics Covered' },
+          { name: 'actions_agreed', type: 'text', label: 'Actions Agreed' }
+        ]
+      },
+      {
+        tab: 'who',
+        title: 'Mentee & Mentor',
+        note: 'Follows the mentoring.',
+        fields: [
+          { name: 'mentee_id', readonly: true, label: 'Mentee' },
+          { name: 'mentor_id', readonly: true, label: 'Mentor' },
+          { name: 'recorded_by_id', readonly: true, label: 'Recorded By' }
+        ]
+      }
+    ]
+  },
+
+  'M22-form-effectiveness': {
+    kind: 'model_form',
+    model: 'fix.training.effectiveness',
+    title: 'Training Effectiveness Evaluation',
+    back: 'M22-effectiveness',
+    status: { field: 'state', labels: { draft: 'Draft', evaluated: 'Evaluated' } },
+    tabs: [
+      { id: 'target', label: 'Training & Measure', bn: 'প্রশিক্ষণ ও পরিমাপ', icon: '🎯', badge: '6' },
+      { id: 'result', label: 'Before / After & Conclusion', bn: 'আগে / পরে ও সিদ্ধান্ত', icon: '📊', badge: '9' }
+    ],
+    sections: [
+      {
+        tab: 'target',
+        title: 'What the Training Targeted (FR-LMS-035, BRU-LMS-15)',
+        note: 'Name the operational measure the training was meant to move (first-time-fix rate, repeat visits, non-conformances) and its value before. The session must have been held (AUT-LMS-12 evaluates 90 days after).',
+        fields: [
+          { name: 'name', readonly: true, label: 'Evaluation Reference' },
+          { name: 'course_id', required: true, label: 'Course' },
+          { name: 'session_id', label: 'Session Evaluated (held)' },
+          { name: 'target_measure', required: true, label: 'Operational Measure Targeted' },
+          { name: 'measure_unit', label: 'Unit' },
+          { name: 'better_when', required: true, label: 'Direction' },
+          { name: 'company_id', label: 'Company' }
+        ]
+      },
+      {
+        tab: 'result',
+        title: 'Before vs After',
+        note: 'Record the after-value and its period, then the conclusion; Record Evaluation fixes it. The session\'s trainer does not evaluate their own session.',
+        fields: [
+          { name: 'baseline_value', required: true, label: 'Before' },
+          { name: 'baseline_period', required: true, label: 'Before - Period' },
+          { name: 'after_value', label: 'After' },
+          { name: 'after_period', label: 'After - Period' },
+          { name: 'conclusion', type: 'text', label: 'Conclusion' },
+          { name: 'change', readonly: true, label: 'Change' },
+          { name: 'result', readonly: true, label: 'Result' },
+          { name: 'state', readonly: true, label: 'State' },
+          { name: 'evaluated_by_id', readonly: true, label: 'Evaluated By' },
+          { name: 'evaluated_on', readonly: true, label: 'Evaluated On' }
+        ]
+      }
+    ]
+  },
+
   'M22-form-evidence': {
     kind: 'model_form',
     model: 'fix.audit.evidence',
@@ -600,7 +912,13 @@ export const FORM_MODELS = {
   'M22:Device Category': 'fix.device.category',
   'M22:Training Session': 'fix.training.session',
   'M22:Training Budget': 'fix.training.budget',
-  'M22:Over-Budget Request': 'fix.training.budget.exception'
+  'M22:Over-Budget Request': 'fix.training.budget.exception',
+  'M22:Training Need': 'fix.training.need',
+  'M22:Training Plan': 'fix.training.plan',
+  'M22:Training Feedback': 'fix.training.feedback',
+  'M22:Mentoring': 'fix.mentoring',
+  'M22:Mentoring Interaction': 'fix.mentoring.interaction',
+  'M22:Effectiveness Evaluation': 'fix.training.effectiveness'
 };
 
 export const FORM_CHIPS = {
@@ -612,6 +930,12 @@ export const FORM_CHIPS = {
   'M22:Training Session': 'M22-form-session',
   'M22:Training Budget': 'M22-form-budget',
   'M22:Over-Budget Request': 'M22-form-budget-exception',
+  'M22:Training Need': 'M22-form-need',
+  'M22:Training Plan': 'M22-form-plan',
+  'M22:Training Feedback': 'M22-form-feedback',
+  'M22:Mentoring': 'M22-form-mentoring',
+  'M22:Mentoring Interaction': 'M22-form-mentoring-log',
+  'M22:Effectiveness Evaluation': 'M22-form-effectiveness',
   'M22:__by_model__': {
     'fix.competency': 'M22-form-competency',
     'fix.device.category': 'M22-form-device',
@@ -624,7 +948,13 @@ export const FORM_CHIPS = {
     'fix.ojt.record': 'M22-form-ojt',
     'fix.audit.evidence': 'M22-form-evidence',
     'fix.training.budget': 'M22-form-budget',
-    'fix.training.budget.exception': 'M22-form-budget-exception'
+    'fix.training.budget.exception': 'M22-form-budget-exception',
+    'fix.training.need': 'M22-form-need',
+    'fix.training.plan': 'M22-form-plan',
+    'fix.training.feedback': 'M22-form-feedback',
+    'fix.mentoring': 'M22-form-mentoring',
+    'fix.mentoring.interaction': 'M22-form-mentoring-log',
+    'fix.training.effectiveness': 'M22-form-effectiveness'
   },
   'M22:__by_screen__': {
     'M22-framework': 'M22-form-competency',
@@ -639,7 +969,13 @@ export const FORM_CHIPS = {
     'M22-ojt': 'M22-form-ojt',
     'M22-iso': 'M22-form-evidence',
     'M22-budget': 'M22-form-budget',
-    'M22-budget-exceptions': 'M22-form-budget-exception'
+    'M22-budget-exceptions': 'M22-form-budget-exception',
+    'M22-needs': 'M22-form-need',
+    'M22-plans': 'M22-form-plan',
+    'M22-feedback': 'M22-form-feedback',
+    'M22-mentoring': 'M22-form-mentoring',
+    'M22-mentoring-log': 'M22-form-mentoring-log',
+    'M22-effectiveness': 'M22-form-effectiveness'
   }
 };
 

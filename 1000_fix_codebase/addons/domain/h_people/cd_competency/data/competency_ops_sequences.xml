@@ -29,5 +29,26 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_training_need" model="ir.sequence">
+            <field name="name">Training Need</field>
+            <field name="code">fix.training.need</field>
+            <field name="prefix">TNR/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_mentoring" model="ir.sequence">
+            <field name="name">Mentoring</field>
+            <field name="code">fix.mentoring</field>
+            <field name="prefix">MEN/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_training_effectiveness" model="ir.sequence">
+            <field name="name">Training Effectiveness Evaluation</field>
+            <field name="code">fix.training.effectiveness</field>
+            <field name="prefix">TEV/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

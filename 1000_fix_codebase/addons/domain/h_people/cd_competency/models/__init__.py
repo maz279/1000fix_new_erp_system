@@ -9,4 +9,5 @@ from . import (
     fix_training_budget,
     fix_training_session,
     fix_competency_consumers,
+    fix_competency_capture2,
 )

@@ -877,6 +877,8 @@ WRITABLE = {
             "course_ids",
             "min_level",
             "name",
+            "position_ids",
+            "requirement_ids",
             "target_role",
         }
     ),
@@ -911,6 +913,27 @@ WRITABLE = {
             "name_bn",
             "operating_unit_id",
             "requires_certificate",
+        }
+    ),
+    "fix.mentoring": frozenset(
+        {
+            "competency_id",
+            "date_end",
+            "date_start",
+            "mentee_id",
+            "mentor_id",
+            "objectives",
+            "operating_unit_id",
+        }
+    ),
+    "fix.mentoring.interaction": frozenset(
+        {
+            "actions_agreed",
+            "date",
+            "duration_hours",
+            "mentoring_id",
+            "mode",
+            "topics",
         }
     ),
     "fix.mfs.disbursement": frozenset(
@@ -1276,6 +1299,7 @@ WRITABLE = {
             "requisition_id",
         }
     ),
+    "fix.role.competency": frozenset(),
     "fix.roster.change.request": frozenset(
         {
             "kind",
@@ -1502,12 +1526,66 @@ WRITABLE = {
             "operating_unit_id",
         }
     ),
+    "fix.training.effectiveness": frozenset(
+        {
+            "after_period",
+            "after_value",
+            "baseline_period",
+            "baseline_value",
+            "better_when",
+            "company_id",
+            "conclusion",
+            "course_id",
+            "measure_unit",
+            "session_id",
+            "target_measure",
+        }
+    ),
     "fix.training.enrollment": frozenset(
         {
             "company_id",
             "course_id",
             "employee_id",
             "session_id",
+        }
+    ),
+    "fix.training.feedback": frozenset(
+        {
+            "comments",
+            "enrollment_id",
+            "rating_applicability",
+            "rating_content",
+            "rating_trainer",
+            "would_recommend",
+        }
+    ),
+    "fix.training.need": frozenset(
+        {
+            "company_id",
+            "competency_id",
+            "course_id",
+            "description",
+            "due_date",
+            "employee_id",
+            "operating_unit_id",
+            "plan_id",
+            "priority",
+            "raised_on",
+            "source",
+            "source_ref",
+        }
+    ),
+    "fix.training.plan": frozenset(
+        {
+            "budget",
+            "company_id",
+            "name",
+            "notes",
+            "operating_unit_id",
+            "period",
+            "quarter",
+            "target_role",
+            "year",
         }
     ),
     "fix.training.session": frozenset(

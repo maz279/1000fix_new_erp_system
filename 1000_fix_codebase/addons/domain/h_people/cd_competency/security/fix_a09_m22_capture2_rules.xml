@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M22 capture audit, second pass (2026-11-19): company and operating-unit
+     isolation for the new records, and BRU-LMS-12 (S2) on the people data:
+     a training need records a competency gap, and a mentoring, its
+     interactions and a trainee's feedback are personal. Their subject, the
+     mentor / trainer, the direct manager, HR people-data readers and the
+     Training & Certification Manager read them; nobody else does. -->
+<odoo>
+    <record id="rule_fix_role_competency_company" model="ir.rule">
+        <field name="name">fix.role.competency: allowed companies</field>
+        <field name="model_id" ref="model_fix_role_competency"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_need_company" model="ir.rule">
+        <field name="name">fix.training.need: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_need"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_plan_company" model="ir.rule">
+        <field name="name">fix.training.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_feedback_company" model="ir.rule">
+        <field name="name">fix.training.feedback: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_feedback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mentoring_company" model="ir.rule">
+        <field name="name">fix.mentoring: allowed companies</field>
+        <field name="model_id" ref="model_fix_mentoring"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mentoring_interaction_company" model="ir.rule">
+        <field name="name">fix.mentoring.interaction: allowed companies</field>
+        <field name="model_id" ref="model_fix_mentoring_interaction"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_effectiveness_company" model="ir.rule">
+        <field name="name">fix.training.effectiveness: allowed companies</field>
+        <field name="model_id" ref="model_fix_training_effectiveness"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_training_need_operating_unit" model="ir.rule">
+        <field name="name">fix.training.need: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_training_need"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_training_plan_operating_unit" model="ir.rule">
+        <field name="name">fix.training.plan: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_training_plan"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_mentoring_operating_unit" model="ir.rule">
+        <field name="name">fix.mentoring: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_mentoring"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_training_need_own" model="ir.rule">
+        <field name="name">fix.training.need: own and direct reports unless HR or training</field>
+        <field name="model_id" ref="model_fix_training_need"/>
+        <field name="domain_force">['|', '|', ('employee_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_mentoring_own" model="ir.rule">
+        <field name="name">fix.mentoring: mentee, mentor and the mentee's manager unless HR or training</field>
+        <field name="model_id" ref="model_fix_mentoring"/>
+        <field name="domain_force">['|', '|', '|', ('mentee_id.user_id', '=', user.id), ('mentor_id.user_id', '=', user.id), ('mentee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_mentoring_interaction_own" model="ir.rule">
+        <field name="name">fix.mentoring.interaction: mentee, mentor and the mentee's manager unless HR or training</field>
+        <field name="model_id" ref="model_fix_mentoring_interaction"/>
+        <field name="domain_force">['|', '|', '|', ('mentee_id.user_id', '=', user.id), ('mentor_id.user_id', '=', user.id), ('mentee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+    <record id="rule_fix_training_feedback_own" model="ir.rule">
+        <field name="name">fix.training.feedback: the trainee, the trainer and the manager unless HR or training</field>
+        <field name="model_id" ref="model_fix_training_feedback"/>
+        <field name="domain_force">['|', '|', '|', ('employee_id.user_id', '=', user.id), ('trainer_id.user_id', '=', user.id), ('employee_id.parent_id.user_id', '=', user.id), (1 if (user.fix_reads_all_people() or user.has_group('cd_competency.group_training') or user.has_group('cd_competency.group_certification_verifier')) else 0, '=', 1)]</field>
+    </record>
+</odoo>
