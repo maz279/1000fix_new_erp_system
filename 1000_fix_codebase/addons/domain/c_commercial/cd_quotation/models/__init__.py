@@ -18,4 +18,4 @@ from . import fix_discount_reason
 # M36 capture pass 2 (19 Nov 2026): extends fix.quotation, fix.tender and
 # fix.estimate after every file above defines them.
 # isort: split
-from . import fix_quote_capture2
+from . import fix_quote_capture2, fix_quote_capture3

@@ -112,12 +112,12 @@ Other workspace changes:
 1. **Name the CCO and CFO.** The estate has no such roles. The Commercial Manager (Quotations) signs for the CCO and the Accounting Administrator for the CFO; neither may be the author, and the two must be different people.
 2. **The standard terms library is empty on fix_real.** Until the Commercial Manager loads it, every term written on a quotation is a deviation, and nothing is mandatory.
 3. **Credit profiles.** The gate reads M20's `fix.credit.profile`. A customer without a profile is not gated.
-4. **Not built (no capture gap, but still spec):**
-   - automatic renewal quotations at the contract's lead time (AUT-QTE-10; the capture exists, the cron does not);
-   - the reminder sequence (FR-QTE-040);
-   - the bulk estate quotation from an asset upload (FR-QTE-022);
-   - the side-by-side version comparison (FR-QTE-013);
-   - the tokenised customer view (T-05; pass 1 owner gap 4).
+4. **Built in pass 3 (§6):** the five spec items this list held after pass 2.
+   - The renewal cron.
+   - The reminders.
+   - The bulk estate quotation.
+   - The version comparison.
+   - The tokenised customer view.
 5. **Still open from pass 1:** the diagnostic-fee invoice policy; a second Tender Committee member on fix_real.
 
 ## 5. Deployed (19 Nov 2026, approved by the user)
@@ -134,3 +134,24 @@ Other workspace changes:
 - **Live check:** a read-only headless walk with the dev login and no saves.
   - On both 8069 and 8090: all 10 pages show their "+ New" and every new chip.
   - 21 screens render, with **0 console errors**.
+
+## 6. Third pass — the spec items pass 2 left unbuilt (cd_quotation 19.0.1.5.0)
+
+`models/fix_quote_capture3.py`, `controllers/customer_view.py` and `data/ir_cron_capture3.xml`, plus three workspace forms.
+
+| Page | Spec | Capture / automation |
+|---|---|---|
+| 2 Quotation Object | FR-QTE-021/022 | **Quote a Corporate Estate (asset upload)**. An `.xlsx` or `.csv` asset list becomes one priced line per asset, grouped by site. Each line carries its asset tag, site, department and cost centre. The quotation shows subtotals by site, department and cost centre. A bad row is refused with its row number. The row action *Re-import the Asset Upload* reloads the list on a draft. |
+| 3 Versioning | FR-QTE-013 | **Compare Two Versions**. Pick a revised quotation and read what changed against the version it replaced: price, discount, validity, each line added, removed or re-priced, and each term added or dropped. *Keep This Comparison* writes the comparison to the quotation's history. |
+| 5 Customer Approval Loop | FR-QTE-034, T-05 | **Send Customer Approval Link**. It issues a fresh random token; an earlier link stops working. The link is recorded as a delivery, and its views are counted. The public page `/quote/view/<token>` is in Bengali and English and shows lines, VAT and terms, **never cost or margin** (BRU-QTE-13). The customer approves only with a code sent to their own phone, through the same acceptance as Accept by Customer Code: evidence pack, credit gate, validity. A malformed or unknown token gets a 404. The page is `no-store` and `noindex`. |
+| 5 | FR-QTE-040, AUT-QTE-04/05 | **Daily job.** Expiry reminders go out at T-2 and T-1 days on the first channel the customer received the quotation on, once each. They are recorded as deliveries and published as `quotation.reminder_due`. A decided quotation gets none. A quotation unviewed 24 hours after issue gives its author one follow-up task. |
+| 2 | AUT-QTE-10, BRU-QTE-18 | **Daily job (renewal).** An AMC, RAMC or managed contract in force and inside its renewal lead time gets a draft renewal quotation, created in the contract owner's name (never the system's, so the owner cannot approve their own quotation as a bystander), plus a task to cost and submit it. It runs once per contract and never when a renewal term already exists. |
+
+**Pass-3 evidence:**
+- **Static guard** `test_m36_capture_pass3.py`: **7 of 8 fail on the committed pass-2 code** (`d142bd83`). The eighth, "the token is never writable", rightly holds on both. **8/8 pass** on the build.
+- **Live** `test_m36_capture_pass3_live.py`: 8 tests, run as non-admin users through the workspace endpoints, and the customer page as the public user. **8/8 pass.**
+- **Mutants: 15/15 caught.**
+  - The first run had one survivor, the token format check, and a test now covers it.
+  - The others cover: the old token kept; a link sent before issue; the view not recorded; cost on the page; reminders twice or after a decision; the unviewed follow-up repeated or chasing viewed ones; renewals outside the lead time, duplicated or authored by the system; the estate grouping; a bad number accepted; a price change hidden.
+- **Regression on `fix_test_m36c2`: 1,075 passed.** The 26 failures and errors were all peers' tables missing from the clone (storefront, campaign, workshop, M32/M34). After upgrading those 8 lagging modules on the clone, every affected file passes: **204/204**.
+- **UI walk** (private server, worktree code): pages 2, 3 and 5 show the new chips and each opens its form; 26 screens render; **0 console errors**. An unknown token on `/quote/view/` answers **404**.

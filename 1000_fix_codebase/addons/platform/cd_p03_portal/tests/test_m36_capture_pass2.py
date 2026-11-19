@@ -236,4 +236,4 @@ def test_the_new_model_file_loads_after_the_models_it_extends():
     init = (QUOTATION / "models" / "__init__.py").read_text(encoding="utf-8")
     tree = ast.parse(init)
     order = [a.name for node in tree.body if isinstance(node, ast.ImportFrom) for a in node.names]
-    assert order[-1] == "fix_quote_capture2", order
+    assert order[-2:] == ["fix_quote_capture2", "fix_quote_capture3"], order

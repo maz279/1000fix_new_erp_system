@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M36 capture audit pass 3 (2026-11-19): AUT-QTE-04/05 and AUT-QTE-10.
+     Daily, idempotent and superuser-safe. -->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_quotation_followups" model="ir.cron">
+            <field name="name">M36: quotation expiry reminders and unviewed follow-ups</field>
+            <field name="model_id" ref="model_fix_quotation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_quotation_followups()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_renewal_quotations" model="ir.cron">
+            <field name="name">M36: draft renewal quotations inside the contract lead time</field>
+            <field name="model_id" ref="model_fix_quotation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_renewal_quotations()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

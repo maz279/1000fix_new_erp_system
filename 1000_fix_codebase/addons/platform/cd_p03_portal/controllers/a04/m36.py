@@ -44,6 +44,10 @@ SURFACES = {
             # capture pass 2 (19 Nov 2026)
             "action_apply_standard_terms",
             "action_record_phone_acceptance",
+            # capture pass 3 (19 Nov 2026)
+            "action_import_estate",
+            "action_record_version_comparison",
+            "action_send_approval_link",
         },
     },
     # Commercial document standard (17 Nov 2026): the customer's local proforma.

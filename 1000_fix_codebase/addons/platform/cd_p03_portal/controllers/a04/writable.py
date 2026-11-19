@@ -1010,6 +1010,8 @@ WRITABLE = {
             "discount_amount",
             "document_lang",
             "dofa_justification",
+            "estate_file",
+            "estate_filename",
             "estimate_id",
             "expected_vds_rate",
             "line_ids",

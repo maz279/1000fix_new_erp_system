@@ -69,7 +69,8 @@ export const MODULE = {
     'Proforma Invoice (Local)',
     'Technical Review Request', 'Record Technical Review Outcome', 'Quotation Term', 'Renewal Quotation',
     'Decide a Term Deviation', 'Finance Credit Override', 'Accept by Phone (recorded consent)',
-    'Legal Hold', 'Release a Legal Hold', 'Tender Document', 'Tender Outcome (loss)', 'Standard Term (library)'],
+    'Legal Hold', 'Release a Legal Hold', 'Tender Document', 'Tender Outcome (loss)', 'Standard Term (library)',
+    'Bulk Estate Quotation (asset upload)', 'Compare with the Previous Version', 'Send Customer Approval Link'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   /* Capture audit 2026-11-14 (spec sections 5, 8.2, 10.1): each page's
    * "+ New" captures the record the page names. Before it only page 2 had
@@ -81,16 +82,16 @@ export const MODULE = {
    * that still had nowhere to be captured now have their forms. */
   freg: { src: 86, sub: [
     ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates', 'M36-est-reviews'], reports: [], forms: ['Estimate', 'Technical Review Request', 'Record Technical Review Outcome'], create: 'M36-form-estimate' }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-terms', 'M36-renewals', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Quotation Term', 'Renewal Quotation', 'Proforma Invoice (Local)'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-terms', 'M36-renewals', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Quotation Term', 'Renewal Quotation', 'Bulk Estate Quotation (asset upload)', 'Proforma Invoice (Local)'] }],
     /* FR-QTE-012/015, BRU-QTE-02/04: an issued, expired or declined version is
      * never edited; it is revised into the next version. */
-    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation'], create: 'M36-form-revise' }],
+    ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation', 'Compare with the Previous Version'], create: 'M36-form-revise' }],
     /* FR-QTE-025..032: submitted to the value-band approver (never the author);
      * the review log is written by the decision in the M63 inbox. */
     ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'version', 'reviewer_id', 'decision', 'value_reviewed', 'reviewed_at'], screens: ['M36-internal', 'M36-pending', 'M36-term-deviations', 'M36-credit-overrides'], reports: ['Approval Cycle Time'], forms: ['Submit for Internal Approval', 'Decide a Term Deviation', 'Finance Credit Override'], create: 'M36-form-submit' }],
     /* FR-QTE-033/034/039/042: issued on a channel, every delivery recorded,
      * accepted on the code the customer reads out. */
-    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quotation.delivery', cols: ['quotation_id', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count'], screens: ['M36-loop', 'M36-deliveries'], reports: ['Quote Conversion by Channel'], forms: ['Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code', 'Accept by Phone (recorded consent)'], create: 'M36-form-issue' }],
+    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quotation.delivery', cols: ['quotation_id', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count'], screens: ['M36-loop', 'M36-deliveries'], reports: ['Quote Conversion by Channel'], forms: ['Issue to the Customer', 'Send Customer Approval Link', 'Quotation Delivery', 'Accept by Customer Code', 'Accept by Phone (recorded consent)'], create: 'M36-form-issue' }],
     /* FR-QTE-035/036, BRU-QTE-11, T-03: the customer's counter or line-level
      * decision is a record, decided by someone other than who took it down;
      * "revise" derives the next version for approval. */
@@ -230,6 +231,7 @@ export const SCREENS = {
       { m: 'action_pull_estimate_lines', l: 'Pull Lines from Estimate', states: ['draft'] },
       { m: 'action_apply_template', l: 'Apply Template (replaces the lines)', states: ['draft'] },
       { m: 'action_apply_standard_terms', l: 'Attach the Standard Terms', states: ['draft'] },
+      { m: 'action_import_estate', l: 'Re-import the Asset Upload (replaces the lines)', states: ['draft'] },
       { m: 'action_choose_option', l: 'Customer Chooses Option', ask: 'Which option did the customer take? (its description)', kwarg: 'choice', states: ['draft', 'approved', 'sent'] },
       { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
@@ -654,7 +656,9 @@ export const SCREENS = {
           { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
           { name: 'approved_at', label: 'Approved At', readonly: true },
           { name: 'credit_block_reason', label: 'Credit Gate (M20; Finance override on Approval Routing)', readonly: true },
-          { name: 'renewal_of_contract_id', label: 'Renewal Of Contract', readonly: true }
+          { name: 'renewal_of_contract_id', label: 'Renewal Of Contract', readonly: true },
+          { name: 'version_diff', label: 'What Changed from the Previous Version', type: 'text', readonly: true },
+          { name: 'estate_breakdown', label: 'Breakdown by Site / Department / Cost Centre', type: 'text', readonly: true }
         ] },
       { tab: 'esign', title: 'Customer Acceptance & Evidence Pack',
         note: 'Acceptance is a verified customer code, the e-signature provider callback, or a signed copy recorded by someone other than the author, within validity.',
@@ -1273,6 +1277,75 @@ export const SCREENS = {
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
     ] },
 
+  /* ==== Capture audit, third pass (2026-11-19) ============================ */
+  // p2 FR-QTE-021/022: a quotation for a corporate estate from its asset list.
+  'M36-form-estate': { kind: 'model_form', model: 'fix.quotation',
+    title: 'Bulk Estate Quotation (asset upload)', newLabel: 'Quote a Corporate Estate (asset upload)', back: 'M36-quotes',
+    status: { field: 'state' },
+    sections: [
+      { title: 'One Priced Line per Asset (FR-QTE-022)',
+        note: 'Upload the customer\'s asset list (.xlsx or .csv): Description and Unit Price are required; Asset Tag, Site, Department, Cost Centre and Quantity are read when present. The lines are grouped by site and the quotation shows subtotals by site, department and cost centre (FR-QTE-021). The draft then takes the value-band approval like any quotation.',
+        fields: [
+          { name: 'customer_id', label: 'Corporate Customer', required: true },
+          { name: 'quote_type', label: 'Converts Into', required: true },
+          { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'valid_until', label: 'Valid Until', required: true },
+          { name: 'cost_amount', label: 'Estimated Direct Cost' },
+          { name: 'estate_file', type: 'file', label: 'Asset Upload (.xlsx / .csv)', required: true },
+          { name: 'estate_filename', label: 'Upload File Name' },
+          { name: 'name', label: 'Quotation No.', readonly: true },
+          { name: 'value', label: 'Value (excl. VAT)', readonly: true },
+          { name: 'estate_breakdown', label: 'Breakdown by Site / Department / Cost Centre', type: 'text', readonly: true }
+        ] }
+    ] },
+  // p3 FR-QTE-013: the side-by-side difference with the version replaced.
+  'M36-form-compare': { kind: 'model_form', model: 'fix.quotation',
+    title: 'Compare with the Previous Version', newLabel: 'Compare Two Versions', back: 'M36-versions',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose a revised quotation (version 2 or later)',
+      search: 'Search quotation', choose: 'Compare with its previous version',
+      cols: ['name', 'version', 'parent_version_id', 'customer_id', 'value', 'state'],
+      domain: [['parent_version_id', '!=', false]],
+      empty: 'No quotation has been revised yet.'
+    },
+    saveAction: { method: 'action_record_version_comparison', label: 'Keep This Comparison on the Quotation', done: 'Comparison recorded on the quotation (its history)', kwargs: {} },
+    sections: [
+      { title: 'Step 2 of 2: What Changed, in the Customer\'s Words',
+        note: 'Price, discount, validity, every line added, removed or re-priced, and every term added or dropped, compared with the version this one replaced.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'parent_version_id', label: 'Previous Version', readonly: true },
+          { name: 'version_diff', label: 'What Changed', type: 'text', readonly: true }
+        ] }
+    ] },
+  // p5 FR-QTE-034 / T-05: the customer's one-screen approval link.
+  'M36-form-approval-link': { kind: 'model_form', model: 'fix.quotation',
+    title: 'Send Customer Approval Link', newLabel: 'Send Customer Approval Link', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the quotation with the customer',
+      search: 'Search quotation', choose: 'Send its approval link',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'delivery_channel'],
+      domain: [['state', '=', 'sent']],
+      empty: 'No quotation is with a customer.'
+    },
+    saveAction: { method: 'action_send_approval_link', label: 'Send the Link', done: 'Link recorded as a delivery (Deliveries & Views shows it and when it is opened)', kwargs: { channel: 'approval_link_channel', recipient: 'approval_link_recipient' } },
+    sections: [
+      { title: 'Step 2 of 2: Channel',
+        note: 'A one-screen Bengali / English page with the price, lines, VAT and terms, never cost or margin. The customer approves with a code sent to their own phone, within validity. Opening it is recorded as a view. A new link replaces the old one.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'approval_link_channel', label: 'Send By', required: true, readonly: true },
+          { name: 'approval_link_recipient', label: 'Send To (empty: the customer\'s mobile or email)', readonly: true },
+          { name: 'approval_link_sent_at', label: 'Last Link Sent At', readonly: true }
+        ] }
+    ] },
+
   /* ==== Capture audit, second pass (2026-11-19) ============================ */
   // p1 FR-QTE-009: a technical review / second opinion before an estimate is quoted.
   'M36-est-reviews': { kind: 'model_list', model: 'fix.estimate.review', stateField: 'state',
@@ -1603,7 +1676,10 @@ export const FORM_MODELS = {
   'M36:Release a Legal Hold': 'fix.quotation.legal.hold',
   'M36:Tender Document': 'fix.tender.document',
   'M36:Tender Outcome (loss)': 'fix.tender.outcome',
-  'M36:Standard Term (library)': 'fix.quotation.standard.term'
+  'M36:Standard Term (library)': 'fix.quotation.standard.term',
+  'M36:Bulk Estate Quotation (asset upload)': 'fix.quotation',
+  'M36:Compare with the Previous Version': 'fix.quotation',
+  'M36:Send Customer Approval Link': 'fix.quotation'
 };
 
 export const FORM_CHIPS = {
@@ -1636,6 +1712,9 @@ export const FORM_CHIPS = {
   'M36:Tender Document': 'M36-form-tender-doc',
   'M36:Tender Outcome (loss)': 'M36-form-tender-outcome',
   'M36:Standard Term (library)': 'M36-form-std-term',
+  'M36:Bulk Estate Quotation (asset upload)': 'M36-form-estate',
+  'M36:Compare with the Previous Version': 'M36-form-compare',
+  'M36:Send Customer Approval Link': 'M36-form-approval-link',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
     'fix.quotation': 'M36-record',
