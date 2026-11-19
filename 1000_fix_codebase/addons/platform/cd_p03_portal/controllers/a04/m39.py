@@ -22,7 +22,8 @@ SURFACES = {
     "fix.subscription.usage": {
         "order": "period_start desc, id desc",
         "limit": 300,
-        "actions": set(),
+        # capture audit 2026-11-19: the exception queue is worked by re-rating
+        "actions": {"action_rerate"},
     },
     # A04 build (2026-11-04) C3: the plan-change and mandate lifecycles run
     # by their actions (each checks its own role, state and consent).
@@ -41,6 +42,37 @@ SURFACES = {
             "action_activate",
             "action_revoke",
         },
+    },
+    # M39 capture audit (2026-11-19): the records each sub-module page captures.
+    "fix.subscription.schedule": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_activate", "action_regenerate", "action_void"},
+    },
+    "fix.subscription.line": {
+        "order": "subscription_id, id",
+        "limit": 300,
+        "actions": {"action_approve", "action_end", "action_void"},
+    },
+    "fix.subscription.billing.run": {
+        "order": "id desc",
+        "limit": 100,
+        "actions": {"action_dry_run", "action_review", "action_commit", "action_void"},
+    },
+    "fix.subscription.adjustment": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request_approval", "action_recall_approval", "action_void"},
+    },
+    "fix.subscription.lifecycle": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject", "action_void"},
+    },
+    "fix.subscription.churn": {
+        "order": "churn_date desc, id desc",
+        "limit": 200,
+        "actions": set(),
     },
 }
 
@@ -77,7 +109,8 @@ def mrr_waterfall(env, date_from=None, date_to=None, **params):
             },
         )
         row["subs"] += 1
-        row["mrr"] += sub.recurring_amount or 0.0
+        # BRU-SUB-15: normalised to a month, recurring lines included
+        row["mrr"] += sub.monthly_value or 0.0
     rows = list(by_plan.values())
     for row in rows:
         row["mrr"] = round(row["mrr"], 2)
@@ -88,7 +121,9 @@ def mrr_waterfall(env, date_from=None, date_to=None, **params):
         key = charge.period_start.strftime("%Y-%m") if charge.period_start else "undated"
         by_period[key] = round(by_period.get(key, 0.0) + (charge.amount or 0.0), 2)
     notes = [
-        "MRR by plan from live subscriptions. Billed periods recorded: %s."
+        "MRR by plan from live subscriptions, normalised to a month (a quarterly or annual "
+        "amount is divided by its months) and including active recurring charge lines. "
+        "Billed periods recorded: %s."
         % (", ".join("%s=%s" % (k, v) for k, v in sorted(by_period.items())) or "none")
     ]
     totals = (
@@ -347,8 +382,36 @@ def dunning_ladder(env, date_from=None, date_to=None, **params):
 def recurring_forecast(env, date_from=None, date_to=None, **params):
     subs = _subs(env).filtered(lambda s: s.state in LIVE and s.next_invoice_date)
     horizon = datetime.date.today() + datetime.timedelta(days=90)
-    upcoming = subs.filtered(lambda s: s.next_invoice_date <= horizon)
     rows = []
+    # FR-SUB-010: a subscription on an active billing schedule forecasts its
+    # planned periods; the others their recorded next invoice date
+    scheduled = (
+        env["fix.subscription.schedule.period"]
+        .sudo()
+        .search(
+            [
+                ("state", "=", "planned"),
+                ("schedule_id.state", "=", "active"),
+                ("subscription_id", "in", subs.ids),
+                ("billing_date", "<=", horizon),
+            ],
+            order="billing_date, id",
+        )
+    )
+    for period in scheduled:
+        sub = period.subscription_id
+        rows.append(
+            {
+                "subscription": sub.name,
+                "customer": sub.customer_id.name or "—",
+                "plan": sub.plan,
+                "next_invoice": str(period.billing_date),
+                "amount": round(period.amount_planned or 0.0, 2),
+            }
+        )
+    upcoming = (subs - scheduled.mapped("subscription_id")).filtered(
+        lambda s: s.next_invoice_date <= horizon and not s._active_schedule()
+    )
     for sub in upcoming.sorted("next_invoice_date"):
         rows.append(
             {
@@ -371,8 +434,8 @@ def recurring_forecast(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Forecast = live subscriptions whose recorded next_invoice_date falls in "
-            "the next 90 days. No projection beyond the recorded schedule."
+            "Forecast = the planned periods of active billing schedules, and otherwise the "
+            "recorded next invoice date, within the next 90 days. No projection beyond them."
         ],
         totals={"subscription": "Total", "amount": round(sum(r["amount"] for r in rows), 2)}
         if rows
@@ -437,7 +500,7 @@ REPORTS = {
 def kpis(env):
     subs = _subs(env)
     live = subs.filtered(lambda s: s.state in LIVE)
-    mrr = sum(live.mapped("recurring_amount"))
+    mrr = sum(live.mapped("monthly_value"))
     churned = len(subs.filtered(lambda s: s.state in ("churned", "cancelled")))
     exceptions = len(subs.filtered(lambda s: s.state in ("past_due", "hold")))
     dunning = len(subs.filtered(lambda s: s.dunning_step and s.dunning_step != "none"))

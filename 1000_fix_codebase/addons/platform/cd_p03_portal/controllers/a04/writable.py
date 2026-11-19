@@ -1061,6 +1061,18 @@ WRITABLE = {
             "start_hour",
         }
     ),
+    "fix.subscription.adjustment": frozenset(
+        {
+            "adjustment_type",
+            "amount",
+            "charge_id",
+            "direction",
+            "evidence_ref",
+            "name",
+            "reason",
+            "subscription_id",
+        }
+    ),
     "fix.subscription.autopay": frozenset(
         {
             "attempt_ids",
@@ -1076,6 +1088,16 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.subscription.billing.run": frozenset(
+        {
+            "as_of",
+            "billing_cycle",
+            "company_id",
+            "customer_id",
+            "operating_unit_id",
+            "unit_ids",
+        }
+    ),
     "fix.subscription.charge": frozenset(
         {
             "amount",
@@ -1087,24 +1109,81 @@ WRITABLE = {
             "usage_ids",
         }
     ),
+    "fix.subscription.churn": frozenset(
+        {
+            "churn_date",
+            "churn_type",
+            "competitor",
+            "notes",
+            "reason_code",
+            "subscription_id",
+        }
+    ),
+    "fix.subscription.lifecycle": frozenset(
+        {
+            "action_type",
+            "effective_date",
+            "escalation_pct",
+            "notice_channel",
+            "notice_evidence",
+            "notice_received_on",
+            "notice_sent_on",
+            "pause_until",
+            "reason",
+            "renewal_end_date",
+            "subscription_id",
+        }
+    ),
+    "fix.subscription.line": frozenset(
+        {
+            "charge_type",
+            "end_date",
+            "included_qty",
+            "metric",
+            "name",
+            "overage_rate",
+            "quantity",
+            "rating_model",
+            "start_date",
+            "subscription_id",
+            "tier_ids",
+            "unit_rate",
+        }
+    ),
     "fix.subscription.proration": frozenset(
         {
             "change_type",
             "effective_date",
+            "line_id",
             "name",
             "new_amount",
+            "new_quantity",
             "subscription_id",
             "to_plan",
+        }
+    ),
+    "fix.subscription.schedule": frozenset(
+        {
+            "alignment",
+            "anchor_date",
+            "first_period",
+            "horizon",
+            "period_ids",
+            "subscription_id",
+            "timing",
         }
     ),
     "fix.subscription.usage": frozenset(
         {
             "committed",
+            "line_id",
             "metric",
             "overage_rate",
             "period_end",
             "period_start",
             "quantity",
+            "source_key",
+            "source_module",
             "subscription_id",
         }
     ),

@@ -63,10 +63,86 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_subscription_adjustment_company" model="ir.rule">
+        <field name="name">fix.subscription.adjustment: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_adjustment"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_adjustment_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.adjustment: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_adjustment"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_billing_run_company" model="ir.rule">
+        <field name="name">fix.subscription.billing.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_billing_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_billing_run_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.billing.run: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_billing_run"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_billing_run_unit_company" model="ir.rule">
+        <field name="name">fix.subscription.billing.run.unit: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_billing_run_unit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_subscription_charge_operating_unit" model="ir.rule">
         <field name="name">fix.subscription.charge: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_subscription_charge"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_churn_company" model="ir.rule">
+        <field name="name">fix.subscription.churn: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_churn"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_churn_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.churn: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_churn"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_lifecycle_company" model="ir.rule">
+        <field name="name">fix.subscription.lifecycle: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_lifecycle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_lifecycle_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.lifecycle: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_lifecycle"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_line_company" model="ir.rule">
+        <field name="name">fix.subscription.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_line_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.line: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_schedule_company" model="ir.rule">
+        <field name="name">fix.subscription.schedule: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_schedule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_schedule_operating_unit" model="ir.rule">
+        <field name="name">fix.subscription.schedule: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_subscription_schedule"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_subscription_schedule_period_company" model="ir.rule">
+        <field name="name">fix.subscription.schedule.period: allowed companies</field>
+        <field name="model_id" ref="model_fix_subscription_schedule_period"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
