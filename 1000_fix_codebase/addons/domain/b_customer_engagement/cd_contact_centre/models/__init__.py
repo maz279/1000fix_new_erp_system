@@ -28,6 +28,7 @@ from . import fix_conversation_party_merge
 # A02 audit B2: customer notifications for M01 events (extends
 # fix.notif.delivery).
 from . import fix_m01_notifications
+from . import fix_a02_notifications
 
 # A11 audit P2: approver notifications for M63 approval events (extends
 # fix.notif.delivery).
