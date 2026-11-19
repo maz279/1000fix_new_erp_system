@@ -1,6 +1,6 @@
 # M13 Rental & EaaS: data-capture audit, second pass
 
-**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Branch:** `fix/m13-capture-pass2` · **Status:** see §7
+**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Branch:** `fix/m13-capture-pass2` · **Status:** deployed on fix_real and fix_dev 19 Nov; see §7
 
 ## 1. The question
 
@@ -159,12 +159,21 @@ Together with the pass-1 guard and the rental domain suite: **159 passed, 0 fail
 
 ## 7. State
 
-**Committed and pushed; not landed, not deployed (19 Nov).**
+**LANDED, PUSHED AND DEPLOYED on fix_real (8069) and fix_dev (8090), 19 Nov 2026.** The owner chose "Land and deploy".
 
-- Commit `304b3575` on `fix/m13-capture-pass2`, rebased on the shared tip `946c088f` and pushed to origin.
-- **Not landed on `fix/a03-live-data-and-pending-work`.** Landing places new stored fields in the main checkout. A restart by any session before the `-u` would boot fix_real on code whose columns do not exist yet. So landing and deploying are done together, once the owner approves.
-- **Deploy needed:**
-  1. backups of fix_real and fix_dev;
-  2. `-u cd_rental_asset,cd_p03_portal` on both;
-  3. one restart of 8069 and 8090, coordinated with the other sessions' deploy wave (M18 asked about a combined `-u`).
+- **Backups first**, both checked with `pg_restore -l` (1,823 and 1,820 table-data entries): `1000 fix/backups/fix_real_pre_m13_capture2_2026-11-19.dump` and `fix_dev_pre_m13_capture2_2026-11-19.dump`.
+- **Landed** `6beda45d` on `fix/a03-live-data-and-pending-work` by compare-and-swap from `2176de73`, and fast-forwarded the main checkout with `read-tree -m -u`. **Pushed** `2176de73..6beda45d`, plus `fix/m13-capture-pass2-landed`. The old `fix/m13-capture-pass2` holds the same changes before the rebase; it was not force-pushed.
+- **Upgrade:** `cd_rental_asset` went in with M21's combined `-u` (`cd_hr_core,cd_device_registry,cd_ewaste,cd_rental_asset,cd_p03_portal`), run after M16's, on both databases, exit 0. On fix_real it created:
+  - all 9 new tables and the 6 new columns on existing rental tables;
+  - 9 ACL rows and 12 isolation rules;
+  - the "M13 Rental: preventive maintenance due" cron (active) and 5 new sequences.
+
+  Both databases have 18 `fix_rental_%` tables and `cd_rental_asset` 19.0.0.2.0.
+- **A version gap caught on the way (not M13):** `cd_gl_ext` 19.0.2.5.0 (M19, `f98fd00f`) was landed but not upgraded. M21's log showed 336 "has no table" errors for its 6 new models. I flagged it, and M19 upgraded it on both databases before the restart.
+- **Restart:** one restart, by M21 at 08:06:54, after every upgrade:
+  - 8069 is PID 81988 (fix_real) and 8090 is PID 21792 (fix_dev), both answering 200;
+  - since boot, both logs show the registry loaded, 0 "has no table" and 0 "Failed to load registry";
+  - fix_real's only error line is a `SERIALIZATION_FAILURE` that Odoo retried successfully.
+- **Production bundles:** both serve the new forms (`M13-form-swap`, `-photo`, `-waiver-plan`): fix_real's current bundle, and fix_dev's rebuilt at 08:08.
+- **Not done on live:** a signed-in click-through. The click-through ran on the private clone (§5). fix_real holds no rental units, SKUs or rentals, so there is no live record to exercise yet.
 - The private clone `fix_test_m13c2` is kept for re-checks; the baseline clone was dropped.
