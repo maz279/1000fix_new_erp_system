@@ -1,2 +1,9 @@
-# cd_partner models.
-from . import fix_comarketing, fix_partner, fix_partner_ops, fix_party_merge_consumer
+# cd_partner models. fix_partner_capture extends fix.partner, fix.partner.rebate
+# and fix.partner.franchise, so it loads last (M40 capture audit 2026-11-19).
+from . import (
+    fix_comarketing,
+    fix_partner,
+    fix_partner_capture,
+    fix_partner_ops,
+    fix_party_merge_consumer,
+)

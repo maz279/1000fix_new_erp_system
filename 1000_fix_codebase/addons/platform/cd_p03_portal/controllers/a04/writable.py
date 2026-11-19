@@ -12,6 +12,31 @@
 #   python addons/platform/cd_p03_portal/controllers/form_fields.py --a04
 
 WRITABLE = {
+    "fix.alliance.eligibility.check": frozenset(
+        {
+            "customer_id",
+            "evidence_attachment_id",
+            "evidence_ref",
+            "member_ref",
+            "result",
+            "scheme_id",
+        }
+    ),
+    "fix.alliance.scheme": frozenset(
+        {
+            "benefit_description",
+            "benefit_ref",
+            "code",
+            "company_id",
+            "eligibility_method",
+            "member_definition",
+            "name",
+            "partner_id",
+            "valid_from",
+            "valid_to",
+            "volume_commitment",
+        }
+    ),
     "fix.brand": frozenset(
         {
             "active",
@@ -24,6 +49,20 @@ WRITABLE = {
             "proposed_authorisation_reference",
             "support_url",
             "website",
+        }
+    ),
+    "fix.brand.audit": frozenset(
+        {
+            "auditor_name",
+            "authorisation_id",
+            "brand_id",
+            "conducted_on",
+            "findings",
+            "m23_ref",
+            "name",
+            "response",
+            "scheduled_on",
+            "scope",
         }
     ),
     "fix.brand.claim.rule": frozenset(
@@ -45,6 +84,17 @@ WRITABLE = {
             "resubmission_window_days",
             "submission_window_days",
             "valid_from",
+        }
+    ),
+    "fix.brand.obligation": frozenset(
+        {
+            "authorisation_id",
+            "description",
+            "due_date",
+            "evidence_attachment_id",
+            "obligation_type",
+            "owner_id",
+            "recurrence",
         }
     ),
     "fix.brand.reconciliation": frozenset(
@@ -111,6 +161,20 @@ WRITABLE = {
             "channel",
             "company_id",
             "note",
+        }
+    ),
+    "fix.channel.conflict.rule": frozenset(
+        {
+            "company_id",
+            "fifth_channel",
+            "first_channel",
+            "fourth_channel",
+            "name",
+            "scope",
+            "second_channel",
+            "territory",
+            "third_channel",
+            "valid_from",
         }
     ),
     "fix.charge.code": frozenset(
@@ -395,6 +459,26 @@ WRITABLE = {
             "reviewer_id",
         }
     ),
+    "fix.franchise.royalty": frozenset(
+        {
+            "franchise_id",
+            "period_from",
+            "period_to",
+        }
+    ),
+    "fix.franchise.territory": frozenset(
+        {
+            "code",
+            "company_id",
+            "districts",
+            "exclusivity",
+            "franchise_id",
+            "name",
+            "partner_id",
+            "valid_from",
+            "valid_to",
+        }
+    ),
     "fix.graded.stock": frozenset(
         {
             "acquisition_cost",
@@ -493,6 +577,25 @@ WRITABLE = {
             "trade_license_no",
         }
     ),
+    "fix.mdf.claim": frozenset(
+        {
+            "amount",
+            "campaign_id",
+            "description",
+            "evidence_attachment_id",
+            "fund_id",
+        }
+    ),
+    "fix.mdf.fund": frozenset(
+        {
+            "allocated",
+            "company_id",
+            "currency_id",
+            "name",
+            "partner_id",
+            "period",
+        }
+    ),
     "fix.part.crossref": frozenset(
         {
             "active",
@@ -516,6 +619,7 @@ WRITABLE = {
             "nid_number",
             "partner_id",
             "partner_type",
+            "programme_id",
             "territory",
             "tin_number",
             "trade_license_attachment_id",
@@ -553,6 +657,16 @@ WRITABLE = {
             "partner_b_id",
         }
     ),
+    "fix.partner.contact.role": frozenset(
+        {
+            "active",
+            "contact_id",
+            "partner_id",
+            "portal_scope",
+            "primary",
+            "role",
+        }
+    ),
     "fix.partner.deal": frozenset(
         {
             "currency_id",
@@ -564,15 +678,85 @@ WRITABLE = {
             "value",
         }
     ),
+    "fix.partner.enablement": frozenset(
+        {
+            "assigned_on",
+            "certificate_attachment_id",
+            "certification_ref",
+            "completed_on",
+            "course",
+            "expires_on",
+            "partner_id",
+            "required",
+        }
+    ),
+    "fix.partner.engagement": frozenset(
+        {
+            "attachment_id",
+            "commitment_due",
+            "commitments",
+            "date",
+            "direction",
+            "engagement_type",
+            "participants",
+            "partner_id",
+            "summary",
+        }
+    ),
     "fix.partner.franchise": frozenset(
         {
             "currency_id",
             "end_date",
             "fee",
+            "marketing_levy_rate",
             "name",
+            "operating_unit_id",
             "partner_id",
+            "royalty_rate",
             "start_date",
             "territory",
+        }
+    ),
+    "fix.partner.lead": frozenset(
+        {
+            "company_id",
+            "consent_at",
+            "consent_attachment_id",
+            "consent_given",
+            "consent_method",
+            "customer_email",
+            "customer_id",
+            "customer_name",
+            "customer_phone",
+            "link_id",
+            "partner_id",
+            "service_interest",
+        }
+    ),
+    "fix.partner.onboarding": frozenset(
+        {
+            "evidence_attachment_id",
+            "name",
+            "note",
+            "partner_id",
+            "required",
+            "sequence",
+            "step",
+        }
+    ),
+    "fix.partner.programme": frozenset(
+        {
+            "benefits",
+            "code",
+            "commercial_terms_ref",
+            "company_id",
+            "entry_criteria",
+            "exit_conditions",
+            "name",
+            "obligations",
+            "partner_type",
+            "tier_ids",
+            "valid_from",
         }
     ),
     "fix.partner.rebate": frozenset(
@@ -587,6 +771,7 @@ WRITABLE = {
             "rate",
         }
     ),
+    "fix.partner.tier": frozenset(),
     "fix.parts.price.band": frozenset(),
     "fix.parts.price.scheme": frozenset(
         {
@@ -896,6 +1081,15 @@ WRITABLE = {
             "sequence",
         }
     ),
+    "fix.referral.link": frozenset(
+        {
+            "campaign_ref",
+            "company_id",
+            "partner_id",
+            "valid_from",
+            "valid_to",
+        }
+    ),
     "fix.refurb.grade": frozenset(
         {
             "active",
@@ -921,6 +1115,19 @@ WRITABLE = {
             "requires_inspection_return",
             "security_deposit",
             "weekly_rate",
+        }
+    ),
+    "fix.reseller.allocation": frozenset(
+        {
+            "allocation_type",
+            "company_id",
+            "currency_id",
+            "item_description",
+            "item_ref",
+            "partner_id",
+            "period",
+            "qty",
+            "unit_price",
         }
     ),
     "fix.sales.proforma": frozenset(

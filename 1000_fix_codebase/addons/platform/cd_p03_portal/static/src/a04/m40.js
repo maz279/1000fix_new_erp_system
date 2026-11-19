@@ -2,7 +2,8 @@
 /* A04 · Commercial & Revenue — M40 Partner & Channel (v2 rebuild).
  * A04 audit (2026-11-04): workflow fields are read-only; the lifecycles run
  * from the list actions.
- * Registry-faithful: 4 groups / 13 screens / 5 reports / 4 forms / freg 80.
+ * Registry-faithful at birth (4 groups / 13 screens / 5 reports / 4 forms /
+ * freg 80); the 19 Nov 2026 capture audit added the spec's registers.
  * Partners (8) and referrals (7) are real; authorisations, deals, rebates,
  * franchises and conflicts are new. Partner revenue = recorded referral
  * commission + won deal value. Co-marketing (a declared gap until 12 Nov
@@ -26,19 +27,38 @@ export const MODULE = {
       { id: 'M40-partners', en: 'Partner Directory', bn: 'পার্টনার ডিরেক্টরি', t: 'g' },
       { id: 'M40-brand', en: 'Brand Partner Relations', bn: 'ব্র্যান্ড পার্টনার', t: 'r' },
       { id: 'M40-authorisation', en: 'Authorisation & Certification', bn: 'অনুমোদন', t: 'g' },
-      { id: 'M40-audits', en: 'Technical Audits', bn: 'টেকনিক্যাল অডিট', t: 'g' }
+      { id: 'M40-audits', en: 'Technical Audits', bn: 'টেকনিক্যাল অডিট', t: 'g' },
+      { id: 'M40-programmes', en: 'Programmes & Tiers', bn: 'কার্যক্রম ও স্তর', t: 'g' },
+      { id: 'M40-contacts', en: 'Partner Contacts', bn: 'পার্টনার যোগাযোগ', t: 'g' }
+    ]},
+    { en: 'Onboarding & Brand Governance', screens: [
+      { id: 'M40-onboarding', en: 'Onboarding Checklist', bn: 'অনবোর্ডিং চেকলিস্ট', t: 'g' },
+      { id: 'M40-enablement', en: 'Enablement & Certification', bn: 'প্রশিক্ষণ ও সনদ', t: 'g' },
+      { id: 'M40-obligations', en: 'Brand Obligations', bn: 'ব্র্যান্ড দায়বদ্ধতা', t: 'g' },
+      { id: 'M40-brand-audits', en: 'Brand Audit Calendar', bn: 'ব্র্যান্ড অডিট', t: 'g' },
+      { id: 'M40-engagement', en: 'Engagement Log', bn: 'যোগাযোগ লগ', t: 'g' }
     ]},
     { en: 'Programmes', screens: [
       { id: 'M40-alliance', en: 'Alliance Benefits', bn: 'অ্যালায়েন্স সুবিধা', t: 'r' },
       { id: 'M40-referral', en: 'Referral Programme', bn: 'রেফারেল কার্যক্রম', t: 'g' },
       { id: 'M40-dealreg', en: 'Deal Registration', bn: 'ডিল নিবন্ধন', t: 'g' },
       { id: 'M40-reseller', en: 'Resellers', bn: 'রিসেলার', t: 'r' },
-      { id: 'M40-franchise', en: 'Franchise Management', bn: 'ফ্র্যাঞ্চাইজি', t: 'g' }
+      { id: 'M40-franchise', en: 'Franchise Management', bn: 'ফ্র্যাঞ্চাইজি', t: 'g' },
+      { id: 'M40-schemes', en: 'Alliance Schemes', bn: 'অ্যালায়েন্স স্কিম', t: 'g' },
+      { id: 'M40-eligibility', en: 'Eligibility Checks', bn: 'যোগ্যতা যাচাই', t: 'g' },
+      { id: 'M40-leads', en: 'Partner Leads', bn: 'পার্টনার লিড', t: 'g' },
+      { id: 'M40-referral-links', en: 'Referral Links & Codes', bn: 'রেফারেল লিংক', t: 'g' },
+      { id: 'M40-allocations', en: 'Reseller Allocations', bn: 'রিসেলার বরাদ্দ', t: 'g' },
+      { id: 'M40-territories', en: 'Franchise Territories', bn: 'ফ্র্যাঞ্চাইজি অঞ্চল', t: 'g' },
+      { id: 'M40-royalties', en: 'Franchise Royalties', bn: 'রয়্যালটি', t: 'g' }
     ]},
     { en: 'Commercial', screens: [
       { id: 'M40-rebates', en: 'Rebates & MDF', bn: 'রিবেট ও MDF', t: 'g' },
       { id: 'M40-comarketing', en: 'Co-Marketing', bn: 'কো-মার্কেটিং', t: 'r' },
-      { id: 'M40-conflict', en: 'Channel Conflict', bn: 'চ্যানেল দ্বন্দ্ব', t: 'g' }
+      { id: 'M40-conflict', en: 'Channel Conflict', bn: 'চ্যানেল দ্বন্দ্ব', t: 'g' },
+      { id: 'M40-conflict-rules', en: 'Channel Precedence Rules', bn: 'চ্যানেল অগ্রাধিকার', t: 'g' },
+      { id: 'M40-mdf-funds', en: 'MDF Funds', bn: 'MDF তহবিল', t: 'g' },
+      { id: 'M40-mdf-claims', en: 'MDF Claims', bn: 'MDF দাবি', t: 'g' }
     ]},
     { en: 'Performance', screens: [
       { id: 'M40-health', en: 'Health & Risk', bn: 'স্বাস্থ্য ও ঝুঁকি', t: 'r' },
@@ -48,17 +68,19 @@ export const MODULE = {
   reports: ['Partner Revenue Contribution', 'Referral Conversion', 'Brand Audit Calendar', 'Rebate Accruals', 'Channel Conflict Log', 'Deal Register'],
   forms: ['Partner', 'Deal Registration', 'Rebate Scheme', 'Franchise Agreement'],
   cross: ['M07 CRM', 'M12 Marketplace', 'M35 Marketing', 'M20 AR'],
+  /* M40 capture audit (19 Nov 2026): each page lists and captures the
+   * records the spec puts on it; "+ New" is the page's own record. */
   freg: { src: 80, sub: [
-    ['1', 'Partner Master', 10, { model: 'fix.partner', cols: ['name', 'state', 'partner_type', 'commission_rate', 'territory', 'technical_audit_score'], screens: ['M40-partners'], reports: ['Partner Revenue Contribution'], forms: ['Partner'] }],
-    ['2', 'Recruitment & Onboarding', 8, { model: 'fix.partner.authorisation', cols: ['name', 'state', 'partner_id', 'brand_id', 'scope', 'valid_from', 'valid_to'], screens: ['M40-authorisation'], reports: [], forms: [] }],
-    ['3', 'Brand Relations', 9, { model: 'fix.partner.authorisation', cols: ['name', 'partner_id', 'brand_id', 'valid_to', 'state'], screens: ['M40-brand', 'M40-authorisation'], reports: ['Brand Audit Calendar'], forms: [] }],
-    ['4', 'Alliances', 6, { model: 'fix.partner', cols: ['name', 'territory', 'commission_rate', 'contract_id', 'state'], screens: ['M40-alliance', 'M40-comarketing', 'M40-partners'], reports: ['Partner Revenue Contribution'], forms: ['Partner'], create: 'M40-form-partner', domain: [['partner_type', '=', 'alliance']] }],
-    ['5', 'Referrals', 8, { model: 'fix.referral', cols: ['name', 'state', 'partner_id', 'referred_partner_id', 'base_amount', 'commission_amount'], screens: ['M40-referral', 'M40-rpt-referral'], reports: ['Referral Conversion'], forms: [] }],
-    ['6', 'Deal Registration', 7, { model: 'fix.partner.deal', cols: ['name', 'state', 'partner_id', 'customer_id', 'value', 'registered_on'], screens: ['M40-dealreg', 'M40-rpt-deals'], reports: ['Deal Register'], forms: ['Deal Registration'] }],
-    ['7', 'Resellers', 6, { model: 'fix.partner', cols: ['name', 'partner_id', 'territory', 'commission_rate', 'state'], screens: ['M40-reseller', 'M40-partners'], reports: ['Partner Revenue Contribution'], forms: ['Partner'], create: 'M40-form-partner', domain: [['partner_type', '=', 'reseller']] }],
-    ['8', 'Franchise', 9, { model: 'fix.partner.franchise', cols: ['name', 'state', 'partner_id', 'territory', 'fee', 'start_date', 'end_date'], screens: ['M40-franchise'], reports: [], forms: ['Franchise Agreement'] }],
-    ['9', 'Commercial Terms', 8, { model: 'fix.partner.rebate', cols: ['name', 'state', 'partner_id', 'amount', 'period', 'basis', 'rate'], screens: ['M40-rebates', 'M40-rpt-rebates'], reports: ['Rebate Accruals'], forms: ['Rebate Scheme'] }],
-    ['10', 'Performance', 9, { model: 'fix.partner.conflict', cols: ['name', 'state', 'customer_id', 'partner_a_id', 'partner_b_id', 'dofa_arbitrator_id', 'dofa_decision'], screens: ['M40-conflict', 'M40-health', 'M40-ranking'], reports: ['Partner Revenue Contribution', 'Channel Conflict Log'], forms: [] }]
+    ['1', 'Partner Master', 10, { model: 'fix.partner', cols: ['name', 'state', 'partner_type', 'programme_id', 'tier_id', 'territory'], screens: ['M40-partners', 'M40-programmes', 'M40-contacts'], reports: ['Partner Revenue Contribution'], forms: ['Partner', 'Partner Programme', 'Partner Contact'] }],
+    ['2', 'Recruitment & Onboarding', 8, { model: 'fix.partner.onboarding', cols: ['partner_id', 'step', 'name', 'required', 'state'], screens: ['M40-onboarding', 'M40-enablement', 'M40-partners'], reports: [], forms: ['Onboarding Step', 'Partner Enablement', 'Partner'] }],
+    ['3', 'Brand Relations', 9, { model: 'fix.partner.authorisation', cols: ['name', 'partner_id', 'brand_id', 'valid_to', 'state'], screens: ['M40-brand', 'M40-authorisation', 'M40-obligations', 'M40-brand-audits', 'M40-engagement'], reports: ['Brand Audit Calendar'], forms: ['Partner Authorisation', 'Brand Obligation', 'Brand Audit', 'Partner Engagement'] }],
+    ['4', 'Alliances', 6, { model: 'fix.alliance.scheme', cols: ['code', 'name', 'partner_id', 'valid_from', 'valid_to', 'eligible_count', 'state'], screens: ['M40-schemes', 'M40-eligibility', 'M40-alliance'], reports: [], forms: ['Alliance Scheme', 'Eligibility Check'] }],
+    ['5', 'Referrals', 8, { model: 'fix.partner.lead', cols: ['name', 'partner_id', 'customer_name', 'attribution_expires_on', 'referral_id', 'state'], screens: ['M40-leads', 'M40-referral-links', 'M40-referral', 'M40-rpt-referral'], reports: ['Referral Conversion'], forms: ['Partner Lead', 'Referral Link', 'Referral'] }],
+    ['6', 'Deal Registration', 7, { model: 'fix.partner.deal', cols: ['name', 'state', 'partner_id', 'customer_id', 'value', 'registered_on'], screens: ['M40-dealreg', 'M40-conflict', 'M40-conflict-rules', 'M40-rpt-deals'], reports: ['Deal Register', 'Channel Conflict Log'], forms: ['Deal Registration', 'Channel Conflict', 'Channel Precedence Rule'] }],
+    ['7', 'Resellers', 6, { model: 'fix.reseller.allocation', cols: ['name', 'partner_id', 'item_description', 'qty', 'consumed_qty', 'state'], screens: ['M40-allocations', 'M40-reseller'], reports: [], forms: ['Reseller Allocation'] }],
+    ['8', 'Franchise', 9, { model: 'fix.partner.franchise', cols: ['name', 'state', 'partner_id', 'territory', 'fee', 'start_date', 'end_date'], screens: ['M40-franchise', 'M40-territories', 'M40-royalties'], reports: [], forms: ['Franchise Agreement', 'Franchise Territory', 'Franchise Royalty'] }],
+    ['9', 'Commercial Terms', 8, { model: 'fix.partner.rebate', cols: ['name', 'state', 'partner_id', 'amount', 'period', 'basis', 'rate'], screens: ['M40-rebates', 'M40-mdf-funds', 'M40-mdf-claims', 'M40-comarketing', 'M40-rpt-rebates'], reports: ['Rebate Accruals'], forms: ['Rebate Scheme', 'MDF Fund', 'MDF Claim'] }],
+    ['10', 'Performance', 9, { model: 'fix.partner.audit', cols: ['name', 'partner_id', 'audit_date', 'score', 'valid_until', 'state'], screens: ['M40-audits', 'M40-health', 'M40-ranking', 'M40-rpt-revenue'], reports: ['Partner Revenue Contribution'], forms: ['Technical Audit'] }]
   ] }
 };
 
@@ -77,6 +99,8 @@ export const SCREENS = {
       { m: 'action_suspend', l: 'Suspend Partner', ask: 'Reason for suspension', kwarg: 'reason', states: ['onboarded'] },
       { m: 'action_reinstate', l: 'Reinstate Partner', ask: 'Reason for reinstatement', kwarg: 'reason', states: ['suspended'] },
       { m: 'action_set_commission_rate', l: 'Set Commission Rate', ask: 'New rate as a fraction (0.05 = 5%)', kwarg: 'rate' },
+      { m: 'action_generate_onboarding', l: 'Generate Onboarding Checklist', states: ['prospective', 'qualifying'] },
+      { m: 'action_change_tier', l: 'Move to Tier', ask: 'Tier code within the partner programme', kwarg: 'tier_code', states: ['onboarded'] },
       { m: 'action_request_erasure', l: 'Register PDPA Erasure Request' },
       { m: 'action_execute_erasure', l: 'Execute PDPA Erasure (Tier 3)' }
     ] },
@@ -185,6 +209,9 @@ export const SCREENS = {
           { name: 'partner_type', required: true, label: 'Partnership Classification' },
           { name: 'territory', label: 'Assigned Geographic Territory' },
           { name: 'contract_id', label: 'Master Franchise Agreement (M08)' },
+          { name: 'programme_id', label: 'Partner Programme (version bound, BRU-PCM-12)' },
+          { name: 'programme_version', readonly: true, label: 'Programme Version' },
+          { name: 'tier_id', readonly: true, label: 'Tier (moved by a channel manager)' },
           { name: 'state', readonly: true, label: 'Partnership Status' },
           { name: 'onboarded_by_id', readonly: true, label: 'Onboarded By' },
           { name: 'pdpa_erasure_state', readonly: true, label: 'PDPA Erasure Status' }
@@ -332,6 +359,18 @@ export const SCREENS = {
   },
   'M40-form-franchise': { kind: 'model_form', model: 'fix.partner.franchise',
     title: 'Franchise Agreement', back: 'M40-franchise',
+    lines: {
+      field: 'territory_ids', readonlyGrid: true,
+      title: 'Territories',
+      note: 'Territories are drafted and activated on the Franchise Territories screen, where exclusivity is checked (BRU-PCM-16).',
+      fields: [
+        { name: 'code', label: 'Code', readonly: true },
+        { name: 'name', label: 'Territory', readonly: true },
+        { name: 'districts', label: 'Districts', readonly: true },
+        { name: 'exclusivity', label: 'Exclusivity', readonly: true },
+        { name: 'state', label: 'Status', readonly: true }
+      ]
+    },
     status: { field: 'state' },
     tabs: [
       { id: 'general', label: '1. General', bn: '১. সাধারণ তথ্য' },
@@ -347,8 +386,11 @@ export const SCREENS = {
         { name: 'territory', label: 'Territory', required: true },
         { name: 'state', label: 'State', readonly: true }
       ] },
-      { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'fee', label: 'Franchise Fee' }
+      { tab: 'commercial', title: '2. Commercial', note: 'Royalties are computed from the verified service-order settlements of the branch operating unit named here (BRU-PCM-17); the rates freeze when the agreement is activated.', fields: [
+        { name: 'fee', label: 'Franchise Fee' },
+        { name: 'operating_unit_id', label: 'Franchise Branch (Operating Unit)' },
+        { name: 'royalty_rate', label: 'Royalty Rate (fraction of revenue)' },
+        { name: 'marketing_levy_rate', label: 'Marketing Levy Rate (fraction)' }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'start_date', label: 'Start Date', required: true },
@@ -475,6 +517,554 @@ export const SCREENS = {
       ] }
     ] },
 
+  /* ============ M40 capture audit (19 Nov 2026) ============
+   * Each sub-module page captures the record the spec puts on it (M40 §5,
+   * §10.1). States, stamps and computed figures are read-only: they move
+   * through the list actions, which the server checks for role, evidence
+   * and segregation of duties. */
+  'M40-programmes': { kind: 'model_list', model: 'fix.partner.programme', stateField: 'state',
+    cols: ['code', 'name', 'partner_type', 'version', 'valid_from', 'partner_count', 'state'],
+    actions: [
+      { m: 'action_publish', l: 'Publish Programme', states: ['draft'] },
+      { m: 'action_new_version', l: 'Draft New Version', states: ['published', 'superseded'] },
+      { m: 'action_retire', l: 'Retire Programme', ask: 'Reason for retiring', kwarg: 'reason', states: ['published', 'superseded'] }
+    ] },
+  'M40-contacts': { kind: 'model_list', model: 'fix.partner.contact.role',
+    cols: ['partner_id', 'contact_id', 'role', 'portal_scope', 'primary', 'email', 'phone'] },
+  'M40-onboarding': { kind: 'model_list', model: 'fix.partner.onboarding', stateField: 'state',
+    cols: ['partner_id', 'step', 'name', 'required', 'evidence_attachment_id', 'completed_by_id', 'state'],
+    actions: [
+      { m: 'action_complete', l: 'Complete Step (on evidence)', states: ['pending'] },
+      { m: 'action_waive', l: 'Waive Optional Step', ask: 'Reason for waiving', kwarg: 'reason', states: ['pending'] }
+    ] },
+  'M40-enablement': { kind: 'model_list', model: 'fix.partner.enablement', stateField: 'state',
+    cols: ['partner_id', 'course', 'required', 'completed_on', 'certification_ref', 'expires_on', 'state'],
+    actions: [
+      { m: 'action_certify', l: 'Record Certification', states: ['assigned'] }
+    ] },
+  'M40-obligations': { kind: 'model_list', model: 'fix.brand.obligation', stateField: 'state',
+    cols: ['authorisation_id', 'brand_id', 'obligation_type', 'due_date', 'recurrence', 'owner_id', 'state'],
+    actions: [
+      { m: 'action_mark_met', l: 'Mark Met (on evidence)', states: ['open', 'overdue'] }
+    ] },
+  'M40-brand-audits': { kind: 'model_list', model: 'fix.brand.audit', stateField: 'state',
+    cols: ['name', 'brand_id', 'scheduled_on', 'conducted_on', 'm23_ref', 'closed_by_id', 'state'],
+    actions: [
+      { m: 'action_record_findings', l: 'Record Findings', states: ['scheduled'] },
+      { m: 'action_respond', l: 'Submit Response', states: ['conducted'] },
+      { m: 'action_close', l: 'Close Audit', states: ['responded'] }
+    ] },
+  'M40-engagement': { kind: 'model_list', model: 'fix.partner.engagement',
+    cols: ['date', 'partner_id', 'engagement_type', 'direction', 'participants', 'commitment_due', 'logged_by_id'] },
+  'M40-schemes': { kind: 'model_list', model: 'fix.alliance.scheme', stateField: 'state',
+    cols: ['code', 'name', 'partner_id', 'eligibility_method', 'valid_from', 'valid_to', 'volume_commitment', 'eligible_count', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Scheme', states: ['draft'] },
+      { m: 'action_close', l: 'Close Scheme', ask: 'Reason for closing', kwarg: 'reason', states: ['active'] }
+    ] },
+  'M40-eligibility': { kind: 'model_list', model: 'fix.alliance.eligibility.check',
+    cols: ['checked_at', 'scheme_id', 'member_ref', 'customer_id', 'result', 'evidence_ref', 'checked_by_id'] },
+  'M40-referral-links': { kind: 'model_list', model: 'fix.referral.link', stateField: 'state',
+    cols: ['code', 'partner_id', 'campaign_ref', 'valid_from', 'valid_to', 'lead_count', 'state'],
+    actions: [
+      { m: 'action_revoke', l: 'Revoke Link', ask: 'Reason for revoking', kwarg: 'reason', states: ['active'] }
+    ] },
+  'M40-leads': { kind: 'model_list', model: 'fix.partner.lead', stateField: 'state',
+    cols: ['name', 'partner_id', 'customer_name', 'customer_phone', 'attribution_expires_on', 'attribution_lapsed', 'referral_id', 'state'],
+    actions: [
+      { m: 'action_qualify', l: 'Qualify Lead', states: ['submitted'] },
+      { m: 'action_convert', l: 'Convert (attribution check)', states: ['qualified'] },
+      { m: 'action_mark_lost', l: 'Mark Lost', ask: 'Reason the lead was lost (the partner sees it)', kwarg: 'reason', states: ['submitted', 'qualified'] }
+    ] },
+  'M40-conflict-rules': { kind: 'model_list', model: 'fix.channel.conflict.rule', stateField: 'state',
+    cols: ['name', 'territory', 'precedence', 'valid_from', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate Rule (CCO)', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire Rule', ask: 'Reason for retiring', kwarg: 'reason', states: ['active'] }
+    ] },
+  'M40-allocations': { kind: 'model_list', model: 'fix.reseller.allocation', stateField: 'state',
+    cols: ['name', 'partner_id', 'allocation_type', 'item_description', 'period', 'qty', 'consumed_qty', 'remaining_qty', 'state'],
+    actions: [
+      { m: 'action_allocate', l: 'Confirm Allocation', states: ['draft'] },
+      { m: 'action_record_draw', l: 'Record Draw', ask: 'Quantity the reseller drew', kwarg: 'qty', states: ['allocated'] },
+      { m: 'action_close', l: 'Close Allocation', states: ['allocated'] }
+    ] },
+  'M40-territories': { kind: 'model_list', model: 'fix.franchise.territory', stateField: 'state',
+    cols: ['code', 'name', 'partner_id', 'districts', 'exclusivity', 'valid_from', 'valid_to', 'state'],
+    actions: [
+      { m: 'action_activate', l: 'Activate (overlap check)', states: ['draft'] },
+      { m: 'action_retire', l: 'Retire Territory', ask: 'Reason for retiring', kwarg: 'reason', states: ['active'] }
+    ] },
+  'M40-royalties': { kind: 'model_list', model: 'fix.franchise.royalty', stateField: 'state',
+    cols: ['franchise_id', 'partner_id', 'period_from', 'period_to', 'order_count', 'revenue_basis', 'royalty_amount', 'levy_amount', 'state'],
+    actions: [
+      { m: 'action_compute', l: 'Compute from ERP Revenue', states: ['draft'] },
+      { m: 'action_record_invoice', l: 'Record Invoice (Finance)', ask: 'Invoice reference', kwarg: 'invoice_ref', states: ['computed'] }
+    ] },
+  'M40-mdf-funds': { kind: 'model_list', model: 'fix.mdf.fund', stateField: 'state',
+    cols: ['name', 'partner_id', 'period', 'allocated', 'claimed', 'approved', 'paid', 'balance', 'state'],
+    actions: [
+      { m: 'action_open', l: 'Allocate Fund', states: ['draft'] },
+      { m: 'action_close', l: 'Close Fund', states: ['open'] }
+    ] },
+  'M40-mdf-claims': { kind: 'model_list', model: 'fix.mdf.claim', stateField: 'state',
+    cols: ['name', 'fund_id', 'partner_id', 'campaign_id', 'amount', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit Claim', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve & Instruct Payment', states: ['submitted'] },
+      { m: 'action_refuse', l: 'Refuse Claim', ask: 'Reason for refusing', kwarg: 'reason', states: ['submitted'] },
+      { m: 'action_record_payment', l: 'Record Payment (Finance)', ask: 'Payment reference', kwarg: 'payment_ref', states: ['approved'] }
+    ] },
+
+  'M40-form-programme': { kind: 'model_form', model: 'fix.partner.programme',
+    title: 'Partner Programme', back: 'M40-programmes', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Programme', bn: '১. কার্যক্রম', icon: '📘' },
+      { id: 'terms', label: '2. Criteria & Benefits', bn: '২. মানদণ্ড ও সুবিধা', icon: '📋' },
+      { id: 'approval', label: '3. Version & Approval', bn: '৪. সংস্করণ ও অনুমোদন', icon: '⏱️' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Programme', note: 'Published terms never change: a change is a new version, and each partner stays bound to the version it joined on (BRU-PCM-12).', fields: [
+        { name: 'code', label: 'Programme Code', required: true },
+        { name: 'name', label: 'Programme Name', required: true },
+        { name: 'partner_type', label: 'Partner Type', required: true },
+        { name: 'valid_from', label: 'Effective From', required: true },
+        { name: 'company_id', label: 'Company', required: true }
+      ] },
+      { tab: 'terms', title: 'Entry, Benefits, Obligations & Exit', fields: [
+        { name: 'entry_criteria', label: 'Entry Criteria', type: 'text', required: true },
+        { name: 'benefits', label: 'Benefits', type: 'text' },
+        { name: 'obligations', label: 'Obligations', type: 'text' },
+        { name: 'commercial_terms_ref', label: 'Commercial Terms (M11 rate reference; M53 pays)' },
+        { name: 'exit_conditions', label: 'Exit Conditions', type: 'text' }
+      ] },
+      { tab: 'approval', title: 'Version & Approval', fields: [
+        { name: 'version', label: 'Version', readonly: true },
+        { name: 'previous_id', label: 'Previous Version', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'published_by_id', label: 'Published By', readonly: true },
+        { name: 'published_at', label: 'Published On', readonly: true }
+      ] }
+    ],
+    lines: {
+      field: 'tier_ids',
+      title: 'Programme Tiers',
+      note: 'A programme is published with at least one tier; tiers change only while it is a draft (BRU-PCM-12).',
+      fields: [
+        { name: 'sequence', label: 'Order' },
+        { name: 'code', label: 'Tier Code' },
+        { name: 'name', label: 'Tier' },
+        { name: 'criteria', label: 'Criteria' },
+        { name: 'benefits', label: 'Benefits' },
+        { name: 'commission_ref', label: 'Commission (M11)' },
+        { name: 'notice_days', label: 'Notice (days)' }
+      ]
+    } },
+  'M40-form-contact': { kind: 'model_form', model: 'fix.partner.contact.role',
+    title: 'Partner Contact', back: 'M40-contacts',
+    tabs: [
+      { id: 'general', label: '1. Contact & Role', bn: '১. যোগাযোগ ও ভূমিকা', icon: '👤' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Named Contact (FR-PCM-009)', fields: [
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'contact_id', label: 'Contact Person (M33)', required: true },
+        { name: 'role', label: 'Role', required: true },
+        { name: 'primary', label: 'Primary for this Role' },
+        { name: 'portal_scope', label: 'P12 Portal Scope', required: true },
+        { name: 'active', label: 'Active' },
+        { name: 'email', label: 'E-mail', readonly: true },
+        { name: 'phone', label: 'Phone', readonly: true }
+      ] }
+    ] },
+  'M40-form-onboarding': { kind: 'model_form', model: 'fix.partner.onboarding',
+    title: 'Onboarding Step', back: 'M40-onboarding', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Step', bn: '১. ধাপ', icon: '✅' },
+      { id: 'decision', label: '2. Completion', bn: '২. সম্পন্ন', icon: '🔒' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Checklist Step', note: 'A required step is completed on its evidence (upload it on this record, then pick it) and is never waived; the partner is onboarded only once every required step is done (BRU-PCM-01).', fields: [
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'step', label: 'Step', required: true },
+        { name: 'name', label: 'Description', required: true },
+        { name: 'required', label: 'Required' },
+        { name: 'sequence', label: 'Order' },
+        { name: 'evidence_attachment_id', label: 'Evidence' },
+        { name: 'note', label: 'Note' }
+      ] },
+      { tab: 'decision', title: 'Completion', fields: [
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'completed_by_id', label: 'Completed By', readonly: true },
+        { name: 'completed_at', label: 'Completed On', readonly: true },
+        { name: 'waived_by_id', label: 'Waived By', readonly: true },
+        { name: 'waive_reason', label: 'Waiver Reason', readonly: true }
+      ] }
+    ] },
+  'M40-form-enablement': { kind: 'model_form', model: 'fix.partner.enablement',
+    title: 'Partner Enablement & Certification', back: 'M40-enablement', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Course', bn: '১. কোর্স', icon: '🎓' },
+      { id: 'cert', label: '2. Certification', bn: '২. সনদ', icon: '📜' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Assigned Course', note: 'A required certification gates the partner\'s rebates and MDF (FR-PCM-041).', fields: [
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'course', label: 'Course / Certification', required: true },
+        { name: 'required', label: 'Required for Benefits' },
+        { name: 'assigned_on', label: 'Assigned On', required: true }
+      ] },
+      { tab: 'cert', title: 'Certification', fields: [
+        { name: 'completed_on', label: 'Completed On' },
+        { name: 'certification_ref', label: 'Certificate Number' },
+        { name: 'certificate_attachment_id', label: 'Certificate' },
+        { name: 'expires_on', label: 'Expires On' },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'certified_by_id', label: 'Recorded By', readonly: true }
+      ] }
+    ] },
+  'M40-form-obligation': { kind: 'model_form', model: 'fix.brand.obligation',
+    title: 'Brand Obligation', back: 'M40-obligations', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Obligation', bn: '১. দায়বদ্ধতা', icon: '📌' },
+      { id: 'evidence', label: '2. Evidence', bn: '২. প্রমাণ', icon: '📎' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Obligation under the Authorisation (FR-PCM-017)', fields: [
+        { name: 'authorisation_id', label: 'Brand Authorisation', required: true },
+        { name: 'obligation_type', label: 'Type', required: true },
+        { name: 'description', label: 'What Is Owed', type: 'text', required: true },
+        { name: 'due_date', label: 'Due Date', required: true },
+        { name: 'recurrence', label: 'Recurrence', required: true },
+        { name: 'owner_id', label: 'Owner' },
+        { name: 'brand_id', label: 'Brand', readonly: true }
+      ] },
+      { tab: 'evidence', title: 'Evidence', fields: [
+        { name: 'evidence_attachment_id', label: 'Evidence' },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'met_by_id', label: 'Met By', readonly: true },
+        { name: 'met_at', label: 'Met On', readonly: true }
+      ] }
+    ] },
+  'M40-form-brand-audit': { kind: 'model_form', model: 'fix.brand.audit',
+    title: 'Brand Partner Audit', back: 'M40-brand-audits', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Schedule', bn: '১. সময়সূচি', icon: '🗓️' },
+      { id: 'findings', label: '2. Findings & Response', bn: '২. ফলাফল ও জবাব', icon: '📝' },
+      { id: 'closure', label: '3. Closure', bn: '৩. সমাপ্তি', icon: '🔒' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Audit Calendar (FR-PCM-016)', fields: [
+        { name: 'name', label: 'Audit', required: true },
+        { name: 'brand_id', label: 'Brand', required: true },
+        { name: 'authorisation_id', label: 'Authorisation Audited' },
+        { name: 'scheduled_on', label: 'Scheduled On', required: true },
+        { name: 'scope', label: 'Scope', type: 'text', required: true },
+        { name: 'auditor_name', label: 'Brand Auditor' }
+      ] },
+      { tab: 'findings', title: 'Findings & Response', fields: [
+        { name: 'conducted_on', label: 'Conducted On' },
+        { name: 'findings', label: 'Brand\'s Findings', type: 'text' },
+        { name: 'response', label: '1000FiX Response', type: 'text' },
+        { name: 'm23_ref', label: 'Quality Finding (M23)' }
+      ] },
+      { tab: 'closure', title: 'Closure', fields: [
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'closed_by_id', label: 'Closed By', readonly: true },
+        { name: 'closed_on', label: 'Closed On', readonly: true }
+      ] }
+    ] },
+  'M40-form-engagement': { kind: 'model_form', model: 'fix.partner.engagement',
+    title: 'Partner Engagement', back: 'M40-engagement',
+    tabs: [
+      { id: 'general', label: '1. Engagement', bn: '১. যোগাযোগ', icon: '🤝' },
+      { id: 'commit', label: '2. Commitments', bn: '২. প্রতিশ্রুতি', icon: '📌' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Engagement Log (append-only)', note: 'An entry is never edited once logged, so a brand\'s own assessment of 1000FiX stays verbatim (BRU-PCM-20).', fields: [
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'engagement_type', label: 'Type', required: true },
+        { name: 'direction', label: 'Direction', required: true },
+        { name: 'date', label: 'Date', required: true },
+        { name: 'participants', label: 'Participants' },
+        { name: 'summary', label: 'Summary / Verbatim Assessment', type: 'text', required: true },
+        { name: 'logged_by_id', label: 'Logged By', readonly: true }
+      ] },
+      { tab: 'commit', title: 'Commitments', fields: [
+        { name: 'commitments', label: 'Commitments Made', type: 'text' },
+        { name: 'commitment_due', label: 'Due By' },
+        { name: 'attachment_id', label: 'Document' }
+      ] }
+    ] },
+  'M40-form-scheme': { kind: 'model_form', model: 'fix.alliance.scheme',
+    title: 'Alliance Scheme', back: 'M40-schemes', status: { field: 'state' },
+    lines: {
+      field: 'check_ids', readonlyGrid: true,
+      title: 'Eligibility Checks',
+      note: 'Recorded at intake on the Eligibility Checks screen; a check is a log entry and never edited.',
+      fields: [
+        { name: 'checked_at', label: 'Checked On', readonly: true },
+        { name: 'member_ref', label: 'Member', readonly: true },
+        { name: 'result', label: 'Result', readonly: true },
+        { name: 'checked_by_id', label: 'Checked By', readonly: true }
+      ]
+    },
+    tabs: [
+      { id: 'general', label: '1. Scheme', bn: '১. স্কিম', icon: '🤝' },
+      { id: 'benefit', label: '2. Members & Benefit', bn: '২. সদস্য ও সুবিধা', icon: '🎁' },
+      { id: 'volume', label: '3. Commitment', bn: '৩. প্রতিশ্রুতি', icon: '📈' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Alliance Scheme (FR-PCM-030)', fields: [
+        { name: 'code', label: 'Scheme Code', required: true },
+        { name: 'name', label: 'Scheme Name', required: true },
+        { name: 'partner_id', label: 'Alliance Partner', required: true },
+        { name: 'valid_from', label: 'Valid From', required: true },
+        { name: 'valid_to', label: 'Valid To' },
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'activated_by_id', label: 'Activated By', readonly: true }
+      ] },
+      { tab: 'benefit', title: 'Members & Benefit', note: 'The benefit is applied by the M11 rule named here, never as an ad-hoc discount (BRU-PCM-19).', fields: [
+        { name: 'member_definition', label: 'Member Base', type: 'text', required: true },
+        { name: 'eligibility_method', label: 'Validation Method', required: true },
+        { name: 'benefit_description', label: 'Benefit', type: 'text', required: true },
+        { name: 'benefit_ref', label: 'M11 Benefit Rule' }
+      ] },
+      { tab: 'volume', title: 'Volume Commitment (FR-PCM-032)', fields: [
+        { name: 'volume_commitment', label: 'Committed Volume (jobs)' },
+        { name: 'eligible_count', label: 'Eligible Members Served', readonly: true },
+        { name: 'commitment_pct', label: 'Commitment Achieved (%)', readonly: true }
+      ] }
+    ] },
+  'M40-form-eligibility': { kind: 'model_form', model: 'fix.alliance.eligibility.check',
+    title: 'Alliance Eligibility Check', back: 'M40-eligibility',
+    tabs: [
+      { id: 'general', label: '1. Validation', bn: '১. যাচাই', icon: '🪪' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Member Validation at Intake (FR-PCM-031)', note: 'Only an active scheme inside its validity validates; the check is a log entry and is never edited.', fields: [
+        { name: 'scheme_id', label: 'Alliance Scheme', required: true },
+        { name: 'member_ref', label: 'Member ID / Proof', required: true },
+        { name: 'customer_id', label: 'Customer (M33)' },
+        { name: 'result', label: 'Result', required: true },
+        { name: 'evidence_ref', label: 'How It Was Validated', required: true },
+        { name: 'evidence_attachment_id', label: 'Evidence' },
+        { name: 'checked_at', label: 'Checked On', readonly: true },
+        { name: 'checked_by_id', label: 'Checked By', readonly: true }
+      ] }
+    ] },
+  'M40-form-link': { kind: 'model_form', model: 'fix.referral.link',
+    title: 'Referral Link / Code', back: 'M40-referral-links', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Link', bn: '১. লিংক', icon: '🔗' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Referral Code (FR-PCM-022)', note: 'The code is generated on save: unique, non-guessable and revocable (T-07).', fields: [
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'campaign_ref', label: 'Campaign' },
+        { name: 'valid_from', label: 'Valid From', required: true },
+        { name: 'valid_to', label: 'Valid To' },
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'code', label: 'Code', readonly: true },
+        { name: 'url_path', label: 'Link Path', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'revoke_reason', label: 'Revocation Reason', readonly: true }
+      ] }
+    ] },
+  'M40-form-lead': { kind: 'model_form', model: 'fix.partner.lead',
+    title: 'Partner Lead', back: 'M40-leads', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Lead', bn: '১. লিড', icon: '📨' },
+      { id: 'consent', label: '2. Customer Consent', bn: '২. গ্রাহকের সম্মতি', icon: '✍️' },
+      { id: 'attribution', label: '3. Attribution & Outcome', bn: '৩. অ্যাট্রিবিউশন', icon: '🎯' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Submitted Lead (FR-PCM-023)', fields: [
+        { name: 'name', label: 'Lead Number', readonly: true },
+        { name: 'partner_id', label: 'Referring Partner', required: true },
+        { name: 'link_id', label: 'Referral Link' },
+        { name: 'customer_name', label: 'Customer Name', required: true },
+        { name: 'customer_phone', label: 'Customer Phone', required: true },
+        { name: 'customer_email', label: 'Customer E-mail' },
+        { name: 'service_interest', label: 'Service Interest' },
+        { name: 'customer_id', label: 'Customer Party (M33, at conversion)' },
+        { name: 'company_id', label: 'Company', required: true }
+      ] },
+      { tab: 'consent', title: 'Customer Consent (BRU-PCM-06)', note: 'No consent, no lead: the record is refused before it is created (PDPA).', fields: [
+        { name: 'consent_given', label: 'Customer Consent Recorded', required: true },
+        { name: 'consent_method', label: 'How Consent Was Given', required: true },
+        { name: 'consent_at', label: 'Consent Given At' },
+        { name: 'consent_attachment_id', label: 'Consent Evidence' }
+      ] },
+      { tab: 'attribution', title: 'Attribution (written once, BRU-PCM-04/05)', fields: [
+        { name: 'attributed_at', label: 'Attributed On', readonly: true },
+        { name: 'attribution_window_days', label: 'Window (days)', readonly: true },
+        { name: 'attribution_expires_on', label: 'Window Closes', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'converted_at', label: 'Converted On', readonly: true },
+        { name: 'attribution_lapsed', label: 'Converted Outside Window', readonly: true },
+        { name: 'referral_id', label: 'Commission Referral', readonly: true },
+        { name: 'loss_reason', label: 'Loss Reason', readonly: true }
+      ] }
+    ] },
+  'M40-form-conflict-rule': { kind: 'model_form', model: 'fix.channel.conflict.rule',
+    title: 'Channel Precedence Rule', back: 'M40-conflict-rules', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Rule', bn: '১. নিয়ম', icon: '⚖️' },
+      { id: 'order', label: '2. Precedence', bn: '২. অগ্রাধিকার', icon: '🔢' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Declared Rule (BRU-PCM-10)', note: 'Activated by a Tier 3 officer (CCO) who did not draft it; one active rule per territory.', fields: [
+        { name: 'name', label: 'Rule', required: true },
+        { name: 'scope', label: 'Scope', type: 'text', required: true },
+        { name: 'territory', label: 'Territory (blank = national)' },
+        { name: 'valid_from', label: 'Effective From', required: true },
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'approved_by_id', label: 'Activated By', readonly: true }
+      ] },
+      { tab: 'order', title: 'Channel Precedence (FR-PCM-029)', fields: [
+        { name: 'first_channel', label: '1st', required: true },
+        { name: 'second_channel', label: '2nd', required: true },
+        { name: 'third_channel', label: '3rd' },
+        { name: 'fourth_channel', label: '4th' },
+        { name: 'fifth_channel', label: '5th' },
+        { name: 'precedence', label: 'Resulting Order', readonly: true }
+      ] }
+    ] },
+  'M40-form-allocation': { kind: 'model_form', model: 'fix.reseller.allocation',
+    title: 'Reseller Allocation', back: 'M40-allocations', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Allocation', bn: '১. বরাদ্দ', icon: '📦' },
+      { id: 'usage', label: '2. Drawn & Status', bn: '২. ব্যবহার', icon: '📊' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Allocation (FR-PCM-033)', fields: [
+        { name: 'name', label: 'Allocation', readonly: true },
+        { name: 'partner_id', label: 'Reseller', required: true },
+        { name: 'allocation_type', label: 'Type', required: true },
+        { name: 'item_description', label: 'Item / Capacity', required: true },
+        { name: 'item_ref', label: 'Lot Reference (M14/M15)' },
+        { name: 'qty', label: 'Allocated Quantity', required: true },
+        { name: 'period', label: 'Period', required: true },
+        { name: 'unit_price', label: 'Agreed Unit Price' },
+        { name: 'currency_id', label: 'Currency', required: true },
+        { name: 'company_id', label: 'Company', required: true }
+      ] },
+      { tab: 'usage', title: 'Drawn & Status', fields: [
+        { name: 'consumed_qty', label: 'Drawn', readonly: true },
+        { name: 'remaining_qty', label: 'Remaining', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'allocated_by_id', label: 'Allocated By', readonly: true }
+      ] }
+    ] },
+  'M40-form-territory': { kind: 'model_form', model: 'fix.franchise.territory',
+    title: 'Franchise Territory', back: 'M40-territories', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Territory', bn: '১. অঞ্চল', icon: '🗺️' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Territory (FR-PCM-035)', note: 'An exclusive territory may not share a district with another active territory in the same period (BRU-PCM-16).', fields: [
+        { name: 'code', label: 'Territory Code', required: true },
+        { name: 'name', label: 'Territory', required: true },
+        { name: 'districts', label: 'Districts (comma-separated)', required: true },
+        { name: 'exclusivity', label: 'Exclusivity', required: true },
+        { name: 'partner_id', label: 'Franchisee', required: true },
+        { name: 'franchise_id', label: 'Franchise Agreement' },
+        { name: 'valid_from', label: 'Valid From', required: true },
+        { name: 'valid_to', label: 'Valid To' },
+        { name: 'company_id', label: 'Company', required: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'approved_by_id', label: 'Activated By', readonly: true }
+      ] }
+    ] },
+  'M40-form-royalty': { kind: 'model_form', model: 'fix.franchise.royalty',
+    title: 'Franchise Royalty', back: 'M40-royalties', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Period', bn: '১. সময়কাল', icon: '🗓️' },
+      { id: 'computed', label: '2. Computed from ERP', bn: '২. হিসাব', icon: '🧮' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Royalty Period (FR-PCM-036)', note: 'The basis is the verified settlements of the franchise branch\'s service orders, never the franchisee\'s declaration (BRU-PCM-17).', fields: [
+        { name: 'franchise_id', label: 'Franchise Agreement', required: true },
+        { name: 'period_from', label: 'Period From', required: true },
+        { name: 'period_to', label: 'Period To', required: true },
+        { name: 'partner_id', label: 'Franchisee', readonly: true }
+      ] },
+      { tab: 'computed', title: 'Computed from ERP Revenue', fields: [
+        { name: 'order_count', label: 'Settled Service Orders Counted', readonly: true },
+        { name: 'revenue_basis', label: 'Revenue Basis', readonly: true },
+        { name: 'royalty_rate', label: 'Royalty Rate', readonly: true },
+        { name: 'royalty_amount', label: 'Royalty', readonly: true },
+        { name: 'levy_rate', label: 'Marketing Levy Rate', readonly: true },
+        { name: 'levy_amount', label: 'Marketing Levy', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'computed_by_id', label: 'Computed By', readonly: true },
+        { name: 'invoice_ref', label: 'Royalty Invoice (M20)', readonly: true }
+      ] }
+    ] },
+  'M40-form-mdf-fund': { kind: 'model_form', model: 'fix.mdf.fund',
+    title: 'MDF Fund Allocation', back: 'M40-mdf-funds', status: { field: 'state' },
+    lines: {
+      field: 'claim_ids', readonlyGrid: true,
+      title: 'Claims on this Fund',
+      note: 'Claims are raised and decided on the MDF Claims screen; the balance is derived from them (T-09).',
+      fields: [
+        { name: 'name', label: 'Claim', readonly: true },
+        { name: 'amount', label: 'Amount', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true }
+      ]
+    },
+    tabs: [
+      { id: 'general', label: '1. Allocation', bn: '১. বরাদ্দ', icon: '💰' },
+      { id: 'ledger', label: '2. Fund Ledger', bn: '২. তহবিল খতিয়ান', icon: '📒' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Fund (FR-PCM-039)', fields: [
+        { name: 'name', label: 'Fund', required: true },
+        { name: 'partner_id', label: 'Partner', required: true },
+        { name: 'period', label: 'Period', required: true },
+        { name: 'allocated', label: 'Allocated', required: true },
+        { name: 'currency_id', label: 'Currency', required: true },
+        { name: 'company_id', label: 'Company', required: true }
+      ] },
+      { tab: 'ledger', title: 'Derived Ledger (T-09)', fields: [
+        { name: 'claimed', label: 'Under Review', readonly: true },
+        { name: 'approved', label: 'Approved', readonly: true },
+        { name: 'paid', label: 'Paid', readonly: true },
+        { name: 'balance', label: 'Balance', readonly: true },
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'allocated_by_id', label: 'Allocated By', readonly: true }
+      ] }
+    ] },
+  'M40-form-mdf-claim': { kind: 'model_form', model: 'fix.mdf.claim',
+    title: 'MDF Claim', back: 'M40-mdf-claims', status: { field: 'state' },
+    tabs: [
+      { id: 'general', label: '1. Claim', bn: '১. দাবি', icon: '🧾' },
+      { id: 'decision', label: '2. Decision & Payment', bn: '২. সিদ্ধান্ত ও পরিশোধ', icon: '⚖️' }
+    ],
+    sections: [
+      { tab: 'general', title: 'Claim on Evidence (BRU-PCM-11)', note: 'Decided by a manager who neither allocated the fund nor raised the claim.', fields: [
+        { name: 'name', label: 'Claim', readonly: true },
+        { name: 'fund_id', label: 'MDF Fund', required: true },
+        { name: 'campaign_id', label: 'Campaign (M35)' },
+        { name: 'amount', label: 'Amount', required: true },
+        { name: 'description', label: 'Activity Delivered', type: 'text', required: true },
+        { name: 'evidence_attachment_id', label: 'Proof of Execution' },
+        { name: 'partner_id', label: 'Partner', readonly: true }
+      ] },
+      { tab: 'decision', title: 'Decision & Payment', fields: [
+        { name: 'state', label: 'Status', readonly: true },
+        { name: 'submitted_by_id', label: 'Submitted By', readonly: true },
+        { name: 'decided_by_id', label: 'Decided By', readonly: true },
+        { name: 'decided_at', label: 'Decided On', readonly: true },
+        { name: 'refusal_reason', label: 'Refusal Reason', readonly: true },
+        { name: 'payment_ref', label: 'Payment Reference', readonly: true }
+      ] }
+    ] },
+
   /* computed pack that had no screen (closure 2026-10-28) */
   'M40-rpt-deals': { kind: 'table_report', module: 'M40', report: 'deal_register', title: "Deal Register", period: false },
 };
@@ -502,6 +1092,25 @@ export const FORM_CHIPS = {
   'M40:Deal Registration': 'M40-form-deal',
   'M40:Rebate Scheme': 'M40-form-rebate',
   'M40:Franchise Agreement': 'M40-form-franchise',
+  'M40:Channel Conflict': 'M40-form-conflict',
+  'M40:Technical Audit': 'M40-form-audit',
+  'M40:Partner Programme': 'M40-form-programme',
+  'M40:Partner Contact': 'M40-form-contact',
+  'M40:Onboarding Step': 'M40-form-onboarding',
+  'M40:Partner Enablement': 'M40-form-enablement',
+  'M40:Brand Obligation': 'M40-form-obligation',
+  'M40:Brand Audit': 'M40-form-brand-audit',
+  'M40:Partner Engagement': 'M40-form-engagement',
+  'M40:Alliance Scheme': 'M40-form-scheme',
+  'M40:Eligibility Check': 'M40-form-eligibility',
+  'M40:Partner Lead': 'M40-form-lead',
+  'M40:Referral Link': 'M40-form-link',
+  'M40:Channel Precedence Rule': 'M40-form-conflict-rule',
+  'M40:Reseller Allocation': 'M40-form-allocation',
+  'M40:Franchise Territory': 'M40-form-territory',
+  'M40:Franchise Royalty': 'M40-form-royalty',
+  'M40:MDF Fund': 'M40-form-mdf-fund',
+  'M40:MDF Claim': 'M40-form-mdf-claim',
   'M40:__by_model__': {
     'fix.partner.authorisation': 'M40-form-auth',
     'fix.referral': 'M40-form-referral',
@@ -510,7 +1119,24 @@ export const FORM_CHIPS = {
     'fix.partner.rebate': 'M40-form-rebate',
     'fix.partner.franchise': 'M40-form-franchise',
     'fix.partner.conflict': 'M40-form-conflict',
-    'fix.partner.audit': 'M40-form-audit'
+    'fix.partner.audit': 'M40-form-audit',
+    'fix.partner.programme': 'M40-form-programme',
+    'fix.partner.contact.role': 'M40-form-contact',
+    'fix.partner.onboarding': 'M40-form-onboarding',
+    'fix.partner.enablement': 'M40-form-enablement',
+    'fix.brand.obligation': 'M40-form-obligation',
+    'fix.brand.audit': 'M40-form-brand-audit',
+    'fix.partner.engagement': 'M40-form-engagement',
+    'fix.alliance.scheme': 'M40-form-scheme',
+    'fix.alliance.eligibility.check': 'M40-form-eligibility',
+    'fix.partner.lead': 'M40-form-lead',
+    'fix.referral.link': 'M40-form-link',
+    'fix.channel.conflict.rule': 'M40-form-conflict-rule',
+    'fix.reseller.allocation': 'M40-form-allocation',
+    'fix.franchise.territory': 'M40-form-territory',
+    'fix.franchise.royalty': 'M40-form-royalty',
+    'fix.mdf.fund': 'M40-form-mdf-fund',
+    'fix.mdf.claim': 'M40-form-mdf-claim'
   },
   'M40:__by_screen__': {
     'M40-authorisation': 'M40-form-auth',
@@ -520,7 +1146,24 @@ export const FORM_CHIPS = {
     'M40-rebates': 'M40-form-rebate',
     'M40-franchise': 'M40-form-franchise',
     'M40-conflict': 'M40-form-conflict',
-    'M40-audits': 'M40-form-audit'
+    'M40-audits': 'M40-form-audit',
+    'M40-programmes': 'M40-form-programme',
+    'M40-contacts': 'M40-form-contact',
+    'M40-onboarding': 'M40-form-onboarding',
+    'M40-enablement': 'M40-form-enablement',
+    'M40-obligations': 'M40-form-obligation',
+    'M40-brand-audits': 'M40-form-brand-audit',
+    'M40-engagement': 'M40-form-engagement',
+    'M40-schemes': 'M40-form-scheme',
+    'M40-eligibility': 'M40-form-eligibility',
+    'M40-leads': 'M40-form-lead',
+    'M40-referral-links': 'M40-form-link',
+    'M40-conflict-rules': 'M40-form-conflict-rule',
+    'M40-allocations': 'M40-form-allocation',
+    'M40-territories': 'M40-form-territory',
+    'M40-royalties': 'M40-form-royalty',
+    'M40-mdf-funds': 'M40-form-mdf-fund',
+    'M40-mdf-claims': 'M40-form-mdf-claim'
   }
 };
 

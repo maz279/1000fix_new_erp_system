@@ -32,6 +32,9 @@ SURFACES = {
             "action_set_commission_rate",
             "action_request_erasure",
             "action_execute_erasure",
+            # M40 capture audit (19 Nov 2026)
+            "action_generate_onboarding",
+            "action_change_tier",
         },
     },
     # fix.referral is owned by M53 (a08 surface) — read through the merge.
@@ -78,6 +81,98 @@ SURFACES = {
         "order": "audit_date desc, id desc",
         "limit": 300,
         "actions": {"action_submit", "action_approve", "action_reject"},
+    },  # M40 capture audit (19 Nov 2026): the registers each sub-module page
+    # captures (programme, onboarding, brand governance, alliance, referral,
+    # precedence, reseller, franchise territory/royalty, MDF).
+    "fix.partner.programme": {
+        "order": "code, version desc",
+        "limit": 300,
+        "actions": {"action_new_version", "action_publish", "action_retire"},
+    },
+    "fix.partner.tier": {
+        "order": "programme_id, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.partner.contact.role": {
+        "order": "partner_id, role, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.partner.onboarding": {
+        "order": "partner_id, sequence, id",
+        "limit": 300,
+        "actions": {"action_complete", "action_waive"},
+    },
+    "fix.partner.enablement": {
+        "order": "partner_id, expires_on, id",
+        "limit": 300,
+        "actions": {"action_certify"},
+    },
+    "fix.brand.obligation": {
+        "order": "due_date, id",
+        "limit": 300,
+        "actions": {"action_mark_met"},
+    },
+    "fix.brand.audit": {
+        "order": "scheduled_on desc, id desc",
+        "limit": 300,
+        "actions": {"action_close", "action_record_findings", "action_respond"},
+    },
+    "fix.partner.engagement": {
+        "order": "date desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.alliance.scheme": {
+        "order": "valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_close"},
+    },
+    "fix.alliance.eligibility.check": {
+        "order": "checked_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.referral.link": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_revoke"},
+    },
+    "fix.partner.lead": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_convert", "action_mark_lost", "action_qualify"},
+    },
+    "fix.channel.conflict.rule": {
+        "order": "territory, valid_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.reseller.allocation": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_allocate", "action_close", "action_record_draw"},
+    },
+    "fix.franchise.territory": {
+        "order": "code, id",
+        "limit": 300,
+        "actions": {"action_activate", "action_retire"},
+    },
+    "fix.franchise.royalty": {
+        "order": "period_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_compute", "action_record_invoice"},
+    },
+    "fix.mdf.fund": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_close", "action_open"},
+    },
+    "fix.mdf.claim": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_record_payment", "action_refuse", "action_submit"},
     },
 }
 

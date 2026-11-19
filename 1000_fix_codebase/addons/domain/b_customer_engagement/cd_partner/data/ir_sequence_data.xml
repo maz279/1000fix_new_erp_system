@@ -9,4 +9,26 @@
         <field name="padding">5</field>
         <field name="company_id" eval="False"/>
     </record>
+    <!-- M40 capture audit (2026-11-19) -->
+    <record id="seq_fix_partner_lead" model="ir.sequence">
+        <field name="name">Partner Lead</field>
+        <field name="code">fix.partner.lead</field>
+        <field name="prefix">PLD/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_mdf_claim" model="ir.sequence">
+        <field name="name">MDF Claim</field>
+        <field name="code">fix.mdf.claim</field>
+        <field name="prefix">MDF/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
+    <record id="seq_fix_reseller_allocation" model="ir.sequence">
+        <field name="name">Reseller Allocation</field>
+        <field name="code">fix.reseller.allocation</field>
+        <field name="prefix">RAL/%(year)s/</field>
+        <field name="padding">5</field>
+        <field name="company_id" eval="False"/>
+    </record>
 </odoo>

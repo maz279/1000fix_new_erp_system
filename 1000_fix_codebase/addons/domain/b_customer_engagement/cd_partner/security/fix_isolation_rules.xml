@@ -8,6 +8,26 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_alliance_scheme_company" model="ir.rule">
+        <field name="name">fix.alliance.scheme: allowed companies</field>
+        <field name="model_id" ref="model_fix_alliance_scheme"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_channel_conflict_rule_company" model="ir.rule">
+        <field name="name">fix.channel.conflict.rule: allowed companies</field>
+        <field name="model_id" ref="model_fix_channel_conflict_rule"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_franchise_territory_company" model="ir.rule">
+        <field name="name">fix.franchise.territory: allowed companies</field>
+        <field name="model_id" ref="model_fix_franchise_territory"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_mdf_fund_company" model="ir.rule">
+        <field name="name">fix.mdf.fund: allowed companies</field>
+        <field name="model_id" ref="model_fix_mdf_fund"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_partner_company" model="ir.rule">
         <field name="name">fix.partner: allowed companies</field>
         <field name="model_id" ref="model_fix_partner"/>
@@ -19,6 +39,16 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_partner_lead_company" model="ir.rule">
+        <field name="name">fix.partner.lead: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_lead"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_partner_programme_company" model="ir.rule">
+        <field name="name">fix.partner.programme: allowed companies</field>
+        <field name="model_id" ref="model_fix_partner_programme"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_referral_company" model="ir.rule">
         <field name="name">fix.referral: allowed companies</field>
         <field name="model_id" ref="model_fix_referral"/>
@@ -29,5 +59,15 @@
         <field name="model_id" ref="model_fix_referral"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_referral_link_company" model="ir.rule">
+        <field name="name">fix.referral.link: allowed companies</field>
+        <field name="model_id" ref="model_fix_referral_link"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_reseller_allocation_company" model="ir.rule">
+        <field name="name">fix.reseller.allocation: allowed companies</field>
+        <field name="model_id" ref="model_fix_reseller_allocation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>
