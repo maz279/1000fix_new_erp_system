@@ -30,6 +30,7 @@ def ctx(odoo_env):
             "code": TAG[:6],
             "operating_unit_id": ou.id,
             "stock_location_id": location.id,
+            "wms_enabled": True,
         }
     )
     zone = env["fix.warehouse.zone"].create(

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M41 capture pass 2: company isolation of the new floor records (T-13). -->
+<odoo>
+    <record id="rule_fix_wms_bin_block_log_company" model="ir.rule">
+        <field name="name">fix.wms.bin.block.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_bin_block_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_dock_door_company" model="ir.rule">
+        <field name="name">fix.wms.dock.door: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_dock_door"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_putaway_exception_company" model="ir.rule">
+        <field name="name">fix.wms.putaway.exception: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_putaway_exception"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_handling_unit_company" model="ir.rule">
+        <field name="name">fix.wms.handling.unit: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_handling_unit"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_handling_unit_line_company" model="ir.rule">
+        <field name="name">fix.wms.handling.unit.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_handling_unit_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_crossdock_company" model="ir.rule">
+        <field name="name">fix.wms.crossdock: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_crossdock"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_return_receipt_company" model="ir.rule">
+        <field name="name">fix.wms.return.receipt: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_return_receipt"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_outbound_demand_company" model="ir.rule">
+        <field name="name">fix.wms.outbound.demand: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_outbound_demand"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_count_plan_company" model="ir.rule">
+        <field name="name">fix.wms.count.plan: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_count_plan"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_time_standard_company" model="ir.rule">
+        <field name="name">fix.wms.time.standard: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_time_standard"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_productivity_run_company" model="ir.rule">
+        <field name="name">fix.wms.productivity.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_productivity_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_productivity_company" model="ir.rule">
+        <field name="name">fix.wms.productivity: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_productivity"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

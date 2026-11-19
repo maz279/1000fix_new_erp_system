@@ -231,6 +231,9 @@ def seed(env):
                     "stock_location_id": central.id,
                 }
             )
+        if not wh.wms_enabled:
+            # FR-WMS-003: enabling warehouse execution is the supervisor's call
+            wh.sudo().write({"wms_enabled": True})
         for code, name, kind in (
             ("SA6S", MARK + "প্রধান স্টোরেজ (Main Storage)", "storage"),
             ("SA6I", MARK + "মান পরিদর্শন (Quality Inspection)", "inspection"),

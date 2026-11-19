@@ -14,4 +14,5 @@ from . import (
     fix_valuation_suspense,
     fix_wms_ops,
     fix_wms_ops_floor,
+    fix_wms_ops_spec,
 )

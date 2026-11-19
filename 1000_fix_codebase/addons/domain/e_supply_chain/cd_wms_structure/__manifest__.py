@@ -12,7 +12,7 @@ CD-M41-01: the warehouse structure.
 Inbound/outbound operations (CD-M41-02/03) land with Phase 5's inventory
 completion; this slice gives consignments and procurement destinations.
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Warehouse",

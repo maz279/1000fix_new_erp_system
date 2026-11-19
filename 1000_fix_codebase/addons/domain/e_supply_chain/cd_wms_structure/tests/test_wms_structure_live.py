@@ -9,7 +9,12 @@ from odoo.exceptions import ValidationError
 def warehouse(odoo_env):
     ou = odoo_env["operating.unit"].search([("company_id", "=", odoo_env.company.id)], limit=1)
     return odoo_env["fix.warehouse"].create(
-        {"name": "Tejgaon Central", "code": f"W{uuid.uuid4().hex[:7]}", "operating_unit_id": ou.id}
+        {
+            "name": "Tejgaon Central",
+            "code": f"W{uuid.uuid4().hex[:7]}",
+            "operating_unit_id": ou.id,
+            "wms_enabled": True,
+        }
     )
 
 

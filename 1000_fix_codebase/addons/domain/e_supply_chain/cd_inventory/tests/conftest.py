@@ -190,8 +190,16 @@ class Inv(types.SimpleNamespace):
             "to_bin_id": (bin_rec or self.bin).id,
             "receipt_line_id": (line if line is not None else self.grn_line).id or False,
         }
+        # M41 capture pass 2: a put-away is directed (FR-WMS-013). These tests
+        # name the bin whose rule they exercise, which is an override: it
+        # carries a reason and a second supervisor approves it (BRU-WMS-06).
+        vals.setdefault("override_reason", "other")
         vals.update(kw)
-        return self.env["fix.wms.putaway"].with_user(user).create(vals)
+        pa = self.env["fix.wms.putaway"].with_user(user).create(vals)
+        if pa.override_state == "pending":
+            approver = self.controller if user == self.supervisor else self.supervisor
+            pa.with_user(approver).action_approve_override()
+        return pa
 
     def wave(self, qty=4, bin_rec=None, part=None, user=None):
         return (

@@ -62,7 +62,7 @@ const subs = mod.freg.sub.map((s) => {
     reports: panels.reports.map((r) => ({ r, route: P03_REPORT_ROUTES['M41:' + r] || null })) };
 });
 const pick = (c) => c.pickRecord ? { cols: c.pickRecord.cols || [], domain: c.pickRecord.domain || [] } : null;
-const mine = (id) => id.startsWith('M41-') || id === 'M15-form-receipt';
+const mine = (id) => id.startsWith('M41-') || id === 'M15-form-receipt' || id === 'M16-form-inspection';
 console.log(JSON.stringify({ subs, forms: mod.forms,
   labelled: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
   screens: Object.fromEntries(Object.entries(P03_DATA_SCREENS).filter(([id]) => mine(id)).map(([id, c]) => [id, {

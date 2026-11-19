@@ -35,6 +35,7 @@ def wms(inv):
             "code": inv.tag[:6],
             "operating_unit_id": inv.ou.id,
             "stock_location_id": inv.central.id,
+            "wms_enabled": True,
         }
     )
     Zone = env["fix.warehouse.zone"]

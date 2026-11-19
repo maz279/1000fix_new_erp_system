@@ -2171,6 +2171,7 @@ def main() -> int:
                     "code": f"SEED-WH-{i+1}",
                     "name": f"Seed Warehouse {i+1}",
                     "operating_unit_id": ou[0],
+                    "wms_enabled": True,
                 },
             )
         wh = c.call("fix.warehouse", "search", [("code", "like", "SEED-WH-")], limit=2) or [1]

@@ -118,7 +118,12 @@ def test_a_move_obeys_the_put_away_rules(wms):
 def test_a_move_between_warehouses_is_refused(wms):
     w = wms
     other_wh = w.env["fix.warehouse"].create(
-        {"name": "Other " + w.tag, "code": "O" + w.tag[:5], "operating_unit_id": w.ou.id}
+        {
+            "name": "Other " + w.tag,
+            "code": "O" + w.tag[:5],
+            "operating_unit_id": w.ou.id,
+            "wms_enabled": True,
+        }
     )
     zone = w.env["fix.warehouse.zone"].create(
         {"warehouse_id": other_wh.id, "name": "Z", "code": "Z1", "zone_type": "storage"}
@@ -315,7 +320,14 @@ def test_profiles_equipment_and_devices_are_the_supervisors(wms):
     other = w.env["fix.warehouse.zone"].create(
         {
             "warehouse_id": w.env["fix.warehouse"]
-            .create({"name": "W2 " + w.tag, "code": "Q" + w.tag[:5], "operating_unit_id": w.ou.id})
+            .create(
+                {
+                    "name": "W2 " + w.tag,
+                    "code": "Q" + w.tag[:5],
+                    "operating_unit_id": w.ou.id,
+                    "wms_enabled": True,
+                }
+            )
             .id,
             "name": "Z",
             "code": "Z9",

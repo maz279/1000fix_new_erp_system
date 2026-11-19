@@ -36,7 +36,12 @@ def _user(env, *groups):
 def zone(odoo_env):
     ou = odoo_env["operating.unit"].search([("company_id", "=", odoo_env.company.id)], limit=1)
     warehouse = odoo_env["fix.warehouse"].create(
-        {"name": "Structure WH", "code": "W" + uuid.uuid4().hex[:6], "operating_unit_id": ou.id}
+        {
+            "name": "Structure WH",
+            "code": "W" + uuid.uuid4().hex[:6],
+            "operating_unit_id": ou.id,
+            "wms_enabled": True,
+        }
     )
     return odoo_env["fix.warehouse.zone"].create(
         {"warehouse_id": warehouse.id, "name": "Q", "code": "Q", "zone_type": "quarantine"}

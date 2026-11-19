@@ -27,12 +27,18 @@ SURFACES = {
     "fix.wms.dock": {
         "order": "slot_start desc, id desc",
         "limit": 200,
-        "actions": {"action_check_in", "action_complete", "action_cancel"},
+        "actions": {"action_check_in", "action_start_unload", "action_complete", "action_cancel"},
     },
     "fix.wms.putaway": {
         "order": "create_date desc, id desc",
         "limit": 300,
-        "actions": {"action_complete"},
+        "actions": {
+            "action_complete",
+            "action_direct",
+            "action_approve_override",
+            "action_reject_override",
+            "action_report_exception",
+        },
     },
     "fix.wms.wave": {
         "order": "wave_date desc, id desc",
@@ -104,6 +110,55 @@ SURFACES = {
     },
     "fix.wms.operative": {"order": "warehouse_id, employee_id", "limit": 300, "actions": set()},
     "fix.wms.equipment": {"order": "warehouse_id, code", "limit": 300, "actions": set()},
+    # capture pass 2 (2026-11-19): the spec records behind the buttons
+    "fix.wms.bin.block.log": {"order": "at desc, id desc", "limit": 300, "actions": set()},
+    "fix.wms.putaway.exception": {
+        "order": "reported_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.wms.dock.door": {"order": "warehouse_id, code", "limit": 200, "actions": set()},
+    "fix.wms.handling.unit": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_close", "action_store", "action_dissolve"},
+    },
+    "fix.wms.handling.unit.line": {"order": "hu_id, id", "limit": 400, "actions": set()},
+    "fix.wms.crossdock": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_confirm", "action_dispatch", "action_cancel"},
+    },
+    "fix.wms.return.receipt": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_dispose"},
+    },
+    "fix.wms.outbound.demand": {
+        "order": "state, priority desc, cutoff_at, id",
+        "limit": 400,
+        "actions": {"action_build_wave", "action_cancel"},
+    },
+    "fix.wms.count.plan": {
+        "order": "planned_on desc, id desc",
+        "limit": 200,
+        "actions": {"action_generate", "action_close", "action_cancel"},
+    },
+    "fix.wms.time.standard": {
+        "order": "warehouse_id, task_type, zone_id",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.wms.productivity.run": {
+        "order": "date_to desc, id desc",
+        "limit": 200,
+        "actions": {"action_compute"},
+    },
+    "fix.wms.productivity": {
+        "order": "date desc, operative_id, task_type",
+        "limit": 400,
+        "actions": set(),
+    },
 }
 
 

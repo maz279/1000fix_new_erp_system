@@ -229,6 +229,7 @@ def _wms(s):
             "code": s.tag,
             "operating_unit_id": s.ou.id,
             "stock_location_id": s.central.id,
+            "wms_enabled": True,
         }
     )
     zone = env["fix.warehouse.zone"].create(

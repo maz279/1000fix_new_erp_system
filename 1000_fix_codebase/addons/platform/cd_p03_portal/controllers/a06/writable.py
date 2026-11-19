@@ -1019,16 +1019,29 @@ WRITABLE = {
             "company_id",
             "name",
             "operating_unit_id",
+            "shift_pattern",
             "stock_location_id",
+            "wave_cutoffs",
+            "wms_enabled",
         }
     ),
     "fix.warehouse.bin": frozenset(
         {
+            "aisle",
             "barcode",
+            "bay",
             "capacity_qty",
+            "height_cm",
+            "is_pick_face",
+            "length_cm",
+            "level",
+            "max_volume_m3",
+            "max_weight_kg",
             "name",
             "ownership_class",
+            "position",
             "storage_class",
+            "width_cm",
             "zone_id",
         }
     ),
@@ -1036,16 +1049,39 @@ WRITABLE = {
         {
             "code",
             "name",
+            "ownership_class",
+            "sequence",
             "warehouse_id",
             "zone_type",
         }
     ),
+    "fix.wms.bin.block.log": frozenset(),
     "fix.wms.carton": frozenset(
         {
             "carton_size",
             "contents_qty",
             "wave_id",
             "weight_kg",
+        }
+    ),
+    "fix.wms.count.plan": frozenset(
+        {
+            "assignee_id",
+            "bin_ids",
+            "count_type",
+            "planned_on",
+            "scope",
+            "velocity",
+            "warehouse_id",
+            "zone_id",
+        }
+    ),
+    "fix.wms.crossdock": frozenset(
+        {
+            "qty",
+            "receipt_line_id",
+            "stage_lane",
+            "wave_line_id",
         }
     ),
     "fix.wms.device": frozenset(
@@ -1062,12 +1098,23 @@ WRITABLE = {
             "carrier",
             "dock_no",
             "dock_type",
+            "door_id",
             "notes",
             "partner_id",
             "receipt_id",
             "slot_end",
             "slot_start",
             "wave_id",
+        }
+    ),
+    "fix.wms.dock.door": frozenset(
+        {
+            "active",
+            "code",
+            "direction",
+            "max_vehicle",
+            "name",
+            "warehouse_id",
         }
     ),
     "fix.wms.equipment": frozenset(
@@ -1083,12 +1130,25 @@ WRITABLE = {
     "fix.wms.floor.count": frozenset(
         {
             "bin_id",
+            "count_type",
             "counted_on",
             "counted_qty",
             "part_id",
             "reason_code",
         }
     ),
+    "fix.wms.handling.unit": frozenset(
+        {
+            "gross_weight_kg",
+            "hu_type",
+            "line_ids",
+            "parent_id",
+            "receipt_id",
+            "warehouse_id",
+            "wave_id",
+        }
+    ),
+    "fix.wms.handling.unit.line": frozenset(),
     "fix.wms.move": frozenset(
         {
             "assignee_id",
@@ -1111,6 +1171,19 @@ WRITABLE = {
             "zone_ids",
         }
     ),
+    "fix.wms.outbound.demand": frozenset(
+        {
+            "cutoff_at",
+            "dest_location_id",
+            "part_id",
+            "priority",
+            "qty",
+            "source_ref",
+            "source_type",
+            "template_id",
+            "warehouse_id",
+        }
+    ),
     "fix.wms.packing.station": frozenset(
         {
             "active",
@@ -1119,15 +1192,41 @@ WRITABLE = {
             "printer",
         }
     ),
+    "fix.wms.productivity": frozenset(),
+    "fix.wms.productivity.run": frozenset(
+        {
+            "date_from",
+            "date_to",
+            "warehouse_id",
+        }
+    ),
     "fix.wms.putaway": frozenset(
         {
             "assignee_id",
             "from_ref",
             "lot_id",
+            "override_note",
+            "override_reason",
             "part_id",
             "qty",
             "receipt_line_id",
             "to_bin_id",
+        }
+    ),
+    "fix.wms.putaway.exception": frozenset(),
+    "fix.wms.return.receipt": frozenset(
+        {
+            "condition",
+            "disposition",
+            "disposition_note",
+            "lot_id",
+            "part_id",
+            "qty",
+            "receipt_line_id",
+            "returns_bin_id",
+            "source_ref",
+            "source_type",
+            "warehouse_id",
         }
     ),
     "fix.wms.slot": frozenset(
@@ -1161,10 +1260,22 @@ WRITABLE = {
             "wave_line_id",
         }
     ),
+    "fix.wms.time.standard": frozenset(
+        {
+            "active",
+            "seconds_per_task",
+            "seconds_per_unit",
+            "task_type",
+            "warehouse_id",
+            "zone_id",
+        }
+    ),
     "fix.wms.wave": frozenset(
         {
+            "cutoff_at",
             "line_ids",
             "strategy",
+            "template_id",
             "warehouse_id",
             "wave_date",
         }
@@ -1174,8 +1285,13 @@ WRITABLE = {
         {
             "active",
             "cutoff",
+            "dest_location_ids",
             "name",
+            "priority",
+            "purpose",
+            "release_rule",
             "strategy",
+            "warehouse_id",
             "zone_id",
         }
     ),
