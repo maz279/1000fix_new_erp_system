@@ -17,7 +17,7 @@ Key Features:
 - Domain events emitted via fix_events outbox (AS-08)
 - 100% Bilingual support (English + Bengali)
 """,
-    "version": "19.0.2.1.0",
+    "version": "19.0.2.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Workshop",
@@ -33,6 +33,8 @@ Key Features:
         "cd_inventory",
         "cd_equipment_register",
         "cd_qms_process",
+        # M31 capture pass 2: a workshop transfer raises its M03 consignment (BRU-WSR-14)
+        "cd_consignment",
         # A02 audit B1: BER, extra parts and the certification waiver are
         # routed M63 approvals (already loaded through cd_service_order)
         "cd_workflow_engine",
@@ -45,6 +47,7 @@ Key Features:
         "security/fix_workshop_security.xml",
         "security/fix_workshop_groups.xml",
         "security/ir.model.access.csv",
+        "security/fix_workshop_capture2_rules.xml",
         "data/ir_sequence.xml",
         "data/fix_workshop_data.xml",
         "views/fix_workshop_views.xml",

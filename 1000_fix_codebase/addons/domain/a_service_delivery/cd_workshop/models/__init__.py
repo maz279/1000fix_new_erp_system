@@ -15,4 +15,7 @@ from . import (
     fix_workshop_part_line_m15,
     fix_workshop_waiver_request,
     fix_workshop_branch_capability,
+    # M31 capture pass 2 (19 Nov 2026): extends the allocation, burn-in and
+    # QC actions above, so it is imported last
+    fix_workshop_capture2,
 )

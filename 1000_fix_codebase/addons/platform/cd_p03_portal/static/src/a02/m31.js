@@ -55,7 +55,11 @@ export const MODULE = {
    * says; the bench master and the evidence upload keep forms of their own. */
   forms: ['Receive Device into Workshop', 'Repair Order', 'Workshop Facility', 'Bench Master', 'Bench Allocation',
     'Job Routing', 'Bench Diagnosis', 'Part Fitment', 'Test Protocol', 'Test Protocol Result', 'Test Evidence',
-    'Labour & Cost'],
+    'Labour & Cost',
+    /* capture pass 2 (19 Nov 2026) */
+    'Move Device to Location', 'Workshop Location', 'Burn-In Station', 'ESD Bench Check', 'Shift Close',
+    'Escalation', 'Teardown Record', 'Instrument Use', 'Knowledge Capture', 'Consumable Usage', 'Burn-In Run',
+    'Workshop Transfer', 'Work Clock'],
   cross: ['M01 device release', 'M15 parts consumption', 'M61 knowledge capture', 'M45 test equipment', 'M22 skill routing'],
   freg: {
     src: 76,
@@ -63,24 +67,28 @@ export const MODULE = {
       /* A repair order is never typed from scratch (BRU-WSR-01): it is the
        * service order's hand-over, so the page's button picks the booked-in
        * order and runs that hand-over (FR-WSR-001/004). */
-      ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: ['Receive Device into Workshop', 'Repair Order'], create: 'M31-form-receive' }],
+      ['1', 'Repair Order Creation', 8, { model: 'fix.workshop.job', cols: ['name', 'order_reference', 'workshop_id', 'priority', 'intake_date'], screens: ['M31-orders', 'M31-record', 'M31-custody'], reports: ['Repair Cycle Time by Level'], forms: ['Receive Device into Workshop', 'Repair Order', 'Move Device to Location'], create: 'M31-form-receive' }],
       /* the two masters (FR-WSR-009/010): the button adds a workshop, the
        * Bench Master chip a bench in it */
-      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster'], reports: ['Bench Utilisation by Workshop'], forms: ['Workshop Facility', 'Bench Master'] }],
+      ['2', 'Workshop & Bench Master', 9, { model: 'fix.workshop', cols: ['code', 'name', 'workshop_type', 'branch_id', 'bench_count'], screens: ['M31-benchmaster', 'M31-locations', 'M31-burnin-stations', 'M31-esd-checks'], reports: ['Bench Utilisation by Workshop'], forms: ['Workshop Facility', 'Bench Master', 'Workshop Location', 'Burn-In Station', 'ESD Bench Check'] }],
       /* FR-WSR-011/015: the button allocates a waiting job to a bench and a
        * technician, or hands it over; it used to add a new bench */
-      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches'], reports: ['Bench Utilisation by Workshop'], forms: ['Bench Allocation'], create: 'M31-form-allocate' }],
+      ['3', 'Bench Allocation & Queue', 10, { model: 'fix.workshop.bench', cols: ['code', 'name', 'state', 'current_job_count', 'technician_id'], screens: ['M31-benches', 'M31-handovers', 'M31-shift-closes', 'M31-custody'], reports: ['Bench Utilisation by Workshop'], forms: ['Bench Allocation', 'Shift Close', 'Move Device to Location'], create: 'M31-form-allocate' }],
+      /* 2026-11-19 pass 2: each page also captures the spec's own records
+       * (locations, ESD, hand-over, shift close, escalation, teardown,
+       * instruments, consumables, burn-in runs, transfers, clock, cost sheet).
+       * Page 8's button is now the transfer itself (BRU-WSR-14). */
       /* routing, diagnosis, rework and costing act on a job already in the
        * workshop: each page picks the job, then captures its own part of it */
-      ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record'], reports: ['Repair Cycle Time by Level'], forms: ['Job Routing'], create: 'M31-form-routing' }],
-      ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods'], reports: ['Internal Rework Loop Analysis'], forms: ['Bench Diagnosis'], create: 'M31-form-diagnosis', domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
-      ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts'], reports: ['Parts Genealogy Trace'], forms: ['Part Fitment'] }],
+      ['4', 'Repair-Level Routing', 7, { model: 'fix.workshop.job', cols: ['name', 'repair_level', 'workshop_id', 'bench_id', 'state'], screens: ['M31-levels', 'M31-record', 'M31-escalations'], reports: ['Repair Cycle Time by Level'], forms: ['Job Routing', 'Escalation'], create: 'M31-form-routing' }],
+      ['5', 'Diagnosis & Execution', 13, { model: 'fix.workshop.job', cols: ['name', 'device_serial', 'technician_id', 'bench_id', 'state'], screens: ['M31-diag', 'M31-methods', 'M31-teardowns', 'M31-instrument-uses'], reports: ['Internal Rework Loop Analysis'], forms: ['Bench Diagnosis', 'Teardown Record', 'Instrument Use', 'Knowledge Capture'], create: 'M31-form-diagnosis', domain: [['state', 'in', ['diagnostic', 'waiting_parts', 'in_repair']]] }],
+      ['6', 'Parts Consumption & Genealogy', 8, { model: 'fix.workshop.part.line', cols: ['job_id', 'part_number', 'lot_serial_number', 'quantity', 'source_origin'], screens: ['M31-parts', 'M31-consumables'], reports: ['Parts Genealogy Trace'], forms: ['Part Fitment', 'Consumable Usage'] }],
       /* FR-WSR-031/032/039: the page lists the recorded test results; the
        * button records one against a protocol test, judged by its limits.
        * The protocol library and the evidence upload are its chips. */
-      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.test.result', cols: ['job_id', 'step_id', 'measured_value', 'unit', 'passed', 'tested_by_id', 'tested_at'], screens: ['M31-testing', 'M31-testresults', 'M31-protocols'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result', 'Test Protocol', 'Test Evidence'], create: 'M31-form-testresult' }],
-      ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: ['Job Routing'], create: 'M31-form-routing', domain: [['is_rework', '=', true]] }],
-      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost'], create: 'M31-form-labour' }]
+      ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.test.result', cols: ['job_id', 'step_id', 'measured_value', 'unit', 'passed', 'tested_by_id', 'tested_at'], screens: ['M31-testing', 'M31-testresults', 'M31-protocols', 'M31-burnin-sessions'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result', 'Test Protocol', 'Test Evidence', 'Burn-In Run'], create: 'M31-form-testresult' }],
+      ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfers', 'M31-reworks', 'M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: ['Workshop Transfer', 'Job Routing'], create: 'M31-form-transfer', domain: [['is_rework', '=', true]] }],
+      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_total', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput', 'M31-timelogs', 'M31-cost-jobs', 'M31-costlines'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost', 'Work Clock'], create: 'M31-form-labour' }]
     ]
   }
 };
@@ -234,7 +242,9 @@ export const SCREENS = {
           { name: 'estimate_id', label: "Approved Estimate (governing version)", readonly: true },
           { name: 'estimate_ceiling', label: "Approved Amount (BDT)", readonly: true },
           { name: 'cost_over_estimate', label: "Cost Above Approval (re-approval needed)", readonly: true },
-          { name: 'rework_of_id', label: "Comeback Of Job", readonly: true }
+          { name: 'rework_of_id', label: "Comeback Of Job", readonly: true },
+          { name: 'high_value_device', label: "High-Value Device (secure store overnight)" },
+          { name: 'current_location_id', label: "Current Location in Workshop", readonly: true }
         ] },
       { tab: 'bookin', title: "Book-In: Condition & Accessories (A02 audit M31 step 2)",
         note: "Copied from the M01 intake where recorded. Intake needs the condition and the accessories (or 'received without accessories'); the book-in is frozen once the job is booked in.",
@@ -293,6 +303,7 @@ export const SCREENS = {
           { name: 'qc_notes', label: "QC Inspection Findings", type: "text", readonly: true },
           { name: 'post_rework_photo_attachment_id', label: "Post-Rework Finished Board Photo" },
           { name: 'is_rework', label: "Internal Rework Loop Active", readonly: true },
+          { name: 'calibration_review', label: "QC Marked for Review (instrument out of calibration)", readonly: true },
           { name: 'state', label: "Repair Job State", readonly: true }
         ] },
       { tab: 'waiver', title: "M22 Certification Waiver & BER / Scrap Write-Off (DOFA)",
@@ -383,7 +394,8 @@ export const SCREENS = {
     back: 'M31-benchmaster',
     tabs: [
       { id: 'facility', label: '1. Facility Profile', bn: '১. ফ্যাসিলিটি পরিচিতি', icon: '🏢', badge: '7' },
-      { id: 'iso', label: '2. ISO 9001 EPA Certification', bn: '২. আইএসও ৯০০১ ও ইপিএ সনদ', icon: '📜', badge: '5' }
+      { id: 'iso', label: '2. ISO 9001 EPA Certification', bn: '২. আইএসও ৯০০১ ও ইপিএ সনদ', icon: '📜', badge: '5' },
+      { id: 'cost', label: '3. Costing Rates', bn: '৩. ব্যয়ের হার', icon: '💰', badge: '3' }
     ],
     sections: [
       { tab: 'facility', title: "Depot Facility Master & Capacity", note: "Depot classification, branch association, and technician capacity.",
@@ -403,6 +415,13 @@ export const SCREENS = {
           { name: 'fume_extraction_active', label: "HEPA / Solder Fume Extraction Active" },
           { name: 'power_backup_kva', label: "Online UPS / Diesel Generator (kVA)" },
           { name: 'facility_cert_attachment_id', label: "ISO / EPA Audit Certificate PDF" }
+        ] },
+      { tab: 'cost', title: "Costing Rates (FR-WSR-043)",
+        note: "The rates Build Cost Sheet applies: labour minutes from the work clock, instrument hours, and overhead on the direct cost.",
+        fields: [
+          { name: 'labour_rate_per_hour', label: "Labour Rate (BDT / hour)" },
+          { name: 'equipment_rate_per_hour', label: "Equipment Rate (BDT / hour)" },
+          { name: 'overhead_pct', label: "Overhead Absorption (%)" }
         ] }
     ]
   },
@@ -460,7 +479,7 @@ export const SCREENS = {
     kind: 'model_form',
     model: 'fix.workshop.job',
     title: 'Job Routing',
-    newLabel: 'Route, Re-route or Transfer a Job',
+    newLabel: 'Route or Re-route a Job',
     back: 'M31-orders',
     status: { field: 'state' },
     pickRecord: {
@@ -474,7 +493,7 @@ export const SCREENS = {
     },
     sections: [
       { title: 'Step 2 of 2: Level, Workshop, Bench & Technician',
-        note: 'Confirm or revise the repair level after inspection. A higher level that raises the cost above the approved estimate needs the estimate re-approved in M01 before QC (BRU-WSR-11). For a workshop transfer, choose the receiving workshop and raise the consignment for the move in M03 Service Logistics.',
+        note: 'Confirm or revise the repair level after inspection. A higher level that raises the cost above the approved estimate needs the estimate re-approved in M01 before QC (BRU-WSR-11). The workshop changes here only before book-in; a booked-in job moves by a Workshop Transfer (Rework & Transfers page, BRU-WSR-14).',
         fields: [
           { name: 'name', label: 'Job Reference', readonly: true },
           { name: 'order_reference', label: 'Service Order', readonly: true },
@@ -484,7 +503,7 @@ export const SCREENS = {
           { name: 'rework_count', label: 'Rework Loops', readonly: true },
           { name: 'rework_reason', label: 'Why QC Failed', readonly: true },
           { name: 'repair_level', required: true, label: 'Repair Level (L1/L2/L3)' },
-          { name: 'workshop_id', required: true, label: 'Workshop (receiving workshop for a transfer)' },
+          { name: 'workshop_id', required: true, label: 'Workshop (before book-in only)' },
           { name: 'bench_id', label: 'Bench' },
           { name: 'technician_id', label: 'Technician' },
           { name: 'priority', required: true, label: 'Priority' }
@@ -725,6 +744,272 @@ export const SCREENS = {
     ]
   },
 
+
+  /* ===== capture pass 2 (19 Nov 2026) =====
+   * Read against the spec (FR-WSR-001..053, BRU-WSR-01..14, §10.1), the
+   * pages still had no capture for most of what a workshop records. Each
+   * screen below is the spec's own record; the server applies its rules. */
+
+  /* 1/3: where the device is (FR-WSR-005 buffer, 042 staging, 053 secure store) */
+  'M31-custody': { kind: 'model_list', model: 'fix.workshop.custody.move', title: 'Device Location Moves',
+    cols: ['job_id', 'from_location_id', 'location_id', 'location_kind', 'note', 'moved_by_id', 'moved_at'] },
+  'M31-locations': { kind: 'model_list', model: 'fix.workshop.location', title: 'Workshop Locations',
+    cols: ['workshop_id', 'code', 'name', 'kind', 'capacity', 'occupant_count', 'active'] },
+  'M31-form-custody': {
+    kind: 'model_form', model: 'fix.workshop.custody.move', title: 'Move Device to Location',
+    newLabel: 'Move Device to Location', back: 'M31-custody',
+    sections: [
+      { title: 'Job & Location',
+        note: "Place a booked-in device in the incoming buffer until a bench takes it, in outgoing staging once released, or in the secure store overnight if it is high value (BRU-WSR-13). The location must be in the job's workshop. The trail is never edited.",
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'location_id', required: true, label: 'To Location' },
+          { name: 'note', label: 'Note' },
+          { name: 'from_location_id', label: 'From Location', readonly: true },
+          { name: 'moved_by_id', label: 'Moved By', readonly: true },
+          { name: 'moved_at', label: 'Moved At', readonly: true }
+        ] }
+    ]
+  },
+  'M31-form-location': {
+    kind: 'model_form', model: 'fix.workshop.location', title: 'Workshop Location', back: 'M31-locations',
+    sections: [
+      { title: 'Location', note: 'Incoming buffer, outgoing staging or the secure store for high-value devices. Capacity 0 means no limit.',
+        fields: [
+          { name: 'workshop_id', required: true, label: 'Workshop' },
+          { name: 'code', required: true, label: 'Location Code' },
+          { name: 'name', required: true, label: 'Location' },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'capacity', label: 'Capacity (devices)' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
+  /* 2: the daily ESD check (FR-WSR-050) and burn-in stations (FR-WSR-034) */
+  'M31-esd-checks': { kind: 'model_list', model: 'fix.workshop.esd.check', title: 'Bench ESD Checks',
+    cols: ['bench_id', 'workshop_id', 'wrist_strap_mohm', 'worksurface_mohm', 'passed', 'checked_by_id', 'checked_at'] },
+  'M31-form-esd': {
+    kind: 'model_form', model: 'fix.workshop.esd.check', title: 'ESD Bench Check', back: 'M31-esd-checks',
+    sections: [
+      { title: 'Pre-Shift ESD Reading',
+        note: 'Wrist strap below 35 MΩ and worksurface below 1000 MΩ pass. A failed reading is kept and blocks L2/L3 repair on the bench until a passing check.',
+        fields: [
+          { name: 'bench_id', required: true, label: 'Bench' },
+          { name: 'wrist_strap_mohm', required: true, label: 'Wrist Strap (MΩ)' },
+          { name: 'worksurface_mohm', required: true, label: 'Worksurface (MΩ)' },
+          { name: 'note', label: 'Note' },
+          { name: 'passed', label: 'Passed', readonly: true },
+          { name: 'checked_by_id', label: 'Checked By', readonly: true },
+          { name: 'checked_at', label: 'Checked At', readonly: true }
+        ] }
+    ]
+  },
+  'M31-burnin-stations': { kind: 'model_list', model: 'fix.workshop.burnin.station', title: 'Burn-In Stations',
+    cols: ['workshop_id', 'code', 'name', 'capacity', 'running_count', 'load_profile', 'active'] },
+  'M31-form-station': {
+    kind: 'model_form', model: 'fix.workshop.burnin.station', title: 'Burn-In Station', back: 'M31-burnin-stations',
+    sections: [
+      { title: 'Station', note: 'Once a workshop has a station, its burn-in runs start at a station, within its capacity.',
+        fields: [
+          { name: 'workshop_id', required: true, label: 'Workshop' },
+          { name: 'code', required: true, label: 'Station Code' },
+          { name: 'name', required: true, label: 'Station' },
+          { name: 'capacity', required: true, label: 'Devices at Once' },
+          { name: 'load_profile', label: 'Default Load Profile' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
+  /* 3: hand-overs (from Allocate to Bench) and the shift close (FR-WSR-017, BRU-WSR-13) */
+  'M31-handovers': { kind: 'model_list', model: 'fix.workshop.bench.handover', title: 'Bench Hand-Overs', create: false,
+    cols: ['job_id', 'from_bench_id', 'to_bench_id', 'from_technician_id', 'to_technician_id', 'job_state', 'note', 'occurred_at'] },
+  'M31-shift-closes': { kind: 'model_list', model: 'fix.workshop.shift.close', title: 'Shift Closes', stateField: 'state',
+    cols: ['workshop_id', 'shift_date', 'shift', 'counted_wip', 'system_wip', 'high_value_count', 'state', 'closed_by_id'],
+    actions: [{ m: 'action_close', l: 'Close the Shift (Supervisor)' }] },
+  'M31-form-shiftclose': {
+    kind: 'model_form', model: 'fix.workshop.shift.close', title: 'Shift Close', back: 'M31-shift-closes',
+    status: { field: 'state', labels: { draft: 'Open', closed: 'Closed' } },
+    sections: [
+      { title: 'Shift Count',
+        note: 'Count the devices held. Close the shift from the list: the count must match the system or carry its exception, and every high-value device must be in the secure store (BRU-WSR-13).',
+        fields: [
+          { name: 'workshop_id', required: true, label: 'Workshop' },
+          { name: 'shift_date', required: true, label: 'Shift Date' },
+          { name: 'shift', required: true, label: 'Shift' },
+          { name: 'counted_wip', required: true, label: 'Devices Counted' },
+          { name: 'exception_note', label: 'Count Exception', type: 'text' },
+          { name: 'system_wip', label: 'Devices per System', readonly: true },
+          { name: 'high_value_count', label: 'High-Value Devices Held', readonly: true },
+          { name: 'high_value_summary', label: 'High-Value Devices and Locations', type: 'text', readonly: true },
+          { name: 'closed_by_id', label: 'Closed By', readonly: true },
+          { name: 'closed_at', label: 'Closed At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 4: escalation (FR-WSR-029) */
+  'M31-escalations': { kind: 'model_list', model: 'fix.workshop.escalation', title: 'Escalations', stateField: 'state',
+    cols: ['job_id', 'escalation_type', 'to_level', 'to_technician_id', 'to_workshop_id', 'state', 'requested_by_id', 'decided_by_id'],
+    actions: [
+      { m: 'action_accept', l: 'Accept (Supervisor)', ask: 'Decision note (optional)', kwarg: 'note' },
+      { m: 'action_decline', l: 'Decline (Supervisor)', ask: 'Why is it declined?', kwarg: 'note' }
+    ] },
+  'M31-form-escalation': {
+    kind: 'model_form', model: 'fix.workshop.escalation', title: 'Escalation', newLabel: 'Escalate a Repair', back: 'M31-escalations',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Escalate To',
+        note: 'Name a higher level, a specialist technician or another workshop, and why. The bench context is copied in. A supervisor other than you accepts it; another workshop becomes a Workshop Transfer.',
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'escalation_type', required: true, label: 'Escalate To' },
+          { name: 'to_level', label: 'New Repair Level' },
+          { name: 'to_technician_id', label: 'Specialist Technician' },
+          { name: 'to_workshop_id', label: 'Other Workshop' },
+          { name: 'reason', required: true, label: 'Why Escalate', type: 'text' },
+          { name: 'context_snapshot', label: 'Bench Context', type: 'text', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', type: 'text', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 5: teardown (FR-WSR-019) and instrument use (FR-WSR-025/040, BRU-WSR-09) */
+  'M31-teardowns': { kind: 'model_list', model: 'fix.workshop.teardown', title: 'Teardown Records',
+    cols: ['job_id', 'sequence', 'component', 'designator', 'condition', 'recorded_by_id', 'recorded_at'] },
+  'M31-form-teardown': {
+    kind: 'model_form', model: 'fix.workshop.teardown', title: 'Teardown Record', back: 'M31-teardowns',
+    sections: [
+      { title: 'Component Removed',
+        note: 'One line per component taken off, in order, with its condition and a photo where the procedure asks for one. Fixed once the job passes QC.',
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'sequence', label: 'Step' },
+          { name: 'component', required: true, label: 'Component Removed' },
+          { name: 'designator', label: 'Board Position / Designator' },
+          { name: 'condition', required: true, label: 'Condition' },
+          { name: 'photo_attachment_id', label: 'Photo' },
+          { name: 'note', label: 'Observation', type: 'text' }
+        ] }
+    ]
+  },
+  'M31-instrument-uses': { kind: 'model_list', model: 'fix.workshop.instrument.use', title: 'Instruments Used',
+    cols: ['job_id', 'equipment_id', 'purpose', 'used_from', 'used_to', 'hours', 'calibration_valid', 'calibration_problem'] },
+  'M31-form-instrument': {
+    kind: 'model_form', model: 'fix.workshop.instrument.use', title: 'Instrument Use', back: 'M31-instrument-uses',
+    sections: [
+      { title: 'Instrument & Time',
+        note: "Every test or repair instrument used on the job. An instrument out of calibration is recorded and flagged, and the job's QC is marked for review (BRU-WSR-09). M45 gets the usage row.",
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'equipment_id', required: true, label: 'Instrument' },
+          { name: 'purpose', label: 'Used For' },
+          { name: 'used_from', required: true, label: 'Used From' },
+          { name: 'used_to', label: 'Used To' },
+          { name: 'calibration_valid', label: 'Calibration Valid at Use', readonly: true },
+          { name: 'calibration_problem', label: 'Calibration Problem', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 6: consumables (FR-WSR-024) */
+  'M31-consumables': { kind: 'model_list', model: 'fix.workshop.consumable.usage', title: 'Consumables Used',
+    cols: ['job_id', 'product_id', 'quantity', 'uom_name', 'unit_cost', 'subtotal', 'recorded_by_id', 'recorded_at'] },
+  'M31-form-consumable': {
+    kind: 'model_form', model: 'fix.workshop.consumable.usage', title: 'Consumable Usage', back: 'M31-consumables',
+    sections: [
+      { title: 'Consumable',
+        note: "Solder, flux, thermal paste, adhesive, cleaning agents. Costed at the item's standard cost; the cost sheet adds them up.",
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'product_id', required: true, label: 'Consumable' },
+          { name: 'quantity', required: true, label: 'Quantity' },
+          { name: 'notes', label: 'Notes' },
+          { name: 'uom_name', label: 'Unit', readonly: true },
+          { name: 'unit_cost', label: 'Unit Cost (BDT)', readonly: true },
+          { name: 'subtotal', label: 'Cost (BDT)', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 7: burn-in at a station (FR-WSR-033, BRU-WSR-07) */
+  'M31-burnin-sessions': { kind: 'model_list', model: 'fix.workshop.burnin.session', title: 'Burn-In Runs',
+    cols: ['job_id', 'station_id', 'required_minutes', 'minimum_minutes', 'started_at', 'due_at', 'completed_at', 'outcome'],
+    actions: [{ m: 'action_extend', l: 'Extend the Run', ask: 'Extra minutes (a run is never shortened)', kwarg: 'minutes' }] },
+  'M31-form-burnin': {
+    kind: 'model_form', model: 'fix.workshop.burnin.session', title: 'Burn-In Run', newLabel: 'Start Burn-In at a Station', back: 'M31-burnin-sessions',
+    sections: [
+      { title: 'Job & Station',
+        note: "Starts the job's burn-in at the station, within its capacity. The duration defaults to the protocol's (240 minutes for L2/L3): you may set more, never less (BRU-WSR-07). Pass or fail it on the Testing list.",
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'station_id', required: true, label: 'Station' },
+          { name: 'required_minutes', label: 'Run Minutes (blank = protocol)' },
+          { name: 'load_profile', label: 'Load Profile' },
+          { name: 'minimum_minutes', label: 'Protocol Minimum', readonly: true },
+          { name: 'started_at', label: 'Started At', readonly: true },
+          { name: 'due_at', label: 'Due At', readonly: true },
+          { name: 'outcome', label: 'Outcome', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 8: internal rework (FR-WSR-038, BRU-WSR-10) and workshop transfer (FR-WSR-016, BRU-WSR-14) */
+  'M31-reworks': { kind: 'model_list', model: 'fix.workshop.rework', title: 'Internal Rework Loops', create: false,
+    cols: ['job_id', 'iteration', 'failed_at_state', 'reason', 'attributed_to_id', 'repair_level', 'raised_at'] },
+  'M31-transfers': { kind: 'model_list', model: 'fix.workshop.transfer', title: 'Workshop Transfers', stateField: 'state',
+    cols: ['job_id', 'from_workshop_id', 'to_workshop_id', 'stage', 'state', 'consignment_id', 'requested_by_id', 'confirmed_by_id'],
+    actions: [
+      { m: 'action_confirm', l: 'Confirm (Receiving Workshop)' },
+      { m: 'action_receive', l: 'Record Arrival' },
+      { m: 'action_decline', l: 'Decline (Receiving Workshop)', ask: 'Why is it declined?', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Cancel Request', ask: 'Why is it cancelled?', kwarg: 'note' }
+    ] },
+  'M31-form-transfer': {
+    kind: 'model_form', model: 'fix.workshop.transfer', title: 'Workshop Transfer', newLabel: 'Request a Workshop Transfer', back: 'M31-transfers',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Job, Receiving Workshop & Reason',
+        note: 'For a specialist stage in another workshop. The receiving workshop confirms it, which raises the M03 consignment and moves the job off its bench (BRU-WSR-14). A job on the bench is first put to Wait for Parts.',
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'to_workshop_id', required: true, label: 'Receiving Workshop' },
+          { name: 'stage', label: 'Specialist Stage' },
+          { name: 'reason', required: true, label: 'Why Transfer', type: 'text' },
+          { name: 'from_workshop_id', label: 'From Workshop', readonly: true },
+          { name: 'consignment_id', label: 'M03 Consignment', readonly: true },
+          { name: 'confirmed_by_id', label: 'Confirmed By', readonly: true },
+          { name: 'received_at', label: 'Received At', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 9: the work clock (FR-WSR-026) and the cost build-up (FR-WSR-043/044) */
+  'M31-timelogs': { kind: 'model_list', model: 'fix.workshop.time.log', title: 'Time Booked',
+    cols: ['job_id', 'technician_id', 'activity', 'started_at', 'ended_at', 'minutes', 'running', 'note'],
+    actions: [{ m: 'action_stop', l: 'Stop / Pause the Clock', ask: 'Note (optional)', kwarg: 'note' }] },
+  'M31-form-clock': {
+    kind: 'model_form', model: 'fix.workshop.time.log', title: 'Work Clock', newLabel: 'Start the Work Clock', back: 'M31-timelogs',
+    sections: [
+      { title: 'Start Booking Time',
+        note: 'Time is booked as the work proceeds, never afterwards (SOP SP-010 step 10). Start the clock now; stop it from the list to pause, and start a new one to resume. Waiting time is booked apart from active work.',
+        fields: [
+          { name: 'job_id', required: true, label: 'Repair Job' },
+          { name: 'activity', required: true, label: 'Activity' },
+          { name: 'note', label: 'Note' },
+          { name: 'technician_id', label: 'Technician', readonly: true },
+          { name: 'started_at', label: 'Started', readonly: true }
+        ] }
+    ]
+  },
+  'M31-cost-jobs': { kind: 'model_list', model: 'fix.workshop.job', title: 'Cost Sheets', create: false,
+    cols: ['name', 'repair_level', 'logged_active_minutes', 'parts_total', 'consumables_total', 'full_cost', 'estimate_ceiling', 'cost_variance', 'cost_variance_flag'],
+    domain: [['state', '!=', 'draft']],
+    actions: [{ m: 'action_build_cost_sheet', l: 'Build Cost Sheet' }] },
+  'M31-costlines': { kind: 'model_list', model: 'fix.workshop.cost.line', title: 'Cost Build-Up', create: false,
+    cols: ['job_id', 'cost_type', 'description', 'quantity', 'rate', 'amount', 'built_at'] },
+
 };
 
 /* built-in report chips -> the screen that shows that report */
@@ -758,6 +1043,21 @@ export const FORM_CHIPS = {
   'M31:Test Protocol': 'M31-form-protocol',
   'M31:Test Evidence': 'M31-form-evidence',
   'M31:Labour & Cost': 'M31-form-labour',
+  /* capture pass 2 (19 Nov 2026) */
+  'M31:Move Device to Location': 'M31-form-custody',
+  'M31:Workshop Location': 'M31-form-location',
+  'M31:Burn-In Station': 'M31-form-station',
+  'M31:ESD Bench Check': 'M31-form-esd',
+  'M31:Shift Close': 'M31-form-shiftclose',
+  'M31:Escalation': 'M31-form-escalation',
+  'M31:Teardown Record': 'M31-form-teardown',
+  'M31:Instrument Use': 'M31-form-instrument',
+  // FR-WSR-028: a repair note proposed to the M61 library is M61's field capture
+  'M31:Knowledge Capture': 'M61-form-capture',
+  'M31:Consumable Usage': 'M31-form-consumable',
+  'M31:Burn-In Run': 'M31-form-burnin',
+  'M31:Workshop Transfer': 'M31-form-transfer',
+  'M31:Work Clock': 'M31-form-clock',
   'M31:__by_model__': {
     'fix.workshop.job': 'M31-form-job',
     'fix.workshop.bench': 'M31-form-bench',
@@ -766,6 +1066,18 @@ export const FORM_CHIPS = {
     'fix.workshop.part.line': 'M31-form-part',
     'fix.workshop.test.result': 'M31-form-testresult',
     'fix.workshop.test.protocol': 'M31-form-protocol',
+    'fix.workshop.custody.move': 'M31-form-custody',
+    'fix.workshop.location': 'M31-form-location',
+    'fix.workshop.burnin.station': 'M31-form-station',
+    'fix.workshop.esd.check': 'M31-form-esd',
+    'fix.workshop.shift.close': 'M31-form-shiftclose',
+    'fix.workshop.escalation': 'M31-form-escalation',
+    'fix.workshop.teardown': 'M31-form-teardown',
+    'fix.workshop.instrument.use': 'M31-form-instrument',
+    'fix.workshop.consumable.usage': 'M31-form-consumable',
+    'fix.workshop.burnin.session': 'M31-form-burnin',
+    'fix.workshop.transfer': 'M31-form-transfer',
+    'fix.workshop.time.log': 'M31-form-clock',
   },
   'M31:__by_screen__': {
     'M31-orders': 'M31-form-job',
@@ -777,5 +1089,17 @@ export const FORM_CHIPS = {
     'M31-parts': 'M31-form-part',
     'M31-testresults': 'M31-form-testresult',
     'M31-protocols': 'M31-form-protocol',
+    'M31-custody': 'M31-form-custody',
+    'M31-locations': 'M31-form-location',
+    'M31-burnin-stations': 'M31-form-station',
+    'M31-esd-checks': 'M31-form-esd',
+    'M31-shift-closes': 'M31-form-shiftclose',
+    'M31-escalations': 'M31-form-escalation',
+    'M31-teardowns': 'M31-form-teardown',
+    'M31-instrument-uses': 'M31-form-instrument',
+    'M31-consumables': 'M31-form-consumable',
+    'M31-burnin-sessions': 'M31-form-burnin',
+    'M31-transfers': 'M31-form-transfer',
+    'M31-timelogs': 'M31-form-clock',
   }
 };

@@ -116,7 +116,10 @@ def m31(odoo_env):
         }
     )
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
+    # one legal entity per company (fix_entity_company_unique): reuse it
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create(
         {"code": "A02E%d" % n, "legal_name": "A02 Entity %d" % n, "company_id": env.company.id}
     )
     branch = env["fix.branch"].create(

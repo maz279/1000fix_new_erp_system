@@ -12,6 +12,18 @@ from ..p03_service_order_api import _require_internal
 
 _logger = logging.getLogger(__name__)
 
+# a booked-in device that is physically in the workshop (capture pass 2)
+_OPEN_HELD_STATES = (
+    "intake",
+    "diagnostic",
+    "waiting_parts",
+    "in_repair",
+    "burn_in",
+    "qc_pending",
+    "qc_failed",
+    "ready",
+)
+
 SURFACES = {
     "fix.workshop.job": {
         "order": "priority desc, create_date desc, id desc",
@@ -52,6 +64,8 @@ SURFACES = {
             "action_propose_ber",
             "action_confirm_ber",
             "action_recall_approval",
+            # capture pass 2, sub-module 9: the cost build-up (FR-WSR-043/044)
+            "action_build_cost_sheet",
         },
     },
     "fix.workshop.bench": {
@@ -108,6 +122,105 @@ SURFACES = {
         },
         "actions": set(),
     },
+    # ---- M31 capture pass 2 (19 Nov 2026): the spec's own records per page ----
+    # 1/2/3: where a device is in the workshop (FR-WSR-005/042/053)
+    "fix.workshop.location": {"order": "workshop_id, kind, code", "limit": 200, "actions": set()},
+    "fix.workshop.custody.move": {
+        "order": "moved_at desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [("state", "in", _OPEN_HELD_STATES)],
+            "location_id": [("active", "=", True)],
+        },
+        "actions": set(),
+    },
+    # 2: the daily ESD check (FR-WSR-050) and burn-in stations (FR-WSR-034)
+    "fix.workshop.esd.check": {
+        "order": "checked_at desc, id desc",
+        "limit": 300,
+        "pickers": {"bench_id": [("state", "!=", "offline")]},
+        "actions": set(),
+    },
+    "fix.workshop.burnin.station": {"order": "workshop_id, code", "limit": 100, "actions": set()},
+    # 3: hand-overs (written by Allocate to Bench) and the shift close
+    "fix.workshop.bench.handover": {
+        "order": "occurred_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.workshop.shift.close": {
+        "order": "shift_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_close"},
+    },
+    # 4: escalation to a specialist (FR-WSR-029)
+    "fix.workshop.escalation": {
+        "order": "requested_at desc, id desc",
+        "limit": 200,
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
+        "actions": {"action_accept", "action_decline"},
+    },
+    # 5: teardown (FR-WSR-019) and instrument use (FR-WSR-025/040)
+    "fix.workshop.teardown": {
+        "order": "id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [
+                ("state", "not in", ("delivered", "unrepairable", "cancelled")),
+                ("qc_passed", "=", False),
+            ]
+        },
+        "actions": set(),
+    },
+    "fix.workshop.instrument.use": {
+        "order": "used_from desc, id desc",
+        "limit": 300,
+        "pickers": {
+            "job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))],
+            "equipment_id": [("operational_status", "in", ("available", "issued"))],
+        },
+        "actions": set(),
+    },
+    # 6: consumables (FR-WSR-024)
+    "fix.workshop.consumable.usage": {
+        "order": "id desc",
+        "limit": 300,
+        "pickers": {"job_id": [("state", "not in", ("delivered", "unrepairable", "cancelled"))]},
+        "actions": set(),
+    },
+    # 7: burn-in runs at a station (FR-WSR-033, BRU-WSR-07)
+    "fix.workshop.burnin.session": {
+        "order": "started_at desc, id desc",
+        "limit": 200,
+        "pickers": {
+            "job_id": [
+                ("state", "in", ("in_repair", "qc_failed")),
+                ("repair_level", "in", ("l2", "l3")),
+            ],
+            "station_id": [("active", "=", True)],
+        },
+        "actions": {"action_extend"},
+    },
+    # 8: internal rework (written by the fail actions) and workshop transfers
+    "fix.workshop.rework": {"order": "raised_at desc, id desc", "limit": 300, "actions": set()},
+    "fix.workshop.transfer": {
+        "order": "requested_at desc, id desc",
+        "limit": 200,
+        "pickers": {
+            "job_id": [
+                ("state", "in", ("draft", "intake", "diagnostic", "waiting_parts", "qc_failed"))
+            ]
+        },
+        "actions": {"action_confirm", "action_receive", "action_decline", "action_cancel"},
+    },
+    # 9: the work clock (FR-WSR-026) and the cost build-up (FR-WSR-043/044)
+    "fix.workshop.time.log": {
+        "order": "started_at desc, id desc",
+        "limit": 300,
+        "pickers": {"job_id": [("state", "in", _OPEN_HELD_STATES)]},
+        "actions": {"action_stop"},
+    },
+    "fix.workshop.cost.line": {"order": "job_id, sequence", "limit": 500, "actions": set()},
 }
 
 _WIP_STATES = (

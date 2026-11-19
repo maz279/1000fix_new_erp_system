@@ -964,13 +964,16 @@ WRITABLE = {
             "active",
             "branch_id",
             "code",
+            "equipment_rate_per_hour",
             "facility_cert_attachment_id",
             "fume_extraction_active",
             "is_esd_certified",
             "iso_9001_cert_number",
+            "labour_rate_per_hour",
             "manager_id",
             "name",
             "name_bn",
+            "overhead_pct",
             "power_backup_kva",
             "workshop_type",
         }
@@ -988,6 +991,59 @@ WRITABLE = {
             "workshop_id",
         }
     ),
+    "fix.workshop.bench.handover": frozenset(),
+    "fix.workshop.burnin.session": frozenset(
+        {
+            "job_id",
+            "load_profile",
+            "required_minutes",
+            "station_id",
+        }
+    ),
+    "fix.workshop.burnin.station": frozenset(
+        {
+            "active",
+            "capacity",
+            "code",
+            "load_profile",
+            "name",
+            "workshop_id",
+        }
+    ),
+    "fix.workshop.consumable.usage": frozenset(
+        {
+            "job_id",
+            "notes",
+            "product_id",
+            "quantity",
+        }
+    ),
+    "fix.workshop.cost.line": frozenset(),
+    "fix.workshop.custody.move": frozenset(
+        {
+            "job_id",
+            "location_id",
+            "note",
+        }
+    ),
+    "fix.workshop.escalation": frozenset(
+        {
+            "escalation_type",
+            "job_id",
+            "reason",
+            "to_level",
+            "to_technician_id",
+            "to_workshop_id",
+        }
+    ),
+    "fix.workshop.esd.check": frozenset(
+        {
+            "bench_id",
+            "note",
+            "worksurface_mohm",
+            "wrist_strap_mohm",
+        }
+    ),
     "fix.workshop.evidence": frozenset(
         {
             "description",
@@ -997,6 +1053,15 @@ WRITABLE = {
             "name",
             "upload_file",
             "upload_filename",
+        }
+    ),
+    "fix.workshop.instrument.use": frozenset(
+        {
+            "equipment_id",
+            "job_id",
+            "purpose",
+            "used_from",
+            "used_to",
         }
     ),
     "fix.workshop.job": frozenset(
@@ -1017,6 +1082,7 @@ WRITABLE = {
             "dofa_justification",
             "equipment_id",
             "flux_solder_spec",
+            "high_value_device",
             "ipc_class_target",
             "ipc_visual_inspection_passed",
             "labour_total",
@@ -1033,6 +1099,16 @@ WRITABLE = {
             "workshop_id",
         }
     ),
+    "fix.workshop.location": frozenset(
+        {
+            "active",
+            "capacity",
+            "code",
+            "kind",
+            "name",
+            "workshop_id",
+        }
+    ),
     "fix.workshop.part.line": frozenset(
         {
             "circuit_designator",
@@ -1044,6 +1120,27 @@ WRITABLE = {
             "product_id",
             "quantity",
             "source_origin",
+        }
+    ),
+    "fix.workshop.rework": frozenset(),
+    "fix.workshop.shift.close": frozenset(
+        {
+            "counted_wip",
+            "exception_note",
+            "shift",
+            "shift_date",
+            "workshop_id",
+        }
+    ),
+    "fix.workshop.teardown": frozenset(
+        {
+            "component",
+            "condition",
+            "designator",
+            "job_id",
+            "note",
+            "photo_attachment_id",
+            "sequence",
         }
     ),
     "fix.workshop.test.protocol": frozenset(
@@ -1067,6 +1164,21 @@ WRITABLE = {
             "notes",
             "observed_pass",
             "step_id",
+        }
+    ),
+    "fix.workshop.time.log": frozenset(
+        {
+            "activity",
+            "job_id",
+            "note",
+        }
+    ),
+    "fix.workshop.transfer": frozenset(
+        {
+            "job_id",
+            "reason",
+            "stage",
+            "to_workshop_id",
         }
     ),
     "fix.z4.access.audit": frozenset(),

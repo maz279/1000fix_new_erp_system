@@ -34,11 +34,12 @@ EXPECTED = {
     "2": ("M31-form-workshop", "Workshop Facility"),
     # 14 Nov audit: 3 created a new BENCH and 7 filed a generic attachment
     "3": ("M31-form-allocate", "Allocate a Job to a Bench"),
-    "4": ("M31-form-routing", "Route, Re-route or Transfer a Job"),
+    "4": ("M31-form-routing", "Route or Re-route a Job"),
     "5": ("M31-form-diagnosis", "Record Bench Diagnosis"),
     "6": ("M31-form-part", "Part Fitment"),
     "7": ("M31-form-testresult", "Record a Test Result"),
-    "8": ("M31-form-routing", "Route, Re-route or Transfer a Job"),
+    # 19 Nov pass 2: page 8 captures the transfer itself (BRU-WSR-14)
+    "8": ("M31-form-transfer", "Request a Workshop Transfer"),
     "9": ("M31-form-labour", "Record Labour & Cost"),
 }
 

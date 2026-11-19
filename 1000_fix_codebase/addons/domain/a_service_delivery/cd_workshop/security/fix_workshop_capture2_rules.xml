@@ -1,0 +1,79 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- M31 capture pass 2 (19 Nov 2026): company isolation (AS-03) for the new workshop records. -->
+<odoo>
+    <record id="rule_fix_workshop_location_company" model="ir.rule">
+        <field name="name">fix.workshop.location: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_location"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_custody_move_company" model="ir.rule">
+        <field name="name">fix.workshop.custody.move: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_custody_move"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_esd_check_company" model="ir.rule">
+        <field name="name">fix.workshop.esd.check: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_esd_check"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_bench_handover_company" model="ir.rule">
+        <field name="name">fix.workshop.bench.handover: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_bench_handover"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_shift_close_company" model="ir.rule">
+        <field name="name">fix.workshop.shift.close: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_shift_close"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_escalation_company" model="ir.rule">
+        <field name="name">fix.workshop.escalation: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_escalation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_teardown_company" model="ir.rule">
+        <field name="name">fix.workshop.teardown: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_teardown"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_instrument_use_company" model="ir.rule">
+        <field name="name">fix.workshop.instrument.use: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_instrument_use"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_consumable_usage_company" model="ir.rule">
+        <field name="name">fix.workshop.consumable.usage: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_consumable_usage"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_burnin_station_company" model="ir.rule">
+        <field name="name">fix.workshop.burnin.station: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_burnin_station"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_burnin_session_company" model="ir.rule">
+        <field name="name">fix.workshop.burnin.session: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_burnin_session"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_rework_company" model="ir.rule">
+        <field name="name">fix.workshop.rework: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_rework"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_transfer_company" model="ir.rule">
+        <field name="name">fix.workshop.transfer: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_transfer"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_time_log_company" model="ir.rule">
+        <field name="name">fix.workshop.time.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_time_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_workshop_cost_line_company" model="ir.rule">
+        <field name="name">fix.workshop.cost.line: allowed companies</field>
+        <field name="model_id" ref="model_fix_workshop_cost_line"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
