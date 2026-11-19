@@ -182,4 +182,12 @@ On `fix_test_m22c2` (a clone brought to HEAD for all 166 modules: 0 models witho
 
 ## 7. State
 
-_Filled in at landing and deploy._
+- **Landed** `40421fae` (fix) + `a37d0844` (report) on `fix/a03-live-data-and-pending-work` by fast-forward (CAS `update-ref` + `read-tree -m -u`). Shared branch **pushed** (`87b79277..a37d0844`), and the feature branch `fix/m22-capture-pass2` too.
+- **Deploy approved by the owner.**
+  - Backups were taken first, both verified with `pg_restore -l` (1,892 and 1,889 table-data entries): `1000 fix/backups/fix_{real,dev}_pre_m22_capture2_2026-11-19.dump`.
+  - `-u cd_competency,cd_p03_portal` ran on fix_real and on fix_dev; both exited 0.
+  - Read-only check on both: cd_competency 19.0.0.4.0, the 7 new tables, 14 record rules.
+- **The 8069 / 8090 restart is HELD.** M22 is not visible in the workspace until it happens.
+  - The version-gap check before the restart found peers' landed modules not yet upgraded: `cd_contact_centre` (M27, its owner has not approved its deploy yet), `cd_qms_process` (M23) on both DBs, and `cd_ml_services` (M26) on fix_real.
+  - A restart now would load their new models without tables. M27, M23 and M26 have been told. One session does the single restart once the gap is empty.
+- Private clone `fix_test_m22c2` and worktree `m22cap2-wt` are kept until the restart is verified.
