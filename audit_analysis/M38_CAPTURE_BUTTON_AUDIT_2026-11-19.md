@@ -111,4 +111,8 @@ The browser pane was hidden, so the OWL page rendered empty; the workspace's own
 - Slot capacity comes from the slot record, not from live M02/M55 capacity (FR-ECM-032).
 
 ## 5. State
-_(landing, deploy and push recorded below once done)_
+
+- **Landed** as `21ede0b2` on `fix/a03-live-data-and-pending-work` (rebased onto the M39/M31/M32 landings, compare-and-swap ref update, shared checkout synced). After the rebase: the A04 write whitelist regenerates with no diff, cd_storefront's isolation rules are clean, and the M38 / A04 / estate guards pass.
+- **Pushed:** `bdee1d2e..21ede0b2` and branch `fix/m38-capture-buttons`.
+- **Not deployed.** Both fix_real (8069) and fix_dev (8090) also lag three peers' landed modules — `cd_workshop`, `cd_contact_centre`, `cd_subscription` — so a restart must follow one `-u` that carries all four, or those modules' new fields load without columns. Deployment waits for the owner's go-ahead.
+- Private clone `fix_test_m38` (with `cd_storefront_finance` installed) is kept for re-runs.
