@@ -19,7 +19,22 @@
  *                             was refused on every computed run)
  *   6 GenAI & RAG             + Record AI Risk, generative (it offered a
  *                             deterministic model entry: no GenAI kind exists)
- *   7 Bengali NLP & OCR       + Classify Fault Text (any model before) */
+ *   7 Bengali NLP & OCR       + Classify Fault Text (any model before)
+ *
+ * Capture audit, second pass (2026-11-19) - read against the spec's
+ * lifecycle (§8.1) and owned entities (§10.1), four pages still had nowhere
+ * to record what is decided or measured there:
+ *   2 Training Pipelines      + Record Training Run (FR-AIM-002/003: a version
+ *                             named no reproducible run); Model Version chip
+ *                             now links the run
+ *   3 Evaluation Gates        Data-Sufficiency Gate (FR-AIM-006, BRU-AIM-12),
+ *                             Bias Test (FR-AIM-042): the bias status was
+ *                             typed by the registrant, it now follows the test
+ *   4 Deployment & Monitoring Performance Observation (FR-AIM-008): a floor
+ *                             breach auto-demotes when a prior champion exists
+ *   5 Explainability          an override without a reason is refused
+ *   7 Bengali NLP & OCR       Record Human Decision (the confirmed fault)
+ * Retire now records the consumers' confirmation (FR-AIM-010). */
 
 export const MODULE = {
   area: 'A11', code: 'M26', en: 'AI/ML Services (14 models)', title: 'M26 · AI/ML Services (14 models)',
@@ -39,6 +54,7 @@ export const MODULE = {
     { en: 'Portfolio', screens: [
       { id: 'M26-models', en: 'Model Portfolio (14)', bn: 'মডেল পোর্টফোলিও', t: 'g' },
       { id: 'M26-registry', en: 'Model Registry', bn: 'মডেল রেজিস্ট্রি', t: 'g' },
+      { id: 'M26-training', en: 'Training Runs', bn: 'ট্রেনিং রান', t: 'g' },
       { id: 'M26-runs', en: 'Inference Run Log', bn: 'ইনফারেন্স রান লগ', t: 'g' },
       { id: 'M26-ai', en: 'Predictive Failure Predictions', bn: 'প্রেডিক্টিভ ফেইলিউর', t: 'g' },
       { id: 'M26-risks', en: 'AI Risk Register', bn: 'এআই ঝুঁকি রেজিস্টার', t: 'g' }
@@ -47,12 +63,15 @@ export const MODULE = {
       { id: 'M26-deploy', en: 'Deployment Patterns', bn: 'ডিপ্লয়মেন্ট প্যাটার্ন', t: 'g' },
       { id: 'M26-monitor', en: 'Production Monitoring', bn: 'প্রোডাকশন মনিটরিং', t: 'r' },
       { id: 'M26-drift-log', en: 'Drift Observations', bn: 'ড্রিফট পর্যবেক্ষণ', t: 'g' },
+      { id: 'M26-performance', en: 'Production Performance', bn: 'প্রোডাকশন পারফরম্যান্স', t: 'g' },
       { id: 'M26-fallback', en: 'Inference Fallback', bn: 'ফলব্যাক', t: 'r' },
       { id: 'M26-fallback-tests', en: 'Fallback Tests', bn: 'ফলব্যাক পরীক্ষা', t: 'g' }
     ]},
     { en: 'Governance', screens: [
       { id: 'M26-governance', en: 'Guard Rails & HITL', bn: 'গার্ড রেল', t: 'g' },
       { id: 'M26-gates', en: 'Evaluation Gate Log', bn: 'মূল্যায়ন গেট', t: 'g' },
+      { id: 'M26-sufficiency', en: 'Data-Sufficiency Gates', bn: 'ডেটা পর্যাপ্ততা গেট', t: 'g' },
+      { id: 'M26-bias-tests', en: 'Bias Tests', bn: 'বায়াস পরীক্ষা', t: 'g' },
       { id: 'M26-bias', en: 'Bias Testing', bn: 'বায়াস টেস্টিং', t: 'r' },
       { id: 'M26-cards', en: 'Model Cards', bn: 'মডেল কার্ড', t: 'g' }
     ]},
@@ -63,28 +82,35 @@ export const MODULE = {
   ],
   reports: ['Model Performance Pack', 'Override Analysis', 'Drift Report', 'Fairness Summary', 'Model Accuracy & Retraining Log'],
   forms: ['ML Model', 'Model Version', 'Evaluation Gate', 'Guard-Rail Config', 'AI Risk', 'Drift Observation', 'Fallback Test',
-    'Model Card', 'Record Human Decision', 'Classify Fault Text', 'Run ML Model Inference'],
+    'Model Card', 'Record Human Decision', 'Classify Fault Text', 'Run ML Model Inference',
+    'Training Run', 'Data-Sufficiency Gate', 'Bias Test', 'Performance Observation'],
   cross: ['M02 Dispatch', 'M15 Parts', 'M48 Predictive Maintenance'],
   freg: { src: 58, sub: [
     ['1', 'Portfolio & Governance', 10, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'consumer_modules', 'risk_class', 'owner_id', 'review_date', 'status'],
       screens: ['M26-models', 'M26-risks', 'M26-governance'], reports: ['Model Performance Pack'],
       forms: ['ML Model', 'AI Risk', 'Guard-Rail Config'], create: 'M26-form-model' }],
-    ['2', 'Training Pipelines', 8, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'training_dataset', 'artifact_ref', 'state'],
-      screens: ['M26-registry'], reports: ['Model Accuracy & Retraining Log'], forms: ['Model Version'], create: 'M26-form-version' }],
+    ['2', 'Training Pipelines', 8, { model: 'fix.ml.training.run', cols: ['model_id', 'code_version', 'data_snapshot_ref', 'outcome', 'ended_at', 'trained_by'],
+      screens: ['M26-training', 'M26-registry'], reports: ['Model Accuracy & Retraining Log'], forms: ['Training Run', 'Model Version'], create: 'M26-form-training' }],
     ['3', 'Evaluation Gates', 7, { model: 'fix.ml.evaluation.gate', cols: ['version_id', 'gate', 'result', 'checked_by', 'checked_at'],
-      screens: ['M26-gates', 'M26-bias', 'M26-registry'], reports: ['Fairness Summary'], forms: ['Evaluation Gate'], create: 'M26-form-gate' }],
+      screens: ['M26-gates', 'M26-sufficiency', 'M26-bias-tests', 'M26-bias', 'M26-registry'], reports: ['Fairness Summary'],
+      forms: ['Evaluation Gate', 'Data-Sufficiency Gate', 'Bias Test'], create: 'M26-form-gate' }],
     ['4', 'Deployment & Monitoring', 11, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'deployment_mode', 'deployed_at', 'drift_score', 'state'],
-      screens: ['M26-deploy', 'M26-monitor', 'M26-drift-log', 'M26-fallback', 'M26-fallback-tests'], reports: ['Drift Report', 'Model Performance Pack'],
-      forms: ['Drift Observation', 'Fallback Test'], create: 'M26-form-drift', domain: [['deployment_mode', '!=', 'none']] }],
+      screens: ['M26-deploy', 'M26-monitor', 'M26-performance', 'M26-drift-log', 'M26-fallback', 'M26-fallback-tests'], reports: ['Drift Report', 'Model Performance Pack'],
+      forms: ['Drift Observation', 'Performance Observation', 'Fallback Test'], create: 'M26-form-drift', domain: [['deployment_mode', '!=', 'none']] }],
     ['5', 'Explainability', 5, { model: 'fix.ml.model.version', cols: ['model_id', 'version', 'model_card', 'bias_status', 'approved_by'],
       screens: ['M26-cards', 'M26-runs'], reports: ['Override Analysis'], forms: ['Model Card', 'Record Human Decision'], create: 'M26-form-card' }],
     ['6', 'GenAI & RAG', 9, { model: 'fix.ml.ai.risk', cols: ['name', 'likelihood', 'impact', 'control_ref', 'owner_id', 'review_date', 'state'],
       screens: ['M26-genai', 'M26-risks'], reports: [], forms: ['AI Risk'], create: 'M26-form-risk', domain: [['category', '=', 'generative']] }],
     ['7', 'Bengali NLP & OCR', 8, { model: 'fix.ml.inference.run', cols: ['model_code', 'input_text', 'state', 'suggested_value', 'latency_ms', 'ran_at'],
-      screens: ['M26-ocr', 'M26-runs'], reports: [], forms: ['Classify Fault Text', 'Run ML Model Inference'], create: 'M26-form-nlp',
+      screens: ['M26-ocr', 'M26-runs'], reports: [], forms: ['Classify Fault Text', 'Record Human Decision', 'Run ML Model Inference'], create: 'M26-form-nlp',
       domain: [['model_id.kind', '=', 'fault_classifier']] }]
   ] }
 };
+
+/* FR-AIM-010 / AUT-AIM-22: retirement records who confirmed the fallback as
+ * the consumers' standing path (refused without it). */
+const RETIRE = { m: 'action_retire', l: 'Retire',
+  asks: [{ label: 'Who confirmed the fallback is now the consumers’ standing path?', kwarg: 'confirmation' }] };
 
 export const SCREENS = {
   /* Portfolio */
@@ -97,8 +123,11 @@ export const SCREENS = {
     actions: [
       { m: 'action_evaluate', l: 'Mark Evaluated' },
       { m: 'action_request_promotion', l: 'Request Promotion', asks: [{ label: 'Why should this version serve?', kwarg: 'justification' }] },
-      { m: 'action_retire', l: 'Retire' }
+      RETIRE
     ] },
+  'M26-training': { kind: 'model_list', model: 'fix.ml.training.run', stateField: 'outcome', create: true,
+    cols: ['model_id', 'code_version', 'data_snapshot_ref', 'environment_ref', 'started_at', 'ended_at', 'outcome', 'trained_by'],
+    empty: 'No training run is recorded yet. + New records one with everything needed to reproduce it.' },
   'M26-risks': { kind: 'model_list', model: 'fix.ml.ai.risk', stateField: 'state',
     cols: ['name', 'model_id', 'category', 'likelihood', 'impact', 'owner_id', 'review_date', 'state'],
     empty: 'No AI risk is recorded yet. + New AI Risk records one, by model or estate-wide.' },
@@ -107,11 +136,14 @@ export const SCREENS = {
   'M26-deploy': { kind: 'model_list', model: 'fix.ml.model.version', stateField: 'deployment_mode', create: false,
     domain: [['deployment_mode', '!=', 'none']],
     cols: ['model_id', 'version', 'deployment_mode', 'deployed_at', 'drift_score', 'state'],
-    actions: [{ m: 'action_retire', l: 'Retire' }] },
+    actions: [RETIRE] },
   'M26-monitor': { kind: 'table_report', module: 'M26', report: 'production_monitoring', title: 'Production Monitoring', period: false },
   'M26-drift-log': { kind: 'model_list', model: 'fix.ml.drift.observation', stateField: 'breached',
     cols: ['version_id', 'feature_name', 'psi', 'ks_statistic', 'threshold', 'breached', 'observed_at', 'recorded_by'],
     empty: 'No drift observation is recorded yet. + New records one from a monitoring run on a deployed version.' },
+  'M26-performance': { kind: 'model_list', model: 'fix.ml.performance.observation', stateField: 'action_taken', create: true,
+    cols: ['version_id', 'metric_name', 'value', 'target', 'floor', 'labelled_sample_size', 'period_end', 'breached', 'action_taken', 'recorded_by'],
+    empty: 'No production performance is recorded yet. A floor breach demotes the version (BRU-AIM-19).' },
   'M26-fallback': { kind: 'table_report', module: 'M26', report: 'fallback_status', title: 'Inference Fallback', period: false },
   'M26-fallback-tests': { kind: 'model_list', model: 'fix.ml.fallback.test', stateField: 'outcome',
     cols: ['model_id', 'consumer_module', 'method', 'outcome', 'incidents_raised', 'tested_at', 'tested_by'],
@@ -123,6 +155,12 @@ export const SCREENS = {
   'M26-gates': { kind: 'model_list', model: 'fix.ml.evaluation.gate', stateField: 'result',
     cols: ['version_id', 'gate', 'result', 'checked_by', 'checked_at', 'notes'],
     empty: 'No gate is recorded yet. A reviewer who did not register the version records each gate.' },
+  'M26-sufficiency': { kind: 'model_list', model: 'fix.ml.data.sufficiency', stateField: 'result', create: true,
+    cols: ['model_id', 'required_history_months', 'observed_history_months', 'required_volume', 'observed_volume', 'result', 'deferred_until', 'evaluated_by'],
+    empty: 'No data-sufficiency gate is recorded yet. A model is not promoted without one that reads Met (BRU-AIM-12).' },
+  'M26-bias-tests': { kind: 'model_list', model: 'fix.ml.bias.test', stateField: 'assessment', create: true,
+    cols: ['version_id', 'segments_tested', 'max_disparity', 'assessment', 'tested_at', 'next_due', 'documented_by'],
+    empty: 'No bias test is recorded yet. The version bias status follows the newest test.' },
   'M26-bias': { kind: 'table_report', module: 'M26', report: 'fairness_summary', title: 'Bias Testing', period: false },
   'M26-cards': { kind: 'model_list', model: 'fix.ml.model.version', stateField: 'state',
     cols: ['model_id', 'version', 'state', 'model_card', 'approved_by'] },
@@ -178,7 +216,9 @@ export const SCREENS = {
           { name: 'fallback_definition', type: 'text', label: 'Defined Fallback' },
           { name: 'risk_class', label: 'Risk Class' },
           { name: 'owner_id', label: 'Model Owner' },
-          { name: 'review_date', label: 'Next Review' }
+          { name: 'review_date', label: 'Next Review' },
+          { name: 'min_history_months', label: 'Minimum History (months) - data sufficiency' },
+          { name: 'min_volume', label: 'Minimum Volume (labelled records) - data sufficiency' }
         ] }
     ]
   },
@@ -188,7 +228,7 @@ export const SCREENS = {
     model: 'fix.ml.model.version',
     title: 'Model Version',
     back: 'M26-registry',
-    status: { field: 'state', labels: { draft: 'Draft', evaluated: 'Evaluated', approved: 'Approved', deployed: 'Deployed', retired: 'Retired' } },
+    status: { field: 'state', labels: { draft: 'Draft', evaluated: 'Evaluated', approved: 'Approved', deployed: 'Deployed', demoted: 'Auto-Demoted', retired: 'Retired' } },
     sections: [
       {
         title: 'Version & Artifact',
@@ -196,6 +236,7 @@ export const SCREENS = {
         fields: [
           { name: 'model_id', required: true, label: 'Registered Model' },
           { name: 'version', required: true, label: 'Version' },
+          { name: 'training_run_id', label: 'Training Run (that produced it)', domain: [['outcome', '=', 'succeeded']] },
           { name: 'artifact_ref', label: 'Artifact Reference' },
           { name: 'training_dataset', label: 'Training Dataset' }
         ]
@@ -205,7 +246,7 @@ export const SCREENS = {
         note: 'Metrics are keyed in from the evaluation run, never estimated. The drift score follows the drift observations recorded on Deployment & Monitoring.',
         fields: [
           { name: 'metrics_json', label: 'Metrics (JSON)', type: 'text' },
-          { name: 'bias_status', required: true, label: 'Bias Test Status' },
+          { name: 'bias_status', readonly: true, label: 'Bias Test Status (follows the newest Bias Test)' },
           { name: 'bias_notes', label: 'Bias Notes', type: 'text' },
           { name: 'deployment_mode', required: true, label: 'Deployment Mode' },
           { name: 'drift_score', readonly: true, label: 'Observed Drift Score' },
@@ -433,6 +474,124 @@ export const SCREENS = {
     ]
   },
 
+  /* Capture audit pass 2: the run a version is trained in (T-10). */
+  'M26-form-training': {
+    kind: 'model_form',
+    model: 'fix.ml.training.run',
+    title: 'Training Run',
+    newLabel: 'Record Training Run',
+    back: 'M26-training',
+    status: { field: 'outcome', labels: { succeeded: 'Succeeded', failed: 'Failed', abandoned: 'Abandoned' } },
+    tabs: [
+      { id: 'repro', label: 'Reproducibility', bn: 'পুনরুৎপাদনযোগ্যতা', icon: '🔁' },
+      { id: 'result', label: 'Result', bn: 'ফলাফল', icon: '📊' }
+    ],
+    sections: [
+      { tab: 'repro', title: 'What the run used', note: 'Everything needed to reproduce the run exactly: code version, M62 feature-store snapshot, feature versions, hyperparameters and environment. A recorded run is evidence: it cannot be edited.',
+        fields: [
+          { name: 'model_id', required: true, label: 'Model' },
+          { name: 'code_version', required: true, label: 'Code Version (commit / tag)' },
+          { name: 'data_snapshot_ref', required: true, label: 'Data Snapshot (M62, point in time)' },
+          { name: 'feature_versions', required: true, type: 'text', label: 'Feature Versions' },
+          { name: 'hyperparameters', required: true, type: 'text', label: 'Hyperparameters (JSON object)' },
+          { name: 'environment_ref', required: true, label: 'Environment (image / lock file)' },
+          { name: 'm06_data_excluded', required: true, label: 'No recovered M06 customer data in the training data (BRU-AIM-03)' }
+        ] },
+      { tab: 'result', title: 'Run Result', note: 'A succeeded run records its measured evaluation metrics; a failed or abandoned run says why.',
+        fields: [
+          { name: 'started_at', required: true, label: 'Started' },
+          { name: 'ended_at', required: true, label: 'Ended' },
+          { name: 'outcome', required: true, label: 'Outcome' },
+          { name: 'metrics_json', type: 'text', label: 'Evaluation Metrics (JSON)' },
+          { name: 'failure_note', label: 'Why it failed / was abandoned' },
+          { name: 'trained_by', readonly: true, label: 'Recorded By' }
+        ] }
+    ]
+  },
+
+  /* FR-AIM-006 / BRU-AIM-12: the model's declared bar against the data. */
+  'M26-form-sufficiency': {
+    kind: 'model_form',
+    model: 'fix.ml.data.sufficiency',
+    title: 'Data-Sufficiency Gate',
+    newLabel: 'Record Data-Sufficiency Gate',
+    back: 'M26-sufficiency',
+    status: { field: 'result', labels: { met: 'Met', deferred: 'Deferred' } },
+    sections: [
+      { title: 'Measured Data', note: 'The bar is the model’s own declaration (Portfolio Declaration: minimum history and volume) - it is copied, not typed. Unmet is deferred with a revisit date, never rejected. Promotion needs the newest gate to read Met.',
+        fields: [
+          { name: 'model_id', required: true, label: 'Model' },
+          { name: 'source_modules', required: true, label: 'Data Source(s)' },
+          { name: 'observed_history_months', required: true, label: 'History Available (months)' },
+          { name: 'observed_volume', required: true, label: 'Labelled Records Available' },
+          { name: 'deferred_until', label: 'Revisit On (if unmet)' },
+          { name: 'prerequisite_note', type: 'text', label: 'What must exist first' }
+        ] },
+      { title: 'Result (system)',
+        fields: [
+          { name: 'required_history_months', readonly: true, label: 'Required History (months)' },
+          { name: 'required_volume', readonly: true, label: 'Required Volume' },
+          { name: 'result', readonly: true, label: 'Result' },
+          { name: 'evaluated_by', readonly: true, label: 'Evaluated By' }
+        ] }
+    ]
+  },
+
+  /* FR-AIM-042 / BRU-AIM-07: fairness evidence; it sets the bias status. */
+  'M26-form-bias': {
+    kind: 'model_form',
+    model: 'fix.ml.bias.test',
+    title: 'Bias Test',
+    newLabel: 'Record Bias Test',
+    back: 'M26-bias-tests',
+    status: { field: 'assessment', labels: { passed: 'Passed', failed: 'Failed' } },
+    sections: [
+      { title: 'Fairness Evidence', note: 'Documented by someone who neither registered the version nor owns the model (spec §13). The version’s bias status follows this test; a failed test blocks every promotion.',
+        fields: [
+          { name: 'version_id', required: true, label: 'Model Version', domain: [['state', '!=', 'retired']] },
+          { name: 'segments_tested', required: true, type: 'text', label: 'Segments Tested' },
+          { name: 'metric_by_segment', required: true, type: 'text', label: 'Metric by Segment' },
+          { name: 'max_disparity', label: 'Largest Disparity' },
+          { name: 'assessment', required: true, label: 'Assessment' },
+          { name: 'notes', type: 'text', label: 'Notes' },
+          { name: 'next_due', required: true, label: 'Next Test Due' }
+        ] },
+      { title: 'Reviewer (system)',
+        fields: [{ name: 'documented_by', readonly: true, label: 'Documented By' }] }
+    ]
+  },
+
+  /* FR-AIM-008 / BRU-AIM-19: production performance against its floor. */
+  'M26-form-performance': {
+    kind: 'model_form',
+    model: 'fix.ml.performance.observation',
+    title: 'Performance Observation',
+    newLabel: 'Record Performance Observation',
+    back: 'M26-performance',
+    status: { field: 'action_taken', labels: { none: 'Within floor', demoted: 'Demoted', escalated: 'Escalated' } },
+    sections: [
+      { title: 'Measured Performance', note: 'On labelled outcomes for a serving version. Crossing the floor demotes the version and restores the prior champion, with no human choosing; with no prior champion it keeps serving and the breach is escalated (a model problem never blocks the business). An observation is evidence: it cannot be edited.',
+        fields: [
+          { name: 'version_id', required: true, label: 'Deployed Version', domain: [['state', '=', 'deployed']] },
+          { name: 'period_start', required: true, label: 'Period From' },
+          { name: 'period_end', required: true, label: 'Period To' },
+          { name: 'metric_name', required: true, label: 'Metric' },
+          { name: 'value', required: true, label: 'Measured Value' },
+          { name: 'target', required: true, label: 'Target' },
+          { name: 'floor', required: true, label: 'Floor (demotion line)' },
+          { name: 'higher_is_better', label: 'Higher is better (off for MAPE / MAE)' },
+          { name: 'labelled_sample_size', required: true, label: 'Labelled Sample Size' },
+          { name: 'note', label: 'Note' }
+        ] },
+      { title: 'Result (system)',
+        fields: [
+          { name: 'breached', readonly: true, label: 'Floor Breached' },
+          { name: 'action_taken', readonly: true, label: 'Action Taken' },
+          { name: 'recorded_by', readonly: true, label: 'Recorded By' }
+        ] }
+    ]
+  },
+
   'M26-form-inference': {
     kind: 'model_form',
     model: 'fix.ml.inference.run',
@@ -487,7 +646,11 @@ export const FORM_MODELS = {
   'M26:Model Card': 'fix.ml.model.version',
   'M26:Record Human Decision': 'fix.ml.inference.run',
   'M26:Classify Fault Text': 'fix.ml.inference.run',
-  'M26:Run ML Model Inference': 'fix.ml.inference.run'
+  'M26:Run ML Model Inference': 'fix.ml.inference.run',
+  'M26:Training Run': 'fix.ml.training.run',
+  'M26:Data-Sufficiency Gate': 'fix.ml.data.sufficiency',
+  'M26:Bias Test': 'fix.ml.bias.test',
+  'M26:Performance Observation': 'fix.ml.performance.observation'
 };
 
 export const FORM_CHIPS = {
@@ -502,6 +665,10 @@ export const FORM_CHIPS = {
   'M26:Record Human Decision': 'M26-form-decision',
   'M26:Classify Fault Text': 'M26-form-nlp',
   'M26:Run ML Model Inference': 'M26-form-inference',
+  'M26:Training Run': 'M26-form-training',
+  'M26:Data-Sufficiency Gate': 'M26-form-sufficiency',
+  'M26:Bias Test': 'M26-form-bias',
+  'M26:Performance Observation': 'M26-form-performance',
   'M26:__by_model__': {
     'fix.ml.model': 'M26-form-model',
     'fix.ml.model.version': 'M26-form-version',
@@ -510,7 +677,11 @@ export const FORM_CHIPS = {
     'fix.ml.inference.run': 'M26-form-inference',
     'fix.ml.ai.risk': 'M26-form-risk',
     'fix.ml.drift.observation': 'M26-form-drift',
-    'fix.ml.fallback.test': 'M26-form-fallback'
+    'fix.ml.fallback.test': 'M26-form-fallback',
+    'fix.ml.training.run': 'M26-form-training',
+    'fix.ml.data.sufficiency': 'M26-form-sufficiency',
+    'fix.ml.bias.test': 'M26-form-bias',
+    'fix.ml.performance.observation': 'M26-form-performance'
   },
   'M26:__by_screen__': {
     'M26-models': 'M26-form-model',
@@ -521,7 +692,11 @@ export const FORM_CHIPS = {
     'M26-risks': 'M26-form-risk',
     'M26-drift-log': 'M26-form-drift',
     'M26-fallback-tests': 'M26-form-fallback',
-    'M26-runs': 'M26-form-inference'
+    'M26-runs': 'M26-form-inference',
+    'M26-training': 'M26-form-training',
+    'M26-sufficiency': 'M26-form-sufficiency',
+    'M26-bias-tests': 'M26-form-bias',
+    'M26-performance': 'M26-form-performance'
   }
 };
 

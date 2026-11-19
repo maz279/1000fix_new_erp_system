@@ -22,6 +22,14 @@ PEOPLE_AFFECTING_KINDS = {"dispatch_scoring", "lead_scoring"}
 
 MODEL_OWNER_GROUP = "cd_ml_services.group_ml_model_owner"
 
+
+def _bias_follows_test(env):
+    return env._(
+        "The bias status follows the recorded bias test (BRU-AIM-07): record a "
+        "Bias Test on Evaluation Gates - it is not typed on the version."
+    )
+
+
 # ---- guard-rail rule syntax (shared with the inference path) --------------
 #
 # A rail is `<key> <op> <number>` — e.g. 'score >= 40', 'confidence < 0.60'.
@@ -75,10 +83,20 @@ class FixMlModelVersion(models.Model):
     metrics_json = fields.Text(
         string="Metrics (JSON)", help="Measured metrics keyed in from the evaluation run."
     )
+    # Capture audit pass 2 (2026-11-19): the bias status FOLLOWS the newest
+    # bias test (fix.ml.bias.test) - it used to be typed on the version by the
+    # person who registered it.
     bias_status = fields.Selection(
         [("untested", "Untested"), ("passed", "Passed"), ("failed", "Failed")],
         required=True,
         default="untested",
+    )
+    training_run_id = fields.Many2one(
+        "fix.ml.training.run",
+        string="Training Run",
+        ondelete="restrict",
+        index=True,
+        help="The reproducible run that produced this version (FR-AIM-004 lineage).",
     )
     bias_notes = fields.Text()
     drift_score = fields.Float(help="Observed drift score (0..1) from the monitoring run.")
@@ -99,6 +117,7 @@ class FixMlModelVersion(models.Model):
             ("evaluated", "Evaluated"),
             ("approved", "Approved"),
             ("deployed", "Deployed"),
+            ("demoted", "Auto-Demoted"),
             ("retired", "Retired"),
         ],
         required=True,
@@ -108,10 +127,32 @@ class FixMlModelVersion(models.Model):
     )
     approved_by = fields.Many2one("res.users", readonly=True, copy=False)
     deployed_at = fields.Datetime(readonly=True, copy=False)
+    demoted_at = fields.Datetime(readonly=True, copy=False)
+    demotion_reason = fields.Char(readonly=True, copy=False)
     gate_ids = fields.One2many("fix.ml.evaluation.gate", "version_id", string="Evaluation Gates")
     drift_observation_ids = fields.One2many(
         "fix.ml.drift.observation", "version_id", string="Drift Observations"
     )
+    bias_test_ids = fields.One2many("fix.ml.bias.test", "version_id", string="Bias Tests")
+    performance_ids = fields.One2many(
+        "fix.ml.performance.observation", "version_id", string="Production Performance"
+    )
+
+    @api.constrains("training_run_id", "model_id")
+    def _check_training_run(self):
+        for rec in self:
+            run = rec.training_run_id
+            if not run:
+                continue
+            if run.model_id != rec.model_id:
+                raise ValidationError(
+                    _("Training run %s trained model %s, not %s.")
+                    % (run.display_name, run.model_id.code, rec.model_id.code)
+                )
+            if run.outcome != "succeeded":
+                raise ValidationError(
+                    _("Training run %s did not succeed: it produced no version.") % run.display_name
+                )
 
     def _sync_drift_score(self):
         """drift_score = the highest PSI observed on the version's newest
@@ -140,7 +181,8 @@ class FixMlModelVersion(models.Model):
         # the engine (or the superuser seeding baselines).
         for vals in vals_list:
             if not self.env.su and any(
-                vals.get(k) for k in ("state", "approved_by", "deployed_at")
+                vals.get(k)
+                for k in ("state", "approved_by", "deployed_at", "demoted_at", "demotion_reason")
             ):
                 raise UserError(
                     _(
@@ -149,11 +191,19 @@ class FixMlModelVersion(models.Model):
                         "state, approver and deploy date are not typeable."
                     )
                 )
+            if not self.env.su and vals.get("bias_status", "untested") not in (
+                False,
+                "untested",
+            ):
+                raise UserError(_bias_follows_test(self.env))
         return super().create(vals_list)
 
     def write(self, vals):
         engine = self.env.su or self.env.context.get("ml_promotion_engine")
-        if not engine and any(k in vals for k in ("state", "approved_by", "deployed_at")):
+        if not engine and any(
+            k in vals
+            for k in ("state", "approved_by", "deployed_at", "demoted_at", "demotion_reason")
+        ):
             raise UserError(
                 _(
                     "A model version changes state only through its lifecycle "
@@ -161,6 +211,12 @@ class FixMlModelVersion(models.Model):
                     "editing the field (M26)."
                 )
             )
+        if (
+            not self.env.su
+            and "bias_status" in vals
+            and any(rec.bias_status != vals["bias_status"] for rec in self)
+        ):
+            raise UserError(_bias_follows_test(self.env))
         return super().write(vals)
 
     # ---- the registrant / reviewer contract ---------------------------------
@@ -243,6 +299,33 @@ class FixMlModelVersion(models.Model):
                 )
                 % self.display_name
             )
+        # BRU-AIM-12 (capture audit pass 2): the newest data-sufficiency gate
+        # of the model must read 'met'. None recorded fails closed, as gates do.
+        sufficiency = (
+            self.env["fix.ml.data.sufficiency"]
+            .sudo()
+            .search(
+                [("model_id", "=", self.model_id.id)], order="evaluated_at desc, id desc", limit=1
+            )
+        )
+        if not sufficiency:
+            raise UserError(
+                _(
+                    "Model %s has no data-sufficiency gate - promotion fails "
+                    "closed until the training data is measured against the "
+                    "model's declared minimum history and volume (BRU-AIM-12)."
+                )
+                % self.model_id.code
+            )
+        if sufficiency.result != "met":
+            raise UserError(
+                _(
+                    "Model %s is deferred: its newest data-sufficiency gate "
+                    "found the prerequisite unmet (revisit %s). A model cannot "
+                    "be promoted on insufficient data (BRU-AIM-12)."
+                )
+                % (self.model_id.code, sufficiency.deferred_until or "-")
+            )
         if self.model_id.kind in PEOPLE_AFFECTING_KINDS and self.bias_status != "passed":
             raise UserError(
                 _(
@@ -305,16 +388,34 @@ class FixMlModelVersion(models.Model):
             )
         return True
 
-    def action_retire(self):
-        """Deployed -> retired: a Model Owner's act, never a field edit."""
+    def action_retire(self, confirmation=None):
+        """Deployed (or auto-demoted) -> retired: a Model Owner's act, never a
+        field edit. FR-AIM-010 / AUT-AIM-22: retirement is blocked without the
+        consumers' confirmation that the fallback is now the standing path -
+        the confirmation is recorded on the version."""
         for rec in self:
-            if rec.state != "deployed":
+            if rec.state not in ("deployed", "demoted"):
                 raise UserError(
-                    _("Only a deployed version can be retired (current: %s).") % rec.state
+                    _("Only a deployed or demoted version can be retired (current: %s).")
+                    % rec.state
                 )
             if not (self.env.su or self.env.user.has_group(MODEL_OWNER_GROUP)):
                 raise UserError(_("Retiring a deployed version is a Model Owner act (M26)."))
+            if not self.env.su and not (confirmation or "").strip():
+                raise UserError(
+                    _(
+                        "Record the consumers' confirmation before retiring %s: who "
+                        "confirmed that the fallback (%s) is now the standing path "
+                        "(FR-AIM-010)."
+                    )
+                    % (rec.display_name, rec.model_id.fallback_definition or "not declared")
+                )
             rec.with_context(ml_promotion_engine=True).write({"state": "retired"})
+            if (confirmation or "").strip():
+                rec.message_post(
+                    body=_("Retired by %s. Consumer confirmation: %s")
+                    % (self.env.user.name, confirmation.strip())
+                )
         return True
 
     def _approval_on_rejected(self, comment):

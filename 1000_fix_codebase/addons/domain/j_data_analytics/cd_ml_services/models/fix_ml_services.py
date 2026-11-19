@@ -167,6 +167,16 @@ class FixMlModel(models.Model):
     )
     owner_id = fields.Many2one("res.users", string="Model Owner", index=True)
     review_date = fields.Date(help="Next governance review (BRU-AIM-26: at least annually).")
+    # The data-sufficiency prerequisite (FR-AIM-006, lifecycle §8.1): what the
+    # training data must hold before the model may be trained or promoted.
+    min_history_months = fields.Integer(
+        string="Minimum History (months)",
+        help="The months of history the training data must cover (BRU-AIM-12).",
+    )
+    min_volume = fields.Integer(
+        string="Minimum Volume (labelled records)",
+        help="The labelled records the training data must hold (BRU-AIM-12).",
+    )
     weights_json = fields.Text(
         string="Factor Weights (JSON)",
         help="For an explainable factor engine: the weight vector, as governed "
@@ -397,6 +407,22 @@ class FixMlInferenceRun(models.Model):
                     )
                     % ", ".join(sorted(off_limits))
                 )
+            # BRU-AIM-05 (H, capture audit pass 2): every human override is
+            # captured WITH its reason - checked before anything is written.
+            for rec in self:
+                final = (vals.get("final_value", rec.final_value) or "").strip()
+                reason = (vals.get("override_reason", rec.override_reason) or "").strip()
+                suggested = (rec.suggested_value or "").strip()
+                if final and suggested and final != suggested and not reason:
+                    raise UserError(
+                        _(
+                            "Your decision (%s) differs from the engine's "
+                            "suggestion (%s): give the override reason - every "
+                            "override is captured with its reason and fed back "
+                            "into training (BRU-AIM-05)."
+                        )
+                        % (final, suggested)
+                    )
         return super().write(vals)
 
     def unlink(self):

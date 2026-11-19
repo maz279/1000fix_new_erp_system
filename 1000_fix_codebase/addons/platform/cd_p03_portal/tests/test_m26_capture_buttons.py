@@ -74,12 +74,15 @@ console.log(JSON.stringify({ subs,
 # then every other record the page covers, by its form screen.
 CAPTURES = {
     "1": ["M26-form-model", "M26-form-risk", "M26-form-guardrail"],
-    "2": ["M26-form-version"],
-    "3": ["M26-form-gate"],
-    "4": ["M26-form-drift", "M26-form-fallback"],
+    # second pass (2026-11-19, test_m26_capture_pass2.py): the training run,
+    # the data-sufficiency gate, the bias test, production performance and
+    # the confirmed fault on the NLP page
+    "2": ["M26-form-training", "M26-form-version"],
+    "3": ["M26-form-gate", "M26-form-sufficiency", "M26-form-bias"],
+    "4": ["M26-form-drift", "M26-form-performance", "M26-form-fallback"],
     "5": ["M26-form-card", "M26-form-decision"],
     "6": ["M26-form-risk"],
-    "7": ["M26-form-nlp", "M26-form-inference"],
+    "7": ["M26-form-nlp", "M26-form-decision", "M26-form-inference"],
 }
 
 

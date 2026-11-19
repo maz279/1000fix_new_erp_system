@@ -60,9 +60,23 @@ def _model(env, kind="lead_scoring", **extra):
         "implementation": "rule_based",
         "status": "production",
         "owning_module": "cd_ml_services (test)",
+        # the declared data-sufficiency bar (capture audit pass 2)
+        "min_history_months": 6,
+        "min_volume": 500,
     }
     vals.update(extra)
-    return env["fix.ml.model"].create(vals)
+    model = env["fix.ml.model"].create(vals)
+    # BRU-AIM-12: promotion needs the newest data-sufficiency gate 'met'
+    # (test_m26_capture_pass2.py proves the refusals)
+    env["fix.ml.data.sufficiency"].create(
+        {
+            "model_id": model.id,
+            "observed_history_months": 12,
+            "observed_volume": 5000,
+            "source_modules": "probe history",
+        }
+    )
+    return model
 
 
 def _version(env, model, user=None, **extra):
@@ -74,8 +88,15 @@ def _version(env, model, user=None, **extra):
         "bias_status": "passed",
     }
     vals.update(extra)
+    # Capture audit pass 2: the bias status follows the recorded bias test and
+    # is not typeable by the registrant; these fixtures seed the outcome a
+    # bias test would have set (test_m26_capture_pass2.py drives the test).
+    bias = vals.pop("bias_status")
     versions = env["fix.ml.model.version"]
-    return versions.with_user(user).create(vals) if user else versions.create(vals)
+    version = versions.with_user(user).create(vals) if user else versions.create(vals)
+    if bias != "untested":
+        version.sudo().write({"bias_status": bias})
+    return version
 
 
 def _gates(env, version, user, gates=ALL_GATES, result="passed"):
@@ -287,7 +308,10 @@ class TestPromotionThroughM63:
         )
         with pytest.raises(UserError, match="(?i)Model Owner act"):
             version.with_user(plain).action_retire()
-        version.with_user(owner).action_retire()
+        # FR-AIM-010: refused without the consumers' confirmation
+        with pytest.raises(UserError, match="(?i)consumers' confirmation"):
+            version.with_user(owner).action_retire()
+        version.with_user(owner).action_retire(confirmation="M07 confirmed the rule fallback")
         assert version.state == "retired"
         assert not model.serving_version_id, "a retired version must not serve"
 
@@ -345,7 +369,10 @@ class TestServingAndRuns:
         run.with_user(plain).write({"final_value": run.suggested_value, "override_reason": ""})
         run.invalidate_recordset()
         assert not run.overridden, "same value is not an override"
-        run.with_user(plain).write({"final_value": "77"})
+        # BRU-AIM-05: a different decision without a reason is refused
+        with pytest.raises(UserError, match="(?i)override reason"):
+            run.with_user(plain).write({"final_value": "77"})
+        run.with_user(plain).write({"final_value": "77", "override_reason": "customer asked"})
         run.invalidate_recordset()
         assert run.overridden, "a different decision is an override, derived not typed"
 

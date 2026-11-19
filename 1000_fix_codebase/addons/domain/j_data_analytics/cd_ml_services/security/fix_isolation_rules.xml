@@ -13,6 +13,16 @@
         <field name="model_id" ref="model_fix_ml_ai_risk"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_ml_bias_test_company" model="ir.rule">
+        <field name="name">fix.ml.bias.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_bias_test"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ml_data_sufficiency_company" model="ir.rule">
+        <field name="name">fix.ml.data.sufficiency: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_data_sufficiency"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_ml_drift_observation_company" model="ir.rule">
         <field name="name">fix.ml.drift.observation: allowed companies</field>
         <field name="model_id" ref="model_fix_ml_drift_observation"/>
@@ -46,6 +56,16 @@
     <record id="rule_fix_ml_model_version_company" model="ir.rule">
         <field name="name">fix.ml.model.version: allowed companies</field>
         <field name="model_id" ref="model_fix_ml_model_version"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ml_performance_observation_company" model="ir.rule">
+        <field name="name">fix.ml.performance.observation: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_performance_observation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ml_training_run_company" model="ir.rule">
+        <field name="name">fix.ml.training.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_training_run"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_ml_weights_revision_company" model="ir.rule">

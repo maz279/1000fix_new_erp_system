@@ -44,6 +44,8 @@ SURFACES = {
             "risk_class",
             "owner_id",
             "review_date",
+            "min_history_months",
+            "min_volume",
         },
     },
     "fix.ml.inference.run": {
@@ -81,8 +83,9 @@ SURFACES = {
             "version",
             "artifact_ref",
             "training_dataset",
+            "training_run_id",
             "metrics_json",
-            "bias_status",
+            # bias_status follows the bias test (capture audit pass 2)
             "bias_notes",
             "deployment_mode",
             "model_card",
@@ -148,6 +151,75 @@ SURFACES = {
             "state",
         },
     },
+    # Capture audit pass 2 (2026-11-19): the lifecycle evidence the Training
+    # Pipelines, Evaluation Gates and Deployment & Monitoring pages capture.
+    # Each is append-only; the stamps (trained_by, evaluated_by, documented_by,
+    # recorded_by) and derived results are never writable.
+    "fix.ml.training.run": {
+        "order": "ended_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "model_id",
+            "code_version",
+            "data_snapshot_ref",
+            "feature_versions",
+            "hyperparameters",
+            "environment_ref",
+            "started_at",
+            "ended_at",
+            "outcome",
+            "metrics_json",
+            "failure_note",
+            "m06_data_excluded",
+        },
+    },
+    "fix.ml.data.sufficiency": {
+        "order": "evaluated_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "model_id",
+            "observed_history_months",
+            "observed_volume",
+            "source_modules",
+            "deferred_until",
+            "prerequisite_note",
+            "evaluated_at",
+        },
+    },
+    "fix.ml.bias.test": {
+        "order": "tested_at desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "version_id",
+            "segments_tested",
+            "metric_by_segment",
+            "max_disparity",
+            "assessment",
+            "notes",
+            "tested_at",
+            "next_due",
+        },
+    },
+    "fix.ml.performance.observation": {
+        "order": "period_end desc, id desc",
+        "limit": 200,
+        "actions": set(),
+        "writable": {
+            "version_id",
+            "period_start",
+            "period_end",
+            "metric_name",
+            "value",
+            "target",
+            "floor",
+            "higher_is_better",
+            "labelled_sample_size",
+            "note",
+        },
+    },
 }
 
 
@@ -164,8 +236,23 @@ def model_accuracy_retraining(env, **params):
         all_runs = runs.search([("model_id", "=", model.id)])
         week_runs = all_runs.filtered(lambda r, wa=week_ago: r.ran_at and r.ran_at >= wa)
         latencies = [r.latency_ms for r in all_runs if r.latency_ms]
+        trainings = env["fix.ml.training.run"].search(
+            [("model_id", "=", model.id)], order="ended_at desc, id desc"
+        )
+        perf = env["fix.ml.performance.observation"].search(
+            [("model_id", "=", model.id)], order="period_end desc, id desc", limit=1
+        )
         rows.append(
             {
+                "training_runs": len(trainings),
+                "last_training": "%s (%s)"
+                % (trainings[0].ended_at.strftime("%d %b %Y"), trainings[0].outcome)
+                if trainings
+                else "never",
+                "last_performance": "%s %s (floor %s)%s"
+                % (perf.metric_name, perf.value, perf.floor, " BREACH" if perf.breached else "")
+                if perf
+                else "not measured",
                 "code": model.code,
                 "model": model.name,
                 "implementation": model.implementation,
@@ -187,6 +274,9 @@ def model_accuracy_retraining(env, **params):
             "runs_7d",
             "avg_latency_ms",
             "last_run",
+            "training_runs",
+            "last_training",
+            "last_performance",
         ],
         "labels": {
             "code": "Code",
@@ -197,6 +287,9 @@ def model_accuracy_retraining(env, **params):
             "runs_7d": "Runs (7d)",
             "avg_latency_ms": "Avg latency (ms)",
             "last_run": "Last run",
+            "training_runs": "Training runs",
+            "last_training": "Last training",
+            "last_performance": "Last production metric",
         },
         "rows": rows,
         "notes": [
@@ -436,7 +529,8 @@ def fairness_summary(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Bias status is recorded by the reviewer; 'untested' is shown as such, "
+            "Bias status follows the newest bias test, documented by someone who neither "
+            "registered the version nor owns the model; 'untested' is shown as such, "
             "never silently treated as passed."
         ],
         totals=totals if rows else None,

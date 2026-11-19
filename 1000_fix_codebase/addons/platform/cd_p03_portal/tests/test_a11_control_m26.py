@@ -153,6 +153,38 @@ def _version(c, **kw):
     return c.env["fix.ml.model.version"].create(vals)
 
 
+def _sufficient(c, model):
+    """M26 capture pass 2 (BRU-AIM-12): promotion needs the model's newest
+    data-sufficiency gate to read 'met' against its declared bar."""
+    model.write({"min_history_months": 6, "min_volume": 500})
+    c.env["fix.ml.data.sufficiency"].create(
+        {
+            "model_id": model.id,
+            "observed_history_months": 12,
+            "observed_volume": 5000,
+            "source_modules": "A11 probe history",
+        }
+    )
+
+
+def _bias_test(c, user, version, assessment):
+    """M26 capture pass 2 (BRU-AIM-07): the bias status follows a recorded
+    bias test by someone who neither registered the version nor owns the model."""
+    return (
+        c.env["fix.ml.bias.test"]
+        .with_user(user)
+        .create(
+            {
+                "version_id": version.id,
+                "segments_tested": "branch; tenure band",
+                "metric_by_segment": "AUC 0.71 / 0.70",
+                "assessment": assessment,
+                "next_due": "2099-01-01",
+            }
+        )
+    )
+
+
 def _ml_user(c, login, group_xmlid):
     """An M26 hat holder (G7): scientist registers, reviewer signs gates,
     owner decides promotions — none of them admin."""
@@ -226,9 +258,11 @@ def test_m26_v05_ref_four_eyes_on_promotion(c):
             "version": "7.0.0",
             "model_card": "probe card",
             "metrics_json": '{"latency_ms_p95": 42}',
-            "bias_status": "passed",
         }
     )
+    # the bias status follows the reviewer's recorded bias test (capture pass 2)
+    _bias_test(c, rev, v, "passed")
+    _sufficient(c, c.lead_model)
     # (a) the registrant never signs their own gates — even wearing both hats
     with pytest.raises(REFUSED, match="cannot record"):
         c.env["fix.ml.evaluation.gate"].with_user(sci).create(
@@ -513,7 +547,10 @@ def test_m26_r10_overridden_is_derived(c):
         r.with_user(c.clerk).write({"final_value": "DSP-01", "overridden": True})
     r.with_user(c.clerk).write({"final_value": "DSP-01"})
     assert not r.overridden, "final == suggested must read as NOT overridden"
-    r.with_user(c.clerk).write({"final_value": "OTHER-9"})
+    # BRU-AIM-05 (capture pass 2): an override carries its reason
+    with pytest.raises(REFUSED, match="override reason"):
+        r.with_user(c.clerk).write({"final_value": "OTHER-9"})
+    r.with_user(c.clerk).write({"final_value": "OTHER-9", "override_reason": "panel, not cable"})
     assert r.overridden, "final != suggested must read as overridden"
 
 
@@ -779,6 +816,7 @@ def test_m26_f01_fairness_check_is_enforced(c):
         )
     )
     assert v.bias_status == "untested", "a version is born with an HONEST bias status"
+    _sufficient(c, c.lead_model)
     for gate in ("accuracy", "bias", "explainability"):
         c.env["fix.ml.evaluation.gate"].with_user(rev).create(
             {"version_id": v.id, "gate": gate, "result": "passed"}
@@ -787,7 +825,10 @@ def test_m26_f01_fairness_check_is_enforced(c):
     with pytest.raises(REFUSED, match="PASSED bias review"):
         v.with_user(sci).action_request_promotion()
     # a FAILED bias review blocks every promotion outright
-    v.write({"bias_status": "failed"})
+    # (capture pass 2: the registrant cannot type it - a reviewer's test sets it)
+    with pytest.raises(REFUSED, match="follows the recorded bias test"):
+        v.with_user(sci).write({"bias_status": "failed"})
+    _bias_test(c, rev, v, "failed")
     with pytest.raises(REFUSED, match="failed its bias review"):
         v.with_user(sci).action_request_promotion()
     rows = m26().fairness_summary(c.env(user=c.clerk.id))["rows"]
