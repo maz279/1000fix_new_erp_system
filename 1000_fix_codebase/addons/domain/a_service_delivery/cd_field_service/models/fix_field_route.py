@@ -1,5 +1,6 @@
 # fix.field.route — Daily Technician Route & Itinerary Optimization (CD-M02-01)
 import itertools
+import json
 import math
 import os
 
@@ -14,7 +15,9 @@ from odoo.exceptions import UserError, ValidationError
 # the sequence change, not a factor. Tune per city if field telemetry says so.
 AVG_SPEED_KMH = 18.0  # Dhaka mixed-traffic planning speed
 SERVICE_MINUTES_PER_STOP = 25.0  # on-site service time per stop
-DEPOT_LATLON = (23.7776, 90.3959)  # Tejgaon Central Service Hub (default depot)
+# A02 ERP audit M02-F11: the depot was hard-coded to Tejgaon (23.7776, 90.3959)
+# whatever the route said. The route now starts from its OWN depot position;
+# none means no optimisation (distances are not invented from a guessed hub).
 EARTH_RADIUS_KM = 6371.0
 OSRM_TIMEOUT_SECONDS = 2.0
 
@@ -115,7 +118,15 @@ class FixFieldRoute(models.Model):
     # A02 audit M02-1: route_state (and the optimiser's measured result) moved
     # only through the route actions; a plain write set any of them.
     _GUARDED_FIELDS = frozenset(
-        {"route_state", "total_distance_km", "total_duration_hours", "baseline_duration_hours"}
+        {
+            "route_state",
+            "total_distance_km",
+            "total_duration_hours",
+            "baseline_duration_hours",
+            # A02 ERP audit M02-F11: the optimised visiting order
+            "stop_sequence_json",
+            "stop_plan",
+        }
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -195,8 +206,18 @@ class FixFieldRoute(models.Model):
 
     depot_location = fields.Char(
         string="Starting Depot / Hub",
-        default="Tejgaon Central Service Hub (Dhaka)",
+        help="The depot's name. Its position is the Depot Latitude / Longitude; a name "
+        "alone cannot be measured from.",
     )
+    depot_latitude = fields.Float(string="Depot Latitude", digits=(10, 7))
+    depot_longitude = fields.Float(string="Depot Longitude", digits=(10, 7))
+    stop_sequence_json = fields.Text(
+        string="Optimised Stop Order (JSON)",
+        readonly=True,
+        copy=False,
+        help="The field order ids in the order the optimiser visits them.",
+    )
+    stop_plan = fields.Text(string="Optimised Stop Order", readonly=True, copy=False)
 
     total_distance_km = fields.Float(
         string="Optimized Distance (km)",
@@ -293,6 +314,43 @@ class FixFieldRoute(models.Model):
                 vals["name_bn"] = vals["name"]
         return super().create(vals_list)
 
+    def write(self, vals):
+        # A02 ERP audit M02-F11: an optimised plan is for the stops and depot it
+        # was computed on. Changing either sends the route back to Draft with
+        # no plan, instead of showing a sequence that no longer fits.
+        replan = {"field_order_ids", "depot_latitude", "depot_longitude"} & set(vals)
+        stale = self.browse()
+        if replan:
+            stale = self.filtered(lambda r: r.route_state == "optimized" or r.stop_plan)
+            before = {
+                r.id: (set(r.field_order_ids.ids), r.depot_latitude, r.depot_longitude)
+                for r in stale
+            }
+        res = super().write(vals)
+        if replan:
+            changed = stale.filtered(
+                lambda r: before[r.id]
+                != (set(r.field_order_ids.ids), r.depot_latitude, r.depot_longitude)
+            )
+            for rec in changed:
+                vals_reset = {"stop_sequence_json": False, "stop_plan": False}
+                if rec.route_state == "optimized":
+                    vals_reset["route_state"] = "draft"
+                rec._guarded().write(vals_reset)
+        return res
+
+    def _fix_depot_point(self):
+        """The route's own depot position, or a refusal."""
+        self.ensure_one()
+        lat, lon = self.depot_latitude, self.depot_longitude
+        if not lat or not lon or abs(lat) > 90 or abs(lon) > 180:
+            raise UserError(
+                "Route %s has no depot position: give the Depot Latitude and Longitude of "
+                "where the technician starts (%s). Distances are not measured from a guessed hub."
+                % (self.name, self.depot_location or "no depot named")
+            )
+        return (lat, lon)
+
     def action_optimize_route(self):
         """Compute the route's travel metrics honestly (R01 re-audit fix).
 
@@ -311,7 +369,7 @@ class FixFieldRoute(models.Model):
                     "Cannot optimize: %d order(s) lack GPS coordinates. Geocode the service "
                     "addresses first - distances will not be invented." % len(missing)
                 )
-            points = [DEPOT_LATLON] + [(o.latitude, o.longitude) for o in orders]
+            points = [rec._fix_depot_point()] + [(o.latitude, o.longitude) for o in orders]
             matrix, engine = distance_matrix_km(points)
             baseline_seq = list(range(len(points)))
             opt_seq = optimise_sequence(matrix)
@@ -321,12 +379,28 @@ class FixFieldRoute(models.Model):
             base_hours = base_km / AVG_SPEED_KMH + len(orders) * SERVICE_MINUTES_PER_STOP / 60.0
             opt_hours = opt_km / AVG_SPEED_KMH + len(orders) * SERVICE_MINUTES_PER_STOP / 60.0
 
+            # A02 ERP audit M02-F11: the optimised order was computed and thrown
+            # away; it is now kept on the route (index 0 is the depot).
+            visit = [orders[i - 1] for i in opt_seq if i]
+            plan = [
+                "%d. %s (%.1f km from %s)"
+                % (
+                    n,
+                    order.name,
+                    matrix[prev][cur],
+                    "the depot" if prev == 0 else orders[prev - 1].name,
+                )
+                for n, (prev, cur) in enumerate(itertools.pairwise(opt_seq), start=1)
+                for order in [orders[cur - 1]]
+            ]
             rec._guarded().write(
                 {
                     "baseline_duration_hours": round(base_hours, 2),
                     "total_duration_hours": round(opt_hours, 2),
                     "total_distance_km": round(opt_km, 1),
                     "route_state": "optimized",
+                    "stop_sequence_json": json.dumps([o.id for o in visit]),
+                    "stop_plan": "\n".join(plan),
                 }
             )
             pct = round((base_hours - opt_hours) / base_hours * 100.0, 2) if base_hours > 0 else 0.0

@@ -150,12 +150,21 @@ export const SCREENS = {
      * the customer's sign-off, a post-work photo and the work summary (M02-2),
      * captured through the technician app's evidence channel. */
     actions: [
+      /* A02 ERP audit X-17: the field service report */
+      { m: 'p03_print_document', print: 'a4', l: 'Print Field Service Report' },
       { m: 'action_decline', l: 'Decline', ask: 'Reason for declining the job', kwarg: 'reason', states: ['dispatched'] },
       { m: 'action_arrive', l: 'Mark Arrival', ask: 'Your position: latitude, longitude (e.g. 23.8103, 90.4125)', kwarg: 'position', states: ['en_route'] },
       { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment', states: ['arrived', 'in_progress'] },
-      { m: 'action_handover_field_cash', l: 'Hand Over Cash', states: ['completed'] },
+      /* A02 ERP audit M02-F1: the technician declares the hand-over; a cashier
+       * of the service order's branch (not the technician, not the declarer)
+       * accepts it into that branch's open drawer. */
+      { m: 'action_handover_field_cash', l: 'Hand Over Cash (declare)', states: ['completed'] },
+      { m: 'action_accept_field_cash', l: 'Accept Field Cash (cashier)', states: ['completed'] },
       { m: 'action_reassign', l: 'Reassign (dispatcher)', ask: 'New technician employee id, then the reason', kwarg: 'reassignment', states: ['dispatched', 'accepted', 'en_route'] },
       { m: 'action_waive_geofence', l: 'Waive Geofence (dispatcher)', ask: 'Reason for waiving the arrival geofence', kwarg: 'reason', states: ['dispatched', 'accepted', 'en_route'] },
+      /* A02 ERP audit M02-F3: the fence, zone and service order are frozen once
+       * dispatched; only a dispatcher moves the arrival fence, with a reason. */
+      { m: 'action_set_geofence', l: 'Set Geofence (dispatcher)', ask: 'Geofence id (0 = the zone\'s fences), then the reason', kwarg: 'change', states: ['dispatched', 'accepted', 'en_route'] },
       { m: 'action_cancel', l: 'Cancel (dispatcher)', ask: 'Reason for the cancellation', kwarg: 'reason', states: ['draft', 'pending_dispatch', 'declined', 'dispatched', 'accepted', 'en_route', 'arrived', 'in_progress'] }
     ] },
   /* A decline is recorded by Decline on the field order (Work Order Record),
@@ -223,14 +232,15 @@ export const SCREENS = {
    * open branch shift after completion. The On-Site Payment page had only two
    * reports, so the buttons that write a collection were on no page of it. */
   'M02-collect': { kind: 'model_list', model: 'fix.field.order', create: false,
-    cols: ['name', 'order_id', 'technician_id', 'state', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'onsite_payment_state', 'cash_shift_id'],
+    cols: ['name', 'order_id', 'technician_id', 'state', 'onsite_collection_amount', 'onsite_payment_method', 'onsite_payment_trx_id', 'onsite_payment_state', 'cash_declared_by_id', 'cash_shift_id', 'cash_accepted_by_id'],
     domain: [['state', 'in', ['arrived', 'in_progress', 'completed']]],
     stateField: 'state',
     actions: [
       { m: 'action_record_collection', l: 'Record Collection', ask: 'Method amount [TrxID], e.g. bkash 1500 8N7A6B5C or cash 900', kwarg: 'payment', states: ['arrived', 'in_progress'] },
-      { m: 'action_handover_field_cash', l: 'Hand Over Cash', states: ['completed'] }
+      { m: 'action_handover_field_cash', l: 'Hand Over Cash (declare)', states: ['completed'] },
+      { m: 'action_accept_field_cash', l: 'Accept Field Cash (cashier)', states: ['completed'] }
     ],
-    empty: 'No field order is on site or completed. A collection is recorded while the technician is on site (arrived or working); cash is handed over to an open branch shift after completion.' },
+    empty: 'No field order is on site or completed. A collection is recorded while the technician is on site (arrived or working). After completion the technician declares the cash handed over, and a cashier of the service order\'s branch accepts it into that branch\'s open drawer.' },
   'M02-fieldpay': { kind: 'table_report', module: 'M02', report: 'field_payments', title: 'On-Site Payments', period: false },
   'M02-cashrec': { kind: 'table_report', module: 'M02', report: 'cash_recon', title: 'Daily Cash Reconciliation', period: false },
 
@@ -320,7 +330,7 @@ export const SCREENS = {
       {
         tab: 'dispatch',
         title: 'Service Order & Territory Classification',
-        note: 'Select originating customer service order, dispatch territory zone, and SLA priority level.',
+        note: 'Select originating customer service order, dispatch territory zone, and SLA priority level. Once the order is dispatched these three are frozen: a dispatcher moves the arrival fence with Set Geofence.',
         fields: [
           { name: 'name', label: 'Field Order Ref', readonly: true },
           { name: 'order_id', required: true, label: 'Customer Service Order' },
@@ -384,14 +394,17 @@ export const SCREENS = {
       {
         tab: 'settlement',
         title: 'On-Site Payment Collection & M04 Cash Handover (FLAW-02.3 / HS-08)',
-        note: 'Recorded with Record Collection on the Work Order Record screen. Cash waits for Hand Over Cash to a branch shift; the field order never marks the service order settled itself.',
+        note: 'Recorded with Record Collection on the Work Order Record screen. Cash is declared handed over by the technician and accepted into the branch drawer by a cashier of the service order\'s branch; the field order never marks the service order settled itself.',
         fields: [
           { name: 'onsite_collection_amount', label: 'On-Site Collection Amount (BDT)', readonly: true },
           { name: 'onsite_payment_method', label: 'On-Site Payment Channel', readonly: true },
           { name: 'onsite_payment_trx_id', label: 'MFS / POS Gateway TrxID', readonly: true },
           { name: 'onsite_payment_state', label: 'On-Site Payment Status', readonly: true },
-          { name: 'cash_shift_id', label: 'Handed Over to Branch Cash Shift (M04)', readonly: true },
-          { name: 'cash_handed_over_at', label: 'Cash Handover Timestamp', readonly: true }
+          { name: 'cash_declared_by_id', label: 'Hand-over Declared By', readonly: true },
+          { name: 'cash_declared_at', label: 'Hand-over Declared At', readonly: true },
+          { name: 'cash_shift_id', label: 'Accepted Into Branch Cash Shift (M04)', readonly: true },
+          { name: 'cash_accepted_by_id', label: 'Accepted By (Cashier)', readonly: true },
+          { name: 'cash_handed_over_at', label: 'Accepted Into Drawer At', readonly: true }
         ]
       },
       {
@@ -520,8 +533,8 @@ export const SCREENS = {
     back: 'M02-routes',
     status: { field: 'route_state' },
     tabs: [
-      { id: 'plan', label: '1. Route & Stops', bn: '১. রুট ও স্টপ', icon: '🗺️', badge: '6' },
-      { id: 'metrics', label: '2. Optimisation Metrics', bn: '২. অপ্টিমাইজেশন ফলাফল', icon: '📊', badge: '4' }
+      { id: 'plan', label: '1. Route & Stops', bn: '১. রুট ও স্টপ', icon: '🗺️', badge: '8' },
+      { id: 'metrics', label: '2. Optimisation Metrics', bn: '২. অপ্টিমাইজেশন ফলাফল', icon: '📊', badge: '5' }
     ],
     sections: [
       {
@@ -529,13 +542,16 @@ export const SCREENS = {
         title: 'Route Schedule, Technician & Stops',
         /* The stops were not on the form, and Optimise refuses a route of
          * fewer than two orders: a plan made here could never leave Draft. */
-        note: 'The reference is numbered on save. Add field orders as stops, the technician\'s own or ones not yet dispatched (two or more, each with a site position), then Optimise Route on the Route Optimisation list, Start it and Complete it there.',
+        note: 'The reference is numbered on save. Add field orders as stops, the technician\'s own or ones not yet dispatched (two or more, each with a site position), give the depot\'s position, then Optimise Route on the Route Optimisation list, Start it and Complete it there. Changing the stops or the depot clears the optimised order.',
         fields: [
           { name: 'name', label: 'Route Reference', readonly: true },
           { name: 'technician_id', required: true, label: 'Technician' },
           { name: 'date', required: true, label: 'Route Date' },
           { name: 'field_order_ids', label: 'Stops (field orders)', domain: [['state', 'in', ['draft', 'pending_dispatch', 'dispatched', 'accepted', 'en_route']]] },
           { name: 'depot_location', label: 'Starting Depot / Hub' },
+          /* A02 ERP audit M02-F11: the route starts from its own depot position */
+          { name: 'depot_latitude', label: 'Depot Latitude' },
+          { name: 'depot_longitude', label: 'Depot Longitude' },
           { name: 'notes', type: 'text', label: 'Route Notes' }
         ]
       },
@@ -547,7 +563,8 @@ export const SCREENS = {
           { name: 'order_count', label: 'Stops', readonly: true },
           { name: 'total_distance_km', label: 'Total Distance (km)', readonly: true },
           { name: 'total_duration_hours', label: 'Total Duration (h)', readonly: true },
-          { name: 'improvement_pct', label: 'Optimisation Gain %', readonly: true }
+          { name: 'improvement_pct', label: 'Optimisation Gain %', readonly: true },
+          { name: 'stop_plan', type: 'text', label: 'Optimised Stop Order', readonly: true }
         ]
       }
     ]

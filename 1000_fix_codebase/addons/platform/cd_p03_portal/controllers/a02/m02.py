@@ -9,7 +9,8 @@ import datetime
 import json
 import logging
 
-from odoo import http
+import pytz
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -41,6 +42,11 @@ SURFACES = {
             "action_record_collection",
             "action_complete",
             "action_handover_field_cash",
+            # A02 ERP audit M02-F1: a cashier of the order's branch accepts the
+            # declared cash into that branch's drawer (the method checks who)
+            "action_accept_field_cash",
+            # A02 ERP audit M02-F3: the dispatcher moves the arrival fence
+            "action_set_geofence",
             "action_cancel",
         },
     },
@@ -127,72 +133,94 @@ def _field(env):
     return env["fix.field.order"].sudo().with_context(lang="en_US")
 
 
+LOCAL_TZ = "Asia/Dhaka"
+
+
+def _dhaka_day_bounds(env, day=None):
+    """(day, start, end): the Dhaka business day as naive-UTC datetimes, the
+    frame the ORM stores. ``day`` defaults to today in Dhaka."""
+    tz = pytz.timezone(env.context.get("tz") or env.user.tz or LOCAL_TZ)
+    if day is None:
+        day = datetime.datetime.now(pytz.utc).astimezone(tz).date()
+    start = tz.localize(datetime.datetime.combine(day, datetime.time.min)).astimezone(pytz.utc)
+    end = start + datetime.timedelta(days=1)
+    return day, start.replace(tzinfo=None), end.replace(tzinfo=None)
+
+
 def kpis(env):
-    """The M02 module-tile KPI row — measured off the real field tables."""
+    """The M02 module-tile KPI row — measured off the real field tables.
+
+    A02 ERP audit M02-F21: the completed set was the first 500 rows in the
+    model's default order (priority, schedule), not the last week's; the
+    unassigned count included drafts nobody had submitted; an order with no
+    scheduled start counted as a late arrival; and "now" was the server's
+    local clock compared with UTC stamps."""
     FieldOrder = _field(env)
     company_domain = [("company_id", "in", env.companies.ids)]
-    now = datetime.datetime.now()
-
-    completed = FieldOrder.search(
-        [*company_domain, ("state", "=", "completed"), ("technician_id", "!=", False)], limit=500
-    )
-    by_tech = {}
-    for fo in completed:
-        by_tech.setdefault(fo.technician_id.id, []).append(fo)
-    # Jobs / Tech / Day: completed field jobs per active technician, last 7 days
+    now = fields.Datetime.now()
     week_ago = now - datetime.timedelta(days=7)
-    recent = [fo for fo in completed if fo.completed_at and fo.completed_at >= week_ago]
+
+    # Jobs / Tech / Day: completed field jobs per active technician, last 7 days
+    recent = FieldOrder.search(
+        [
+            *company_domain,
+            ("state", "=", "completed"),
+            ("technician_id", "!=", False),
+            ("completed_at", ">=", week_ago),
+        ]
+    )
     active_techs = len(
-        {
-            fo.technician_id.id
-            for fo in FieldOrder.search(
+        set(
+            FieldOrder.search(
                 [
                     *company_domain,
                     ("state", "in", _ACTIVE_FIELD_STATES),
                     ("technician_id", "!=", False),
                 ]
-            )
-        }
-    ) or len(by_tech or {1: []})
+            ).technician_id.ids
+        )
+        | set(recent.technician_id.ids)
+    )
     jobs_tech_day = round(len(recent) / max(active_techs, 1) / 7.0, 1) if recent else 0.0
 
-    on_time = FieldOrder.search_count(
-        [
-            *company_domain,
-            ("state", "not in", ("draft", "cancelled")),
-            ("on_time_arrival", "=", True),
-        ]
-    )
-    arrived = FieldOrder.search_count(
-        [
-            *company_domain,
-            ("state", "not in", ("draft", "cancelled")),
-            ("arrived_at", "!=", False),
-        ]
-    )
+    # on time = arrived at or before the scheduled start; only an order that
+    # HAD a scheduled start can be on time or late
+    measured = [
+        *company_domain,
+        ("state", "not in", ("draft", "cancelled")),
+        ("arrived_at", "!=", False),
+        ("scheduled_start", "!=", False),
+    ]
+    arrived = FieldOrder.search_count(measured)
+    on_time = FieldOrder.search_count([*measured, ("on_time_arrival", "=", True)])
 
-    travel_total = sum(
-        FieldOrder.search([*company_domain, ("actual_travel_minutes", ">", 0)], limit=500).mapped(
-            "actual_travel_minutes"
-        )
-    )
-    # travel share: travel vs (travel + on-site) where both measured — on-site
-    # minutes derive from started_work_at → completed_at per order
-    onsite = 0.0
-    for fo in FieldOrder.search([*company_domain, ("completed_at", "!=", False)], limit=500):
+    # travel share over the last week's completed jobs: travel vs (travel +
+    # on-site), on-site from started_work_at to completed_at
+    travel_total = onsite = 0.0
+    for fo in recent:
+        if fo.actual_travel_minutes > 0:
+            travel_total += fo.actual_travel_minutes
         if fo.started_work_at and fo.completed_at:
-            onsite += (fo.completed_at - fo.started_work_at).total_seconds() / 60.0
+            onsite += max(0.0, (fo.completed_at - fo.started_work_at).total_seconds() / 60.0)
     travel_share = (
         round(100.0 * travel_total / (travel_total + onsite), 1)
         if (travel_total + onsite)
         else None
     )
 
-    pending = FieldOrder.search(
-        [*company_domain, ("state", "in", ("draft", "pending_dispatch", "declined"))], limit=200
-    )
-    aged_15m = sum(
-        1 for fo in pending if fo.create_date and (now - fo.create_date).total_seconds() > 15 * 60
+    # waiting for a dispatcher for more than 15 minutes: submitted (or
+    # returned) to the queue, never a draft nobody has submitted
+    cutoff = now - datetime.timedelta(minutes=15)
+    aged_15m = FieldOrder.search_count(
+        [
+            *company_domain,
+            ("state", "in", ("pending_dispatch", "declined")),
+            "|",
+            ("dispatch_requested_at", "<", cutoff),
+            "&",
+            ("dispatch_requested_at", "=", False),
+            ("write_date", "<", cutoff),
+        ]
     )
 
     Ledger = env["fix.offline.idempotency.ledger"].sudo()
@@ -235,7 +263,11 @@ def _utilization_report(env, **params):
     ).mapped("technician_id")
     for tech in techs:
         orders = FieldOrder.search(
-            [("technician_id", "=", tech.id), ("state", "not in", ("draft", "cancelled"))]
+            [
+                ("company_id", "in", env.companies.ids),
+                ("technician_id", "=", tech.id),
+                ("state", "not in", ("draft", "cancelled")),
+            ]
         )
         travel = max(0.0, sum(orders.mapped("actual_travel_minutes")))
         onsite = 0.0
@@ -349,7 +381,9 @@ def _dispatch_performance_report(env, **params):
     zones = env["fix.zone"].sudo().search([])
     rows = []
     for zone in zones:
-        mine = FieldOrder.search([("zone_id", "=", zone.id)])
+        mine = FieldOrder.search(
+            [("company_id", "in", env.companies.ids), ("zone_id", "=", zone.id)]
+        )
         dispatched = mine.filtered(lambda o: o.dispatched_at)
         accepted = [o for o in dispatched if o.accepted_at]
         waits = [
@@ -417,10 +451,18 @@ def _zone_workload_report(env, **params):
     rows = []
     for zone in zones:
         open_jobs = FieldOrder.search_count(
-            [("zone_id", "=", zone.id), ("state", "in", _OPEN_FIELD_STATES)]
+            [
+                ("company_id", "in", env.companies.ids),
+                ("zone_id", "=", zone.id),
+                ("state", "in", _OPEN_FIELD_STATES),
+            ]
         )
         unassigned = FieldOrder.search_count(
-            [("zone_id", "=", zone.id), ("state", "in", ("draft", "pending_dispatch", "declined"))]
+            [
+                ("company_id", "in", env.companies.ids),
+                ("zone_id", "=", zone.id),
+                ("state", "in", ("draft", "pending_dispatch", "declined")),
+            ]
         )
         rows.append({"zone": zone.name, "open": open_jobs, "unassigned": unassigned})
     rows.sort(key=lambda r: -r["open"])
@@ -433,75 +475,91 @@ def _zone_workload_report(env, **params):
     }
 
 
-def _field_pay_report(env, **params):
-    """On-Site Payment Reconciliation — HONEST basis (forensic audit D-M02-1:
-    the previous implementation FABRICATED amounts, methods and transaction
-    ids from a row-id formula; it is rewritten to read only real records).
+def _period_domain(env, field, date_from=None, date_to=None):
+    """``field`` within the Dhaka days date_from..date_to (both optional)."""
+    domain = []
+    if date_from:
+        day = fields.Date.to_date(date_from)
+        domain.append((field, ">=", _dhaka_day_bounds(env, day)[1]))
+    if date_to:
+        day = fields.Date.to_date(date_to)
+        domain.append((field, "<", _dhaka_day_bounds(env, day)[2]))
+    return domain
 
-    Per completed field order: the service order, its customer, the ordered
-    value = the LATEST APPROVED estimate grand_total (the real, computed
-    amount due), the receipts actually recorded against that customer in
-    fix.ar.receipt, and a reconciliation status derived from those records.
-    A field order with no approved estimate is listed with no amount and the
-    status 'No approved estimate'; one whose customer has no receipt is
-    'Awaiting receipt'. Nothing is invented; the field-till/cash module
-    (M50) remains the settlement owner."""
+
+_PAY_STATUS = {
+    "pending_handover": "Cash still with the technician",
+    "pending_acceptance": "Cash declared, awaiting the branch cashier",
+    "pending_settlement": "Settlement not recorded on the service order",
+}
+
+
+def _field_pay_status(fo):
+    """The reconciliation status of one field order's own collection."""
+    if fo.onsite_payment_state == "settled":
+        order = fo.order_id
+        if order and order.settlement_verified:
+            return "Reconciled (verified by %s)" % (order.settlement_verified_by.name or "-")
+        return "Recorded on the service order, not yet verified"
+    if fo.onsite_payment_state in _PAY_STATUS:
+        return _PAY_STATUS[fo.onsite_payment_state]
+    if fo.onsite_payment_method == "corporate_credit":
+        return "Billed on corporate credit"
+    return "No on-site collection"
+
+
+def _field_pay_report(env, date_from=None, date_to=None, **params):
+    """On-Site Payment Reconciliation, from each completed field order's OWN
+    collection: what was collected, how, its TrxID or drawer, and where the
+    money stands.
+
+    A02 ERP audit M02-F14: the report took the customer's last five AR
+    receipts of ANY order and called the field order "Reconciled" when they
+    added up to its estimate, so a customer's earlier payments reconciled a
+    job whose cash never left the technician."""
     FieldOrder = _field(env)
     completed = FieldOrder.search(
-        [("company_id", "in", env.companies.ids), ("state", "=", "completed")],
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "=", "completed"),
+            *_period_domain(env, "completed_at", date_from, date_to),
+        ],
         order="completed_at desc, id desc",
-        limit=100,
+        limit=500,
     )
-    Estimate = env["fix.estimate"].sudo()
-    Receipt = env["fix.ar.receipt"].sudo()
+    methods = dict(FieldOrder._fields["onsite_payment_method"].selection)
     rows = []
     for fo in completed:
         order = fo.order_id
-        customer = order.customer_id if order else None
-        estimate = (
-            Estimate.search(
-                [("order_id", "=", order.id), ("state", "in", ("approved", "sent", "draft"))],
-                order="version desc, id desc",
-                limit=1,
+        if fo.onsite_payment_method == "cash":
+            reference = (
+                "Cash shift #%s" % fo.cash_shift_id.id if fo.cash_shift_id else "COD/%s" % fo.name
             )
-            if order
-            else Estimate.browse()
-        )
-        approved = estimate.filtered(lambda e: e.state == "approved")
-        the_estimate = approved or estimate
-        receipts = (
-            Receipt.search(
-                [("customer_id", "=", customer.id)], order="receipt_date desc, id desc", limit=5
-            )
-            if customer
-            else Receipt.browse()
-        )
-        if not the_estimate:
-            amount, status = None, "No estimate recorded"
-        elif the_estimate.state != "approved":
-            amount, status = float(the_estimate.grand_total or 0.0), "Estimate not approved"
-        elif not receipts:
-            amount, status = float(the_estimate.grand_total or 0.0), "Awaiting receipt"
         else:
-            paid = sum(receipts.mapped("amount"))
-            amount, status = (
-                float(the_estimate.grand_total or 0.0),
-                ("Reconciled" if paid >= float(the_estimate.grand_total or 0.0) else "Part-paid"),
-            )
+            reference = fo.onsite_payment_trx_id or "-"
         rows.append(
             {
                 "field_order": fo.name,
-                "service_order": order.name if order else "—",
-                "customer": customer.name if customer else "—",
-                "amount": amount,
-                "method": receipts[:1].method if receipts else "—",
-                "receipt": receipts[:1].name if receipts else "—",
-                "status": status,
+                "service_order": order.name if order else "-",
+                "customer": order.customer_id.name if order and order.customer_id else "-",
+                "amount": round(fo.onsite_collection_amount or 0.0, 2),
+                "method": methods.get(fo.onsite_payment_method, fo.onsite_payment_method or "-"),
+                "receipt": reference,
+                "status": _field_pay_status(fo),
                 "completed_at": str(fo.completed_at or "")[:16],
             }
         )
+    open_cash = round(
+        sum(
+            r["amount"]
+            for r, fo in zip(rows, completed, strict=True)
+            if fo.onsite_payment_state in ("pending_handover", "pending_acceptance")
+        ),
+        2,
+    )
     return {
-        "title": "On-Site Payment Reconciliation",
+        "title": "On-Site Payment Reconciliation - BDT %.2f of field cash not yet in a drawer"
+        % open_cash,
         "cols": [
             "field_order",
             "service_order",
@@ -516,18 +574,18 @@ def _field_pay_report(env, **params):
             "field_order": "Field Order",
             "service_order": "Service Order",
             "customer": "Customer",
-            "amount": "Amount Due (BDT)",
-            "method": "Receipt Method",
-            "receipt": "Receipt",
+            "amount": "Collected On Site (BDT)",
+            "method": "Channel",
+            "receipt": "TrxID / Drawer",
             "status": "Reconciliation",
             "completed_at": "Completed At",
         },
         "rows": rows,
         "notes": [
-            "The amount due is the total of the service order's latest approved estimate.",
-            "Receipts are those recorded in Accounts Receivable (M20). Settling the field "
-            "cash till and matching bank deposits is done in Treasury (M50); no amounts are "
-            "estimated here.",
+            "Each row is the field order's own collection. Cash is reconciled when a cashier "
+            "of the service order's branch has accepted it into that branch's drawer and the "
+            "service order's settlement is verified; an MFS collection when its TrxID is "
+            "verified on the service order.",
         ],
         "empty": "No completed field orders in scope.",
     }
@@ -544,6 +602,7 @@ def _travel_time_report(env, **params):
     for tech in techs:
         jobs = FieldOrder.search(
             [
+                ("company_id", "in", env.companies.ids),
                 ("technician_id", "=", tech.id),
                 ("state", "=", "completed"),
             ]
@@ -593,7 +652,7 @@ def _jobs_per_technician_report(env, **params):
     ).mapped("technician_id")
     rows = []
     for tech in techs:
-        base = [("technician_id", "=", tech.id)]
+        base = [("company_id", "in", env.companies.ids), ("technician_id", "=", tech.id)]
         done = FieldOrder.search_count([*base, ("state", "=", "completed")])
         open_jobs = FieldOrder.search_count([*base, ("state", "in", _OPEN_FIELD_STATES)])
         if not (done or open_jobs):
@@ -633,7 +692,7 @@ def _field_exceptions_report(env, **params):
     (with their coded reasons) and cancelled field orders."""
     FieldOrder = _field(env)
     Decline = env["fix.field.decline.log"].sudo()
-    declines = Decline.search([], order="id desc", limit=200)
+    declines = Decline.search([("company_id", "in", env.companies.ids)], order="id desc", limit=200)
     declining = {}
     for log in declines:
         reason = log.field_order_id.decline_reason or "other"
@@ -668,18 +727,22 @@ def _van_stock_report(env, **params):
     it. Where no count has been taken yet the pack says so instead of presenting
     consumption as if it were a variance."""
     Recon = env["fix.stock.van.recon"].sudo()
-    Part = env["fix.work.order.part"].sudo()
+    # A02 ERP audit M02-F14: the parts used on VAN jobs are the field order's
+    # own fitted lines (fix.field.order.part), counted against the van they
+    # were issued from. It read the bench's fix.work.order.part, which never
+    # leaves a van.
+    Part = env["fix.field.order.part"].sudo()
+    company = [("company_id", "in", env.companies.ids)]
     cons = {}
-    for line in Part.search([], order="id desc", limit=300):
-        tech = line.work_order_id.technician_id if line.work_order_id else None
-        key = tech.id if tech else 0
+    for line in Part.search([*company, ("state", "=", "consumed")]):
+        van = line.van_location_id or line.field_order_id.van_location_id
+        key = van.id if van else 0
         row = cons.setdefault(key, {"qty": 0.0, "value": 0.0})
         row["qty"] += line.quantity or 0.0
-        row["value"] += (line.quantity or 0.0) * (line.unit_cost or 0.0)
+        row["value"] += line.subtotal or 0.0
     rows = []
-    for rec in Recon.search([], order="recon_date desc, id desc", limit=300):
-        tech_id = rec.technician_id.id if rec.technician_id else 0
-        used = cons.get(tech_id, {"qty": 0.0, "value": 0.0})
+    for rec in Recon.search(company, order="recon_date desc, id desc", limit=300):
+        used = cons.get(rec.location_id.id, {"qty": 0.0, "value": 0.0})
         rows.append(
             {
                 "recon": rec.name,
@@ -741,8 +804,8 @@ def _van_stock_report(env, **params):
         "totals": {"recon": "Net", "variance": total_var},
         "notes": [
             "Variance is the counted quantity less the expected quantity on each van count. "
-            "Parts used are the parts the same technician fitted on field jobs; they show "
-            "use, not loss."
+            "Parts used are the parts fitted on field jobs from the same van (the field "
+            "order's own part lines); they show use, not loss."
         ],
         "empty": "No van stock count recorded.",
     }
@@ -811,20 +874,21 @@ def _day_queue_report(env, **_params):
     """Day / Job Queue Preview — today's field orders by technician, in
     scheduled order (the P02 app's day view, server-side)."""
     FieldOrder = _field(env)
-    today = datetime.date.today()
-    start = datetime.datetime.combine(today, datetime.time.min)
-    end = datetime.datetime.combine(today, datetime.time.max)
+    # A02 ERP audit M02-F21: the server's date and naive midnights, not the
+    # Dhaka day (a 05:00 Dhaka visit fell on the previous UTC day)
+    today, start, end = _dhaka_day_bounds(env)
+    tz = pytz.timezone(env.context.get("tz") or env.user.tz or LOCAL_TZ)
     orders = FieldOrder.search(
         [
             ("company_id", "in", env.companies.ids),
             ("scheduled_start", ">=", start),
-            ("scheduled_start", "<=", end),
+            ("scheduled_start", "<", end),
         ],
         order="technician_id, scheduled_start, id",
     )
     rows = [
         {
-            "scheduled": str(o.scheduled_start)[11:16],
+            "scheduled": pytz.utc.localize(o.scheduled_start).astimezone(tz).strftime("%H:%M"),
             "technician": o.technician_id.name or "Unassigned",
             "field_order": o.name,
             "service_order": o.order_id.name if o.order_id else "—",

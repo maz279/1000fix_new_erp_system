@@ -148,10 +148,21 @@ def refused(env, fn):
 
 
 def walk_to_in_progress(rec, user):
+    # A02 ERP audit M02-F3: an arrival is tested against a fence; with none
+    # it needs a dispatcher's waiver. The walk arrives inside a zone fence.
+    if not rec._fix_arrival_fences():
+        rec.env["fix.geofence"].create(
+            {
+                "name": "walk fence",
+                "geofence_type": "circle",
+                "zone_id": rec.zone_id.id,
+                "geometry_json": json.dumps({"lat": 23.8, "lng": 90.4, "radius_m": 300}),
+            }
+        )
     r = rec.with_user(user)
     r.action_accept()
     r.action_start_travel()
-    r.action_arrive()
+    r.action_arrive(position="23.8, 90.4")
     r.action_start_work()
 
 
@@ -336,9 +347,10 @@ def test_mock_location_flag_cannot_be_cleared_by_the_technician(w, monkeypatch):
     w.env.invalidate_all()
     assert res_w.get("error") and not res_a.get("success")
     assert rec.state == "en_route" and rec.is_mock_location
-    # without the flag the same technician checks in
+    # without the flag the same technician checks in (inside the zone fence)
     clean = w.fo("en_route", w.ea)
-    clean.with_user(w.ua).action_arrive()
+    _fence(w)
+    clean.with_user(w.ua).action_arrive(position="23.8, 90.4")
     assert clean.state == "arrived"
 
 
@@ -674,22 +686,33 @@ def test_field_cash_waits_for_its_hand_over_before_any_settlement(w):
         rec = _complete_with(w, so, "cash 3000")
         assert rec.onsite_payment_state == "pending_handover" and not calls
         assert so.payment_settlement_state != "settled"
-        # a drawer already being counted takes no cash (M04's _post_field_cash)
-        counted = _open_shift(w)
-        counted._guarded().write({"state": "counting"})
-        assert refused(w.env, lambda: rec.with_user(w.ua).action_handover_field_cash(counted.id))
-        assert not counted.field_cash_deposited and rec.onsite_payment_state == "pending_handover"
-        counted._guarded().write({"state": "closed"})  # one live shift per branch (M04)
+        # A02 ERP audit M02-F1: the technician DECLARES (B, not assigned, cannot);
+        # the order's settlement is recorded (unverified) and no drawer moves
         shift = _open_shift(w)
-        before = shift.field_cash_deposited
-        assert refused(w.env, lambda: rec.with_user(w.ub).action_handover_field_cash(shift.id))
-        rec.with_user(w.ua).action_handover_field_cash(shift.id)
-        assert shift.field_cash_deposited == before + 3000.0
-        assert (rec.cash_shift_id, rec.onsite_payment_state) == (shift, "settled")
+        assert refused(w.env, lambda: rec.with_user(w.ub).action_handover_field_cash())
+        rec.with_user(w.ua).action_handover_field_cash()
         assert calls == [(3000.0, "COD/%s" % rec.name, "field_collection")]
-        # handed over once only
-        assert refused(w.env, lambda: rec.with_user(w.ua).action_handover_field_cash(shift.id))
-    assert shift.field_cash_deposited == before + 3000.0
+        assert rec.onsite_payment_state == "pending_acceptance" and not rec.cash_shift_id
+        assert not shift.field_cash_deposited
+        # declared once only
+        assert refused(w.env, lambda: rec.with_user(w.ua).action_handover_field_cash())
+        # a drawer already being counted takes no cash (M04's _post_field_cash):
+        # the cashier's acceptance is refused and nothing moves
+        shift._guarded().write({"state": "counting"})
+        cashier = w.env["res.users"].with_context(no_reset_password=True).create(
+            {
+                "name": "p0m02_cashier",
+                "login": "p0m02_cashier",
+                "group_ids": [
+                    (6, 0, [w.env.ref("base.group_user").id,
+                            w.env.ref("cd_front_desk.group_fd_cashier").id])
+                ],
+                "company_id": w.co.id,
+                "company_ids": [(6, 0, [w.co.id])],
+            }
+        )  # fmt: skip
+        assert refused(w.env, lambda: rec.with_user(cashier).action_accept_field_cash())
+        assert not shift.field_cash_deposited and rec.onsite_payment_state == "pending_acceptance"
 
 
 # =================================================== geofence (M02-8)

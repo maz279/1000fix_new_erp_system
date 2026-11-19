@@ -130,7 +130,9 @@ def test_lifecycle_emits_dispatch_accept_events(fs):
     assert (order.state, order.technician_id, order.van_location_id) == ("dispatched", fs.tech, van)
     order.action_accept()
     order.action_start_travel()
-    order.action_arrive()
+    # A02 ERP audit M02-F3: the arrival is tested against the zone's fence
+    _fence(fs, {"lat": 23.8, "lng": 90.4, "radius_m": 500})
+    order.action_arrive(current_lat=23.8, current_lon=90.4)
     order.action_start_work()
     _give_completion_evidence(order)
     order.action_complete()
@@ -275,7 +277,15 @@ def test_haversine_distance():
 def test_route_optimisation_and_lifecycle(fs):
     env = fs.env
     route_model = env["fix.field.route"]
-    route = route_model.create({"technician_id": fs.tech.id, "operating_unit_id": fs.ou.id})
+    # A02 ERP audit M02-F11: the route starts from its own depot (Tejgaon here)
+    route = route_model.create(
+        {
+            "technician_id": fs.tech.id,
+            "operating_unit_id": fs.ou.id,
+            "depot_latitude": 23.7776,
+            "depot_longitude": 90.3959,
+        }
+    )
     assert route.name.startswith("RO/") and route.name_bn == route.name
     assert (route.order_count, route.improvement_pct) == (0, 0.0)
     with _refused(env, UserError, "at least 2 field orders"):

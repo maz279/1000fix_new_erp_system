@@ -70,10 +70,11 @@ class FixServiceOrderFieldBridge(models.Model):
                         "urgent": "3",
                         "emergency": "3",
                     }.get(order.priority or "normal", "1"),
-                    "scheduled_start": (
-                        order.sla_resolution_deadline and order.sla_resolution_deadline
-                    )
-                    or fields.Datetime.now(),
+                    # A02 ERP audit M02-F18: the visit was scheduled AT the SLA
+                    # deadline (or "now"), so every job looked due at its
+                    # breach. The appointment is the dispatcher's to agree with
+                    # the customer; until then the order is unscheduled.
+                    "scheduled_start": False,
                     "sla_deadline": order.sla_resolution_deadline,
                     "customer_address": address or None,
                     "notes": order.fault_description or None,

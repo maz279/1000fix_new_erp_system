@@ -1,6 +1,6 @@
 {
     "name": "1000FiX Field Service, Dispatch & Geospatial Platform",
-    "version": "19.0.2.1.0",
+    "version": "19.0.2.1.1",
     "category": "Service Delivery",
     "summary": "AI dispatch board, route optimization, field order tracking, accept/decline flows and geofencing",
     "author": "1000FiX Services Ltd.",

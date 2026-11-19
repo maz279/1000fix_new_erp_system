@@ -32,7 +32,24 @@ ACCEPT_TIMEOUT_PARAM = "cd_field_service.acceptance_timeout_minutes"
 
 # quote-to-cash P2 (13 Nov 2026): Rocket and Upay, as on the M20 payment-method list
 MFS_METHODS = ("bkash", "nagad", "rocket", "upay", "sslcommerz")
+ARRIVAL_REQUIRES_FENCE_PARAM = "cd_field_service.arrival_requires_fence"
 OPEN_STATES = ("pending_dispatch", "dispatched", "accepted", "en_route", "arrived", "in_progress")
+
+# A02 ERP audit (19 Nov 2026) M02-F1/F20: field cash reaches a drawer in two
+# steps. The technician DECLARES the hand-over (no drawer movement); a cashier
+# of the service order's branch, who is neither the technician nor the
+# declarer, ACCEPTS it into that branch's open shift. Who may accept:
+FIELD_CASH_ACCEPTOR_GROUPS = (
+    "cd_front_desk.group_fd_cashier",
+    "cd_service_order.group_so_cashier",
+    "cd_front_desk.group_fd_branch_manager",
+)
+
+# A02 ERP audit M02-F3: what fixes where the job is and which service order it
+# serves. Once the order is in dispatch these change only through a
+# dispatcher's action (action_set_geofence); the service order never changes.
+_SITE_FIELDS = frozenset({"order_id", "zone_id", "geofence_id"})
+_SITE_EDITABLE_STATES = ("draft", "pending_dispatch", "declined")
 
 # A02 audit M02-1/M02-10: fields only a transition may change. A technician
 # wrote state=completed with customer_otp_verified=True on a dispatched order,
@@ -78,6 +95,14 @@ _GUARDED = frozenset(
         "onsite_payment_state",
         "cash_shift_id",
         "cash_handed_over_at",
+        "cash_declared_by_id",
+        "cash_declared_at",
+        "cash_accepted_by_id",
+        # A02 ERP audit M02-F4: the van the parts are issued from follows
+        # the technician the order is dispatched to
+        "van_location_id",
+        # A02 ERP audit M02-F21: when the order (re)entered the dispatch queue
+        "dispatch_requested_at",
     }
 )
 
@@ -304,6 +329,14 @@ class FixFieldOrder(models.Model):
         "fix.stock.location",
         string="Technician Van Location",
         domain="[('is_van_stock', '=', True)]",
+        readonly=True,
+        help="Set by dispatch and reassignment from the technician the order is sent to.",
+    )
+    dispatch_requested_at = fields.Datetime(
+        string="In Dispatch Queue Since",
+        readonly=True,
+        copy=False,
+        help="When the order was submitted for dispatch, or returned to the queue.",
     )
 
     decline_reason = fields.Selection(
@@ -441,6 +474,7 @@ class FixFieldOrder(models.Model):
         [
             ("none", "No On-Site Collection"),
             ("pending_handover", "Cash Pending Hand-over"),
+            ("pending_acceptance", "Declared, Awaiting Cashier"),
             ("pending_settlement", "Collected, Settlement Not Recorded"),
             ("settled", "Settlement Recorded on the Service Order"),
         ],
@@ -450,7 +484,18 @@ class FixFieldOrder(models.Model):
         tracking=True,
         copy=False,
     )
-    cash_handed_over_at = fields.Datetime(string="Cash Handed Over At", readonly=True, copy=False)
+    cash_handed_over_at = fields.Datetime(
+        string="Cash Accepted Into Drawer At", readonly=True, copy=False
+    )
+    cash_declared_by_id = fields.Many2one(
+        "res.users", string="Cash Hand-over Declared By", readonly=True, copy=False
+    )
+    cash_declared_at = fields.Datetime(
+        string="Cash Hand-over Declared At", readonly=True, copy=False
+    )
+    cash_accepted_by_id = fields.Many2one(
+        "res.users", string="Cash Accepted By (Cashier)", readonly=True, copy=False
+    )
     # M02-9: why it was cancelled, and M02-8: a dispatcher's geofence waiver
     cancel_reason = fields.Text(string="Cancellation Reason", readonly=True, copy=False)
     geofence_waived_by = fields.Many2one(
@@ -474,9 +519,29 @@ class FixFieldOrder(models.Model):
         locked = super()._fix_form_locked_fields()
         if self and any(rec.state in ("completed", "cancelled") for rec in self):
             locked = locked | _FROZEN_WHEN_CLOSED
+        if self and any(rec.state not in _SITE_EDITABLE_STATES for rec in self):
+            locked = locked | _SITE_FIELDS
         return locked
 
     def write(self, vals):
+        # A02 ERP audit M02-F3: the assigned technician re-pointed an open
+        # order's geofence, zone and service order from the form, which moved
+        # the arrival test and let completion settle another customer's order.
+        site = _SITE_FIELDS & set(vals)
+        if site and not self._fix_guard_open():
+            moved = {
+                name
+                for rec in self
+                if rec.state not in _SITE_EDITABLE_STATES
+                for name in site
+                if rec._fix_guard_differs(name, vals[name], rec[name])
+            }
+            if moved:
+                raise UserError(
+                    "%s cannot be changed once the field order is in dispatch. A dispatcher "
+                    "moves the arrival geofence with Set Geofence; the service order never "
+                    "changes." % ", ".join(sorted(self._fields[n].string or n for n in moved))
+                )
         # A closed order keeps what it was closed with (A02 audit M02-2): the
         # work summary and site details were editable after completion.
         touched = _FROZEN_WHEN_CLOSED & set(vals)
@@ -597,7 +662,9 @@ class FixFieldOrder(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only draft field orders can be submitted for dispatch.")
-            rec._guarded().write({"state": "pending_dispatch"})
+            rec._guarded().write(
+                {"state": "pending_dispatch", "dispatch_requested_at": fields.Datetime.now()}
+            )
 
     @api.model
     def _fix_resolve_technician(self, technician_id):
@@ -673,6 +740,36 @@ class FixFieldOrder(models.Model):
             if problem:
                 raise UserError("%s cannot be sent on %s: %s." % (employee.name, rec.name, problem))
 
+    def _fix_van_of(self, technician):
+        """The technician's own active van stock location (empty when none)."""
+        if not technician:
+            return self.env["fix.stock.location"]
+        return (
+            self.env["fix.stock.location"]
+            .sudo()
+            .search(
+                [
+                    ("technician_id", "=", technician.id),
+                    ("is_van_stock", "=", True),
+                    ("state", "!=", "inactive"),
+                ],
+                order="id",
+                limit=1,
+            )
+        )
+
+    def _fix_repoint_planned_parts(self):
+        """A02 ERP audit M02-F4: picked (not yet fitted) part lines follow the
+        order's van, so M15 issues them from the van of the technician who now
+        has the job, not the previous one's (where the issue was refused)."""
+        for rec in self:
+            planned = rec.sudo().part_line_ids.filtered(
+                lambda ln, van=rec.van_location_id: ln.state == "planned"
+                and ln.van_location_id != van
+            )
+            if planned:
+                planned.write({"van_location_id": rec.van_location_id.id or False})
+
     def action_dispatch(self, technician_id=None):
         # A02 audit M02-4: a plain technician self-dispatched through P03.
         self._fix_require_dispatcher("Dispatching a field order")
@@ -691,18 +788,12 @@ class FixFieldOrder(models.Model):
                 "dispatched_at": fields.Datetime.now(),
                 "accepted_at": False,
                 "en_route_at": False,
+                # A02 ERP audit M02-F4: the van of THIS technician, or none. A
+                # re-dispatch after a decline kept the previous technician's van.
+                "van_location_id": rec._fix_van_of(tech).id or False,
             }
-            # Check technician van stock location
-            van = self.env["fix.stock.location"].search(
-                [
-                    ("technician_id", "=", tech.id),
-                    ("is_van_stock", "=", True),
-                ],
-                limit=1,
-            )
-            if van:
-                vals["van_location_id"] = van.id
             rec._guarded().write(vals)
+            rec._fix_repoint_planned_parts()
             publish(
                 rec.env,
                 "field.order.dispatched",
@@ -750,6 +841,13 @@ class FixFieldOrder(models.Model):
             if previous == technician:
                 raise UserError("%s is already assigned to %s." % (rec.name, technician.name))
             rec._fix_assert_available(technician)
+            # A02 ERP audit M02-F10: a reassignment is a dispatch decision too
+            # (BRU-FSM-04): what the engine ranked first, who was sent, and
+            # why. It used to bypass the decision log the workspace's dispatch
+            # keeps, and so the assignment.overridden event.
+            self.env["fix.dispatch.decision"]._fix_log_reassignment(
+                rec, technician, previous, reason
+            )
             rec._guarded().write(
                 {
                     "technician_id": technician.id,
@@ -759,8 +857,11 @@ class FixFieldOrder(models.Model):
                     "en_route_at": False,
                     "geofence_waived_by": False,
                     "geofence_waive_reason": False,
+                    # A02 ERP audit M02-F4: the new technician's van, not the old one's
+                    "van_location_id": rec._fix_van_of(technician).id or False,
                 }
             )
+            rec._fix_repoint_planned_parts()
             rec.message_post(
                 body="Reassigned from %s to %s by %s. Reason: %s"
                 % (previous.name or "nobody", technician.name, self.env.user.name, reason)
@@ -827,6 +928,8 @@ class FixFieldOrder(models.Model):
                     "decline_reason": reason,
                     "decline_notes": notes,
                     "technician_id": False,
+                    "van_location_id": False,
+                    "dispatch_requested_at": fields.Datetime.now(),
                 }
             )
             DeclineLog.create(
@@ -952,6 +1055,33 @@ class FixFieldOrder(models.Model):
             # dispatcher can waive the fence for one order (action_waive_geofence).
             fences = rec._fix_arrival_fences()
             has_position = current_lat is not None and current_lon is not None
+            # A02 ERP audit M02-F3: an order with no fence (none of its own and
+            # none on its zone) was checked in from anywhere. Without a fence
+            # there is nothing to prove the visit: a dispatcher sets one
+            # (Set Geofence) or waives the check for the order, with a reason.
+            # Owner decision (20 Nov 2026): until fences are drawn (fix_real has
+            # none), a fenceless order is checked in on its GPS position, which
+            # is recorded; strict mode (parameter
+            # cd_field_service.arrival_requires_fence = 1) needs a fence or a
+            # dispatcher waiver for every arrival.
+            if not fences and not rec.geofence_waived_by:
+                strict = str(
+                    self.env["ir.config_parameter"]
+                    .sudo()
+                    .get_param(ARRIVAL_REQUIRES_FENCE_PARAM, "0")
+                ).strip().lower() in ("1", "true", "yes", "on")
+                if strict:
+                    raise UserError(
+                        "Arrival at %s cannot be checked: no geofence covers the order or "
+                        "its dispatch zone. Ask a dispatcher to set the order's geofence or "
+                        "to waive the check for this order." % rec.name
+                    )
+                if not has_position:
+                    raise UserError(
+                        "Arrival at %s needs your current position: no geofence covers the "
+                        "order yet, so the position you check in from is recorded as the "
+                        "proof of the visit." % rec.name
+                    )
             if fences and not rec.geofence_waived_by:
                 if not has_position:
                     raise UserError(
@@ -989,6 +1119,53 @@ class FixFieldOrder(models.Model):
             )
             rec.message_post(
                 body="Arrival geofence waived by %s. Reason: %s" % (self.env.user.name, reason)
+            )
+
+    def action_set_geofence(self, geofence_id=None, reason="", change=None):
+        """A02 ERP audit M02-F3: once an order is in dispatch only a dispatcher
+        moves its arrival fence, with a reason (the technician rewrote it from
+        the form). ``geofence_id`` 0 / empty clears the order's own fence, so
+        the zone's fences apply. The order follows the fence's zone. A waiver
+        given against the previous fence no longer stands.
+
+        ``change`` is the workspace prompt's one string: ``"<fence id> <reason>"``."""
+        self._fix_require_dispatcher("Moving the arrival geofence")
+        if change not in (None, "", False):
+            head, _sep, tail = str(change).strip().partition(" ")
+            geofence_id, reason = head, tail
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Give the reason for changing the geofence.")
+        try:
+            fence_id = int(str(geofence_id or 0).strip())
+        except (TypeError, ValueError):
+            raise UserError("Name the geofence by its id (0 to use the zone's fences).") from None
+        fence = self.env["fix.geofence"].sudo().browse(fence_id).exists() if fence_id else None
+        if fence_id and not fence:
+            raise UserError("Geofence %s does not exist." % fence_id)
+        if fence and not fence.active:
+            raise UserError("Geofence %s is archived." % fence.display_name)
+        for rec in self:
+            if rec.state not in ("dispatched", "accepted", "en_route"):
+                raise UserError(
+                    "The geofence of %s is set on the form until dispatch, and frozen once "
+                    "the technician is on site (it is %s)." % (rec.name, rec.state)
+                )
+            vals = {"geofence_id": fence.id if fence else False}
+            if fence and fence.zone_id and fence.zone_id != rec.zone_id:
+                vals["zone_id"] = fence.zone_id.id
+            previous = rec.geofence_id
+            rec._guarded().write(
+                {**vals, "geofence_waived_by": False, "geofence_waive_reason": False}
+            )
+            rec.message_post(
+                body="Arrival geofence changed from %s to %s by %s. Reason: %s"
+                % (
+                    previous.display_name or "the zone's fences",
+                    fence.display_name if fence else "the zone's fences",
+                    self.env.user.name,
+                    reason,
+                )
             )
 
     def action_start_work(self):
@@ -1109,13 +1286,20 @@ class FixFieldOrder(models.Model):
                 }
             )
 
-    def _fix_record_order_settlement(self, amount, reference):
+    def _fix_record_order_settlement(self, amount, reference, tender=None):
         """Hand the collection to the service order's own settlement method
         (contract with M01: fix.service.order._fix_record_settlement). The
         field order never writes the order's settlement fields itself (A02
-        audit M02-3). Returns the payment state to record."""
+        audit M02-3). Returns the payment state to record.
+
+        ``tender`` (A02 ERP audit, 19 Nov 2026) is the on-site method - cash
+        or the MFS channel - passed as context ``fd_settlement_tender`` so the
+        order (and the finance bridge) knows how it was paid: a bKash TrxID is
+        matched on the merchant statement, never counted as drawer cash."""
         self.ensure_one()
         order = self.order_id
+        if order and tender:
+            order = order.with_context(fd_settlement_tender=tender)
         if not order or not hasattr(order, "_fix_record_settlement"):
             self.message_post(
                 body="On-site collection of BDT %.2f (%s) recorded; the service order's "
@@ -1182,7 +1366,9 @@ class FixFieldOrder(models.Model):
                 if method == "cash":
                     pay_state = "pending_handover"
                 elif method in MFS_METHODS:
-                    pay_state = rec._fix_record_order_settlement(amt, rec.onsite_payment_trx_id)
+                    pay_state = rec._fix_record_order_settlement(
+                        amt, rec.onsite_payment_trx_id, tender=method
+                    )
             rec._guarded().write({"onsite_payment_state": pay_state})
             # A02 audit B2 / M02-11: the hand-back to M01. The order never
             # moved when its field job completed and nothing was published.
@@ -1208,13 +1394,16 @@ class FixFieldOrder(models.Model):
                 },
             )
 
-    def action_handover_field_cash(self, shift_id=None):
-        """HS-08: Deposit on-site cash collected by the field engineer into an M04
-        branch cash drawer shift (`fix.cash.shift.field_cash_deposited`).
+    def action_handover_field_cash(self):
+        """HS-08, step 1 of 2: the technician (or a dispatcher for them)
+        DECLARES that the on-site cash is handed to the branch.
 
-        A02 audit M02-3: the cash is settled on the service order only now,
-        when it reaches an open branch shift, and only once."""
-        Shift = self.env["fix.cash.shift"].sudo()
+        A02 ERP audit (19 Nov 2026) M02-F1/F20: the technician alone posted
+        the cash into the newest open shift of the whole company (any branch),
+        with no movement reference. Declaring now moves no drawer cash: it
+        records the service order's settlement UNVERIFIED (the cash tender) and
+        waits for a cashier of the order's branch to count it into that
+        branch's drawer (action_accept_field_cash)."""
         for rec in self:
             if rec.onsite_payment_method != "cash" or rec.onsite_collection_amount <= 0:
                 raise UserError(
@@ -1227,32 +1416,136 @@ class FixFieldOrder(models.Model):
                 )
             if not rec._fix_is_dispatcher():
                 rec._fix_require_assigned_technician("hand over the cash of")
-            shift = Shift.browse(int(shift_id)).exists() if shift_id else Shift.browse()
-            if not shift:
-                shift = Shift.search(
-                    [("state", "=", "open"), ("company_id", "=", rec.company_id.id)],
-                    order="id desc",
-                    limit=1,
-                )
-            if not shift or shift.state != "open":
-                raise UserError(
-                    "HS-08 Field Cash Handover: No open Branch Cash Shift found to receive field cash."
-                )
-            if shift.company_id != rec.company_id:
-                raise UserError("The cash shift belongs to another company.")
-            # Contract with M04 (A02 audit M04-4): the drawer totals are
-            # guarded; the shift's own method posts onto an OPEN shift only.
-            shift._post_field_cash(rec.onsite_collection_amount)
+            amount = rec.onsite_collection_amount
+            reference = f"COD/{rec.name}"
+            recorded = rec._fix_record_order_settlement(amount, reference, tender="cash")
             rec._guarded().write(
-                {"cash_shift_id": shift.id, "cash_handed_over_at": fields.Datetime.now()}
+                {
+                    "onsite_payment_state": "pending_acceptance",
+                    "cash_declared_by_id": self.env.uid,
+                    "cash_declared_at": fields.Datetime.now(),
+                }
             )
             rec.message_post(
-                body=f"HS-08: On-site cash BDT {rec.onsite_collection_amount:.2f} handed over to Branch Cash Shift #{shift.id}."
+                body="HS-08: on-site cash BDT %.2f declared handed over by %s; it reaches a "
+                "drawer when a cashier of %s accepts it.%s"
+                % (
+                    amount,
+                    self.env.user.name,
+                    rec.order_id.branch_id.display_name or "the order's branch",
+                    ""
+                    if recorded == "settled"
+                    else " The service order did not record the settlement (see above).",
+                )
             )
-            pay_state = rec._fix_record_order_settlement(
-                rec.onsite_collection_amount, f"COD/{rec.name}"
+
+    def _fix_require_field_cash_acceptor(self):
+        """A cashier (front-desk or service-order) or a branch manager, who is
+        neither the order's technician nor the person who declared the cash."""
+        user = self.env.user
+        if not (self.env.su or any(user.has_group(g) for g in FIELD_CASH_ACCEPTOR_GROUPS)):
+            raise AccessError(
+                "Field cash is accepted into a drawer by a cashier or branch manager of the "
+                "order's branch."
             )
-            rec._guarded().write({"onsite_payment_state": pay_state})
+        if self.env.su:
+            return
+        for rec in self:
+            tech_user = rec.sudo().technician_id.user_id
+            if user == tech_user or user == rec.cash_declared_by_id:
+                raise AccessError(
+                    "Segregation of duties: the technician who collected the cash of %s, or "
+                    "whoever declared it handed over, cannot accept it into a drawer." % rec.name
+                )
+
+    def _fix_field_cash_settlement_recorded(self) -> bool:
+        """The service order holds the settlement the declaration recorded."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        return bool(
+            order
+            and order.payment_settlement_state == "settled"
+            and order.settlement_source == "field_collection"
+            and (order.invoice_ref or "") == f"COD/{self.name}"
+        )
+
+    def action_accept_field_cash(self, shift_id=None):
+        """HS-08, step 2 of 2: a cashier counts the declared cash into the open
+        shift of the SERVICE ORDER's branch.
+
+        The movement carries the field and service order references; the
+        service order's settlement is then verified as the cashier (the
+        finance bridge raises its receipt on verification)."""
+        self._fix_require_field_cash_acceptor()
+        Shift = self.env["fix.cash.shift"]
+        for rec in self:
+            if rec.state != "completed" or rec.onsite_payment_state != "pending_acceptance":
+                raise UserError(
+                    "Order %s has no declared field cash waiting for a cashier (payment "
+                    "status: %s)." % (rec.name, rec.onsite_payment_state)
+                )
+            order = rec.order_id
+            branch = order.sudo().branch_id
+            if not branch:
+                raise UserError(
+                    "Service order %s has no branch, so there is no drawer to take the cash of %s."
+                    % (order.name, rec.name)
+                )
+            company = order.sudo().company_id or rec.company_id
+            open_shift = Shift._fd_open_shift_for(branch, company)
+            if shift_id:
+                try:
+                    wanted = Shift.sudo().browse(int(shift_id)).exists()
+                except (TypeError, ValueError):
+                    raise UserError("Name the cash shift by its id.") from None
+                if not wanted or wanted.branch_id != branch or wanted.company_id != company:
+                    raise UserError(
+                        "The cash of %s goes into the drawer of %s, the service order's "
+                        "branch; shift #%s is not that branch's."
+                        % (rec.name, branch.name, shift_id)
+                    )
+                if wanted.state != "open":
+                    raise UserError("Shift #%s is not open." % wanted.id)
+                open_shift = wanted
+            if not open_shift:
+                raise UserError(
+                    "Branch %s has no open cash shift to take the field cash of %s. Open the "
+                    "cash shift first." % (branch.name, rec.name)
+                )
+            amount = rec.onsite_collection_amount
+            # Contract with M04 (A02 audit M04-4): the shift's own method posts
+            # onto an OPEN shift only, with the movement's source reference.
+            open_shift._post_field_cash(
+                amount, reference="Field cash %s / %s" % (rec.name, order.name)
+            )
+            # sudo: the cashier holds no field-order rights; the authority
+            # checks above (group, segregation of duties, branch) are this action's
+            rec.sudo()._guarded().write(
+                {
+                    "cash_shift_id": open_shift.id,
+                    "cash_handed_over_at": fields.Datetime.now(),
+                    "cash_accepted_by_id": self.env.uid,
+                }
+            )
+            pay_state = "pending_settlement"
+            if rec._fix_field_cash_settlement_recorded():
+                # as the cashier: segregation of duties and the M20 receipt
+                order.action_verify_settlement()
+                pay_state = "settled" if order.sudo().settlement_verified else "pending_settlement"
+            rec.sudo()._guarded().write({"onsite_payment_state": pay_state})
+            rec.sudo().message_post(
+                body="HS-08: on-site cash BDT %.2f accepted by %s into cash shift #%s (%s).%s"
+                % (
+                    amount,
+                    self.env.user.name,
+                    open_shift.id,
+                    branch.name,
+                    ""
+                    if pay_state == "settled"
+                    else " The service order's settlement is not recorded: finance resolves it.",
+                )
+            )
+        return True
 
     def action_cancel(self, reason=""):
         """A02 audit M02-9: a technician cancelled an in-progress job with no
@@ -1368,7 +1661,9 @@ class FixFieldOrder(models.Model):
                         {
                             "state": "pending_dispatch",
                             "technician_id": False,
+                            "van_location_id": False,
                             "dispatched_at": False,
+                            "dispatch_requested_at": fields.Datetime.now(),
                             "geofence_waived_by": False,
                             "geofence_waive_reason": False,
                         }

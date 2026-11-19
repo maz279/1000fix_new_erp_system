@@ -138,14 +138,16 @@ class TestFieldServiceCore:
             FixFieldOrder.action_decline(
                 mock_order, reason="distance", notes="Out of coverage zone"
             )
-        mock_order._guarded.return_value.write.assert_called_once_with(
-            {
-                "state": "declined",
-                "decline_reason": "distance",
-                "decline_notes": "Out of coverage zone",
-                "technician_id": False,
-            }
-        )
+        written = mock_order._guarded.return_value.write.call_args[0][0]
+        mock_order._guarded.return_value.write.assert_called_once()
+        assert written["dispatch_requested_at"]  # back in the queue (A02 ERP M02-F21)
+        assert {k: v for k, v in written.items() if k != "dispatch_requested_at"} == {
+            "state": "declined",
+            "decline_reason": "distance",
+            "decline_notes": "Out of coverage zone",
+            "technician_id": False,
+            "van_location_id": False,
+        }
         mock_decline_log.sudo.return_value.create.assert_called_once()
         pub.assert_called_once()
         event_args = pub.call_args[0]
@@ -177,11 +179,16 @@ class TestFieldServiceCore:
         improvement is a consequence of the sequence, not a constant (R01 re-audit)."""
         # A crossing layout the 2-opt pass must untangle: depot -> NE -> SW -> SE -> NW
         coords = [(23.860, 90.400), (23.760, 90.390), (23.850, 90.380), (23.770, 90.395)]
-        stops = [SimpleNamespace(latitude=la, longitude=lo) for la, lo in coords]
+        stops = [
+            SimpleNamespace(id=i + 1, name="FO/%d" % (i + 1), latitude=la, longitude=lo)
+            for i, (la, lo) in enumerate(coords)
+        ]
         written, posts = {}, []
 
         rec = SimpleNamespace(
             field_order_ids=stops,
+            # A02 ERP audit M02-F11: the route's own depot (Tejgaon here)
+            _fix_depot_point=lambda: (23.7776, 90.3959),
             _guarded=lambda: SimpleNamespace(write=lambda vals: written.update(vals)),
             message_post=lambda body: posts.append(body),
         )
@@ -191,6 +198,9 @@ class TestFieldServiceCore:
         assert written["total_distance_km"] > 0
         assert written["baseline_duration_hours"] >= written["total_duration_hours"]
         assert any("engine:" in body for body in posts)
+        # the optimised visiting order is kept (A02 ERP audit M02-F11)
+        assert sorted(json.loads(written["stop_sequence_json"])) == [1, 2, 3, 4]
+        assert written["stop_plan"].startswith("1. FO/")
 
         # An order without coordinates must be refused, not distance-invented
         blind = SimpleNamespace(

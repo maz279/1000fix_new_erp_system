@@ -198,16 +198,55 @@ class FixDispatchDecision(models.Model):
         "res.users", string="Decided By", readonly=True, default=lambda self: self.env.user
     )
     decided_at = fields.Datetime(string="Decided At", readonly=True, default=fields.Datetime.now)
+    # A02 ERP audit M02-F10: a reassignment is logged here too, written only by
+    # fix.field.order.action_reassign (never from a form).
+    decision_type = fields.Selection(
+        [("dispatch", "Dispatch"), ("reassign", "Reassignment")],
+        string="Decision",
+        required=True,
+        default="dispatch",
+        readonly=True,
+    )
+    previous_technician_id = fields.Many2one(
+        "hr.employee", string="Taken From", readonly=True, ondelete="restrict"
+    )
+
+    @api.model
+    def _fix_log_reassignment(self, order, technician, previous, reason):
+        """The decision record of action_reassign (which checked the dispatcher
+        and the reason). Written as the system on the dispatcher's behalf: the
+        decided_by is the dispatcher."""
+        return self.sudo().create(
+            {
+                "field_order_id": order.id,
+                "technician_id": technician.id,
+                "decision_type": "reassign",
+                "previous_technician_id": previous.id or False,
+                "override_reason": "other",
+                "override_notes": reason,
+                "decided_by_id": self.env.uid,
+            }
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
         _require_dispatcher(self.env, "Dispatching a field order")
         prepared = []
         for vals in vals_list:
+            reassign = vals.get("decision_type") == "reassign"
+            if reassign and not self.env.su:
+                raise UserError(
+                    "A reassignment is recorded by Reassign on the field order, not typed in."
+                )
             order = self.env["fix.field.order"].browse(vals.get("field_order_id")).exists()
             if not order:
                 raise UserError("Choose the field order to dispatch.")
-            if order.state not in ("draft", "pending_dispatch", "declined"):
+            if reassign:
+                if order.state not in ("dispatched", "accepted", "en_route"):
+                    raise UserError(
+                        "%s is %s: it cannot be reassigned." % (order.name, order.state)
+                    )
+            elif order.state not in ("draft", "pending_dispatch", "declined"):
                 raise UserError(
                     "%s is %s: only an order waiting for dispatch is dispatched here "
                     "(a dispatched order is moved with Reassign)." % (order.name, order.state)
@@ -230,8 +269,10 @@ class FixDispatchDecision(models.Model):
                     )
                 if reason == "other" and not notes:
                     raise UserError("BRU-FSM-04: say why the recommendation was overridden.")
-            else:
+            elif not reassign:
                 reason, notes = False, ""
+            else:
+                reason = False  # a reassignment keeps its reason in the notes
             vals.update(
                 {
                     "recommended_technician_id": top["employee_id"] if top else False,
@@ -264,8 +305,10 @@ class FixDispatchDecision(models.Model):
         records = super().create([v for v, _o, _t in prepared])
         for rec, (_vals, order, tech) in zip(records, prepared, strict=True):
             # the dispatch itself, as the dispatcher: availability, the M22
-            # certification gate and the fleet gate all run as on the board
-            order.action_dispatch(technician_id=tech.id)
+            # certification gate and the fleet gate all run as on the board.
+            # A reassignment is already being carried out by action_reassign.
+            if rec.decision_type != "reassign":
+                order.action_dispatch(technician_id=tech.id)
             if rec.is_override:
                 publish(
                     self.env,
@@ -968,31 +1011,54 @@ class FixFieldCashRecon(models.Model):
     )
 
     def _fix_measure(self):
-        """The day's cash jobs, from the field orders themselves."""
+        """The day's cash jobs, from the field orders themselves.
+
+        A02 ERP audit M02-F13: "still with the technician" counted only the
+        jobs completed THAT day, so cash from yesterday's job that never reached
+        a drawer vanished from the next day's count. It is now all the
+        technician's field cash collected up to the end of the day and not yet
+        accepted into a drawer by then (cash_handed_over_at is the cashier's
+        acceptance; a declared but unaccepted hand-over is still outstanding)."""
         self.ensure_one()
         start, end = _local_day_bounds(self.env, self.recon_date)
-        orders = (
-            self.env["fix.field.order"]
-            .sudo()
-            .search(
-                [
-                    ("technician_id", "=", self.employee_id.id),
-                    ("onsite_payment_method", "=", "cash"),
-                    ("state", "=", "completed"),
-                    ("completed_at", ">=", start),
-                    ("completed_at", "<", end),
-                ],
-                order="completed_at, id",
-            )
+        FieldOrder = self.env["fix.field.order"].sudo()
+        cash = [
+            ("technician_id", "=", self.employee_id.id),
+            ("onsite_payment_method", "=", "cash"),
+            ("onsite_collection_amount", ">", 0),
+            ("state", "=", "completed"),
+        ]
+        today = FieldOrder.search(
+            [*cash, ("completed_at", ">=", start), ("completed_at", "<", end)],
+            order="completed_at, id",
         )
-        collected = sum(orders.mapped("onsite_collection_amount"))
-        handed = sum(orders.filtered("cash_shift_id").mapped("onsite_collection_amount"))
+        outstanding = FieldOrder.search(
+            [
+                *cash,
+                ("completed_at", "<", end),
+                "|",
+                ("cash_handed_over_at", "=", False),
+                ("cash_handed_over_at", ">=", end),
+            ],
+            order="completed_at, id",
+        )
+        accepted = FieldOrder.search(
+            [*cash, ("cash_handed_over_at", ">=", start), ("cash_handed_over_at", "<", end)]
+        )
+        carried = outstanding - today
+        refs = ", ".join(today.mapped("name"))
+        if carried:
+            refs = "%s%sstill held from earlier days: %s" % (
+                refs,
+                "; " if refs else "",
+                ", ".join(carried.mapped("name")),
+            )
         return {
-            "order_count": len(orders),
-            "cash_collected": collected,
-            "cash_handed_over": handed,
-            "cash_outstanding": collected - handed,
-            "order_refs": ", ".join(orders.mapped("name")) or False,
+            "order_count": len(today),
+            "cash_collected": sum(today.mapped("onsite_collection_amount")),
+            "cash_handed_over": sum(accepted.mapped("onsite_collection_amount")),
+            "cash_outstanding": sum(outstanding.mapped("onsite_collection_amount")),
+            "order_refs": refs or False,
         }
 
     @api.model_create_multi

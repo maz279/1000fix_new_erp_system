@@ -137,6 +137,19 @@ def _field_order(fx, **vals):
     )
 
 
+def _arrive(fo):
+    """A02 ERP audit M02-F3: an arrival is tested against a fence (the zone's)."""
+    fo.env["fix.geofence"].create(
+        {
+            "name": "FX zone fence",
+            "geofence_type": "circle",
+            "zone_id": fo.zone_id.id,
+            "geometry_json": '{"lat": 23.8, "lng": 90.4, "radius_m": 500}',
+        }
+    )
+    fo.action_arrive(position="23.8, 90.4")
+
+
 # --- journey stamps ------------------------------------------------------
 
 
@@ -150,7 +163,7 @@ def test_journey_stamps_and_actual_travel_minutes(fx):
     assert fo.accepted_at
     fo.action_start_travel()
     assert fo.en_route_at
-    fo.action_arrive()
+    _arrive(fo)
     assert fo.arrived_at
     # same-transaction travel: ~0 minutes, rounded — the FIELD is now written
     assert fo.actual_travel_minutes is not None and fo.actual_travel_minutes >= 0.0
@@ -169,7 +182,7 @@ def test_late_arrival_flags_on_time_false(fx):
     fo.action_dispatch(technician_id=fx.tech.id)
     fo.action_accept()
     fo.action_start_travel()
-    fo.action_arrive()
+    _arrive(fo)
     assert fo.on_time_arrival is False  # scheduled start already passed
 
 
