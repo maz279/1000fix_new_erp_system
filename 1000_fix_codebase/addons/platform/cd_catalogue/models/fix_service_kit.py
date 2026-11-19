@@ -48,6 +48,18 @@ class FixServiceKit(models.Model):
         string="Components",
         help="The parts, labour items and time allocations that make up this kit",
     )
+    # M37 capture audit, third pass (2026-11-19), FR-CAT-041: a bundle has
+    # required and optional lines, substitution rules and an explosion point.
+    explode_at = fields.Selection(
+        [
+            ("quotation", "At quotation (lines shown to the customer)"),
+            ("issue", "At issue (one line sold, parts issued separately)"),
+            ("both", "At quotation and at issue"),
+        ],
+        string="Explodes",
+        required=True,
+        default="both",
+    )
 
     # AS-10: Monetary with explicit currency_id — NEVER Float
     estimated_cost = fields.Monetary(
@@ -198,6 +210,19 @@ class FixServiceKitComponent(models.Model):
         help="Total component cost = quantity * standard_cost",
     )
     notes = fields.Char()
+    is_optional = fields.Boolean(
+        string="Optional", help="Offered with the kit but not required (an add-on line)."
+    )
+    substitution = fields.Selection(
+        [
+            ("none", "No substitute"),
+            ("crossref", "Any approved cross-reference / alternate"),
+            ("any_grade", "Any provenance grade of the same part"),
+        ],
+        string="Substitution",
+        required=True,
+        default="none",
+    )
 
     @api.constrains("product_id", "notes", "quantity")
     def _check_component_is_identified(self):

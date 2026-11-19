@@ -64,9 +64,10 @@ const subs = mod.freg.sub.map((s) => {
 const S = P03_DATA_SCREENS;
 console.log(JSON.stringify({ subs,
   nav: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
-  screens: Object.fromEntries(Object.entries(S).filter(([id]) => id.startsWith('M37-') || id === 'M51-form-treatment').map(([id, c]) => [id, {
+  screens: Object.fromEntries(Object.entries(S).filter(([id]) => id.startsWith('M37-') || id === 'M51-form-treatment' || id === 'M09-form-wproduct').map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, back: c.back || null, empty: !!c.empty,
     pick: !!c.pickRecord, lines: (c.lines && c.lines.field) || null,
+    grids: (c.grids || []).map((g) => g.field),
     domain: c.domain || [],
     fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({ name: f.name, value: f.value, readonly: !!f.readonly })) }])),
   by_screen: P03_FORM_CHIPS['M37:__by_screen__'] }));
@@ -365,3 +366,118 @@ def test_category_form_fields_are_whitelisted():
     mod = util.module_from_spec(spec)
     spec.loader.exec_module(mod)
     assert {"name", "parent_id"} <= set(mod.WRITABLE["product.category"])
+
+
+# --- third pass (2026-11-19): the forms behind the buttons hold the spec record ---
+
+
+def _editable(m37, screen):
+    return {f["name"] for f in m37["screens"][screen]["fields"] if not f["readonly"]}
+
+
+def _writable(area="a04"):
+    from importlib import util
+
+    spec = util.spec_from_file_location(
+        "_%sw3" % area, HERE.parent / "controllers" / area / "writable.py"
+    )
+    mod = util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    return mod.WRITABLE
+
+
+SERVICE_DEFINITION = {
+    # FR-CAT-013
+    "scope_of_work",
+    "inclusions",
+    "exclusions",
+    "prerequisites",
+    "deliverables",
+    # FR-CAT-015/018/019/020/025/026
+    "required_competency_id",
+    "requires_certification",
+    "repair_warranty_days",
+    "requires_customer_consent",
+    "requires_data_declaration",
+    "requires_regulatory_cert",
+    "default_sla_policy_id",
+    "fault_code_ids",
+    "tooling_required",
+    "workstation_class",
+}
+
+
+def test_service_definition_form_holds_the_service_definition(m37):
+    """Pages 3 and 5: the button opened a form with a name, a type and a
+    labour time - none of FR-CAT-013..020."""
+    assert _editable(m37, "M37-form-service") >= SERVICE_DEFINITION
+    # FR-CAT-014/016: delivery modes with their standard durations
+    assert "mode_duration_ids" in m37["screens"]["M37-form-service"]["grids"]
+    assert SERVICE_DEFINITION | {"mode_duration_ids"} <= set(_writable()["fix.catalogue.item"])
+    for no in ("3", "5"):
+        assert _sub(m37, no)["create"] == "M37-form-service"
+
+
+def test_protection_template_shows_cover_not_labour_time(m37):
+    fields_ = {f["name"] for f in m37["screens"]["M37-form-protection"]["fields"]}
+    assert not fields_ & {"standard_labour_time", "srt_observed_minutes"}
+    chip = next(f for f in _sub(m37, "11")["forms"] if f["f"] == "Protection Product (Cover Terms)")
+    assert chip["id"] == "M09-form-wproduct" and chip["opens"]
+    assert {"coverage_scope", "exclusions", "duration_months", "claim_limit"} <= _editable(
+        m37, "M09-form-wproduct"
+    )
+
+
+@pytest.mark.parametrize(
+    "no,form,screen,model",
+    [
+        ("7", "Attribute Set", "M37-attribute-sets", "fix.catalogue.attribute.set"),
+        ("8", "Model Compatibility", "M37-model-compat", "fix.model.compatibility"),
+        ("9", "Fault Symptom", "M37-symptoms", "fix.fault.symptom"),
+        ("11", "Subscription Plan", "M37-plan-defs", "fix.subscription.plan.def"),
+    ],
+)
+def test_new_spec_records_are_captured_on_their_page(m37, no, form, screen, model):
+    sub = _sub(m37, no)
+    chip = next(f for f in sub["forms"] if f["f"] == form)
+    assert chip["opens"] and chip["model"] == model
+    assert any(lst["id"] == screen and lst["create"] for lst in sub["lists"])
+    assert screen in m37["nav"]
+    assert _editable(m37, chip["id"]) <= set(_writable()[model])
+
+
+def test_rbom_line_is_per_model_with_criticality_and_alternates(m37):
+    assert {"device_model_id", "criticality", "alternate_group"} <= _editable(m37, "M37-form-rbom")
+
+
+def test_fault_code_form_holds_the_taxonomy(m37):
+    screen = m37["screens"]["M37-form-fault"]
+    assert {"name_bn", "symptom_ids", "operation_ids"} <= _editable(m37, "M37-form-fault")
+    assert "root_cause_ids" in screen["grids"] and screen["lines"] == "brand_code_ids"
+    assert {"symptom_ids", "operation_ids", "root_cause_ids", "name_bn"} <= set(
+        _writable("a02")["fix.fault.code"]
+    )
+
+
+def test_part_form_shows_its_identity_and_model_fit(m37):
+    assert {"manufacturer_part_number", "oem_reference"} <= _editable(m37, "M37-item")
+    assert "compatibility_ids" in m37["screens"]["M37-item"]["grids"]
+
+
+def test_refurb_grade_criteria_are_editable_by_the_officer_only(m37):
+    editable = _editable(m37, "M37-form-refurb-grade")
+    assert {"cosmetic_criteria", "functional_criteria", "sell_online", "warranty_days"} <= editable
+    assert not editable & {"code", "price_multiplier", "currency_id"}
+    acl = _acl("platform/cd_catalogue/security/ir.model.access.csv", "model_fix_refurb_grade,")
+    assert acl["group_catalogue_officer"] == ["1", "1", "0", "0"], acl
+
+
+def test_category_node_is_bilingual_coded_and_in_a_tree(m37):
+    assert {"name_bn", "code", "tree_type"} <= _editable(m37, "M37-form-category")
+
+
+def test_kit_and_rental_sku_carry_their_definition(m37):
+    assert "explode_at" in _editable(m37, "M37-form-kit")
+    assert {"min_hire_days", "deposit_basis", "condition_standard", "return_criteria"} <= _editable(
+        m37, "M37-form-rentalsku"
+    )

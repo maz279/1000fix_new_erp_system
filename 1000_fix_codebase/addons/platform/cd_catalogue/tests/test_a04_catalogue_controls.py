@@ -55,6 +55,22 @@ def _category(env):
     )
 
 
+def _service_definition(env, item_type):
+    """M37 capture pass 3: what a service, inspection or labour item needs
+    before it leaves Draft (FR-CAT-013/014/016, BRU-CAT-06)."""
+    vals = {}
+    if item_type in ("service", "inspection", "labour"):
+        vals["scope_of_work"] = "Diagnose and repair as described."
+        vals["mode_duration_ids"] = [(0, 0, {"delivery_mode": "walk_in", "standard_minutes": 45})]
+    if item_type == "labour" and "required_competency_id" in env["fix.catalogue.item"]._fields:
+        Competency = env["fix.competency"].sudo()
+        vals["required_competency_id"] = (
+            Competency.search([], limit=1)
+            or Competency.create({"code": "M37-TST", "name": "M37 test competency"})
+        ).id
+    return vals
+
+
 def _item(env, user, item_type="service", name_bn="পরীক্ষা সেবা", code=None, category=True):
     n = next(_SEQ)
     tmpl = env["product.template"].create(
@@ -75,6 +91,7 @@ def _item(env, user, item_type="service", name_bn="পরীক্ষা সে�
     }
     if item_type == "labour":
         vals.update({"repair_level": "l1", "standard_labour_time": 1.0})
+    vals.update(_service_definition(env, item_type))
     if category:
         vals["category_id"] = _category(env).id
     return env["fix.catalogue.item"].with_user(user).create(vals)

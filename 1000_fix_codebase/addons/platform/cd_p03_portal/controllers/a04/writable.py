@@ -128,32 +128,62 @@ WRITABLE = {
             "total_amount",
         }
     ),
+    "fix.catalogue.attribute.set": frozenset(
+        {
+            "active",
+            "company_id",
+            "item_type",
+            "line_ids",
+            "name",
+            "note",
+        }
+    ),
     "fix.catalogue.item": frozenset(
         {
             "active",
             "brand_id",
             "category_id",
             "company_id",
+            "compatibility_ids",
+            "default_sla_policy_id",
+            "deliverables",
             "description_bn",
+            "device_model_ids",
+            "exclusions",
+            "fault_code_ids",
             "hazard_class",
             "hazard_handling",
             "hs_code",
+            "inclusions",
             "is_out_of_scope",
             "is_warranty_eligible",
             "item_type",
+            "manufacturer_part_number",
+            "mode_duration_ids",
             "name_bn",
+            "oem_reference",
             "operating_unit_id",
+            "prerequisites",
             "product_tmpl_id",
             "proposed_end_of_support",
             "proposed_successor_id",
             "provenance_grade",
             "repair_level",
+            "repair_warranty_days",
+            "required_competency_id",
             "requires_brand_authorisation",
+            "requires_certification",
+            "requires_customer_consent",
+            "requires_data_declaration",
+            "requires_regulatory_cert",
             "revenue_recognition",
+            "scope_of_work",
             "sd_applicable",
             "srt_observed_minutes",
             "standard_labour_time",
+            "tooling_required",
             "vat_class",
+            "workstation_class",
         }
     ),
     "fix.catalogue.publication": frozenset(
@@ -459,6 +489,17 @@ WRITABLE = {
             "reviewer_id",
         }
     ),
+    "fix.fault.symptom": frozenset(
+        {
+            "active",
+            "code",
+            "description",
+            "device_type",
+            "fault_code_ids",
+            "name",
+            "name_bn",
+        }
+    ),
     "fix.franchise.royalty": frozenset(
         {
             "franchise_id",
@@ -594,6 +635,17 @@ WRITABLE = {
             "name",
             "partner_id",
             "period",
+        }
+    ),
+    "fix.model.compatibility": frozenset(
+        {
+            "active",
+            "company_id",
+            "compatible",
+            "device_model_id",
+            "evidence_ref",
+            "item_id",
+            "note",
         }
     ),
     "fix.part.crossref": frozenset(
@@ -1074,7 +1126,10 @@ WRITABLE = {
     ),
     "fix.rbom.line": frozenset(
         {
+            "alternate_group",
             "component_item_id",
+            "criticality",
+            "device_model_id",
             "item_id",
             "note",
             "quantity",
@@ -1093,11 +1148,14 @@ WRITABLE = {
     "fix.refurb.grade": frozenset(
         {
             "active",
-            "code",
-            "currency_id",
+            "cosmetic_criteria",
             "description",
+            "functional_criteria",
             "name_bn",
-            "price_multiplier",
+            "sell_b2b",
+            "sell_counter",
+            "sell_marketplace",
+            "sell_online",
             "sequence",
             "warranty_days",
         }
@@ -1107,12 +1165,16 @@ WRITABLE = {
             "active",
             "catalogue_item_id",
             "company_id",
+            "condition_standard",
             "currency_id",
             "daily_rate",
+            "deposit_basis",
             "max_rental_days",
+            "min_hire_days",
             "monthly_rate",
             "operating_unit_id",
             "requires_inspection_return",
+            "return_criteria",
             "security_deposit",
             "weekly_rate",
         }
@@ -1235,6 +1297,7 @@ WRITABLE = {
             "component_ids",
             "currency_id",
             "description",
+            "explode_at",
             "name",
             "name_bn",
             "operating_unit_id",
@@ -1518,6 +1581,19 @@ WRITABLE = {
             "unit_rate",
         }
     ),
+    "fix.subscription.plan.def": frozenset(
+        {
+            "active",
+            "billing_frequency",
+            "commitment_months",
+            "company_id",
+            "entitlement_note",
+            "included_quantity",
+            "included_uom_id",
+            "item_id",
+            "overage_uom_id",
+        }
+    ),
     "fix.subscription.proration": frozenset(
         {
             "change_type",
@@ -1693,9 +1769,11 @@ WRITABLE = {
             "catalogue_item_id",
             "claim_limit",
             "company_id",
+            "coverage_scope",
             "currency_id",
             "duration_months",
             "excess_amount",
+            "exclusions",
             "inspection_required",
             "max_device_age_months",
             "name",
@@ -1746,8 +1824,11 @@ WRITABLE = {
     ),
     "product.category": frozenset(
         {
+            "code",
             "name",
+            "name_bn",
             "parent_id",
+            "tree_type",
         }
     ),
 }

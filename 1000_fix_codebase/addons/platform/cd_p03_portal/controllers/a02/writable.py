@@ -420,6 +420,10 @@ WRITABLE = {
             "default_severity",
             "description",
             "name",
+            "name_bn",
+            "operation_ids",
+            "root_cause_ids",
+            "symptom_ids",
         }
     ),
     "fix.field.cash.recon": frozenset(

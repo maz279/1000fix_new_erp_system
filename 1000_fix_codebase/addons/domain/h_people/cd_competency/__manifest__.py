@@ -33,7 +33,7 @@ degrades to M61, accepted AR-006 5.4):
   training needs and plans, participant feedback, enrolment withdrawal and
   substitution, mentoring with its interactions, effectiveness evaluation
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.5.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Learning",

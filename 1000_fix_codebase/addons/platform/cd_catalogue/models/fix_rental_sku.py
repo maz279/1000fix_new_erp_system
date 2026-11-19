@@ -60,6 +60,23 @@ class FixRentalSku(models.Model):
     requires_inspection_return = fields.Boolean(
         default=True, help="Whether the item must be inspected on return (M01 QC path)"
     )
+    # M37 capture audit, third pass (2026-11-19), FR-CAT-039.
+    min_hire_days = fields.Integer(string="Minimum Hire Period (days)", default=1)
+    deposit_basis = fields.Selection(
+        [
+            ("fixed", "Fixed amount"),
+            ("pct_value", "Share of the asset's value"),
+            ("none", "No deposit"),
+        ],
+        string="Deposit Basis",
+        default="fixed",
+    )
+    condition_standard = fields.Text(
+        string="Condition Standard", help="The condition the asset goes out in."
+    )
+    return_criteria = fields.Text(
+        string="Return Criteria", help="What a return must meet before the deposit is released."
+    )
     active = fields.Boolean(default=True)
 
     # A04 audit M37-6 (rs_01): a negative rate or deposit was accepted, which
@@ -70,6 +87,17 @@ class FixRentalSku(models.Model):
         "AND COALESCE(max_rental_days, 0) >= 0)",
         "Rental rates, deposit and maximum duration cannot be negative.",
     )
+
+    @api.constrains("min_hire_days", "max_rental_days")
+    def _check_hire_period(self):
+        for rec in self:
+            if rec.min_hire_days < 0:
+                raise ValidationError("A minimum hire period cannot be negative.")
+            if rec.max_rental_days and rec.min_hire_days > rec.max_rental_days:
+                raise ValidationError(
+                    "The minimum hire period (%d days) exceeds the maximum (%d)."
+                    % (rec.min_hire_days, rec.max_rental_days)
+                )
 
     @staticmethod
     def _check_rate_vals(vals):

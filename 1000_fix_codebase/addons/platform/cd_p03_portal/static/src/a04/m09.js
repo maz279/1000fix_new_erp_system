@@ -1016,7 +1016,10 @@ export const SCREENS = {
         { name: 'name', label: 'Name', required: true },
         { name: 'product_type', label: 'Product Type', required: true },
         { name: 'duration_months', label: 'Duration Months', required: true },
-        { name: 'claim_limit', label: 'Aggregate Claim Limit' }
+        { name: 'claim_limit', label: 'Aggregate Claim Limit' },
+        // M37 capture audit, third pass (FR-CAT-037): the cover itself.
+        { name: 'coverage_scope', label: 'What Is Covered', type: 'text' },
+        { name: 'exclusions', label: 'What Is Not Covered', type: 'text' }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'excess_amount', label: 'Customer Excess' }

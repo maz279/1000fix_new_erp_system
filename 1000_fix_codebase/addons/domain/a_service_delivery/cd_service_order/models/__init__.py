@@ -38,3 +38,8 @@ from . import fix_so_part_exemption
 # fix.sla.policy and fix.sla.kpi.instance (and its breach cron) and calls
 # fix.service.order._fix_branch_users, so it imports after all of them.
 from . import fix_sla_escalation
+
+# M37 capture audit, third pass (2026-11-19): the symptom / root-cause
+# taxonomy and the fault <-> operation mapping; extends fix.fault.code and
+# fix.catalogue.item, so it imports after fix_fault_code.
+from . import fix_fault_taxonomy

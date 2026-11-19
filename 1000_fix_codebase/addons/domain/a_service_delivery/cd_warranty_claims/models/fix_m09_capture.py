@@ -320,6 +320,11 @@ class FixWarrantyVoidGate(models.Model):
 class FixWarrantyProductProtection(models.Model):
     _inherit = "fix.warranty.product"
 
+    # M37 capture audit, third pass (2026-11-19), FR-CAT-037: M37 defines the
+    # protection product - its coverage scope and exclusions, beside the
+    # term, claim limit and eligibility M09 already held.
+    coverage_scope = fields.Text(string="What Is Covered")
+    exclusions = fields.Text(string="What Is Not Covered")
     inspection_required = fields.Boolean(
         string="Pre-sale Inspection Required",
         help="FR-WTY-017 / BRU-WTY-11: a policy is not activated without a passed inspection.",

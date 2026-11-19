@@ -467,6 +467,24 @@ class FixCataloguePublication(models.Model):
         for rec in self:
             rec.display_label = "%s v%d" % (names.get(rec.channel) or "?", rec.version or 0)
 
+    @api.model
+    def _incomplete_for(self, items, channel):
+        """Items without their Bengali name or hierarchy position, or (third
+        pass, FR-CAT-005/044) without an attribute their class's attribute
+        set requires for this channel."""
+        Sets = self.env["fix.catalogue.attribute.set"]
+        sets = {}
+
+        def lacking(item):
+            if not (item.name_bn or "").strip() or not item.category_id:
+                return True
+            if item.item_type not in sets:
+                sets[item.item_type] = Sets._for(item.item_type)
+            attr_set = sets[item.item_type]
+            return bool(attr_set and attr_set._missing(item, channel))
+
+        return items.filtered(lacking)
+
     def _projection(self, channel):
         Item = self.env["fix.catalogue.item"].sudo()
         states = ("published",) if channel in CUSTOMER_FACING else SELLABLE_STATES
@@ -495,9 +513,7 @@ class FixCataloguePublication(models.Model):
                         "Active and Published" if channel in CUSTOMER_FACING else "Active",
                     )
                 )
-            incomplete = items.filtered(
-                lambda i: not (i.name_bn or "").strip() or not i.category_id
-            )
+            incomplete = self._incomplete_for(items, channel)
             if channel in CUSTOMER_FACING and incomplete:
                 raise UserError(
                     "%d of the %d items for %s lack their Bengali name or hierarchy position; "

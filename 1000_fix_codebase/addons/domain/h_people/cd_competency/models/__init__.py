@@ -10,4 +10,5 @@ from . import (
     fix_training_session,
     fix_competency_consumers,
     fix_competency_capture2,
+    fix_catalogue_skill,
 )

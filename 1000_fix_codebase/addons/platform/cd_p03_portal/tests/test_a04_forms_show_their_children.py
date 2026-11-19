@@ -104,6 +104,12 @@ def _one2many(env, model):
     }
 
 
+def _grid_fields(body):
+    """The one2many fields a form's `grids:` list edits."""
+    m = re.search(r"\bgrids:\s*\[(.*?)\n\s{4}\],", body, re.S)
+    return set(re.findall(r"\bfield:\s*'([a-z0-9_]+)'", m.group(1))) if m else set()
+
+
 def test_the_scan_finds_forms():
     """A guard on the guard: an empty list would pass everything below."""
     forms = _forms()
@@ -121,6 +127,18 @@ def test_every_form_that_owns_children_displays_them(odoo_env):
         if not constitutive:
             continue
         if "lines:" in body:
+            continue
+        # `grids:` (several child grids on one form, engine-rendered since
+        # M58): each grid names its one2many. The children are displayed when
+        # every constitutive one is a grid of this form or of another form on
+        # the same model in the same module (M37 capture pass 3, 2026-11-19).
+        gridded = {
+            g
+            for o_js, _o_sid, o_model, o_body in _forms()
+            if o_js == js and o_model == model
+            for g in _grid_fields(o_body)
+        }
+        if set(constitutive) <= gridded:
             continue
         # A collection already displayed by another form on the same model in
         # the same module does not have to be repeated here - repeating it is

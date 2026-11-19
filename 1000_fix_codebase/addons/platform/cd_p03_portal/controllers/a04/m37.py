@@ -83,6 +83,16 @@ SURFACES = {
     # FR-CAT-005/006: Odoo's own attribute master is the variant axis; its
     # values are the form's lines. Product managers save it (Odoo ACL).
     "product.attribute": {"order": "sequence, name", "limit": 300, "actions": set()},
+    # M37 capture audit, third pass (2026-11-19): FR-CAT-033 compatibility,
+    # FR-CAT-005 attribute sets, FR-CAT-042 symptoms, FR-CAT-038 plans.
+    "fix.model.compatibility": {
+        "order": "device_model_id, item_id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.catalogue.attribute.set": {"order": "item_type, name", "limit": 200, "actions": set()},
+    "fix.fault.symptom": {"order": "code", "limit": 300, "actions": set()},
+    "fix.subscription.plan.def": {"order": "item_id", "limit": 200, "actions": set()},
     "fix.brand": {
         "order": "id desc",
         "limit": 400,
@@ -551,7 +561,8 @@ def kpis(env):
     today = datetime.date.today()
     month_start = today.replace(day=1)
     new_skus = len(items.filtered(lambda i: i.create_date and i.create_date.date() >= month_start))
-    device_models = env["fix.device.model"].sudo().search_count([])
+    # third pass: the matrix itself (FR-CAT-033), not the count of models
+    compat_rows = env["fix.model.compatibility"].sudo().search_count([])
     return {
         # A04 audit (2026-11-04): Active means approved (sellable), not merely
         # "not discontinued"; Pending means awaiting a publisher (In Review).
@@ -563,7 +574,7 @@ def kpis(env):
         "rbom_coverage": round(with_rbom / len(services) * 100.0, 1) if services else None,
         "new_skus_mtd": new_skus,
         "pending_approval": len(items.filtered(lambda i: i.state == "in_review")),
-        "model_compatibility": device_models,
+        "model_compatibility": compat_rows,
         "bilingual_content": round(bilingual / len(items) * 100.0, 1) if items else None,
         # measured extras (not in the registry strip)
         "catalogue_items": len(items),

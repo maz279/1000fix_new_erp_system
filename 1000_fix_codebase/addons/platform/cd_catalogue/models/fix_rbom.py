@@ -27,10 +27,35 @@ class FixRbomLine(models.Model):
     sequence = fields.Integer(default=10)
     quantity = fields.Float(required=True, default=1.0)
     note = fields.Char()
+    # M37 capture audit, third pass (2026-11-19), FR-CAT-022: the rBOM is per
+    # operation PER MODEL, with a criticality and permitted alternates.
+    device_model_id = fields.Many2one(
+        "fix.device.model",
+        string="Device Model",
+        index=True,
+        ondelete="restrict",
+        help="Blank: the line applies to every model the operation covers.",
+    )
+    criticality = fields.Selection(
+        [
+            ("critical", "Critical: the repair cannot proceed without it"),
+            ("standard", "Standard: normally replaced"),
+            ("conditional", "Conditional: replaced if found faulty"),
+        ],
+        string="Criticality",
+        required=True,
+        default="standard",
+    )
+    alternate_group = fields.Char(
+        string="Alternate Group",
+        help="Lines sharing a group are alternates: any ONE of them satisfies the operation.",
+    )
 
+    # One line per component per model. The model is nullable, and a SQL
+    # UNIQUE lets NULL twins in, so _check_no_twin covers the blank model.
     _unique_component = models.Constraint(
-        "UNIQUE (item_id, component_item_id)",
-        "One rBOM line per component on a service item.",
+        "UNIQUE (item_id, component_item_id, device_model_id)",
+        "One rBOM line per component per model on a service item.",
     )
     _no_self_reference = models.Constraint(
         "CHECK (item_id <> component_item_id)",
@@ -69,6 +94,49 @@ class FixRbomLine(models.Model):
                 seen |= frontier
                 rows = Line.search([("item_id", "in", list(frontier))])
                 frontier = set(rows.mapped("component_item_id").ids) - seen
+
+    @api.constrains("item_id", "component_item_id", "device_model_id")
+    def _check_no_twin(self):
+        for line in self.filtered(lambda r: not r.device_model_id):
+            if self.search_count(
+                [
+                    ("id", "!=", line.id),
+                    ("item_id", "=", line.item_id.id),
+                    ("component_item_id", "=", line.component_item_id.id),
+                    ("device_model_id", "=", False),
+                ]
+            ):
+                raise ValidationError(
+                    "%s is already on %s's rBOM for every model."
+                    % (line.component_item_id.name, line.item_id.name)
+                )
+
+    @api.constrains("item_id", "component_item_id", "device_model_id")
+    def _check_model_compatibility(self):
+        """BRU-CAT-07: an rBOM line may reference only parts compatible with
+        the operation's declared models."""
+        for line in self:
+            operation_models = line.item_id.device_model_ids
+            if (
+                line.device_model_id
+                and operation_models
+                and line.device_model_id not in operation_models
+            ):
+                raise ValidationError(
+                    "%s is not one of the models %s is declared for (BRU-CAT-07)."
+                    % (line.device_model_id.display_name, line.item_id.name)
+                )
+            scope = line.device_model_id or operation_models
+            clash = self.env["fix.model.compatibility"]._incompatible(line.component_item_id, scope)
+            if clash:
+                raise ValidationError(
+                    "%s does not fit %s (model compatibility, BRU-CAT-07): %s"
+                    % (
+                        line.component_item_id.name,
+                        ", ".join(clash.mapped("device_model_id.display_name")),
+                        clash[:1].note,
+                    )
+                )
 
     @api.model_create_multi
     def create(self, vals_list):

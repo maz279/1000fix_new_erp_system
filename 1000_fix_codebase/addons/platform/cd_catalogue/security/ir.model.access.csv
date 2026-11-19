@@ -8,6 +8,7 @@ access_fix_service_kit_component_officer,fix.service.kit.component officer,model
 access_fix_rental_sku,fix.rental.sku,model_fix_rental_sku,base.group_user,1,0,0,0
 access_fix_rental_sku_officer,fix.rental.sku officer,model_fix_rental_sku,group_catalogue_officer,1,1,1,0
 access_fix_refurb_grade,fix.refurb.grade,model_fix_refurb_grade,base.group_user,1,0,0,0
+access_fix_refurb_grade_officer,fix.refurb.grade officer,model_fix_refurb_grade,group_catalogue_officer,1,1,0,0
 access_fix_brand,fix.brand,model_fix_brand,base.group_user,1,1,1,0
 access_fix_device_model,fix.device.model,model_fix_device_model,base.group_user,1,1,1,0
 access_fix_rbom_line,fix.rbom.line,model_fix_rbom_line,base.group_user,1,0,0,0
@@ -20,3 +21,13 @@ access_fix_catalogue_publication,fix.catalogue.publication,model_fix_catalogue_p
 access_fix_catalogue_publication_publisher,fix.catalogue.publication publisher,model_fix_catalogue_publication,group_catalogue_publisher,1,1,1,0
 access_fix_charge_code,fix.charge.code,model_fix_charge_code,base.group_user,1,0,0,0
 access_fix_charge_code_officer,fix.charge.code officer,model_fix_charge_code,group_catalogue_officer,1,1,1,0
+access_fix_service_mode_duration,fix.service.mode.duration,model_fix_service_mode_duration,base.group_user,1,0,0,0
+access_fix_service_mode_duration_officer,fix.service.mode.duration officer,model_fix_service_mode_duration,group_catalogue_officer,1,1,1,1
+access_fix_model_compatibility,fix.model.compatibility,model_fix_model_compatibility,base.group_user,1,0,0,0
+access_fix_model_compatibility_officer,fix.model.compatibility officer,model_fix_model_compatibility,group_catalogue_officer,1,1,1,1
+access_fix_catalogue_attribute_set,fix.catalogue.attribute.set,model_fix_catalogue_attribute_set,base.group_user,1,0,0,0
+access_fix_catalogue_attribute_set_officer,fix.catalogue.attribute.set officer,model_fix_catalogue_attribute_set,group_catalogue_officer,1,1,1,0
+access_fix_catalogue_attribute_set_line,fix.catalogue.attribute.set.line,model_fix_catalogue_attribute_set_line,base.group_user,1,0,0,0
+access_fix_catalogue_attribute_set_line_officer,fix.catalogue.attribute.set.line officer,model_fix_catalogue_attribute_set_line,group_catalogue_officer,1,1,1,1
+access_fix_subscription_plan_def,fix.subscription.plan.def,model_fix_subscription_plan_def,base.group_user,1,0,0,0
+access_fix_subscription_plan_def_officer,fix.subscription.plan.def officer,model_fix_subscription_plan_def,group_catalogue_officer,1,1,1,0
