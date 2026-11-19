@@ -16,6 +16,7 @@ from . import (
     fix_platform_ops,
     fix_platform_ops2,
     fix_platform_ops3,
+    fix_platform_ops4,
     fix_stamp_duty_schedule,
     fix_step_runtime,
     fix_working_calendar,

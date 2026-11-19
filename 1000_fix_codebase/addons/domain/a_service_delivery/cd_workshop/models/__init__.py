@@ -14,4 +14,5 @@ from . import (
     fix_workshop_part_line_p1p2,
     fix_workshop_part_line_m15,
     fix_workshop_waiver_request,
+    fix_workshop_branch_capability,
 )

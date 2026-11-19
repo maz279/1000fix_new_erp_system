@@ -68,3 +68,23 @@ access_fix_backup_verification_platform_admin,fix.backup.verification platform a
 access_fix_backup_verification_system,fix.backup.verification system,model_fix_backup_verification,base.group_system,1,1,1,0
 access_fix_dr_drill_platform_admin,fix.dr.drill platform admin,model_fix_dr_drill,cd_entity_config.group_platform_admin,1,1,1,0
 access_fix_dr_drill_system,fix.dr.drill system,model_fix_dr_drill,base.group_system,1,1,1,0
+access_fix_branch_capability_user,fix.branch.capability user,model_fix_branch_capability,base.group_user,1,0,0,0
+access_fix_branch_capability_platform_admin,fix.branch.capability platform admin,model_fix_branch_capability,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_branch_capability_system,fix.branch.capability system,model_fix_branch_capability,base.group_system,1,1,1,1
+access_fix_org_change_platform_admin,fix.org.change platform admin,model_fix_org_change,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_org_change_system,fix.org.change system,model_fix_org_change,base.group_system,1,1,1,0
+access_fix_change_freeze_user,fix.change.freeze user,model_fix_change_freeze,base.group_user,1,0,0,0
+access_fix_change_freeze_platform_admin,fix.change.freeze platform admin,model_fix_change_freeze,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_change_freeze_system,fix.change.freeze system,model_fix_change_freeze,base.group_system,1,1,1,1
+access_fix_component_licence_platform_admin,fix.component.licence platform admin,model_fix_component_licence,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_component_licence_system,fix.component.licence system,model_fix_component_licence,base.group_system,1,1,1,1
+access_fix_maintenance_window_user,fix.maintenance.window user,model_fix_maintenance_window,base.group_user,1,0,0,0
+access_fix_maintenance_window_platform_admin,fix.maintenance.window platform admin,model_fix_maintenance_window,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_maintenance_window_system,fix.maintenance.window system,model_fix_maintenance_window,base.group_system,1,1,1,1
+access_fix_runbook_user,fix.runbook user,model_fix_runbook,base.group_user,1,0,0,0
+access_fix_runbook_platform_admin,fix.runbook platform admin,model_fix_runbook,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_runbook_system,fix.runbook system,model_fix_runbook,base.group_system,1,1,1,1
+access_fix_platform_alert_platform_admin,fix.platform.alert platform admin,model_fix_platform_alert,cd_entity_config.group_platform_admin,1,1,1,1
+access_fix_platform_alert_system,fix.platform.alert system,model_fix_platform_alert,base.group_system,1,1,1,1
+access_fix_capacity_metric_platform_admin,fix.capacity.metric platform admin,model_fix_capacity_metric,cd_entity_config.group_platform_admin,1,1,1,0
+access_fix_capacity_metric_system,fix.capacity.metric system,model_fix_capacity_metric,base.group_system,1,1,1,0

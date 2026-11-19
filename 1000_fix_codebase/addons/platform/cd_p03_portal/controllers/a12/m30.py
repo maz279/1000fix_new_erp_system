@@ -75,7 +75,13 @@ SURFACES = {
     "fix.config.change": {
         "order": "id desc",
         "limit": 300,
-        "actions": {"action_apply", "action_reject", "action_rollback"},
+        "actions": {
+            "action_apply",
+            "action_apply_emergency",
+            "action_regularise",
+            "action_reject",
+            "action_rollback",
+        },
     },
     "fix.backup.verification": {
         "order": "restore_tested_at desc, id desc",
@@ -87,6 +93,29 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_sign_off"},
     },
+    # M30 capture audit, second pass (2026-11-19): the records the spec gives
+    # the six pages that still had nowhere to go (models/fix_platform_ops4.py).
+    "fix.branch.capability": {"order": "branch_id, service_kind", "limit": 500, "actions": set()},
+    "fix.org.change": {
+        "order": "effective_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject"},
+    },
+    "fix.change.freeze": {"order": "date_from desc", "limit": 100, "actions": {"action_lift"}},
+    "fix.component.licence": {"order": "component, version", "limit": 500, "actions": set()},
+    "fix.maintenance.window": {
+        "order": "scheduled_from desc",
+        "limit": 200,
+        "actions": {
+            "action_raise_announcement",
+            "action_start",
+            "action_complete",
+            "action_cancel",
+        },
+    },
+    "fix.runbook": {"order": "scope, code", "limit": 300, "actions": {"action_mark_reviewed"}},
+    "fix.platform.alert": {"order": "severity, code", "limit": 300, "actions": set()},
+    "fix.capacity.metric": {"order": "measured_on desc, resource", "limit": 300, "actions": set()},
 }
 
 # A12 R4: what a workspace form may set through /p03/model/write on each M30
@@ -139,7 +168,16 @@ WRITABLE = {
     ),
     # The kill switch (BRU-ADM-09/10) is real, admin-gated work: flag content
     # and the enabled toggle stay form-editable for Platform Admin.
-    "fix.feature.flag": ("key", "name", "enabled", "scope", "branch_ids", "default_for_new"),
+    "fix.feature.flag": (
+        "key",
+        "name",
+        "enabled",
+        "scope",
+        "branch_ids",
+        "default_for_new",
+        "owning_module",
+        "planned_removal_date",
+    ),
     # Config tampering through the workspace is an A12 finding (c01-c03,
     # M30-13): parameters and crons are deployment configuration, provisioned
     # outside the workspace. Read-only inventory screens.
@@ -181,6 +219,8 @@ WRITABLE = {
         "body",
         "kind",
         "maintenance_start",
+        "name_bn",
+        "body_bn",
     ),
     # A draft ladder's identity, its bands (the form's child grid) and the
     # countersigning authority holder. in_force / ruled_by / ruled_at /
@@ -208,6 +248,7 @@ WRITABLE = {
         "failure_impact",
         "failure_note",
         "runbook_ref",
+        "runbook_id",
         "active",
     ),
     # Registering a key is a system-administrator decision (model-side check).
@@ -223,7 +264,7 @@ WRITABLE = {
         "business_impact",
         "active",
     ),
-    "fix.config.change": ("parameter_id", "new_value", "reason", "change_reference"),
+    "fix.config.change": ("parameter_id", "new_value", "reason", "change_reference", "emergency"),
     "fix.backup.verification": (
         "backup_ref",
         "backup_type",
@@ -245,6 +286,80 @@ WRITABLE = {
         "rto_achieved_min",
         "issues_found",
         "actions",
+    ),
+    # Second pass (2026-11-19). States, stamps, the announcement link and the
+    # actual times move only through the actions.
+    "fix.branch.capability": (
+        "branch_id",
+        "service_kind",
+        "device_category",
+        "max_repair_level",
+        "effective_from",
+        "note",
+        "active",
+    ),
+    "fix.org.change": (
+        "branch_id",
+        "change_type",
+        "new_name",
+        "new_name_bn",
+        "new_zone_id",
+        "new_address_id",
+        "effective_from",
+        "reason",
+    ),
+    "fix.change.freeze": ("name", "date_from", "date_to", "scope", "reason"),
+    "fix.component.licence": (
+        "component",
+        "version",
+        "licence",
+        "licence_class",
+        "obligation_summary",
+        "compliance_note",
+        "owner_id",
+        "reviewed_on",
+        "next_review_due",
+        "active",
+    ),
+    "fix.maintenance.window": (
+        "scheduled_from",
+        "scheduled_to",
+        "scope",
+        "impact",
+        "environment_id",
+        "outcome_note",
+    ),
+    "fix.runbook": (
+        "code",
+        "name",
+        "scope",
+        "reference",
+        "document_url",
+        "steps",
+        "owner_id",
+        "last_reviewed_on",
+        "review_months",
+        "active",
+    ),
+    "fix.platform.alert": (
+        "code",
+        "name",
+        "source",
+        "severity",
+        "threshold_expression",
+        "routing",
+        "runbook_id",
+        "active",
+    ),
+    "fix.capacity.metric": (
+        "resource",
+        "dimension",
+        "measured_on",
+        "current_value",
+        "capacity_value",
+        "growth_rate_pct",
+        "scaling_action",
+        "review_note",
     ),
 }
 
@@ -543,6 +658,79 @@ def _registry_signals(env, crons):
                 "value": len(drills),
                 "detail": "%d met both RPO and RTO"
                 % len(drills.filtered(lambda d: d.rpo_met and d.rto_met)),
+            }
+        )
+    return rows + _operations_signals(env, _readable)
+
+
+def _operations_signals(env, _readable):
+    """Second pass (2026-11-19): freezes, emergency changes, maintenance,
+    runbooks and capacity. Same rule: read as the caller, skip what it cannot read."""
+    rows = []
+    now = datetime.datetime.now()
+    if _readable("fix.change.freeze"):
+        freeze = env["fix.change.freeze"].search(
+            [("date_from", "<=", now), ("date_to", ">", now)], limit=1
+        )
+        rows.append(
+            {
+                "signal": "Change freeze in force (BRU-ADM-22)",
+                "value": "yes" if freeze else "no",
+                "detail": "%s until %s" % (freeze.name, freeze.date_to) if freeze else "-",
+            }
+        )
+    if _readable("fix.config.change") and "emergency" in env["fix.config.change"]._fields:
+        open_emergencies = env["fix.config.change"].search(
+            [("emergency", "=", True), ("state", "=", "applied"), ("regularised_on", "=", False)]
+        )
+        rows.append(
+            {
+                "signal": "Emergency changes awaiting their change record (24 h, BRU-ADM-04)",
+                "value": len(open_emergencies),
+                "detail": ", ".join(open_emergencies.mapped("name")[:3]) or "-",
+            }
+        )
+    if _readable("fix.maintenance.window"):
+        Window = env["fix.maintenance.window"]
+        month = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        windows = Window.search([("state", "!=", "cancelled"), ("scheduled_from", ">=", month)])
+        windows = windows.filtered(lambda w: w.scheduled_from.month == now.month)
+        rows.append(
+            {
+                "signal": "Planned maintenance this month, minutes (cap %d, BRU-ADM-19)"
+                % Window._monthly_cap(),
+                "value": sum(windows.mapped("planned_minutes")),
+                "detail": "%d window(s), %d overran"
+                % (len(windows), len(windows.filtered("overran"))),
+            }
+        )
+    if _readable("fix.runbook"):
+        books = env["fix.runbook"].search([])
+        rows.append(
+            {
+                "signal": "Runbooks past their review date (NFR-091)",
+                "value": len(books.filtered("review_overdue")),
+                "detail": "%d runbook(s) on record" % len(books),
+            }
+        )
+    if _readable("fix.platform.alert"):
+        rows.append(
+            {
+                "signal": "Active alerts (each with a runbook, BRU-ADM-14)",
+                "value": env["fix.platform.alert"].search_count([("active", "=", True)]),
+                "detail": "-",
+            }
+        )
+    if _readable("fix.capacity.metric"):
+        latest = {}
+        for metric in env["fix.capacity.metric"].search([], order="measured_on desc, id desc"):
+            latest.setdefault((metric.resource, metric.dimension), metric)
+        low = [m for m in latest.values() if m.headroom_pct < 20]
+        rows.append(
+            {
+                "signal": "Resources under 20% headroom at their last review (OPS-08)",
+                "value": len(low),
+                "detail": ", ".join(m.resource for m in low[:3]) or "%d reviewed" % len(latest),
             }
         )
     return rows
@@ -856,5 +1044,14 @@ def _admin_kpis(env):
     if "fix.scheduled.job" in env and env["fix.scheduled.job"].has_access("read"):
         out["jobs_missed"] = len(
             env["fix.scheduled.job"].search([]).filtered(lambda j: j.run_state == "missed")
+        )
+    change = env.get("fix.config.change")
+    if change is not None and change.has_access("read") and "emergency" in change._fields:
+        out["emergency_open"] = change.search_count(
+            [("emergency", "=", True), ("state", "=", "applied"), ("regularised_on", "=", False)]
+        )
+    if "fix.maintenance.window" in env and env["fix.maintenance.window"].has_access("read"):
+        out["maintenance_upcoming"] = env["fix.maintenance.window"].search_count(
+            [("state", "=", "planned"), ("scheduled_from", ">=", datetime.datetime.now())]
         )
     return out

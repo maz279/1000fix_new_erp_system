@@ -41,3 +41,4 @@ access_fix_capacity_forecast_sup,fix.capacity.forecast.supervisor,model_fix_capa
 access_fix_timesheet_line_user,fix.timesheet.line.user,model_fix_timesheet_line,base.group_user,1,1,1,0
 access_fix_timesheet_line_att,fix.timesheet.line.attendance_user,model_fix_timesheet_line,hr_attendance.group_hr_attendance_user,1,1,1,0
 access_fix_timesheet_line_sup,fix.timesheet.line.supervisor,model_fix_timesheet_line,cd_attendance.group_attendance_supervisor,1,1,1,0
+access_fix_shift_template_platform_admin,fix.shift.template platform admin,model_fix_shift_template,cd_entity_config.group_platform_admin,1,1,1,0

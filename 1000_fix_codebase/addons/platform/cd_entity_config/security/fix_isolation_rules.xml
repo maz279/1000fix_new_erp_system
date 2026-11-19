@@ -18,6 +18,26 @@
         <field name="model_id" ref="model_fix_branch"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_branch_capability_company" model="ir.rule">
+        <field name="name">fix.branch.capability: allowed companies</field>
+        <field name="model_id" ref="model_fix_branch_capability"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_capacity_metric_company" model="ir.rule">
+        <field name="name">fix.capacity.metric: allowed companies</field>
+        <field name="model_id" ref="model_fix_capacity_metric"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_change_freeze_company" model="ir.rule">
+        <field name="name">fix.change.freeze: allowed companies</field>
+        <field name="model_id" ref="model_fix_change_freeze"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_component_licence_company" model="ir.rule">
+        <field name="name">fix.component.licence: allowed companies</field>
+        <field name="model_id" ref="model_fix_component_licence"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_config_change_company" model="ir.rule">
         <field name="name">fix.config.change: allowed companies</field>
         <field name="model_id" ref="model_fix_config_change"/>
@@ -59,6 +79,11 @@
         <field name="model_id" ref="model_fix_locale_pack"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_maintenance_window_company" model="ir.rule">
+        <field name="name">fix.maintenance.window: allowed companies</field>
+        <field name="model_id" ref="model_fix_maintenance_window"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_mdm_code_entry_company" model="ir.rule">
         <field name="name">fix.mdm.code.entry: allowed companies</field>
         <field name="model_id" ref="model_fix_mdm_code_entry"/>
@@ -89,9 +114,19 @@
         <field name="model_id" ref="model_fix_mdm_xref"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_org_change_company" model="ir.rule">
+        <field name="name">fix.org.change: allowed companies</field>
+        <field name="model_id" ref="model_fix_org_change"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_payment_gateway_company" model="ir.rule">
         <field name="name">fix.payment.gateway: allowed companies</field>
         <field name="model_id" ref="model_fix_payment_gateway"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_platform_alert_company" model="ir.rule">
+        <field name="name">fix.platform.alert: allowed companies</field>
+        <field name="model_id" ref="model_fix_platform_alert"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_platform_announcement_company" model="ir.rule">
@@ -107,6 +142,11 @@
     <record id="rule_fix_platform_release_company" model="ir.rule">
         <field name="name">fix.platform.release: allowed companies</field>
         <field name="model_id" ref="model_fix_platform_release"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_runbook_company" model="ir.rule">
+        <field name="name">fix.runbook: allowed companies</field>
+        <field name="model_id" ref="model_fix_runbook"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_scheduled_job_company" model="ir.rule">

@@ -17,6 +17,18 @@
 #   * Nine screens (holidays, ladder bands, health console, backup, five report
 #     screens) sat on no page.
 #
+# Second pass (2026-11-19), read against FR-ADM-001..040 and §10.1:
+#   * Branch Master had no capability profile (FR-ADM-004, P0) and no zone
+#     boundary (FR-ADM-005).
+#   * Entity Structure captured only the legal entity: no cost centre
+#     (FR-ADM-006, P0), business line (FR-ADM-007, P0) or effective-dated
+#     organisation change (FR-ADM-010/011, BRU-ADM-08).
+#   * Config & Flags had no change freeze (FR-ADM-028, BRU-ADM-22), no
+#     emergency path (FR-ADM-017, BRU-ADM-04) and no licence register (FR-ADM-021).
+#   * Calendars had no shift pattern (FR-ADM-008).
+#   * Announcements had no maintenance window (FR-ADM-039, BRU-ADM-19).
+#   * Audit had no runbook, alert or capacity review (FR-ADM-036..038).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M29 guard's fixture).
 from __future__ import annotations
@@ -79,24 +91,39 @@ console.log(JSON.stringify({ subs,
 # What each page must let a person capture: the page's own "+ New" first,
 # then every other record the page covers, by its form screen.
 CAPTURES = {
-    "1": ["M30-form-branch", "M30-form-zone"],
-    "2": ["M30-form-entity"],
+    "1": ["M30-form-branch", "M30-form-zone", "M30-form-capability", "M02-form-zone"],
+    "2": ["M30-form-entity", "M30-form-org-change", "M54-form-centre", "M54-form-bline"],
     "3": [
         "M30-form-flag",
         "M30-form-config-change",
+        "M30-form-freeze",
         "M30-form-param",
         "M30-form-job",
         "M30-form-env",
+        "M30-form-licence",
     ],
-    "4": ["M30-form-calendar", "M30-form-holiday"],
-    "5": ["M30-form-announcement", "M30-form-notif"],
+    "4": ["M30-form-calendar", "M30-form-holiday", "M55-form-shift"],
+    "5": ["M30-form-announcement", "M30-form-maintenance", "M30-form-notif"],
     "6": [
         "M30-form-dofa-ladder",
         "M30-form-dofa-band",
         "M30-form-release",
         "M30-form-backup",
         "M30-form-drill",
+        "M30-form-runbook",
+        "M30-form-alert",
+        "M30-form-capacity",
     ],
+}
+
+# Records the spec gives M30 but another module masters and serves: the chip
+# opens that module's form, an M30 list shows them read-only, and a Platform
+# Admin may write them (an ACL row in the owning module).
+FOREIGN = {
+    "fix.geofence": "cd_entity_config",
+    "fix.cost.centre": "cd_fpa",
+    "fix.business.line": "cd_fpa",
+    "fix.shift.template": "cd_attendance",
 }
 
 # The record each page lists (its grid).
@@ -112,13 +139,25 @@ RECORDS = {
 # Odoo's own tables, shown as inventories: a person never types one here.
 SYSTEM_WRITTEN = ("M30-config", "M30-crons")
 
-# The models the capture audit built (cd_entity_config/models/fix_platform_ops3.py).
+# The models the capture audits built (cd_entity_config/models/fix_platform_ops3/4.py).
 NEW_MODELS = (
     "fix.scheduled.job",
     "fix.config.parameter",
     "fix.config.change",
     "fix.backup.verification",
     "fix.dr.drill",
+    "fix.org.change",
+    "fix.component.licence",
+    "fix.platform.alert",
+    "fix.capacity.metric",
+)
+# Operational information every internal user may read (a maintenance window,
+# a freeze, a runbook, what a branch can do); only a Platform Admin writes them.
+NEW_PUBLIC_MODELS = (
+    "fix.branch.capability",
+    "fix.change.freeze",
+    "fix.maintenance.window",
+    "fix.runbook",
 )
 
 
@@ -269,14 +308,44 @@ def test_every_row_action_is_served(m30):
             assert act["m"] in surfaces[cfg["model"]], "%s %s is not served" % (sid, act["m"])
 
 
+def _served_elsewhere(model):
+    """A surface may be declared by ONE area only; a foreign record is served by
+    the controller of the module that masters it."""
+    pattern = re.compile(r'^\s*"%s":\s*\{' % re.escape(model), re.M)
+    for path in (HERE.parent / "controllers").rglob("*.py"):
+        if path != CONTROLLER and pattern.search(path.read_text(encoding="utf-8")):
+            return True
+    return False
+
+
 def test_every_listed_model_is_served(m30):
     surfaces = _controller()["SURFACES"]
     for sid, cfg in m30["screens"].items():
         if cfg["kind"] in ("model_list", "model_form"):
+            if cfg["model"] in FOREIGN:
+                assert cfg["model"] not in surfaces, "M30 would declare %s twice" % cfg["model"]
+                assert cfg["kind"] == "model_list" and cfg["create"] is False, sid
+                assert _served_elsewhere(cfg["model"]), cfg["model"]
+                continue
             assert cfg["model"] in surfaces, "%s reads %s, which M30 does not serve" % (
                 sid,
                 cfg["model"],
             )
+
+
+def test_foreign_chips_are_writable_by_a_platform_admin():
+    addons = HERE.parents[2]
+    for model, module in FOREIGN.items():
+        acl = next(addons.rglob("%s/security/ir.model.access.csv" % module)).read_text(
+            encoding="utf-8"
+        )
+        ref = "model_" + model.replace(".", "_")
+        row = [
+            line
+            for line in acl.splitlines()
+            if ",%s,cd_entity_config.group_platform_admin," % ref in line
+        ]
+        assert row and row[0].strip().split(",")[-3:-1] == ["1", "1"], model
 
 
 def test_every_editable_form_field_is_writable(m30):
@@ -308,7 +377,28 @@ def test_workflow_stamps_are_never_typed(m30):
         "fix.backup.verification": {"tested_by_id"},
         "fix.scheduled.job": {"cron_active", "last_run", "next_run", "run_state", "schedule"},
         "fix.config.parameter": {"current_value"},
+        "fix.org.change": {
+            "state",
+            "previous_state",
+            "proposed_by_id",
+            "approved_by_id",
+            "approved_on",
+            "applied_on",
+            "reject_reason",
+        },
+        "fix.change.freeze": {"declared_by_id", "lifted_by_id", "lift_reason", "status"},
+        "fix.maintenance.window": {
+            "state",
+            "announcement_id",
+            "actual_from",
+            "actual_to",
+            "overran",
+            "planned_minutes",
+        },
+        "fix.capacity.metric": {"reviewed_by_id", "headroom_pct", "projected_exhaustion"},
+        "fix.runbook": {"next_review_due"},
     }
+    stamps["fix.config.change"] |= {"regularise_by", "regularised_on"}
     for model, names in stamps.items():
         assert not names & set(writable[model]), model
     for sid, cfg in m30["screens"].items():
@@ -341,11 +431,15 @@ def test_new_models_have_access_rows_and_company_rules():
     root = HERE.parents[1] / "cd_entity_config"
     acl = (root / "security" / "ir.model.access.csv").read_text(encoding="utf-8")
     rules = (root / "security" / "fix_isolation_rules.xml").read_text(encoding="utf-8")
-    for model in NEW_MODELS:
+    for model in NEW_MODELS + NEW_PUBLIC_MODELS:
         ref = "model_" + model.replace(".", "_")
         assert ",%s,cd_entity_config.group_platform_admin," % ref in acl, model
-        assert ",%s,base.group_user," % ref not in acl, "%s is readable by every user" % model
         assert 'ref="%s"' % ref in rules, model
+        users = [line for line in acl.splitlines() if ",%s,base.group_user," % ref in line]
+        if model in NEW_MODELS:
+            assert not users, "%s is readable by every user" % model
+        else:
+            assert users and users[0].strip().endswith(",1,0,0,0"), model
 
 
 def test_the_new_kpis_are_served(m30):
@@ -353,3 +447,6 @@ def test_the_new_kpis_are_served(m30):
     text = CONTROLLER.read_text(encoding="utf-8")
     assert 'out["config_changes_pending"]' in text
     assert 'out["jobs_missed"]' in text
+    assert {"emergency_open", "maintenance_upcoming"} <= set(m30["kpis"])
+    assert 'out["emergency_open"]' in text
+    assert 'out["maintenance_upcoming"]' in text

@@ -19,7 +19,7 @@ Owns:
 
 CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.1.0",
+    "version": "19.0.1.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",
@@ -41,6 +41,7 @@ CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
         "security/ir.model.access.csv",
         "data/platform_ops2_sequences.xml",
         "data/platform_ops3_sequences.xml",
+        "data/platform_ops4_data.xml",
         "data/fix_a12_crons.xml",
         "views/fix_portal_shell_views.xml",
         "views/fix_entity_views.xml",

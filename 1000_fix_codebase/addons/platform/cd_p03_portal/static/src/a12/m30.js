@@ -9,7 +9,18 @@
  * "Backup & DR" listed CUSTOMER backup plans (M06's), and the job and
  * parameter "registries" were read-only Odoo tables: the spec's job registry,
  * configuration change record, restore tests and DR drills (§10.1) did not
- * exist. They are now models in cd_entity_config (fix_platform_ops3.py). */
+ * exist. They are now models in cd_entity_config (fix_platform_ops3.py).
+ *
+ * Second pass (2026-11-19), read against FR-ADM-001..040 rather than counted:
+ * Branch Master had no capability profile (FR-ADM-004) or zone boundary;
+ * Entity Structure captured only the legal entity, not the cost centres,
+ * business lines (FR-ADM-006/007) or the effective-dated organisation change
+ * (FR-ADM-010/011); Config & Flags had no change freeze, emergency path or
+ * licence register (FR-ADM-017/021/028); Calendars had no shift pattern;
+ * Announcements had no maintenance window (BRU-ADM-19); Audit had no runbook,
+ * alert or capacity review (FR-ADM-036..038). Models: fix_platform_ops4.py.
+ * Cost centres and business lines are mastered in M54, shift patterns in M55
+ * and geofences in M02: their chips open those forms. */
 
 export const MODULE = {
   area: 'A12', code: 'M30', en: 'Platform Administration', title: 'M30 · Platform Administration',
@@ -23,7 +34,9 @@ export const MODULE = {
     { l: 'Flags Total', m: 'flags_total' },
     { l: 'Announcements Live', m: 'announcements_live' },
     { l: 'Config Changes Awaiting Apply', m: 'config_changes_pending' },
-    { l: 'Registered Jobs Missed', m: 'jobs_missed' }
+    { l: 'Registered Jobs Missed', m: 'jobs_missed' },
+    { l: 'Emergency Changes Awaiting Record', m: 'emergency_open' },
+    { l: 'Maintenance Windows Planned', m: 'maintenance_upcoming' }
   ],
   groups: [
     { en: 'Registry Completion', screens: [
@@ -36,23 +49,35 @@ export const MODULE = {
       { id: 'M30-env', en: 'Environments', bn: 'Environments', t: 'g' },
       { id: 'M30-backup', en: 'Backup Restore Tests', bn: 'ব্যাকআপ রিস্টোর পরীক্ষা', t: 'g' },
       { id: 'M30-dr-drills', en: 'DR Drills', bn: 'ডিআর মহড়া', t: 'g' },
-      { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' }
+      { id: 'M30-release', en: 'Release Coordination', bn: 'Release Coordination', t: 'g' },
+      { id: 'M30-runbooks', en: 'Runbooks', bn: 'রানবুক', t: 'g' },
+      { id: 'M30-alerts', en: 'Alert Registry', bn: 'অ্যালার্ট রেজিস্ট্রি', t: 'g' },
+      { id: 'M30-capacity', en: 'Capacity Reviews', bn: 'সক্ষমতা পর্যালোচনা', t: 'g' }
     ]},
     { en: 'Structure', screens: [
       { id: 'M30-branches', en: 'Branch Register', bn: 'শাখা রেজিস্টার', t: 'g' },
       { id: 'M30-entities', en: 'Legal Entities', bn: 'প্রতিষ্ঠান', t: 'g' },
       { id: 'M30-zones', en: 'Dispatch Zones', bn: 'জোন', t: 'g' },
       { id: 'M30-calendars', en: 'Calendars & Shifts', bn: 'ক্যালেন্ডার', t: 'g' },
-      { id: 'M30-calendar-holidays', en: 'Calendar Holidays', bn: 'ক্যালেন্ডার ছুটি', t: 'g' }
+      { id: 'M30-calendar-holidays', en: 'Calendar Holidays', bn: 'ক্যালেন্ডার ছুটি', t: 'g' },
+      { id: 'M30-capabilities', en: 'Branch Capability Profiles', bn: 'শাখার সক্ষমতা', t: 'g' },
+      { id: 'M30-geofences', en: 'Zone Boundaries', bn: 'জোন সীমানা', t: 'g' },
+      { id: 'M30-org-changes', en: 'Organisation Changes', bn: 'সাংগঠনিক পরিবর্তন', t: 'g' },
+      { id: 'M30-cost-centres', en: 'Cost Centres', bn: 'ব্যয় কেন্দ্র', t: 'g' },
+      { id: 'M30-business-lines', en: 'Business Lines', bn: 'ব্যবসায়িক লাইন', t: 'g' },
+      { id: 'M30-shifts', en: 'Shift Patterns', bn: 'শিফট প্যাটার্ন', t: 'g' }
     ]},
     { en: 'Configuration', screens: [
       { id: 'M30-config', en: 'Config Parameters (Inventory)', bn: 'কনফিগ', t: 'g' },
       { id: 'M30-flags', en: 'Feature Flags & Kill Switches', bn: 'ফিচার ফ্ল্যাগ', t: 'g' },
-      { id: 'M30-drift', en: 'Config Drift Review (Inventory, No Drift Computed)', bn: 'ড্রিফট', t: 'r' }
+      { id: 'M30-drift', en: 'Config Drift Review (Inventory, No Drift Computed)', bn: 'ড্রিফট', t: 'r' },
+      { id: 'M30-freezes', en: 'Change Freezes', bn: 'পরিবর্তন স্থগিত', t: 'g' },
+      { id: 'M30-licences', en: 'Component Licences', bn: 'কম্পোনেন্ট লাইসেন্স', t: 'g' }
     ]},
     { en: 'Comms', screens: [
       { id: 'M30-announcements', en: 'System Announcements', bn: 'ঘোষণা', t: 'g' },
-      { id: 'M30-notif', en: 'Notification Config (Policy Record)', bn: 'নোটিফিকেশন', t: 'g' }
+      { id: 'M30-notif', en: 'Notification Config (Policy Record)', bn: 'নোটিফিকেশন', t: 'g' },
+      { id: 'M30-maintenance', en: 'Maintenance Windows', bn: 'রক্ষণাবেক্ষণ সময়', t: 'g' }
     ]},
     { en: 'Approval Authority (DOFA)', bn: 'অনুমোদন কর্তৃত্ব', screens: [
       { id: 'M30-dofa-rulings', en: 'Open DOFA Rulings', bn: 'অমীমাংসিত অনুমোদন সিদ্ধান্ত', t: 'r' },
@@ -64,16 +89,19 @@ export const MODULE = {
   reports: ['Branch Registry', 'Feature Flag Rollout', 'Config Parameter Inventory', 'Calendar Coverage', 'DOFA Coverage'],
   forms: ['Branch', 'Zone', 'Legal Entity', 'Feature Flag', 'Configuration Change', 'Registered Parameter', 'Scheduled Job', 'Environment',
     'Working Calendar', 'Calendar Holiday', 'Announcement', 'Notification Configuration',
-    'Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill'],
+    'Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill',
+    'Branch Capability', 'Zone Boundary', 'Organisation Change', 'Cost Centre', 'Business Line',
+    'Change Freeze', 'Component Licence', 'Shift Pattern', 'Maintenance Window',
+    'Runbook', 'Alert', 'Capacity Review'],
   cross: ['M29 access', 'M04 branch ops', 'M55 attendance calendars', 'M65 entities'],
   freg: { src: 64, sub: [
     // Each page names its own capture first, then every other record its lists show.
-    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones'], reports: ['Branch Registry', 'Branch Provisioning Time'], forms: ['Branch', 'Zone'], create: 'M30-form-branch' }],
-    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities'], reports: [], forms: ['Legal Entity'], create: 'M30-form-entity' }],
-    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-params', 'M30-config-changes', 'M30-config', 'M30-jobs', 'M30-crons', 'M30-env'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory', 'Job Success Rate'], forms: ['Feature Flag', 'Configuration Change', 'Registered Parameter', 'Scheduled Job', 'Environment'], create: 'M30-form-flag' }],
-    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars', 'M30-calendar-holidays'], reports: ['Calendar Coverage'], forms: ['Working Calendar', 'Calendar Holiday'], create: 'M30-form-calendar' }],
-    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-notif'], reports: [], forms: ['Announcement', 'Notification Configuration'], create: 'M30-form-announcement' }],
-    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-bands', 'M30-dofa-rulings', 'M30-release', 'M30-health', 'M30-backup', 'M30-dr-drills', 'M30-drift'], reports: ['DOFA Coverage', 'Config Parameter Inventory', 'Platform Health'], forms: ['Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill'], create: 'M30-form-dofa-ladder' }]
+    ['1', 'Branch Master', 12, { model: 'fix.branch', cols: ['code', 'name', 'entity_id', 'zone_id', 'active'], screens: ['M30-branches', 'M30-provisioning', 'M30-zones', 'M30-capabilities', 'M30-geofences'], reports: ['Branch Registry', 'Branch Provisioning Time'], forms: ['Branch', 'Zone', 'Branch Capability', 'Zone Boundary'], create: 'M30-form-branch' }],
+    ['2', 'Entity Structure', 8, { model: 'fix.entity', cols: ['code', 'legal_name', 'legal_name_bn', 'branch_count', 'active'], screens: ['M30-entities', 'M30-org-changes', 'M30-cost-centres', 'M30-business-lines'], reports: [], forms: ['Legal Entity', 'Organisation Change', 'Cost Centre', 'Business Line'], create: 'M30-form-entity' }],
+    ['3', 'Config & Flags', 10, { model: 'fix.feature.flag', cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'], screens: ['M30-flags', 'M30-params', 'M30-config-changes', 'M30-freezes', 'M30-config', 'M30-jobs', 'M30-crons', 'M30-env', 'M30-licences'], reports: ['Feature Flag Rollout', 'Config Parameter Inventory', 'Job Success Rate'], forms: ['Feature Flag', 'Configuration Change', 'Change Freeze', 'Registered Parameter', 'Scheduled Job', 'Environment', 'Component Licence'], create: 'M30-form-flag' }],
+    ['4', 'Calendars', 9, { model: 'fix.working.calendar', cols: ['name', 'branch_id', 'timezone', 'active'], screens: ['M30-calendars', 'M30-calendar-holidays', 'M30-shifts'], reports: ['Calendar Coverage'], forms: ['Working Calendar', 'Calendar Holiday', 'Shift Pattern'], create: 'M30-form-calendar' }],
+    ['5', 'Announcements', 6, { model: 'fix.platform.announcement', cols: ['name', 'severity', 'audience', 'publish_on', 'state'], screens: ['M30-announcements', 'M30-maintenance', 'M30-notif'], reports: [], forms: ['Announcement', 'Maintenance Window', 'Notification Configuration'], create: 'M30-form-announcement' }],
+    ['6', 'Audit', 19, { model: 'fix.dofa.ladder', cols: ['name', 'target_model', 'in_force', 'ruled_by', 'ruled_at'], screens: ['M30-dofa-ladders', 'M30-dofa-bands', 'M30-dofa-rulings', 'M30-release', 'M30-health', 'M30-backup', 'M30-dr-drills', 'M30-runbooks', 'M30-alerts', 'M30-capacity', 'M30-drift'], reports: ['DOFA Coverage', 'Config Parameter Inventory', 'Platform Health'], forms: ['Authority Ladder', 'Ladder Band', 'Release', 'Backup Restore Test', 'DR Drill', 'Runbook', 'Alert', 'Capacity Review'], create: 'M30-form-dofa-ladder' }]
   ] }
 };
 
@@ -106,7 +134,7 @@ export const SCREENS = {
   'M30-config': { kind: 'model_list', model: 'ir.config_parameter', create: false,
     cols: ['key', 'create_date', 'write_date'] },
   'M30-flags': { kind: 'model_list', model: 'fix.feature.flag',
-    cols: ['key', 'name', 'enabled', 'scope', 'default_for_new'] },
+    cols: ['key', 'name', 'enabled', 'scope', 'default_for_new', 'owning_module', 'planned_removal_date', 'stale'] },
   'M30-drift': { kind: 'table_report', module: 'M30', report: 'config_drift', title: 'Config Drift Review', period: false },
   'M30-announcements': { kind: 'model_list', model: 'fix.platform.announcement', stateField: 'state',
     cols: ['name', 'kind', 'severity', 'audience', 'publish_on', 'expires_on', 'published_by_id', 'acknowledged_count', 'acknowledged_by_me', 'state'],
@@ -160,7 +188,10 @@ export const SCREENS = {
           { name: 'enabled', label: 'Enabled' },
           { name: 'scope', required: true, label: 'Scope' },
           { name: 'branch_ids', label: 'Enabled Branches' },
-          { name: 'default_for_new', label: 'Default for New Branches' }
+          { name: 'default_for_new', label: 'Default for New Branches' },
+          { name: 'owning_module', label: 'Owning Module' },
+          { name: 'planned_removal_date', label: 'Planned Removal (stale after)' },
+          { name: 'stale', readonly: true, label: 'Past Removal Date' }
         ] }
     ]
   },
@@ -175,6 +206,7 @@ export const SCREENS = {
       { title: 'Announcement', note: 'Draft → published → retired. A second Platform Admin publishes from the list screen: the author cannot. Planned maintenance needs its start time and 72 hours of lead. Users acknowledge on the list screen; that screen is the only place an announcement appears, because no banner pushes it to other screens.',
         fields: [
           { name: 'name', required: true, label: 'Title' },
+          { name: 'name_bn', label: 'Title (Bengali)' },
           { name: 'kind', required: true, label: 'Kind' },
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'audience', required: true, label: 'Audience' },
@@ -183,7 +215,8 @@ export const SCREENS = {
           { name: 'maintenance_start', label: 'Maintenance Starts' }
         ] },
       { title: 'Body', fields: [
-          { name: 'body', type: 'text', label: 'Message' }
+          { name: 'body', type: 'text', label: 'Message' },
+          { name: 'body_bn', type: 'text', label: 'Message (Bengali)' }
         ] }
     ]
   },
@@ -293,9 +326,11 @@ export const SCREENS = {
     cols: ['key', 'description', 'value_type', 'current_value', 'default_value', 'owning_module', 'active'],
     note: 'Only a key registered here can be changed from the workspace, and only a system administrator registers one. Credentials never enter it.' },
   'M30-config-changes': { kind: 'model_list', model: 'fix.config.change', stateField: 'state',
-    cols: ['name', 'key', 'new_value', 'previous_value', 'change_reference', 'proposed_by_id', 'applied_by_id', 'applied_on', 'state'],
+    cols: ['name', 'key', 'new_value', 'previous_value', 'change_reference', 'emergency', 'regularise_by', 'proposed_by_id', 'applied_by_id', 'applied_on', 'state'],
     actions: [
       { m: 'action_apply', l: 'Apply (second person)' },
+      { m: 'action_apply_emergency', l: 'Apply as Emergency (tells every Platform Admin)' },
+      { m: 'action_regularise', l: 'File Change Record (emergency)', ask: 'The approved change record (M66) for this emergency change', kwarg: 'reference' },
       { m: 'action_reject', l: 'Reject / Withdraw', ask: 'Why is this change rejected or withdrawn?', kwarg: 'reason' },
       { m: 'action_rollback', l: 'Roll Back', ask: 'Why is this change being rolled back?', kwarg: 'reason' }
     ] },
@@ -421,11 +456,12 @@ export const SCREENS = {
     back: 'M30-config-changes',
     status: { field: 'state', labels: { proposed: 'Proposed', applied: 'Applied', rejected: 'Rejected', rolled_back: 'Rolled Back' } },
     sections: [
-      { title: 'Change', note: 'The value is checked against the parameter type and range when you save. A second Platform Admin applies it on the Configuration Changes list; it takes effect at once, without a restart, and the previous value is kept so one action rolls it back. Each step is on the audit trail (key and change number, never the value).',
+      { title: 'Change', note: 'The value is checked against the parameter type and range when you save. A second Platform Admin applies it on the Configuration Changes list; it takes effect at once, without a restart, and the previous value is kept so one action rolls it back. During a change freeze it cannot be applied. An emergency change is applied by you alone with Apply as Emergency: every Platform Admin is told at once, and without its change record within 24 hours it is reverted automatically. Each step is on the audit trail (key and change number, never the value).',
         fields: [
           { name: 'parameter_id', required: true, label: 'Parameter' },
           { name: 'new_value', required: true, label: 'New Value' },
-          { name: 'change_reference', required: true, label: 'Approved Change Record (M66)' },
+          { name: 'change_reference', label: 'Approved Change Record (M66; an emergency files it within 24 h)' },
+          { name: 'emergency', label: 'Emergency Change' },
           { name: 'reason', type: 'text', required: true, label: 'Reason' }
         ] },
       { title: 'Record', fields: [
@@ -434,6 +470,7 @@ export const SCREENS = {
           { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
           { name: 'applied_by_id', readonly: true, label: 'Applied By' },
           { name: 'applied_on', readonly: true, label: 'Applied On' },
+          { name: 'regularise_by', readonly: true, label: 'Change Record Due By' },
           { name: 'closed_by_id', readonly: true, label: 'Rejected / Rolled Back By' },
           { name: 'close_reason', readonly: true, label: 'Rejection / Rollback Reason' }
         ] }
@@ -461,7 +498,8 @@ export const SCREENS = {
           { name: 'concurrent_safe', label: 'Concurrent-Safe' },
           { name: 'failure_impact', required: true, label: 'Failure Impact' },
           { name: 'failure_note', label: 'What Breaks If It Fails' },
-          { name: 'runbook_ref', label: 'Runbook' },
+          { name: 'runbook_ref', label: 'Runbook (reference)' },
+          { name: 'runbook_id', label: 'Runbook Record' },
           { name: 'active', label: 'Active' }
         ] },
       { tab: 'run', title: 'Run State', note: 'Read from the scheduled action itself.',
@@ -522,6 +560,212 @@ export const SCREENS = {
           { name: 'rto_met', readonly: true, label: 'RTO Met' },
           { name: 'signed_off_by_id', readonly: true, label: 'Signed Off By' },
           { name: 'signed_off_on', readonly: true, label: 'Signed Off On' }
+        ] }
+    ]
+  },
+
+
+  /* ===== capture audit, second pass (2026-11-19) ===== */
+  'M30-capabilities': { kind: 'model_list', model: 'fix.branch.capability',
+    cols: ['branch_id', 'service_kind', 'device_category', 'max_repair_level', 'effective_from', 'active'],
+    note: 'What each branch may perform (FR-ADM-004). The workshop refuses a job above the profile of its branch; a branch with no profile is not yet restricted.' },
+  'M30-geofences': { kind: 'model_list', model: 'fix.geofence', create: false, cols: ['name', 'zone_id', 'geofence_type', 'active'],
+    note: 'The geographic boundary of each dispatch zone (FR-ADM-005). Mastered with M02 dispatch.' },
+  'M30-org-changes': { kind: 'model_list', model: 'fix.org.change', stateField: 'state',
+    cols: ['name', 'branch_id', 'change_type', 'previous_state', 'new_state', 'effective_from', 'proposed_by_id', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve (second person)' },
+      { m: 'action_reject', l: 'Reject / Withdraw', ask: 'Why is this change rejected or withdrawn?', kwarg: 'reason' }
+    ] },
+  'M30-cost-centres': { kind: 'model_list', model: 'fix.cost.centre', create: false,
+    cols: ['code', 'name', 'parent_id', 'branch_id', 'owner_id', 'centre_type', 'date_from', 'date_to', 'active'],
+    note: 'The cost-centre hierarchy (FR-ADM-006). M54 budgets against it; add one with the Cost Centre chip.' },
+  'M30-business-lines': { kind: 'model_list', model: 'fix.business.line', create: false,
+    cols: ['code', 'name', 'revenue_stream_no', 'is_profit_centre'],
+    note: 'The business-line dimension (FR-ADM-007), shared with M54 profitability; add one with the Business Line chip.' },
+  'M30-shifts': { kind: 'model_list', model: 'fix.shift.template', create: false,
+    cols: ['name', 'start_hour', 'end_hour', 'operating_unit_id'],
+    note: 'Shift patterns (FR-ADM-008) that M55 rosters use; add one with the Shift Pattern chip.' },
+  'M30-freezes': { kind: 'model_list', model: 'fix.change.freeze',
+    cols: ['name', 'date_from', 'date_to', 'scope', 'status', 'declared_by_id', 'lifted_by_id'],
+    actions: [{ m: 'action_lift', l: 'Lift Early', ask: 'Why is the freeze lifted early?', kwarg: 'reason' }] },
+  'M30-licences': { kind: 'model_list', model: 'fix.component.licence',
+    cols: ['component', 'version', 'licence', 'licence_class', 'owner_id', 'next_review_due', 'review_overdue', 'active'] },
+  'M30-maintenance': { kind: 'model_list', model: 'fix.maintenance.window', stateField: 'state',
+    cols: ['name', 'scheduled_from', 'scheduled_to', 'planned_minutes', 'scope', 'impact', 'announcement_state', 'actual_from', 'actual_to', 'overran', 'state'],
+    actions: [
+      { m: 'action_raise_announcement', l: 'Draft the Announcement' },
+      { m: 'action_start', l: 'Start (announced only)' },
+      { m: 'action_complete', l: 'Complete' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the maintenance cancelled?', kwarg: 'reason' }
+    ] },
+  'M30-runbooks': { kind: 'model_list', model: 'fix.runbook',
+    cols: ['code', 'name', 'scope', 'reference', 'owner_id', 'last_reviewed_on', 'next_review_due', 'review_overdue', 'active'],
+    actions: [{ m: 'action_mark_reviewed', l: 'Mark Reviewed Today' }] },
+  'M30-alerts': { kind: 'model_list', model: 'fix.platform.alert',
+    cols: ['code', 'name', 'source', 'severity', 'threshold_expression', 'routing', 'runbook_id', 'active'] },
+  'M30-capacity': { kind: 'model_list', model: 'fix.capacity.metric',
+    cols: ['name', 'resource', 'dimension', 'measured_on', 'current_value', 'capacity_value', 'headroom_pct', 'growth_rate_pct', 'projected_exhaustion', 'scaling_action'] },
+
+  'M30-form-capability': {
+    kind: 'model_form', model: 'fix.branch.capability', title: 'Branch Capability',
+    newLabel: 'Record a Branch Capability', back: 'M30-capabilities',
+    sections: [
+      { title: 'Capability', note: 'One row per service and device category the branch performs, with the highest repair level it can take. A workshop job above that level at this branch is refused. Leave the category blank to cover every category.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'service_kind', required: true, label: 'Service' },
+          { name: 'device_category', label: 'Device Category (blank: all)' },
+          { name: 'max_repair_level', required: true, label: 'Highest Repair Level' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'note', label: 'Note' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M30-form-org-change': {
+    kind: 'model_form', model: 'fix.org.change', title: 'Organisation Change',
+    newLabel: 'Propose an Organisation Change', back: 'M30-org-changes',
+    status: { field: 'state', labels: { proposed: 'Proposed', approved: 'Approved (awaiting date)', applied: 'In Force', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Change', note: 'Renames, zone moves and relocations of a branch take effect from a date, never backwards, so reports keep the structure that was in force at the time. A second Platform Admin approves on the Organisation Changes list; a change dated today applies at once, a later one on its date. The structure before it is kept on the record.',
+        fields: [
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'change_type', required: true, label: 'Change' },
+          { name: 'new_name', label: 'New Name (rename)' },
+          { name: 'new_name_bn', label: 'New Name in Bengali (rename)' },
+          { name: 'new_zone_id', label: 'New Zone (zone move)' },
+          { name: 'new_address_id', label: 'New Address (relocation)' },
+          { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' }
+        ] },
+      { title: 'Record', fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'previous_state', readonly: true, label: 'Structure Before' },
+          { name: 'new_state', readonly: true, label: 'Structure After' },
+          { name: 'proposed_by_id', readonly: true, label: 'Proposed By' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' },
+          { name: 'applied_on', readonly: true, label: 'In Force Since' }
+        ] }
+    ]
+  },
+  'M30-form-freeze': {
+    kind: 'model_form', model: 'fix.change.freeze', title: 'Change Freeze',
+    newLabel: 'Declare a Change Freeze', back: 'M30-freezes',
+    sections: [
+      { title: 'Freeze', note: 'While a freeze is in force no configuration change can be applied and no feature flag changed, except switching a flag off (the kill switch) and the emergency change path. A freeze cannot be edited once it starts; it can only be lifted early, with a reason.',
+        fields: [
+          { name: 'name', required: true, label: 'Name' },
+          { name: 'date_from', required: true, label: 'Starts' },
+          { name: 'date_to', required: true, label: 'Ends' },
+          { name: 'scope', required: true, label: 'Blocks' },
+          { name: 'reason', type: 'text', required: true, label: 'Reason' },
+          { name: 'status', readonly: true, label: 'Status' },
+          { name: 'declared_by_id', readonly: true, label: 'Declared By' }
+        ] }
+    ]
+  },
+  'M30-form-licence': {
+    kind: 'model_form', model: 'fix.component.licence', title: 'Component Licence',
+    newLabel: 'Register a Component Licence', back: 'M30-licences',
+    sections: [
+      { title: 'Licence', note: 'Open-source and commercial components of the platform (employee software licences are M66). Anything other than a permissive licence needs a note on how we meet its obligations.',
+        fields: [
+          { name: 'component', required: true, label: 'Component' },
+          { name: 'version', required: true, label: 'Version' },
+          { name: 'licence', required: true, label: 'Licence (SPDX)' },
+          { name: 'licence_class', required: true, label: 'Class' },
+          { name: 'obligation_summary', type: 'text', label: 'Obligations' },
+          { name: 'compliance_note', type: 'text', label: 'How We Comply' },
+          { name: 'owner_id', label: 'Owner' },
+          { name: 'reviewed_on', label: 'Last Reviewed' },
+          { name: 'next_review_due', required: true, label: 'Next Review Due' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M30-form-maintenance': {
+    kind: 'model_form', model: 'fix.maintenance.window', title: 'Maintenance Window',
+    newLabel: 'Plan a Maintenance Window', back: 'M30-maintenance',
+    status: { field: 'state', labels: { planned: 'Planned', in_progress: 'In Progress', completed: 'Completed', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Window', note: 'Planned maintenance runs between 23:00 and 08:00 Dhaka time, at most 4 hours a month, and is announced 72 hours ahead (BRU-ADM-19). Save, then Draft the Announcement on the list; a second Platform Admin publishes it. The work can start only once it is published, and an announced window is not moved: cancel it and plan another.',
+        fields: [
+          { name: 'scheduled_from', required: true, label: 'Starts' },
+          { name: 'scheduled_to', required: true, label: 'Ends' },
+          { name: 'scope', required: true, label: 'What Is Done' },
+          { name: 'impact', required: true, label: 'User Impact' },
+          { name: 'environment_id', label: 'Environment' },
+          { name: 'outcome_note', type: 'text', label: 'Outcome' }
+        ] },
+      { title: 'Record', fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'planned_minutes', readonly: true, label: 'Planned (min)' },
+          { name: 'announcement_id', readonly: true, label: 'Announcement' },
+          { name: 'announcement_state', readonly: true, label: 'Announcement Status' },
+          { name: 'actual_from', readonly: true, label: 'Actually Started' },
+          { name: 'actual_to', readonly: true, label: 'Actually Ended' },
+          { name: 'overran', readonly: true, label: 'Overran' }
+        ] }
+    ]
+  },
+  'M30-form-runbook': {
+    kind: 'model_form', model: 'fix.runbook', title: 'Runbook',
+    newLabel: 'Register a Runbook', back: 'M30-runbooks',
+    sections: [
+      { title: 'Runbook', note: 'Every module and every alert has an operational runbook (NFR-091). Give the steps here or link the document that holds them. A runbook an active alert relies on cannot be archived.',
+        fields: [
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'name', required: true, label: 'Title' },
+          { name: 'scope', required: true, label: 'Covers a' },
+          { name: 'reference', label: 'Module / Job / Procedure' },
+          { name: 'document_url', label: 'Document Link' },
+          { name: 'steps', type: 'text', label: 'Steps' },
+          { name: 'owner_id', required: true, label: 'Owner' },
+          { name: 'last_reviewed_on', label: 'Last Reviewed' },
+          { name: 'review_months', required: true, label: 'Review Every (months)' },
+          { name: 'next_review_due', readonly: true, label: 'Next Review Due' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M30-form-alert': {
+    kind: 'model_form', model: 'fix.platform.alert', title: 'Alert',
+    newLabel: 'Register an Alert', back: 'M30-alerts',
+    sections: [
+      { title: 'Alert', note: 'An alert without an action is noise, so every alert names its runbook (BRU-ADM-14), when it fires and who it pages. This register records the alert; the monitoring stack fires it.',
+        fields: [
+          { name: 'code', required: true, label: 'Code' },
+          { name: 'name', required: true, label: 'Name' },
+          { name: 'source', required: true, label: 'Source' },
+          { name: 'severity', required: true, label: 'Severity' },
+          { name: 'threshold_expression', required: true, label: 'Fires When' },
+          { name: 'routing', required: true, label: 'Routed To' },
+          { name: 'runbook_id', required: true, label: 'Runbook' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+  'M30-form-capacity': {
+    kind: 'model_form', model: 'fix.capacity.metric', title: 'Capacity Review',
+    newLabel: 'Record a Capacity Review', back: 'M30-capacity',
+    sections: [
+      { title: 'Measurement', note: 'Reviewed monthly against growth (OPS-08). Headroom and the projected date the resource fills are computed. Below 20% headroom the review must decide to monitor or scale. Once saved only the decision and note change.',
+        fields: [
+          { name: 'resource', required: true, label: 'Resource' },
+          { name: 'dimension', required: true, label: 'Measured As' },
+          { name: 'measured_on', required: true, label: 'Measured On' },
+          { name: 'current_value', required: true, label: 'In Use' },
+          { name: 'capacity_value', required: true, label: 'Capacity' },
+          { name: 'growth_rate_pct', label: 'Growth per Month (%)' },
+          { name: 'scaling_action', required: true, label: 'Decision' },
+          { name: 'review_note', type: 'text', required: true, label: 'Review Note' }
+        ] },
+      { title: 'Result', fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'headroom_pct', readonly: true, label: 'Headroom (%)' },
+          { name: 'projected_exhaustion', readonly: true, label: 'Projected Full' },
+          { name: 'reviewed_by_id', readonly: true, label: 'Reviewed By' }
         ] }
     ]
   },
@@ -651,7 +895,19 @@ export const FORM_MODELS = {
   'M30:Ladder Band': 'fix.dofa.threshold',
   'M30:Release': 'fix.platform.release',
   'M30:Backup Restore Test': 'fix.backup.verification',
-  'M30:DR Drill': 'fix.dr.drill'
+  'M30:DR Drill': 'fix.dr.drill',
+  'M30:Branch Capability': 'fix.branch.capability',
+  'M30:Zone Boundary': 'fix.geofence',
+  'M30:Organisation Change': 'fix.org.change',
+  'M30:Cost Centre': 'fix.cost.centre',
+  'M30:Business Line': 'fix.business.line',
+  'M30:Change Freeze': 'fix.change.freeze',
+  'M30:Component Licence': 'fix.component.licence',
+  'M30:Shift Pattern': 'fix.shift.template',
+  'M30:Maintenance Window': 'fix.maintenance.window',
+  'M30:Runbook': 'fix.runbook',
+  'M30:Alert': 'fix.platform.alert',
+  'M30:Capacity Review': 'fix.capacity.metric'
 };
 
 export const FORM_CHIPS = {
@@ -672,6 +928,19 @@ export const FORM_CHIPS = {
   'M30:Release': 'M30-form-release',
   'M30:Backup Restore Test': 'M30-form-backup',
   'M30:DR Drill': 'M30-form-drill',
+  'M30:Branch Capability': 'M30-form-capability',
+  // Mastered by the module that owns the behaviour: the chip opens its form.
+  'M30:Zone Boundary': 'M02-form-zone',
+  'M30:Cost Centre': 'M54-form-centre',
+  'M30:Business Line': 'M54-form-bline',
+  'M30:Shift Pattern': 'M55-form-shift',
+  'M30:Organisation Change': 'M30-form-org-change',
+  'M30:Change Freeze': 'M30-form-freeze',
+  'M30:Component Licence': 'M30-form-licence',
+  'M30:Maintenance Window': 'M30-form-maintenance',
+  'M30:Runbook': 'M30-form-runbook',
+  'M30:Alert': 'M30-form-alert',
+  'M30:Capacity Review': 'M30-form-capacity',
   'M30:__by_model__': {
     'fix.platform.environment': 'M30-form-env',
     'fix.platform.release': 'M30-form-release',
@@ -689,7 +958,15 @@ export const FORM_CHIPS = {
     'fix.config.change': 'M30-form-config-change',
     'fix.scheduled.job': 'M30-form-job',
     'fix.backup.verification': 'M30-form-backup',
-    'fix.dr.drill': 'M30-form-drill'
+    'fix.dr.drill': 'M30-form-drill',
+    'fix.branch.capability': 'M30-form-capability',
+    'fix.org.change': 'M30-form-org-change',
+    'fix.change.freeze': 'M30-form-freeze',
+    'fix.component.licence': 'M30-form-licence',
+    'fix.maintenance.window': 'M30-form-maintenance',
+    'fix.runbook': 'M30-form-runbook',
+    'fix.platform.alert': 'M30-form-alert',
+    'fix.capacity.metric': 'M30-form-capacity'
   },
   'M30:__by_screen__': {
     'M30-env': 'M30-form-env',
@@ -708,7 +985,15 @@ export const FORM_CHIPS = {
     'M30-config-changes': 'M30-form-config-change',
     'M30-jobs': 'M30-form-job',
     'M30-backup': 'M30-form-backup',
-    'M30-dr-drills': 'M30-form-drill'
+    'M30-dr-drills': 'M30-form-drill',
+    'M30-capabilities': 'M30-form-capability',
+    'M30-org-changes': 'M30-form-org-change',
+    'M30-freezes': 'M30-form-freeze',
+    'M30-licences': 'M30-form-licence',
+    'M30-maintenance': 'M30-form-maintenance',
+    'M30-runbooks': 'M30-form-runbook',
+    'M30-alerts': 'M30-form-alert',
+    'M30-capacity': 'M30-form-capacity'
   }
 };
 
