@@ -196,6 +196,9 @@ def test_queue_actions_need_a_front_desk_role(m04, call):
 
 def test_recall_is_counted_and_auto_no_show_is_a_switch(m04):
     m = m04
+    # A02 ERP audit M04-F12: the switch is ON by default now (BRU-FRD-08);
+    # this test turns it off explicitly to show the counting alone
+    m.env["ir.config_parameter"].set_param("cd_front_desk.token_auto_no_show", "0")
     t = m.token()
     t.action_call()
     first_call = t.called_at
@@ -205,7 +208,7 @@ def test_recall_is_counted_and_auto_no_show_is_a_switch(m04):
     assert t.called_at == first_call  # the wait ended at the first call
     with _refused(m.env, UserError, GUARD):
         t.write({"recall_count": 0})
-    # default (switch off): no limit is applied
+    # switch off: no limit is applied
     for _i in range(3):
         t.action_call()
     assert (t.state, t.recall_count) == ("called", 5)

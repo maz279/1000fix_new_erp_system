@@ -13,6 +13,7 @@ from odoo import api, fields, models
 from odoo.exceptions import ValidationError
 
 from .fix_cash_shift import fill_operating_unit
+from .fix_token_queue import LANE_RANK
 
 # service type -> the counter capability that serves it
 CAPABILITY_FOR = {
@@ -23,7 +24,7 @@ CAPABILITY_FOR = {
     "other": "can_enquiry",
 }
 
-LANE_RANK = {"normal": 0, "warranty_express": 1, "senior_citizen": 2, "vip_corporate": 3}
+# LANE_RANK: one lane order for the priority rules and for calling (fix_token_queue)
 
 
 class FixQueueCounter(models.Model):
@@ -88,6 +89,25 @@ class FixQueueCounter(models.Model):
     def _fd_serves(self, service_type) -> bool:
         self.ensure_one()
         return bool(self[CAPABILITY_FOR.get(service_type, "can_enquiry")])
+
+    def action_call_next(self):
+        """A02 ERP audit M04-F12 (BRU-FRD-07): the counter calls the next
+        customer it can serve: today's waiting tokens of its branch, the
+        highest priority lane first, then the earliest issued. A token routed
+        to another counter is left to that counter."""
+        self.ensure_one()
+        Token = self.env["fix.token.queue"]
+        Token._fd_require_queue_role("Calling the next token")
+        if not self.active:
+            raise ValidationError("Counter %s is closed." % self.name)
+        token = Token._fd_next_waiting(self.branch_id, counter=self, company=self.company_id)
+        if not token:
+            raise ValidationError("No customer %s can serve is waiting." % self.name)
+        token = token.with_env(self.env)
+        if token.counter_id != self:
+            token.write({"counter_id": self.id})
+        token.action_call()
+        return {"called": token.token_display, "token_id": token.id}
 
 
 class FixQueuePriorityRule(models.Model):

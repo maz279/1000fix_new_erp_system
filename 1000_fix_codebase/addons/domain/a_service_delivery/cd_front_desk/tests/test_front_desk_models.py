@@ -22,9 +22,9 @@ def _refused(env, exc, match=None):
 def desk(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "FDKENT", "legal_name": "Front Desk Entity", "company_id": env.company.id}
-    )
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "FDKENT", "legal_name": "Front Desk Entity", "company_id": env.company.id})
     branch = env["fix.branch"].create(
         {"name": "Gulshan Desk", "code": "gul1", "entity_id": entity.id, "operating_unit_id": ou.id}
     )

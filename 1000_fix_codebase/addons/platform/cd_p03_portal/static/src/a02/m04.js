@@ -18,6 +18,7 @@ export const MODULE = {
     { l: 'Tokens Today', m: 'tokens_today' },
     { l: 'Avg Wait', m: 'avg_wait_min' },
     { l: 'Uncollected > 7d', m: 'uncollected_7d' },
+    /* A02 ERP audit M04-F17: shortages and overages add up, never net */
     { l: 'Cash Variance Today', m: 'cash_variance_today' },
     { l: 'Shifts Open', m: 'shifts_open' },
     { l: 'Counter Sales MTD', m: 'counter_sales_mtd' }
@@ -121,6 +122,9 @@ export const SCREENS = {
     actions: [
       /* A02 audit M04-P2: calling a called or no-show token again is a
        * counted re-call; the queue actions need a front-desk role */
+      /* A02 ERP audit M04-F12: the next waiting customer by priority lane,
+       * then issue time (BRU-FRD-07); press it on any token of the branch */
+      { m: 'action_call_next', l: 'Call Next by Priority' },
       { m: 'action_call', l: 'Call / Re-call Token' },
       { m: 'action_serving', l: 'Start Serving' },
       { m: 'action_complete', l: 'Complete' },
@@ -137,7 +141,10 @@ export const SCREENS = {
     empty: 'No priority rule yet: every token stays in the lane the agent picks. Add a rule with + New.' },
   'M04-counters': { kind: 'model_list', model: 'fix.queue.counter',
     cols: ['branch_id', 'number', 'label', 'can_intake', 'can_collect', 'can_pay', 'can_enquiry', 'can_corporate', 'can_technical', 'agent_id', 'active'],
-    empty: 'No counter is set up yet. Add each branch counter and what it serves with + New.' },
+    empty: 'No counter is set up yet. Add each branch counter and what it serves with + New.',
+    /* A02 ERP audit M04-F12 (BRU-FRD-07): today's waiting tokens the counter
+     * serves, highest priority lane first, then first issued */
+    actions: [{ m: 'action_call_next', l: 'Call Next Customer' }] },
   'M04-storage': { kind: 'model_list', model: 'fix.walkin.intake', create: false,
     cols: ['customer_id', 'device_serial_input', 'storage_location_id', 'fault_description', 'state', 'intake_start', 'intake_duration_seconds', 'service_order_id'],
     stateField: 'state',
@@ -227,7 +234,12 @@ export const SCREENS = {
       { m: 'action_confirm', l: 'Confirm Sale' },
       { m: 'action_request_approval', l: 'Request Price Approval', ask: 'Why the price is below list', kwarg: 'justification' },
       { m: 'action_request_refund', l: 'Request Refund', ask: 'Reason (defective / wrong_item / customer_cancelled / duplicate / other): note', kwarg: 'reason' },
-      { m: 'action_recall_approval', l: 'Recall Approval Request' }
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      /* BRU-FRD-10: a protection plan / membership is sold once its terms are accepted */
+      { m: 'action_accept_terms', l: 'Customer Accepted the Terms', states: ['draft'] },
+      /* A02 ERP audit X-17: the customer's receipt (statutory Mushak 6.3 once posted) */
+      { m: 'action_print_receipt', l: 'Print Receipt (A4)', states: ['confirmed', 'refunded'] },
+      { m: 'action_print_receipt_80', l: 'Print Receipt (80 mm)', states: ['confirmed', 'refunded'] }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
   /* quote-to-cash 2026-11-13: a customer buying several items pays once.
@@ -259,7 +271,12 @@ export const SCREENS = {
   'M04-dashboard': { kind: 'table_report', module: 'M04', report: 'branch_league', period: false },
   'M04-receipts': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'customer_id', 'product_id', 'total', 'payment_method', 'state'],
-    domain: [['state', '=', 'confirmed']] },
+    domain: [['state', '=', 'confirmed']],
+    stateField: 'state',
+    actions: [
+      { m: 'action_print_receipt', l: 'Print Receipt (A4)' },
+      { m: 'action_print_receipt_80', l: 'Print Receipt (80 mm)' }
+    ] },
 
   /* ===== service data-entry forms (registry names) ===== */
   'M04-form-token': {
@@ -440,10 +457,23 @@ export const SCREENS = {
            * Mushak-6.3 number issued at confirm */
           { name: 'tendered_amount', label: "Cash Tendered (BDT)" },
           { name: 'change_due', label: "Change Due (BDT)", readonly: true },
-          { name: 'mushak_63_ref', label: "NBR Mushak-6.3 Number", readonly: true },
-          { name: 'vat_rate', label: "VAT Rate (%)", readonly: true },
-          { name: 'amount_untaxed', label: "Net of VAT (BDT)", readonly: true },
-          { name: 'vat_amount', label: "VAT (BDT)", readonly: true },
+          /* A02 ERP audit X-04: the statutory Mushak 6.3 and the VAT the books
+           * hold come from the posting (cd_front_desk_finance: VAT register
+           * number, M51 product rate). The counter's own reference and flat-rate
+           * split are labelled for what they are: internal and an estimate. */
+          { name: 'mushak_no', label: "NBR Mushak 6.3 No. (statutory)", readonly: true },
+          { name: 'posting_state', label: "Posted to Books", readonly: true },
+          { name: 'vat_taxable_amount', label: "Taxable Value per Mushak 6.3 (BDT)", readonly: true },
+          { name: 'vat_output_amount', label: "VAT per Mushak 6.3 (BDT)", readonly: true },
+          { name: 'vat_treatment_summary', label: "VAT Treatment (M51)", readonly: true },
+          { name: 'mushak_63_ref', label: "Counter Receipt Ref (internal, not the NBR number)", readonly: true },
+          { name: 'vat_rate', label: "Counter VAT Rate (estimate, %)", readonly: true },
+          { name: 'amount_untaxed', label: "Net of VAT (estimate, BDT)", readonly: true },
+          { name: 'vat_amount', label: "VAT (estimate, BDT)", readonly: true },
+          /* BRU-FRD-10 */
+          { name: 'terms_required', label: "Terms Acceptance Required", readonly: true },
+          { name: 'terms_accepted_partner_id', label: "Terms Accepted By (Customer)", readonly: true },
+          { name: 'terms_accepted_at', label: "Terms Accepted At", readonly: true },
           { name: 'approval_state', label: "Approval (M63)", readonly: true },
           { name: 'total', label: "Grand Total (BDT)", readonly: true },
           { name: 'state', label: "Transaction State", readonly: true },

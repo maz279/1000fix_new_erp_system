@@ -12,13 +12,19 @@ from odoo import api, fields, models
 
 from libs.py.fix_events import publish  # FF-28
 
-from .fix_cash_shift import fill_operating_unit
+from .fix_cash_shift import dhaka_today, fill_operating_unit
 
 logger = logging.getLogger(__name__)
 
 # G1-02 wait-time target in seconds; a policy number (today's value: 180).
 WAIT_SLA_PARAM = "cd_front_desk.wait_sla_seconds"
 DEFAULT_WAIT_SLA = 180
+
+# BRU-FRD-07: the queue lanes, most urgent highest. A token is called by lane
+# first, then by the time it was issued (fix_workstation_ext call-next).
+LANE_RANK = {"normal": 0, "warranty_express": 1, "senior_citizen": 2, "vip_corporate": 3}
+# one advisory-lock class for the per-branch daily numbering
+_TOKEN_LOCK_CLASS = 4042
 
 
 class FixTokenQueue(models.Model):
@@ -29,7 +35,17 @@ class FixTokenQueue(models.Model):
     # A09 audit trail: the chatter + activity mixins of every sibling business
     # model, so queue state changes (tracking=True) are logged and followed up.
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
-    _order = "branch_id, token_number"
+    # A02 ERP audit M04-F12: the queue reads in the order it is served: the
+    # day, the priority lane, then first-come (it was branch + number, so the
+    # priority rules placed a token in a lane nothing ever read).
+    _order = "branch_id, queue_date desc, priority_rank desc, issued_at, id"
+
+    # A02 ERP audit M04-F12: numbers restart every Dhaka business day per
+    # branch and are unique within it (they ran on forever, unconstrained).
+    _token_number_daily_unique = models.Constraint(
+        "UNIQUE(branch_id, queue_date, token_number)",
+        "A branch issues each token number once a day.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M04-9 (P04-12): only the queue actions move a token.
@@ -82,6 +98,21 @@ class FixTokenQueue(models.Model):
     )
 
     issued_at = fields.Datetime(default=fields.Datetime.now, readonly=True)
+    queue_date = fields.Date(
+        string="Queue Day",
+        compute="_compute_queue_date",
+        store=True,
+        index=True,
+        help="The Bangladesh business day (Asia/Dhaka) the token was issued on: token "
+        "numbers restart each day.",
+    )
+    priority_rank = fields.Integer(
+        string="Lane Rank",
+        compute="_compute_priority_rank",
+        store=True,
+        index=True,
+        help="BRU-FRD-07: the lane's place in the calling order (higher is called first).",
+    )
     called_at = fields.Datetime(readonly=True)
     served_at = fields.Datetime(readonly=True)
     counter_number = fields.Integer(string="Counter #")
@@ -156,24 +187,48 @@ class FixTokenQueue(models.Model):
             prefix = rec.branch_id.code[:3].upper() if rec.branch_id else "TK"
             rec.token_display = f"{prefix}-{rec.token_number:03d}"
 
+    @api.depends("issued_at")
+    def _compute_queue_date(self):
+        for rec in self:
+            rec.queue_date = dhaka_today(rec, rec.issued_at) if rec.issued_at else False
+
+    @api.depends("priority_level")
+    def _compute_priority_rank(self):
+        for rec in self:
+            rec.priority_rank = LANE_RANK.get(rec.priority_level or "normal", 0)
+
     @api.model_create_multi
     def create(self, vals_list):
-        # Auto-assign the next token number per branch. The counter is carried per
+        # Auto-assign the next token number per branch and Dhaka business day
+        # (A02 ERP audit M04-F12: it never reset). The counter is carried per
         # branch across the batch: searching the table for every vals gave two
-        # tokens created in one call the SAME number.
+        # tokens created in one call the SAME number; a transaction-scoped
+        # advisory lock per branch serialises two counters issuing at once
+        # (the UNIQUE constraint refuses whatever still collides).
         # the branch decides the unit: the Token Issue form never asks
         fill_operating_unit(self.env, vals_list)
         next_number = {}
         for vals in vals_list:
-            if not vals.get("token_number"):
-                branch_id = vals.get("branch_id")
-                if branch_id not in next_number:
-                    last = self.search(
-                        [("branch_id", "=", branch_id)], order="token_number desc", limit=1
+            if vals.get("token_number"):
+                continue
+            branch_id = vals.get("branch_id")
+            stamp = vals.get("issued_at")
+            day = dhaka_today(self, fields.Datetime.to_datetime(stamp) if stamp else None)
+            key = (branch_id, day)
+            if key not in next_number:
+                if branch_id:
+                    self.env.cr.execute(
+                        "SELECT pg_advisory_xact_lock(%s, %s)", [_TOKEN_LOCK_CLASS, branch_id]
                     )
-                    next_number[branch_id] = (last.token_number + 1) if last else 1
-                vals["token_number"] = next_number[branch_id]
-                next_number[branch_id] += 1
+                self.flush_model(["token_number", "queue_date", "branch_id"])
+                last = self.sudo().search(
+                    [("branch_id", "=", branch_id), ("queue_date", "=", day)],
+                    order="token_number desc",
+                    limit=1,
+                )
+                next_number[key] = (last.token_number + 1) if last else 1
+            vals["token_number"] = next_number[key]
+            next_number[key] += 1
         records = super().create(vals_list)
         for rec in records:
             # A02 audit B2: a literal publish() so FF-48 sees the event

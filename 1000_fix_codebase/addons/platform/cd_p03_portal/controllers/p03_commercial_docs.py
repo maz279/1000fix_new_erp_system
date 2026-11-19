@@ -21,6 +21,10 @@ from odoo.addons.cd_tax_engine_bd.models.statutory_format import amount_in_words
 from odoo.exceptions import UserError
 from odoo.http import request
 
+# A02 ERP audit X-17: the A02 document payload builders (report.* models,
+# registered with this module when its controllers load; nothing in the models
+# package depends on them).
+from ..models import p03_a02_documents  # noqa: F401
 from .p03_service_order_api import _require_internal, _user_error
 
 SEARCH_LIMIT = 40
@@ -267,15 +271,24 @@ class P03CommercialDocs(http.Controller):
             "fix.estimate": "cd_doc_suite.report_estimate",
             "fix.purchase.order": "cd_doc_suite.report_po",
             "fix.vendor.invoice": "cd_doc_suite.report_vendor_bill",
+            # A02 ERP audit X-17: the A02 documents (report/p03_a02_documents.xml)
+            "fix.counter.sale": "cd_p03_portal.report_a02_counter_receipt",
+            "fix.data.wipe.certificate": "cd_p03_portal.report_a02_wipe_certificate",
+            "fix.field.order": "cd_p03_portal.report_a02_field_service",
+            "fix.consignment": "cd_p03_portal.report_a02_consignment_note",
+            "fix.workshop.job": "cd_p03_portal.report_a02_workshop_job",
         }
         receipts = {
             "fix.ar.invoice": "cd_doc_suite.report_invoice_receipt",
             "fix.sales.proforma": "cd_doc_suite.report_sales_proforma_receipt",
             "fix.quotation": "cd_doc_suite.report_quotation_receipt",
             "fix.estimate": "cd_doc_suite.report_estimate_receipt",
+            "fix.counter.sale": "cd_p03_portal.report_a02_counter_receipt_80",
         }
         name = (receipts if variant == "receipt" else reports).get(model or "")
         if not name or not record_id:
+            return {"url": ""}
+        if model not in request.env:
             return {"url": ""}
         record = request.env[model].browse(int(record_id)).exists()
         if not record:

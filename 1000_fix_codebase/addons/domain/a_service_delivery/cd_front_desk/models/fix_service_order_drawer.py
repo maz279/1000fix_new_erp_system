@@ -31,6 +31,8 @@ SETTLEMENT_TENDERS = [
     ("sslcommerz", "SSLCOMMERZ Payment Link"),
 ]
 COUNTER_TENDERS = SETTLEMENT_TENDERS  # backward-compatible name
+# who, besides a Service Order Cashier, verifies a field collection at the drawer
+FD_VERIFIER_GROUPS = ("cd_front_desk.group_fd_cashier", "cd_front_desk.group_fd_branch_manager")
 
 
 def fd_settlement_tender(env) -> str:
@@ -100,6 +102,19 @@ class FixServiceOrderDrawer(models.Model):
             else:
                 self._fd_post_counter_noncash()
         return result
+
+    def action_verify_settlement(self):
+        """A02 ERP audit: the drawer cashier who accepts field cash (M02 Accept
+        Field Cash) or a branch manager verifies the collection as a Service
+        Order Cashier would. The order's own segregation of duties still
+        applies (never the recorder, never the order's technician): it reads
+        the acting user, which sudo() keeps."""
+        user = self.env.user
+        if self.env.su or user.has_group("cd_service_order.group_so_cashier"):
+            return super().action_verify_settlement()
+        if not any(user.has_group(g) for g in FD_VERIFIER_GROUPS):
+            return super().action_verify_settlement()  # refuses with its own message
+        return super(FixServiceOrderDrawer, self.sudo()).action_verify_settlement()
 
     def _fd_post_counter_noncash(self):
         """A wallet / card payment at the counter: no drawer cash. The

@@ -1,0 +1,191 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 printable documents (A02 ERP audit X-17, 20 Nov 2026): the counter sale
+  customer receipt (A4 + 80 mm), the data wipe certificate, the field service
+  report, the consignment delivery note / waybill and the workshop job card /
+  repair report.
+
+  Printed like every commercial document: /report/pdf/<report>/<id>, handed
+  out by /p03/doc/print_url. The body uses the commercial document standard's
+  blocks (cd_doc_suite, called at render time) and reads one payload per
+  record built in Python (models/p03_a02_documents.py); the templates compute
+  nothing. The report actions bind to their model only where the model is
+  installed (binding by search): this module keeps its dependencies.
+-->
+<odoo>
+
+    <record id="paperformat_a02_a4" model="report.paperformat">
+        <field name="name">1000FiX A02 Document A4</field>
+        <field name="format">A4</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">58</field>
+        <field name="header_spacing">12</field>
+        <field name="margin_bottom">28</field>
+        <field name="margin_left">10</field>
+        <field name="margin_right">10</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <record id="paperformat_a02_receipt_80" model="report.paperformat">
+        <field name="name">1000FiX A02 Counter Receipt 80 mm</field>
+        <field name="format">custom</field>
+        <field name="page_width">80</field>
+        <field name="page_height">297</field>
+        <field name="orientation">Portrait</field>
+        <field name="margin_top">3</field>
+        <field name="margin_bottom">3</field>
+        <field name="margin_left">3</field>
+        <field name="margin_right">3</field>
+        <field name="header_line" eval="False"/>
+        <field name="header_spacing">0</field>
+        <field name="dpi">150</field>
+    </record>
+
+    <!-- ============================ shared blocks ============================ -->
+
+    <!-- label / value sections and simple tables of a non-commercial document -->
+    <template id="a02_doc_sections">
+        <t t-foreach="p.get('blocks') or []" t-as="blk">
+            <div class="cds-party-label" style="margin-top: 8px;" t-esc="blk['title']"/>
+            <table class="cds-meta cds-extra">
+                <tr t-foreach="blk['rows']" t-as="row">
+                    <td class="cds-meta-label" t-esc="row[0]"/>
+                    <td style="white-space: pre-wrap;" t-esc="row[1] or '—'"/>
+                </tr>
+            </table>
+        </t>
+        <t t-foreach="p.get('tables') or []" t-as="tbl">
+            <div class="cds-party-label" style="margin-top: 8px;" t-esc="tbl['title']"/>
+            <table class="cds-table cds-lines">
+                <thead><tr><th t-foreach="tbl['cols']" t-as="col" t-esc="col"/></tr></thead>
+                <tbody>
+                    <tr t-foreach="tbl['rows']" t-as="row">
+                        <td t-foreach="row" t-as="cell" t-esc="cell"/>
+                    </tr>
+                    <tr t-if="not tbl['rows']">
+                        <td t-att-colspan="len(tbl['cols'])" style="text-align:center;color:#777;">None recorded.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </t>
+    </template>
+
+    <!-- the A4 body: letterhead, head, lines/sections, totals, notes, signatures -->
+    <template id="a02_doc_a4">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="payloads[doc.id]"/>
+                        <t t-call="cd_doc_suite.commercial_head"/>
+                        <t t-if="p.get('lines')">
+                            <t t-call="cd_doc_suite.commercial_lines"/>
+                        </t>
+                        <t t-call="cd_p03_portal.a02_doc_sections"/>
+                        <t t-if="p.get('totals')">
+                            <t t-call="cd_doc_suite.commercial_footer"/>
+                        </t>
+                        <t t-call="cd_doc_suite.commercial_notes"/>
+                        <t t-call="cd_doc_suite.commercial_sign"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <!-- ============================ the documents ============================ -->
+
+    <template id="report_a02_counter_receipt"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_wipe_certificate"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_field_service"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_consignment_note"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_workshop_job"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+
+    <!-- the counter receipt on the 80 mm roll (cd_doc_suite receipt body) -->
+    <template id="report_a02_counter_receipt_80">
+        <t t-set="data_report_page_height" t-value="page_height"/>
+        <t t-set="o" t-value="docs[:1]"/>
+        <t t-call="web.basic_layout">
+            <t t-foreach="docs" t-as="doc">
+                <div class="page" t-att-style="'' if doc_last else 'page-break-after: always;'">
+                    <t t-call="cd_doc_suite.receipt_80_style"/>
+                    <t t-set="p" t-value="payloads[doc.id]"/>
+                    <t t-call="cd_doc_suite.receipt_80_body"/>
+                </div>
+            </t>
+        </t>
+    </template>
+
+    <record id="action_report_a02_counter_receipt" model="ir.actions.report">
+        <field name="name">Counter Sale Receipt</field>
+        <field name="model">fix.counter.sale</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_counter_receipt</field>
+        <field name="report_file">cd_p03_portal.report_a02_counter_receipt</field>
+        <field name="print_report_name">'Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.counter.sale')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_counter_receipt_80" model="ir.actions.report">
+        <field name="name">Counter Sale Receipt (80 mm)</field>
+        <field name="model">fix.counter.sale</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_counter_receipt_80</field>
+        <field name="report_file">cd_p03_portal.report_a02_counter_receipt_80</field>
+        <field name="print_report_name">'Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_receipt_80"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.counter.sale')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_wipe_certificate" model="ir.actions.report">
+        <field name="name">Data Sanitization Certificate</field>
+        <field name="model">fix.data.wipe.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_wipe_certificate</field>
+        <field name="report_file">cd_p03_portal.report_a02_wipe_certificate</field>
+        <field name="print_report_name">'Wipe Certificate %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.data.wipe.certificate')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_field_service" model="ir.actions.report">
+        <field name="name">Field Service Report</field>
+        <field name="model">fix.field.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_field_service</field>
+        <field name="report_file">cd_p03_portal.report_a02_field_service</field>
+        <field name="print_report_name">'Field Service Report %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.field.order')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_consignment_note" model="ir.actions.report">
+        <field name="name">Delivery Note / Waybill</field>
+        <field name="model">fix.consignment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_consignment_note</field>
+        <field name="report_file">cd_p03_portal.report_a02_consignment_note</field>
+        <field name="print_report_name">'Waybill %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.consignment')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_workshop_job" model="ir.actions.report">
+        <field name="name">Workshop Job Card / Repair Report</field>
+        <field name="model">fix.workshop.job</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_workshop_job</field>
+        <field name="report_file">cd_p03_portal.report_a02_workshop_job</field>
+        <field name="print_report_name">'Job Card %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.workshop.job')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+</odoo>

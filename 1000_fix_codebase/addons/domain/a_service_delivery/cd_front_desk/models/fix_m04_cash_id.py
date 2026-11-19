@@ -145,6 +145,12 @@ class FixCashIdCheck(models.Model):
         return self._hv_target(sale)
 
     @api.model
+    def _hv_is_open(self, record):
+        """Whether the record is still unpaid, so a check may be recorded for
+        it. Overridden by cd_front_desk_finance for other targets."""
+        return record.state == "draft"
+
+    @api.model
     def _hv_check_for(self, record):
         return self.sudo().search([("sale_id", "=", record.id)], limit=1)
 
@@ -185,7 +191,7 @@ class FixCashIdCheck(models.Model):
             if not target:
                 raise UserError("Choose the counter sale (or basket) being paid in cash.")
             record, amount, cash = target
-            if record.state != "draft":
+            if not self._hv_is_open(record):
                 raise UserError("%s is already confirmed." % record.name)
             if not cash:
                 raise UserError("%s is not paid in cash: no NID is taken." % record.name)

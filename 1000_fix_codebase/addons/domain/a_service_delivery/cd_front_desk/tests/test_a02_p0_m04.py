@@ -58,7 +58,10 @@ def m04(odoo_env):
     env = odoo_env
     n = next(_SEQ)
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
+    # fix_entity_company_unique: reuse the company's entity (production copy)
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create(
         {"code": "M4P%d" % n, "legal_name": "M04 P0 Entity %d" % n, "company_id": env.company.id}
     )
 
@@ -311,11 +314,13 @@ def test_p04_03_cashier_cannot_sign_off_her_own_variance(m04, call):
         method="action_approve_variance",
     )
     assert res["success"] is False, res
-    s.action_confirm_closed()
+    # A02 ERP audit M04-F16 / BRU-FRD-03: an unapproved variance does not close
+    with _refused(m.env, UserError, "BRU-FRD-03"):
+        s.action_confirm_closed()
     with _refused(m.env, UserError, "Only a Branch Manager"):
         s.action_reconcile()
     assert not s.sudo().supervisor_variance_approved_by
-    assert s.sudo().state == "closed"
+    assert s.sudo().state == "counting"
 
 
 def test_p04_03_manager_cannot_approve_or_reconcile_her_own_drawer(m04):
@@ -330,12 +335,14 @@ def test_p04_03_manager_cannot_approve_or_reconcile_her_own_drawer(m04):
     # routing never hands the drawer to the manager who handled it
     mc.action_request_approval(justification="short by 2,000")
     assert m.manager_cashier not in assigned(s) and m.manager in assigned(s)
-    mc.action_confirm_closed()
+    with _refused(m.env, UserError, "BRU-FRD-03"):
+        mc.action_confirm_closed()
     with _refused(m.env, UserError, "BRU-FRD-11"):
         mc.action_reconcile()
     # legitimate: an independent manager approves the exact variance, then reconciles
     other = m.as_(m.manager, s)
     approve_via_inbox(s, m.manager, requester=m.manager_cashier)
+    mc.action_confirm_closed()
     assert (s.sudo().supervisor_variance_approved_by, s.sudo().variance_approved_amount) == (
         m.manager,
         -2000.0,
@@ -355,7 +362,8 @@ def test_p04_04_approval_is_pinned_and_a_recount_voids_it(m04):
     s.action_submit_blind_count()  # recount: 0, -5,000
     assert not s.sudo().supervisor_variance_approved_by  # void
     assert s.sudo().approval_state == "none"
-    s.action_confirm_closed()
+    with _refused(m.env, UserError, "BRU-FRD-03"):
+        s.action_confirm_closed()
     with _refused(m.env, ValidationError, "must approve this variance"):
         m.as_(m.manager, s).action_reconcile()
     # within tolerance, nothing to approve

@@ -23,12 +23,13 @@
 #      aggregate over the real models (no fabricated fallbacks — 03-DATA-
 #      STRATEGY: absent data renders nulls and the workspace shows "—").
 import logging
-from datetime import timedelta
+from datetime import UTC, datetime, time, timedelta
+from zoneinfo import ZoneInfo
 
 from odoo import fields, http
 from odoo.http import request
 
-from .p03_service_order_api import _DONE_STATES, _require_internal, _utc_midnight
+from .p03_service_order_api import _DONE_STATES, _require_internal
 
 logger = logging.getLogger(__name__)
 
@@ -140,19 +141,57 @@ WS_PRIORITY = [
 # ---------------------------------------------------------------------------
 
 
+LOCAL_TZ = "Asia/Dhaka"
+
+
+def _tz_name(env):
+    # A02 ERP audit X-15: a user with no timezone is in Dhaka, not UTC
+    return env.context.get("tz") or env.user.tz or LOCAL_TZ
+
+
+def _local_today(env):
+    return datetime.now(UTC).astimezone(ZoneInfo(_tz_name(env))).date()
+
+
+def _local_midnight(env, day):
+    """Naive-UTC instant of local (Asia/Dhaka by default) midnight of ``day``."""
+    local = datetime.combine(day, time.min, tzinfo=ZoneInfo(_tz_name(env)))
+    return local.astimezone(UTC).replace(tzinfo=None)
+
+
+def _company_domain(env, Model, domain):
+    """A02 ERP audit X-15: every cue is a sudo count, so it is fenced to the
+    reader's companies (shared rows with no company stay visible). A domain
+    that already scopes the company is left as it is."""
+    if "company_id" not in Model._fields or Model._name == "res.users":
+        return domain
+    if any(isinstance(term, list | tuple) and term[0] == "company_id" for term in domain):
+        return domain
+    field = Model._fields["company_id"]
+    if not (field.store or field.search or field.related):
+        return domain
+    companies = list(env.companies.ids)
+    if not field.required:
+        companies.append(False)
+    return [("company_id", "in", companies), *domain]
+
+
 def _count(env, model, domain):
     """Defensive search_count: missing model / refused read -> None ("—")."""
     try:
         if model not in env:
             return None
-        return env[model].sudo().search_count(domain)
+        Model = env[model].sudo()
+        return Model.search_count(_company_domain(env, Model, domain))
     except Exception:
         logger.debug("role-center cue refused: %s", model, exc_info=True)
         return None
 
 
 def _kpi_open_orders(env, ctx):
-    return _count(env, "fix.service.order", [("state", "not in", list(_DONE_STATES))])
+    return _count(
+        env, "fix.service.order", [("state", "not in", list(_DONE_STATES))] + ctx["branch_domain"]
+    )
 
 
 def _kpi_sla_at_risk(env, ctx):
@@ -174,31 +213,41 @@ def _kpi_intake_today(env, ctx):
 
 
 def _kpi_delivered_today(env, ctx):
+    # A02 ERP audit X-15: delivered TODAY (delivered_at), at the reader's
+    # branch: any later write (a rating, a note) re-counted an old delivery
+    Order = env.get("fix.service.order")
+    stamp = (
+        "delivered_at" if Order is not None and "delivered_at" in Order._fields else "write_date"
+    )
     return _count(
         env,
         "fix.service.order",
-        [("state", "=", "delivered"), ("write_date", ">=", ctx["day_start"])],
+        [("state", "in", ["delivered", "closed"]), (stamp, ">=", ctx["day_start"])]
+        + ctx["branch_domain"],
     )
 
 
 def _kpi_in_repair(env, ctx):
-    return _count(env, "fix.service.order", [("state", "=", "in_repair")])
+    return _count(env, "fix.service.order", [("state", "=", "in_repair")] + ctx["branch_domain"])
 
 
 def _kpi_revenue_mtd(env, ctx):
+    """A02 ERP audit X-15: revenue is what was invoiced this month, net of
+    VAT: the taxable value of issued and paid AR invoices (it summed approved
+    estimates' VAT-inclusive totals, invoiced or not, zero-charge included)."""
     try:
-        if "fix.estimate" not in env:
+        if "fix.ar.invoice" not in env:
             return None
-        rows = (
-            env["fix.estimate"]
-            .sudo()
-            .search_read(
-                [("state", "=", "approved"), ("approved_at", ">=", ctx["month_start"])],
-                ["grand_total"],
-            )
-        )
-        return sum(r["grand_total"] or 0.0 for r in rows)
+        Invoice = env["fix.ar.invoice"].sudo()
+        domain = [
+            ("state", "in", ["issued", "paid"]),
+            ("invoice_date", ">=", ctx["month_first_day"]),
+            ("invoice_date", "<=", ctx["today"]),
+        ] + ctx["branch_domain"]
+        rows = Invoice.search_read(_company_domain(env, Invoice, domain), ["taxable_amount"])
+        return round(sum(r["taxable_amount"] or 0.0 for r in rows), 2)
     except Exception:
+        logger.debug("role-center cue refused: revenue_mtd", exc_info=True)
         return None
 
 
@@ -214,7 +263,9 @@ def _kpi_unassigned_wos(env, ctx):
 
 
 def _kpi_awaiting_approval(env, ctx):
-    return _count(env, "fix.service.order", [("state", "=", "awaiting_approval")])
+    return _count(
+        env, "fix.service.order", [("state", "=", "awaiting_approval")] + ctx["branch_domain"]
+    )
 
 
 def _kpi_qc_pending(env, ctx):
@@ -222,14 +273,14 @@ def _kpi_qc_pending(env, ctx):
 
 
 def _kpi_first_time_fix(env, ctx):
-    try:
-        if "fix.qc.checklist" not in env:
-            return None
-        passed = env["fix.qc.checklist"].sudo().search_count([("state", "=", "passed")])
-        total = env["fix.qc.checklist"].sudo().search_count([])
-        return round(100.0 * passed / total, 1) if total else None
-    except Exception:
+    """QC first-pass rate: passed / decided checklists. A02 ERP audit X-15:
+    pending and in-progress checklists were in the denominator, so a busy
+    bench read as a failing one."""
+    passed = _count(env, "fix.qc.checklist", [("state", "=", "passed")])
+    decided = _count(env, "fix.qc.checklist", [("state", "in", ["passed", "failed"])])
+    if passed is None or not decided:
         return None
+    return round(100.0 * passed / decided, 1)
 
 
 def _kpi_headcount(env, ctx):
@@ -325,14 +376,17 @@ def _kpi_contracts_active(env, ctx):
 
 
 def _kpi_contracts_expiring(env, ctx):
-    horizon = fields.Date.context_today(env.user) + timedelta(days=30)
+    horizon = _local_today(env) + timedelta(days=30)
     return _count(
         env, "fix.contract", [("state", "in", ["active", "expiring"]), ("date_end", "<=", horizon)]
     )
 
 
 def _kpi_cash_shifts_open(env, ctx):
-    return _count(env, "fix.cash.shift", [("state", "in", ["open", "counting", "discrepancy"])])
+    # a reconciled shift (discrepancy included) is not open (A02 ERP audit X-15)
+    return _count(
+        env, "fix.cash.shift", [("state", "in", ["open", "counting"])] + ctx["branch_domain"]
+    )
 
 
 def _kpi_attendance_today(env, ctx):
@@ -422,7 +476,7 @@ KPI_CATALOG = {
         "screen": "M01-all",
     },
     "revenue_mtd": {
-        "label": "Revenue MTD (est.)",
+        "label": "Revenue MTD (invoiced, ex-VAT)",
         "fn": _kpi_revenue_mtd,
         "fmt": "bdt",
         "screen": "M20-invoices",
@@ -720,15 +774,15 @@ ROLE_CENTER_SPECS = {
 
 def _chart_trend(env, ctx):
     Order = env["fix.service.order"].sudo()
-    months, values, cursor = [], [], fields.Date.context_today(env.user).replace(day=1)
+    months, values, cursor = [], [], _local_today(env).replace(day=1)
     for _ in range(12):
         month_end = (cursor.replace(day=28) + timedelta(days=4)).replace(day=1)
         months.append(cursor.strftime("%b"))
         values.append(
             Order.search_count(
                 [
-                    ("create_date", ">=", _utc_midnight(env, cursor)),
-                    ("create_date", "<", _utc_midnight(env, month_end)),
+                    ("create_date", ">=", _local_midnight(env, cursor)),
+                    ("create_date", "<", _local_midnight(env, month_end)),
                 ]
             )
         )
@@ -738,7 +792,7 @@ def _chart_trend(env, ctx):
 
 def _chart_channel(env, ctx):
     Order = env["fix.service.order"].sudo()
-    since30 = _utc_midnight(env, fields.Date.context_today(env.user) - timedelta(days=30))
+    since30 = _local_midnight(env, _local_today(env) - timedelta(days=30))
     mix = {}
     for key, _lbl in Order._fields["service_type"].selection:
         n = Order.search_count([("create_date", ">=", since30), ("service_type", "=", key)])
@@ -808,7 +862,7 @@ class P03RoleCenterApiController(http.Controller):
         person = self._person_payload(user, employee)
         branch = employee.branch_id.name if employee and employee.branch_id else None
 
-        today = fields.Date.context_today(user)
+        today = _local_today(env)
         ctx = self._context(env, user, employee, today)
 
         resolved, is_admin = self._resolve_roles(env, user, employee)
@@ -878,7 +932,7 @@ class P03RoleCenterApiController(http.Controller):
         resolved, is_admin = self._resolve_roles(env, user, employee)
         if not is_admin and ws not in {r["ws"] for r in resolved}:
             return {"error": "role center not assigned to this user"}
-        ctx = self._context(env, user, employee, fields.Date.context_today(user))
+        ctx = self._context(env, user, employee, _local_today(env))
         kpis, charts = self._center_data(env, ctx, ws)
         return {"ws": ws, "kpis": kpis, "charts": charts, "headline": self._headline(env, ctx, ws)}
 
@@ -892,8 +946,10 @@ class P03RoleCenterApiController(http.Controller):
         ctx = {
             "employee": employee or None,
             "branch_domain": branch_domain,
-            "day_start": _utc_midnight(env, today),
-            "month_start": _utc_midnight(env, today.replace(day=1)),
+            "today": today,
+            "month_first_day": today.replace(day=1),
+            "day_start": _local_midnight(env, today),
+            "month_start": _local_midnight(env, today.replace(day=1)),
             "team": [],
         }
         if employee:

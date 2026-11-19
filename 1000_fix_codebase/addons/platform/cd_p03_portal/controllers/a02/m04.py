@@ -5,7 +5,8 @@
 import datetime
 import logging
 
-from odoo import http
+import pytz
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
@@ -44,6 +45,11 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_request_refund",
+            # BRU-FRD-10: a protection plan / membership's terms (A02 ERP audit)
+            "action_accept_terms",
+            # A02 ERP audit X-17: the customer's receipt, A4 and 80 mm
+            "action_print_receipt",
+            "action_print_receipt_80",
         },
     },
     # Quote-to-cash (13 Nov 2026): a customer's several items, one payment.
@@ -60,7 +66,12 @@ SURFACES = {
     # M04 build (13 Nov 2026): counters and priority rules (FR-FRD-007/027,
     # BRU-FRD-07), storage locations (FR-FRD-011), the drawer movement ledger
     # (FR-FRD-015, BRU-FRD-09) and branch announcements (FR-FRD-031).
-    "fix.queue.counter": {"order": "branch_id, number", "limit": 300, "actions": set()},
+    # A02 ERP audit M04-F12: a counter calls its next customer by priority lane
+    "fix.queue.counter": {
+        "order": "branch_id, number",
+        "limit": 300,
+        "actions": {"action_call_next"},
+    },
     "fix.queue.priority.rule": {"order": "sequence, id", "limit": 200, "actions": set()},
     "fix.storage.location": {"order": "branch_id, code", "limit": 500, "actions": set()},
     "fix.cash.movement": {
@@ -81,59 +92,154 @@ SURFACES = {
     "fix.cash.id.check": {"order": "id desc", "limit": 200, "actions": set()},
 }
 
-# tokens actually served vs issued today
-_QUEUE_DONE = ("completed", "cancelled", "no_show")
+# ---------------------------------------------------------------- frame
+#
+# A02 ERP audit M04-F17 / X-13 / X-14: every figure below was a sudo read with
+# no company fence, the packs ignored the screen's period, "today" was the
+# server's date against UTC stamps, the shift variance netted shortages
+# against overages, the average wait measured call -> serve (the time at the
+# counter, not the wait), "uncollected" counted delivered orders and aged them
+# from their last write, open shifts counted closed ones, and counter sales
+# counted drafts and refunds.
+
+LOCAL_TZ = "Asia/Dhaka"
+# a ready device not collected after this many days is "uncollected"
+UNCOLLECTED_DAYS = 7
+# what a counted drawer's variance is: a count exists
+_COUNTED = [("blind_count_submitted", "=", True)]
+
+
+def _tz(env):
+    return pytz.timezone(env.context.get("tz") or env.user.tz or LOCAL_TZ)
+
+
+def _today(env):
+    """The reader's business day (Asia/Dhaka when no zone is set)."""
+    return datetime.datetime.now(pytz.utc).astimezone(_tz(env)).date()
+
+
+def _utc_start(env, day):
+    """Naive-UTC instant of local midnight starting ``day``."""
+    local = _tz(env).localize(datetime.datetime.combine(day, datetime.time.min))
+    return local.astimezone(pytz.utc).replace(tzinfo=None)
+
+
+def _local_day(env, stamp):
+    if not stamp:
+        return None
+    return pytz.utc.localize(stamp).astimezone(_tz(env)).date()
+
+
+def _as_date(value):
+    if not value:
+        return None
+    try:
+        return fields.Date.to_date(str(value)[:10])
+    except (TypeError, ValueError):
+        return None
+
+
+def _company(env, model=None):
+    """The company fence of a sudo read (the reader's allowed companies)."""
+    if model is not None and "company_id" not in model._fields:
+        return []
+    return [("company_id", "in", env.companies.ids)]
+
+
+def _period_datetime(env, field, params):
+    """The screen's date_from / date_to (reader's calendar days) on a
+    datetime field, as UTC bounds."""
+    start, end = _as_date(params.get("date_from")), _as_date(params.get("date_to"))
+    domain = []
+    if start:
+        domain.append((field, ">=", _utc_start(env, start)))
+    if end:
+        domain.append((field, "<", _utc_start(env, end + datetime.timedelta(days=1))))
+    return domain
+
+
+def _period_date(field, params):
+    start, end = _as_date(params.get("date_from")), _as_date(params.get("date_to"))
+    domain = []
+    if start:
+        domain.append((field, ">=", start))
+    if end:
+        domain.append((field, "<=", end))
+    return domain
+
+
+def _period_note(params):
+    start, end = params.get("date_from"), params.get("date_to")
+    if start or end:
+        return "Period: %s to %s." % (start or "start", end or "today")
+    return "All periods."
+
+
+def _wait_minutes(token):
+    """The customer's wait: issued -> called (FR-FRD-005, G1-02)."""
+    if not (token.issued_at and token.called_at):
+        return None
+    return max((token.called_at - token.issued_at).total_seconds(), 0.0) / 60.0
 
 
 def kpis(env):
-    """The M04 module-tile KPI row (registry-canonical metrics)."""
+    """The M04 module-tile KPI row (registry-canonical metrics), fenced to the
+    reader's companies and dated in the Bangladesh business day."""
     Token = env["fix.token.queue"].sudo()
     Shift = env["fix.cash.shift"].sudo()
     Sale = env["fix.counter.sale"].sudo()
     Order = env["fix.service.order"].sudo()
     domain = [("company_id", "in", env.companies.ids)]
-    today = datetime.date.today()
+    today = _today(env)
+    day_start = _utc_start(env, today)
+    day_end = _utc_start(env, today + datetime.timedelta(days=1))
 
     tokens_today = Token.search_count(
-        [*domain, ("issued_at", ">=", today.strftime("%Y-%m-%d 00:00:00"))]
+        [*domain, ("issued_at", ">=", day_start), ("issued_at", "<", day_end)]
     )
 
+    # the wait is issue -> call; the population is the served tokens
     served = Token.search(
-        [*domain, ("state", "=", "completed"), ("served_at", "!=", False)], limit=200
-    )
-    waits_min = [
-        (t.served_at - t.called_at).total_seconds() / 60.0
-        for t in served
-        if t.called_at and t.served_at
-    ]
-    avg_wait = round(sum(waits_min) / len(waits_min), 1) if waits_min else None
-
-    uncollected = Order.search_count(
         [
             *domain,
-            ("state", "in", ("ready", "delivered")),
-            ("write_date", "<=", (today - datetime.timedelta(days=7)).strftime("%Y-%m-%d")),
-        ]
+            ("state", "=", "completed"),
+            ("served_at", "!=", False),
+            ("called_at", "!=", False),
+        ],
+        order="called_at desc",
+        limit=500,
+    )
+    waits_min = [w for w in (_wait_minutes(t) for t in served) if w is not None]
+    avg_wait = round(sum(waits_min) / len(waits_min), 1) if waits_min else None
+
+    # ready (not delivered) for more than 7 days since it became ready
+    cutoff = _utc_start(env, today - datetime.timedelta(days=UNCOLLECTED_DAYS))
+    uncollected = Order.search_count(
+        [*domain, ("state", "=", "ready"), ("ready_at", "!=", False), ("ready_at", "<", cutoff)]
     )
 
-    shifts_today = Shift.search([*domain, ("shift_date", "=", today)], limit=50)
-    variances = [
-        s.variance for s in shifts_today if s.state in ("reconciled", "discrepancy") and s.variance
-    ]
-    cash_variance = round(sum(variances), 2) if variances else 0.0
+    counted_today = Shift.search([*domain, *_COUNTED, ("shift_date", "=", today)])
+    shortage = round(sum(s.variance for s in counted_today if s.variance < 0), 2)
+    overage = round(sum(s.variance for s in counted_today if s.variance > 0), 2)
 
-    shifts_open = Shift.search_count([*domain, ("state", "in", ("open", "counting", "closed"))])
+    shifts_open = Shift.search_count([*domain, ("state", "in", ("open", "counting"))])
 
-    month_start = today.replace(day=1)
-    sales_mtd = Sale.search_count([*domain, ("sale_date", ">=", month_start.strftime("%Y-%m-%d"))])
+    month_start = _utc_start(env, today.replace(day=1))
+    sales_domain = [*domain, ("state", "=", "confirmed"), ("sale_date", ">=", month_start)]
+    sales_mtd = Sale.search_count(sales_domain)
+    sales_mtd_bdt = round(sum(Sale.search(sales_domain).mapped("total")), 2)
 
     return {
         "tokens_today": tokens_today,
         "avg_wait_min": avg_wait,
         "uncollected_7d": uncollected,
-        "cash_variance_today": cash_variance,
+        # gross: a shortage is never netted against another drawer's overage
+        "cash_variance_today": round(abs(shortage) + overage, 2),
+        "cash_shortage_today": shortage,
+        "cash_overage_today": overage,
         "shifts_open": shifts_open,
         "counter_sales_mtd": sales_mtd,
+        "counter_sales_mtd_bdt": sales_mtd_bdt,
     }
 
 
@@ -144,7 +250,13 @@ def _daily_cash_report(env, **params):
     Shift = env["fix.cash.shift"].sudo()
     rows = []
     shifts = Shift.search(
-        [("state", "in", ("reconciled", "discrepancy"))], order="shift_date desc", limit=100
+        [
+            *_company(env),
+            ("state", "in", ("closed", "reconciled", "discrepancy")),
+            *_period_date("shift_date", params),
+        ],
+        order="shift_date desc, id desc",
+        limit=500,
     )
     for s in shifts:
         rows.append(
@@ -153,6 +265,7 @@ def _daily_cash_report(env, **params):
                 "branch": s.branch_id.name or "—",
                 "operator": s.operator_id.name or "—",
                 "opening": s.opening_float,
+                "expected": s.expected_closing,
                 "counted": s.closing_counted,
                 "variance": s.variance,
                 "state": s.state,
@@ -160,29 +273,50 @@ def _daily_cash_report(env, **params):
         )
     return {
         "title": "Branch Daily Cash Summary",
-        "cols": ["date", "branch", "operator", "opening", "counted", "variance", "state"],
+        "cols": [
+            "date",
+            "branch",
+            "operator",
+            "opening",
+            "expected",
+            "counted",
+            "variance",
+            "state",
+        ],
         "labels": {
             "date": "Date",
             "branch": "Branch",
             "operator": "Operator",
             "opening": "Opening Float",
+            "expected": "Expected",
             "counted": "Counted",
             "variance": "Variance",
             "state": "State",
         },
         "rows": rows,
-        "notes": ["Closed/reconciled shifts with their counted drawers and variances, live."],
+        "notes": [
+            "Closed and reconciled shifts with their counted drawers and variances.",
+            _period_note(params),
+        ],
     }
 
 
 def _wait_distribution_report(env, **params):
     Token = env["fix.token.queue"].sudo()
-    served = Token.search([("state", "=", "completed"), ("served_at", "!=", False)], limit=300)
+    called = Token.search(
+        [
+            *_company(env),
+            ("called_at", "!=", False),
+            *_period_datetime(env, "issued_at", params),
+        ],
+        order="issued_at desc",
+        limit=5000,
+    )
     buckets = {"< 5 min": 0, "5–15 min": 0, "15–30 min": 0, "> 30 min": 0}
-    for t in served:
-        if not (t.called_at and t.served_at):
+    for t in called:
+        m = _wait_minutes(t)
+        if m is None:
             continue
-        m = (t.served_at - t.called_at).total_seconds() / 60.0
         if m < 5:
             buckets["< 5 min"] += 1
         elif m <= 15:
@@ -196,61 +330,91 @@ def _wait_distribution_report(env, **params):
         "cols": ["bucket", "tokens"],
         "labels": {"bucket": "Wait", "tokens": "Tokens"},
         "rows": [{"bucket": k, "tokens": v} for k, v in buckets.items()],
-        "notes": ["Call → serve duration on completed tokens."],
+        "notes": [
+            "The customer's wait: token issued -> token called, on every called token.",
+            _period_note(params),
+        ],
     }
 
 
 def _uncollected_ageing_report(env, **params):
     Order = env["fix.service.order"].sudo()
-    today = datetime.date.today()
+    today = _today(env)
     rows = []
     for o in Order.search(
-        [("state", "in", ("ready", "delivered"))], order="write_date asc", limit=200
+        [*_company(env), ("state", "=", "ready"), *_period_datetime(env, "ready_at", params)],
+        order="ready_at asc, id asc",
+        limit=1000,
     ):
-        since = o.write_date.date() if o.write_date else today
+        since = _local_day(env, o.ready_at)
         rows.append(
             {
                 "order": o.name,
                 "customer": o.customer_id.name or "—",
                 "branch": o.branch_id.name or "—",
-                "state": o.state,
-                "days": (today - since).days,
+                "ready_since": str(since) if since else "—",
+                "days": (today - since).days if since else None,
             }
         )
-    rows.sort(key=lambda r: -r["days"])
+    rows.sort(key=lambda r: -(r["days"] if r["days"] is not None else -1))
     return {
         "title": "Uncollected Device Ageing",
-        "cols": ["order", "customer", "branch", "state", "days"],
+        "cols": ["order", "customer", "branch", "ready_since", "days"],
         "labels": {
             "order": "Order",
             "customer": "Customer",
             "branch": "Branch",
-            "state": "State",
+            "ready_since": "Ready Since",
             "days": "Days Waiting",
         },
         "rows": rows,
-        "notes": ["Repaired devices at branch awaiting collection, oldest first."],
+        "notes": [
+            "Repaired devices ready at the branch and not yet collected, aged from the day "
+            "they became ready; oldest first.",
+            _period_note(params),
+        ],
     }
 
 
 def _sales_category_report(env, **params):
     Sale = env["fix.counter.sale"].sudo()
-    rows = []
-    sales = Sale.search([], limit=300)
-    by_product = {}
+    sales = Sale.search(
+        [
+            *_company(env),
+            ("state", "=", "confirmed"),
+            *_period_datetime(env, "sale_date", params),
+        ]
+    )
+    by_category = {}
     for s in sales:
-        key = s.product_id.display_name or "—"
-        by_product.setdefault(key, {"count": 0, "total": 0.0})
-        by_product[key]["count"] += 1
-        by_product[key]["total"] += s.total
-    for product, agg in sorted(by_product.items(), key=lambda kv: -kv[1]["total"]):
-        rows.append({"product": product, "count": agg["count"], "total": agg["total"]})
+        key = s.product_id.categ_id.display_name or "Uncategorised"
+        agg = by_category.setdefault(key, {"count": 0, "quantity": 0.0, "total": 0.0})
+        agg["count"] += 1
+        agg["quantity"] += s.quantity
+        agg["total"] += s.total
+    rows = [
+        {
+            "category": category,
+            "count": agg["count"],
+            "quantity": agg["quantity"],
+            "total": round(agg["total"], 2),
+        }
+        for category, agg in sorted(by_category.items(), key=lambda kv: -kv[1]["total"])
+    ]
     return {
         "title": "Counter Sales by Category",
-        "cols": ["product", "count", "total"],
-        "labels": {"product": "Product", "count": "Sales", "total": "Total (BDT)"},
+        "cols": ["category", "count", "quantity", "total"],
+        "labels": {
+            "category": "Product Category",
+            "count": "Sales",
+            "quantity": "Quantity",
+            "total": "Total (BDT)",
+        },
         "rows": rows,
-        "notes": ["Counter sales grouped by product, live."],
+        "notes": [
+            "Confirmed counter sales (drafts and refunded sales excluded), by product category.",
+            _period_note(params),
+        ],
     }
 
 
@@ -260,39 +424,67 @@ def _variance_register_report(env, **params):
         {
             "date": str(s.shift_date),
             "branch": s.branch_id.name or "—",
-            "variance": s.variance,
+            "shortage": s.variance if s.variance < 0 else 0.0,
+            "overage": s.variance if s.variance > 0 else 0.0,
+            "approved_by": s.supervisor_variance_approved_by.name or "—",
             "state": s.state,
             "notes": (s.reconciliation_notes or "")[:60],
         }
-        for s in Shift.search([("variance", "!=", 0.0)], order="shift_date desc", limit=100)
+        for s in Shift.search(
+            [
+                *_company(env),
+                *_COUNTED,
+                ("variance", "!=", 0.0),
+                *_period_date("shift_date", params),
+            ],
+            order="shift_date desc, id desc",
+            limit=1000,
+        )
     ]
     return {
         "title": "Shift Variance Register",
-        "cols": ["date", "branch", "variance", "state", "notes"],
+        "cols": ["date", "branch", "shortage", "overage", "approved_by", "state", "notes"],
         "labels": {
             "date": "Date",
             "branch": "Branch",
-            "variance": "Variance",
+            "shortage": "Shortage",
+            "overage": "Overage",
+            "approved_by": "Approved By",
             "state": "State",
             "notes": "Notes",
         },
         "rows": rows,
-        "notes": ["Every non-zero variance, live — the discrepancy trail."],
+        "notes": [
+            "Every counted drawer that did not balance, shortages and overages apart.",
+            _period_note(params),
+        ],
     }
 
 
 def _branch_league_report(env, **params):
-    env_all = env
-    Order = env_all["fix.service.order"].sudo()
-    rows = []
-    branches = env_all["fix.branch"].sudo().search([])
-    for b in branches:
-        open_n = Order.search_count(
-            [("branch_id", "=", b.id), ("state", "not in", ("closed", "cancelled"))]
-        )
-        ready_n = Order.search_count([("branch_id", "=", b.id), ("state", "=", "ready")])
-        if open_n or ready_n:
-            rows.append({"branch": b.name, "open_orders": open_n, "ready": ready_n})
+    Order = env["fix.service.order"].sudo()
+    base = [*_company(env), *_period_datetime(env, "create_date", params)]
+
+    def counts(extra):
+        return {
+            branch.id: count
+            for branch, count in Order._read_group(
+                [*base, *extra], groupby=["branch_id"], aggregates=["__count"]
+            )
+            if branch
+        }
+
+    open_n = counts([("state", "not in", ("closed", "cancelled", "delivered"))])
+    ready_n = counts([("state", "=", "ready")])
+    branches = env["fix.branch"].sudo().browse(sorted(set(open_n) | set(ready_n)))
+    rows = [
+        {
+            "branch": b.name or "—",
+            "open_orders": open_n.get(b.id, 0),
+            "ready": ready_n.get(b.id, 0),
+        }
+        for b in branches
+    ]
     rows.sort(key=lambda r: -r["open_orders"])
     return {
         "title": "Branch Comparison League",
@@ -303,7 +495,7 @@ def _branch_league_report(env, **params):
             "ready": "Ready for Collection",
         },
         "rows": rows[:30],
-        "notes": ["Branch workload comparison from the live order book."],
+        "notes": ["Branch workload comparison from the live order book.", _period_note(params)],
     }
 
 
@@ -316,7 +508,12 @@ def _shift_checklists_report(env, **params):
     type_labels = dict(Shift._fields["shift_type"].selection)
     state_labels = dict(Shift._fields["state"].selection)
     rows = []
-    for s in Shift.search([], order="shift_date desc, id desc", limit=200):
+    for s in Shift.search(
+        [*_company(env), *_period_date("shift_date", params)],
+        order="shift_date desc, id desc",
+        limit=500,
+    ):
+        needs = s.blind_count_submitted and abs(s.variance) > s._fd_tolerance()
         rows.append(
             {
                 "shift": "%s · %s"
@@ -333,7 +530,7 @@ def _shift_checklists_report(env, **params):
                 "variance": s.variance if s.variance else None,
                 "variance_approved": "Yes"
                 if s.supervisor_variance_approved_by
-                else ("Not required" if not s.variance else "Pending"),
+                else ("Pending" if needs else "Not required"),
             }
         )
     return {
@@ -364,7 +561,8 @@ def _shift_checklists_report(env, **params):
         "notes": [
             "The open procedure is the staged float; the close procedure is the "
             "blind count, the counted till and the variance sign-off. A variance "
-            "without an approver is a pending checklist item."
+            "beyond tolerance without an approver is a pending checklist item.",
+            _period_note(params),
         ],
     }
 

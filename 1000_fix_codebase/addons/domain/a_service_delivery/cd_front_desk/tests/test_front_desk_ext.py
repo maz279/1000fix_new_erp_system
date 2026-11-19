@@ -13,9 +13,9 @@ from odoo.exceptions import UserError
 def fd(odoo_env):
     env = odoo_env
     ou = env["operating.unit"].search([], limit=1)
-    entity = env["fix.entity"].create(
-        {"code": "FDEXT", "legal_name": "FD Ext Entity", "company_id": env.company.id}
-    )
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create({"code": "FDEXT", "legal_name": "FD Ext Entity", "company_id": env.company.id})
     branch = env["fix.branch"].create(
         {
             "name": "FD Ext Branch",

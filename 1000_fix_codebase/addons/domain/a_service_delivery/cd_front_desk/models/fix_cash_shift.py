@@ -57,6 +57,15 @@ SYSTEM_TYPE_FOR = {
 }
 
 
+DHAKA = "Asia/Dhaka"
+
+
+def dhaka_today(record, timestamp=None):
+    """The Bangladesh business day (Asia/Dhaka, UTC+6) of now or of
+    ``timestamp``: a branch's day, whatever the server's or the user's zone."""
+    return fields.Date.context_today(record.with_context(tz=DHAKA), timestamp=timestamp)
+
+
 def default_operating_unit(env, vals):
     """The operating unit of a front-desk record that was saved without one:
     its cash shift's, else its branch's, else the user's default.
@@ -171,7 +180,21 @@ class FixCashShift(models.Model):
     # The float is declared when the shift is opened and is the base of the
     # expected closing: lowered while the drawer is open, it hides exactly the
     # cash taken since. Only superuser data repair corrects a mistyped float.
-    _FROZEN_WHEN_OPEN = frozenset({"opening_float"})
+    # A02 ERP audit M04-F5: whose drawer it is, where and on which day are
+    # fixed at opening too: re-pointing an open shift at another operator moved
+    # the BRU-FRD-11 handler set (the cashier could then reconcile her own
+    # takings) and re-dating or re-branching it moved its takings.
+    _FROZEN_WHEN_OPEN = frozenset(
+        {
+            "opening_float",
+            "branch_id",
+            "operator_id",
+            "shift_date",
+            "company_id",
+            "operating_unit_id",
+            "currency_id",
+        }
+    )
 
     def _fix_frozen_fields(self) -> frozenset:
         if self.state == "open":
@@ -192,7 +215,8 @@ class FixCashShift(models.Model):
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
 
     branch_id = fields.Many2one("fix.branch", string="Branch", required=True)
-    shift_date = fields.Date(default=fields.Date.today, required=True)
+    # the Bangladesh business day (a shift opened before 06:00 Dhaka is today's)
+    shift_date = fields.Date(default=lambda self: dhaka_today(self), required=True)
     shift_type = fields.Selection(
         [
             ("morning", "Morning"),
@@ -405,11 +429,22 @@ class FixCashShift(models.Model):
         self._fd_require_group(GROUP_MANAGER, "Front Desk Cashier or Branch Manager", action)
 
     def _fd_cash_handlers(self):
-        """The users who handled this drawer: its cashier and its counter."""
+        """The users who handled this drawer (BRU-FRD-11): its cashier and its
+        counter, everyone who confirmed a sale into it, approved a refund paid
+        out of it, or recorded a movement on it (A02 ERP audit M04-F5: a
+        manager who rang up or paid out cash on the shift could approve its
+        variance)."""
         self.ensure_one()
         users = self.operator_id.user_id | self.counted_by
         if not self.operator_id.user_id:
             users |= self.create_uid
+        if not self.id:
+            return users
+        Sale = self.env["fix.counter.sale"].sudo()
+        users |= Sale.search([("shift_id", "=", self.id)]).mapped("confirmed_by")
+        users |= Sale.search([("refund_shift_id", "=", self.id)]).mapped("refund_approved_by")
+        moves = self.env["fix.cash.movement"].sudo().search([("shift_id", "=", self.id)])
+        users |= moves.mapped("recorded_by_id")
         return users
 
     def _fd_require_independent(self, action):
@@ -494,17 +529,32 @@ class FixCashShift(models.Model):
         self._post_cash_movement("field_cash_deposited", amount, reference=reference)
 
     @api.model
-    def _fd_open_shift_for(self, branch, company=None):
-        """The branch's open shift, or an empty recordset."""
-        return self.sudo().search(
-            [
-                ("branch_id", "=", branch.id),
-                ("company_id", "=", (company or self.env.company).id),
-                ("state", "=", "open"),
-            ],
-            order="id desc",
-            limit=1,
-        )
+    def _fd_open_shift_for(self, branch, company=None, user=None):
+        """The branch's open shift, or an empty recordset.
+
+        A02 ERP audit M04-F9: under open_shift_scope=operator a branch runs one
+        drawer per cashier, and the newest open shift of the branch was taken
+        whoever was at the till, so cashier A's sale landed in cashier B's
+        drawer (B then counted a surplus, A a shortage). With that scope the
+        shift operated by ``user`` (default: the acting user) is preferred;
+        the branch's newest open shift is the fallback for someone who runs no
+        drawer of their own (a manager paying out an approved refund)."""
+        domain = [
+            ("branch_id", "=", branch.id),
+            ("company_id", "=", (company or self.env.company).id),
+            ("state", "=", "open"),
+        ]
+        Shift = self.sudo()
+        scope = self.env["ir.config_parameter"].sudo().get_param(OPEN_SHIFT_SCOPE_PARAM, "branch")
+        if scope == "operator":
+            acting = user if user is not None else self.env.user
+            if acting:
+                own = Shift.search(
+                    [*domain, ("operator_id.user_id", "=", acting.id)], order="id desc", limit=1
+                )
+                if own:
+                    return own
+        return Shift.search(domain, order="id desc", limit=1)
 
     # ------------------------------------------------------------ transitions
 
@@ -564,6 +614,22 @@ class FixCashShift(models.Model):
                 raise UserError(
                     "Submit the blind denomination count before closing shift #%s "
                     "(BRU-FRD-02)." % rec.id
+                )
+            # A02 ERP audit M04-F16 / BRU-FRD-03: a variance beyond tolerance
+            # is approved BEFORE the shift closes. A closed shift is what M50
+            # banks: closing with the shortage unapproved let the deposit draw
+            # on cash nobody had signed for.
+            if rec._approval_needed():
+                raise UserError(
+                    "Shift #%s is BDT %.2f %s, beyond the BDT %.2f tolerance. Request the "
+                    "variance approval: a Branch Manager who did not handle the cash approves "
+                    "it before the shift is closed (BRU-FRD-03)."
+                    % (
+                        rec.id,
+                        abs(rec.variance),
+                        "short" if rec.variance < 0 else "over",
+                        rec._fd_tolerance(),
+                    )
                 )
             rec._guarded().write({"state": "closed", "closed_at": fields.Datetime.now()})
 

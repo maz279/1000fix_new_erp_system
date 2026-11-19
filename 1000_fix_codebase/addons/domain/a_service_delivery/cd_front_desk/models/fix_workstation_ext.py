@@ -11,15 +11,16 @@
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_cash_shift import GROUP_CASHIER, GROUP_MANAGER
+from .fix_cash_shift import GROUP_CASHIER, GROUP_MANAGER, dhaka_today
 
 GROUP_REFUND_APPROVER = "cd_front_desk.group_fd_refund_approver"
 GROUP_QUEUE_AGENT = "cd_front_desk.group_fd_queue_agent"
 QUEUE_GROUPS = (GROUP_QUEUE_AGENT, GROUP_CASHIER, GROUP_MANAGER)
-# Token recall (A02 audit M04-P2). The limit is a policy number; the switch
-# that turns a token past it into a no-show is a business choice, off today.
+# Token recall (A02 audit M04-P2). A02 ERP audit M04-F12: BRU-FRD-08 is "one
+# recall, then no-show": the defaults are now the rule (limit 1, auto no-show
+# on); both stay parameters for a branch the owner decides otherwise.
 RECALL_LIMIT_PARAM = "cd_front_desk.token_recall_limit"
-DEFAULT_RECALL_LIMIT = 3
+DEFAULT_RECALL_LIMIT = 1
 AUTO_NO_SHOW_PARAM = "cd_front_desk.token_auto_no_show"
 # Counter-sale VAT: counter prices include VAT; the rate splits the total into
 # net and VAT for the Mushak-6.3 (NBR standard rate). A policy number.
@@ -29,8 +30,10 @@ DEFAULT_VAT_RATE = 15.0
 TENDER_REQUIRED_PARAM = "cd_front_desk.counter_tender_required"
 
 
-def _param_on(env, key) -> bool:
-    raw = env["ir.config_parameter"].sudo().get_param(key, "0")
+def _param_on(env, key, default="0") -> bool:
+    raw = env["ir.config_parameter"].sudo().get_param(key, default)
+    if raw in (None, False, ""):
+        raw = default
     return str(raw).strip().lower() in ("1", "true", "yes")
 
 
@@ -93,7 +96,7 @@ class FixTokenQueueExt(models.Model):
         if first:
             super(FixTokenQueueExt, first).action_call()
         limit = self._fd_recall_limit()
-        auto = _param_on(self.env, AUTO_NO_SHOW_PARAM)
+        auto = _param_on(self.env, AUTO_NO_SHOW_PARAM, default="1")
         dropped = []
         for token in recalls:
             count = token.recall_count + 1
@@ -119,6 +122,42 @@ class FixTokenQueueExt(models.Model):
                 "if the customer returns." % (limit, ", ".join(dropped))
             }
         return True
+
+    @api.model
+    def _fd_next_waiting(self, branch, counter=None, company=None):
+        """A02 ERP audit M04-F12 (BRU-FRD-07): the token to call next at a
+        branch: today's (Dhaka) waiting tokens, the highest priority lane
+        first, then the earliest issued. With a counter, only the tokens it
+        can serve and that are not routed to another counter."""
+        domain = [
+            ("branch_id", "=", branch.id),
+            ("company_id", "=", (company or self.env.company).id),
+            ("state", "=", "waiting"),
+            ("queue_date", "=", dhaka_today(self)),
+        ]
+        if counter:
+            domain += ["|", ("counter_id", "=", False), ("counter_id", "=", counter.id)]
+        tokens = self.sudo().search(domain, order="priority_rank desc, issued_at asc, id asc")
+        if counter:
+            tokens = tokens.filtered(lambda t: counter._fd_serves(t.service_type))
+        return tokens[:1]
+
+    def action_call_next(self):
+        """Call the next token of this token's branch by priority (the queue
+        screen's Call Next). Returns which token was called."""
+        self._fd_require_queue_role("Calling the next token")
+        called = []
+        for branch in self.mapped("branch_id"):
+            company = self.filtered(lambda t, b=branch: t.branch_id == b)[:1].company_id
+            token = self._fd_next_waiting(branch, company=company)
+            if not token:
+                continue
+            token = token.with_env(self.env)
+            token.action_call()
+            called.append(token)
+        if not called:
+            raise UserError("No customer is waiting today at this branch.")
+        return {"called": ", ".join(t.token_display for t in called), "token_id": called[0].id}
 
     def action_evaluate_wait_sla(self):
         self._fd_require_queue_role("Checking the wait SLA")
@@ -374,30 +413,41 @@ class FixCounterSale(models.Model):
         string="Part Serial / Protection Plan Ref",
         tracking=True,
     )
-    # A02 audit M04-P2: the Mushak-6.3 number is issued from a sequence when
+    # A02 audit M04-P2: a counter reference is issued from a sequence when
     # the sale is confirmed (it was a free text field).
+    # A02 ERP audit X-04: this is NOT the NBR Mushak 6.3 number. The statutory
+    # 6.3 is issued by the VAT register with the billing engine's per-company
+    # series when the sale posts to the books (cd_front_desk_finance:
+    # mushak_id / mushak_no, VAT at M51's rate); the screen showed this
+    # internal reference as the NBR number beside a flat-rate VAT.
     mushak_63_ref = fields.Char(
-        string="NBR Mushak-6.3 Tax Challan Ref",
+        string="Counter Receipt Ref (internal)",
         tracking=True,
         readonly=True,
         copy=False,
-        help="Issued from the Mushak-6.3 sequence when the sale is confirmed.",
+        help="The counter's own receipt sequence, issued at confirm. Not the NBR Mushak 6.3 "
+        "number: that is issued by the VAT register when the sale posts to the books.",
     )
     # A02 audit M04-P2: tender and the VAT split. Counter prices include VAT.
     tendered_amount = fields.Float(
         string="Cash Tendered (BDT)", help="The cash the customer handed over."
     )
     change_due = fields.Float(string="Change Due (BDT)", compute="_compute_tender_vat", store=True)
+    # A02 ERP audit X-04: a counter estimate only. The VAT the books hold is
+    # the posted Mushak 6.3's (M51 product rate), shown beside it once posted.
     vat_rate = fields.Float(
-        string="VAT Rate (%)",
+        string="Counter VAT Rate (estimate, %)",
         readonly=True,
         default=lambda self: _param_float(self.env, VAT_RATE_PARAM, DEFAULT_VAT_RATE),
-        help="The VAT rate included in the counter price (cd_front_desk.counter_vat_rate_pct).",
+        help="The flat rate used for the counter's estimate (cd_front_desk.counter_vat_rate_pct). "
+        "The statutory VAT is M51's rate for the product, on the posted Mushak 6.3.",
     )
     amount_untaxed = fields.Float(
-        string="Net of VAT (BDT)", compute="_compute_tender_vat", store=True
+        string="Net of VAT (estimate, BDT)", compute="_compute_tender_vat", store=True
     )
-    vat_amount = fields.Float(string="VAT (BDT)", compute="_compute_tender_vat", store=True)
+    vat_amount = fields.Float(
+        string="VAT (estimate, BDT)", compute="_compute_tender_vat", store=True
+    )
     transaction_ref = fields.Char(
         string="bKash / Nagad / POS TrxID",
         tracking=True,
@@ -488,6 +538,32 @@ class FixCounterSale(models.Model):
         return bool(self.price_override_approved_by) and (
             abs(self.price_override_approved_price - self.unit_price) < 0.005
         )
+
+    def _fd_price_blocked(self):
+        """The draft sales a confirm would refuse for their price: below the
+        floor, with no approval of exactly that price."""
+        return self.filtered(
+            lambda s: s.state == "draft"
+            and s._fd_needs_price_approval()
+            and not s._fd_price_approved()
+        )
+
+    def action_request_price_approvals(self):
+        """A02 ERP audit M04-F6: route the price approval of every sale that
+        needs one, BEFORE anything is confirmed (one M63 request per sale; a
+        request already waiting is left as it is). A multi-item basket keeps
+        its draft sales and calls this instead of confirming when any line is
+        below list: the sales confirm once every price is approved. Returns
+        the sales still waiting for a price approval."""
+        if not self._fd_has(GROUP_CASHIER, GROUP_MANAGER):
+            raise UserError("Only a Front Desk Cashier may ask for a price approval.")
+        blocked = self._fd_price_blocked()
+        for sale in blocked.filtered(lambda s: s.approval_state != "pending"):
+            sale.action_request_approval(
+                justification="Unit price BDT %.2f below the list price of BDT %.2f"
+                % (sale.unit_price, sale.product_id.lst_price)
+            )
+        return blocked
 
     # ------------------------------------------------------------ routing
 
@@ -622,7 +698,8 @@ class FixCounterSale(models.Model):
                 # cash joins the drawer's expected takings, on an OPEN shift only
                 # (A02 audit M04-4: sales kept posting into a reconciled shift)
                 if not shift and sale.branch_id:
-                    shift = Shift._fd_open_shift_for(sale.branch_id, sale.company_id)
+                    # M04-F9: the confirming cashier's own drawer first
+                    shift = Shift._fd_open_shift_for(sale.branch_id, sale.company_id, self.env.user)
                     vals["shift_id"] = shift.id
                 if not shift:
                     raise UserError(
@@ -643,6 +720,31 @@ class FixCounterSale(models.Model):
                     "cash_payments", sale.total, reference="Counter sale %s" % sale.name
                 )
             sale._guarded().write(vals)
+
+    # A02 ERP audit X-17: the customer's receipt (the report lives with the
+    # workspace's printable documents in cd_p03_portal; resolved at run time)
+    _FD_RECEIPT_REPORTS = (
+        "cd_p03_portal.report_a02_counter_receipt",
+        "cd_p03_portal.report_a02_counter_receipt_80",
+    )
+
+    def _fd_print_url(self, thermal=False):
+        self.ensure_one()
+        self.check_access("read")
+        name = self._FD_RECEIPT_REPORTS[1 if thermal else 0]
+        if not self.env["ir.actions.report"].sudo()._get_report_from_name(name):
+            raise UserError("The counter receipt print is not installed on this server.")
+        if self.state == "draft":
+            raise UserError("Sale %s is not confirmed: there is no receipt yet." % self.name)
+        return {"print_url": "/report/pdf/%s/%s" % (name, self.id)}
+
+    def action_print_receipt(self):
+        """The customer's receipt (A4 cash memo)."""
+        return self._fd_print_url()
+
+    def action_print_receipt_80(self):
+        """The customer's receipt on the 80 mm counter printer."""
+        return self._fd_print_url(thermal=True)
 
     def _fd_parse_reason(self, reason, reason_code):
         """`reason_code: note` from the workspace prompt, or the two apart."""
@@ -728,7 +830,14 @@ class FixCounterSale(models.Model):
             }
             if sale.payment_method == "cash":
                 branch = sale.branch_id or sale.shift_id.branch_id
-                shift = Shift._fd_open_shift_for(branch, sale.company_id) if branch else Shift
+                # M04-F9: paid out at the counter of the cashier who asked
+                shift = (
+                    Shift._fd_open_shift_for(
+                        branch, sale.company_id, sale.refund_requested_by or self.env.user
+                    )
+                    if branch
+                    else Shift
+                )
                 if not shift:
                     raise UserError(
                         "There is no open cash shift at %s to pay refund %s from. Open the "
