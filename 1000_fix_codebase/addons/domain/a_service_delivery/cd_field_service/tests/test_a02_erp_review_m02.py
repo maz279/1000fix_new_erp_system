@@ -1,10 +1,15 @@
 """A02 ERP review (20 Nov 2026), M02 field cash acceptance.
 
 The cashier role (r29) holds only the front-desk and service-order cashier
-groups: no field-order ACL. Accepting field cash read the field order as the
-cashier, which raised AccessError in a real request (the earlier tests passed
-only because the record sat in the transaction cache, where Odoo skips the
-ACL). And the "cashier of the order's branch" was never checked.
+groups: no field-order ACL. A reviewer reported that Accept Field Cash would
+therefore fail in a real request. Measured: it does not, and did not before
+the review either - the acceptor's first read of the field order is through
+sudo(), which prefetches the record into the transaction cache, and Odoo
+serves the later reads from it (a mutation restoring the original code in
+both places leaves the cold-cache test below green). The reads are now
+explicitly sudo, so the action no longer depends on that prefetch.
+
+What WAS missing: the "cashier of the order's branch" was never checked.
 
 ``odoo_env`` rolls back after every test.
 """

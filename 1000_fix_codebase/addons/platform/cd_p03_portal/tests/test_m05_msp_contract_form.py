@@ -229,6 +229,13 @@ def test_a_contract_is_created_and_edited_through_the_form(m05, odoo_env, call, 
     )
     assert "error" not in shown, shown
     assert shown["record"]["name"] == "Head office endpoints"
+    # the saved contract's terms render read-only (the Amend Terms action
+    # changes them); on the blank form they are typed once
+    readonly = {f["name"]: f["readonly"] for f in shown["fields"]}
+    assert readonly["device_count"] and readonly["sla_target_pct"]
+    assert not readonly["name"]
+    typed = {f["name"]: f["readonly"] for f in blank["fields"]}
+    assert not typed["device_count"] and not typed["sla_target_pct"]
     assert shown["lines"]["rows"] == []  # no asset enrolled yet
 
 

@@ -168,6 +168,50 @@ def test_a_diagnostic_fee_advance_is_not_a_settlement_receipt(books):
         )
 
 
+def test_another_orders_advance_never_settles_a_second_order(books):
+    """The advance is netted from ITS order's amount due; settling a second
+    order of the same customer against it would count the money twice."""
+    m = books
+    m.shift(as_user=m.so_cashier)
+    first = m.job(3000.0, customer=m.customer)
+    intake = m.intake(
+        device_id=m.device.id,
+        diagnostic_fee_bdt=1000.0,
+        payment_channel="bkash",
+        payment_trx_ref="BKX-ADV-BIG",
+    )
+    intake.sudo()._guarded().write({"service_order_id": first.id})
+    intake.sudo()._fdf_raise_fee_receipt()
+    assert first._fix_amount_due() == 2450.0  # 3,450 less the 1,000 advance
+    second = m.job(500.0, customer=m.customer)  # 575 due, the advance would cover it
+    with pytest.raises(UserError, match="No confirmed M20 receipt"):
+        second.with_user(m.so_cashier).action_mark_settled(
+            amount_bdt=575.0, reference="BKX-ADV-BIG", source="m20_receipt"
+        )
+    assert second.payment_settlement_state == "unpaid"
+
+
+def test_a_receipt_that_topped_up_one_order_settles_no_other(books):
+    m = books
+    m.shift(as_user=m.so_cashier)
+    customer = m.env["res.partner"].create({"name": "Top-up receipt customer"})
+    first = m.job(1000.0, customer=customer)
+    first.with_user(m.so_cashier).action_mark_settled(
+        amount_bdt=1150.0, reference="CTR-TR-1", source="counter"
+    )
+    _revise(m, first, 2000.0)
+    _receipt(m, customer, 1150.0, "BANK-TOPUP-1")
+    first.with_user(m.so_cashier).action_mark_settled(
+        amount_bdt=1150.0, reference="BANK-TOPUP-1", source="m20_receipt"
+    )
+    assert first.amount_settled_bdt == 2300.0  # the receipt now pays the first order
+    second = m.job(1000.0, customer=customer)
+    with pytest.raises(UserError, match="No confirmed M20 receipt"):
+        second.with_user(m.so_cashier).action_mark_settled(
+            amount_bdt=1150.0, reference="BANK-TOPUP-1", source="m20_receipt"
+        )
+
+
 # --------------------------------------------- 3. an advance that covers the job
 def test_an_advance_covering_the_estimate_releases_without_new_money(books):
     m = books

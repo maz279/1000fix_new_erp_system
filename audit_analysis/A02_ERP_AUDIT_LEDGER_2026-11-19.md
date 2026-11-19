@@ -64,3 +64,64 @@ Integration by the lead: field-cash verify by drawer cashier (M02 contract), bas
 M36 estimate version read-only, whitelist regenerated, 3 events registered, storefront refuses a
 returning leg, M50 payroll recovery prompt, settlement hand-back tests on the new rules.
 Owner decisions: see `A02_ERP_AUDIT_REPORT_2026-11-20.md` (O1-O15).
+
+## Independent review (20 Nov 2026, second session)
+Two reviewers read the lead's money and workflow diffs cold. Every finding was then checked against the
+code before fixing. Commits on `fix/a02-erp-audit` after e91ed105.
+
+### Money to ledger (R-M)
+| id | sev | finding | status |
+|---|---|---|---|
+| R-M1 | P0 | top-up booked with the FIRST payment's tender/reference (bKash settlement + cash top-up hit bKash clearing; drawer short in GL); a counter top-up on an M20-settled order never booked | FIXED: the receipt books exactly what each call took, by its own tender and reference |
+| R-M2 | P1 | one M20 receipt (or the order's diagnostic-fee advance) could settle a second order | FIXED: a receipt tied to another order or held as an advance is not offered |
+| R-M3 | P1 | an advance covering the estimate still blocked delivery; new money of any size then sat unapplied | FIXED: the gate reads the amount due; settling an order that owes nothing is refused |
+| R-M4 | P1 | cancel refund with no invoice was a bare M50 instruction; the receipt stayed "unapplied" and auto-match offered refunded money to the next invoice | FIXED: refunds through fix.ar.refund against the order's receipts (idempotent); legacy remainder still direct |
+| R-M5 | P1 | credit release read the stale stored exposure: other released orders and contact-person invoices ignored | FIXED: live exposure at release |
+| R-M6 | P2 | basket header change (tender/TrxID/customer) kept stale drafted sales; their pending M63 price approvals were left orphaned | FIXED: header change re-drafts; pending approvals voided (evidence kept) |
+| R-M7 | P2 | cash diagnostic fee with no open shift: no receipt, and charged again in the repair | FIXED |
+| R-M8 | P2 | remittance on an already-paid OEM invoice booked a second Dr bank; a two-part remittance kept only the last bank ref | FIXED: matched to finance's own receipt by bank ref; paid invoice not re-booked; all refs kept |
+| R-M9 | P2 | field TrxID matched another customer's receipt, so no receipt was raised | FIXED: customer filter |
+| R-M10 | P2 | front-desk cashier verified any branch's settlement via sudo, and field cash still with the technician | FIXED: OU scope; field cash only once in a drawer |
+| R-M11 | P2 | a company's receipt could not pay its contact person's invoice (allocation exact-partner) | FIXED: commercial partner, both in settlement and M20 allocation |
+| R-M12/14 | P2 | delivery invoice in the user's current company, dated UTC "today" (00-06 Dhaka deliveries in the previous day / VAT month) | FIXED: order's company, Dhaka date of delivered_at |
+| R-M13 | P2 | estimate took header VAT, invoice per-line half-up: paisa residuals left invoices open | FIXED: estimate computes VAT the invoice's way |
+| R-M15 | P3 | a receipt "confirmed" with no GL move (gl_note only) let counter money off the books | FIXED: settlement refused when an AR account exists but nothing posted |
+| R-M16 | P3 | COD recovery accepted another company's journal | FIXED |
+
+### Workflow (R-W)
+| id | sev | finding | status |
+|---|---|---|---|
+| R-W1 | - | reported: Accept Field Cash reads the field order as a cashier with no field-order ACL, so it could never succeed | NOT-A-DEFECT (measured): the acceptor's first read is sudo(), which prefetches the record into the transaction cache; restoring the original code in both places leaves the cold-cache test green. Reads made explicitly sudo as hardening. (Commit 07607caa's message overstates this; corrected here.) |
+| R-W3 | P2 | field cash accepted by a cashier of any branch | FIXED: order's OU |
+| R-W4 | P2 | BER (BRU-SRM-12) proposed/confirmed by any employee; any image anywhere was the photo | FIXED: technical roles or the order's technician; photo uploaded on the order |
+| R-W8 | P3 | M01 SLA / TAT reports cut periods on UTC days | FIXED: Dhaka days |
+| R-W9 | P3 | technician assigned on a draft stamped the response before any clock; intake skipped the response clock | FIXED |
+| R-W10 | P3 | priority change re-timed SLA clocks from the policy header, not its item | FIXED |
+| R-W11 | P3 | stock.reserved consumed but not registered | FIXED (registry) |
+| R-W12 | P3 | see R-M6 | FIXED |
+| R-W5 | - | msp.device_uplift has no consumer | OWNER (O14) |
+| R-W6 | - | guarded MSP terms in writable.py | NOT-A-DEFECT: the create form types them; the model refuses a change after creation |
+| R-W7 | - | diagnosing technician cannot read the passcode | OWNER (O5) |
+| R-W13 | - | COD variance needs the rider's work contact | NOT-A-DEFECT on fix_real: 504/504 employees have one |
+| R-W14 | - | courier pickup refuses an in-transit consignment | NOT-A-DEFECT: M03-F5 fixes the carrier once custody starts |
+| R-W15 | - | token daily-unique constraint could be skipped on upgrade | NOT-A-DEFECT here: 0 tokens on fix_real / fix_dev |
+
+### Cross-area: the customer was told of 2 of the spec's A02 milestones (R-N)
+Only "estimate sent" and "ready" reached the customer. Built (M27 consumers through fix.notif.delivery.queue,
+consent/curfew/dedup apply): order booked (service_order.intake), cancelled, technician on the way
+(new event field.order.en_route, AUT-FSM-04), missed visit (visit.failed, FR-FSM-037), device collected /
+delivered (consignment.delivered, AUT-LOG-03), returned to branch (consignment.returned, AUT-LOG-06).
+
+### Test fixed to the new rule
+`test_m05_msp_contract_form`: terms are amended through Amend Terms (M05-F3), not re-typed in the form.
+
+### Evidence
+- Test DB fix_test_a02r5 (clean A02 base, the 16 A02 modules + cd_contact_centre upgraded at 07607caa):
+  A02, finance and contact-centre suites 1,945 tests: 5 failures, all present on the code before this
+  review (cd_contact_centre test_a03_gap_closure TestS9SlaInstances x2, test_a10_s6_knowledge_binding
+  x2, test_a11_approval_notify x1 - A10/A11, not A02). Every failure this review caused is fixed; the
+  final re-run of the changed and new files: 171/171 + M05 form and billing engine 22/22, 0 skipped.
+- Mutation check (each fix re-introduced in an isolated worktree, its tests run): 21/21 red. R-W1's
+  mutant survives, which is how R-W1 was found not to be a defect.
+- Not covered here: a browser walk of the screens, and the live fix_real/fix_dev deploy (the lead lands
+  and deploys A02 as one wave).
