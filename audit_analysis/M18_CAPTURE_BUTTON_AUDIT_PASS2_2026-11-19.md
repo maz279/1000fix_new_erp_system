@@ -81,8 +81,33 @@ All runs used a private clone of the test database (`fix_test_m18c2`, `cd_ewaste
 | ruff 0.8.4 and all pre-commit hooks | clean |
 | FF-25 Bengali labels | 89 labels translated in `bn_BD.po`. `cd_ewaste` drops from 78 to 76 untranslated labels, below the shared tip; the estate-wide check was already failing before this pass |
 | `writable.py` | regenerated (`form_fields.py --a05`); the diff touches M18 models only |
+| After landing (code at f70e0ec8, the clone upgraded to every peer module landed by then) | **1013 passed, 6 skipped, 0 failed**: the same suites plus the new guard |
+| Headless walk, private server on the clone (8118, admin) | <ul><li>All 10 pages show their button and chips</li><li>All 24 new or changed lists and forms open</li><li>0 console errors</li></ul> |
+| Defects found by the walk and fixed (5dfb8c6f) | <ul><li>Page 9 read "+ + New Emission Factor Set".</li><li>Material Recovery was closed even to the administrator while no M18 role has a holder. Administrators may now read it; only the dispatcher writes it.</li></ul> |
 
-## 4. Still open (owner decisions)
+## 4. State: landed, pushed, live
+
+- **Landed** on `fix/a03-live-data-and-pending-work` and **pushed**:
+  - 50a7df8e: code and tests;
+  - a62539f3: this report;
+  - f70e0ec8: the walk fixes.
+  The feature branch `fix/m18-capture-pass2` is pushed as well.
+- **Deployed 19 Nov 2026** after the owner chose "Land, deploy, restart":
+  - `cd_ewaste` was upgraded on fix_real and fix_dev inside the M21 session's combined deploy wave (one `-u` per DB, with backups taken by that wave);
+  - that wave ran the single restart at 08:06:51: 8069 = PID 81988 (fix_real), 8090 = PID 21792 (fix_dev).
+- **Checked read-only on both DBs:**
+  - `cd_ewaste` 19.0.0.2.0;
+  - 11 new models, the new ACL rows (including the administrator read from f70e0ec8), the 6 new collection columns and the review cron.
+- **Live walk after the restart** (headless, its own session, dev login), on 8069/fix_real and on 8090/fix_dev:
+  - all 10 pages show the buttons in §2;
+  - all 24 new or changed lists and forms open;
+  - 0 console errors.
+- **Live data:**
+  - fix_real holds no M18 transaction (0 collections, 0 recyclers);
+  - fix_dev has 1 recycler and 1 batch; that batch now needs a verified downstream destination before it can be dispatched.
+  - Every M18 role still has 0 holders on fix_real. The role-gated steps (publish, approve, verify, activate, issue) are refused for everyone, administrators included, until the owner appoints holders. Capturing drafts works now.
+
+## 5. Still open (owner decisions)
 
 | Item | Why it is not built |
 |---|---|
