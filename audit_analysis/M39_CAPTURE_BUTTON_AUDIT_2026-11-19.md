@@ -118,3 +118,22 @@ isolation rules (14 new rules).
 - **Late usage into the next open period (FR-SUB-025, BRU-SUB-09)** and **rerating as an adjustment (FR-SUB-028)** need M19's period-close status; corrections are made today as a correction adjustment.
 - Consolidated and split billing accounts (FR-SUB-035/036, `fix.billing.account`) and the MRR snapshot / movement decomposition (FR-SUB-041, NRR) remain open.
 - **People on fix_real:** count the holders of Subscription Officer, billing (Accountant) and Finance Manager before go-live. The new maker-checker rules need two different people in each pair.
+
+## Deploy (19 Nov 2026, owner-approved)
+
+1. The owner approved the deploy ("Yes, deploy now"). M35 was already running one combined `-u` wave covering every module behind its code, and the wave included `cd_subscription` and `cd_p03_portal`. M39 therefore ran no upgrade or restart of its own.
+   - fix_real was upgraded at 12:38 UTC and fix_dev at 12:41.
+   - M35 held the single restart until M36's `cd_quotation` was also upgraded, so no module was loaded without its tables.
+2. Read-only check on **both** databases:
+   - cd_subscription 19.0.1.4.0;
+   - all 9 new tables and 7 new columns;
+   - 21 ACL rows and 14 isolation rules;
+   - the lifecycle cron installed and active.
+3. One restart, by M35, at 12:51 UTC: 8069 (fix_real) = PID 52556, 8090 (fix_dev) = PID 80704. `/web/login` answers 200 on both. No module is behind its code on either database.
+4. A headless walk on **both** live servers (dev login, nothing saved) shows the same result as the private server: all 10 pages show their "+" and chips, every chip opens its form, 23 screens and forms load, and there are **0 console errors**.
+
+## State
+
+- Code `fix(CD-M39-01)` 2f539ad0 and this report are on `fix/a03-live-data-and-pending-work`. The shared branch and `fix/m39-capture-buttons` are pushed.
+- **LIVE on fix_real (8069) and fix_dev (8090)** since the 12:51 UTC restart.
+- No M39 records exist yet on either database. Before go-live, give the maker-checker pairs two different people each (Subscription Officer / billing user / Finance Manager).
