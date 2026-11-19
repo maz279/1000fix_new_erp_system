@@ -175,5 +175,10 @@ Together with the pass-1 guard and the rental domain suite: **159 passed, 0 fail
   - since boot, both logs show the registry loaded, 0 "has no table" and 0 "Failed to load registry";
   - fix_real's only error line is a `SERIALIZATION_FAILURE` that Odoo retried successfully.
 - **Production bundles:** both serve the new forms (`M13-form-swap`, `-photo`, `-waiver-plan`): fix_real's current bundle, and fix_dev's rebuilt at 08:08.
-- **Not done on live:** a signed-in click-through. The click-through ran on the private clone (§5). fix_real holds no rental units, SKUs or rentals, so there is no live record to exercise yet.
+- **Signed-in live check, 19 Nov, after the restart.** This used the owner's own session in the in-app browser, through the endpoints the M13 screens call. It was read-only: actions were called on a non-existent record id, so nothing changed. On **fix_real (8069)** and **fix_dev (8090)** alike:
+  - all 9 new lists are served with their declared columns, **0 dropped**;
+  - all 13 new or changed forms return every declared field;
+  - **17/17 new workflow buttons are accepted** by the running server ("Record not found"), while the control (`unlink`) is refused ("Action not available").
+
+  The workspace UI itself was not drawn: the browser pane was hidden, and OWL does not render there. The visual walk of all 9 pages and 12 chips ran on the private clone (§5). fix_real holds no rental units, SKUs or rentals, so there is no live record to exercise yet.
 - The private clone `fix_test_m13c2` is kept for re-checks; the baseline clone was dropped.
