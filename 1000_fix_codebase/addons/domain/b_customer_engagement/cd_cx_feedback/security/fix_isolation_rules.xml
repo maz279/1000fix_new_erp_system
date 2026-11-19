@@ -30,6 +30,22 @@
         <field name="model_id" ref="model_fix_cx_followup"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_cx_rating_company" model="ir.rule">
+        <field name="name">fix.cx.rating: allowed companies</field>
+        <field name="model_id" ref="model_fix_cx_rating"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cx_rating_operating_unit" model="ir.rule">
+        <field name="name">fix.cx.rating: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cx_rating"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_cx_response_anomaly_company" model="ir.rule">
+        <field name="name">fix.cx.response.anomaly: allowed companies</field>
+        <field name="model_id" ref="model_fix_cx_response_anomaly"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_cx_review_company" model="ir.rule">
         <field name="name">fix.cx.review: allowed companies</field>
         <field name="model_id" ref="model_fix_cx_review"/>
@@ -38,6 +54,11 @@
     <record id="rule_fix_cx_throttle_company" model="ir.rule">
         <field name="name">fix.cx.throttle: allowed companies</field>
         <field name="model_id" ref="model_fix_cx_throttle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_journey_definition_company" model="ir.rule">
+        <field name="name">fix.journey.definition: allowed companies</field>
+        <field name="model_id" ref="model_fix_journey_definition"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_supplier_scorecard_company" model="ir.rule">
@@ -65,6 +86,16 @@
     <record id="rule_fix_survey_template_company" model="ir.rule">
         <field name="name">fix.survey.template: allowed companies</field>
         <field name="model_id" ref="model_fix_survey_template"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_survey_trigger_company" model="ir.rule">
+        <field name="name">fix.survey.trigger: allowed companies</field>
+        <field name="model_id" ref="model_fix_survey_trigger"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_voc_theme_company" model="ir.rule">
+        <field name="name">fix.voc.theme: allowed companies</field>
+        <field name="model_id" ref="model_fix_voc_theme"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

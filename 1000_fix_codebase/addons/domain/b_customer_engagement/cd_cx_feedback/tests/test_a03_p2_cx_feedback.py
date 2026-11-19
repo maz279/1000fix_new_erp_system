@@ -464,7 +464,9 @@ class TestIntake:
         survey = env["fix.survey"].consume_order_closed(
             {"event_id": "evt-m34-p2-det", "aggregate_id": closed_order.id}
         )
-        survey.write({"rating": "2", "comment": "Rude technician"})
+        survey.write(
+            {"rating": "2", "comment": "Rude technician", "response_channel": "phone_call"}
+        )
         followup = survey.followup_id.with_user(agent)
         followup.action_raise_complaint()
         complaint = followup.complaint_id
@@ -595,13 +597,13 @@ class TestSurveysAndEvents:
 
     def test_a_rating_of_three_raises_a_recovery_task(self, env, closed_order):
         survey = env["fix.survey"].consume_order_closed({"aggregate_id": closed_order.id})
-        survey.rating = "3"
+        survey.write({"rating": "3", "response_channel": "phone_call"})
         assert survey.nps_score == -100
         assert survey.followup_id and survey.followup_id.reason == "low_rating"
         survey4 = env["fix.survey"].consume_order_closed(
             {"aggregate_id": closed_order.copy({"state": "closed"}).id}
         )
-        survey4.rating = "4"
+        survey4.write({"rating": "4", "response_channel": "phone_call"})
         assert not survey4.followup_id
 
     def test_the_post_closure_survey_is_actually_sent(self, env, agent, customer, ou):

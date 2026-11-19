@@ -127,7 +127,7 @@ def test_the_monthly_cap_withholds_the_second_invitation(env, closed_order, ou):
 )
 def test_nps_from_rating(env, closed_order, rating, nps):
     survey = env["fix.survey"].consume_order_closed({"aggregate_id": closed_order.id})
-    survey.rating = rating
+    survey.write({"rating": rating, "response_channel": "phone_call"})
     assert survey.nps_score == nps
 
 

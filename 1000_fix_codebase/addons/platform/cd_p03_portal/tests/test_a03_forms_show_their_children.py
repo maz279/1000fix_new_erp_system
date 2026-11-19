@@ -130,6 +130,10 @@ def test_every_form_that_owns_children_displays_them(odoo_env):
             continue
         if "lines:" in body:
             continue
+        # `grids: [{field, tab, ...}]` (several tabbed grids on one form, the
+        # engine's 18 Nov 2026 form) displays the children it names.
+        if "grids:" in body and all("field: '%s'" % n in body for n in constitutive):
+            continue
         # A collection already displayed by another form on the same model in
         # the same module does not have to be repeated here - repeating it is
         # the duplication this estate forbids. M39-form-dunning is a

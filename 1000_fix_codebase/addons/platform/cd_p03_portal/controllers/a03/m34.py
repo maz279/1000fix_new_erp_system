@@ -116,6 +116,48 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
+    # M34 third pass (2026-11-19): the records no page could capture.
+    # Survey triggers: instrument, delay and sample per event (FR-002..004).
+    "fix.survey.trigger": {
+        "order": "sequence, id",
+        "limit": 200,
+        "actions": set(),
+    },
+    # A suspected manipulation of scores; holds them out of M57 (BRU-CXM-11).
+    "fix.cx.response.anomaly": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_start_investigation", "action_clear", "action_uphold"},
+    },
+    # The rating at the close of a conversation (FR-CXM-015).
+    "fix.cx.rating": {
+        "order": "captured_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    # A status communication to a complaining customer (FR-CXM-033).
+    "fix.complaint.update": {
+        "order": "sent_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    # Journeys (FR-CXM-039), their stages (the journey form's grid) and coded
+    # VoC themes (FR-CXM-041).
+    "fix.journey.definition": {
+        "order": "code, id",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.journey.stage": {
+        "order": "journey_id, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.voc.theme": {
+        "order": "period desc, frequency desc, id",
+        "limit": 300,
+        "actions": set(),
+    },
 }
 
 # A03 audit M34-12: 'verification' is CAPA verification, an open state; it
@@ -144,6 +186,12 @@ def _rating_of(survey):
 
 def _responses(env):
     return env["fix.survey"].sudo().search([("state", "=", "responded")])
+
+
+def _asked(env):
+    """Surveys raised for asking: an order the trigger did not sample was never
+    asked, so it is in no response-rate denominator (FR-CXM-004/017)."""
+    return env["fix.survey"].sudo().search([("state", "!=", "not_sampled")])
 
 
 def _month_key(value):
@@ -184,11 +232,15 @@ def csat_by_branch(env, date_from=None, date_to=None, **params):
     responses = _responses(env)
     by_ou = {}
     for survey in responses:
-        key = survey.operating_unit_id.id if survey.operating_unit_id else 0
+        # M34 third pass: the technician is frozen on the survey at capture
+        # (BRU-CXM-10), so technician-level CSAT is a grouping, not a gap.
+        tech = survey.technician_id if "technician_id" in survey._fields else False
+        key = (survey.operating_unit_id.id or 0, tech.id if tech else 0)
         row = by_ou.setdefault(
             key,
             {
                 "unit": survey.operating_unit_id.name if survey.operating_unit_id else "Unassigned",
+                "technician": tech.name if tech else "Not attributed",
                 "responses": 0,
                 "positive": 0,
                 "ratings": [],
@@ -206,6 +258,7 @@ def csat_by_branch(env, date_from=None, date_to=None, **params):
         rows.append(
             {
                 "unit": row["unit"],
+                "technician": row["technician"],
                 "responses": row["responses"],
                 "avg_rating": avg,
                 "csat_pct": round(row["positive"] / row["responses"] * 100.0, 1)
@@ -230,17 +283,19 @@ def csat_by_branch(env, date_from=None, date_to=None, **params):
     }
     return _pack(
         "CSAT by Branch & Technician",
-        ["unit", "responses", "avg_rating", "csat_pct"],
+        ["unit", "technician", "responses", "avg_rating", "csat_pct"],
         {
             "unit": "Operating Unit",
+            "technician": "Technician",
             "responses": "Responses",
             "avg_rating": "Avg Rating",
             "csat_pct": "CSAT % (4–5)",
         },
         rows,
         [
-            "CSAT % = ratings 4–5 over responses. The survey stores the operating unit, not "
-            "the technician — technician-level CSAT needs the field-order link (declared gap)."
+            "CSAT % = ratings 4–5 over responses. The branch and technician are frozen on "
+            "the survey when it is raised (BRU-CXM-10), so a later reassignment never moves "
+            "a score."
         ],
         totals=totals if rows else None,
         empty="No survey responses yet.",
@@ -538,7 +593,7 @@ def goodwill_authority(env, date_from=None, date_to=None, **params):
 
 def journey_measurement(env, date_from=None, date_to=None, **params):
     orders = env["fix.service.order"].sudo()
-    surveys = env["fix.survey"].sudo().search([])
+    surveys = _asked(env)
     complaints = env["fix.complaint"].sudo().search([])
     buckets = {}
     for order in orders:
@@ -570,6 +625,7 @@ def journey_measurement(env, date_from=None, date_to=None, **params):
             round(row["complaints"] / row["orders"] * 100.0, 1) if row["orders"] else 0.0
         )
         rows.append(row)
+    notes_extra = _journey_stage_notes(env)
     return _pack(
         "Journey Measurement: Orders to Surveys to Responses to Complaints",
         ["month", "orders", "surveys", "responses", "response_pct", "complaints", "complaint_rate"],
@@ -585,10 +641,56 @@ def journey_measurement(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Counts are grouped by each record's creation month; response % is "
-            "responses over surveys, complaint rate complaints over orders."
+            "responses over surveys, complaint rate complaints over orders.",
+            *notes_extra,
         ],
         empty="No journey records yet.",
     )
+
+
+def _journey_stage_notes(env):
+    """FR-CXM-039: each defined journey stage, scored from the responses to
+    the instrument that measures it (average overall rating, and the average
+    of the effort question when one is named)."""
+    Journey = env.get("fix.journey.definition")
+    if Journey is None:
+        return []
+    notes = []
+    for journey in Journey.sudo().search([]):
+        notes.append("Journey %s · %s:" % (journey.code, journey.name))
+        for stage in journey.stage_ids.sorted(lambda s: (s.sequence, s.id)):
+            if not stage.template_id:
+                notes.append("  %s: not measured (no instrument)." % stage.name)
+                continue
+            answered = (
+                env["fix.survey"]
+                .sudo()
+                .search([("template_id", "=", stage.template_id.id), ("state", "=", "responded")])
+            )
+            ratings = [_rating_of(s) for s in answered if _rating_of(s)]
+            line = "  %s (%s): %d response(s), average rating %s" % (
+                stage.name,
+                stage.touchpoint or stage.template_id.code,
+                len(answered),
+                round(sum(ratings) / len(ratings), 2) if ratings else "—",
+            )
+            if stage.effort_question_code:
+                effort = (
+                    env["fix.survey.answer"]
+                    .sudo()
+                    .search(
+                        [
+                            ("survey_id", "in", answered.ids),
+                            ("question_code", "=", stage.effort_question_code),
+                        ]
+                    )
+                )
+                if effort:
+                    line += ", effort %s" % round(
+                        sum(effort.mapped("value_numeric")) / len(effort), 2
+                    )
+            notes.append(line + ".")
+    return notes
 
 
 def voc_analytics(env, date_from=None, date_to=None, **params):
@@ -622,6 +724,16 @@ def voc_analytics(env, date_from=None, date_to=None, **params):
                 "basis": "rating distribution",
             }
         )
+    Theme = env.get("fix.voc.theme")
+    if Theme is not None:
+        for theme in Theme.sudo().search([], order="period desc, frequency desc", limit=10):
+            rows.append(
+                {
+                    "metric": "Theme %s · %s (%s)" % (theme.period, theme.theme, theme.sentiment),
+                    "value": theme.frequency,
+                    "basis": "coded verbatims (fix.voc.theme)",
+                }
+            )
     recent = responses.filtered(lambda s: (s.comment or "").strip())[:5]
     notes = ["Latest free-text comments (verbatim):"]
     for s in recent:
@@ -638,23 +750,30 @@ def voc_analytics(env, date_from=None, date_to=None, **params):
 
 def experience_by_branch(env, date_from=None, date_to=None, **params):
     pack = csat_by_branch(env)
-    sent = env["fix.survey"].sudo().search([])
+    sent = _asked(env)
     by_ou_sent = {}
     for s in sent:
         key = s.operating_unit_id.name if s.operating_unit_id else "Unassigned"
         by_ou_sent[key] = by_ou_sent.get(key, 0) + 1
-    rows = []
+    folded = {}
     for row in pack["rows"]:
-        total_sent = by_ou_sent.get(row["unit"], 0)
+        unit = folded.setdefault(row["unit"], {"responses": 0, "positive": 0.0})
+        unit["responses"] += row["responses"]
+        unit["positive"] += row["csat_pct"] * row["responses"] / 100.0
+    rows = []
+    for name, unit in folded.items():
+        total_sent = by_ou_sent.get(name, 0)
         rows.append(
             {
-                "unit": row["unit"],
+                "unit": name,
                 "sent": total_sent,
-                "responses": row["responses"],
-                "response_pct": round(row["responses"] / total_sent * 100.0, 1)
+                "responses": unit["responses"],
+                "response_pct": round(unit["responses"] / total_sent * 100.0, 1)
                 if total_sent
                 else 0.0,
-                "csat_pct": row["csat_pct"],
+                "csat_pct": round(unit["positive"] / unit["responses"] * 100.0, 1)
+                if unit["responses"]
+                else 0.0,
             }
         )
     return _pack(
@@ -669,8 +788,8 @@ def experience_by_branch(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Technician-level experience needs the field-order technician link; the "
-            "survey records the operating unit only (declared gap)."
+            "Surveys counts the orders that were asked (not-sampled orders are left out). "
+            "Technician-level CSAT is on CSAT by Branch & Technician."
         ],
         empty="No surveys yet.",
     )
@@ -717,7 +836,7 @@ def _complaint_sla_met(env):
 
 def kpis(env):
     responses = _responses(env)
-    all_surveys = env["fix.survey"].sudo().search([])
+    all_surveys = _asked(env)
     scores = [s.nps_score or 0 for s in responses]
     complaints = env["fix.complaint"].sudo().search([])
     open_complaints = len(complaints.filtered(lambda c: c.state not in CLOSED_COMPLAINT))

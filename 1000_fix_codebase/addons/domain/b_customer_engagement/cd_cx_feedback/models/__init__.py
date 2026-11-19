@@ -14,3 +14,8 @@ from . import fix_complaint_party_merge
 
 # M34 second pass: the maintained complaint taxonomy (extends fix.complaint).
 from . import fix_complaint_taxonomy
+
+# M34 third pass: triggers/sampling, response provenance + attribution,
+# anomaly investigation, conversation rating, loop escalation, complaint
+# updates and intake channel, tiered SLA, journeys and VoC themes.
+from . import fix_cx_capture3

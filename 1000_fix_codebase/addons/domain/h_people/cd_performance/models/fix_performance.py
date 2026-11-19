@@ -396,11 +396,16 @@ class FixPerformanceScorecard(models.Model):
 
         csat = 0.0
         if "fix.survey" in self.env:
-            surveys = (
-                self.env["fix.survey"]
-                .sudo()
-                .search([("service_order_id", "in", orders.ids), ("rating", "!=", False)])
-            )
+            Survey = self.env["fix.survey"].sudo()
+            domain = [("service_order_id", "in", orders.ids), ("rating", "!=", False)]
+            # M34 BRU-CXM-11 / AUT-CXM-13: a response under an open or upheld
+            # anomaly investigation stays out of the incentive calculation.
+            if "incentive_excluded" in Survey._fields:
+                held = Survey.search_count([*domain, ("incentive_excluded", "=", True)])
+                domain.append(("incentive_excluded", "=", False))
+                if held:
+                    basis.append("%d survey rating(s) held by an anomaly review" % held)
+            surveys = Survey.search(domain)
             if surveys:
                 csat = sum((int(s.rating) - 1) / 4.0 for s in surveys) / len(surveys)
             basis.append("CSAT from %d survey rating(s)" % len(surveys))

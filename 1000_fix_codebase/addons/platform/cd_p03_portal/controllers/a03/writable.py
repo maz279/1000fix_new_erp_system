@@ -666,8 +666,12 @@ WRITABLE = {
             "customer_id",
             "description",
             "dofa_justification",
+            "external_body",
+            "external_reference",
+            "external_response_due",
             "name",
             "operating_unit_id",
+            "received_via",
             "root_cause_5why",
             "service_order_id",
             "severity",
@@ -678,6 +682,7 @@ WRITABLE = {
         {
             "active",
             "branch_id",
+            "loyalty_tier_id",
             "operating_unit_id",
             "policy_id",
             "sequence",
@@ -694,6 +699,15 @@ WRITABLE = {
             "name",
             "name_bn",
             "parent_id",
+        }
+    ),
+    "fix.complaint.update": frozenset(
+        {
+            "channel",
+            "complaint_id",
+            "content",
+            "to_address",
+            "update_type",
         }
     ),
     "fix.consent": frozenset(
@@ -773,6 +787,29 @@ WRITABLE = {
             "survey_id",
         }
     ),
+    "fix.cx.rating": frozenset(
+        {
+            "behaviour",
+            "comment",
+            "conversation_id",
+            "overall",
+            "professionalism",
+            "response_channel",
+            "timeliness",
+        }
+    ),
+    "fix.cx.response.anomaly": frozenset(
+        {
+            "branch_id",
+            "detection_type",
+            "evidence",
+            "period_from",
+            "period_to",
+            "recorder_id",
+            "scope_type",
+            "technician_id",
+        }
+    ),
     "fix.cx.review": frozenset(
         {
             "customer_id",
@@ -848,6 +885,17 @@ WRITABLE = {
             "partner_id",
         }
     ),
+    "fix.journey.definition": frozenset(
+        {
+            "active",
+            "code",
+            "description",
+            "name",
+            "name_bn",
+            "stage_ids",
+        }
+    ),
+    "fix.journey.stage": frozenset(),
     "fix.lead.qualification": frozenset(
         {
             "authority",
@@ -1362,6 +1410,8 @@ WRITABLE = {
             "answer_ids",
             "comment",
             "rating",
+            "response_channel",
+            "response_device",
             "template_id",
         }
     ),
@@ -1380,12 +1430,39 @@ WRITABLE = {
             "version",
         }
     ),
+    "fix.survey.trigger": frozenset(
+        {
+            "active",
+            "branch_id",
+            "code",
+            "delay_minutes",
+            "eligibility_note",
+            "name",
+            "sampling_rate",
+            "sequence",
+            "service_type",
+            "template_id",
+            "trigger_event",
+        }
+    ),
     "fix.transparency.notice": frozenset(
         {
             "purpose_set",
             "text_bn",
             "text_en",
             "version",
+        }
+    ),
+    "fix.voc.theme": frozenset(
+        {
+            "complaint_ids",
+            "driver",
+            "notes",
+            "period",
+            "sentiment",
+            "survey_ids",
+            "theme",
+            "theme_bn",
         }
     ),
     "res.partner": frozenset(

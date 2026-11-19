@@ -173,7 +173,7 @@ def test_a_recorded_rating_makes_the_survey_responded(clerk_env, call, survey):
         "model_write",
         model="fix.survey",
         record_id=survey.id,
-        values={"rating": "2", "comment": "Technician was late"},
+        values={"rating": "2", "comment": "Technician was late", "response_channel": "phone_call"},
     )
     assert "error" not in res, res
     survey.invalidate_recordset()
@@ -206,7 +206,7 @@ def test_answers_by_parameter_are_recorded_against_the_instrument(
         "model_write",
         model="fix.survey",
         record_id=survey.id,
-        values={"template_id": t.id},
+        values={"template_id": t.id, "response_channel": "phone_call"},
         lines=_answers(
             {"question_id": _q(t, "punctuality").id, "value_numeric": 5},
             {"question_id": _q(t, "recommend").id, "value_numeric": 4},
@@ -225,14 +225,15 @@ def test_answers_by_parameter_are_recorded_against_the_instrument(
 )
 def test_the_answer_grid_refuses_what_cannot_be_compared(clerk_env, call, survey, instrument, case):
     t, other = instrument("B"), instrument("C")
-    values = {"template_id": t.id}
+    # the channel is given, so a refusal is for the answer, not provenance
+    values = {"template_id": t.id, "response_channel": "phone_call"}
     row = {"question_id": _q(t, "punctuality").id, "value_numeric": 9}
     if case == "other_instrument":
         row = {"question_id": _q(other, "punctuality").id, "value_numeric": 4}
     elif case == "nps_without_score":
         row = {"question_id": _q(t, "recommend").id}
     elif case == "no_instrument":
-        values = {}
+        values = {"response_channel": "phone_call"}
         row = {"question_id": _q(t, "punctuality").id, "value_numeric": 4}
     res = call(
         clerk_env,
@@ -248,7 +249,7 @@ def test_the_answer_grid_refuses_what_cannot_be_compared(clerk_env, call, survey
 
 
 def test_a_followup_moves_by_its_actions(clerk_env, call, survey):
-    survey.write({"rating": "1"})
+    survey.write({"rating": "1", "response_channel": "phone_call"})
     followup = survey.followup_id
     assert followup.state == "open"
 
@@ -287,7 +288,7 @@ def test_a_followup_moves_by_its_actions(clerk_env, call, survey):
 
 def test_a_recovery_closes_on_the_customers_confirmation(clerk_env, call, survey):
     """BRU-CXM-04: never on internal action alone."""
-    survey.write({"rating": "1"})
+    survey.write({"rating": "1", "response_channel": "phone_call"})
     followup = survey.followup_id
 
     def act(method, **kwargs):
@@ -476,3 +477,280 @@ def test_sla_bindings_are_served_and_saved_only_by_an_administrator(odoo_env, cl
     admin_env = odoo_env(user=odoo_env.ref("base.user_admin").id)
     saved = call(admin_env, "model_write", model="fix.complaint.sla.rule", values=vals)
     assert saved.get("id"), saved
+
+
+# ---------------------------------------------------------------------------
+# Third pass (2026-11-19): the spec records no page could capture, driven
+# through the workspace endpoints as the people who capture them.
+# ---------------------------------------------------------------------------
+PASS3_LISTS = {
+    "fix.survey.trigger": [
+        "sequence",
+        "code",
+        "name",
+        "trigger_event",
+        "template_id",
+        "delay_minutes",
+        "sampling_rate",
+        "branch_id",
+        "service_type",
+        "survey_count",
+        "not_sampled_count",
+        "active",
+    ],
+    "fix.cx.response.anomaly": [
+        "name",
+        "detection_type",
+        "scope_type",
+        "period_from",
+        "period_to",
+        "held_count",
+        "state",
+        "investigator_id",
+    ],
+    "fix.cx.rating": [
+        "captured_at",
+        "conversation_id",
+        "customer_id",
+        "agent_id",
+        "channel",
+        "overall",
+        "timeliness",
+        "professionalism",
+        "behaviour",
+        "response_channel",
+        "followup_id",
+    ],
+    "fix.complaint.update": [
+        "sent_at",
+        "complaint_id",
+        "customer_id",
+        "update_type",
+        "channel",
+        "state",
+        "not_sent_reason",
+        "sent_by_id",
+    ],
+    "fix.journey.definition": ["code", "name", "name_bn", "stage_count", "active"],
+    "fix.voc.theme": [
+        "period",
+        "theme",
+        "theme_bn",
+        "sentiment",
+        "driver",
+        "frequency",
+        "coded_by_id",
+    ],
+    "fix.survey": [
+        "service_order_id",
+        "customer_id",
+        "branch_id",
+        "technician_id",
+        "template_id",
+        "rating",
+        "nps_score",
+        "ces_score",
+        "state",
+        "response_channel",
+        "responded_at",
+        "incentive_excluded",
+    ],
+    "fix.cx.followup": [
+        "name",
+        "customer_id",
+        "reason",
+        "owner_id",
+        "contact_due",
+        "escalation_level",
+        "escalated_to_id",
+        "due_date",
+        "state",
+    ],
+    "fix.complaint.sla.rule": [
+        "sequence",
+        "severity",
+        "loyalty_tier_id",
+        "branch_id",
+        "operating_unit_id",
+        "policy_id",
+        "active",
+    ],
+}
+
+
+@pytest.mark.parametrize("model", sorted(PASS3_LISTS))
+def test_pass3_lists_are_served_with_every_column(clerk_env, call, model):
+    """/p03/model/records drops an unknown column silently: check none is."""
+    res = call(clerk_env, "model_records", model=model, cols=PASS3_LISTS[model])
+    assert "error" not in res, res
+    dropped = set(PASS3_LISTS[model]) - set(res["labels"])
+    assert not dropped, dropped
+
+
+def test_pass3_a_response_says_how_it_arrived(odoo_env, clerk_env, call, survey):
+    bare = call(
+        clerk_env, "model_write", model="fix.survey", record_id=survey.id, values={"rating": "4"}
+    )
+    assert bare.get("error"), "BRU-CXM-15: a response with no provenance was saved"
+    survey.invalidate_recordset()
+    assert survey.state == "sent"
+    res = call(
+        clerk_env,
+        "model_write",
+        model="fix.survey",
+        record_id=survey.id,
+        values={"rating": "4", "response_channel": "counter", "response_device": "counter-2"},
+    )
+    assert "error" not in res, res
+    survey.invalidate_recordset()
+    assert survey.state == "responded" and survey.response_channel == "counter"
+    assert survey.response_recorded_by_id.id == clerk_env.uid and survey.responded_at
+    assert survey.branch_id == survey.service_order_id.branch_id
+
+
+def test_pass3_trigger_is_saved_by_a_supervisor_not_a_clerk(
+    odoo_env, clerk_env, supervisor_env, call, instrument
+):
+    template = instrument("TRG")
+    template.write(
+        {"question_ids": [(1, q.id, {"text_bn": "প্রশ্ন"}) for q in template.question_ids]}
+    )
+    template.action_publish()
+    vals = {
+        "code": "P3-TRG",
+        "name": "After repair",
+        "template_id": template.id,
+        "sampling_rate": 40,
+        "delay_minutes": 60,
+    }
+    assert call(clerk_env, "model_write", model="fix.survey.trigger", values=vals).get("error")
+    saved = call(supervisor_env, "model_write", model="fix.survey.trigger", values=vals)
+    assert saved.get("id"), saved
+    assert odoo_env["fix.survey.trigger"].browse(saved["id"]).sampling_rate == 40
+
+
+def test_pass3_anomaly_through_the_workspace(odoo_env, clerk_env, supervisor_env, call):
+    tech = odoo_env["hr.employee"].create({"name": "M34 P3 Live Tech"})
+    vals = {
+        "detection_type": "device_reuse",
+        "scope_type": "technician",
+        "technician_id": tech.id,
+        "period_from": "2026-11-01",
+        "period_to": "2026-11-19",
+        "evidence": "One number answered for 9 customers.",
+    }
+    assert call(clerk_env, "model_write", model="fix.cx.response.anomaly", values=vals).get("error")
+    typed = call(
+        supervisor_env,
+        "model_write",
+        model="fix.cx.response.anomaly",
+        values=dict(vals, state="upheld"),
+    )
+    assert typed.get("error") or (
+        odoo_env["fix.cx.response.anomaly"].browse(typed["id"]).state == "open"
+    ), typed
+    made = call(supervisor_env, "model_write", model="fix.cx.response.anomaly", values=vals)
+    assert made.get("id"), made
+    anomaly = odoo_env["fix.cx.response.anomaly"].browse(made["id"])
+
+    def act(env, method, **kwargs):
+        return call(
+            env,
+            "model_action",
+            model="fix.cx.response.anomaly",
+            ids=[anomaly.id],
+            method=method,
+            kwargs=kwargs,
+        )
+
+    assert not act(clerk_env, "action_start_investigation")["success"]
+    assert act(supervisor_env, "action_start_investigation")["success"]
+    assert not act(supervisor_env, "action_uphold")["success"], "a decision needs a finding"
+    assert act(supervisor_env, "action_uphold", outcome="Same handset, 9 customers.")["success"]
+    anomaly.invalidate_recordset()
+    assert anomaly.state == "upheld" and anomaly.decided_by_id
+
+
+def test_pass3_conversation_rating_through_the_workspace(odoo_env, clerk_env, call):
+    ou = odoo_env["operating.unit"].search([], limit=1)
+    agent = odoo_env["res.users"].browse(clerk_env.uid)
+    customer = odoo_env["res.partner"].create({"name": "M34 P3 Caller"})
+    conv = odoo_env["fix.conversation"].create(
+        {"operating_unit_id": ou.id, "channel": "voice", "customer_id": customer.id}
+    )
+    conv.sudo().write({"agent_id": agent.id, "state": "resolved_agent"})
+    other = odoo_env["res.users"].search([("id", "!=", agent.id), ("share", "=", False)], limit=1)
+    res = call(
+        clerk_env,
+        "model_write",
+        model="fix.cx.rating",
+        values={
+            "conversation_id": conv.id,
+            "overall": "2",
+            "timeliness": "1",
+            "response_channel": "ivr",
+            "agent_id": other.id,  # not a form field: dropped, never typed
+        },
+    )
+    assert res.get("id"), res
+    rating = odoo_env["fix.cx.rating"].browse(res["id"])
+    assert rating.agent_id == agent and rating.customer_id == customer
+    assert rating.followup_id and rating.followup_id.customer_id == customer
+
+
+def test_pass3_customer_update_and_intake_channel(odoo_env, clerk_env, call):
+    ou = odoo_env["operating.unit"].search([], limit=1)
+    customer = odoo_env["res.partner"].create(
+        {"name": "M34 P3 Complainant", "phone": "01719000077"}
+    )
+    made = call(
+        clerk_env,
+        "model_write",
+        model="fix.complaint",
+        values={
+            "name": "P3 counter complaint",
+            "customer_id": customer.id,
+            "operating_unit_id": ou.id,
+            "category": "delay",
+            "severity": "minor",
+            "description": "Waiting two weeks.",
+            "received_via": "counter",
+        },
+    )
+    assert made.get("id"), made
+    complaint = odoo_env["fix.complaint"].browse(made["id"])
+    assert complaint.intake_channel == "counter"
+    upd = call(
+        clerk_env,
+        "model_write",
+        model="fix.complaint.update",
+        values={
+            "complaint_id": complaint.id,
+            "update_type": "progress",
+            "channel": "sms",
+            "content": "Part arrives Thursday.",
+        },
+    )
+    assert upd.get("id"), upd
+    row = odoo_env["fix.complaint.update"].browse(upd["id"])
+    assert row.delivery_id and row.sent_by_id.id == clerk_env.uid
+
+
+def test_pass3_theme_and_journey_are_supervisor_registers(
+    odoo_env, clerk_env, supervisor_env, call
+):
+    theme = {
+        "period": "2026-11",
+        "theme": "Parts wait",
+        "theme_bn": "যন্ত্রাংশ অপেক্ষা",
+        "sentiment": "negative",
+    }
+    assert call(clerk_env, "model_write", model="fix.voc.theme", values=theme).get("error")
+    assert call(supervisor_env, "model_write", model="fix.voc.theme", values=theme).get("id")
+    journey = {"code": "P3-J", "name": "Repair journey", "name_bn": "মেরামত যাত্রা"}
+    assert call(clerk_env, "model_write", model="fix.journey.definition", values=journey).get(
+        "error"
+    )
+    assert call(supervisor_env, "model_write", model="fix.journey.definition", values=journey).get(
+        "id"
+    )

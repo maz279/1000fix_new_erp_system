@@ -168,7 +168,7 @@ def test_survey_design_captures_the_instrument_not_a_response(m34):
     assert _field(m34, "M34-form-survey-template", "state")["readonly"]
 
 
-@pytest.mark.parametrize("no", ["2", "3"])
+@pytest.mark.parametrize("no", ["2"])
 def test_response_is_recorded_on_the_raised_survey(m34, no):
     """A survey is raised by its closed order (one per order): the capture
     picks it and records the response; nothing types a new survey or its
@@ -190,6 +190,10 @@ def test_multi_parameter_page_lists_the_answers(m34):
     assert sub["model"] == "fix.survey.answer"
     assert "M34-survey-answers" in sub["screens"]
     assert "fix.cx.review" not in {f["model"] for f in sub["forms"]}
+    # Third pass: the survey response is still a chip here (service ratings
+    # are its answers); the page's own + is the conversation rating.
+    chips = {f["f"]: f for f in sub["forms"]}
+    assert chips["Survey"]["opens"]
 
 
 def test_detractor_states_move_by_actions(m34):
@@ -284,4 +288,137 @@ def test_server_serves_and_whitelists_what_the_pages_use():
         "action_publish",
         "action_withdraw_consent",
     ):
+        assert '"%s"' % action in m34py, action
+
+
+# ---------------------------------------------------------------------------
+# Third pass (2026-11-19). The user still saw pages without a relevant
+# capture. Read against spec sections 5, 9, 10.1 and 11, these spec records
+# had no page that could capture them: survey triggers and sampling
+# (FR-002..004), response provenance (BRU-CXM-15) and attribution
+# (BRU-CXM-10), response anomalies (FR-019, BRU-CXM-11), the conversation
+# rating (FR-015), customer updates on a complaint (FR-033, BRU-CXM-07), the
+# staff-keyed intake channel (FR-028/038), the SLA by customer tier (FR-031),
+# journeys (FR-039) and coded VoC themes (FR-041).
+# ---------------------------------------------------------------------------
+PASS3_CHIPS = {
+    "1": {"Survey Trigger": "fix.survey.trigger"},
+    "2": {"Response Anomaly": "fix.cx.response.anomaly"},
+    "3": {"Conversation Rating": "fix.cx.rating"},
+    "5": {"Customer Update": "fix.complaint.update"},
+    "8": {"Customer Journey": "fix.journey.definition", "VoC Theme": "fix.voc.theme"},
+}
+PASS3_LISTS = {
+    "1": ("M34-survey-triggers", "fix.survey.trigger"),
+    "2": ("M34-anomalies", "fix.cx.response.anomaly"),
+    "3": ("M34-conv-ratings", "fix.cx.rating"),
+    "5": ("M34-complaint-updates", "fix.complaint.update"),
+}
+
+
+@pytest.mark.parametrize("no", sorted(PASS3_CHIPS, key=int))
+def test_pass3_each_page_captures_its_missing_spec_record(m34, no):
+    sub = _sub(m34, no)
+    chips = {f["f"]: f for f in sub["forms"]}
+    for chip, model in PASS3_CHIPS[no].items():
+        assert chip in chips, "page %s has no %s chip" % (no, chip)
+        assert chips[chip]["model"] == model, (chip, chips[chip])
+        assert chips[chip]["opens"], "chip %s does not open a creatable form" % chip
+
+
+@pytest.mark.parametrize("no", sorted(PASS3_LISTS, key=int))
+def test_pass3_lists_sit_on_their_page_with_a_plus(m34, no):
+    screen, model = PASS3_LISTS[no]
+    assert screen in _sub(m34, no)["screens"]
+    assert screen in m34["nav"]
+    cfg = m34["screens"][screen]
+    assert cfg["kind"] == "model_list" and cfg["model"] == model
+    assert cfg["create"] is True and cfg["empty"]
+
+
+def test_pass3_page3_plus_records_a_conversation_rating(m34):
+    sub = _sub(m34, "3")
+    assert sub["create"] == "M34-form-conv-rating"
+    form = {f["name"]: f for f in m34["screens"]["M34-form-conv-rating"]["fields"]}
+    for name in ("conversation_id", "overall", "timeliness", "professionalism", "behaviour"):
+        assert not form[name]["readonly"], name
+    # attribution is taken from the conversation, never typed (BRU-CXM-10)
+    for name in ("agent_id", "customer_id", "channel"):
+        assert form[name]["readonly"], name
+
+
+def test_pass3_response_records_its_provenance_and_frozen_attribution(m34):
+    """BRU-CXM-15: how the response arrived is entered with it; BRU-CXM-10:
+    branch and technician are frozen at capture and shown read-only."""
+    assert not _field(m34, "M34-form-survey", "response_channel")["readonly"]
+    for name in (
+        "branch_id",
+        "technician_id",
+        "responded_at",
+        "response_recorded_by_id",
+        "incentive_excluded",
+    ):
+        assert _field(m34, "M34-form-survey", name)["readonly"], name
+
+
+def test_pass3_anomaly_moves_by_actions(m34):
+    """SOD-21 lives in the actions: a typed state would skip it."""
+    for name in ("state", "investigator_id", "outcome", "decided_by_id"):
+        assert _field(m34, "M34-form-anomaly", name)["readonly"], name
+    actions = set(m34["screens"]["M34-anomalies"]["actions"])
+    assert {"action_start_investigation", "action_clear", "action_uphold"} <= actions
+
+
+def test_pass3_loop_case_shows_its_contact_deadline_and_escalation(m34):
+    for name in ("contact_due", "escalation_level", "escalated_to_id"):
+        assert _field(m34, "M34-form-followup", name)["readonly"], name
+
+
+def test_pass3_complaint_takes_its_intake_channel_and_referral(m34):
+    assert not _field(m34, "M34-record", "received_via")["readonly"]
+    for name in ("external_body", "external_reference", "external_response_due"):
+        assert not _field(m34, "M34-record", name)["readonly"], name
+    assert _field(m34, "M34-record", "intake_channel")["readonly"]
+
+
+def test_pass3_sla_binding_takes_a_customer_tier(m34):
+    assert not _field(m34, "M34-form-sla-rule", "loyalty_tier_id")["readonly"]
+
+
+def test_pass3_theme_frequency_is_counted_not_typed(m34):
+    assert _field(m34, "M34-form-voc-theme", "frequency")["readonly"]
+    assert not _field(m34, "M34-form-voc-theme", "survey_ids")["readonly"]
+
+
+@pytest.mark.parametrize(
+    "model",
+    ["fix_survey_trigger", "fix_journey_definition", "fix_journey_stage", "fix_voc_theme"],
+)
+def test_pass3_csm_registers_are_written_by_supervisors_only(model):
+    test_csm_registers_are_written_by_supervisors_only(model)
+
+
+def test_pass3_anomaly_is_raised_by_supervisors_and_never_deleted():
+    acl = (
+        HERE.parents[2] / "domain/b_customer_engagement/cd_cx_feedback/security/ir.model.access.csv"
+    ).read_text(encoding="utf-8")
+    rows = [r.split(",") for r in acl.splitlines() if ",model_fix_cx_response_anomaly," in r]
+    creators = {r[3] for r in rows if r[6] == "1"}
+    assert creators == {"base.group_system", "cd_contact_centre.group_cc_supervisor"}
+    assert not any(r[7].strip() == "1" for r in rows), "an anomaly record is evidence"
+
+
+def test_pass3_server_serves_the_new_records():
+    m34py = (HERE.parent / "controllers" / "a03" / "m34.py").read_text(encoding="utf-8")
+    for model in (
+        "fix.survey.trigger",
+        "fix.cx.response.anomaly",
+        "fix.cx.rating",
+        "fix.complaint.update",
+        "fix.journey.definition",
+        "fix.journey.stage",
+        "fix.voc.theme",
+    ):
+        assert '"%s": {' % model in m34py, model
+    for action in ("action_start_investigation", "action_clear", "action_uphold"):
         assert '"%s"' % action in m34py, action

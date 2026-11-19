@@ -1062,6 +1062,7 @@ def seed(env):
                         "template_id": csat.id,
                         "state": "responded",
                         "rating": str(rating),
+                        "response_channel": "sms_reply",
                     }
                 )
                 answers = {

@@ -15,7 +15,7 @@ CD-M34-nn + CD-M42-nn (P07-M06):
   score on-time/late; blocked-invoice rejections score quality; scorecards
   PUBLISH through events for the P05 portal's API
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Experience",
@@ -44,6 +44,8 @@ CD-M34-nn + CD-M42-nn (P07-M06):
         # A03 audit W1: party.merged consumer (re-points are logged).
         "data/fix_party_merge_consumers.xml",
         "views/fix_cx_feedback_views.xml",
+        # M34 third pass: delayed invitations + detractor contact escalation.
+        "data/fix_cx_capture3_cron.xml",
     ],
     "installable": True,
     "application": False,
