@@ -111,3 +111,15 @@ All on the private clone `fix_test_m26c2` (copied from the M19 peer's clone at t
 - **BRU-AIM-11** (no consumer, target and fallback → not deployed) is still not enforced: lead scoring and the BI aggregator have no stated target (as in pass 1).
 - **Each M26 role still has one holder on fix_real.** The four-eyes rules (bias reviewer ≠ registrant ≠ model owner, promotion by another Model Owner) cannot be exercised by real people until more are named.
 - Spec entities still with no record: the guard-rail intervention log (written by the gateway, not a person), the structured model card (`fix.model.card`: today one text field), and the generative session and retrieval corpus (no LLM endpoint exists).
+
+## 7. Deployment (19 Nov 2026)
+
+Deployed in one combined wave approved by the user and run by the M22 session: `-u` on fix_real and fix_dev (exit 0, version gap 0 on both), covering cd_ml_services and cd_p03_portal among 11 modules, then one restart at 10:57 (8069 = PID 64400, 8090 = PID 77212).
+
+Read-only checks after the restart, on both databases:
+- `cd_ml_services` installed at **19.0.0.4.0**.
+- The four tables exist, and so do the five new columns on `fix_ml_model` and `fix_ml_model_version`.
+- Access rights: 3 rows for the training run and 4 each for the other three models. One company rule per model.
+- The served `web.assets_web` bundle contains M26-form-training, M26-form-sufficiency, M26-form-bias, M26-form-performance and "Record Human Decision".
+- Signed in with the dev login, `/p03/model/records` serves all four new surfaces on 8069 and on 8090 (0 rows each, as expected).
+- No model has a minimum history or volume declared yet (0 on both), so the open item in §6 still blocks new promotions.
