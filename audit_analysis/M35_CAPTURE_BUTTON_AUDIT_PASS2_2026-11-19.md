@@ -192,3 +192,27 @@ Other workspace changes:
 - **Predictive audiences** (FR-MKT-015, P3) and **seasonal campaign templates** (scope 13, AUT-MKT-13) are not built.
 - **Lead hand-off** (FR-MKT-021/039) is unchanged: a journey step raises an M07 lead, and leads returned unqualified are not yet routed into a nurture journey automatically.
 - **Approval routing for a capacity check is single-step.** The Operations Director overrides directly; there is no M63 inbox task for it.
+
+## State (19 Nov 2026)
+
+- **Landed and pushed:** `b7fb275f` on `fix/a03-live-data-and-pending-work`, with the feature branch `fix/m35-capture-pass2`.
+- **Backups before deploy:** `_migration/backups/fix_real_pre_m35_capture2_2026-11-19.dump` and `fix_dev_pre_m35_capture2_2026-11-19.dump`. Both list cleanly with `pg_restore -l`.
+- **Deployed with the owner's approval** ("deploy all six", then "add it and restart"), as one combined wave with the sessions that had landed but not yet deployed:
+  - **This session upgraded six modules** on fix_real, then on fix_dev, with no errors: `cd_campaign` (M35), `cd_p03_portal`, `cd_workshop` (M31), `cd_contact_centre` (M32), `cd_storefront` (M38) and `cd_subscription` (M39).
+  - **Two modules landed during the wave**, and each was upgraded on both databases by its own session under its own owner approval: `cd_quotation` 19.0.1.4.0 (M36) and `cd_cx_feedback` 19.0.1.1.0 (M34).
+  - The restart was held until both were in.
+  - My own attempt at the `cd_cx_feedback` upgrade was refused by this session's permission check, and did not run.
+- **One restart**, after the code-versus-database gap was confirmed empty on both databases at `36878e82`: 8069 is now PID 52556 (fix_real) and 8090 is PID 80704 (fix_dev). There is one listener per port, and both answer 200.
+- **Read-only checks after the restart:**
+  - `cd_campaign` is at 19.0.0.3.0 on both databases.
+  - The tables `fix_campaign_programme`, `fix_campaign_capacity_check` and `fix_attribution_result` exist on both.
+- **Live walk, headless, dev login, nothing saved,** on 8069 (fix_real) and on 8090 (fix_dev):
+  - all 8 pages show their "+ New";
+  - all 13 chips open forms;
+  - 27/27 new or changed lists and forms render;
+  - no raw screen ids; 0 console errors.
+- **Other sessions verified their own modules** on the new processes: M31, M32, M34 and M39 so far.
+- **Data, not code, is what fix_real needs next:**
+  - It has 0 campaigns.
+  - The owner still has to name the holders of **Capacity Override** (Operations Director) and **Marketing Manager**.
+  - Measurement will read 0 until customer invoices are posted in the estate.
