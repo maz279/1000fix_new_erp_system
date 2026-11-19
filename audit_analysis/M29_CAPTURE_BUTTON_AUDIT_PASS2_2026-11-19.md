@@ -103,7 +103,27 @@ All decision and lifecycle stamps are guarded by `fix.guarded.mixin`, are absent
 - **People on fix_real:** one Security Officer, one Access Approver and no Key Custodian (see the 14 Nov report). A second officer is needed to confirm "not notifiable" and to review a break-glass used by the only officer.
 - Keycloak-side MFA enrolment and step-up remain L4 configuration, not workspace records.
 
+## Deploy (19 Nov 2026, user-approved)
+
+1. The owner approved the M29 deploy ("Yes, deploy now"). The M22 session was already coordinating one combined wave for every module behind its code on both databases (cd_rbac_ext, cd_entity_config, cd_itsm, cd_bi_reporting and others), so M29 joined that wave instead of running its own upgrade or restart.
+2. M22 ran `-u` on fix_real and fix_dev (exit 0). After it, no module on either DB is behind its code: cd_rbac_ext is 19.0.1.6.0, `fix_service_account` and `fix_security_pentest` exist, and both new jobs are installed.
+3. One restart followed: 8069 is now PID 64400, 8090 is PID 77212, and `/web/login` answers 200 on both.
+4. A headless walk signed in with the dev login, saving nothing, showed the same chips on **both** live servers:
+
+| Page | "+" button | Forms capturing it |
+|---|---|---|
+| Identity & MFA | + Provision a New Login | Provision Login · JML Event · Suspend / Reinstate · Service Account · Device Registration · User |
+| Role & Group Model | + New Business Role | Role · Model Access · Delegation of Authority |
+| Record & Field Rules | + New Record Rule | Record Rule · Field Rule · Isolation Tier |
+| Access Requests | + Access Request | Access Request · Certification Campaign · Certification Line |
+| SoD Testing | + New SoD Test Run | SoD Test Run · SoD Control · SoD Exception |
+| Data Protection | + New Sensitive Field | Sensitive Field · Encryption Key · Cross-Border Transfer · Data-Subject Request |
+| Monitoring & Audit | + Report a Security Incident | Security Incident · Privileged Session · Vulnerability · Penetration Test |
+
+   0 page errors. On fix_real, each of the 10 new or changed chips opened its form: Suspend / Reinstate, Service Account, Device Registration, Delegation of Authority, Cross-Border Transfer, Data-Subject Request, Sensitive Field (Residency Class), Penetration Test, Security Incident (Breach Assessment tab) and Privileged Session (Justification & Review tab). No records were created.
+5. The new jobs ran cleanly on fix_dev. On fix_real, their one recorded failure (02:54 UTC) came from the OLD 8069 process, between the upgrade and the restart, because its registry was stale. The restarted process runs them on the next hourly cycle.
+
 ## State
 
 - Code commit `fix(CD-M29-01)`, rebased onto the shared branch at 00253dc4. After the rebase and ruff formatting, the full `cd_rbac_ext` suite, the M29 page guard and the estate page standard were re-run on the private clone: **1,045 tests, 0 failures**.
-- Deploying needs `-u cd_rbac_ext,cd_grc,cd_p03_portal` on fix_real and fix_dev, plus one restart of 8069/8090. That is the owner's call, and is combined with the peers holding restarts.
+- **LIVE on fix_real (8069) and fix_dev (8090)** since the combined restart (see Deploy above).
