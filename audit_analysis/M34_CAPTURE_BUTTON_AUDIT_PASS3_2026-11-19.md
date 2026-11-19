@@ -1,6 +1,6 @@
 # M34 CX, Feedback & Complaints: capture-button audit, third pass
 
-**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Branch:** `fix/m34-capture-pass3`
+**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069, fix_dev on 8090 · **Branch:** `fix/m34-capture-pass3` · **Status:** LIVE on 8069 and 8090 since 12:51 (section 4a)
 Earlier passes: `M34_CAPTURE_BUTTON_AUDIT_2026-11-13.md` (wrong captures on 4 pages) and `M34_CAPTURE_BUTTON_AUDIT_2026-11-14.md` (page 6 had no "+", three hard rules broken).
 
 ## 1. The question
@@ -72,6 +72,14 @@ All on the private clone `fix_test_m34c3` (a pg_dump of fix_real; fix_real and f
 | Headless UI walk on a private server (port 8134) | All 8 sub-module pages open; each shows its "+" and the new chips (page 3's "+" now reads *Record a Conversation Rating*). 22 lists, forms and reports opened with **0 console errors** and no "not served" / unknown-field text. A **VoC Theme was saved through the form** and read back (coded by the signed-in user, frequency 0). |
 
 The existing tests and the A03 seed that recorded a survey rating with no channel were updated to say how it arrived: the new hard rule applies to them too.
+
+## 4a. Deployment (19 Nov 2026, approved by the user)
+
+- Landed 36878e82 on `fix/a03-live-data-and-pending-work` (fast-forward, after M38/M35/M36); pushed with `fix/m34-capture-pass3`.
+- Backups: `_migration/backups/fix_{real,dev}_pre_m34_capture3_2026-11-19.dump`.
+- `-u cd_cx_feedback,cd_p03_portal` on fix_real, then fix_dev: both exit 0, no ERROR lines; version gap then empty on both.
+- One restart of both servers by the M35 session's combined wave: 8069 = PID 52556 (fix_real), 8090 = PID 80704 (fix_dev), 12:51.
+- Read-only checks on both DBs: `cd_cx_feedback` 19.0.1.1.0, 7 new tables, 17 ACL rows, 11 new columns, 2 crons, `fix_cx_followup.survey_id` nullable. No ERROR in either server log since the restart. The served backend bundle carries all six new forms. Signed in with the dev login: the six new lists are served on both servers (0 rows: no M34 data on either estate yet).
 
 ## 5. Still open
 
