@@ -13,12 +13,14 @@
 # FILE NAME IS LOAD-BEARING: sorts after fix_msp_ext, so the models it
 # extends are all defined first.
 import logging
-from datetime import datetime, time, timedelta
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
+
+from .msp_periods import dhaka_previous_month
 
 _logger = logging.getLogger(__name__)
 
@@ -179,13 +181,24 @@ class FixMspContractLifecycle(models.Model):
     # ---- B4: the monthly report and the credit run -------------------------
     @api.model
     def _msp_previous_month(self, today=None):
-        today = today or fields.Date.context_today(self)
-        end = today.replace(day=1) - timedelta(days=1)
-        return (
-            datetime.combine(end.replace(day=1), time.min),
-            datetime.combine(end, time.max),
-            end.strftime("%Y-%m"),
+        """Last Dhaka calendar month as UTC bounds (A02 ERP audit M05-F15)."""
+        return dhaka_previous_month(today)
+
+    def _msp_period_pending(self, period) -> int:
+        """Alerts of ``period`` still open inside their resolution target."""
+        self.ensure_one()
+        alerts = (
+            self.env["fix.msp.alert"]
+            .sudo()
+            .search(
+                [
+                    ("msp_contract_id", "=", self.id),
+                    ("create_date", ">=", period[0]),
+                    ("create_date", "<=", period[1]),
+                ]
+            )
         )
+        return self._msp_period_sla(alerts)["pending"]
 
     @api.model
     def cron_monthly_service_reports(self):
@@ -201,9 +214,11 @@ class FixMspContractLifecycle(models.Model):
                 continue
             try:
                 with self.env.cr.savepoint():
+                    # A02 ERP audit M05-F8: wait until every alert of the
+                    # month can be judged; the next run tries again
                     if not Report.search_count(
                         [("msp_contract_id", "=", msp.id), ("period_label", "=", period[2])]
-                    ):
+                    ) and not msp._msp_period_pending(period):
                         msp.action_monthly_report(period)
                         done += 1
                     msp.action_compute_sla_credits()

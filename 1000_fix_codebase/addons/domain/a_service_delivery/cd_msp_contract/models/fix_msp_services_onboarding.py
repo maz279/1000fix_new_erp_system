@@ -152,6 +152,15 @@ class FixMspOnboarding(models.Model):
         for msp in contracts:
             if msp.service_live_at:
                 raise UserError("MSP contract %s is already live." % msp.name)
+            # A02 ERP audit M05-F2: an onboarding opened on a contract that is
+            # already delivering service suspended its whole SLA. A contract
+            # with an alert or a service report is in service: it is not
+            # onboarded again, and its SLA clocks keep running.
+            if msp._msp_service_history():
+                raise UserError(
+                    "MSP contract %s is already in service (it has alerts or service reports): "
+                    "its SLA is binding and an onboarding project cannot suspend it." % msp.name
+                )
         for vals in vals_list:
             if not vals.get("msp_contract_id"):
                 continue
@@ -365,15 +374,48 @@ class FixMspContractOnboarding(models.Model):
     data_returned_at = fields.Datetime(string="Client Data Returned At", readonly=True, copy=False)
     data_return_evidence = fields.Text(string="Data Return Evidence", readonly=True, copy=False)
 
-    def _msp_period_sla(self, alerts, as_of=None) -> dict:
-        """Only alerts raised once the service is live are measured against the
-        SLA. A contract still being onboarded has no binding clock yet; a
-        contract with no onboarding project keeps its whole history binding."""
+    def _msp_service_history(self, before=None) -> bool:
+        """True when the contract delivered service (an alert or a service
+        report) before ``before`` (default: ever)."""
         self.ensure_one()
-        if self.service_live_at:
-            alerts = alerts.filtered(lambda a: a.create_date >= self.service_live_at)
-        elif self.onboarding_ids:
-            alerts = alerts.browse()
+        domain = [("msp_contract_id", "=", self.id)]
+        if before:
+            domain.append(("create_date", "<", before))
+        return bool(
+            self.env["fix.msp.alert"].sudo().search_count(domain, limit=1)
+            or self.env["fix.msp.service.report"].sudo().search_count(domain, limit=1)
+        )
+
+    def _msp_onboarding_window(self):
+        """(start, live) of the onboarding during which SLA clocks do not bind
+        yet, or None when every alert binds.
+
+        A02 ERP audit M05-F2: any onboarding project, even one opened on a
+        contract already in service, suspended the contract's SLA until a
+        go-live that never came. Only a genuine onboarding suspends it: a
+        project opened before the contract delivered any service. Alerts
+        raised from its start to the go-live are not measured; everything
+        else is."""
+        self.ensure_one()
+        project = self.onboarding_ids.sorted("id")[:1]
+        if not project or not project.create_date:
+            return None
+        if self._msp_service_history(before=project.create_date):
+            return None
+        return project.create_date, self.service_live_at or False
+
+    def _msp_period_sla(self, alerts, as_of=None) -> dict:
+        """Alerts raised during a genuine onboarding (before go-live) are not
+        measured: SLA clocks bind from go-live (spec §8.3). Every other alert
+        is, so an onboarding project never suspends the SLA of a contract that
+        is already in service."""
+        self.ensure_one()
+        window = self._msp_onboarding_window()
+        if window:
+            start, live = window
+            alerts = alerts.filtered(
+                lambda a: not (a.create_date >= start and (not live or a.create_date < live))
+            )
         return super()._msp_period_sla(alerts, as_of=as_of)
 
     def action_record_data_returned(self, evidence=None):
@@ -383,7 +425,9 @@ class FixMspContractOnboarding(models.Model):
         for msp in self:
             if msp.lifecycle != "offboarding":
                 raise UserError("Data is returned during offboarding: start it first.")
-            msp.write({"data_returned_at": fields.Datetime.now(), "data_return_evidence": text})
+            msp._guarded().write(
+                {"data_returned_at": fields.Datetime.now(), "data_return_evidence": text}
+            )
             msp.message_post(body="Client data returned (%s): %s" % (self.env.user.name, text))
         return True
 

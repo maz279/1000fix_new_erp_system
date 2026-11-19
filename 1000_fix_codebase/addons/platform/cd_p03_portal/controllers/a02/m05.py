@@ -36,6 +36,8 @@ SURFACES = {
         "actions": {
             "action_generate_monthly_report",
             "action_compute_sla_credits",
+            # A02 ERP audit M05-F3: the only way the SLA / commercial terms change
+            "action_amend_terms",
             # BRU-RMS-11 offboarding
             "action_start_offboarding",
             "action_record_access_revoked",
@@ -269,9 +271,12 @@ def kpis(env):
     # open desk items: client reports and tickets not yet resolved
     open_tickets = Alert.search_count(domain + DESK + [("state", "!=", "resolved")])
 
-    # SLA credits MTD: committed money (approved + applied) raised this month
+    # SLA credits MTD: committed money (approved + applied) for this month's
+    # period, at the amount approved (A02 ERP audit M05-F21: it filtered the
+    # creation date and summed the live amount, which moves after approval)
+    period = fields.Date.context_today(Alert).strftime("%Y-%m")
     credits = Credit.search(
-        [*domain, ("state", "in", ("approved", "applied")), ("create_date", ">=", month_start)]
+        [*domain, ("state", "in", ("approved", "applied")), ("period_label", "=", period)]
     )
     tracked = Patch.search_count(domain)
     installed = Patch.search_count([*domain, ("state", "=", "installed")])
@@ -279,7 +284,7 @@ def kpis(env):
         "monitored_assets": Asset.search_count(domain),
         "remote_resolution": _resolution_counts(env)["rate"],
         "open_msp_tickets": open_tickets,
-        "sla_credits_mtd": round(sum(credits.mapped("credit_amount")), 2),
+        "sla_credits_mtd": round(sum(credits.mapped("approved_amount")), 2),
         "patch_compliance": round(100.0 * installed / tracked, 1) if tracked else None,
         "oncall_escalations": Alert.search_count(
             [*domain, ("escalated", "=", True), ("create_date", ">=", month_start)]

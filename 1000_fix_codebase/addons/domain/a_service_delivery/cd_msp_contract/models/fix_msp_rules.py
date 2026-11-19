@@ -25,6 +25,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .msp_periods import dhaka_previous_month
 from .msp_roles import GROUP_ENGINEER, require_role
 
 METRICS = [
@@ -287,7 +288,7 @@ class FixMspContractReportOnce(models.Model):
         report of the same period, read twice by Client Reporting (the nightly
         run already skipped a period that had one)."""
         self.ensure_one()
-        label = (fields.Date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+        label = dhaka_previous_month()[2]
         if self.env["fix.msp.service.report"].search_count(
             [("msp_contract_id", "=", self.id), ("period_label", "=", label)]
         ):

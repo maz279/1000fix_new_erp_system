@@ -1,10 +1,10 @@
 # fix_msp — M05: MSP contracts, alerts, sessions, service reports (P08-M07).
-from datetime import datetime, time, timedelta
-
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+from .msp_periods import dhaka_previous_month
 
 
 class FixMspContract(models.Model):
@@ -46,12 +46,8 @@ class FixMspContract(models.Model):
         calendar month, opened in a form. (The button used to call
         action_monthly_report, which REQUIRES ``period`` - every click raised.)"""
         self.ensure_one()
-        last_month_end = fields.Date.today().replace(day=1) - timedelta(days=1)
-        period = (
-            datetime.combine(last_month_end.replace(day=1), time.min),
-            datetime.combine(last_month_end, time.max),
-            last_month_end.strftime("%Y-%m"),
-        )
+        # A02 ERP audit M05-F15: the Dhaka calendar month, not naive UTC days
+        period = dhaka_previous_month()
         report = self.action_monthly_report(period)
         return {
             "type": "ir.actions.act_window",
@@ -74,6 +70,17 @@ class FixMspContract(models.Model):
         # measure. It is now measured from each alert's resolution time against
         # the contract's resolution target for its severity (_msp_period_sla).
         measure = self._msp_period_sla(alerts)
+        # A02 ERP audit M05-F8: an alert still inside its target when the
+        # report was made was frozen as "pending" and never judged. The
+        # report waits until every alert of the period is resolved or past
+        # its deadline (the nightly run retries each day).
+        if measure["pending"]:
+            raise UserError(
+                "The %s report of %s cannot be made yet: %d alert(s) of the period are still "
+                "open inside their resolution target. Generate it once they are resolved or "
+                "their deadlines pass, so every alert is judged."
+                % (period[2], self.name, measure["pending"])
+            )
         resolved = alerts.filtered(lambda a: a.state == "resolved")
         within = measure["within"]
         sla_pct = measure["attainment"]

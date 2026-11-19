@@ -45,7 +45,13 @@ def msp(odoo_env):
         }
     )
     msp_contract = env["fix.msp.contract"].create(
-        {"name": "MSP Client endpoints", "contract_id": contract.id, "per_device_monthly": 450.0}
+        {
+            "name": "MSP Client endpoints",
+            "contract_id": contract.id,
+            "per_device_monthly": 450.0,
+            # A02 ERP audit M05-F4: no enrolment without a contracted count
+            "device_count": 2,
+        }
     )
     brand = env["fix.brand"].create({"name": "MspBrand", "code": "MSPBR"})
     model = env["fix.device.model"].create({"name": "MspDesk", "brand_id": brand.id})
@@ -224,10 +230,15 @@ def test_generate_button_reports_the_previous_calendar_month(msp):
     # A02 audit M05-P2: within SLA is measured against the resolution
     # target (minor: 24 h). Resolved in 2 h is within; open past it is a breach.
     _alert(msp, state="resolved", created=datetime(2026, 2, 3, 10, 0), resolved_in=2)
-    _alert(msp, state="new", created=datetime(2026, 2, 28, 23, 0))
+    # A02 ERP audit M05-F15: the month is the Dhaka calendar month (UTC+6)
+    _alert(msp, state="new", created=datetime(2026, 2, 28, 23, 0))  # 1 Mar 05:00 Dhaka: out
     _alert(msp, state="resolved", created=datetime(2026, 3, 1, 0, 30))  # March: excluded
-    _alert(msp, state="resolved", created=datetime(2026, 1, 31, 23, 59))  # January: excluded
-    with patch.object(fields.Date, "today", return_value=date(2026, 3, 15)):
+    # 1 Feb 05:59 in Dhaka: February, resolved with no resolution time (a breach)
+    _alert(msp, state="resolved", created=datetime(2026, 1, 31, 23, 59))
+    with patch(
+        "odoo.addons.cd_msp_contract.models.msp_periods.dhaka_today",
+        return_value=date(2026, 3, 15),
+    ):
         action = msp.msp.action_generate_monthly_report()
     report = env["fix.msp.service.report"].browse(action["res_id"])
     assert action == {
@@ -236,7 +247,7 @@ def test_generate_button_reports_the_previous_calendar_month(msp):
         "res_id": report.id,
         "view_mode": "form",
     }
-    # February: 2 alerts, 1 resolved -> 50.0 %, 2 monitored assets (device_count unset)
+    # February: 2 alerts, 1 resolved within target -> 50.0 %, 2 covered devices
     assert (
         report.period_label,
         report.alert_count,

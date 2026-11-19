@@ -473,7 +473,12 @@ def test_b4_unapproved_or_early_closed_window_publishes_nothing(m5):
 def _draft_msp(m5):
     draft = m5.contract(state="draft", name="unsigned")
     msp = m5.env["fix.msp.contract"].create(
-        {"name": "unsigned MSP", "contract_id": draft.id, "operating_unit_id": m5.ou.id}
+        {
+            "name": "unsigned MSP",
+            "contract_id": draft.id,
+            "operating_unit_id": m5.ou.id,
+            "device_count": 1,
+        }
     )
     asset = m5.env["fix.monitored.asset"].create(
         {

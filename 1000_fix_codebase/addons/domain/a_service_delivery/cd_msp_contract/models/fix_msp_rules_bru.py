@@ -212,7 +212,9 @@ class FixMspContractBru(models.Model):
         for msp in self:
             if msp.lifecycle != "in_service":
                 raise UserError("MSP contract %s is already %s." % (msp.name, msp.lifecycle))
-            msp.write({"lifecycle": "offboarding", "offboarding_started_at": fields.Datetime.now()})
+            msp._guarded().write(
+                {"lifecycle": "offboarding", "offboarding_started_at": fields.Datetime.now()}
+            )
             msp.message_post(body="Offboarding started by %s." % self.env.user.name)
         return True
 
@@ -224,7 +226,7 @@ class FixMspContractBru(models.Model):
         for msp in self:
             if msp.lifecycle != "offboarding":
                 raise UserError("Access is revoked during offboarding: start it first.")
-            msp.write(
+            msp._guarded().write(
                 {
                     "access_revoked_at": fields.Datetime.now(),
                     "access_revoked_evidence": text,
@@ -252,7 +254,7 @@ class FixMspContractBru(models.Model):
                     "Offboarding of %s is not complete: record that the client's access "
                     "is revoked, with its evidence (BRU-RMS-11)." % msp.name
                 )
-            msp.write(
+            msp._guarded().write(
                 {
                     "lifecycle": "offboarded",
                     "offboarded_at": fields.Datetime.now(),
@@ -281,7 +283,16 @@ class FixMonitoredAssetBru(models.Model):
         device."""
         for msp in self.mapped("msp_contract_id"):
             enrolled = msp._msp_enrolled()
-            if msp.device_count and enrolled > msp.device_count:
+            # A02 ERP audit M05-F4: a contract with no covered-device count
+            # enrolled without limit, and billing never saw the devices. A
+            # device is enrolled only against a contracted count (fail closed).
+            if not msp.device_count:
+                raise ValidationError(
+                    "MSP contract %s has no contracted device count, so no device can be "
+                    "enrolled on it: the commercial approver sets the covered devices (Amend "
+                    "Commercial Terms) first (BRU-RMS-07)." % msp.name
+                )
+            if enrolled > msp.device_count:
                 raise ValidationError(
                     "MSP contract %s covers %d devices and this would be device %d. Raise "
                     "the covered devices on the contract (an uplift, billed at the "

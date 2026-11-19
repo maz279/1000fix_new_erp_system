@@ -293,13 +293,32 @@ def test_sla_clocks_bind_only_from_the_go_live(m5, call):
     alerts = old | new
     # no onboarding project: the whole history binds, as before
     assert m5.msp._msp_period_sla(alerts)["breached"] == 2
-    # being onboarded: nothing binds yet
-    project = _project(m5, call)
-    assert m5.msp._msp_period_sla(alerts)["breached"] == 0
+    # A02 ERP audit M05-F2: a contract already in service is not onboarded
+    # again, so its SLA is never suspended
+    out = _start(m5, call)
+    assert "already in service" in out.get("error", ""), out
+    assert m5.msp._msp_period_sla(alerts)["breached"] == 2
+
+
+def test_a_genuine_onboarding_binds_from_the_go_live(m5, call):
+    msp, asset = m5.other, m5.other_asset
+    out = _start(m5, call, contract=msp)
+    assert "error" not in out, out
+    project = m5.env["fix.msp.onboarding"].search([("msp_contract_id", "=", msp.id)])
+    m5.env.flush_all()
+    m5.env.cr.execute(
+        "UPDATE fix_msp_onboarding SET create_date = %s WHERE id = %s",
+        (fields.Datetime.now() - timedelta(days=4), project.id),
+    )
+    project.invalidate_recordset(["create_date"])
+    during = _breached_alert(m5, msp, asset, days_ago=3)  # while being onboarded
+    after = _breached_alert(m5, msp, asset, days_ago=1)
+    alerts = during | after
+    assert msp._msp_period_sla(alerts)["breached"] == 0  # nothing binds yet
     # live two days ago: only the alert raised since binds
-    m5.msp.sudo().write({"service_live_at": fields.Datetime.now() - timedelta(days=2)})
+    msp.sudo().write({"service_live_at": fields.Datetime.now() - timedelta(days=2)})
     project._guarded().write({"state": "live"})
-    sla = m5.msp._msp_period_sla(alerts)
+    sla = msp._msp_period_sla(alerts)
     assert sla["breached"] == 1 and sla["attainment"] == 0.0
 
 

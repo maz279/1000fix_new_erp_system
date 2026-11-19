@@ -97,6 +97,30 @@ def _attachment(env, value):
     return env["ir.attachment"].browse(int(value)).exists()
 
 
+UNDERTAKING = "fix.data.confidentiality.undertaking"
+
+
+def _undertaking_document(env, value):
+    """The signed undertaking file. A02 ERP audit M06-F13: any attachment id
+    was accepted - an empty file, or another record's document. It must be a
+    non-empty file uploaded for THIS undertaking (not yet filed on any other
+    record), by the person recording it; create() then files it here."""
+    att = _attachment(env, value)
+    if not att:
+        return att
+    stored = att.sudo()
+    if not stored.raw:
+        raise UserError("The signed undertaking file is empty: upload the signed document.")
+    if stored.res_model and (stored.res_model != UNDERTAKING or stored.res_id):
+        raise UserError(
+            "The signed undertaking must be a file uploaded for this undertaking, not a "
+            "document filed on another record."
+        )
+    if not env.su and stored.create_uid != env.user:
+        raise UserError("Upload the signed undertaking yourself, with this undertaking.")
+    return att
+
+
 # --------------------------------------------------------------------------
 # page 10 - staff confidentiality undertakings (FR-DTS-010, BRU-DTS-12)
 # --------------------------------------------------------------------------
@@ -218,7 +242,7 @@ class FixDataConfidentialityUndertaking(models.Model):
                     "Case %s is %s: no one is given access to it." % (case.name, case.state)
                 )
             kind = vals.get("undertaking_type") or "staff"
-            document = _attachment(self.env, vals.get("document_attachment_id"))
+            document = _undertaking_document(self.env, vals.get("document_attachment_id"))
             if kind == "staff":
                 user = self.env["res.users"].sudo().browse(vals.get("user_id")).exists()
                 if not user:
@@ -256,6 +280,9 @@ class FixDataConfidentialityUndertaking(models.Model):
             vals["signed_at"] = fields.Datetime.now()
             vals["recorded_by_id"] = self.env.uid
         records = super(FixDataConfidentialityUndertaking, self._guarded()).create(vals_list)
+        for rec in records.filtered("document_attachment_id"):
+            # the signed file is filed on the undertaking it evidences
+            rec.document_attachment_id.sudo().write({"res_model": rec._name, "res_id": rec.id})
         for rec in records:
             rec.case_id.sudo().message_post(
                 body="Confidentiality undertaking recorded: %s (%s, %s)."
@@ -920,7 +947,23 @@ class FixDataWipeCertificateCapture(models.Model):
                         self.env["fix.device"].sudo().browse(vals["device_id"])
                     )
                 self._check_request(request, serial, vals.get("method"))
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        records._fix_check_after_failure()
+        return records
+
+    def _fix_check_after_failure(self):
+        """A02 ERP audit M06-F6 (BRU-DTS-10): after a failed erasure of a
+        media serial, a new certificate for it - with or without the request -
+        is a physical destruction."""
+        for cert in self:
+            if cert.method != "physical_destruction":
+                failed = cert._fix_failed_before()
+                if failed:
+                    raise UserError(
+                        "Erasure of media %s already failed (certificate %s): physical "
+                        "destruction is mandatory now (BRU-DTS-10). Choose Physical Destruction."
+                        % (cert.serial_number, ", ".join(failed.mapped("name")))
+                    )
 
     def write(self, vals):
         if "wipe_request_id" in vals and not self._fix_guard_open():
@@ -941,7 +984,19 @@ class FixDataWipeCertificateCapture(models.Model):
                             vals.get("serial_number", rec.serial_number),
                             vals.get("method", rec.method),
                         )
-        return super().write(vals)
+        result = super().write(vals)
+        if {"serial_number", "device_id", "method"} & set(vals) and not self._fix_guard_open():
+            # A02 ERP audit M06-F7: a certificate's serial was re-typed after it
+            # was linked to a request, with no check against the request.
+            for rec in self.filtered("wipe_request_id"):
+                request = rec.wipe_request_id
+                if _norm_serial(rec.serial_number) != _norm_serial(request.serial_number):
+                    raise UserError(
+                        "Certificate %s answers request %s for media %s: its serial cannot be "
+                        "%s." % (rec.name, request.name, request.serial_number, rec.serial_number)
+                    )
+            self._fix_check_after_failure()
+        return result
 
     def action_mark_failed(self):
         res = super().action_mark_failed()

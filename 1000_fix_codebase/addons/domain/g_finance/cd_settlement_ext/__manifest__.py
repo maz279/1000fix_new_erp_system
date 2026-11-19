@@ -11,7 +11,7 @@ escrow holds and clawbacks, payout reconciliation, seller statement
 issue/settle, and the IAS 37 workmanship-warranty provision posted to GL.
 Technician incentives are Payroll (A09), not settlement.
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.4.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Settlement & Payout (W7)",
@@ -41,6 +41,8 @@ Technician incentives are Payroll (A09), not settlement.
         "data/fix_settlement_m53_data.xml",
         # A02 audit B2: R8 consumers of the A02 money hand-backs.
         "data/fix_a02_handback_consumers.xml",
+        # A02 ERP audit M06-F1: M20 billing of the M06 data recovery outcomes.
+        "data/fix_a02_data_billing_consumers.xml",
         # A04 report C7: consumers of the A04 money events.
         "data/fix_a04_consumers.xml",
         "data/fix_a08_settlement_data.xml",

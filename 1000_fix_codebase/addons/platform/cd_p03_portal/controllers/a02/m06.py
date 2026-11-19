@@ -14,9 +14,10 @@
 # routed re-quote price change (Request / Recall Approval; the lab manager
 # decides in the M63 inbox).
 import logging
-from datetime import date, datetime
+from datetime import datetime, time
 
-from odoo import http
+import pytz
+from odoo import fields, http
 from odoo.exceptions import AccessError
 from odoo.http import request
 
@@ -45,6 +46,9 @@ SURFACES = {
             "action_recovered",
             "action_mark_unrecoverable",
             "action_handover",
+            # A02 ERP audit M06-F1: hand-over without a paid invoice
+            "action_approve_credit",
+            "action_waive_charge",
             "action_purge",
             "action_close",
             "action_access_recovered_data",
@@ -72,7 +76,10 @@ SURFACES = {
         "actions": {
             "action_transfer",
             "action_break_seal_with_witness",
+            # A02 ERP audit M06-F11 / F9: the witness's own confirmation; destruction
+            "action_confirm_seal_break",
             "action_return",
+            "action_destroy",
         },
     },
     "fix.data.cleanroom.slot": {
@@ -155,22 +162,31 @@ def kpis(env):
         [*domain, ("state", "not in", ("purged", "closed", "unrecoverable"))]
     )
 
-    # recovery success: recovered vs decided-unrecoverable
-    recovered = Case.search_count([*domain, ("state", "=", "recovered")])
-    unrecoverable = Case.search_count([*domain, ("state", "=", "unrecoverable")])
+    # recovery success: of the decided cases, how many were recovered. A02 ERP
+    # audit M06-F16: only cases still sitting in 'recovered' counted, so every
+    # case handed over, purged or closed dropped out of the rate.
+    outcomes = _outcomes(Case.search([*domain, ("state", "in", DECIDED_STATES)]))
+    recovered, unrecoverable = outcomes["recovered"], outcomes["unrecoverable"]
     decided = recovered + unrecoverable
     recovery_success = round(100.0 * recovered / decided, 1) if decided else None
 
-    now = datetime.now()
     cleanroom_slots = Slot.search_count(
-        [*domain, ("state", "=", "planned"), ("start_at", ">=", now)]
+        [*domain, ("state", "=", "planned"), ("start_at", ">=", fields.Datetime.now())]
     )
 
-    month_start = datetime.combine(date.today().replace(day=1), datetime.min.time())
-    destruction_certs_mtd = Cert.search_count([("create_date", ">=", month_start)])
+    # M06-F20: verified certificates of this Dhaka month, this company's only
+    # (it counted every certificate of every company and state, from a naive
+    # local midnight)
+    destruction_certs_mtd = Cert.search_count(
+        [
+            *domain,
+            ("sanitization_status", "=", "verified"),
+            ("verified_at", ">=", _dhaka_month_start(env)),
+        ]
+    )
 
     # eval turnaround: average hours media-received → verdict
-    evals = Eval.search([("evaluated_at", "!=", False)], limit=200)
+    evals = Eval.search([*domain, ("evaluated_at", "!=", False)], limit=200)
     eval_turnaround = round(sum(e.eval_hours for e in evals) / len(evals), 1) if evals else None
 
     purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
@@ -183,6 +199,42 @@ def kpis(env):
         "eval_turnaround": eval_turnaround,
         "purge_verifications": purge_verifications,
     }
+
+
+DECIDED_STATES = ("recovered", "handover", "purged", "closed", "unrecoverable")
+
+
+def _outcomes(cases):
+    """{'recovered': n, 'unrecoverable': n} over ``cases`` by their outcome,
+    not their current state (a recovered case moves on to handover, purge and
+    close). A case closed without an outcome (a declined quotation) is not
+    decided."""
+    counts = {"recovered": 0, "unrecoverable": 0}
+    for case in cases:
+        outcome = case._data_outcome()
+        if outcome in counts:
+            counts[outcome] += 1
+    return counts
+
+
+def _dhaka_month_start(env):
+    """The first instant of the current Dhaka calendar month, in UTC."""
+    tz = pytz.timezone(env.context.get("tz") or env.user.tz or "Asia/Dhaka")
+    first = datetime.now(tz).date().replace(day=1)
+    return tz.localize(datetime.combine(first, time.min)).astimezone(pytz.utc).replace(tzinfo=None)
+
+
+def _day_bounds(env, date_from=None, date_to=None):
+    """The report period as UTC datetimes of the reader's (Dhaka) days."""
+    tz = pytz.timezone(env.context.get("tz") or env.user.tz or "Asia/Dhaka")
+
+    def _utc(day, end):
+        if not day:
+            return None
+        local = datetime.combine(fields.Date.to_date(day), time.max if end else time.min)
+        return tz.localize(local).astimezone(pytz.utc).replace(tzinfo=None)
+
+    return _utc(date_from, False), _utc(date_to, True)
 
 
 # ---------------------------------------------------------------- reports
@@ -202,13 +254,19 @@ def _require_data_operator(env, title):
 
 def _success_by_specialism(env, **params):
     Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
-    cases = Case.search([("state", "in", ("recovered", "unrecoverable"))], limit=400)
+    cases = Case.search(
+        [("company_id", "in", env.companies.ids), ("state", "in", DECIDED_STATES)], limit=400
+    )
     buckets = {}
     labels = dict(type(Case).specialism.selection)
     for case in cases:
+        # by outcome, not current state (A02 ERP audit M06-F16)
+        outcome = case._data_outcome()
+        if outcome not in ("recovered", "unrecoverable"):
+            continue
         key = case.specialism or "unassigned"
         b = buckets.setdefault(key, {"recovered": 0, "unrecoverable": 0})
-        b["recovered" if case.state == "recovered" else "unrecoverable"] += 1
+        b[outcome] += 1
     rows = []
     for key in sorted(buckets):
         b = buckets[key]
@@ -283,10 +341,22 @@ def _case_cycle_time(env, **params):
     }
 
 
-def _service_revenue(env, **params):
+def _service_revenue(env, date_from=None, date_to=None, **params):
+    """What the decided cases bill (A02 ERP audit M06-F17): it summed every
+    accepted quotation, including unrecoverable no-data-no-fee cases that
+    owe nothing, left out the donor fee and read every company. Now: the
+    case's own billing rule (recovery fee + donor fee when recovered; under
+    no-data-no-fee only the donor fee when unrecoverable), this company's
+    cases, accepted in the period."""
     _require_data_operator(env, "Data Service Revenue")
     Quote = env["fix.data.quote"].sudo()
-    quotes = Quote.search([("state", "=", "accepted")], limit=300)
+    start, end = _day_bounds(env, date_from, date_to)
+    domain = [("state", "=", "accepted"), ("company_id", "in", env.companies.ids)]
+    if start:
+        domain.append(("accepted_at", ">=", start))
+    if end:
+        domain.append(("accepted_at", "<=", end))
+    quotes = Quote.search(domain, limit=300)
     if not quotes:
         return {
             "title": "Data Service Revenue",
@@ -299,23 +369,42 @@ def _service_revenue(env, **params):
             ],
             "notes": ["Accepted quotations only (no-data-no-fee economics)."],
         }
-    by_case = {}
-    for q in quotes:
-        by_case.setdefault(q.case_id.name or "—", []).append(q)
-    rows = [
-        {
-            "case": name,
-            "quotes": len(group),
-            "accepted_bdt": round(sum(q.amount for q in group), 2),
-        }
-        for name, group in sorted(by_case.items())
-    ]
+    rows = []
+    billed_total = 0.0
+    for case in quotes.mapped("case_id").sorted("name"):
+        quote, lines, outcome = case._data_billable()
+        billable = round(sum(amount for _d, amount in lines), 2)
+        billed_total += billable
+        invoice = case._data_invoice()
+        rows.append(
+            {
+                "case": case.name,
+                "outcome": outcome or "not decided",
+                "quoted_bdt": round((quote.amount or 0.0) + (quote.donor_fee_bdt or 0.0), 2),
+                "billable_bdt": billable,
+                "invoice": (invoice.name if invoice and invoice.name != "New" else "")
+                or ("draft AR/%s" % invoice.id if invoice else "-"),
+                "invoice_state": invoice.state if invoice else "-",
+            }
+        )
     return {
         "title": "Data Service Revenue",
-        "cols": ["case", "quotes", "accepted_bdt"],
-        "labels": {"case": "Case", "quotes": "Quotes", "accepted_bdt": "Accepted (BDT)"},
+        "cols": ["case", "outcome", "quoted_bdt", "billable_bdt", "invoice", "invoice_state"],
+        "labels": {
+            "case": "Case",
+            "outcome": "Outcome",
+            "quoted_bdt": "Quoted incl. Donor Fee (BDT)",
+            "billable_bdt": "Billable before VAT (BDT)",
+            "invoice": "M20 Invoice",
+            "invoice_state": "Invoice State",
+        },
         "rows": rows,
-        "notes": ["Accepted quotations only (no-data-no-fee economics)."],
+        "notes": [
+            "Billable = recovery fee + donor fee when recovered; under no-data-no-fee only the "
+            "donor fee when unrecoverable; nothing until the outcome. Total BDT %.2f before VAT."
+            % billed_total,
+            "Quotations accepted in the period, this company's cases.",
+        ],
     }
 
 

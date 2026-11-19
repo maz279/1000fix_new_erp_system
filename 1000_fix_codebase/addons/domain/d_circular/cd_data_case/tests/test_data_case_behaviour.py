@@ -584,7 +584,7 @@ def test_verified_evidence_is_frozen_and_tampering_is_refused(odoo_env):
         cert.write({"sector_count": 2})
     with pytest.raises(UserError, match="Only a pending"):
         cert.action_verify()
-    with pytest.raises(UserError, match="cannot be failed"):
+    with pytest.raises(UserError, match="awaiting verification can be failed"):
         cert.action_mark_failed()
     tampered = _cert(
         odoo_env,

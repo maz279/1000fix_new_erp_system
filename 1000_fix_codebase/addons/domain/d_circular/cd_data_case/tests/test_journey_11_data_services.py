@@ -142,6 +142,8 @@ def j11(odoo_env, monkeypatch):
 
         with mock.patch.object(type(case), "_handover_send_code", _send):
             case.action_request_handover_otp()
+        # A02 ERP audit M06-F1: a billable case goes out paid, on credit or waived
+        case.sudo().action_waive_charge(note="test: the hand-over path, charge waived")
         case.action_handover(handler, verification=sent["code"])
         return case
 

@@ -161,6 +161,8 @@ def m6(odoo_env):
         image(case)
         case.action_recovered()
         ready_for_handover(case)
+        # A02 ERP audit M06-F1: a billable case goes out paid, on credit or waived
+        case.sudo().action_waive_charge(note="test: the hand-over path, charge waived")
         case.action_handover("tech", verification=handover_code(case))
         return case
 
@@ -620,8 +622,9 @@ def test_Q2_acceptance_needs_the_customers_artefact(m6):
     assert out["success"], out
     assert (quote.state, quote.acceptance_channel) == ("accepted", "signed_document")
     assert quote.signed_quote_attachment_id and quote.accepted_by_id == m6.tech
-    # an OTP / portal reference
-    otp = Quote.create({"case_id": case.id, "amount": 100})
+    # an OTP / portal reference (A02 ERP audit M06-F5: one live quotation per
+    # case, so each channel is shown on a case of its own)
+    otp = Quote.create({"case_id": m6.new_case(evaluated=True).id, "amount": 100})
     otp.action_send()
     otp.action_accept(acceptance_reference="PORTAL-77812")
     assert otp.acceptance_channel == "otp_portal"
@@ -629,7 +632,7 @@ def test_Q2_acceptance_needs_the_customers_artefact(m6):
     m6.env["ir.config_parameter"].sudo().set_param(
         "cd_data_case.quote_acceptance_requires_customer_artefact", "0"
     )
-    staff = Quote.create({"case_id": case.id, "amount": 100})
+    staff = Quote.create({"case_id": m6.new_case(evaluated=True).id, "amount": 100})
     staff.action_send()
     staff.action_accept()
     assert staff.acceptance_channel == "staff_recorded"
@@ -718,9 +721,13 @@ def test_M2_M3_seal_break_needs_a_distinct_witness(m6):
         {"witness_user_id": m6.tech2.login},
     )
     assert out["success"], out
+    # A02 ERP audit M06-F11: the seal opens when the witness confirms it
+    assert unit.seal_state == "sealed" and unit.seal_break_witness_id == m6.tech2
+    out = m6.p03_action(m6.tech2, "fix.data.media.unit", unit, "action_confirm_seal_break")
+    assert out["success"], out
     assert (unit.seal_state, unit.witness_user_id) == ("opened_in_lab", m6.tech2)
     event = unit.case_id.custody_event_ids.filtered(lambda e: e.action == "seal_broken")
-    assert (event.actor_id, event.witness_id) == (m6.tech, m6.tech2)
+    assert (event.actor_id, event.witness_id) == (m6.tech2, m6.tech2)
 
 
 def test_M4_failed_interlock_slot_cannot_be_forged_used(m6):

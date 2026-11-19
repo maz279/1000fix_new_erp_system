@@ -118,6 +118,10 @@ def test_media_unit_guards(ds):
 def test_media_unit_return(ds):
     env = ds.env
     unit = env["fix.data.media.unit"].create({"case_id": ds.case.id, "seal_number": "BAG-M06-003"})
+    # A02 ERP audit M06-F10: media goes back once the case allows it
+    with pytest.raises(UserError, match="stays in custody"):
+        unit.action_return()
+    ds.case._guarded().write({"state": "unrecoverable"})
     unit.action_return()
     assert unit.location == "returned_to_customer"
     assert "data_case.media_returned" in _events(env, "fix.data.media.unit", unit.id).mapped(
@@ -211,9 +215,17 @@ def test_quote_lifecycle_and_expiry_guard(ds):
     events = _events(env, "fix.data.quote", quote.id).mapped("event_type")
     assert "data_case.quote_sent" in events and "data_case.quote_accepted" in events
 
+    # A02 ERP audit M06-F5: one live quotation per case; the expiry is shown
+    # on a quotation of its own case
+    other = env["fix.data.recovery.case"].create(
+        {"customer_id": ds.customer.id, "media_type": "hdd"}
+    )
+    env["fix.data.evaluation"].create(
+        {"case_id": other.id, "verdict": "recoverable"}
+    ).action_complete()
     stale = env["fix.data.quote"].create(
         {
-            "case_id": ds.case.id,
+            "case_id": other.id,
             "amount": 100.0,
             "valid_until": fields.Date.today() - timedelta(days=1),
         }
@@ -303,6 +315,7 @@ def test_case_journey_with_new_engines(ds):
 
     with patch.object(type(ds.case), "_handover_send_code", _send):
         ds.case.action_request_handover_otp()
+    ds.case.action_waive_charge(note="test: the hand-over path, charge waived")  # M06-F1
     ds.case.action_handover("Data Lead", verification=sent["code"])
     assert ds.case.state == "handover"
     assert ds.case.retention_until and ds.case.handover_verification_method == "otp"

@@ -211,8 +211,9 @@ export const SCREENS = {
       { m: 'action_request_test_exception', l: 'Request Exception: Skip Test', ask: 'Why it cannot wait for a test', kwarg: 'reason' },
       { m: 'action_recall_approval', l: 'Recall Exception Request' },
       { m: 'action_install', l: 'Mark Installed' },
-      { m: 'action_defer', l: 'Defer 7 Days' },
-      { m: 'action_fail', l: 'Mark Failed', ask: 'Failure note', kwarg: 'note' }
+      /* A02 ERP audit M05-F18: a deferral names its days (the policy's maximum) and reason */
+      { m: 'action_defer', l: 'Defer', asks: [{ kwarg: 'days', label: 'Days to defer (1 to the patch policy maximum)', number: true }, { kwarg: 'reason', label: 'Why the patch is deferred' }] },
+      { m: 'action_fail', l: 'Mark Failed', ask: 'What failed (install log, error)', kwarg: 'note' }
     ] },
   /* a window opens and closes on its own once approved (its state follows
    * the approval and the time range); Close Window ends it early */
@@ -248,6 +249,13 @@ export const SCREENS = {
     actions: [
       { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
       { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' },
+      /* A02 ERP audit M05-F3: the SLA and commercial terms change only here,
+       * by an SLA credit approver, with the reason (raising the covered
+       * devices sends the uplift to billing) */
+      { m: 'action_amend_terms', l: 'Amend SLA / Commercial Terms', asks: [
+        { kwarg: 'term', label: 'Term: device_count, per_device_monthly, sla_target_pct, alert_resolve_hours_major, alert_resolve_hours_minor, coverage_window (24x7/business), holiday_calendar_id, unattended_access, recording_retention_days or contract_id' },
+        { kwarg: 'value', label: 'New value' },
+        { kwarg: 'reason', label: 'Reason (the amendment or the client agreement it follows)' }] },
       /* BRU-RMS-11 offboarding: start, record access revoked, complete */
       { m: 'action_start_offboarding', l: 'Start Offboarding' },
       { m: 'action_record_access_revoked', l: 'Record Access Revoked', ask: 'Evidence: which access was revoked and how it was checked', kwarg: 'evidence' },
@@ -645,12 +653,12 @@ export const SCREENS = {
           { name: 'contract_state', label: "M08 Contract State", readonly: true },
           { name: 'entitled', label: "Entitled Today", readonly: true },
           { name: 'monitoring_scope', required: true, label: "Monitoring Scope" },
-          { name: 'device_count', label: "Covered Devices (0 = bill every enrolled device)" },
+          { name: 'device_count', label: "Covered Devices (enrolment stops at this count; none = no enrolment)" },
           { name: 'enrolled_count', label: "Enrolled Devices", readonly: true },
           { name: 'unattended_access', label: "Unattended Access Granted (BRU-RMS-02)" }
         ] },
       { tab: 'commercial', title: "Commercials & Service Levels",
-        note: "The monthly value is the covered devices times the per-device price; the SLA credit of a month can never exceed it.",
+        note: "Typed once when the contract is created (by an SLA credit approver); afterwards they change only through Amend SLA / Commercial Terms on MSP Contracts. A credit is a share of what was invoiced for its month (else the monthly value) and never exceeds it.",
         fields: [
           { name: 'per_device_monthly', label: "Per-Device Monthly (BDT)" },
           { name: 'monthly_value', label: "Monthly Value (BDT)", readonly: true },

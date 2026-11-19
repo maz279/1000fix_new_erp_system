@@ -9,11 +9,11 @@ import logging
 from datetime import date, timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
 
-from .fix_data_case import GROUP_LAB_MANAGER
+from .fix_data_case import GROUP_LAB_MANAGER, GROUP_OPERATOR, _norm_serial, _require_role
 
 _logger = logging.getLogger(__name__)
 
@@ -97,6 +97,25 @@ class FixDataRecoveryCaseExt(models.Model):
 
     def action_handover_me(self):
         self.action_handover(self.env.user.name)
+
+    def _media_release_denial(self) -> str:
+        """'' when the customer's media may leave custody (returned or
+        destroyed), else why not. A02 ERP audit M06-F10: media went back at
+        any stage, in the middle of a recovery. It leaves once the data was
+        handed over, the case was found unrecoverable, or the customer declined
+        the quotation."""
+        self.ensure_one()
+        if self.state in ("handover", "purged", "unrecoverable", "closed"):
+            return ""
+        declined = self.quote_ids.filtered(lambda q: q.state == "declined")
+        live = self.quote_ids.filtered(lambda q: q.state in ("draft", "sent", "accepted"))
+        if self.state in ("new", "custody") and declined and not live:
+            return ""
+        return (
+            "case %s is '%s': the customer's media stays in custody until the data is handed "
+            "over, the case is found unrecoverable or the quotation is declined"
+            % (self.name, self.state)
+        )
 
 
 class FixDataRecoveryAttempt(models.Model):
@@ -356,6 +375,25 @@ class FixDataMediaUnit(models.Model):
         "ir.attachment",
         string="Evidence Bag / Seal Photo",
     )
+    # A02 ERP audit M06-F11: the seal break the witness has still to confirm
+    seal_break_requested_by_id = fields.Many2one(
+        "res.users", string="Seal Break Requested By", readonly=True, copy=False
+    )
+    seal_break_witness_id = fields.Many2one(
+        "res.users", string="Witness to Confirm", readonly=True, copy=False
+    )
+    seal_break_requested_at = fields.Datetime(
+        string="Seal Break Requested At", readonly=True, copy=False
+    )
+    # A02 ERP audit M06-F10 / F9: who took the media back, or what destroyed it
+    returned_to_id = fields.Many2one("res.partner", string="Returned To", readonly=True, copy=False)
+    destruction_certificate_id = fields.Many2one(
+        "fix.data.wipe.certificate",
+        string="Destruction Certificate",
+        readonly=True,
+        copy=False,
+        ondelete="restrict",
+    )
 
     _seal_unique = models.Constraint(
         "UNIQUE (seal_number)", "This seal / bag number is already registered"
@@ -370,6 +408,11 @@ class FixDataMediaUnit(models.Model):
             "holder",
             "witness_user_id",
             "witness_verified_at",
+            "seal_break_requested_by_id",
+            "seal_break_witness_id",
+            "seal_break_requested_at",
+            "returned_to_id",
+            "destruction_certificate_id",
         }
 
     def _log(self, text, action="media_moved", witness_id=False):
@@ -408,7 +451,13 @@ class FixDataMediaUnit(models.Model):
         """Open the evidence seal in the lab, under dual custody (FLAW-06.1,
         BRU-DTS-01). A02 audit M06-5 (M2): the witness was optional, so the
         default button broke a seal with one person. A witness is now always
-        required, and must be another active internal user."""
+        required, and must be another active internal user.
+
+        A02 ERP audit M06-F11: the witness was only NAMED, never present. The
+        technician now asks for the break, naming the witness; the seal opens
+        when the witness confirms it in their own session
+        (action_confirm_seal_break). Trusted system code still breaks it in
+        one step."""
         for unit in self:
             if unit.seal_state != "sealed":
                 raise UserError("Seal %s is already %s" % (unit.seal_number, unit.seal_state))
@@ -427,39 +476,126 @@ class FixDataMediaUnit(models.Model):
                     "FLAW-06.1 Dual-Custody Gate: the witness must be an active internal user."
                 )
             who = handler or self.env.user.name
-            unit._log(
-                "seal broken by %s (witnessed by %s)" % (who, witness.name),
-                action="seal_broken",
-                witness_id=witness.id,
+            if not self.env.su:
+                _require_role(
+                    self.env, GROUP_OPERATOR, "Data Recovery Operator", "Breaking an evidence seal"
+                )
+                unit._guarded().write(
+                    {
+                        "seal_break_requested_by_id": self.env.uid,
+                        "seal_break_witness_id": witness.id,
+                        "seal_break_requested_at": fields.Datetime.now(),
+                    }
+                )
+                note = (
+                    "%s asks to break evidence seal %s and names %s as witness. The seal opens "
+                    "when %s confirms it in their own session (Confirm as Witness)."
+                    % (who, unit.seal_number, witness.name, witness.name)
+                )
+                unit.message_post(body=note)
+                unit.sudo().activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    summary="Witness the seal break of %s" % unit.seal_number,
+                    note=note,
+                    user_id=witness.id,
+                )
+                continue
+            unit._break_seal_now(who, witness)
+
+    def _break_seal_now(self, who, witness):
+        self.ensure_one()
+        self._log(
+            "seal broken by %s (witnessed by %s)" % (who, witness.name),
+            action="seal_broken",
+            witness_id=witness.id,
+        )
+        self._guarded().write(
+            {
+                "seal_state": "opened_in_lab",
+                "holder": who,
+                "witness_user_id": witness.id,
+                "witness_verified_at": fields.Datetime.now(),
+                "seal_break_requested_by_id": False,
+                "seal_break_witness_id": False,
+                "seal_break_requested_at": False,
+            }
+        )
+        publish(
+            self.env,
+            "data_case.media_seal_broken",
+            "fix.data.media.unit",
+            self.id,
+            {"seal": self.seal_number, "witness_user_id": witness.id},
+        )
+
+    def action_confirm_seal_break(self):
+        """The named witness confirms, in their own session, the seal break
+        another person asked for (A02 ERP audit M06-F11)."""
+        for unit in self:
+            if unit.seal_state != "sealed":
+                raise UserError("Seal %s is already %s" % (unit.seal_number, unit.seal_state))
+            witness = unit.seal_break_witness_id
+            requester = unit.seal_break_requested_by_id
+            if not (witness and requester):
+                raise UserError("No seal break of %s awaits a witness." % unit.seal_number)
+            if self.env.user != witness:
+                raise AccessError(
+                    "Only %s, the named witness, confirms the seal break of %s, in their own "
+                    "session." % (witness.name, unit.seal_number)
+                )
+            if requester == witness:
+                raise UserError("FLAW-06.1 Dual-Custody Gate: the witness cannot break the seal.")
+            # the witness need not hold the lab's write rights: identity is the check
+            unit.sudo()._break_seal_now(
+                "%s (confirmed by the witness %s in their own session)"
+                % (requester.name, witness.name),
+                witness,
             )
-            unit._guarded().write(
-                {
-                    "seal_state": "opened_in_lab",
-                    "holder": who,
-                    "witness_user_id": witness.id,
-                    "witness_verified_at": fields.Datetime.now(),
-                }
-            )
-            publish(
-                self.env,
-                "data_case.media_seal_broken",
-                "fix.data.media.unit",
-                unit.id,
-                {"seal": unit.seal_number, "witness_user_id": witness.id},
-            )
+            unit.sudo().write({"holder": requester.name})
+        return True
 
     def action_break_seal_with_witness(self, witness_user_id=None, handler=""):
         """Strict FLAW-06.1 entry point requiring an explicit distinct witness."""
         self.action_break_seal(handler=handler, witness_user_id=witness_user_id)
         return True
 
-    def action_return(self, handler=""):
+    def action_return(self, handler="", recipient=None):
+        """Give the media back to the customer. A02 ERP audit M06-F10: it went
+        back at any stage, to anyone. Now by the data lab, once the case allows
+        it (_media_release_denial), to the customer or one of its contacts
+        (default: the case's handover recipient, else the customer)."""
+        _require_role(self.env, GROUP_OPERATOR, "Data Recovery Operator", "Returning media")
         for unit in self:
             if unit.location in ("destroyed", "returned_to_customer"):
                 raise UserError("Unit %s is %s" % (unit.seal_number, unit.location))
+            case = unit.case_id.sudo()
+            denial = case._media_release_denial()
+            if denial:
+                raise UserError("Media %s cannot be returned: %s." % (unit.seal_number, denial))
+            partner = self.env["res.partner"]
+            if isinstance(recipient, models.BaseModel):
+                partner = recipient
+            elif recipient:
+                try:
+                    partner = self.env["res.partner"].sudo().browse(int(recipient)).exists()
+                except (TypeError, ValueError):
+                    partner = self.env["res.partner"]
+                if not partner:
+                    raise UserError("No contact #%s to return the media to." % recipient)
+            partner = partner or case.handover_recipient_id or case.customer_id
+            if partner.commercial_partner_id != case.customer_id.commercial_partner_id:
+                raise UserError(
+                    "%s is not the customer %s or one of its contacts: the media goes back "
+                    "only to the customer." % (partner.display_name, case.customer_id.name)
+                )
             who = handler or self.env.user.name
-            unit._log("returned to customer by %s" % who, action="media_returned")
-            unit._guarded().write({"location": "returned_to_customer", "holder": who})
+            unit._log(
+                "returned to customer by %s, to %s" % (who, partner.display_name),
+                action="media_returned",
+            )
+            unit._guarded().write(
+                {"location": "returned_to_customer", "holder": who, "returned_to_id": partner.id}
+            )
             publish(
                 self.env,
                 "data_case.media_returned",
@@ -467,6 +603,99 @@ class FixDataMediaUnit(models.Model):
                 unit.id,
                 {"seal": unit.seal_number},
             )
+
+    def _destruction_certificate(self, certificate):
+        """The certificate a destruction rests on: the one passed (record, id
+        or reference), else the single verified physical destruction of the
+        case's media serial that destroyed nothing else yet."""
+        self.ensure_one()
+        Cert = self.env["fix.data.wipe.certificate"].sudo()
+        if isinstance(certificate, models.BaseModel):
+            return certificate.sudo()
+        ref = str(certificate or "").strip()
+        if ref:
+            cert = Cert.browse(int(ref)).exists() if ref.isdigit() else Cert
+            cert = cert or Cert.search([("name", "=", ref)], limit=1)
+            if not cert:
+                raise UserError("No wipe certificate '%s' was found." % ref)
+            return cert
+        serial = _norm_serial(self.case_id.media_serial_number)
+        used = (
+            self.sudo()
+            .search([("destruction_certificate_id", "!=", False)])
+            .mapped("destruction_certificate_id")
+        )
+        matches = (
+            Cert.search(
+                [
+                    ("sanitization_status", "=", "verified"),
+                    ("method", "=", "physical_destruction"),
+                ]
+            ).filtered(lambda c: serial and _norm_serial(c.serial_number) == serial)
+            - used
+        )
+        if len(matches) != 1:
+            raise UserError(
+                "Destroying media %s needs its verified physical-destruction certificate%s."
+                % (
+                    self.seal_number,
+                    ": several match, name the one to use" if matches else "",
+                )
+            )
+        return matches
+
+    def action_destroy(self, certificate=None):
+        """The media was physically destroyed (A02 ERP audit M06-F9: the
+        'destroyed' location was unreachable, so a purged case's drive could
+        only stay in the lab). Bound to a VERIFIED physical-destruction
+        certificate for the case's media serial, answering a destruction
+        request the customer (or the corporate client) raised; one
+        certificate destroys one unit."""
+        _require_role(self.env, GROUP_OPERATOR, "Data Recovery Operator", "Destroying media")
+        for unit in self:
+            if unit.location in ("destroyed", "returned_to_customer"):
+                raise UserError("Unit %s is %s" % (unit.seal_number, unit.location))
+            case = unit.case_id.sudo()
+            denial = case._media_release_denial()
+            if denial:
+                raise UserError("Media %s cannot be destroyed: %s." % (unit.seal_number, denial))
+            cert = unit._destruction_certificate(certificate)
+            if cert.method != "physical_destruction":
+                raise UserError(
+                    "Certificate %s is an erasure, not a physical destruction." % cert.name
+                )
+            refusal = cert._fix_certify_denial(case.media_serial_number)
+            if refusal:
+                raise UserError("Media %s cannot be destroyed: %s." % (unit.seal_number, refusal))
+            request = cert.wipe_request_id if "wipe_request_id" in cert._fields else False
+            if not request or request.source not in ("customer", "corporate_decommission"):
+                raise UserError(
+                    "Certificate %s answers no destruction request from the customer: the "
+                    "customer's media is destroyed only on the customer's own request." % cert.name
+                )
+            if self.sudo().search_count(
+                [("destruction_certificate_id", "=", cert.id), ("id", "!=", unit.id)]
+            ):
+                raise UserError("Certificate %s already destroyed another unit." % cert.name)
+            unit._log(
+                "destroyed under physical-destruction certificate %s" % cert.name,
+                action="media_destroyed",
+            )
+            unit._guarded().write(
+                {
+                    "location": "destroyed",
+                    "holder": False,
+                    "destruction_certificate_id": cert.id,
+                }
+            )
+            publish(
+                self.env,
+                "data_case.media_destroyed",
+                "fix.data.media.unit",
+                unit.id,
+                {"seal": unit.seal_number, "certificate": cert.name},
+            )
+        return True
 
 
 class FixDataCleanroomSlot(models.Model):
@@ -958,10 +1187,33 @@ class FixDataQuote(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        """A02 ERP audit M06-F5: a fresh quotation on a case that already had
+        one side-stepped the re-quote approval (a raised price went out with
+        no lab-manager decision). One live quotation per case; a new one only
+        through action_requote, and none once the case is past custody."""
         Case = self.env["fix.data.recovery.case"]
+        requote = self._fix_guard_has_token()
+        seen = set()
         for vals in vals_list:
             if vals.get("case_id"):
-                self._assert_case_evaluated(Case.browse(vals["case_id"]))
+                case = Case.browse(vals["case_id"])
+                self._assert_case_evaluated(case)
+                if case.state not in ("new", "custody"):
+                    raise UserError(
+                        "Case %s is past quotation ('%s'): no new quotation is raised."
+                        % (case.name, case.state)
+                    )
+                live = case.sudo().quote_ids.filtered(
+                    lambda q: q.state in ("draft", "sent", "accepted")
+                )
+                if not requote and (live or case.id in seen):
+                    raise UserError(
+                        "Case %s already has a live quotation (%s): change its price or terms "
+                        "with Re-quote, which the customer accepts again (and the lab manager "
+                        "approves when the price rises)."
+                        % (case.name, ", ".join(live.mapped("name")) or "in this batch")
+                    )
+                seen.add(case.id)
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.data.quote") or "DRQ/New"
         return super().create(vals_list)
 
@@ -1100,7 +1352,8 @@ class FixDataQuote(models.Model):
                     "Case %s is past quotation ('%s'): its accepted price stands."
                     % (quote.case_id.name, quote.case_id.state)
                 )
-            new = self.create(
+            # the one legitimate second quotation: through the guard token
+            new = self._guarded().create(
                 {
                     "case_id": quote.case_id.id,
                     "currency_id": quote.currency_id.id,

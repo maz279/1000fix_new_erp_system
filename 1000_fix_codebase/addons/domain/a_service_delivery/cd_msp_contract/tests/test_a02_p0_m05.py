@@ -98,7 +98,13 @@ def m5(odoo_env):
         }
     )
     other = env["fix.msp.contract"].create(
-        {"name": "A02 M05 Other MSP %d" % n, "contract_id": contract.id, "operating_unit_id": ou.id}
+        {
+            "name": "A02 M05 Other MSP %d" % n,
+            "contract_id": contract.id,
+            "operating_unit_id": ou.id,
+            # A02 ERP audit M05-F4: no enrolment without a contracted count
+            "device_count": 4,
+        }
     )
     asset = env["fix.monitored.asset"].create(
         {
@@ -350,7 +356,7 @@ def test_P1_install_only_from_approved(m5):
     upd = _patch(m5, "KB-P1")
     with pytest.raises(UserError, match="only an approved patch"):
         _as(upd, m5.eng).action_install()
-    _as(upd, m5.eng).action_defer(days=2)
+    _as(upd, m5.eng).action_defer(days=2, reason="vendor recall pending")  # M05-F18
     with pytest.raises(UserError, match="only an approved patch"):
         _as(upd, m5.eng).action_install()
     _as(upd, m5.eng).action_approve()

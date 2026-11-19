@@ -14,6 +14,7 @@ from odoo.fields import Domain
 
 from libs.py.fix_events import publish
 
+from .msp_periods import month_dates
 from .msp_roles import (
     GROUP_CAB,
     GROUP_CHANGE_MANAGER,
@@ -599,22 +600,79 @@ class FixMspPatchUpdate(models.Model):
                 {"patch": upd.identifier or upd.title, "asset": upd.asset_id.agent_id},
             )
 
-    def action_defer(self, days=7):
+    # A02 ERP audit M05-F18: defer and fail took no role, no reason and any
+    # number of days (a negative one moved the deferral into the past).
+    _PATCH_DECIDERS = (GROUP_ENGINEER, GROUP_CAB, GROUP_CHANGE_MANAGER)
+    _PATCH_REASON_MIN = 10
+    _DEFAULT_MAX_DEFER_DAYS = 7  # the policy model's own default
+
+    def _msp_max_defer_days(self) -> int:
+        """The longest deferral the patch's approved policy allows (the policy
+        for its contract, else the estate-wide one), else the policy default."""
+        self.ensure_one()
+        policy = (
+            self.env["fix.msp.patch.policy"]
+            .sudo()
+            .search(
+                [
+                    ("approved_at", "!=", False),
+                    ("category", "=", self.category),
+                    "|",
+                    ("msp_contract_id", "=", False),
+                    ("msp_contract_id", "=", self.msp_contract_id.id),
+                ],
+                order="msp_contract_id desc, id desc",
+                limit=1,
+            )
+        )
+        return policy.max_defer_days if policy else self._DEFAULT_MAX_DEFER_DAYS
+
+    def _msp_patch_reason(self, text, what):
+        text = (text or "").strip()
+        if len(text) < self._PATCH_REASON_MIN:
+            raise UserError(
+                "%s needs the reason (at least %d characters)." % (what, self._PATCH_REASON_MIN)
+            )
+        return text
+
+    def action_defer(self, days=7, reason=""):
+        try:
+            days = int(days)
+        except (TypeError, ValueError):
+            raise UserError("Give the number of days to defer the patch.") from None
         for upd in self:
-            if upd.state == "installed":
-                raise UserError("Patch %s is installed — nothing to defer" % upd.id)
+            require_role(self.env, list(self._PATCH_DECIDERS), "Deferring a patch")
+            if upd.state in ("installed", "deferred"):
+                raise UserError("Patch %s is %s - nothing to defer" % (upd.id, upd.state))
+            text = upd._msp_patch_reason(reason, "Deferring a patch")
+            limit = upd._msp_max_defer_days()
+            if not 1 <= days <= limit:
+                raise UserError(
+                    "Patch %s can be deferred for 1 to %d days (its patch policy), not %d."
+                    % (upd.identifier or upd.title, limit, days)
+                )
+            if upd.severity == "critical":
+                require_role(
+                    self.env, [GROUP_CAB, GROUP_CHANGE_MANAGER], "Deferring a critical patch"
+                )
             upd._guarded().write(
                 {
                     "state": "deferred",
-                    "deferred_until": fields.Date.today() + timedelta(days=int(days or 7)),
+                    "deferred_until": fields.Date.context_today(upd) + timedelta(days=days),
                 }
             )
+            upd.message_post(body="Deferred %d day(s) by %s: %s" % (days, self.env.user.name, text))
 
     def action_fail(self, note=""):
         for upd in self:
-            if upd.state == "installed":
-                raise UserError("Patch %s is installed — cannot mark failed" % upd.id)
-            upd._guarded().write({"state": "failed", "fail_note": note or None})
+            require_role(self.env, list(self._PATCH_DECIDERS), "Marking a patch failed")
+            if upd.state != "approved":
+                raise UserError(
+                    "Patch %s is '%s': only an approved patch that was attempted can fail."
+                    % (upd.identifier or upd.title, upd.state)
+                )
+            text = upd._msp_patch_reason(note, "Marking a patch failed")
+            upd._guarded().write({"state": "failed", "fail_note": text[:250]})
 
 
 # ------------------------------------------------------------- SLA credits
@@ -719,6 +777,44 @@ class FixMspSlaCredit(models.Model):
     )
     applied_by_id = fields.Many2one("res.users", string="Applied By", readonly=True, copy=False)
     applied_at = fields.Datetime(readonly=True, copy=False)
+    # A02 ERP audit M05-F3 / F4: the credit was computed from the LIVE
+    # contract, so a later change of the target or the price recomputed an
+    # approved or applied credit; and from the contract's device count times
+    # its price, which billing never invoiced. The terms are pinned on the
+    # credit when it is drafted, and the money base is what was invoiced for
+    # the period when an invoice exists.
+    target_snapshot = fields.Float(string="SLA Target at Drafting (%)", readonly=True, copy=False)
+    contract_value_snapshot = fields.Monetary(
+        string="Contract Monthly Value at Drafting",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
+    invoiced_value = fields.Monetary(
+        string="Invoiced for the Period",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The MSP subscription charges invoiced (issued or paid) for this period, VAT "
+        "excluded.",
+    )
+    credit_base_value = fields.Monetary(
+        string="Credit Base",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="What the credit is a share of, and capped at: the invoiced figure, else the "
+        "contract's monthly value.",
+    )
+    value_basis = fields.Selection(
+        [
+            ("invoiced", "Invoiced for the period"),
+            ("contract", "Contract monthly value (nothing invoiced for the period)"),
+        ],
+        string="Credit Base From",
+        readonly=True,
+        copy=False,
+    )
 
     _contract_period_unique = models.Constraint(
         "UNIQUE (msp_contract_id, period_label)",
@@ -741,6 +837,11 @@ class FixMspSlaCredit(models.Model):
             "approved_amount",
             "applied_by_id",
             "applied_at",
+            "target_snapshot",
+            "contract_value_snapshot",
+            "invoiced_value",
+            "credit_base_value",
+            "value_basis",
         }
 
     def _msp_frozen_fields(self) -> set:
@@ -793,26 +894,27 @@ class FixMspSlaCredit(models.Model):
         "service_report_id.alert_count",
         "service_report_id.resolved_count",
         "service_report_id.breached_count",
-        "msp_contract_id.sla_target_pct",
-        "msp_contract_id.monthly_value",
+        "target_snapshot",
+        "credit_base_value",
         "manual_amount",
     )
     def _compute_amounts(self):
+        # the pinned terms (A02 ERP audit M05-F3), never the live contract
         for credit in self:
-            contract = credit.msp_contract_id
             report = credit.service_report_id
-            target = contract.sla_target_pct or 0.0
+            target = credit.target_snapshot or 0.0
+            base = credit.credit_base_value or 0.0
             credit.target_pct = target
             if report:
                 attainment = round((report.sla_attainment or 0.0) * 100.0, 1)
                 shortfall = min(max(target - attainment, 0.0), 100.0)
-                amount = round((contract.monthly_value or 0.0) * shortfall / 100.0, 2)
+                amount = round(base * shortfall / 100.0, 2)
                 credit.attainment_pct = attainment
                 # measured breaches when the report carries them (A02 audit M05-P2)
                 credit.breach_count = report.breached_count or max(
                     report.alert_count - report.resolved_count - report.pending_count, 0
                 )
-                credit.computed_amount = min(amount, contract.monthly_value or 0.0)
+                credit.computed_amount = min(amount, base)
             else:
                 credit.attainment_pct = 0.0
                 credit.breach_count = 0
@@ -828,11 +930,16 @@ class FixMspSlaCredit(models.Model):
             amount = credit.manual_amount or 0.0
             if amount < 0:
                 raise ValidationError("A manual SLA credit cannot be negative.")
-            cap = credit.msp_contract_id.monthly_value or 0.0
+            cap = (
+                credit.credit_base_value
+                if credit.value_basis
+                else credit.msp_contract_id.sudo()._msp_credit_base(credit.period_label)[0]
+            ) or 0.0
             if amount > cap + 0.005:
                 raise ValidationError(
-                    "A manual SLA credit of BDT %.2f exceeds the contract's monthly value of "
-                    "BDT %.2f - a credit is capped at the monthly value." % (amount, cap)
+                    "A manual SLA credit of BDT %.2f exceeds the BDT %.2f it can be a share of "
+                    "(the period's invoiced figure, else the contract's monthly value) - a "
+                    "credit is capped there." % (amount, cap)
                 )
 
     def write(self, vals):
@@ -859,6 +966,9 @@ class FixMspSlaCredit(models.Model):
         result = super().write(vals)
         if typed and not self._fix_guard_open():
             typed._guarded().write({"manual_set_by_id": self.env.user.id})
+        if {"msp_contract_id", "period_label"} & set(vals):
+            # a draft credit moved to another contract or period is re-pinned
+            self.filtered(lambda c: c.state == "draft")._msp_pin_terms()
         # The approval covers the amount that was approved: a different amount
         # voids it at once (A02 audit M05-2, probe S2), and the M63 approval
         # with it (A02 audit B1).
@@ -883,11 +993,42 @@ class FixMspSlaCredit(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
+        records._msp_pin_terms()
         if not self._fix_guard_open():
             typed = records.filtered("manual_amount")
             if typed:
                 typed._guarded().write({"manual_set_by_id": self.env.user.id})
         return records
+
+    def _msp_pin_terms(self):
+        """Pin the target and the money base the credit is computed from."""
+        for credit in self:
+            msp = credit.msp_contract_id.sudo()
+            base, basis, invoiced = msp._msp_credit_base(credit.period_label)
+            credit._guarded().write(
+                {
+                    "target_snapshot": msp.sla_target_pct or 0.0,
+                    "contract_value_snapshot": msp.monthly_value or 0.0,
+                    "invoiced_value": invoiced,
+                    "credit_base_value": base,
+                    "value_basis": basis,
+                }
+            )
+
+    def init(self):
+        """Credits drafted before the terms were pinned keep the figures they
+        were computed from."""
+        self.env.cr.execute(
+            """
+            UPDATE fix_msp_sla_credit c
+               SET target_snapshot = COALESCE(m.sla_target_pct, 0),
+                   contract_value_snapshot = COALESCE(m.monthly_value, 0),
+                   credit_base_value = COALESCE(m.monthly_value, 0),
+                   value_basis = 'contract'
+              FROM fix_msp_contract m
+             WHERE m.id = c.msp_contract_id AND c.value_basis IS NULL
+            """
+        )
 
     def action_approve(self):
         """The M63 engine's apply method: runs only from the approver's inbox
@@ -1589,8 +1730,9 @@ class FixMspChangeRecord(models.Model):
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Record %s must be approved before implementation" % rec.id)
-            if rec.risk == "high" and not (rec.rollback_plan or "").strip():
-                raise UserError("Change %s is high risk and has no rollback plan." % rec.name)
+            # A02 ERP audit M05-F19: BRU-RMS-08 needs a rollback plan on every
+            # change, at implementation too (not only a high-risk one).
+            rec._msp_check_rollback()
             # The approver does not also carry out the change (spec §13).
             require_other_person(self.env, rec.cab_approver_id, "Implementing a change")
             if not rec.emergency:
@@ -1727,6 +1869,39 @@ class FixMspContractEngines(models.Model):
             devices = contract.device_count or len(contract.asset_ids)
             contract.monthly_value = (contract.per_device_monthly or 0.0) * devices
 
+    def _msp_invoiced_value(self, period_label) -> float:
+        """What was invoiced (issued or paid, VAT excluded) for the period on
+        the MSP subscription of this contract's M08 contract (M39), or 0."""
+        self.ensure_one()
+        first, last = month_dates(period_label)
+        if not first or "fix.subscription.charge" not in self.env:
+            return 0.0
+        charges = (
+            self.env["fix.subscription.charge"]
+            .sudo()
+            .search(
+                [
+                    ("subscription_id.contract_id", "=", self.contract_id.id),
+                    ("period_start", ">=", first),
+                    ("period_start", "<=", last),
+                    ("invoice_id.state", "in", ("issued", "paid")),
+                    ("company_id", "=", self.company_id.id),
+                ]
+            )
+        )
+        return round(sum(charges.mapped("amount")), 2)
+
+    def _msp_credit_base(self, period_label):
+        """(base, basis, invoiced): the figure an SLA credit for the period is
+        a share of. A02 ERP audit M05-F4: the invoiced figure when the period
+        was invoiced (a credit never exceeds what the client was billed),
+        else the contract's monthly value."""
+        self.ensure_one()
+        invoiced = self._msp_invoiced_value(period_label)
+        if invoiced > 0.005:
+            return invoiced, "invoiced", invoiced
+        return self.monthly_value or 0.0, "contract", 0.0
+
     def action_compute_sla_credits(self):
         """Draft a credit for every period whose report attainment missed the
         target: shortfall % of the monthly value (capped at the monthly
@@ -1758,7 +1933,9 @@ class FixMspContractEngines(models.Model):
                     body="No SLA attainment figure on this report, so no SLA credit was "
                     "computed for %s. Regenerate the report to compute one." % report.period_label
                 )
-            for report in reports - missing:
+            for report in (reports - missing).filtered(
+                lambda r, c=contract: r.msp_contract_id == c
+            ):
                 attainment = round((report.sla_attainment or 0.0) * 100.0, 1)
                 if attainment >= contract.sla_target_pct:
                     continue

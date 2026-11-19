@@ -134,6 +134,9 @@ export const SCREENS = {
       { m: 'action_confirm_target_serial', l: 'Confirm Target Drive Serial', ask: 'Serial read off the target drive', kwarg: 'serial' },
       { m: 'action_request_handover_otp', l: 'Send Handover Code' },
       { m: 'action_mark_unrecoverable', l: 'Mark Unrecoverable', ask: 'Reason (no data, no fee)', kwarg: 'reason' },
+      /* A02 ERP audit M06-F1: hand-over needs the case's paid M20 invoice, or one of these */
+      { m: 'action_approve_credit', l: 'Approve Hand-over on Credit (Finance)', ask: 'Why the customer may pay on account', kwarg: 'note' },
+      { m: 'action_waive_charge', l: 'Waive Charge (Lab Manager)', ask: 'Why the charge is waived', kwarg: 'note' },
       { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
       { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
       { m: 'action_close', l: 'Close Case' }
@@ -152,8 +155,13 @@ export const SCREENS = {
     stateField: 'location',
     actions: [
       { m: 'action_transfer', l: 'Move Media', ask: 'Location (z4_lab/cleanroom/vault/reception)', kwarg: 'location' },
-      { m: 'action_break_seal_with_witness', l: 'Break Seal (Witnessed)', ask: 'Witness login (a second person, not you)', kwarg: 'witness_user_id' },
-      { m: 'action_return', l: 'Return to Customer' }
+      /* A02 ERP audit M06-F11: the named witness confirms in their own session */
+      { m: 'action_break_seal_with_witness', l: 'Request Seal Break (names the witness)', ask: 'Witness login (a second person, not you)', kwarg: 'witness_user_id' },
+      { m: 'action_confirm_seal_break', l: 'Confirm as Witness' },
+      /* M06-F10: once the case allows, to the customer or one of its contacts */
+      { m: 'action_return', l: 'Return to Customer' },
+      /* M06-F9: on the verified physical-destruction certificate the customer asked for */
+      { m: 'action_destroy', l: 'Destroy (Verified Cert)', ask: 'Physical-destruction certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' }
     ] },
   'M06-cleanroom': { kind: 'model_list', model: 'fix.data.cleanroom.slot',
     cols: ['start_at', 'end_at', 'purpose', 'iso_class', 'case_id', 'technician_id', 'state'],
@@ -191,6 +199,9 @@ export const SCREENS = {
     actions: [
       { m: 'action_confirm_target_serial', l: 'Confirm Target Drive Serial', ask: 'Serial read off the target drive', kwarg: 'serial' },
       { m: 'action_request_handover_otp', l: 'Send Handover Code' },
+      /* A02 ERP audit M06-F1: hand-over needs the case's paid M20 invoice, or one of these */
+      { m: 'action_approve_credit', l: 'Approve Hand-over on Credit (Finance)', ask: 'Why the customer may pay on account', kwarg: 'note' },
+      { m: 'action_waive_charge', l: 'Waive Charge (Lab Manager)', ask: 'Why the charge is waived', kwarg: 'note' },
       { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
       { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
       { m: 'action_access_recovered_data', l: 'Z4 Access (TOTP)', ask: '6-digit authenticator code (SC-002)', kwarg: 'step_up_token' }
@@ -210,7 +221,9 @@ export const SCREENS = {
     ] },
   'M06-certs': { kind: 'model_list', model: 'fix.data.wipe.certificate', create: false,
     cols: ['name', 'device_id', 'serial_number', 'method', 'sanitization_status', 'verified_by_id', 'verified_at', 'verification_hash', 'certified_at'],
-    stateField: 'sanitization_status' }
+    stateField: 'sanitization_status',
+    /* A02 ERP audit X-17: the certificate handed to the customer / auditor */
+    actions: [{ m: 'p03_print_document', print: 'a4', l: 'Print Certificate', states: ['verified'] }] }
 };
 
 /* built-in report chips -> their OWN computed pack (backend REPORTS exist) */

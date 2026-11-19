@@ -100,11 +100,12 @@ def test_a_device_beyond_the_contracted_count_is_refused(m5):
         m5.msp.write({"device_count": 1})
 
 
-def test_a_contract_with_no_count_bills_every_enrolled_device(m5):
+def test_a_contract_with_no_count_enrols_nothing(m5):
+    """A02 ERP audit M05-F4: a contract with no count enrolled without limit
+    and billing never saw the devices. Fail closed: no count, no enrolment."""
     m5.msp.write({"device_count": 0, "per_device_monthly": 1000.0})
-    _asset(m5, "B1")
-    m5.msp.invalidate_recordset()
-    assert m5.msp.monthly_value == 1000.0 * len(m5.msp.asset_ids)
+    with pytest.raises(ValidationError, match="no contracted device count"):
+        _asset(m5, "B1")
 
 
 # --- BRU-RMS-10 -------------------------------------------------------------

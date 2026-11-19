@@ -187,8 +187,11 @@ def test_patch_update_defer_fail_and_unique(ms):
         "operating_unit_id": ms.ou.id,
     }
     upd = env["fix.msp.patch.update"].create(vals)
-    upd.action_defer(days=3)
+    # A02 ERP audit M05-F18: a deferral has its reason; only an approved patch fails
+    upd._guarded().write({"state": "missing"})  # whatever a live auto-approve policy did
+    upd.action_defer(days=3, reason="vendor recall pending")
     assert upd.state == "deferred" and upd.deferred_until == fields.Date.today() + timedelta(days=3)
+    upd.action_approve()
     upd.action_fail(note="hash mismatch")
     assert upd.state == "failed" and upd.fail_note == "hash mismatch"
     with pytest.raises(IntegrityError):

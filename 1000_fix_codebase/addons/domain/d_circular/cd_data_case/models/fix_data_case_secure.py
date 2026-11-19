@@ -35,6 +35,7 @@ from odoo.exceptions import AccessError, UserError
 from odoo.tools import misc
 
 from .fix_data_case import (
+    GROUP_LAB_MANAGER,
     GROUP_OPERATOR,
     GROUP_Z4_CUSTODIAN,
     _norm_serial,
@@ -56,6 +57,12 @@ IMAGE_SECOND_PERSON_PARAM = "cd_data_case.image_verification_second_person"
 HANDOVER_TTL_MINUTES = 10
 HANDOVER_MAX_ATTEMPTS = 3
 _HANDOVER_SCOPE = "cd_data_case.handover_otp"
+_IMAGE_SCOPE = "cd_data_case.image_hash"
+# A02 ERP audit M06-F1: who may let recovered data go out unpaid on account.
+# A credit decision is finance's (the accounting administrator); the lab
+# manager may waive a charge, never for a case they work.
+GROUP_CREDIT_DECIDER = "account.group_account_manager"
+SETTLEMENT_REASON_MIN = 10
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -113,6 +120,12 @@ class FixDataRecoveryCaseSecure(models.Model):
         readonly=True,
         copy=False,
     )
+    # A02 ERP audit M06-F12: the verifier recomputed a hash that was on the
+    # record for them to copy. Until verification the recorded hashes are
+    # kept only as keyed digests; the plain hash is published on the record
+    # by the verification itself.
+    image_hash_digest = fields.Char(readonly=True, copy=False)
+    image_source_digest = fields.Char(readonly=True, copy=False)
     image_matches_source = fields.Boolean(
         compute="_compute_image_matches_source",
         string="Image Hash Equals Source Hash",
@@ -157,6 +170,26 @@ class FixDataRecoveryCaseSecure(models.Model):
     retention_flagged_at = fields.Datetime(
         string="Retention Overdue Flagged At", readonly=True, copy=False
     )
+    # ---- settlement (A02 ERP audit M06-F1) --------------------------------
+    settlement_exception = fields.Selection(
+        [
+            ("credit_approved", "Credit Approved (the customer pays on account)"),
+            ("charge_waived", "Charge Waived"),
+        ],
+        string="Hand-over Without Payment",
+        readonly=True,
+        copy=False,
+        tracking=True,
+    )
+    settlement_exception_note = fields.Text(
+        string="Credit / Waiver Reason", readonly=True, copy=False
+    )
+    settlement_exception_by_id = fields.Many2one(
+        "res.users", string="Credit / Waiver Recorded By", readonly=True, copy=False
+    )
+    settlement_exception_at = fields.Datetime(
+        string="Credit / Waiver Recorded At", readonly=True, copy=False
+    )
 
     _SECURE_GUARDED = {
         "assigned_technician_id",
@@ -183,6 +216,12 @@ class FixDataRecoveryCaseSecure(models.Model):
         # recorded by action_record_inventory only
         "recovered_files_count",
         "recovered_volume_gb",
+        "image_hash_digest",
+        "image_source_digest",
+        "settlement_exception",
+        "settlement_exception_note",
+        "settlement_exception_by_id",
+        "settlement_exception_at",
     }
 
     def _fix_guarded_fields(self) -> set:
@@ -321,15 +360,24 @@ class FixDataRecoveryCaseSecure(models.Model):
                 )
             rec._guarded().write(
                 {
-                    "image_source_sha256": source,
-                    "image_sha256_hash": image,
+                    # the plain hashes are published only by the verification
+                    # (A02 ERP audit M06-F12); a source hash that differs from
+                    # the image's tells the verifier nothing about it
+                    "image_source_sha256": source if source != image else False,
+                    "image_sha256_hash": False,
+                    "image_hash_digest": rec._image_digest(image),
+                    "image_source_digest": rec._image_digest(source),
                     "image_tool": (tool or "").strip() or rec.write_blocker_serial or False,
                     "imaged_at": fields.Datetime.now(),
                     "imaged_by_id": self.env.uid,
                 }
             )
-            rec._custody_log("imaged", "forensic image recorded (sha256 %s)" % image)
+            rec._custody_log("imaged", "forensic image recorded (hash withheld until verified)")
         return True
+
+    def _image_digest(self, value):
+        self.ensure_one()
+        return misc.hmac(self.env(su=True), _IMAGE_SCOPE, "%s:%s" % (self.id, value))
 
     def action_verify_image(self, recomputed_hash=None):
         """Verify the image: the verifier recomputes the image hash, which must
@@ -338,7 +386,10 @@ class FixDataRecoveryCaseSecure(models.Model):
         second = _param_on(self.env, IMAGE_SECOND_PERSON_PARAM, True)
         for rec in self:
             _require_role(self.env, GROUP_OPERATOR, "Data Recovery Operator", "Verifying an image")
-            if not rec.image_sha256_hash:
+            recorded = rec.image_hash_digest or (
+                rec._image_digest(rec.image_sha256_hash) if rec.image_sha256_hash else False
+            )
+            if not recorded:
                 raise UserError("Case %s has no recorded image to verify." % rec.name)
             if rec.image_verified_at:
                 raise UserError("Case %s: the image is already verified." % rec.name)
@@ -350,18 +401,20 @@ class FixDataRecoveryCaseSecure(models.Model):
                 )
             if not given:
                 raise UserError("Give the image SHA-256 you recomputed (64 hex digits).")
-            if given != rec.image_sha256_hash:
+            if rec._image_digest(given) != recorded:
                 raise UserError(
                     "Case %s: the recomputed hash does not match the recorded image hash; the "
                     "image is not verified. Re-image the media." % rec.name
                 )
-            rec._guarded().write(
-                {
-                    "image_verified_at": fields.Datetime.now(),
-                    "image_verified_by_id": self.env.uid,
-                    "image_verify_method": "recomputed" if same else "second_person",
-                }
-            )
+            vals = {
+                "image_sha256_hash": given,
+                "image_verified_at": fields.Datetime.now(),
+                "image_verified_by_id": self.env.uid,
+                "image_verify_method": "recomputed" if same else "second_person",
+            }
+            if rec.image_source_digest and rec.image_source_digest == recorded:
+                vals["image_source_sha256"] = given
+            rec._guarded().write(vals)
             rec._custody_log("image_verified", "forensic image verified (hash recomputed)")
         return True
 
@@ -631,6 +684,10 @@ class FixDataRecoveryCaseSecure(models.Model):
                 raise UserError(
                     "Case %s: confirm the target drive serial before handover." % rec.name
                 )
+            # A02 ERP audit M06-F1: recovered data went out with nothing paid
+            denial = rec._handover_settlement_denial()
+            if denial:
+                raise UserError("Case %s cannot be handed over: %s." % (rec.name, denial))
             method, ref = rec._handover_verify(verification)
             if receipt_file and not receipt_attachment_id:
                 receipt = rec._file_handover_receipt(receipt_file, receipt_filename)
@@ -656,6 +713,154 @@ class FixDataRecoveryCaseSecure(models.Model):
                 }
             )
         return True
+
+    # ---- settlement (A02 ERP audit M06-F1) ---------------------------------
+    def _data_outcome(self):
+        """'recovered', 'unrecoverable' or None (not decided yet)."""
+        self.ensure_one()
+        if self.state in ("recovered", "handover", "purged") or (
+            self.state == "closed" and self.handover_at
+        ):
+            return "recovered"
+        unrecoverable = self.sudo().custody_event_ids.filtered(
+            lambda e: e.action == "unrecoverable"
+        )
+        if self.state == "unrecoverable" or (self.state == "closed" and unrecoverable):
+            return "unrecoverable"
+        return None
+
+    def _data_billable(self):
+        """(quote, [(description, amount)], outcome): what the case bills
+        for its accepted quotation (spec §12.2, M20 receivable). Recovered:
+        the recovery fee and the donor fee. Unrecoverable: under
+        no-data-no-fee only the non-refundable donor fee; without the
+        guarantee the quotation stands. Nothing before the outcome."""
+        self.ensure_one()
+        quote = self.sudo().quote_ids.filtered(lambda q: q.state == "accepted").sorted("id")[-1:]
+        outcome = self._data_outcome()
+        if not quote or not outcome:
+            return quote, [], outcome
+        fee = round(quote.amount or 0.0, 2)
+        donor = round(quote.donor_fee_bdt or 0.0, 2)
+        lines = []
+        if fee > 0 and (outcome == "recovered" or not quote.no_data_no_fee_applies):
+            lines.append(
+                (
+                    "Data recovery fee - case %s (quotation %s)" % (self.name, quote.name),
+                    fee,
+                )
+            )
+        if donor > 0:
+            lines.append(
+                (
+                    "Donor media / parts fee (non-refundable) - case %s (quotation %s)"
+                    % (self.name, quote.name),
+                    donor,
+                )
+            )
+        return quote, lines, outcome
+
+    def _data_invoice(self):
+        """The case's M20 invoice (not cancelled), if M20 is installed."""
+        self.ensure_one()
+        if "fix.ar.invoice" not in self.env:
+            return None
+        return (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            .search(
+                [
+                    ("source_model", "=", self._name),
+                    ("source_id", "=", self.id),
+                    ("state", "!=", "cancelled"),
+                ],
+                order="id desc",
+                limit=1,
+            )
+        )
+
+    def _handover_settlement_denial(self) -> str:
+        """'' when the case may be handed over, else why not. Fail closed: a
+        billable case goes out on its PAID M20 invoice, or on a recorded credit
+        approval or waiver."""
+        self.ensure_one()
+        _quote, lines, _outcome = self._data_billable()
+        total = round(sum(amount for _d, amount in lines), 2)
+        if total <= 0.005 or self.settlement_exception:
+            return ""
+        invoice = self._data_invoice()
+        if invoice is None:
+            return (
+                "BDT %.2f is billable and M20 billing is not installed to show it paid; record "
+                "a credit approval or a waiver" % total
+            )
+        if not invoice:
+            return (
+                "BDT %.2f is billable and no M20 invoice exists yet (it is raised when the "
+                "case is recovered); collect payment against it, or record a credit approval "
+                "or a waiver" % total
+            )
+        if invoice.state != "paid":
+            return "its invoice %s is %s, not paid" % (
+                invoice.name if invoice.name and invoice.name != "New" else "AR/%s" % invoice.id,
+                invoice.state,
+            )
+        return ""
+
+    def _settlement_exception(self, kind, note, what):
+        note = (note or "").strip()
+        if len(note) < SETTLEMENT_REASON_MIN:
+            raise UserError(
+                "%s needs the reason (at least %d characters)." % (what, SETTLEMENT_REASON_MIN)
+            )
+        for rec in self:
+            if rec.state != "recovered":
+                raise UserError(
+                    "%s is recorded before the handover of a recovered case (case %s is '%s')."
+                    % (what, rec.name, rec.state)
+                )
+            if rec.settlement_exception:
+                raise UserError("Case %s already carries a credit approval or waiver." % rec.name)
+            rec._guarded().write(
+                {
+                    "settlement_exception": kind,
+                    "settlement_exception_note": note,
+                    "settlement_exception_by_id": self.env.uid,
+                    "settlement_exception_at": fields.Datetime.now(),
+                }
+            )
+            rec.message_post(body="%s by %s: %s" % (what, self.env.user.name, note))
+        return True
+
+    def action_approve_credit(self, note=None):
+        """Finance lets the recovered data go to the customer before payment
+        (an on-account customer): the accounting administrator only."""
+        group = self.env.ref(GROUP_CREDIT_DECIDER, raise_if_not_found=False)
+        if not (self.env.su or (group and self.env.user.has_group(GROUP_CREDIT_DECIDER))):
+            raise AccessError(
+                "Approving a hand-over on credit is a finance decision (Accounting "
+                "Administrator)."
+            )
+        # finance holds no M06 rights: the decision is checked above, recorded
+        # as the deciding user (sudo keeps the uid)
+        return self.sudo()._settlement_exception(
+            "credit_approved", note, "Hand-over on credit approved"
+        )
+
+    def action_waive_charge(self, note=None):
+        """The lab manager waives the charge (goodwill, a re-work of the lab's
+        own failure); never on a case they are assigned to."""
+        _require_role(
+            self.env, GROUP_LAB_MANAGER, "Data Recovery Lab Manager", "Waiving a recovery charge"
+        )
+        if not self.env.su:
+            for rec in self:
+                if self.env.user in rec._z4_staff():
+                    raise UserError(
+                        "Segregation of duties: %s works case %s, so another lab manager "
+                        "waives its charge." % (self.env.user.name, rec.name)
+                    )
+        return self._settlement_exception("charge_waived", note, "Charge waived")
 
     # ---- B4: retention ------------------------------------------------------
     @api.model

@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 # cd_msp_contract models. fix_msp_ext extends fix.msp.alert and
 # fix.remote.session — its name sorts after the base file, so the
 # alphabetical import below is also the correct load order. fix_msp_lifecycle
@@ -16,4 +17,7 @@ from . import (
     fix_msp_rules_bru,
     fix_msp_services,
     fix_msp_services_onboarding,
+    # A02 ERP audit (2026-11-19, stream B1): the guarded contract terms and the
+    # credit's report check extend everything above, so they load last.
+    fix_msp_a02_controls,
 )

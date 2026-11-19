@@ -43,6 +43,9 @@ CUSTODY_ACTIONS = [
     ("z4_assigned", "Z4 Staff Assigned"),
     ("imaged", "Forensic Image Recorded"),
     ("image_verified", "Forensic Image Verified"),
+    # A02 ERP audit M06-F9: a unit destroyed under a physical-destruction
+    # certificate, and the witness's own confirmation of a seal break (F11)
+    ("media_destroyed", "Media Destroyed"),
 ]
 
 
@@ -217,7 +220,9 @@ class FixDataCustodyEvent(models.Model):
                 operating_unit_id=case.operating_unit_id.id or False,
             )
             witness = vals.get("witness_id") or False
-            if vals.get("action") == "seal_broken" and (not witness or witness == self.env.uid):
+            if vals.get("action") == "seal_broken" and not self._seal_break_witnessed(
+                vals, witness
+            ):
                 raise UserError(
                     "FLAW-06.1 Dual-Custody Gate: a seal break is recorded only with a "
                     "second witness who is not the person breaking the seal."
@@ -243,6 +248,25 @@ class FixDataCustodyEvent(models.Model):
             vals["entry_hash"] = hashlib.sha256(seed.encode()).hexdigest()
             last_hash[case.id] = vals["entry_hash"]
         return super().create(vals_list)
+
+    def _seal_break_witnessed(self, vals, witness) -> bool:
+        """A seal break is recorded with a witness who is not the person
+        breaking it. A02 ERP audit M06-F11: the witness confirms in their own
+        session, so the event is written BY the witness, for the break another
+        person asked for and named them on."""
+        if not witness:
+            return False
+        if witness != self.env.uid:
+            return True
+        unit = (
+            self.env["fix.data.media.unit"].sudo().browse(vals.get("media_unit_id") or 0).exists()
+        )
+        return bool(
+            unit
+            and unit.seal_break_witness_id.id == witness
+            and unit.seal_break_requested_by_id
+            and unit.seal_break_requested_by_id.id != witness
+        )
 
     def write(self, vals):
         raise UserError("The chain of custody is append-only: a recorded event cannot be changed.")
@@ -674,6 +698,15 @@ class FixDataRecoveryCase(models.Model):
             note = " - %s" % reason if reason else ""
             rec._custody_log("unrecoverable", "case marked unrecoverable%s" % note)
             rec._guarded().write({"state": "unrecoverable"})
+            # A02 ERP audit M06-F1: billing hears of the outcome (under
+            # no-data-no-fee only the donor fee is owed)
+            publish(
+                self.env,
+                "data_case.unrecoverable",
+                "fix.data.recovery.case",
+                rec.id,
+                {"case": rec.name},
+            )
 
     # action_handover lives in fix_data_case_secure (A02 audit M06-P2): a
     # verified recipient, a signed receipt and the confirmed target drive.
@@ -693,15 +726,18 @@ class FixDataRecoveryCase(models.Model):
                     "Case %s closes after the purge, an unrecoverable verdict or a declined "
                     "quotation (it is '%s')." % (rec.name, rec.state)
                 )
-            if rec.state != "purged":
-                held = rec.media_unit_ids.filtered(
-                    lambda u: u.location not in ("returned_to_customer", "destroyed")
+            # A02 ERP audit M06-F9: a purged case closed with the customer's
+            # drive still in the lab. Every case closes only once its media
+            # went back to the customer or was destroyed under a certificate.
+            held = rec.media_unit_ids.filtered(
+                lambda u: u.location not in ("returned_to_customer", "destroyed")
+            )
+            if held:
+                raise UserError(
+                    "Case %s: return the customer's media first, or destroy it under a "
+                    "verified physical-destruction certificate (%s)."
+                    % (rec.name, ", ".join(held.mapped("seal_number")))
                 )
-                if held:
-                    raise UserError(
-                        "Case %s: return the customer's media first (%s)."
-                        % (rec.name, ", ".join(held.mapped("seal_number")))
-                    )
             rec._custody_log("closed", "case closed")
             rec._guarded().write({"state": "closed"})
 
@@ -1108,11 +1144,42 @@ class FixDataWipeCertificate(models.Model):
         return True
 
     def action_mark_failed(self):
+        """Erasure could not be verified. A02 ERP audit M06-F22: anyone could
+        fail any certificate. It is the verifier's decision, or the operator's
+        who recorded the wipe and saw it fail; only a pending certificate."""
         for rec in self:
-            if rec.sanitization_status == "verified":
-                raise UserError("A verified certificate cannot be failed")
+            if rec.sanitization_status != "pending_verification":
+                raise UserError(
+                    "Only a certificate awaiting verification can be failed (%s is '%s')."
+                    % (rec.name, rec.sanitization_status)
+                )
+            user = self.env.user
+            if not (
+                self.env.su
+                or user.has_group(GROUP_WIPE_VERIFIER)
+                or (user == rec.technician_id and user.has_group(GROUP_OPERATOR))
+            ):
+                raise AccessError(
+                    "Failing wipe certificate %s is for a Wipe Certificate Verifier, or for the "
+                    "operator who recorded it." % rec.name
+                )
             rec._guarded().write({"sanitization_status": "failed"})
+            rec.message_post(body="Marked failed by %s." % user.name)
         return True
+
+    def _fix_failed_before(self):
+        """Certificates for the same media serial that failed before this
+        one was recorded."""
+        self.ensure_one()
+        serial = _norm_serial(self.serial_number)
+        if not serial:
+            return self.browse()
+        domain = [("sanitization_status", "=", "failed"), ("serial_number", "!=", False)]
+        if self.id:
+            domain.append(("id", "<", self.id))
+        return (
+            self.sudo().search(domain).filtered(lambda c: _norm_serial(c.serial_number) == serial)
+        )
 
     def _fix_certify_denial(self, serial) -> str:
         """'' when this certificate lets the media `serial` be purged or
@@ -1149,6 +1216,16 @@ class FixDataWipeCertificate(models.Model):
                 cert.name,
                 cert.serial_number,
                 serial,
+            )
+        # A02 ERP audit M06-F6 (BRU-DTS-10): once erasure of this media failed,
+        # only a physical destruction certifies it. A fresh erasure certificate
+        # raised without the request released the media all the same.
+        failed = cert._fix_failed_before()
+        if failed and cert.method != "physical_destruction":
+            return (
+                "erasure of media %s already failed (certificate %s): only a verified "
+                "physical destruction certifies it now (BRU-DTS-10)"
+                % (cert.serial_number, ", ".join(failed.mapped("name")))
             )
         return ""
 

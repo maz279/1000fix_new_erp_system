@@ -147,8 +147,14 @@ def m6(odoo_env):
             .create({"name": name, "raw": b"%PDF signed", "res_model": CASE, "res_id": case.id})
         )
 
+    def settle(case):
+        """A02 ERP audit M06-F1: a billable case goes out on its paid M20
+        invoice, a credit approval or a waiver (the lab manager's here)."""
+        case.with_user(manager2).action_waive_charge(note="goodwill: test of the hand-over path")
+
     def handed_over(case, target="TGT-P1-%d" % n):
         recovered(case)
+        settle(case)
         case.write({"handover_recipient_id": contact.id, "encrypted_target_serial": target})
         case.action_confirm_target_serial(target)
         receipt(case)
@@ -311,7 +317,8 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
         m6.tech, CASE, case, "action_record_image", {"hashes": "%s %s" % (m6.digest, m6.digest)}
     )
     assert out["success"], out
-    assert case.image_sha256_hash == m6.digest and case.imaged_by_id == m6.tech
+    # A02 ERP audit M06-F12: the hash is withheld until a second person verifies it
+    assert not case.image_sha256_hash and case.imaged_by_id == m6.tech
     with pytest.raises(UserError, match="verified forensic image"):
         case.action_recovered()
     with pytest.raises(UserError, match="Segregation of duties"):
@@ -320,6 +327,7 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
         case.with_user(m6.tech2).action_verify_image(recomputed_hash="f" * 64)
     case.with_user(m6.tech2).action_verify_image(recomputed_hash=m6.digest.upper())
     assert case.image_verify_method == "second_person" and case.image_matches_source
+    assert case.image_sha256_hash == m6.digest
     with pytest.raises(UserError, match="frozen"):
         case.action_record_image(source_hash=m6.digest, image_hash="e" * 64)
     case.action_recovered()
@@ -339,6 +347,7 @@ def test_p2_the_second_person_rule_is_a_switch(m6):
 
 def test_p2_handover_needs_a_verified_recipient_receipt_and_target(m6):
     case = m6.recovered(m6.new_case())
+    m6.settle(case)
     stranger = m6.env["res.partner"].create({"name": "Walk-in stranger", "phone": "01711000888"})
     with pytest.raises(UserError, match="name the handover recipient"):
         case.action_handover(verification="123456")
@@ -374,6 +383,7 @@ def test_p2_handover_needs_a_verified_recipient_receipt_and_target(m6):
 
 def test_p2_handover_by_a_verified_id_document(m6):
     case = m6.recovered(m6.new_case())
+    m6.settle(case)
     case.write({"handover_recipient_id": m6.customer.id, "encrypted_target_serial": "TGT-ID"})
     case.action_confirm_target_serial("TGT-ID")
     m6.receipt(case)
