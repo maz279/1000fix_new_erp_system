@@ -145,5 +145,14 @@ All runs used the private clone `fix_test_m41c2` (a copy of fix_real), upgraded 
 
 ## 5. State
 
-- Commit `50f96982` on `fix/m41-capture-pass2` (worktree `m41cap2-wt`), from `e73400f6`.
-- Deploy to 8069 (fix_real) and 8090 (fix_dev): see the deploy record.
+**LIVE on 8069 (fix_real) and 8090 (fix_dev), 20 Nov 2026.** The user approved the deploy.
+
+- Rebased onto `a12f34b2` and landed as `a8480732` (code) and `db6ee05c` (report), by a compare-and-swap `update-ref` plus `read-tree -m -u`. Pushed together with the branch `fix/m41-capture-pass2`.
+- Backups: `_migration/backups/fix_real_pre_m41_capture2_2026-11-20.dump` (52.9 MB) and `fix_dev_pre_m41_capture2_2026-11-20.dump` (49 MB).
+- Upgrade: `-u cd_wms_structure,cd_inventory,cd_p03_portal` on both databases, 0 errors.
+  - Versions: cd_wms_structure 19.0.1.1.0, cd_inventory 19.0.1.5.0.
+  - 28 `fix_wms_*` tables exist.
+  - Warehouses enabled by the migration: 0 on fix_real, 3 on fix_dev (the ones that already had zones).
+- One restart: each server was stopped by its listening port, and its relaunch loop brought it back. New PIDs: 8069 = 9816, 8090 = 11212. `/web/login` returns 200 on both.
+- Read-only walk of both estates (`walk_m41.mjs`, `READONLY=1`): 9/9 pages, every capture chip opens its form, 36/36 screens render, 0 console errors. The new lists read their columns; they are empty on both estates, which is expected.
+- Private test assets: DB `fix_test_m41c2`, launch entry `odoo-m41-cap2` (port 8191) and comparison DB `fix_test_m41base`.
