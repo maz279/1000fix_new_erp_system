@@ -141,4 +141,26 @@ All runs used worktree `m12cap2-wt`, on HEAD 6d1dbd77 plus this change, on the p
   - automatic detection of off-platform or collusion patterns (FR-064/065 detect; this pass records and decides the reports people make).
 - **The evidence is captured by an operator in the workspace.** The seller's own job app (FR-039, offline-tolerant) is not built.
 
-DEPLOY_PLACEHOLDER
+## 5. State: landed, pushed, deployed
+
+**Landed and pushed.**
+- Landed as `5c8a4783` on `fix/a03-live-data-and-pending-work`: rebased twice onto the moving tip, then a CAS ref update plus a read-tree of the shared checkout.
+- Pushed: `4d8e44cf..5c8a4783`, and branch `fix/m12-capture-pass2`.
+
+**Deployed (the user approved "Deploy both").** Several capture passes landed at once, so the sessions ran one deploy wave instead of competing upgrades.
+- The M16 session's `-u ... cd_p03_portal` cascaded cd_marketplace to 19.0.0.4.0 on fix_real (23:25 UTC) and fix_dev (23:28 UTC).
+- The M21 session restarted both servers once, at 00:06:54 UTC: 8069 is PID 81988 on fix_real, 8090 is PID 21792 on fix_dev. Both start after this code landed and after both upgrades.
+
+**Read-only check on both databases afterwards:**
+- cd_marketplace 19.0.0.4.0 installed;
+- the three models, their sequences `JEV/`, `SRV/` and `TSR/`, and `cd_marketplace.completion_evidence`;
+- 8 record rules and 8 access rules on the new models;
+- the columns `customer_consent`, `consent_method` and `seller_type`;
+- `/web/login` answers 200 on 8069 and 8090.
+
+**Served bundle.**
+- fix_real's bundle `/web/assets/220cfc5/web.assets_web.min.js` (built 23:49 UTC) contains `M12-form-job-evidence`, `M12-form-review`, `M12-form-trust-signal`, "New Seller Agreement" and the engine's `createLabel`.
+- fix_dev had not built its backend bundle since the deploy. Odoo builds it from disk, which holds this code, on the first backend page load.
+- The live servers were not walked with a signed-in user: that needs a real account. The UI walk ran on the private copy (§3).
+
+**Live data:** all M12 records are 0 on fix_real, so none of the new rules touches an existing record.
