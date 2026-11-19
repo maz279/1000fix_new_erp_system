@@ -795,3 +795,56 @@ def test_the_pass2_kpis_read_as_the_caller(c):
             "service_accounts_orphaned",
         ):
             assert isinstance(got[key], int), (user.login, key)
+
+
+# ---------------------------------------------------------------- the model guards behind the ACL
+def _acl_only_user(c, model, login):
+    """A user whose group grants create on `model` by ACL but who holds no
+    officer / approver / admin appointment: the model's own guard must refuse,
+    so a future ACL widening cannot hand the register to everyone."""
+    group = c.env["res.groups"].sudo().create({"name": "m29c2 acl-only %s" % model})
+    c.env["ir.model.access"].sudo().create(
+        {
+            "name": "m29c2 acl-only %s" % model,
+            "model_id": c.env["ir.model"]._get_id(model),
+            "group_id": group.id,
+            "perm_read": True,
+            "perm_write": True,
+            "perm_create": True,
+        }
+    )
+    return _user(c.env, login, []).sudo().write({"group_ids": [(4, group.id)]}) and c.env[
+        "res.users"
+    ].search([("login", "=", login)])
+
+
+def test_a_service_account_is_refused_to_an_acl_only_user(c):
+    from odoo.exceptions import UserError
+
+    user = _acl_only_user(c, "fix.service.account", "m29c2_acl_svc")
+    with pytest.raises(UserError, match="manages service accounts"), c.env.cr.savepoint():
+        c.env["fix.service.account"].with_user(user).create(
+            {
+                "name": "Rogue connector",
+                "purpose": "Should never be registered by a plain user",
+                "scopes": "everything",
+                "owner_id": user.id,
+                "credential_ref": "vault://rogue/connector",
+            }
+        )
+
+
+def test_a_penetration_test_is_refused_to_an_acl_only_user(c):
+    from odoo.exceptions import UserError
+
+    user = _acl_only_user(c, "fix.security.pentest", "m29c2_acl_pt")
+    with pytest.raises(UserError, match="manages penetration tests"), c.env.cr.savepoint():
+        c.env["fix.security.pentest"].with_user(user).create(
+            {
+                "title": "Rogue engagement",
+                "provider": "Nobody",
+                "scope": "everything",
+                "test_from": c.today,
+                "test_to": c.today,
+            }
+        )
