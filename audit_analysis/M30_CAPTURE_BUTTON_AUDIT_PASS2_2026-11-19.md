@@ -123,3 +123,21 @@ The cost-centre, business-line, shift-pattern and zone-boundary lists on M30 pag
 - **A module-release gate on runbooks** (BRU-ADM-15) is not built. The release record has no module field to check against.
 - **Merge of a branch** (FR-ADM-010) is not covered. The organisation change handles rename, zone move and relocation, but not reassigning open work.
 - **People:** freezes, emergency changes and capacity reviews can be recorded by any Platform Admin. Organisation changes, configuration changes and maintenance announcements need a second one. fix_real has two Platform Admin holders (admin and one named user).
+
+## State (19 Nov 2026)
+
+- **Landed and pushed:** `0f972e11` (fix) and `00253dc4` (report) on `fix/a03-live-data-and-pending-work`, with the feature branch `fix/m30-capture-pass2`.
+- **Backups before deploy:** `_migration/backups/fix_real_pre_m30_capture2_2026-11-19.dump` and `fix_dev_pre_m30_capture2_2026-11-19.dump`. Both list cleanly with `pg_restore -l`.
+- **Deployed in the combined wave run by the M22 session**, with that session's user approval. My own attempt at the upgrade had been refused by this session's permission check.
+  - One `-u` on fix_real and fix_dev covered `cd_entity_config`, `cd_fpa`, `cd_attendance` and the peers' modules.
+  - One restart at 10:57: 8069 = PID 64400, 8090 = PID 77212.
+- **Read-only checks after the restart, both databases:**
+  - `cd_entity_config` is at 19.0.1.2.0, and the version gap is empty.
+  - All 8 new tables exist, as do the 3 cross-module Platform Admin access rows.
+  - Both servers answer 200.
+  - The two new crons are active. On fix_real each shows one failure, from the old process running them between the upgrade and the restart (stale registry). The next run on the new process resets it.
+- **Live walk on 8069 (fix_real), headless, signed in with the dev login, nothing saved:**
+  - all 6 pages show their "+ New";
+  - all 12 new chips sit under "Forms Capturing It" and open their forms;
+  - all 27 new or changed lists and forms render with no console errors.
+- **Data, not code, is what fix_real needs next:** branch capability profiles, runbooks and alerts, a first capacity review, and a component licence inventory. Every second-person step depends on a second named Platform Admin.
