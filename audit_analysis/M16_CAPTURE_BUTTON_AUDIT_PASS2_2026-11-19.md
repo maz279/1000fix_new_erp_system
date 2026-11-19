@@ -1,6 +1,6 @@
 # M16 Procurement & Sourcing: data-capture audit, second pass
 
-**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069 (fix_dev on 8090) · **Branch:** `fix/m16-capture-pass2` · **Status:** see §7
+**Date:** 19 Nov 2026 · **Estate:** fix_real on 8069 (fix_dev on 8090) · **Branch:** `fix/m16-capture-pass2` · **Status:** LIVE on fix_real and fix_dev, 19 Nov 2026 (see §7)
 
 ## 1. The question
 
@@ -90,3 +90,19 @@ Existing fixtures that opened an RFQ with no invitation were updated to invite s
   - The JS reaches the browser with the `-u`'s asset rebuild.
   - The M18 session has asked to run one combined `-u` / restart with its `cd_ewaste`.
 - **Data effect** (read-only count, 19 Nov): fix_real holds 0 requisitions, 0 POs and 0 RFQs; fix_dev holds 0 requisitions, 1 PO and 1 draft RFQ. No service-type PO line exists on either. Existing rows take the defaults (Demand Source = Branch Request, What Is Bought = Stock). The one draft RFQ on fix_dev will need its suppliers and deadline before it opens.
+
+### Deployed 19 Nov 2026 (owner said "Yes, deploy now")
+
+- **Landed and pushed:** fix/a03-live-data-and-pending-work at `4e492171` (code `969bdb6f`, fixtures `b7fd9a5f`, this report), plus branch `fix/m16-capture-pass2`.
+- **Backups:** `1000 fix/backups/fix_{real,dev}_pre_m16_capture2_2026-11-19.dump`.
+- **Upgrade:** `-u cd_requisition,cd_p03_portal` on fix_real, then fix_dev; exit 0 on both. The other sessions deploying that morning (M13, M15, M18, M21) were told and held their own upgrades until it finished.
+- **Restart:** one restart for the whole deploy wave, done by the M21 session after its combined `-u` at 08:06:51. 8069 = PID 81988 (fix_real), 8090 = PID 21792 (fix_dev), both started after this upgrade.
+- **Verified live:**
+  - `cd_requisition` 19.0.1.1.0 on both DBs, with the 2 new tables, 5 new columns and 4 access rules.
+  - The served `web.assets_web` bundle (`17a52539…`) carries the new forms, `__call_off` and the engine `carry`.
+- **Signed-in, read-only walk** (headless browser, dev login, `fixreal.localhost:8069` / `fixdev.localhost:8090`):
+  - 7 lists render with their new buttons: Approved Sources, Service Entries, Match Exception Cases, Invite Approved Sources, Raise Call-Off PO.
+  - 7 forms render every new field, including the requisition's 3 tabs.
+  - fix_real: 0 browser errors. fix_dev: the local PO form needed a longer load wait, then showed all its fields.
+  - No server-log errors involve M16 models.
+
