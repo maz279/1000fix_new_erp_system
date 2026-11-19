@@ -180,4 +180,14 @@ The goal check pointed out that pass 2 listed open gaps. Two of them are capture
   - register the intents with their category and threshold;
   - set guard-rail stages.
 - fix_real holds no M32 business data yet.
-- **Pass 3 deploy:** pending (it needs `-u cd_contact_centre,cd_p03_portal` on both databases and a restart).
+- **Pass 3 deployed** on the owner's "Yes, deploy now" (19 Nov):
+  - pre-flight: the gap on both databases was only cd_contact_centre 1.2.0 to 1.3.0, and no other upgrade was running;
+  - backups `1000 fix/backups/fix_{real,dev}_pre_m32_pass3_deploy_2026-11-19.dump`;
+  - `-u cd_contact_centre,cd_p03_portal` on fix_real then fix_dev, both exit 0;
+  - one restart at 21:54: **8069 = PID 78392, 8090 = PID 60064**; both boots clean (155/151 modules).
+- **Checked on both:**
+  - cd_contact_centre is at 19.0.1.3.0;
+  - the 10 seed phrases (8 distress, 2 explicit request), 3 access rows and the company rule are present;
+  - the read-only walk shows all nine pages with page 7's new chip, and the phrase list shows 10 rows;
+  - `detect()` flags "gas leak" as distress on 8069 and "human agent" as an explicit request on 8090.
+- **Deploy collision (not M32):** M36 landed `86dc8754` (cd_quotation 19.0.1.5.0) at 21:54:14, four seconds before this restart. The servers therefore loaded quotation code ahead of its schema, and `fix_quotation.reminders_sent` is missing on both databases. M36 was told at once; the fix is M36's `-u cd_quotation` plus a restart.
