@@ -127,7 +127,24 @@ All runs were on the private clone `fix_test_m25c2`, a copy of the M19 pass-2 DB
 
 ## 6. State
 
-- **Committed** on `fix/m25-capture-pass2`, rebased on the shared branch and landed on `fix/a03-live-data-and-pending-work`. Both branches pushed (see the commit log).
-- **Not yet deployed.** The deploy needs `-u cd_bi_reporting,cd_p03_portal` on fix_real and fix_dev, and a restart: `SURFACES`, the `/p03/bi/role` route and the new `/p03/bi/embed/token` route are controller code.
-- On 19 Nov the M22 session holds the single 8069/8090 restart until the version gap is closed. The gap is `cd_contact_centre` (M27), `cd_qms_process` (M23) and, on fix_real, `cd_ml_services` (M26). The M25 upgrade joins that wave once the owner approves it.
-- Private clone `fix_test_m25c2` and worktree `m25cap2-wt` are kept until the live check.
+**LIVE on 8069 (fix_real) and 8090 (fix_dev), 19 Nov 2026.**
+
+- Landed `85ddc56c` (fix) and `4c2fe129` (report) on `fix/a03-live-data-and-pending-work` by a CAS `update-ref` plus `read-tree -m -u`. The shared branch and `fix/m25-capture-pass2` are pushed.
+- The owner approved the deploy into the M22 wave.
+  - Backups: `_migration/backups/fix_{real,dev}_pre_m25_pass2_deploy_2026-11-19.dump`.
+  - My own `-u` on fix_real aborted at registry load with "could not serialize access", because the M22 wave was starting. Nothing was changed. I then stood down.
+  - The M22 session ran one combined `-u cd_bi_reporting,cd_rbac_ext,cd_entity_config,cd_fpa,cd_attendance,cd_p03_portal` on both DBs, then ONE restart at 10:57: 8069 = PID 64400, 8090 = PID 77212.
+- **Read-only check, both DBs:**
+  - cd_bi_reporting is 19.0.0.4.0
+  - 8 new tables, 22 ACL rows and 9 rules
+  - the escalation cron exists
+  - the new dashboard and schedule columns exist
+- **Live walk, signed in, normal mode (no debug), read-only, both servers:**
+  - all 7 pages show the buttons and chips listed in §4
+  - the library grid has Business Owner and Certification
+  - page 6 opens with `channel = low_bandwidth`
+  - 0 console errors
+  - the bundle rebuilt after the restart (`3f20796` on fix_real) carries the new screens
+- Nothing was saved on fix_real or fix_dev.
+- M22 noted one ERROR: between the `-u` and the restart, the old 8069 process ran the new escalation cron on a stale registry. The restarted processes are clean.
+- Still open: the owner appointments in §5. Every BI role is held by admin alone, so no steward act can complete on fix_real.
