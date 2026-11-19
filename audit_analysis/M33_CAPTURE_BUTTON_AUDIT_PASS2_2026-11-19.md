@@ -130,5 +130,22 @@ Corrections:
 
 ## State
 
-Built and tested in worktree `m33cap2-wt` (branch `fix/m33-capture-pass2`). Landing and deployment are recorded below once done.
+**LANDED, PUSHED AND LIVE on fix_real (8069) and fix_dev (8090), 19 Nov 2026.**
+
+- **Landed and pushed.** The fix landed as 3190a8ce on `fix/a03-live-data-and-pending-work`, rebased twice over peer landings with no overlap; the regenerated whitelist matched the merged one. The shared branch and `fix/m33-capture-pass2` are pushed.
+- **Approved.** The user approved the deploy of both DBs.
+- **Backups** were taken first: `_migration/backups/fix_{real,dev}_pre_m33_capture2_2026-11-19.dump`.
+- **Upgrade:** `-u cd_party_master,cd_billing_engine,cd_p03_portal` on fix_real (155 modules) and on fix_dev (151 modules). Both exited 0 with no registry errors.
+- **One restart for several sessions.** The restart was held for M40's `cd_partner`, which M37's combined `-u` on both DBs closed. The M40 session then restarted both servers once, at 13:24: 8069 = PID 60036, 8090 = PID 83644. The gap check before it was empty.
+- **Verified live on both servers** (dev login, read-only):
+  - all four new tables, their ACL rows and company rules, and the new columns are in place;
+  - every new list and the credit profile list are served with no dropped column;
+  - the internal stamping method is refused;
+  - bundle `01944e2` carries the new forms, and the AR table's inline limit edit is gone.
+- **fix_real facts for the owner:**
+  - 4 Accounting Administrators (enough for SOD-04);
+  - 0 Party Data Stewards;
+  - 0 Registration Administrators;
+  - 0 credit profiles with a limit.
+- **Clean-up:** the worktree, the private clone `fix_test_m33c2` and the launch entry were removed.
 
