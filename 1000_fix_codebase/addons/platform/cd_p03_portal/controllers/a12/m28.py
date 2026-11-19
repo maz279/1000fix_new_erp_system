@@ -113,6 +113,39 @@ SURFACES = {
         },
     },
     "fix.integration.log": {"order": "created_at desc, id desc", "limit": 500, "actions": set()},
+    # capture pass 2 (2026-11-19): the spec records the pages could not capture
+    "fix.api.credential": {
+        "order": "consumer_id, environment, id desc",
+        "limit": 300,
+        "actions": {"action_rotate", "action_revoke"},
+    },
+    "fix.event.consumer": {"order": "event_type, model, method", "limit": 300, "actions": set()},
+    "fix.event.consumer.replay": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_request_replay", "action_recall_approval"},
+    },
+    "fix.webhook.inbound.source": {
+        "order": "code",
+        "limit": 200,
+        "actions": {"action_request_go_live", "action_recall_approval", "action_pause"},
+    },
+    "fix.webhook.inbound.event": {
+        "order": "received_at desc, id desc",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.integration.fallback": {"order": "connector_id, id", "limit": 300, "actions": set()},
+    "fix.integration.fallback.test": {
+        "order": "tested_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.integration.batch.run": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_verify", "action_reject"},
+    },
 }
 
 # A12 R4 (finding M28-11): what /p03/model/write may set on each M28 surface —
@@ -155,10 +188,55 @@ WRITABLE = {
         "endpoint",
         "credential_id",
         "fallback_connector_id",
+        # capture pass 2: the integration register (FR-IPF-055, BRU-IPF-13)
+        "int_code",
+        "pattern",
+        "priority",
+        "owner_id",
     ),
     "fix.connector.credential": ("name", "auth_type", "secret_ref", "expires_on", "active"),
     "fix.sync.conflict": (),
     "fix.integration.log": (),
+    # capture pass 2 (2026-11-19). Issued/revoked/replayed/verified stamps, the
+    # client id, the receipt log and the in-process subscriptions are never typed.
+    "fix.api.credential": ("consumer_id", "environment", "secret_ref", "expires_on"),
+    "fix.event.consumer": (),
+    "fix.event.consumer.replay": ("consumer_id", "replay_from", "replay_to", "reason"),
+    "fix.webhook.inbound.source": (
+        "name",
+        "code",
+        "connector_id",
+        "owning_module",
+        "route_key",
+        "secret_ref",
+        "replay_window_seconds",
+    ),
+    "fix.webhook.inbound.event": (),
+    "fix.integration.fallback": (
+        "connector_id",
+        "fallback_type",
+        "fallback_connector_id",
+        "procedure",
+        "user_message",
+        "user_message_bn",
+    ),
+    "fix.integration.fallback.test": (
+        "fallback_id",
+        "tested_at",
+        "result",
+        "engage_seconds",
+        "evidence",
+    ),
+    "fix.integration.batch.run": (
+        "connector_id",
+        "direction",
+        "purpose",
+        "reference",
+        "file",
+        "file_name",
+        "declared_records",
+        "declared_total",
+    ),
 }
 
 NOT_MEASURED_NOTE = "%d seed row(s) in the log are not measured traffic and are left out."

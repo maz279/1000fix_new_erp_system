@@ -50,6 +50,17 @@ export const MODULE = {
       { id: 'M28-log', en: 'Integration Log', bn: 'ইন্টিগ্রেশন লগ', t: 'g' },
       { id: 'M28-reconciliation', en: 'Reconciliation Runs', bn: 'রিকনসিলিয়েশন', t: 'g' },
       { id: 'M28-suppressions', en: 'Reconciliation Suppressions', bn: 'রিকনসিলিয়েশন স্থগিত', t: 'g' }
+    ]},
+    /* Capture pass 2 (2026-11-19): the spec records the pages could not capture. */
+    { en: 'Registers & Exchange', screens: [
+      { id: 'M28-api-credentials', en: 'API Credentials', bn: 'এপিআই ক্রেডেনশিয়াল', t: 'g' },
+      { id: 'M28-event-consumers', en: 'In-Process Subscriptions', bn: 'অভ্যন্তরীণ সাবস্ক্রিপশন', t: 'g' },
+      { id: 'M28-consumer-replays', en: 'Consumer Replays', bn: 'কনজিউমার রিপ্লে', t: 'g' },
+      { id: 'M28-inbound-sources', en: 'Inbound Webhook Sources', bn: 'ইনবাউন্ড ওয়েবহুক উৎস', t: 'g' },
+      { id: 'M28-inbound-receipts', en: 'Inbound Webhook Receipts', bn: 'ইনবাউন্ড ওয়েবহুক প্রাপ্তি', t: 'g' },
+      { id: 'M28-fallbacks', en: 'Integration Fallbacks', bn: 'বিকল্প ব্যবস্থা', t: 'g' },
+      { id: 'M28-fallback-tests', en: 'Fallback Tests', bn: 'বিকল্প পরীক্ষা', t: 'g' },
+      { id: 'M28-batch-runs', en: 'Batch File Exchange', bn: 'ব্যাচ ফাইল বিনিময়', t: 'g' }
     ]}
   ],
   reports: ['API Usage by Consumer', 'Event Delivery SLO', 'Connector Latency', 'DLQ Analysis', 'Webhook Success Rate'],
@@ -58,21 +69,31 @@ export const MODULE = {
    * about, and its form panel lists every record it covers. */
   forms: ['API Consumer', 'Event Subscription', 'Connector Credential',
     'API Rate Limit', 'API Endpoint', 'Event Topic', 'Event Schema', 'Allowed Host', 'Connector',
-    'Sync Conflict Decision', 'Reconciliation Investigation', 'Reconciliation Suppression'],
+    'Sync Conflict Decision', 'Reconciliation Investigation', 'Reconciliation Suppression',
+    /* capture pass 2 (2026-11-19) */
+    'API Credential', 'Consumer Replay', 'Inbound Webhook Source', 'Integration Fallback',
+    'Fallback Test', 'Batch File Run'],
   cross: ['M29 credentials security', 'M63 automation triggers', 'M48 telemetry', 'M24 evidence'],
   /* Pages map to spec s5: 1 = 5.1 gateway traffic (rate limits, FR-IPF-004),
    * 2 = 5.2 registry/versions/consumers, 3 = 5.3 outbox, topics, schemas,
    * 4 = 5.3 subscriptions + dead letters, 5 = 5.4 webhooks, 6 = 5.5 connectors
    * and credentials, 7 = 5.6 offline sync, 8 = 5.7 reconciliation (FR-IPF-052).
    * Before 2026-11-14 pages 4, 7 and 8 captured nothing, page 8 listed sync
-   * conflicts, and page 1 repeated page 2's "+ New API Endpoint". */
+   * conflicts, and page 1 repeated page 2's "+ New API Endpoint".
+   * Pass 2 (2026-11-19), read against s5/s9/s10 rather than counted: page 2 had
+   * no credential per environment or revocation (FR-IPF-016); page 4 offered
+   * page 5's webhook form, and its own records - the in-process subscriptions
+   * (FR-IPF-026) and a consumer replay (FR-IPF-031) - were on no screen; page 5
+   * could not register an inbound webhook (FR-IPF-037/038); page 6 could not
+   * declare a pattern or priority, register a tested fallback (FR-IPF-043,
+   * BRU-IPF-12/13) or record a batch file exchange (FR-IPF-045). */
   freg: { src: 70, sub: [
     ['1', 'Gateway', 10, { model: 'fix.api.quota', cols: ['consumer_id', 'endpoint_id', 'requests_per_min', 'daily_quota', 'state'], screens: ['M28-quotas', 'M28-apis'], reports: ['API Usage by Consumer'], forms: ['API Rate Limit'], create: 'M28-form-quota' }],
-    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'version', 'path', 'lifecycle', 'sunset_on', 'active'], screens: ['M28-apis', 'M28-consumers'], reports: ['API Usage by Consumer'], forms: ['API Endpoint', 'API Consumer'] }], // gitleaks:allow (screen ids, not a key)
+    ['2', 'Versioning & Portals', 6, { model: 'fix.api.endpoint', cols: ['code', 'version', 'path', 'lifecycle', 'sunset_on', 'active'], screens: ['M28-apis', 'M28-consumers', 'M28-api-credentials'], reports: ['API Usage by Consumer'], forms: ['API Endpoint', 'API Consumer', 'API Credential'] }], // gitleaks:allow (screen ids, not a key)
     ['3', 'Outbox & Event Bus', 12, { model: 'fix.event.topic', cols: ['code', 'name', 'schema_id', 'retention_days', 'state'], screens: ['M28-topics', 'M28-schemas'], reports: ['Event Delivery SLO'], forms: ['Event Topic', 'Event Schema'] }],
-    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.dlq', cols: ['topic_code', 'reason', 'attempts', 'created_at', 'state'], screens: ['M28-dlq', 'M28-replay', 'M28-subscriptions'], reports: ['DLQ Analysis', 'Event Delivery SLO'], forms: ['Event Subscription'], create: 'M28-form-subscription' }],
-    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries', 'M28-allowlist'], reports: ['Webhook Success Rate', 'Event Delivery SLO'], forms: ['Event Subscription', 'Allowed Host'] }],
-    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['name', 'connector_type', 'endpoint', 'last_latency_ms', 'state'], screens: ['M28-external', 'M28-credentials', 'M28-health'], reports: ['Connector Latency'], forms: ['Connector', 'Connector Credential'] }],
+    ['4', 'Subscriptions & DLQ', 9, { model: 'fix.event.consumer.replay', cols: ['consumer_id', 'event_type', 'replay_from', 'event_count', 'approval_state', 'replayed_at', 'delivered_count', 'failed_count'], screens: ['M28-event-consumers', 'M28-consumer-replays', 'M28-dlq', 'M28-replay', 'M28-subscriptions'], reports: ['DLQ Analysis', 'Event Delivery SLO'], forms: ['Consumer Replay'], create: 'M28-form-consumer-replay' }],
+    ['5', 'Webhooks', 5, { model: 'fix.event.subscription', cols: ['name', 'consumer_id', 'topic_id', 'endpoint_url', 'state'], screens: ['M28-subscriptions', 'M28-deliveries', 'M28-allowlist', 'M28-inbound-sources', 'M28-inbound-receipts'], reports: ['Webhook Success Rate', 'Event Delivery SLO'], forms: ['Event Subscription', 'Allowed Host', 'Inbound Webhook Source'] }],
+    ['6', 'Connector Framework (47)', 12, { model: 'fix.connector', cols: ['int_code', 'name', 'connector_type', 'pattern', 'priority', 'fallback_ready', 'state'], screens: ['M28-external', 'M28-credentials', 'M28-fallbacks', 'M28-fallback-tests', 'M28-batch-runs', 'M28-health'], reports: ['Connector Latency'], forms: ['Connector', 'Connector Credential', 'Integration Fallback', 'Fallback Test', 'Batch File Run'] }],
     ['7', 'Offline Sync', 10, { model: 'fix.sync.conflict', cols: ['name', 'device_ref', 'res_model', 'detected_at', 'resolution'], screens: ['M28-offline', 'M28-conflicts'], reports: [], forms: ['Sync Conflict Decision'], create: 'M28-form-conflict-resolve' }],
     ['8', 'Reconciliation', 6, { model: 'fix.integration.reconciliation.run', cols: ['run_at', 'check_code', 'records_compared', 'divergences_found', 'state', 'resolved_by_id'], screens: ['M28-reconciliation', 'M28-suppressions', 'M28-health'], reports: ['Connector Latency'], forms: ['Reconciliation Investigation', 'Reconciliation Suppression'], create: 'M28-form-recon-investigation' }]
   ] }
@@ -175,7 +196,7 @@ export const SCREENS = {
     domain: [['state', 'in', ['pending', 'replayed']]],
     actions: DLQ_ACTIONS },
   'M28-external': { kind: 'model_list', model: 'fix.connector', stateField: 'state',
-    cols: ['name', 'connector_type', 'endpoint', 'credential_id', 'fallback_connector_id', 'last_latency_ms', 'last_probe_at', 'last_probe_note', 'approval_state', 'state'],
+    cols: ['int_code', 'name', 'connector_type', 'pattern', 'priority', 'owner_id', 'endpoint', 'credential_id', 'fallback_ready', 'last_latency_ms', 'last_probe_at', 'last_probe_note', 'approval_state', 'state'],
     actions: [
       { m: 'action_request_go_live', l: 'Request Go-Live', states: ['registered', 'degraded'], ask: 'Why should this connector go live? A second Integration Admin decides.', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Request' },
@@ -348,13 +369,20 @@ export const SCREENS = {
     status: { field: 'state', labels: {
       live: 'Live', degraded: 'Degraded', down: 'Down', disabled: 'Disabled' } },
     sections: [
-      { title: 'Connector', note: 'A new connector is not live until Request Go-Live is approved by a second Integration Admin, and changing its endpoint or credential takes it back. The endpoint must be https and on Allowed Hosts; a change is audited. Probe measures from recorded traffic, the credential expiry and, when dispatch is on, one real request; the note says what was measured. The mark actions are an audited override, and a down connector needs a measured success before it can be marked live. Traffic does not flow through this register yet, so the fallback is a record: it switches nothing.',
+      { title: 'Connector', note: 'A new connector is not live until Request Go-Live is approved by a second Integration Admin, and changing its endpoint or credential takes it back. The endpoint must be https and on Allowed Hosts; a change is audited. Probe measures from recorded traffic, the credential expiry and, when dispatch is on, one real request; the note says what was measured. The mark actions are an audited override, and a down connector needs a measured success before it can be marked live.',
         fields: [
           { name: 'name', required: true, label: 'Connector Name', bn: 'সংযোগের নাম' },
           { name: 'connector_type', required: true, label: 'Type', bn: 'ধরন' },
           { name: 'endpoint', label: 'Endpoint', bn: 'এন্ডপয়েন্ট' },
-          { name: 'credential_id', label: 'Credential', bn: 'ক্রেডেনশিয়াল' },
-          { name: 'fallback_connector_id', label: 'Fallback Connector', bn: 'বিকল্প সংযোগ' }
+          { name: 'credential_id', label: 'Credential', bn: 'ক্রেডেনশিয়াল' }
+        ] },
+      { title: 'Integration Register', note: 'FR-IPF-055 and BRU-IPF-12/13. Every integration declares its pattern and priority: without them it cannot go live. A P0 integration also needs a registered fallback whose latest test passed (Integration Fallbacks, then Fallback Tests). Lowering the priority of an approved connector takes it back for a new go-live decision. Traffic does not flow through this register yet, so a fallback is engaged by the people its procedure names, not switched automatically.',
+        fields: [
+          { name: 'int_code', label: 'Integration ID (INT-nnn)', bn: 'ইন্টিগ্রেশন আইডি' },
+          { name: 'pattern', required: true, label: 'Pattern', bn: 'প্যাটার্ন' },
+          { name: 'priority', required: true, label: 'Priority', bn: 'অগ্রাধিকার' },
+          { name: 'owner_id', label: 'Integration Owner', bn: 'মালিক' },
+          { name: 'fallback_connector_id', label: 'Fallback Connector (legacy record)', bn: 'বিকল্প সংযোগ' }
         ] }
     ]
   },
@@ -493,6 +521,159 @@ SCREENS['M28-form-recon-investigation'] = {
   ]
 };
 
+
+/* ============ CAPTURE PASS 2 (2026-11-19) ============ */
+
+/* Versioning & Portals (FR-IPF-016): a credential per consumer per environment. */
+SCREENS['M28-api-credentials'] = { kind: 'model_list', model: 'fix.api.credential',
+  cols: ['consumer_id', 'environment', 'client_id', 'secret_ref', 'issued_at', 'issued_by_id', 'expires_on', 'state', 'revoked_at', 'revoked_reason'],
+  empty: 'No API credential yet. Issue one per consumer and environment: + New API Credential.',
+  actions: [
+    { m: 'action_rotate', l: 'Rotate' },
+    { m: 'action_revoke', l: 'Revoke', ask: 'Why is this credential revoked?', kwarg: 'reason' }
+  ] };
+SCREENS['M28-form-api-credential'] = {
+  kind: 'model_form', model: 'fix.api.credential', title: 'API Credential', back: 'M28-api-credentials',
+  sections: [
+    { title: 'Credential', note: 'One live credential per consumer and environment. A production credential needs a registered consumer; sandbox and staging may come first for onboarding. The client id is issued on save. Only the vault reference is stored: no secrets manager is attached, so you load the secret value at that path yourself. Rotate issues the next version and revokes this one in the same step; Revoke needs a reason. Both are audited.',
+      fields: [
+        { name: 'consumer_id', required: true, label: 'Consumer', bn: 'ভোক্তা' },
+        { name: 'environment', required: true, label: 'Environment', bn: 'পরিবেশ' },
+        { name: 'secret_ref', required: true, label: 'Secret Reference (vault://)', bn: 'সিক্রেট রেফারেন্স' },
+        { name: 'expires_on', label: 'Expires On', bn: 'মেয়াদ শেষ' }
+      ] }
+  ]
+};
+
+/* Subscriptions & DLQ (FR-IPF-026): the in-process subscriptions, discoverable.
+ * Modules register them as data with a consume_* method: never typed here. */
+SCREENS['M28-event-consumers'] = { kind: 'model_list', model: 'fix.event.consumer', create: false,
+  cols: ['name', 'event_type', 'module', 'model', 'method', 'active', 'active_from'],
+  empty: 'No in-process subscription. A module registers one as data, naming the event type and its consume_* method.' };
+
+/* FR-IPF-031: replay one consumer from a point in time, decided by a second
+ * Integration Admin, re-delivered to that consumer only. */
+SCREENS['M28-consumer-replays'] = { kind: 'model_list', model: 'fix.event.consumer.replay',
+  cols: ['consumer_id', 'event_type', 'replay_from', 'replay_to', 'event_count', 'reason', 'approval_state', 'state', 'replayed_at', 'replayed_by_id', 'delivered_count', 'failed_count'],
+  empty: 'No consumer replay. Use Request a Consumer Replay, then Request Replay: a second Integration Admin decides.',
+  actions: [
+    { m: 'action_request_replay', l: 'Request Replay', ask: 'Why must this consumer be replayed? A second Integration Admin decides; the replay runs on approval.', kwarg: 'justification' },
+    { m: 'action_recall_approval', l: 'Recall Request' }
+  ] };
+SCREENS['M28-form-consumer-replay'] = {
+  kind: 'model_form', model: 'fix.event.consumer.replay', title: 'Consumer Replay', newLabel: 'Request a Consumer Replay', back: 'M28-consumer-replays',
+  status: { field: 'state', labels: { draft: 'Not Approved', replayed: 'Replayed' } },
+  sections: [
+    { title: 'Replay', note: 'Re-delivers every event of the subscription\'s type in the window to THAT subscription only: no other consumer sees anything (FR-IPF-031). Consumers are idempotent, so an event already processed is processed again harmlessly. Save, then Request Replay on Consumer Replays: a second Integration Admin decides, and the replay runs when they approve. A window holding more events than the limit is refused. Who replayed what, and the outcome, is audited.',
+      fields: [
+        { name: 'consumer_id', required: true, label: 'Subscription', bn: 'সাবস্ক্রিপশন' },
+        { name: 'replay_from', required: true, label: 'Replay From', bn: 'যখন থেকে' },
+        { name: 'replay_to', label: 'Replay Until (empty = now)', bn: 'যখন পর্যন্ত' },
+        { name: 'reason', required: true, type: 'text', label: 'Why (what went wrong)', bn: 'কারণ' }
+      ] }
+  ]
+};
+
+/* Webhooks (FR-IPF-037/038): third parties that post to us. */
+SCREENS['M28-inbound-sources'] = { kind: 'model_list', model: 'fix.webhook.inbound.source', stateField: 'state',
+  cols: ['code', 'name', 'owning_module', 'route_key', 'connector_id', 'replay_window_seconds', 'state', 'approval_state', 'receipt_count', 'last_received_at', 'pause_reason'],
+  actions: [
+    { m: 'action_request_go_live', l: 'Request Go-Live', states: ['draft', 'paused'], ask: 'Why may this source post to us? A second Integration Admin decides.', kwarg: 'justification' },
+    { m: 'action_recall_approval', l: 'Recall Request' },
+    { m: 'action_pause', l: 'Pause', states: ['active'], ask: 'Why pause this source? Its posts are refused until it is taken live again.', kwarg: 'reason' }
+  ] };
+SCREENS['M28-form-inbound-source'] = {
+  kind: 'model_form', model: 'fix.webhook.inbound.source', title: 'Inbound Webhook Source', back: 'M28-inbound-sources',
+  status: { field: 'state', labels: { draft: 'Awaiting Go-Live', active: 'Receiving', paused: 'Paused' } },
+  sections: [
+    { title: 'Source', note: 'The sender posts to /hooks/v1/inbound/<code>. Nothing is accepted until Request Go-Live is approved by a second Integration Admin; changing the code, secret, route key or owning module takes it out again.',
+      fields: [
+        { name: 'name', required: true, label: 'Sender', bn: 'প্রেরক' },
+        { name: 'code', required: true, label: 'Code (URL segment)', bn: 'কোড' },
+        { name: 'connector_id', label: 'Integration', bn: 'ইন্টিগ্রেশন' }
+      ] },
+    { title: 'Routing & Verification', note: 'A verified post becomes one integration.webhook_received event carrying the owning module and route key; the owning module consumes it, and M28 does not interpret the content (FR-IPF-038). Posts are verified with an HMAC-SHA256 signature (webhook-id, webhook-timestamp, webhook-signature), refused outside the replay window, and accepted once per message id; a repeat gets the first answer. Only the vault reference is stored: the value reaches the receiver from the deployment.',
+      fields: [
+        { name: 'owning_module', required: true, label: 'Owning Module (e.g. M20)', bn: 'মালিক মডিউল' },
+        { name: 'route_key', required: true, label: 'Route Key (e.g. bkash.payment_notified)', bn: 'রুট কী' },
+        { name: 'secret_ref', required: true, label: 'Signing Secret Reference (vault://)', bn: 'সিক্রেট রেফারেন্স' },
+        { name: 'replay_window_seconds', required: true, label: 'Replay Window (seconds)', bn: 'রিপ্লে উইন্ডো' }
+      ] }
+  ]
+};
+SCREENS['M28-inbound-receipts'] = { kind: 'model_list', model: 'fix.webhook.inbound.event', stateField: 'outcome', create: false, // written by the receiver only
+  cols: ['received_at', 'source_id', 'message_id', 'outcome', 'reason', 'signed_at', 'body_bytes', 'outbox_event_id'],
+  empty: 'No inbound webhook yet. Every post to a registered source is recorded here, accepted or refused with the reason; receipts are evidence and cannot be typed in.' };
+
+/* Connector Framework (FR-IPF-043, BRU-IPF-12): the registered, tested fallback. */
+SCREENS['M28-fallbacks'] = { kind: 'model_list', model: 'fix.integration.fallback',
+  cols: ['connector_id', 'fallback_type', 'fallback_connector_id', 'user_message', 'last_tested_at', 'last_test_result', 'active'],
+  empty: 'No fallback registered. A P0 integration cannot go live without one whose latest test passed.' };
+SCREENS['M28-form-fallback'] = {
+  kind: 'model_form', model: 'fix.integration.fallback', title: 'Integration Fallback', back: 'M28-fallbacks',
+  sections: [
+    { title: 'Fallback', note: 'What happens when this integration fails (05-03 s7): an alternate provider of the same type, cached or last-known data, queueing for replay on recovery, or a manual procedure. It counts for BRU-IPF-12 once a test of it has passed. After a test, what it proved cannot change: register a new fallback instead.',
+      fields: [
+        { name: 'connector_id', required: true, label: 'Integration', bn: 'ইন্টিগ্রেশন' },
+        { name: 'fallback_type', required: true, label: 'Fallback Type', bn: 'ধরন' },
+        { name: 'fallback_connector_id', label: 'Alternate Connector (alternate provider only)', bn: 'বিকল্প সংযোগ' },
+        { name: 'procedure', required: true, type: 'text', label: 'Procedure: what engages it, what staff do', bn: 'পদ্ধতি' }
+      ] },
+    { title: 'Message to Affected Users', note: 'FR-IPF-043: users are told clearly while the fallback runs, in English and Bangla.',
+      fields: [
+        { name: 'user_message', required: true, label: 'Message (English)', bn: 'বার্তা (ইংরেজি)' },
+        { name: 'user_message_bn', required: true, label: 'Message (Bangla)', bn: 'বার্তা (বাংলা)' }
+      ] }
+  ]
+};
+SCREENS['M28-fallback-tests'] = { kind: 'model_list', model: 'fix.integration.fallback.test', stateField: 'result',
+  cols: ['tested_at', 'connector_id', 'fallback_id', 'result', 'engage_seconds', 'evidence', 'tested_by_id'],
+  empty: 'No fallback test recorded. Exercise each fallback and record what was done and seen.' };
+SCREENS['M28-form-fallback-test'] = {
+  kind: 'model_form', model: 'fix.integration.fallback.test', title: 'Fallback Test', back: 'M28-fallback-tests',
+  sections: [
+    { title: 'Test', note: 'One exercise of a fallback. The latest test decides whether the fallback counts for a P0 go-live. A test is evidence: it is never edited, so a re-test is a new record. Recorded with your name and audited.',
+      fields: [
+        { name: 'fallback_id', required: true, label: 'Fallback', bn: 'বিকল্প' },
+        { name: 'tested_at', required: true, label: 'Tested At', bn: 'পরীক্ষার সময়' },
+        { name: 'result', required: true, label: 'Result', bn: 'ফলাফল' },
+        { name: 'engage_seconds', label: 'Seconds to Engage', bn: 'চালু হতে সেকেন্ড' },
+        { name: 'evidence', required: true, type: 'text', label: 'What was done and observed', bn: 'প্রমাণ' }
+      ] }
+  ]
+};
+
+/* Connector Framework (FR-IPF-045, AUT-IPF-20): batch and file exchange. */
+SCREENS['M28-batch-runs'] = { kind: 'model_list', model: 'fix.integration.batch.run', stateField: 'state',
+  cols: ['name', 'connector_id', 'direction', 'purpose', 'reference', 'declared_records', 'declared_total', 'state', 'counted_records', 'counted_total', 'verified_by_id', 'rejection_reason', 'file_sha256'],
+  empty: 'No batch file recorded. Record each file sent or received (BEFTN payroll, NBR return, brand claim batch, bank statement) with its control totals.',
+  actions: [
+    { m: 'action_verify', l: 'Verify Control Totals', states: ['recorded'], asks: [
+      { label: 'Records you counted in the file', kwarg: 'counted_records', number: true },
+      { label: 'Control total you counted', kwarg: 'counted_total', number: true }
+    ] },
+    { m: 'action_reject', l: 'Reject', states: ['recorded'], ask: 'Why is this file rejected?', kwarg: 'reason' }
+  ] };
+SCREENS['M28-form-batch-run'] = {
+  kind: 'model_form', model: 'fix.integration.batch.run', title: 'Batch File Run', back: 'M28-batch-runs',
+  status: { field: 'state', labels: { recorded: 'Recorded', verified: 'Verified', rejected: 'Rejected' } },
+  sections: [
+    { title: 'Exchange', note: 'The integration must declare the Batch File pattern. No SFTP or file drop is attached yet: this records the file that was exchanged and its declared control totals. A second Integration Admin counts it and verifies; a mismatch is rejected with its reason. A recorded file and its totals never change: a corrected file is a new run.',
+      fields: [
+        { name: 'connector_id', required: true, label: 'Integration', bn: 'ইন্টিগ্রেশন' },
+        { name: 'direction', required: true, label: 'Direction', bn: 'দিক' },
+        { name: 'purpose', required: true, label: 'Purpose', bn: 'উদ্দেশ্য' },
+        { name: 'reference', required: true, label: 'Batch / Period Reference', bn: 'রেফারেন্স' }
+      ] },
+    { title: 'File & Control Totals', note: 'The declared figures come from the file\'s trailer or cover sheet. The file\'s SHA-256 is recorded on save.',
+      fields: [
+        { name: 'file', required: true, type: 'binary', filename: 'file_name', label: 'File', bn: 'ফাইল' },
+        { name: 'declared_records', required: true, label: 'Declared Records', bn: 'ঘোষিত রেকর্ড' },
+        { name: 'declared_total', required: true, label: 'Declared Control Total', bn: 'ঘোষিত মোট' }
+      ] }
+  ]
+};
+
 export const REPORT_ROUTES = {
   'M28:API Usage by Consumer': 'M28-rpt-usage',
   'M28:Event Delivery SLO': 'M28-rpt-slo',
@@ -513,7 +694,13 @@ export const FORM_MODELS = {
   'M28:Connector': 'fix.connector',
   'M28:Sync Conflict Decision': 'fix.sync.conflict',
   'M28:Reconciliation Investigation': 'fix.integration.reconciliation.run',
-  'M28:Reconciliation Suppression': 'fix.integration.reconciliation.suppression'
+  'M28:Reconciliation Suppression': 'fix.integration.reconciliation.suppression',
+  'M28:API Credential': 'fix.api.credential',
+  'M28:Consumer Replay': 'fix.event.consumer.replay',
+  'M28:Inbound Webhook Source': 'fix.webhook.inbound.source',
+  'M28:Integration Fallback': 'fix.integration.fallback',
+  'M28:Fallback Test': 'fix.integration.fallback.test',
+  'M28:Batch File Run': 'fix.integration.batch.run'
 };
 
 export const FORM_CHIPS = {
@@ -529,6 +716,12 @@ export const FORM_CHIPS = {
   'M28:Sync Conflict Decision': 'M28-form-conflict-resolve',
   'M28:Reconciliation Investigation': 'M28-form-recon-investigation',
   'M28:Reconciliation Suppression': 'M28-form-suppression',
+  'M28:API Credential': 'M28-form-api-credential',
+  'M28:Consumer Replay': 'M28-form-consumer-replay',
+  'M28:Inbound Webhook Source': 'M28-form-inbound-source',
+  'M28:Integration Fallback': 'M28-form-fallback',
+  'M28:Fallback Test': 'M28-form-fallback-test',
+  'M28:Batch File Run': 'M28-form-batch-run',
   'M28:__by_model__': {
     'fix.api.consumer': 'M28-form-consumer',
     'fix.event.subscription': 'M28-form-subscription',
@@ -540,7 +733,13 @@ export const FORM_CHIPS = {
     'fix.connector': 'M28-form-connector',
     'fix.sync.conflict': 'M28-form-conflict',
     'fix.integration.allowed.host': 'M28-form-allowed-host',
-    'fix.integration.reconciliation.suppression': 'M28-form-suppression'
+    'fix.integration.reconciliation.suppression': 'M28-form-suppression',
+    'fix.api.credential': 'M28-form-api-credential',
+    'fix.event.consumer.replay': 'M28-form-consumer-replay',
+    'fix.webhook.inbound.source': 'M28-form-inbound-source',
+    'fix.integration.fallback': 'M28-form-fallback',
+    'fix.integration.fallback.test': 'M28-form-fallback-test',
+    'fix.integration.batch.run': 'M28-form-batch-run'
   },
   'M28:__by_screen__': {
     'M28-consumers': 'M28-form-consumer',
@@ -553,7 +752,13 @@ export const FORM_CHIPS = {
     'M28-subscriptions': 'M28-form-subscription',
     'M28-credentials': 'M28-form-credential',
     'M28-allowlist': 'M28-form-allowed-host',
-    'M28-suppressions': 'M28-form-suppression'
+    'M28-suppressions': 'M28-form-suppression',
+    'M28-api-credentials': 'M28-form-api-credential',
+    'M28-consumer-replays': 'M28-form-consumer-replay',
+    'M28-inbound-sources': 'M28-form-inbound-source',
+    'M28-fallbacks': 'M28-form-fallback',
+    'M28-fallback-tests': 'M28-form-fallback-test',
+    'M28-batch-runs': 'M28-form-batch-run'
   }
 };
 

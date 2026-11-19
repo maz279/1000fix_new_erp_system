@@ -13,6 +13,11 @@
         <field name="model_id" ref="model_fix_api_consumer"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_api_credential_company" model="ir.rule">
+        <field name="name">fix.api.credential: allowed companies</field>
+        <field name="model_id" ref="model_fix_api_credential"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_api_endpoint_company" model="ir.rule">
         <field name="name">fix.api.endpoint: allowed companies</field>
         <field name="model_id" ref="model_fix_api_endpoint"/>
@@ -28,6 +33,11 @@
         <field name="model_id" ref="model_fix_connector_credential"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_event_consumer_replay_company" model="ir.rule">
+        <field name="name">fix.event.consumer.replay: allowed companies</field>
+        <field name="model_id" ref="model_fix_event_consumer_replay"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_event_dlq_company" model="ir.rule">
         <field name="name">fix.event.dlq: allowed companies</field>
         <field name="model_id" ref="model_fix_event_dlq"/>
@@ -41,6 +51,21 @@
     <record id="rule_fix_event_topic_company" model="ir.rule">
         <field name="name">fix.event.topic: allowed companies</field>
         <field name="model_id" ref="model_fix_event_topic"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_integration_batch_run_company" model="ir.rule">
+        <field name="name">fix.integration.batch.run: allowed companies</field>
+        <field name="model_id" ref="model_fix_integration_batch_run"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_integration_fallback_company" model="ir.rule">
+        <field name="name">fix.integration.fallback: allowed companies</field>
+        <field name="model_id" ref="model_fix_integration_fallback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_integration_fallback_test_company" model="ir.rule">
+        <field name="name">fix.integration.fallback.test: allowed companies</field>
+        <field name="model_id" ref="model_fix_integration_fallback_test"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_integration_log_company" model="ir.rule">
@@ -121,6 +146,16 @@
     <record id="rule_fix_webhook_delivery_company" model="ir.rule">
         <field name="name">fix.webhook.delivery: allowed companies</field>
         <field name="model_id" ref="model_fix_webhook_delivery"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_webhook_inbound_event_company" model="ir.rule">
+        <field name="name">fix.webhook.inbound.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_webhook_inbound_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_webhook_inbound_source_company" model="ir.rule">
+        <field name="name">fix.webhook.inbound.source: allowed companies</field>
+        <field name="model_id" ref="model_fix_webhook_inbound_source"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
 </odoo>

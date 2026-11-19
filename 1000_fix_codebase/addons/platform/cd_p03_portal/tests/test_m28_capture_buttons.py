@@ -19,6 +19,17 @@
 #   * Allowed Hosts (needed before any webhook or connector may send) and
 #     Connector Credentials were on no sub-module page.
 #
+# Pass 2 (2026-11-19), read against spec s5/s9/s10 rather than counted:
+#   * Versioning & Portals had no credential per environment, expiry or
+#     revocation (FR-IPF-016).
+#   * Subscriptions & DLQ offered the Webhooks page's form; its own records,
+#     the in-process subscriptions (FR-IPF-026) and a consumer replay
+#     (FR-IPF-031), were on no screen.
+#   * Webhooks could not register an inbound webhook (FR-IPF-037/038).
+#   * Connector Framework could not declare a pattern or priority, register a
+#     tested fallback (FR-IPF-043, BRU-IPF-12/13) or record a batch file
+#     exchange (FR-IPF-045).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M26/M27 guards' fixture).
 from __future__ import annotations
@@ -79,11 +90,17 @@ console.log(JSON.stringify({ subs,
 # then every other record the page covers, by its form screen.
 CAPTURES = {
     "1": ["M28-form-quota"],
-    "2": ["M28-form-endpoint", "M28-form-consumer"],
+    "2": ["M28-form-endpoint", "M28-form-consumer", "M28-form-api-credential"],
     "3": ["M28-form-topic", "M28-form-schema"],
-    "4": ["M28-form-subscription"],
-    "5": ["M28-form-subscription", "M28-form-allowed-host"],
-    "6": ["M28-form-connector", "M28-form-credential"],
+    "4": ["M28-form-consumer-replay"],
+    "5": ["M28-form-subscription", "M28-form-allowed-host", "M28-form-inbound-source"],
+    "6": [
+        "M28-form-connector",
+        "M28-form-credential",
+        "M28-form-fallback",
+        "M28-form-fallback-test",
+        "M28-form-batch-run",
+    ],
     "7": ["M28-form-conflict-resolve"],
     "8": ["M28-form-recon-investigation", "M28-form-suppression"],
 }
@@ -93,7 +110,7 @@ RECORDS = {
     "1": "fix.api.quota",
     "2": "fix.api.endpoint",
     "3": "fix.event.topic",
-    "4": "fix.event.dlq",
+    "4": "fix.event.consumer.replay",
     "5": "fix.event.subscription",
     "6": "fix.connector",
     "7": "fix.sync.conflict",
@@ -234,7 +251,15 @@ def test_a_list_offering_new_opens_a_form_of_its_own_model(m28):
 
 
 def test_engine_raised_lists_still_create_nothing(m28):
-    for sid in ("M28-dlq", "M28-replay", "M28-deliveries", "M28-conflicts", "M28-reconciliation"):
+    for sid in (
+        "M28-dlq",
+        "M28-replay",
+        "M28-deliveries",
+        "M28-conflicts",
+        "M28-reconciliation",
+        "M28-event-consumers",
+        "M28-inbound-receipts",
+    ):
         assert m28["screens"][sid]["create"] is False, sid
 
 
@@ -269,3 +294,47 @@ def test_the_decision_method_keeps_the_row_buttons_gates():
     body = text[text.index("def action_resolve_decision") :]
     body = body[: body.index("\n    def ", 10)]
     assert "self._resolve(" in body, "the one-step decision must go through _resolve"
+
+
+# ------------------------------------------------------------ pass 2 (2026-11-19)
+def test_subscriptions_page_no_longer_offers_the_webhooks_form(m28):
+    assert _sub(m28, "4")["create"] != _sub(m28, "5")["create"]
+    assert {"M28-event-consumers", "M28-consumer-replays", "M28-dlq"} <= set(
+        _sub(m28, "4")["screens"]
+    )
+
+
+def test_every_bound_model_and_row_action_is_served(m28):
+    surfaces = _assigned("SURFACES")
+    for sid, cfg in m28["screens"].items():
+        if cfg["kind"] not in ("model_list", "model_form"):
+            continue
+        assert cfg["model"] in surfaces, "%s binds %s, which is not served" % (sid, cfg["model"])
+        unserved = set(cfg["actions"]) - surfaces[cfg["model"]]["actions"]
+        assert not unserved, "%s offers %s" % (sid, sorted(unserved))
+
+
+def test_connector_form_declares_pattern_and_priority(m28):
+    fields = _fields(m28, "M28-form-connector")
+    assert fields["pattern"]["required"] and fields["priority"]["required"]
+    cols = m28["screens"]["M28-external"]["cols"]
+    assert {"pattern", "priority", "fallback_ready"} <= set(cols)
+
+
+def test_records_that_are_evidence_are_not_writable():
+    writable = _assigned("WRITABLE")
+    assert writable["fix.webhook.inbound.event"] == ()
+    assert writable["fix.event.consumer"] == ()
+    stamps = {"client_id", "issued_at", "revoked_at", "revoked_reason"}
+    assert not stamps & set(writable["fix.api.credential"])
+    assert not {"state", "counted_records", "counted_total", "verified_by_id"} & set(
+        writable["fix.integration.batch.run"]
+    )
+    assert not {"replayed_at", "delivered_count"} & set(writable["fix.event.consumer.replay"])
+    assert not {"state"} & set(writable["fix.webhook.inbound.source"])
+
+
+def test_batch_run_form_uploads_its_file(m28):
+    fields = _fields(m28, "M28-form-batch-run")
+    assert fields["file"]["required"]
+    assert {"file", "file_name"} <= set(_assigned("WRITABLE")["fix.integration.batch.run"])

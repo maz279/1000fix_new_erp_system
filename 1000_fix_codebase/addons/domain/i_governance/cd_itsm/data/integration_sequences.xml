@@ -15,5 +15,13 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- M28 capture pass 2: batch file exchange runs (FR-IPF-045). -->
+        <record id="seq_fix_integration_batch_run" model="ir.sequence">
+            <field name="name">Batch File Exchange Run</field>
+            <field name="code">fix.integration.batch.run</field>
+            <field name="prefix">BFX/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

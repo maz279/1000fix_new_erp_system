@@ -640,7 +640,15 @@ def _new_connector(p03, c, name="Y5 Conn"):
     p03.as_user(c.admin1)
     made = p03.write(
         model="fix.connector",
-        values={"name": name, "connector_type": "other", "endpoint": "https://hooks.y28.test/c"},
+        # capture pass 2: BRU-IPF-13 / -12 - a connector declares its pattern and
+        # priority before it can go live (P1: no fallback test needed).
+        values={
+            "name": name,
+            "connector_type": "other",
+            "endpoint": "https://hooks.y28.test/c",
+            "pattern": "sync_request",
+            "priority": "p1",
+        },
     )
     assert "error" not in made, made
     return c.env["fix.connector"].browse(made["id"])
@@ -698,7 +706,7 @@ def test_a12f_y05_repointing_a_live_connector_needs_go_live_again(c, p03):
 
 def test_a12f_y05_connector_with_no_endpoint_or_off_list_cannot_go_live(c, p03):
     Connector = c.env["fix.connector"].with_user(c.admin1)
-    bare = Connector.create({"name": "Bare"})
+    bare = Connector.create({"name": "Bare", "pattern": "sync_request", "priority": "p1"})
     p03.as_user(c.admin1)
     assert "no endpoint" in refused(
         p03, "fix.connector", bare, "action_request_go_live", {"justification": "x"}
