@@ -264,6 +264,9 @@ def test_a_tested_fallback_and_its_tests_do_not_change(c, p03):
     assert out.get("error"), out
     with pytest.raises(REFUSED), c.env.cr.savepoint():
         test.with_user(c.admin1).unlink()
+    # the model refuses too, not only the form's field lock (an admin may write fallbacks)
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        fallback.with_user(c.admin1).write({"procedure": "something else"})
 
 
 def test_a_plain_user_cannot_register_a_fallback(c, p03):
@@ -349,6 +352,9 @@ def test_a_recorded_batch_never_changes_and_rejecting_needs_a_reason(c, p03):
         model="fix.integration.batch.run", record_id=run.id, values={"declared_total": 1.0}
     )
     assert out.get("error"), out
+    # the model refuses too, not only the form's field lock
+    with pytest.raises(REFUSED), c.env.cr.savepoint():
+        run.with_user(c.admin1).write({"declared_total": 1.0})
     out = p03.write(
         model="fix.integration.batch.run", record_id=run.id, values={"state": "verified"}
     )
