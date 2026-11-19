@@ -16,6 +16,21 @@ from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_in
 from odoo.exceptions import AccessError
 from odoo.tools import convert_file
 
+
+@pytest.fixture(autouse=True)
+def _relay_reaches_this_tests_events(odoo_env):
+    """The test database carries a seed backlog of ~50,000 unrelayed events,
+    and one relay pass takes the 500 OLDEST, so it never reached the event
+    this test publishes (the live estate has no backlog: its relay cron
+    drains it). Mark the earlier backlog relayed; this test's own events
+    carry the transaction's timestamp and are left alone. Rolled back with
+    the test."""
+    odoo_env.cr.execute(
+        "UPDATE fix_event_outbox SET relayed_at = now() AT TIME ZONE 'UTC' "
+        "WHERE relayed_at IS NULL AND create_date < now() AT TIME ZONE 'UTC'"
+    )
+
+
 T1 = "cd_entity_config.group_dofa_tier_1"
 T2 = "cd_entity_config.group_dofa_tier_2"
 

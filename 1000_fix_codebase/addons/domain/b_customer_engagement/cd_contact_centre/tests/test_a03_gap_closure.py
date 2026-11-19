@@ -829,11 +829,13 @@ class TestS9SlaInstances:
                     "hour_to": 18.0,
                 }
             )
-        # Friday 17:00 + 2 business hours lands Monday 10:00
-        friday_1700 = datetime(2026, 11, 6, 17, 0)
+        # Friday 17:00 Dhaka + 2 business hours lands Monday 10:00 Dhaka. The
+        # ORM's datetimes are naive UTC and the calendar is Asia/Dhaka (UTC+6):
+        # 17:00 Dhaka is 11:00 UTC, Monday 10:00 Dhaka is 04:00 UTC.
+        friday_1700 = datetime(2026, 11, 6, 11, 0)
         assert friday_1700.weekday() == 4
         target = Instance.add_business_hours(friday_1700, 2.0, calendar)
-        assert (target.weekday(), target.hour) == (0, 10)
+        assert (target.weekday(), target.hour) == (0, 4)
 
     def test_a_pause_overnight_costs_zero_business_minutes(self, env):
         from datetime import datetime
@@ -851,12 +853,14 @@ class TestS9SlaInstances:
                     "hour_to": 18.0,
                 }
             )
+        # Dhaka 18:00 -> 09:00 next day, in the ORM's naive UTC (UTC+6)
         held = Instance.business_minutes_between(
-            datetime(2026, 11, 3, 18, 0), datetime(2026, 11, 4, 9, 0), calendar
+            datetime(2026, 11, 3, 12, 0), datetime(2026, 11, 4, 3, 0), calendar
         )
         assert held == 0.0
+        # Dhaka 10:00 -> 12:00
         inside = Instance.business_minutes_between(
-            datetime(2026, 11, 3, 10, 0), datetime(2026, 11, 3, 12, 0), calendar
+            datetime(2026, 11, 3, 4, 0), datetime(2026, 11, 3, 6, 0), calendar
         )
         assert inside == 120.0
 
