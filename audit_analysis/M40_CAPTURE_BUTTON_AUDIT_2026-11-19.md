@@ -100,6 +100,12 @@ Three defects were caught only by running things and fixed: ruff's isort re-orde
 - **fix_real has 0 partners, 0 franchises** today, so nothing is migrated; programmes, checklists and rules start empty.
 - Not built (P1/P2, not capture gaps): lead→M07 opportunity hand-off (FR-PCM-025), P12 portal provisioning lifecycle (T-11), health-score factor decomposition (FR-PCM-018, BRU-PCM-18), partner hierarchy (FR-PCM-012), partner standing states probation/dormant/exiting (FR-PCM-010).
 
-## 5. Deployment record
+## 5. Deployment record (19 Nov 2026, owner-approved)
 
-_pending_
+- Landed on `fix/a03-live-data-and-pending-work`: 9b5e1ba2 (fix), be296e7c (load-order pin), fb5647e6 (this report), by compare-and-swap `update-ref` + `read-tree -m -u`; pushed with `fix/m40-capture-buttons`.
+- Backups: `_migration/backups/fix_real_pre_m40_capture_2026-11-19.dump` (52.6 MB), `fix_dev_pre_m40_capture_2026-11-19.dump` (48.7 MB).
+- Upgrade: my `-u cd_partner,cd_p03_portal` on fix_real collided with the M37 session's concurrent `-u` (serialization error, mine rolled back). M37's run listed cd_partner and cd_p03_portal and finished clean on both DBs; I ran nothing further.
+- Gap check right before the restart: no version gap on fix_real (155 modules) or fix_dev (151), no `-u` running.
+- One restart at 13:24 for M33, M37 and M40: 8069 = PID 60036 (fix_real), 8090 = PID 83644 (fix_dev). Both answer 200; logs show the modules loaded and no registry errors.
+- The old processes ran the two new crons between the `-u` and the restart (failure_count 1, the known benign case). Re-triggered on the new processes: both ran clean, failure_count 0.
+- Read-only headless walk (admin, SAVE=0) on **8069 and 8090**: 10/10 pages show the right "+ New", 25/25 chips open their forms, 36/36 new screens render; console errors 0 on fix_dev, 1 transient `ERR_NETWORK_CHANGED` on fix_real.
