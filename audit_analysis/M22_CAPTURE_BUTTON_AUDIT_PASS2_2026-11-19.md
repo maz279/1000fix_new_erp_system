@@ -187,7 +187,16 @@ On `fix_test_m22c2` (a clone brought to HEAD for all 166 modules: 0 models witho
   - Backups were taken first, both verified with `pg_restore -l` (1,892 and 1,889 table-data entries): `1000 fix/backups/fix_{real,dev}_pre_m22_capture2_2026-11-19.dump`.
   - `-u cd_competency,cd_p03_portal` ran on fix_real and on fix_dev; both exited 0.
   - Read-only check on both: cd_competency 19.0.0.4.0, the 7 new tables, 14 record rules.
-- **The 8069 / 8090 restart is HELD.** M22 is not visible in the workspace until it happens.
-  - The version-gap check before the restart found peers' landed modules not yet upgraded: `cd_contact_centre` (M27, its owner has not approved its deploy yet), `cd_qms_process` (M23) on both DBs, and `cd_ml_services` (M26) on fix_real.
-  - A restart now would load their new models without tables. M27, M23 and M26 have been told. One session does the single restart once the gap is empty.
-- Private clone `fix_test_m22c2` and worktree `m22cap2-wt` are kept until the restart is verified.
+- **LIVE on 8069 (fix_real) and 8090 (fix_dev) since 10:57 local, 19 Nov.**
+  - The restart first needed every landed module upgraded, or the new processes would load code ahead of its schema. Peers kept landing during the deploy. With the owner's approval at each step, one wave upgraded the whole gap on both DBs, all with exit 0:
+    - M27 `cd_contact_centre`, M23 `cd_qms_process`, M26 `cd_ml_services`;
+    - M28 `cd_itsm`;
+    - M25 `cd_bi_reporting`, M29 `cd_rbac_ext`, M30 `cd_entity_config` + `cd_fpa` + `cd_attendance`;
+    - `cd_p03_portal`.
+  - Before the restart, the version gap was 0 on both DBs.
+  - Extra backups: `1000 fix/backups/fix_{real,dev}_pre_combined_m22_m23_m26_m27_2026-11-19.dump` (1,904 and 1,901 table-data entries).
+  - One restart: 8069 = PID 64400, 8090 = PID 77212. Both logins answer 200. The new processes logged no ERROR, no missing table and no "Failed to load registry". Between the upgrade and the restart, the old 8069 process logged errors running the new M25/M29/M30 crons on its stale registry.
+  - fix_real's live `web.assets_web.min.js` contains the new M22 forms.
+  - **A signed-in, read-only headless walk on both 8069 and 8090** shows all 6 pages with the captures in §4. The 9 new or changed lists open with their actions and no error, and there are 0 JS errors.
+  - Each peer session was told the PIDs, so it can run its own checks.
+- Private clone `fix_test_m22c2`, its launch entry and the worktree `m22cap2-wt` were removed after verification.
