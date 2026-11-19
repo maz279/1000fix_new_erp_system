@@ -364,7 +364,15 @@ def test_an_experiment_moves_only_through_start_and_conclude(w, api):
         model="fix.campaign.experiment",
         ids=[exp.id],
         method="action_conclude",
-        kwargs={"winner": "a", "note": "A 4.1% vs B 2.9% response, n=12,000"},
+        kwargs={
+            "winner": "a",
+            "note": "A 4.1% vs B 2.9% response, n=12,000",
+            # capture pass 2: the winner is judged on the figures (FR-MKT-031)
+            "a_sample": 6000,
+            "a_conversions": 246,
+            "b_sample": 6000,
+            "b_conversions": 174,
+        },
     )
     assert _ok(res), res
     assert (exp.state, exp.winner, exp.concluded_by_id) == ("concluded", "a", w.clerk)

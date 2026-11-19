@@ -15,3 +15,7 @@ access_fix_campaign_touch,fix.campaign.touch,model_fix_campaign_touch,base.group
 access_fix_campaign_spend,fix.campaign.spend,model_fix_campaign_spend,base.group_user,1,1,1,0
 access_fix_attribution_model,fix.attribution.model,model_fix_attribution_model,base.group_user,1,0,0,0
 access_fix_attribution_model_mgr,fix.attribution.model manager,model_fix_attribution_model,cd_campaign.group_marketing_manager,1,1,1,1
+access_fix_campaign_programme,fix.campaign.programme,model_fix_campaign_programme,base.group_user,1,1,1,0
+access_fix_campaign_programme_mgr,fix.campaign.programme manager,model_fix_campaign_programme,cd_campaign.group_marketing_manager,1,1,1,1
+access_fix_campaign_capacity_check,fix.campaign.capacity.check,model_fix_campaign_capacity_check,base.group_user,1,1,1,0
+access_fix_attribution_result,fix.attribution.result,model_fix_attribution_result,base.group_user,1,0,0,0

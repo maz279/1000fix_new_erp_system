@@ -23,7 +23,10 @@ export const MODULE = {
       { id: 'M35-form-campaign', en: 'Campaign Form', bn: 'ক্যাম্পেইন ফর্ম', t: 'f' },
       { id: 'M35-approval', en: 'Planning & Approval', bn: 'পরিকল্পনা ও অনুমোদন', t: 'r' },
       { id: 'M35-audience', en: 'Campaign Audiences', bn: 'ক্যাম্পেইন অডিয়েন্স', t: 'g' },
-      { id: 'M35-comarketing', en: 'Co-Marketing Campaigns', bn: 'কো-মার্কেটিং ক্যাম্পেইন', t: 'g' }
+      { id: 'M35-comarketing', en: 'Co-Marketing Campaigns', bn: 'কো-মার্কেটিং ক্যাম্পেইন', t: 'g' },
+      { id: 'M35-programmes', en: 'Campaign Programmes', bn: 'ক্যাম্পেইন প্রোগ্রাম', t: 'g' },
+      { id: 'M35-capacity', en: 'Capacity Checks', bn: 'সক্ষমতা যাচাই', t: 'g' },
+      { id: 'M35-calendar', en: 'Campaign Calendar', bn: 'ক্যাম্পেইন ক্যালেন্ডার', t: 'g' }
     ]},
     { en: 'Journeys', screens: [
       { id: 'M35-journeys', en: 'Journey Orchestration', bn: 'জার্নি অর্কেস্ট্রেশন', t: 'g' },
@@ -32,11 +35,14 @@ export const MODULE = {
     { en: 'Offers & Content', screens: [
       { id: 'M35-offers', en: 'Offer Selection', bn: 'অফার নির্বাচন', t: 'g' },
       { id: 'M35-content', en: 'Creative Library', bn: 'ক্রিয়েটিভ লাইব্রেরি', t: 'g' },
-      { id: 'M35-ads', en: 'Portal Ad Placement', bn: 'পোর্টাল বিজ্ঞাপন', t: 'g' }
+      { id: 'M35-ads', en: 'Portal Ad Placement', bn: 'পোর্টাল বিজ্ঞাপন', t: 'g' },
+      { id: 'M35-m10-rewards', en: 'M10 Campaign Rewards', bn: 'M10 ক্যাম্পেইন পুরস্কার', t: 'g' }
     ]},
     { en: 'Measurement', screens: [
       { id: 'M35-ab', en: 'A/B & Holdout', bn: 'এ/বি পরীক্ষা', t: 'g' },
       { id: 'M35-spend', en: 'Campaign Spend', bn: 'ক্যাম্পেইন ব্যয়', t: 'g' },
+      { id: 'M35-to-measure', en: 'Campaigns To Measure', bn: 'পরিমাপযোগ্য ক্যাম্পেইন', t: 'g' },
+      { id: 'M35-results', en: 'Campaign Results', bn: 'ক্যাম্পেইন ফলাফল', t: 'g' },
       { id: 'M35-attribution-models', en: 'Attribution Models', bn: 'অ্যাট্রিবিউশন মডেল', t: 'g' },
       { id: 'M35-attribution', en: 'Attribution Model', bn: 'অ্যাট্রিবিউশন', t: 'r' },
       { id: 'M35-roi', en: 'Budget & ROI', bn: 'বাজেট ও ROI', t: 'r' }
@@ -52,24 +58,33 @@ export const MODULE = {
   forms: ['Campaign', 'Journey (multi-step)', 'Offer', 'Creative Asset',
     'Define Campaign Audience', 'Behaviour Trigger', 'A/B Experiment', 'Conclude an Experiment',
     'Campaign Spend', 'Void a Spend', 'Attribution Model', 'Portal Ad Placement',
-    'Co-Marketing Partners', 'MDF Co-Funding'],
+    'Co-Marketing Partners', 'MDF Co-Funding',
+    'Campaign Programme', 'Capacity Check', 'Emergency Stop', 'Exit a Journey Member',
+    'M10 Voucher or Points Reward', 'Measure a Campaign'],
   cross: ['M33 Customer Master', 'M10 Loyalty', 'M34 CX Feedback', 'M40 Partner & Channel'],
   /* Capture audit 2026-11-14: each page's "+ New" captures the record the
    * page names (spec section 5 FR-MKT-001..040, section 10.1). Pages 2 and 8
    * offered "+ New Campaign"; page 6 offered nothing. */
   freg: { src: 58, sub: [
-    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_by', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval'], reports: ['Campaign Funnel by Channel'], forms: ['Campaign'] }],
+    /* 1 pass 2 (FR-MKT-001..008, BRU-MKT-05/13): type and objective, the
+     * programme, the capacity check and its override, the emergency stop and
+     * the forward calendar. */
+    ['1', 'Campaign Planning & Approval', 8, { model: 'fix.campaign', cols: ['name', 'campaign_type', 'programme_id', 'capacity_check_result', 'state', 'dofa_tier_required', 'dofa_approved', 'dofa_approved_at'], screens: ['M35-campaigns', 'M35-approval', 'M35-programmes', 'M35-capacity', 'M35-calendar'], reports: ['Campaign Funnel by Channel'], forms: ['Campaign', 'Campaign Programme', 'Capacity Check', 'Emergency Stop'] }],
     /* 2 (FR-MKT-009..014, BRU-MKT-02/03/14): the audience is composed from
      * governed M33 segments with a holdout, and estimated after suppression. */
-    ['2', 'Audience from Segments', 6, { model: 'fix.campaign', cols: ['name', 'target_audience_type', 'segment_names', 'holdout_pct', 'estimated_reach', 'estimated_at', 'state'], screens: ['M35-audience', 'M35-campaigns'], reports: [], forms: ['Define Campaign Audience'], create: 'M35-form-audience' }],
-    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers', 'M35-journey-members'], reports: [], forms: ['Journey (multi-step)', 'Behaviour Trigger'] }],
-    ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'reference'], screens: ['M35-content', 'M35-offers'], reports: ['Seasonal Template Performance'], forms: ['Creative Asset', 'Offer'] }],
+    ['2', 'Audience from Segments', 6, { model: 'fix.campaign', cols: ['name', 'target_audience_type', 'segment_names', 'intersect_segment_names', 'holdout_pct', 'suppress_open_complaints', 'estimated_reach', 'estimated_at', 'state'], screens: ['M35-audience', 'M35-campaigns'], reports: [], forms: ['Define Campaign Audience'], create: 'M35-form-audience' }],
+    ['3', 'Journey Orchestration', 10, { model: 'fix.campaign.journey', cols: ['name', 'state', 'active', 'campaign_id', 'trigger_event', 'steps_json'], screens: ['M35-journeys', 'M35-triggers', 'M35-journey-members'], reports: [], forms: ['Journey (multi-step)', 'Behaviour Trigger', 'Exit a Journey Member'] }],
+    /* 4 pass 2 (FR-MKT-024..029, BRU-MKT-09/10): the creative holds its English
+     * and Bengali copy, an expiry and a version; an offer can be an M10 reward. */
+    ['4', 'Content & Offers', 8, { model: 'fix.campaign.creative', cols: ['name', 'state', 'campaign_id', 'asset_type', 'channel', 'version', 'expires_on'], screens: ['M35-content', 'M35-offers', 'M35-m10-rewards'], reports: ['Seasonal Template Performance'], forms: ['Creative Asset', 'Offer', 'M10 Voucher or Points Reward'] }],
     /* 5 (FR-MKT-031): an experiment is designed, started and concluded with a winner. */
-    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variable', 'variant_a_pct', 'metric', 'winner'], screens: ['M35-ab'], reports: [], forms: ['A/B Experiment', 'Conclude an Experiment'] }],
+    ['5', 'Experimentation', 7, { model: 'fix.campaign.experiment', cols: ['name', 'state', 'campaign_id', 'variable', 'variant_a_pct', 'metric', 'winner', 'significance'], screens: ['M35-ab'], reports: [], forms: ['A/B Experiment', 'Conclude an Experiment'] }],
     /* 6 (FR-MKT-032..037, BRU-MKT-11/12): spend booked outside the estate is
      * recorded against the budget; the attribution model is a versioned record. */
-    ['6', 'Budget & Attribution', 8, { model: 'fix.campaign.spend', cols: ['spend_date', 'campaign_id', 'name', 'category', 'amount', 'reference', 'state'], screens: ['M35-spend', 'M35-attribution-models', 'M35-attribution', 'M35-roi', 'M35-rpt-roi', 'M35-touches'], reports: ['Attribution & ROI', 'Lead-to-Order Conversion'], forms: ['Campaign Spend', 'Void a Spend', 'Attribution Model'] }],
-    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'advertiser_partner_id', 'active_from', 'active_to', 'impressions', 'clicks'], screens: ['M35-ads'], reports: [], forms: ['Portal Ad Placement'] }],
+    /* 6 pass 2 (FR-MKT-033/036/037, AUT-MKT-11/12): committed spend, and the
+     * campaign measured against its holdout. */
+    ['6', 'Budget & Attribution', 8, { model: 'fix.campaign.spend', cols: ['spend_date', 'campaign_id', 'name', 'category', 'stage', 'amount', 'reference', 'state'], screens: ['M35-spend', 'M35-to-measure', 'M35-results', 'M35-attribution-models', 'M35-attribution', 'M35-roi', 'M35-rpt-roi', 'M35-touches'], reports: ['Attribution & ROI', 'Lead-to-Order Conversion'], forms: ['Campaign Spend', 'Void a Spend', 'Measure a Campaign', 'Attribution Model'] }],
+    ['7', 'Portal Advertising', 5, { model: 'fix.campaign.ad', cols: ['name', 'active', 'campaign_id', 'placement', 'position', 'page_context', 'advertiser_partner_id', 'active_from', 'active_to', 'impressions', 'clicks'], screens: ['M35-ads'], reports: [], forms: ['Portal Ad Placement'] }],
     /* 8 (scope item 14): a co-marketing campaign names its M40 partners;
      * their MDF accrual is how the partner co-funds it. */
     ['8', 'Co-Marketing', 6, { model: 'fix.campaign', cols: ['name', 'comarketing_partner_names', 'channel', 'budget', 'start_date', 'state'], screens: ['M35-comarketing', 'M35-mdf', 'M35-rpt-co'], reports: ['Co-Marketing Partner Report'], forms: ['Co-Marketing Partners', 'MDF Co-Funding'], create: 'M35-form-comarketing' }]
@@ -78,7 +93,7 @@ export const MODULE = {
 
 export const SCREENS = {
   'M35-campaigns': { kind: 'model_list', model: 'fix.campaign', stateField: 'state',
-    cols: ['name', 'channel', 'target_audience_type', 'budget', 'approval_state', 'dnd_scrubbed_at', 'creative_unapproved_count', 'response_count', 'recipient_count', 'state'],
+    cols: ['name', 'campaign_type', 'channel', 'target_audience_type', 'budget', 'approval_state', 'capacity_check_result', 'dnd_scrubbed_at', 'creative_unapproved_count', 'response_count', 'recipient_count', 'state'],
     actions: [
       { m: 'action_request_approval', l: 'Request Budget Approval', ask: 'Business justification for the approver', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
@@ -86,11 +101,12 @@ export const SCREENS = {
       { m: 'action_launch', l: 'Launch Campaign' },
       { m: 'action_pause', l: 'Pause' },
       { m: 'action_resume', l: 'Resume' },
-      { m: 'action_complete', l: 'Mark Completed' }
+      { m: 'action_complete', l: 'Mark Completed' },
+      { m: 'action_emergency_stop', l: 'Emergency Stop', ask: 'Why is the campaign stopped on every channel?', kwarg: 'reason' }
     ] },
   'M35-approval': { kind: 'table_report', module: 'M35', report: 'campaign_approval', title: 'Planning & Approval', period: false },
   'M35-journeys': { kind: 'model_list', model: 'fix.campaign.journey', stateField: 'state',
-    cols: ['name', 'campaign_id', 'journey_kind', 'step_count', 'member_active_count', 'state', 'paused_by_campaign', 'active'],
+    cols: ['name', 'campaign_id', 'journey_kind', 'priority', 'conflict_group', 'step_count', 'member_active_count', 'state', 'paused_by_campaign', 'active'],
     actions: [
       { m: 'action_activate', l: 'Activate Journey' },
       { m: 'action_pause_journey', l: 'Pause Journey' },
@@ -102,7 +118,7 @@ export const SCREENS = {
   'M35-offers': { kind: 'model_list', model: 'fix.campaign.offer', stateField: 'active',
     cols: ['name', 'campaign_id', 'offer_type', 'value', 'valid_from', 'valid_until', 'active'] },
   'M35-content': { kind: 'model_list', model: 'fix.campaign.creative', stateField: 'state',
-    cols: ['name', 'campaign_id', 'asset_type', 'channel', 'reference', 'approval_state', 'approved_by_id', 'state'],
+    cols: ['name', 'campaign_id', 'asset_type', 'channel', 'version', 'expires_on', 'sms_segments_bn', 'approval_state', 'approved_by_id', 'state'],
     actions: [
       { m: 'action_request_approval', l: 'Request Content Approval', ask: 'What should the approver check?', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
@@ -110,15 +126,16 @@ export const SCREENS = {
       { m: 'action_retire', l: 'Retire' },
       { m: 'action_reset_to_draft', l: 'Back to Draft' }
     ],
-    note: 'Content is approved from the approver\'s inbox (M63). An approved creative must be withdrawn before it is edited, and every live creative must be approved before the campaign launches.' },
+    note: 'Content is approved from the approver\'s inbox (M63). An approved creative must be withdrawn before it is edited, every live creative must be approved before the campaign launches, and an expired one is retired automatically (BRU-MKT-09). Approval needs the English and Bengali versions and an expiry date (BRU-MKT-10).' },
   'M35-ads': { kind: 'model_list', model: 'fix.campaign.ad', stateField: 'active',
-    cols: ['name', 'campaign_id', 'placement', 'advertiser_partner_id', 'active_from', 'active_to', 'active', 'impressions', 'clicks'] },
+    cols: ['name', 'campaign_id', 'placement', 'position', 'page_context', 'advertiser_partner_id', 'active_from', 'active_to', 'active', 'impressions', 'clicks'],
+    note: 'One placement holds a slot (placement, page context and position) at a time.' },
   'M35-ab': { kind: 'model_list', model: 'fix.campaign.experiment', stateField: 'state',
-    cols: ['name', 'campaign_id', 'variable', 'variant_a_pct', 'metric', 'state', 'winner', 'result_note'],
+    cols: ['name', 'campaign_id', 'variable', 'variant_a_pct', 'metric', 'state', 'a_rate', 'b_rate', 'significance', 'winner', 'result_note'],
     actions: [
       { m: 'action_start', l: 'Start Experiment' }
     ],
-    note: 'An experiment is designed in draft, started here, and concluded with its winner and the figures it was judged on (Conclude an Experiment). A started experiment\'s design is fixed.' },
+    note: 'An experiment is designed in draft, started here, and concluded with how many each variant reached and converted (Conclude an Experiment): a winner is named only when the difference is significant at 95%. A started experiment\'s design is fixed.' },
 
   /* ============ CAPTURE AUDIT 2026-11-14 ============ */
   'M35-audience': { kind: 'model_list', model: 'fix.campaign', stateField: 'state', create: false,
@@ -137,8 +154,45 @@ export const SCREENS = {
     cols: ['name', 'partner_id', 'campaign_id', 'period', 'amount', 'state'],
     empty: 'No partner co-funds a campaign yet.' },
   'M35-spend': { kind: 'model_list', model: 'fix.campaign.spend', stateField: 'state',
-    cols: ['spend_date', 'campaign_id', 'name', 'category', 'amount', 'vendor_partner_id', 'reference', 'state'],
-    note: 'Spend booked outside the estate: media, print, events, agency fees. Message cost and offer discounts are already counted from the estate\'s own records. A spend that would take a campaign past its approved budget is refused until the raised budget is approved again.' },
+    cols: ['spend_date', 'campaign_id', 'name', 'category', 'stage', 'amount', 'vendor_partner_id', 'reference', 'state'],
+    actions: [
+      { m: 'action_mark_incurred', l: 'Mark Invoiced', ask: 'Invoice reference (optional)', kwarg: 'reference' }
+    ],
+    note: 'Spend booked outside the estate: media, print, events, agency fees. Message cost and offer discounts are already counted from the estate\'s own records. A spend that would take a campaign past its approved budget is refused until the raised budget is approved again. A commitment (order placed) counts against the budget until it is invoiced; the owner is told at 80% and a running campaign pauses at 100%.' },
+
+  /* ============ CAPTURE AUDIT PASS 2 (2026-11-19) ============ */
+  'M35-programmes': { kind: 'model_list', model: 'fix.campaign.programme',
+    cols: ['code', 'name', 'date_from', 'date_to', 'owner_id', 'budget', 'campaign_count', 'planned_budget', 'actual_spend', 'budget_unallocated'],
+    empty: 'No programme yet: + Campaign Programme groups campaigns for budget and roll-up.',
+    note: 'A programme groups campaigns (FR-MKT-005). Its campaigns together may not plan more than the programme budget, and each campaign runs inside its period.' },
+  'M35-capacity': { kind: 'model_list', model: 'fix.campaign.capacity.check', stateField: 'state',
+    cols: ['create_date', 'campaign_id', 'reach_basis', 'expected_response_pct', 'projected_jobs', 'available_capacity', 'capacity_source', 'result', 'state', 'override_by_id'],
+    actions: [
+      { m: 'action_override', l: 'Override (Operations Director)', ask: 'Why may the campaign launch beyond capacity?', kwarg: 'reason' }
+    ],
+    empty: 'No capacity check yet: estimate the audience, then + Capacity Check.',
+    note: 'Projected demand (post-suppression reach x expected response) against the jobs the branches can take in the window (FR-MKT-006). An insufficient check blocks launch until the Operations Director overrides it with a reason (BRU-MKT-05). A check is never edited: make it again.' },
+  'M35-calendar': { kind: 'model_list', model: 'fix.campaign', stateField: 'state', create: false,
+    domain: [['state', 'in', ['draft', 'running', 'paused']]],
+    cols: ['start_date', 'end_date', 'name', 'campaign_type', 'channel', 'programme_id', 'segment_names', 'calendar_conflicts', 'state'],
+    empty: 'No planned or running campaign.',
+    note: 'The forward calendar (FR-MKT-007). A conflict is another planned or running campaign on the same channel, in an overlapping window, aimed at a shared segment or at everyone.' },
+  'M35-to-measure': { kind: 'model_list', model: 'fix.campaign', stateField: 'state', create: false,
+    domain: [['state', 'in', ['completed', 'halted']]],
+    cols: ['name', 'channel', 'start_date', 'end_date', 'recipient_count', 'holdout_count', 'actual_spend', 'attribution_model_id', 'measured_at', 'state'],
+    actions: [
+      { m: 'action_measure', l: 'Measure Against The Holdout' }
+    ],
+    empty: 'No campaign has completed yet.',
+    note: 'Completed and stopped campaigns. Measuring adds a result to Campaign Results; it never changes an earlier one.' },
+  'M35-results': { kind: 'model_list', model: 'fix.attribution.result', create: false,
+    cols: ['measured_at', 'campaign_id', 'method', 'treated_count', 'holdout_count', 'treated_rate', 'holdout_rate', 'incremental_revenue', 'attributed_revenue', 'cost', 'roi_incremental', 'window_closed'],
+    empty: 'No campaign measured yet: use Measure a Campaign once it has completed.',
+    note: 'Revenue is what the estate invoiced to each group in the campaign window plus the model lookback. Incremental revenue is the reached group revenue less what the holdout spent per head (FR-MKT-036). A measurement is never edited: measuring again adds a row.' },
+  'M35-m10-rewards': { kind: 'model_list', model: 'fix.loyalty.campaign.hook', stateField: 'state', create: false,
+    cols: ['name', 'campaign_id', 'program_id', 'reward_type', 'bonus_points', 'state'],
+    empty: 'No M10 reward is tied to a campaign yet.',
+    note: 'Offer mechanics belong to M10 (FR-MKT-027): a campaign selects a voucher or bonus-points reward there, and M10 activates it once the campaign runs.' },
   'M35-attribution-models': { kind: 'model_list', model: 'fix.attribution.model', stateField: 'state',
     cols: ['code', 'version', 'name', 'method', 'lookback_days', 'state', 'effective_from', 'activated_by_id'],
     actions: [
@@ -188,6 +242,12 @@ export const SCREENS = {
         { name: 'state', label: 'Campaign Lifecycle State', readonly: true },
         { name: 'operating_unit_id', label: 'Operating Business Unit' },
         { name: 'company_id', label: 'Operating Legal Entity' },
+        { name: 'campaign_type', required: true, label: 'Campaign Type' },
+        { name: 'programme_id', label: 'Programme' },
+        { name: 'objective', label: 'Objective', type: 'text' },
+        { name: 'success_measure', label: 'Success Measure' },
+        { name: 'success_target', label: 'Success Target' },
+        { name: 'capacity_check_result', label: 'Capacity Check', readonly: true },
       ]},
       { tab: 'budget', title: 'Financial Budget & DOFA Governance Gating (FLAW-35.1)',
         note: 'Campaign budget releases mandate a documented Finance internal memo reference and DOFA executive sign-off before campaign activation.',
@@ -202,6 +262,8 @@ export const SCREENS = {
           { name: 'actual_spend', label: 'Recorded Actual Spend (BDT)', readonly: true },
           { name: 'budget_variance', label: 'Budget Remaining (BDT)', readonly: true },
           { name: 'budget_utilisation_pct', label: 'Budget Used (%)', readonly: true },
+          { name: 'committed_spend', label: 'Committed, Not Yet Invoiced (BDT)', readonly: true },
+          { name: 'budget_available', label: 'Budget Available After Commitments (BDT)', readonly: true },
       ]},
       { tab: 'audience', title: 'Audience From Governed Segments',
         note: 'Audiences come from governed customer segments (BRU-MKT-02): no list is uploaded and no filter is typed. The holdout receives nothing, so what the campaign caused can be measured.',
@@ -210,6 +272,10 @@ export const SCREENS = {
           choices: [['segments', 'Governed M33 Segments'], ['all_customers', 'All Registered Customers']] },
         { name: 'segment_ids', label: 'Include Segments' },
         { name: 'exclude_segment_ids', label: 'Exclude Segments' },
+        { name: 'intersect_segment_ids', label: 'Must Also Be In (intersect)' },
+        { name: 'suppress_open_complaints', label: 'Suppress Parties With An Open Complaint' },
+        { name: 'suppress_credit_hold', label: 'Suppress Customers On Credit Hold' },
+        { name: 'suppress_recent_days', label: 'Suppress Recent Recipients (days, 0 = off)' },
         { name: 'holdout_pct', label: 'Holdout (% kept back for measurement)' },
         { name: 'holdout_key', label: 'Holdout Key (shared across an experiment)' },
         { name: 'estimated_reach', label: 'Estimated Reach (after suppression)', readonly: true },
@@ -243,11 +309,18 @@ export const SCREENS = {
         { name: 'response_count', label: 'Total Inbound Customer Responses', readonly: true },
         { name: 'cost_per_response', label: 'Effective Cost per Response (BDT)', readonly: true },
         { name: 'attribution_model_id', label: 'Attribution Model (pinned at completion)', readonly: true },
+        { name: 'landing_page_url', label: 'Landing Page (https://)' },
+        { name: 'tracked_url', label: 'Tracked Link (with UTM parameters)', readonly: true },
+        { name: 'measured_at', label: 'Last Measured', readonly: true },
       ]},
       { tab: 'audit', title: 'System Governance & Response Trace', fields: [
         { name: 'response_ids', label: 'Converted Customer Response Trace', readonly: true },
         { name: 'create_date', label: 'Campaign Creation Timestamp', readonly: true },
         { name: 'write_date', label: 'Last Campaign Update Timestamp', readonly: true },
+        { name: 'halted_at', label: 'Emergency Stop At', readonly: true },
+        { name: 'halted_by_id', label: 'Stopped By', readonly: true },
+        { name: 'halt_reason', label: 'Why It Was Stopped', readonly: true },
+        { name: 'halt_cancelled_count', label: 'Queued Messages Cancelled', readonly: true },
       ]}
     ] },
 
@@ -303,7 +376,11 @@ export const SCREENS = {
           { name: 'segment_id', label: 'Audience Segment (segment-based)' },
           { name: 'trigger_id', label: 'Starting Trigger (trigger-based)' },
           { name: 'live_segment_sync', label: 'Apply Segment Changes Live' },
-          { name: 'exit_on_consent_withdrawal', label: 'Exit On Consent Withdrawal' }
+          { name: 'exit_on_consent_withdrawal', label: 'Exit On Consent Withdrawal' },
+          { name: 'exit_on_complaint', label: 'Exit On An Open Complaint' },
+          { name: 'exit_on_conversion', label: 'Exit On Conversion' },
+          { name: 'conflict_group', label: 'Conflict Group (journeys that must not overlap)' },
+          { name: 'priority', label: 'Priority In The Group (1 = highest)' }
         ]
       },
       {
@@ -394,6 +471,7 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', retired: 'Retired' } },
     tabs: [
       { id: 'general', label: 'Asset Identification', bn: 'অ্যাসেট পরিচয়', icon: '🎨' },
+      { id: 'copy', label: 'English & Bengali Copy', bn: 'ইংরেজি ও বাংলা কপি', icon: '🔤' },
       { id: 'storage', label: 'Asset Reference', bn: 'স্টোরেজ রেফারেন্স', icon: '🔗' },
       { id: 'governance', label: 'Approval & State', bn: 'অনুমোদন ও অবস্থা', icon: '📋' }
     ],
@@ -414,7 +492,22 @@ export const SCREENS = {
         title: 'Storage & Location',
         note: 'Exact reference key in digital asset management or Cloudflare R2 / S3 storage.',
         fields: [
-          { name: 'reference', label: 'Asset Reference (S3 Key / URL)' }
+          { name: 'reference', label: 'Asset Reference (S3 Key / URL), English version' },
+          { name: 'reference_bn', label: 'Bengali Version Reference (images, video, landing pages)' }
+        ]
+      },
+      {
+        tab: 'copy',
+        title: 'The Words, In Both Languages',
+        note: 'Every customer-facing asset exists in English and Bengali before approval (BRU-MKT-10). Personalise only with {name}, {device}, {service}, {branch}, {expiry_date}, {points} or {voucher}, the same ones in both languages.',
+        fields: [
+          { name: 'subject_en', label: 'Subject / Headline (English)' },
+          { name: 'subject_bn', label: 'Subject / Headline (Bengali)' },
+          { name: 'body_en', label: 'Copy (English)', type: 'text' },
+          { name: 'body_bn', label: 'Copy (Bengali)', type: 'text' },
+          { name: 'placeholders', label: 'Personalisation Used', readonly: true },
+          { name: 'sms_segments_en', label: 'SMS Segments (English)', readonly: true },
+          { name: 'sms_segments_bn', label: 'SMS Segments (Bengali)', readonly: true }
         ]
       },
       {
@@ -422,6 +515,9 @@ export const SCREENS = {
         title: 'Approval & Lifecycle',
         note: 'Request approval from the Creative Library. The approver decides from the M63 inbox; an approved creative is frozen until it is withdrawn.',
         fields: [
+          { name: 'expires_on', required: true, label: 'Expires On (no live campaign may use it after)' },
+          { name: 'is_expired', label: 'Expired', readonly: true },
+          { name: 'version', label: 'Approved Version', readonly: true },
           { name: 'state', required: true, label: 'Content State', readonly: true },
           { name: 'approval_state', label: 'Approval Request', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true },
@@ -470,6 +566,10 @@ export const SCREENS = {
         fields: [
           { name: 'state', label: 'Lifecycle State', readonly: true },
           { name: 'started_at', label: 'Started At', readonly: true },
+          { name: 'a_rate', label: 'Variant A Rate (%)', readonly: true },
+          { name: 'b_rate', label: 'Variant B Rate (%)', readonly: true },
+          { name: 'p_value', label: 'p-value', readonly: true },
+          { name: 'significance', label: 'Confidence (%)', readonly: true },
           { name: 'winner', label: 'Winner', readonly: true },
           { name: 'result_note', label: 'Experiment Finding', readonly: true },
           { name: 'concluded_by_id', label: 'Concluded By', readonly: true },
@@ -538,6 +638,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Banner Name' },
           { name: 'campaign_id', required: true, label: 'Associated Campaign' },
           { name: 'placement', required: true, label: 'Portal Placement Location' },
+          { name: 'page_context', label: 'Page Context (which page or section)' },
+          { name: 'position', required: true, label: 'Position (1 = first)' },
           { name: 'advertiser_partner_id', label: 'Advertiser (empty for the Company\'s own promotion)' },
           { name: 'active_from', label: 'Runs From' },
           { name: 'active_to', label: 'Runs Until' }
@@ -575,7 +677,7 @@ export const SCREENS = {
       { m: 'action_pause_member', l: 'Pause' },
       { m: 'action_resume_member', l: 'Resume' }
     ],
-    note: 'Membership and consent are re-evaluated before every step, not trusted from the launch snapshot.' },
+    note: 'Membership, consent, open complaints and conversion are re-evaluated before every step. Between journeys in one conflict group the higher priority wins (BRU-MKT-06).' },
   'M35-form-journey-member': {
     kind: 'model_form', model: 'fix.campaign.journey.member',
     title: 'Journey Member', back: 'M35-journey-members',
@@ -655,6 +757,10 @@ export const SCREENS = {
           choices: [['segments', 'Governed M33 Segments'], ['all_customers', 'All Registered Customers']] },
         { name: 'segment_ids', label: 'Include Segments' },
         { name: 'exclude_segment_ids', label: 'Exclude Segments' },
+        { name: 'intersect_segment_ids', label: 'Must Also Be In (intersect)' },
+        { name: 'suppress_open_complaints', label: 'Suppress Parties With An Open Complaint' },
+        { name: 'suppress_credit_hold', label: 'Suppress Customers On Credit Hold' },
+        { name: 'suppress_recent_days', label: 'Suppress Recent Recipients (days, 0 = off)' },
         { name: 'holdout_pct', label: 'Holdout (% kept back for measurement, up to 50)' },
         { name: 'holdout_key', label: 'Holdout Key (campaigns sharing it share one holdout group)' },
         { name: 'estimated_reach', label: 'Estimated Reach (after suppression)', readonly: true },
@@ -676,10 +782,10 @@ export const SCREENS = {
       domain: [['state', '=', 'running']],
       empty: 'No experiment is running: start one from A/B & Holdout.'
     },
-    saveAction: { method: 'action_conclude', label: 'Conclude', done: 'Concluded: the winner is recorded', kwargs: { winner: 'winner', note: 'result_note' } },
+    saveAction: { method: 'action_conclude', label: 'Conclude', done: 'Concluded: the winner is recorded', kwargs: { winner: 'winner', note: 'result_note', a_sample: 'a_sample', a_conversions: 'a_conversions', b_sample: 'b_sample', b_conversions: 'b_conversions' } },
     sections: [
       { title: 'Step 2 of 2: The Winner And Why',
-        note: 'Name the winner only where the difference is significant; otherwise record that there was none.',
+        note: 'Enter what each variant reached and converted. A winner is accepted only when the difference is significant at 95% (two-proportion test); otherwise record that there was none.',
         fields: [
         { name: 'name', label: 'Experiment', readonly: true },
         { name: 'campaign_id', label: 'Campaign', readonly: true },
@@ -687,6 +793,10 @@ export const SCREENS = {
         { name: 'variant_a_label', label: 'Variant A', readonly: true },
         { name: 'variant_b_label', label: 'Variant B', readonly: true },
         { name: 'metric', label: 'Judged On', readonly: true },
+        { name: 'a_sample', label: 'Variant A: How Many It Reached', required: true, readonly: true },
+        { name: 'a_conversions', label: 'Variant A: How Many Converted', required: true, readonly: true },
+        { name: 'b_sample', label: 'Variant B: How Many It Reached', required: true, readonly: true },
+        { name: 'b_conversions', label: 'Variant B: How Many Converted', required: true, readonly: true },
         { name: 'winner', label: 'Winner', required: true, readonly: true },
         { name: 'result_note', label: 'Finding (the figures the winner was judged on)', required: true, readonly: true }
       ]}
@@ -706,6 +816,7 @@ export const SCREENS = {
         { name: 'campaign_id', label: 'Campaign', required: true },
         { name: 'name', label: 'What Was Bought', required: true },
         { name: 'category', label: 'Category', required: true },
+        { name: 'stage', label: 'Stage (committed = order placed, not yet invoiced)', required: true },
         { name: 'spend_date', label: 'Spend Date', required: true },
         { name: 'amount', label: 'Amount (BDT)', required: true },
         { name: 'vendor_partner_id', label: 'Supplier' },
@@ -714,6 +825,7 @@ export const SCREENS = {
       { title: 'Status',
         fields: [
         { name: 'state', label: 'State', readonly: true },
+        { name: 'incurred_on', label: 'Invoiced On', readonly: true },
         { name: 'void_reason', label: 'Why It Was Voided', readonly: true },
         { name: 'voided_by_id', label: 'Voided By', readonly: true },
         { name: 'voided_at', label: 'Voided At', readonly: true }
@@ -794,6 +906,182 @@ export const SCREENS = {
       ]}
     ]
   },
+
+  /* ==================================================================
+   * CAPTURE AUDIT PASS 2 (2026-11-19) - what the spec says each page
+   * records that pass 1 did not give it.
+   * ================================================================== */
+  /* 1 Planning & Approval: the programme (FR-MKT-005/032). */
+  'M35-form-programme': {
+    kind: 'model_form', model: 'fix.campaign.programme',
+    title: 'Campaign Programme', back: 'M35-programmes',
+    sections: [
+      { title: 'The Programme',
+        note: 'Campaigns join a programme from their own form (Programme field) and are listed, with their programme, on the Campaign Calendar. Their budgets together may not exceed the programme budget, and each runs inside the programme period.',
+        fields: [
+        { name: 'code', label: 'Code', required: true },
+        { name: 'name', label: 'Name', required: true },
+        { name: 'date_from', label: 'Period From', required: true },
+        { name: 'date_to', label: 'Period To', required: true },
+        { name: 'owner_id', label: 'Owner', required: true },
+        { name: 'budget', label: 'Programme Budget (BDT, 0 = not capped)' }
+      ]},
+      { title: 'Roll-up',
+        fields: [
+        { name: 'campaign_count', label: 'Campaigns', readonly: true },
+        { name: 'planned_budget', label: 'Campaign Budgets (BDT)', readonly: true },
+        { name: 'actual_spend', label: 'Actual Spend (BDT)', readonly: true },
+        { name: 'budget_unallocated', label: 'Not Yet Allocated (BDT)', readonly: true }
+      ]}
+    ]
+  },
+  /* 1 Planning & Approval: the capacity check (FR-MKT-006, BRU-MKT-05). */
+  'M35-form-capacity': {
+    kind: 'model_form', model: 'fix.campaign.capacity.check',
+    title: 'Capacity Check', back: 'M35-capacity',
+    status: { field: 'state', labels: { checked: 'Checked', overridden: 'Overridden' } },
+    sections: [
+      { title: 'Projected Demand Against Capacity',
+        note: 'Made on a draft campaign whose audience is estimated: the projection is the post-suppression reach times the expected response. An insufficient result blocks launch until the Operations Director overrides it.',
+        fields: [
+        { name: 'campaign_id', label: 'Campaign', required: true },
+        { name: 'expected_response_pct', label: 'Expected Response (% of reach that books work)', required: true },
+        { name: 'available_capacity', label: 'Capacity Available In The Window (jobs)', required: true },
+        { name: 'capacity_source', label: 'Where The Capacity Figure Comes From', required: true }
+      ]},
+      { title: 'Result',
+        fields: [
+        { name: 'reach_basis', label: 'Estimated Reach Used', readonly: true },
+        { name: 'projected_jobs', label: 'Projected Jobs', readonly: true },
+        { name: 'result', label: 'Result', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'override_by_id', label: 'Overridden By', readonly: true },
+        { name: 'override_reason', label: 'Override Reason', readonly: true }
+      ]}
+    ]
+  },
+  /* 1 Planning & Approval: the emergency stop (FR-MKT-008, BRU-MKT-13). */
+  'M35-form-stop': {
+    kind: 'model_form', model: 'fix.campaign',
+    title: 'Emergency Stop', newLabel: 'Emergency Stop', back: 'M35-campaigns',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the running or paused campaign',
+      search: 'Search campaign',
+      choose: 'Stop this campaign',
+      cols: ['name', 'channel', 'start_date', 'end_date', 'recipient_count', 'state'],
+      domain: [['state', 'in', ['running', 'paused']]],
+      empty: 'No campaign is running or paused.'
+    },
+    saveAction: { method: 'action_emergency_stop', label: 'Stop On Every Channel', done: 'Stopped: queued messages cancelled', kwargs: { reason: 'halt_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: Why It Stops',
+        note: 'Every journey of the campaign stops, every member leaves, and queued but unsent messages are cancelled at once. A stopped campaign does not resume.',
+        fields: [
+        { name: 'name', label: 'Campaign', readonly: true },
+        { name: 'channel', label: 'Channel', readonly: true },
+        { name: 'recipient_count', label: 'Recipients', readonly: true },
+        { name: 'halt_reason', label: 'Why It Is Stopped', required: true, readonly: true }
+      ]}
+    ]
+  },
+  /* 3 Journeys: a manual exit (FR-MKT-019). */
+  'M35-form-member-exit': {
+    kind: 'model_form', model: 'fix.campaign.journey.member',
+    title: 'Exit a Journey Member', newLabel: 'Exit a Journey Member', back: 'M35-journey-members',
+    status: { field: 'state', labels: { active: 'Active', completed: 'Completed', exited: 'Exited', suppressed: 'Suppressed', failed: 'Failed' } },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the member',
+      search: 'Search member',
+      choose: 'Take this party out',
+      cols: ['journey_id', 'partner_id', 'current_step_id', 'entered_at', 'state'],
+      domain: [['state', 'in', ['active', 'suppressed']]],
+      empty: 'Nobody is in a journey.'
+    },
+    saveAction: { method: 'action_exit_member', label: 'Exit From The Journey', done: 'Exited: nothing more is sent from this journey', kwargs: { reason: 'exit_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: Why They Leave',
+        note: 'For example a complaint raised by phone, or a request not to be contacted on this topic. Consent withdrawal and conversion exit a party automatically.',
+        fields: [
+        { name: 'journey_id', label: 'Journey', readonly: true },
+        { name: 'partner_id', label: 'Party', readonly: true },
+        { name: 'current_step_id', label: 'Current Step', readonly: true },
+        { name: 'exit_reason', label: 'Why They Leave', required: true, readonly: true }
+      ]}
+    ]
+  },
+  /* 6 Budget & Attribution: measure against the holdout (FR-MKT-036/037). */
+  'M35-form-measure': {
+    kind: 'model_form', model: 'fix.campaign',
+    title: 'Measure a Campaign', newLabel: 'Measure a Campaign', back: 'M35-results',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the completed or stopped campaign',
+      search: 'Search campaign',
+      choose: 'Measure this campaign',
+      cols: ['name', 'channel', 'start_date', 'end_date', 'recipient_count', 'holdout_count', 'state'],
+      domain: [['state', 'in', ['completed', 'halted']]],
+      empty: 'No campaign has completed yet.'
+    },
+    saveAction: { method: 'action_measure', label: 'Measure Now', done: 'Measured: see Campaign Results' },
+    sections: [
+      { title: 'Step 2 of 2: What Will Be Measured',
+        note: 'Revenue invoiced to the reached group and to the holdout in the campaign window plus the attribution lookback; attributed conversions from the touch ledger under the pinned model; cost is actual plus committed spend.',
+        fields: [
+        { name: 'name', label: 'Campaign', readonly: true },
+        { name: 'start_date', label: 'From', readonly: true },
+        { name: 'end_date', label: 'To', readonly: true },
+        { name: 'recipient_count', label: 'Reached', readonly: true },
+        { name: 'holdout_count', label: 'Held Out', readonly: true },
+        { name: 'attribution_model_id', label: 'Attribution Model (pinned)', readonly: true },
+        { name: 'actual_spend', label: 'Actual Spend (BDT)', readonly: true },
+        { name: 'committed_spend', label: 'Committed Spend (BDT)', readonly: true },
+        { name: 'measured_at', label: 'Last Measured', readonly: true }
+      ]}
+    ]
+  },
+  'M35-form-result': {
+    kind: 'model_form', model: 'fix.attribution.result',
+    title: 'Campaign Result', back: 'M35-results',
+    create: false, pick: 'A result is measured from a campaign: use Measure a Campaign.',
+    tabs: [
+      { id: 'measure', label: '1. Measurement', bn: '১. পরিমাপ', icon: '📏' },
+      { id: 'incremental', label: '2. Against The Holdout', bn: '২. হোল্ডআউটের তুলনায়', icon: '⚖️' },
+      { id: 'return', label: '3. Attribution & Return', bn: '৩. অ্যাট্রিবিউশন ও রিটার্ন', icon: '📈' }
+    ],
+    sections: [
+      { tab: 'measure', title: 'Measurement',
+        fields: [
+        { name: 'campaign_id', label: 'Campaign', readonly: true },
+        { name: 'model_id', label: 'Attribution Model', readonly: true },
+        { name: 'measured_at', label: 'Measured At', readonly: true },
+        { name: 'measured_by_id', label: 'Measured By', readonly: true },
+        { name: 'window_from', label: 'Window From', readonly: true },
+        { name: 'window_to', label: 'Window To', readonly: true },
+        { name: 'window_closed', label: 'Window Closed', readonly: true },
+        { name: 'note', label: 'Notes', readonly: true }
+      ]},
+      { tab: 'incremental', title: 'Incremental Effect Against The Holdout',
+        fields: [
+        { name: 'treated_count', label: 'Reached', readonly: true },
+        { name: 'holdout_count', label: 'Held Out', readonly: true },
+        { name: 'treated_rate', label: 'Reached Buy Rate (%)', readonly: true },
+        { name: 'holdout_rate', label: 'Held-Out Buy Rate (%)', readonly: true },
+        { name: 'treated_revenue', label: 'Revenue From Reached (BDT)', readonly: true },
+        { name: 'holdout_baseline', label: 'Holdout Baseline (BDT)', readonly: true },
+        { name: 'incremental_revenue', label: 'Incremental Revenue (BDT)', readonly: true },
+        { name: 'incremental_conversions', label: 'Incremental Buyers', readonly: true }
+      ]},
+      { tab: 'return', title: 'Attribution And Return',
+        fields: [
+        { name: 'attributed_conversions', label: 'Attributed Conversions', readonly: true },
+        { name: 'attributed_revenue', label: 'Attributed Revenue (BDT)', readonly: true },
+        { name: 'revenue_basis', label: 'Revenue Basis', readonly: true },
+        { name: 'cost', label: 'Campaign Cost (BDT)', readonly: true },
+        { name: 'roi_incremental', label: 'Incremental ROI (%)', readonly: true }
+      ]}
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -819,7 +1107,13 @@ export const FORM_MODELS = {
   'M35:Attribution Model': 'fix.attribution.model',
   'M35:Portal Ad Placement': 'fix.campaign.ad',
   'M35:Co-Marketing Partners': 'fix.campaign',
-  'M35:MDF Co-Funding': 'fix.partner.rebate'
+  'M35:MDF Co-Funding': 'fix.partner.rebate',
+  'M35:Campaign Programme': 'fix.campaign.programme',
+  'M35:Capacity Check': 'fix.campaign.capacity.check',
+  'M35:Emergency Stop': 'fix.campaign',
+  'M35:Exit a Journey Member': 'fix.campaign.journey.member',
+  'M35:M10 Voucher or Points Reward': 'fix.loyalty.campaign.hook',
+  'M35:Measure a Campaign': 'fix.campaign'
 };
 
 export const FORM_CHIPS = {
@@ -838,6 +1132,12 @@ export const FORM_CHIPS = {
   'M35:Portal Ad Placement': 'M35-form-ad',
   'M35:Co-Marketing Partners': 'M35-form-comarketing',
   'M35:MDF Co-Funding': 'M40-form-rebate',
+  'M35:Campaign Programme': 'M35-form-programme',
+  'M35:Capacity Check': 'M35-form-capacity',
+  'M35:Emergency Stop': 'M35-form-stop',
+  'M35:Exit a Journey Member': 'M35-form-member-exit',
+  'M35:M10 Voucher or Points Reward': 'M10-form-voucher-campaign',
+  'M35:Measure a Campaign': 'M35-form-measure',
   'M35:__by_model__': {
     'fix.campaign.journey.member': 'M35-form-journey-member',
     'fix.campaign': 'M35-form-campaign',
@@ -849,7 +1149,11 @@ export const FORM_CHIPS = {
     'fix.campaign.experiment': 'M35-form-experiment',
     'fix.campaign.spend': 'M35-form-spend',
     'fix.attribution.model': 'M35-form-attribution-model',
-    'fix.partner.rebate': 'M40-form-rebate'
+    'fix.partner.rebate': 'M40-form-rebate',
+    'fix.campaign.programme': 'M35-form-programme',
+    'fix.campaign.capacity.check': 'M35-form-capacity',
+    'fix.attribution.result': 'M35-form-result',
+    'fix.loyalty.campaign.hook': 'M10-form-voucher-campaign'
   },
   'M35:__by_screen__': {
     'M35-journey-members': 'M35-form-journey-member',
@@ -865,7 +1169,13 @@ export const FORM_CHIPS = {
     'M35-comarketing': 'M35-form-campaign',
     'M35-mdf': 'M40-form-rebate',
     'M35-spend': 'M35-form-spend',
-    'M35-attribution-models': 'M35-form-attribution-model'
+    'M35-attribution-models': 'M35-form-attribution-model',
+    'M35-programmes': 'M35-form-programme',
+    'M35-capacity': 'M35-form-capacity',
+    'M35-calendar': 'M35-form-campaign',
+    'M35-results': 'M35-form-result',
+    'M35-to-measure': 'M35-form-campaign',
+    'M35-m10-rewards': 'M10-form-voucher-campaign'
   }
 };
 

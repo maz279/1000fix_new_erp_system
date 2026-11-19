@@ -4,11 +4,13 @@
 # Multi-touch attribution reads the S1 delivery log.
 # fix_campaign_capture (capture audit 2026-11-14) extends the experiment and
 # the ad placement; it imports fix_campaign_ops itself, so import sorting
-# cannot load it first.
+# cannot load it first. fix_campaign_capture2 (capture audit pass 2,
+# 2026-11-19) extends both and imports them itself.
 from . import (
     fix_attribution,
     fix_campaign,
     fix_campaign_capture,
+    fix_campaign_capture2,
     fix_campaign_ops,
     fix_journey_runtime,
 )

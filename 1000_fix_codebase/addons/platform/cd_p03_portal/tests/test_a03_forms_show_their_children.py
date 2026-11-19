@@ -57,6 +57,12 @@ INCIDENTAL = {
     # 26,680): a form grid would load them all. The batch form shows the
     # counts; the rows are audited on their list.
     ("fix.party.import.batch", "line_ids"),
+    # a programme's campaigns are mastered on their own form and listed on
+    # their own register (M35-campaigns, M35-calendar, programme column); the
+    # programme form shows their count and budget roll-up. A read-only grid
+    # here was tried: its save posts campaign_ids, which the programme form
+    # may not write, and a new programme could not be saved (M35 pass 2 walk).
+    ("fix.campaign.programme", "campaign_ids"),
 }
 
 

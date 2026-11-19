@@ -14,7 +14,7 @@ CD-M35-01 (P08-M04-T08) — 02-02 Category B W5 places M35 here (02-02
 - bilingual content fields throughout (DE-17)
 - events: campaign.launched, campaign.completed, campaign.response
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Marketing",

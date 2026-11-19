@@ -226,6 +226,7 @@ WRITABLE = {
             "rationale",
         }
     ),
+    "fix.attribution.result": frozenset(),
     "fix.bd.address": frozenset(
         {
             "address_tag",
@@ -251,20 +252,30 @@ WRITABLE = {
             "btrc_sender_mask",
             "budget",
             "budget_memo_ref",
+            "campaign_type",
             "channel",
             "company_id",
             "end_date",
             "exclude_segment_ids",
             "holdout_key",
             "holdout_pct",
+            "intersect_segment_ids",
+            "landing_page_url",
             "name",
             "name_bn",
+            "objective",
             "operating_unit_id",
             "partner_ids",
+            "programme_id",
             "response_ids",
             "segment_ids",
             "sms_opt_out_text",
             "start_date",
+            "success_measure",
+            "success_target",
+            "suppress_credit_hold",
+            "suppress_open_complaints",
+            "suppress_recent_days",
             "target_audience_type",
             "utm_campaign",
             "utm_medium",
@@ -279,16 +290,32 @@ WRITABLE = {
             "advertiser_partner_id",
             "campaign_id",
             "name",
+            "page_context",
             "placement",
+            "position",
+        }
+    ),
+    "fix.campaign.capacity.check": frozenset(
+        {
+            "available_capacity",
+            "campaign_id",
+            "capacity_source",
+            "expected_response_pct",
         }
     ),
     "fix.campaign.creative": frozenset(
         {
             "asset_type",
+            "body_bn",
+            "body_en",
             "campaign_id",
             "channel",
+            "expires_on",
             "name",
             "reference",
+            "reference_bn",
+            "subject_bn",
+            "subject_en",
         }
     ),
     "fix.campaign.experiment": frozenset(
@@ -306,10 +333,14 @@ WRITABLE = {
         {
             "active",
             "campaign_id",
+            "conflict_group",
+            "exit_on_complaint",
             "exit_on_consent_withdrawal",
+            "exit_on_conversion",
             "journey_kind",
             "live_segment_sync",
             "name",
+            "priority",
             "segment_id",
             "step_ids",
             "steps_json",
@@ -338,6 +369,16 @@ WRITABLE = {
             "value",
         }
     ),
+    "fix.campaign.programme": frozenset(
+        {
+            "budget",
+            "code",
+            "date_from",
+            "date_to",
+            "name",
+            "owner_id",
+        }
+    ),
     "fix.campaign.response": frozenset(),
     "fix.campaign.spend": frozenset(
         {
@@ -347,6 +388,7 @@ WRITABLE = {
             "name",
             "reference",
             "spend_date",
+            "stage",
             "vendor_partner_id",
         }
     ),

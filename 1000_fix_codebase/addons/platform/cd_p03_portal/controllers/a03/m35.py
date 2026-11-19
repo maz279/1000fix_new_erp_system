@@ -29,6 +29,10 @@ SURFACES = {
             "action_complete",
             # capture audit 2026-11-14: post-suppression reach (BRU-MKT-03)
             "action_estimate_audience",
+            # capture audit pass 2: emergency stop (BRU-MKT-13) and the
+            # measured result against the holdout (FR-MKT-036)
+            "action_emergency_stop",
+            "action_measure",
         },
     },
     "fix.campaign.response": {
@@ -81,7 +85,7 @@ SURFACES = {
     "fix.campaign.spend": {
         "order": "spend_date desc, id desc",
         "limit": 300,
-        "actions": {"action_void"},
+        "actions": {"action_void", "action_mark_incurred"},
     },
     "fix.attribution.model": {
         "order": "code, version desc",
@@ -101,11 +105,28 @@ SURFACES = {
     "fix.campaign.journey.member": {
         "order": "next_action_at, id",
         "limit": 300,
-        "actions": {"action_pause_member", "action_resume_member"},
+        "actions": {"action_pause_member", "action_resume_member", "action_exit_member"},
     },
     "fix.campaign.touch": {
         "order": "occurred_at desc, id desc",
         "limit": 300,
+        "actions": set(),
+    },
+    # --- capture audit pass 2 (2026-11-19) ---------------------
+    "fix.campaign.programme": {
+        "order": "date_from desc, code",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.campaign.capacity.check": {
+        "order": "id desc",
+        "limit": 200,
+        # BRU-MKT-05: the Operations Director overrides an insufficient check
+        "actions": {"action_override"},
+    },
+    "fix.attribution.result": {
+        "order": "measured_at desc, id desc",
+        "limit": 200,
         "actions": set(),
     },
 }

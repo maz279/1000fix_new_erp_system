@@ -421,6 +421,10 @@ class TestCreativeApproval:
                     "campaign_id": campaign.id,
                     "asset_type": "image",
                     "reference": "s3://m35/eid-banner-v1.png",
+                    # capture pass 2: BRU-MKT-10 needs the Bengali version and
+                    # FR-MKT-024 an expiry before content is approved
+                    "reference_bn": "s3://m35/eid-banner-v1-bn.png",
+                    "expires_on": "2099-12-31",
                     **vals,
                 }
             )
