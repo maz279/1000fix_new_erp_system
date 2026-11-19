@@ -35,6 +35,17 @@
         <field name="model_id" ref="model_fix_discount_reason"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_estimate_review_company" model="ir.rule">
+        <field name="name">fix.estimate.review: allowed companies</field>
+        <field name="model_id" ref="model_fix_estimate_review"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_estimate_review_operating_unit" model="ir.rule">
+        <field name="name">fix.estimate.review: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_estimate_review"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_quotation_company" model="ir.rule">
         <field name="name">fix.quotation: allowed companies</field>
         <field name="model_id" ref="model_fix_quotation"/>
@@ -79,6 +90,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_quotation_credit_override_company" model="ir.rule">
+        <field name="name">fix.quotation.credit.override: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_credit_override"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_quotation_credit_override_operating_unit" model="ir.rule">
+        <field name="name">fix.quotation.credit.override: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_quotation_credit_override"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_quotation_delivery_company" model="ir.rule">
         <field name="name">fix.quotation.delivery: allowed companies</field>
         <field name="model_id" ref="model_fix_quotation_delivery"/>
@@ -101,6 +123,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_quotation_legal_hold_company" model="ir.rule">
+        <field name="name">fix.quotation.legal.hold: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_legal_hold"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_quotation_legal_hold_operating_unit" model="ir.rule">
+        <field name="name">fix.quotation.legal.hold: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_quotation_legal_hold"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_quotation_line_company" model="ir.rule">
         <field name="name">fix.quotation.line: allowed companies</field>
         <field name="model_id" ref="model_fix_quotation_line"/>
@@ -112,10 +145,26 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_quotation_standard_term_company" model="ir.rule">
+        <field name="name">fix.quotation.standard.term: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_standard_term"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_quotation_template_company" model="ir.rule">
         <field name="name">fix.quotation.template: allowed companies</field>
         <field name="model_id" ref="model_fix_quotation_template"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_quotation_term_company" model="ir.rule">
+        <field name="name">fix.quotation.term: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_term"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_quotation_term_operating_unit" model="ir.rule">
+        <field name="name">fix.quotation.term: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_quotation_term"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_tender_company" model="ir.rule">
         <field name="name">fix.tender: allowed companies</field>
@@ -128,6 +177,17 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_tender_document_company" model="ir.rule">
+        <field name="name">fix.tender.document: allowed companies</field>
+        <field name="model_id" ref="model_fix_tender_document"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tender_document_operating_unit" model="ir.rule">
+        <field name="name">fix.tender.document: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tender_document"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_tender_line_company" model="ir.rule">
         <field name="name">fix.tender.line: allowed companies</field>
         <field name="model_id" ref="model_fix_tender_line"/>
@@ -136,6 +196,17 @@
     <record id="rule_fix_tender_line_operating_unit" model="ir.rule">
         <field name="name">fix.tender.line: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_tender_line"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_tender_outcome_company" model="ir.rule">
+        <field name="name">fix.tender.outcome: allowed companies</field>
+        <field name="model_id" ref="model_fix_tender_outcome"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_tender_outcome_operating_unit" model="ir.rule">
+        <field name="name">fix.tender.outcome: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_tender_outcome"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

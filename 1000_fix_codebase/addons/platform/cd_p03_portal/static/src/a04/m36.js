@@ -21,7 +21,8 @@ export const MODULE = {
   groups: [
     { en: 'Estimates', screens: [
       { id: 'M36-estimates', en: 'Internal Estimates', bn: 'অভ্যন্তরীণ এস্টিমেট', t: 'g' },
-      { id: 'M36-buildup', en: 'Build-Up Workbench', bn: 'বিল্ড-আপ', t: 'g' }
+      { id: 'M36-buildup', en: 'Build-Up Workbench', bn: 'বিল্ড-আপ', t: 'g' },
+      { id: 'M36-est-reviews', en: 'Technical Reviews (second opinion)', bn: 'কারিগরি পর্যালোচনা', t: 'g' }
     ]},
     { en: 'Quotations', screens: [
       { id: 'M36-quotes', en: 'Customer Quotations', bn: 'গ্রাহক কোটেশন', t: 'g' },
@@ -31,6 +32,10 @@ export const MODULE = {
       { id: 'M36-billing-lines', en: 'Billing Plan Lines', bn: 'বিলিং লাইন', t: 'g' },
       { id: 'M36-handoffs', en: 'Fulfilment Hand-offs', bn: 'হস্তান্তর লগ', t: 'g' },
       { id: 'M36-templates', en: 'Quotation Templates', bn: 'কোটেশন টেমপ্লেট', t: 'g' },
+      { id: 'M36-std-terms', en: 'Standard Terms Library', bn: 'মানক শর্তাবলি', t: 'g' },
+      { id: 'M36-terms', en: 'Quotation Terms & Exclusions', bn: 'কোটেশনের শর্ত ও বর্জন', t: 'g' },
+      { id: 'M36-renewals', en: 'Renewal Quotations', bn: 'নবায়ন কোটেশন', t: 'g' },
+      { id: 'M36-legal-holds', en: 'Legal Holds', bn: 'আইনি স্থগিতাদেশ', t: 'g' },
       { id: 'M36-doc-templates', en: 'Bilingual Document Templates', bn: 'দ্বিভাষিক নথি টেমপ্লেট', t: 'g' },
       { id: 'M36-contract-scope', en: 'Contracted Scope (from quotations)', bn: 'চুক্তির পরিধি', t: 'g' },
       { id: 'M36-versions', en: 'Quotation Versions', bn: 'কোটেশন ভার্সন', t: 'g' },
@@ -42,6 +47,8 @@ export const MODULE = {
       { id: 'M36-counters', en: 'Counter-Offers & Partial Acceptance', bn: 'কাউন্টার অফার ও আংশিক সম্মতি', t: 'g' },
       { id: 'M36-internal', en: 'Internal Approval Routing', bn: 'অভ্যন্তরীণ অনুমোদন', t: 'g' },
       { id: 'M36-pending', en: 'Drafts Awaiting Approval', bn: 'অনুমোদনের অপেক্ষায় খসড়া', t: 'g' },
+      { id: 'M36-term-deviations', en: 'Term Deviations Awaiting CCO / CFO', bn: 'শর্ত বিচ্যুতি অনুমোদন', t: 'g' },
+      { id: 'M36-credit-overrides', en: 'Credit Gate Overrides (Finance)', bn: 'ক্রেডিট ওভাররাইড', t: 'g' },
       { id: 'M36-declined', en: 'Declined-Repair Handling', bn: 'প্রত্যাখ্যাত মেরামত', t: 'r' }
     ]},
     { en: 'Tenders', screens: [
@@ -49,7 +56,9 @@ export const MODULE = {
       { id: 'M36-boq', en: 'Tender BOQ / Price Schedule', bn: 'দরপত্র BOQ / মূল্য তফসিল', t: 'g' },
       { id: 'M36-compliance', en: 'Compliance Matrix', bn: 'কমপ্লায়েন্স ম্যাট্রিক্স', t: 'r' },
       { id: 'M36-bonds', en: 'Bid Bonds', bn: 'বিড বন্ড', t: 'g' },
-      { id: 'M36-variations', en: 'Variation Orders', bn: 'ভেরিয়েশন অর্ডার', t: 'g' }
+      { id: 'M36-variations', en: 'Variation Orders', bn: 'ভেরিয়েশন অর্ডার', t: 'g' },
+      { id: 'M36-tender-docs', en: 'Submission Pack (document checklist)', bn: 'দাখিলের নথি তালিকা', t: 'g' },
+      { id: 'M36-tender-outcomes', en: 'Tender Outcomes & Loss Reasons', bn: 'দরপত্রের ফলাফল', t: 'g' }
     ]}
   ],
   reports: ['Quote Conversion by Channel', 'Approval Cycle Time', 'Decline Reasons Pareto', 'Tender Win/Loss', 'Margin on Approved Quotes'],
@@ -57,39 +66,45 @@ export const MODULE = {
     'Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code', 'Record Signed Acceptance',
     'Counter-Offer / Partial Acceptance', 'Decide a Counter-Offer', 'Record a Customer Decline',
     'Tender Bid', 'Bid Bond', 'Variation Order', 'Quotation Template', 'Document Template (bilingual)',
-    'Proforma Invoice (Local)'],
+    'Proforma Invoice (Local)',
+    'Technical Review Request', 'Record Technical Review Outcome', 'Quotation Term', 'Renewal Quotation',
+    'Decide a Term Deviation', 'Finance Credit Override', 'Accept by Phone (recorded consent)',
+    'Legal Hold', 'Release a Legal Hold', 'Tender Document', 'Tender Outcome (loss)', 'Standard Term (library)'],
   cross: ['M37 Catalogue', 'M11 Pricing', 'M01 Service Orders'],
   /* Capture audit 2026-11-14 (spec sections 5, 8.2, 10.1): each page's
    * "+ New" captures the record the page names. Before it only page 2 had
    * one; 3-8 and 10 captured nothing, 1 and 9 had a chip only. The
    * quotation lifecycle moves by its workflow methods, so the quotation
    * pages pick an existing quotation and run the step (never a write). */
+  /* Capture audit, second pass 2026-11-19 (FR-QTE-009/018/024/027/028/042/
+   * 046/048, BRU-QTE-08/14/15/16/17): the spec records the pages are about
+   * that still had nowhere to be captured now have their forms. */
   freg: { src: 86, sub: [
-    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates'], reports: [], forms: ['Estimate'], create: 'M36-form-estimate' }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Proforma Invoice (Local)'] }],
+    ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates', 'M36-est-reviews'], reports: [], forms: ['Estimate', 'Technical Review Request', 'Record Technical Review Outcome'], create: 'M36-form-estimate' }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-terms', 'M36-renewals', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Quotation Term', 'Renewal Quotation', 'Proforma Invoice (Local)'] }],
     /* FR-QTE-012/015, BRU-QTE-02/04: an issued, expired or declined version is
      * never edited; it is revised into the next version. */
     ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation'], create: 'M36-form-revise' }],
     /* FR-QTE-025..032: submitted to the value-band approver (never the author);
      * the review log is written by the decision in the M63 inbox. */
-    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'version', 'reviewer_id', 'decision', 'value_reviewed', 'reviewed_at'], screens: ['M36-internal', 'M36-pending'], reports: ['Approval Cycle Time'], forms: ['Submit for Internal Approval'], create: 'M36-form-submit' }],
+    ['4', 'Approval Routing', 9, { model: 'fix.quote.review', cols: ['quotation_id', 'version', 'reviewer_id', 'decision', 'value_reviewed', 'reviewed_at'], screens: ['M36-internal', 'M36-pending', 'M36-term-deviations', 'M36-credit-overrides'], reports: ['Approval Cycle Time'], forms: ['Submit for Internal Approval', 'Decide a Term Deviation', 'Finance Credit Override'], create: 'M36-form-submit' }],
     /* FR-QTE-033/034/039/042: issued on a channel, every delivery recorded,
      * accepted on the code the customer reads out. */
-    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quotation.delivery', cols: ['quotation_id', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count'], screens: ['M36-loop', 'M36-deliveries'], reports: ['Quote Conversion by Channel'], forms: ['Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code'], create: 'M36-form-issue' }],
+    ['5', 'Customer Approval Loop (8 channels)', 13, { model: 'fix.quotation.delivery', cols: ['quotation_id', 'channel', 'recipient', 'sent_at', 'delivered_at', 'first_viewed_at', 'view_count'], screens: ['M36-loop', 'M36-deliveries'], reports: ['Quote Conversion by Channel'], forms: ['Issue to the Customer', 'Quotation Delivery', 'Accept by Customer Code', 'Accept by Phone (recorded consent)'], create: 'M36-form-issue' }],
     /* FR-QTE-035/036, BRU-QTE-11, T-03: the customer's counter or line-level
      * decision is a record, decided by someone other than who took it down;
      * "revise" derives the next version for approval. */
     ['6', 'Partial Accept & Counter', 6, { model: 'fix.quotation.counter', cols: ['name', 'kind', 'channel', 'requested_value', 'state', 'decided_by_id', 'revised_quotation_id'], screens: ['M36-counters', 'M36-loop'], reports: [], forms: ['Counter-Offer / Partial Acceptance', 'Decide a Counter-Offer'] }],
     /* FR-QTE-037/038: the signed copy or the customer's code; the evidence
      * pack is sealed by the acceptance. */
-    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'acceptance_method', 'signed_at', 'evidence_hash', 'state'], screens: ['M36-esign', 'M36-loop'], reports: [], forms: ['Record Signed Acceptance', 'Accept by Customer Code'], create: 'M36-form-signed' }],
+    ['7', 'e-Signature', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'esign_state', 'acceptance_method', 'signed_at', 'evidence_hash', 'state'], screens: ['M36-esign', 'M36-loop', 'M36-legal-holds'], reports: [], forms: ['Record Signed Acceptance', 'Accept by Customer Code', 'Accept by Phone (recorded consent)', 'Legal Hold', 'Release a Legal Hold'], create: 'M36-form-signed' }],
     /* FR-QTE-041, BRU-QTE-12/16: a governed reason; the service order gets the
      * return / collection task with the diagnostic fee owed. */
     ['8', 'Declined Handling', 6, { model: 'fix.quotation', cols: ['name', 'customer_id', 'state', 'decline_reason_code', 'decline_reason', 'declined_at'], screens: ['M36-declined', 'M36-rpt-decline', 'M36-loop'], reports: ['Decline Reasons Pareto'], forms: ['Record a Customer Decline'], create: 'M36-form-decline' }],
-    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-compliance', 'M36-bonds', 'M36-variations', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid', 'Bid Bond', 'Variation Order'] }],
+    ['9', 'Tender & Bid', 9, { model: 'fix.tender', cols: ['name', 'state', 'client_name', 'due_date', 'estimated_value', 'compliance_pct', 'bonds_required'], screens: ['M36-tenders', 'M36-boq', 'M36-compliance', 'M36-tender-docs', 'M36-bonds', 'M36-variations', 'M36-tender-outcomes', 'M36-rpt-tender'], reports: ['Tender Win/Loss'], forms: ['Tender Bid', 'Tender Document', 'Bid Bond', 'Variation Order', 'Tender Outcome (loss)'] }],
     /* FR-QTE-008/018/019: the quotation templates (terms, lines, options) and
      * the bilingual document templates the PDFs are generated from (M24). */
-    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.quotation.template', cols: ['sequence', 'name', 'segment', 'quote_type', 'payment_term_id', 'advance_pct', 'validity_days'], screens: ['M36-templates', 'M36-doc-templates'], reports: [], forms: ['Quotation Template', 'Document Template (bilingual)'] }]
+    ['10', 'Templates & Bilingual Gen', 8, { model: 'fix.quotation.template', cols: ['sequence', 'name', 'segment', 'quote_type', 'payment_term_id', 'advance_pct', 'validity_days'], screens: ['M36-templates', 'M36-std-terms', 'M36-doc-templates'], reports: [], forms: ['Quotation Template', 'Standard Term (library)', 'Document Template (bilingual)'] }]
   ] }
 };
 
@@ -144,7 +159,6 @@ export const SCREENS = {
       { m: 'action_submit', l: 'Submit Bid (quotation approved, every BOQ item priced)', states: ['draft'] },
       { m: 'action_request_award', l: 'Request Award Approval (award ref and value staged on the form)', ask: 'Justification for the award', kwarg: 'justification', states: ['submitted'] },
       { m: 'action_recall_approval', l: 'Recall Award Request', states: ['submitted'] },
-      { m: 'action_record_loss', l: 'Record Loss', ask: 'Loss reason', kwarg: 'reason', states: ['submitted'] },
       { m: 'action_create_contract', l: 'Create Contract (retry)', states: ['won'] },
       { m: 'action_record_acceptance', l: 'Record Acceptance Certificate (staged on the form)', states: ['won'] },
       { m: 'action_cancel', l: 'Cancel Tender', ask: 'Why is the tender withdrawn?', kwarg: 'reason', states: ['draft', 'submitted'] }
@@ -215,6 +229,7 @@ export const SCREENS = {
     actions: [
       { m: 'action_pull_estimate_lines', l: 'Pull Lines from Estimate', states: ['draft'] },
       { m: 'action_apply_template', l: 'Apply Template (replaces the lines)', states: ['draft'] },
+      { m: 'action_apply_standard_terms', l: 'Attach the Standard Terms', states: ['draft'] },
       { m: 'action_choose_option', l: 'Customer Chooses Option', ask: 'Which option did the customer take? (its description)', kwarg: 'choice', states: ['draft', 'approved', 'sent'] },
       { m: 'action_submit', l: 'Submit for Approval', ask: 'Business justification (required above BDT 25,000)', kwarg: 'justification', states: ['draft'] },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['draft'] },
@@ -637,7 +652,9 @@ export const SCREENS = {
           { name: 'dofa_tier_required', label: 'Approval Band', readonly: true },
           { name: 'dofa_justification', label: 'Business Justification', type: 'text' },
           { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
-          { name: 'approved_at', label: 'Approved At', readonly: true }
+          { name: 'approved_at', label: 'Approved At', readonly: true },
+          { name: 'credit_block_reason', label: 'Credit Gate (M20; Finance override on Approval Routing)', readonly: true },
+          { name: 'renewal_of_contract_id', label: 'Renewal Of Contract', readonly: true }
         ] },
       { tab: 'esign', title: 'Customer Acceptance & Evidence Pack',
         note: 'Acceptance is a verified customer code, the e-signature provider callback, or a signed copy recorded by someone other than the author, within validity.',
@@ -651,6 +668,7 @@ export const SCREENS = {
           { name: 'accepted_at', label: 'Accepted At', readonly: true },
           { name: 'accepted_total', label: 'Accepted Total incl. VAT (BDT)', readonly: true },
           { name: 'evidence_hash', label: 'Evidence Hash (SHA-256)', readonly: true },
+          { name: 'legal_hold', label: 'On Legal Hold (BRU-QTE-17)', readonly: true },
           { name: 'decline_reason_code', label: 'Decline Reason (governed list)' },
           { name: 'decline_reason', label: 'Customer Decline Rationale', readonly: true }
         ] },
@@ -926,6 +944,7 @@ export const SCREENS = {
         { name: 'mandatory', label: 'Mandatory' },
         { name: 'state', label: 'Status', required: true },
         { name: 'evidence_ref', label: 'Evidence Document Ref' },
+        { name: 'owner_id', label: 'Owner' },
         { name: 'response', label: 'Response' }
       ]
     },
@@ -980,7 +999,9 @@ export const SCREENS = {
           { name: 'bid_security_amount', label: 'Bid Security Required (BDT)' },
           { name: 'bid_validity_days', label: 'Tender Validity (days)' },
           { name: 'compliance_pct', label: 'Compliance % (computed)', readonly: true },
-          { name: 'open_mandatory_count', label: 'Open Mandatory Items', readonly: true }
+          { name: 'open_mandatory_count', label: 'Open Mandatory Items', readonly: true },
+          { name: 'missing_document_count', label: 'Required Documents Missing', readonly: true },
+          { name: 'submission_pack_hash', label: 'Submission Pack Hash (sealed at submission)', readonly: true }
         ] },
       { tab: 'status', title: 'Award & Contract', note: 'Stage the award letter and value, then Request Award: a Tender Committee member who did not prepare the bid approves it, and the M08 contract is created.',
         fields: [
@@ -995,8 +1016,9 @@ export const SCREENS = {
           { name: 'awarded_by', label: 'Award Approved By', readonly: true },
           { name: 'award_date', label: 'Award Date', readonly: true },
           { name: 'converted_ref', label: 'Contract', readonly: true },
-          { name: 'awarded_to', label: 'Awarded To (on a loss)' },
-          { name: 'winning_value', label: 'Winning Value (on a loss)' },
+          { name: 'awarded_to', label: 'Awarded To (on a loss)', readonly: true },
+          { name: 'winning_value', label: 'Winning Value (on a loss)', readonly: true },
+          { name: 'loss_reason_code', label: 'Loss Reason (governed)', readonly: true },
           { name: 'loss_reason', label: 'Loss Reason', readonly: true }
         ] },
       { tab: 'contract_terms', title: 'Contract Terms from the Tender Documents', note: 'PPR 2025 STDs: performance security 10% of the contract price; liquidated damages 0.03-0.05% per day capped at 10%; 10% retention from payments after acceptance. Values outside the usual are flagged, not refused. Frozen once the bid is submitted.',
@@ -1249,6 +1271,298 @@ export const SCREENS = {
         { name: 'write_date', label: 'Last Updated on', readonly: true }
       ] },
       { tab: 'docs', title: 'Documents & Evidence', note: 'Related collections (related records) and file evidence attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] },
+    ] },
+
+  /* ==== Capture audit, second pass (2026-11-19) ============================ */
+  // p1 FR-QTE-009: a technical review / second opinion before an estimate is quoted.
+  'M36-est-reviews': { kind: 'model_list', model: 'fix.estimate.review', stateField: 'state',
+    cols: ['estimate_id', 'estimate_total', 'reason', 'reviewer_id', 'requested_by_id', 'state', 'decided_at'],
+    empty: 'No technical review yet. Ask a senior technician for a second opinion on a high-value or contentious estimate; it cannot be quoted while the review is open or returned.' },
+  'M36-form-est-review': { kind: 'model_form', model: 'fix.estimate.review',
+    title: 'Technical Review Request', newLabel: 'Request a Technical Review', back: 'M36-est-reviews',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Second Opinion (FR-QTE-009)',
+        note: 'A high-value or contentious estimate goes to a senior technician or specialist before it becomes a quotation. Until the reviewer clears it, no quotation of this estimate can be submitted or issued; a return sends it back for rework.',
+        fields: [
+          { name: 'estimate_id', label: 'Estimate', required: true, domain: [['state', 'in', ['draft', 'sent', 'approved']]] },
+          { name: 'estimate_total', label: 'Estimate Total', readonly: true },
+          { name: 'reason', label: 'Why a Review', required: true },
+          { name: 'question', label: 'What the Reviewer Should Check', type: 'text', required: true },
+          { name: 'reviewer_id', label: 'Senior Technician / Specialist (not you)', required: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'findings', label: 'Findings', type: 'text', readonly: true },
+          { name: 'decided_at', label: 'Decided At', readonly: true }
+        ] }
+    ] },
+  'M36-form-est-review-decide': { kind: 'model_form', model: 'fix.estimate.review',
+    title: 'Record Technical Review Outcome', newLabel: 'Record Technical Review Outcome', back: 'M36-est-reviews',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the review awaiting your opinion',
+      search: 'Search review', choose: 'Record the outcome',
+      cols: ['estimate_id', 'estimate_total', 'reason', 'reviewer_id', 'requested_by_id'],
+      domain: [['state', '=', 'requested']],
+      empty: 'No technical review awaits an outcome.'
+    },
+    saveAction: { method: 'action_decide', label: 'Record Outcome', done: 'Recorded: a cleared estimate can be quoted; a returned one is reworked', kwargs: { decision: 'decision_choice', findings: 'findings_entry' } },
+    sections: [
+      { title: 'Step 2 of 2: The Reviewer\'s Opinion',
+        note: 'Only the named reviewer records the outcome. Cleared: the build-up is sound and the estimate can be quoted. Returned: it is reworked and reviewed again.',
+        fields: [
+          { name: 'estimate_id', label: 'Estimate', readonly: true },
+          { name: 'reason', label: 'Why a Review', readonly: true },
+          { name: 'question', label: 'What to Check', type: 'text', readonly: true },
+          { name: 'decision_choice', label: 'Outcome', required: true, readonly: true },
+          { name: 'findings_entry', label: 'Findings', type: 'text', required: true, readonly: true }
+        ] }
+    ] },
+
+  // p10 / p2 FR-QTE-018: the governed library and the terms on each quotation.
+  'M36-std-terms': { kind: 'model_list', model: 'fix.quotation.standard.term',
+    cols: ['code', 'name', 'term_type', 'quote_type', 'mandatory', 'active'],
+    empty: 'No standard term yet. The Commercial Manager keeps the library of standard terms, assumptions and exclusions; a quotation quoting one word for word needs no approval.' },
+  'M36-form-std-term': { kind: 'model_form', model: 'fix.quotation.standard.term',
+    title: 'Standard Term (library)', newLabel: 'New Standard Term', back: 'M36-std-terms',
+    sections: [
+      { title: 'Standard Term, Assumption or Exclusion (FR-QTE-018)',
+        note: 'Kept by the Commercial Manager. Mandatory: every quotation of its kind must carry it before it is submitted. Changing the wording here does not change a term already quoted.',
+        fields: [
+          { name: 'code', label: 'Code', required: true },
+          { name: 'name', label: 'Title', required: true },
+          { name: 'term_type', label: 'Kind', required: true },
+          { name: 'quote_type', label: 'Applies To (empty: every quotation)' },
+          { name: 'text_en', label: 'Wording (English)', type: 'text', required: true },
+          { name: 'text_bn', label: 'Wording (Bengali)', type: 'text' },
+          { name: 'mandatory', label: 'Mandatory on Every Quotation of Its Kind' },
+          { name: 'sequence', label: 'Order' },
+          { name: 'active', label: 'In Use' }
+        ] }
+    ] },
+  'M36-terms': { kind: 'model_list', model: 'fix.quotation.term', stateField: 'deviation_state',
+    cols: ['quotation_id', 'customer_id', 'term_type', 'standard_term_id', 'deviation_state', 'commercial_approver_id', 'finance_approver_id', 'quotation_state'],
+    empty: 'No quotation term yet. Attach the standard terms to a draft (Attach the Standard Terms on Customer Quotations) or write a term; wording that is not the library\'s goes to the CCO and CFO.' },
+  'M36-form-term': { kind: 'model_form', model: 'fix.quotation.term',
+    title: 'Quotation Term', newLabel: 'Add a Term / Assumption / Exclusion', back: 'M36-terms',
+    status: { field: 'deviation_state' },
+    tabs: [
+      { id: 'term', label: '1. The Term', bn: '১. শর্ত', icon: '📜', badge: '7' },
+      { id: 'approval', label: '2. Deviation Approval', bn: '২. বিচ্যুতি অনুমোদন', icon: '✅', badge: '7' }
+    ],
+    sections: [
+      { tab: 'term', title: 'The Term on the Quotation (FR-QTE-018)',
+        note: 'Pick a standard term to quote it word for word (no approval). Any other wording is a deviation: say why, and the Commercial Manager (CCO) and Finance (CFO) approve it before the quotation can be submitted or issued (BRU-QTE-08). Set while the quotation is a draft.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation (draft)', required: true, domain: [['state', '=', 'draft']] },
+          { name: 'standard_term_id', label: 'Standard Term (empty: own wording)' },
+          { name: 'term_type', label: 'Kind', required: true },
+          { name: 'text_en', label: 'Wording (English; empty: the standard wording)', type: 'text' },
+          { name: 'text_bn', label: 'Wording (Bengali)', type: 'text' },
+          { name: 'deviation_reason', label: 'Why the Standard Wording Does Not Fit (required for a deviation)' },
+          { name: 'sequence', label: 'Order' }
+        ] },
+      { tab: 'approval', title: 'CCO + CFO Approval of a Deviation',
+        note: 'Given with Decide a Term Deviation (Approval Routing page), by two different people, neither the author.',
+        fields: [
+          { name: 'deviation_state', label: 'Approval', readonly: true },
+          { name: 'recorded_by_id', label: 'Written By', readonly: true },
+          { name: 'commercial_approver_id', label: 'Approved (Commercial / CCO)', readonly: true },
+          { name: 'commercial_approved_at', label: 'At', readonly: true },
+          { name: 'finance_approver_id', label: 'Approved (Finance / CFO)', readonly: true },
+          { name: 'finance_approved_at', label: 'At', readonly: true },
+          { name: 'rejection_note', label: 'Rejection Note', readonly: true }
+        ] }
+    ] },
+  // p4 FR-QTE-027 / BRU-QTE-08 and FR-QTE-028 / BRU-QTE-14.
+  'M36-term-deviations': { kind: 'model_list', model: 'fix.quotation.term', create: false, stateField: 'deviation_state',
+    domain: [['deviation_state', '=', 'pending']],
+    cols: ['quotation_id', 'customer_id', 'term_type', 'deviation_reason', 'recorded_by_id', 'commercial_approver_id', 'finance_approver_id'],
+    empty: 'No non-standard term awaits approval.' },
+  'M36-form-term-decide': { kind: 'model_form', model: 'fix.quotation.term',
+    title: 'Decide a Term Deviation', newLabel: 'Decide a Term Deviation', back: 'M36-term-deviations',
+    status: { field: 'deviation_state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the non-standard term awaiting approval',
+      search: 'Search term', choose: 'Decide this deviation',
+      cols: ['quotation_id', 'customer_id', 'term_type', 'deviation_reason', 'commercial_approver_id', 'finance_approver_id'],
+      domain: [['deviation_state', '=', 'pending']],
+      empty: 'No non-standard term awaits approval.'
+    },
+    saveAction: { method: 'action_decide_deviation', label: 'Record Decision', done: 'Recorded: the deviation is approved once both the CCO and the CFO have approved it', kwargs: { decision: 'decision_choice', note: 'decision_note' } },
+    sections: [
+      { title: 'Step 2 of 2: Your Decision (BRU-QTE-08)',
+        note: 'The Commercial Manager signs for the CCO and Finance (Accounting Administrator) for the CFO: two different people, neither the author of the quotation or the term. Either may reject; say why.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation', readonly: true },
+          { name: 'term_type', label: 'Kind', readonly: true },
+          { name: 'text_en', label: 'Wording', type: 'text', readonly: true },
+          { name: 'deviation_reason', label: 'Why It Deviates', readonly: true },
+          { name: 'commercial_approver_id', label: 'Approved (Commercial / CCO)', readonly: true },
+          { name: 'finance_approver_id', label: 'Approved (Finance / CFO)', readonly: true },
+          { name: 'decision_choice', label: 'Decision', required: true, readonly: true },
+          { name: 'decision_note', label: 'Note (required to reject)', readonly: true }
+        ] }
+    ] },
+  'M36-credit-overrides': { kind: 'model_list', model: 'fix.quotation.credit.override',
+    cols: ['quotation_id', 'version', 'customer_id', 'amount_total', 'block_reason', 'granted_by_id', 'granted_at', 'revoked'],
+    empty: 'No credit override. A quotation to a customer on credit hold or over the limit is not issued or accepted until Finance records one (BRU-QTE-14).',
+    actions: [
+      { m: 'action_revoke', l: 'Revoke the Override' }
+    ] },
+  'M36-form-credit-override': { kind: 'model_form', model: 'fix.quotation.credit.override',
+    title: 'Finance Credit Override', newLabel: 'Record a Credit Override (Finance)', back: 'M36-credit-overrides',
+    sections: [
+      { title: 'Finance Lets One Quotation Through (FR-QTE-028, BRU-QTE-14)',
+        note: 'Only when M20 reports the customer on credit hold or over the limit with this quotation. Recorded by Finance (Accounting Administrator), never the author, for this version only; a revision needs a new one.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation', required: true, domain: [['state', 'in', ['draft', 'approved', 'sent']]] },
+          { name: 'reason', label: 'Why Finance Lets It Through', type: 'text', required: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'amount_total', label: 'Quotation Total (incl. VAT)', readonly: true },
+          { name: 'block_reason', label: 'What the Gate Found', readonly: true },
+          { name: 'granted_by_id', label: 'Granted By', readonly: true },
+          { name: 'granted_at', label: 'Granted At', readonly: true },
+          { name: 'revoked', label: 'Revoked', readonly: true }
+        ] }
+    ] },
+
+  // p2 FR-QTE-024 / BRU-QTE-18: a renewal quotation from an expiring contract.
+  'M36-renewals': { kind: 'model_list', model: 'fix.quotation', stateField: 'state',
+    domain: [['renewal_of_contract_id', '!=', false]],
+    cols: ['name', 'version', 'renewal_of_contract_id', 'customer_id', 'contract_start', 'contract_months', 'value', 'state'],
+    empty: 'No renewal quotation yet. Quote the renewal of a contract in force or just ended: its scope is carried over with the contract\'s escalation applied.' },
+  'M36-form-renewal': { kind: 'model_form', model: 'fix.quotation',
+    title: 'Renewal Quotation', newLabel: 'Quote a Contract Renewal', back: 'M36-renewals',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Renewal of an Expiring Contract (FR-QTE-024)',
+        note: 'The customer, operating unit and contract family come from the contract; the scope lines are carried over at the contract\'s escalation and the new term starts the day after it ends. The draft then takes the value-band approval like any quotation: record its direct cost on Customer Quotations.',
+        fields: [
+          { name: 'renewal_of_contract_id', label: 'Contract Being Renewed', required: true, domain: [['state', 'in', ['active', 'expiring', 'expired']]] },
+          { name: 'contract_months', label: 'Renewal Term (months)', required: true },
+          { name: 'valid_until', label: 'Quotation Valid Until', required: true },
+          { name: 'cost_amount', label: 'Estimated Direct Cost' },
+          { name: 'name', label: 'Quotation No.', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'contract_start', label: 'Renewal Starts', readonly: true },
+          { name: 'value', label: 'Renewal Value (excl. VAT)', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] }
+    ] },
+
+  // p5 / p7 FR-QTE-042: acceptance on a recorded phone call.
+  'M36-form-phone': { kind: 'model_form', model: 'fix.quotation',
+    title: 'Accept by Phone (recorded consent)', newLabel: 'Accept by Phone (recorded consent)', back: 'M36-loop',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the quotation the customer accepted on the call',
+      search: 'Search quotation', choose: 'Record the call',
+      cols: ['name', 'version', 'customer_id', 'amount_total', 'valid_until', 'delivery_channel'],
+      domain: [['state', '=', 'sent']],
+      empty: 'No quotation is with a customer.'
+    },
+    saveAction: { method: 'action_record_phone_acceptance', label: 'Record Acceptance', done: 'Accepted on the recorded call: the evidence pack is sealed', kwargs: { consent_ref: 'phone_consent_ref', called_number: 'phone_called_number' } },
+    sections: [
+      { title: 'Step 2 of 2: The Recorded Call',
+        note: 'FR-QTE-042: the call recording or consent reference is required, the number called must be the customer\'s own, and the agent is not the author. Within validity, against the exact version approved. Prefer Accept by Customer Code when the customer can read a code back.',
+        fields: [
+          { name: 'name', label: 'Quotation', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
+          { name: 'valid_until', label: 'Valid Until', readonly: true },
+          { name: 'phone_called_number', label: 'Number Called', required: true, readonly: true },
+          { name: 'phone_consent_ref', label: 'Call Recording / Consent Ref', required: true, readonly: true }
+        ] }
+    ] },
+
+  // p7 BRU-QTE-17 / T-14: a disputed quotation on legal hold.
+  'M36-legal-holds': { kind: 'model_list', model: 'fix.quotation.legal.hold', stateField: 'state',
+    cols: ['quotation_id', 'version', 'customer_id', 'dispute_ref', 'state', 'placed_by_id', 'placed_at', 'released_by_id'],
+    empty: 'No quotation is on legal hold. A quotation under dispute is held so it can never be deleted.' },
+  'M36-form-legal-hold': { kind: 'model_form', model: 'fix.quotation.legal.hold',
+    title: 'Legal Hold', newLabel: 'Place a Legal Hold', back: 'M36-legal-holds',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Quotation Under Dispute (BRU-QTE-17)',
+        note: 'While on hold the quotation and its evidence cannot be deleted or purged. The Commercial Manager releases it, never the person who placed it.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation', required: true },
+          { name: 'dispute_ref', label: 'Dispute / Case Ref', required: true },
+          { name: 'reason', label: 'What Is Disputed', type: 'text', required: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'placed_by_id', label: 'Placed By', readonly: true },
+          { name: 'placed_at', label: 'Placed At', readonly: true },
+          { name: 'released_by_id', label: 'Released By', readonly: true },
+          { name: 'release_reason', label: 'Why Released', readonly: true }
+        ] }
+    ] },
+  'M36-form-hold-release': { kind: 'model_form', model: 'fix.quotation.legal.hold',
+    title: 'Release a Legal Hold', newLabel: 'Release a Legal Hold', back: 'M36-legal-holds',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the hold to release',
+      search: 'Search hold', choose: 'Release this hold',
+      cols: ['quotation_id', 'customer_id', 'dispute_ref', 'placed_by_id', 'placed_at'],
+      domain: [['state', '=', 'active']],
+      empty: 'No quotation is on legal hold.'
+    },
+    saveAction: { method: 'action_release', label: 'Release', done: 'Released: the quotation follows its records schedule again', kwargs: { note: 'release_note' } },
+    sections: [
+      { title: 'Step 2 of 2: Why the Hold Ends',
+        note: 'By the Commercial Manager, never the person who placed it.',
+        fields: [
+          { name: 'quotation_id', label: 'Quotation', readonly: true },
+          { name: 'dispute_ref', label: 'Dispute / Case Ref', readonly: true },
+          { name: 'reason', label: 'What Was Disputed', type: 'text', readonly: true },
+          { name: 'release_note', label: 'Why It Is Released', required: true, readonly: true }
+        ] }
+    ] },
+
+  // p9 FR-QTE-046 / BRU-QTE-15: the submission pack; FR-QTE-048: the outcome.
+  'M36-tender-docs': { kind: 'model_list', model: 'fix.tender.document', stateField: 'state',
+    cols: ['tender_id', 'document_type', 'name', 'required', 'state', 'version', 'valid_until', 'prepared_by_id', 'tender_state'],
+    empty: 'No document on any submission checklist. List every annexe, certificate and form the tender asks for: a bid cannot be submitted while a required one is missing.' },
+  'M36-form-tender-doc': { kind: 'model_form', model: 'fix.tender.document',
+    title: 'Tender Document', newLabel: 'Add a Document to the Submission Pack', back: 'M36-tender-docs',
+    status: { field: 'state' },
+    sections: [
+      { title: 'Submission Checklist Item (FR-QTE-046)',
+        note: 'Upload the document itself: each new upload is a new version, and the pack is sealed by its hash when the bid is submitted (BRU-QTE-15). A document must be valid past the submission deadline. Frozen once the bid is submitted.',
+        fields: [
+          { name: 'tender_id', label: 'Tender (draft)', required: true, domain: [['state', '=', 'draft']] },
+          { name: 'document_type', label: 'Document', required: true },
+          { name: 'name', label: 'Title / Annexe No.', required: true },
+          { name: 'required', label: 'Required by the Tender' },
+          { name: 'attachment_id', label: 'The Document (upload)' },
+          { name: 'reference', label: 'Issuing Ref / Certificate No.' },
+          { name: 'valid_until', label: 'Valid Until' },
+          { name: 'sequence', label: 'Order in the Pack' },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'prepared_by_id', label: 'Prepared By', readonly: true }
+        ] }
+    ] },
+  'M36-tender-outcomes': { kind: 'model_list', model: 'fix.tender.outcome',
+    cols: ['tender_id', 'client_name', 'result', 'loss_reason_code', 'awarded_to', 'winning_value', 'our_value', 'price_gap_pct', 'recorded_by_id'],
+    empty: 'No tender outcome recorded. A submitted bid that was not won is recorded here with its governed loss reason; a win is the Tender Committee\'s award.' },
+  'M36-form-tender-outcome': { kind: 'model_form', model: 'fix.tender.outcome',
+    title: 'Tender Outcome (loss)', newLabel: 'Record a Tender Outcome (not won)', back: 'M36-tender-outcomes',
+    sections: [
+      { title: 'Outcome and Loss Analysis (FR-QTE-048, BRU-QTE-16)',
+        note: 'For a submitted bid that was not won. The reason comes from the governed list; the winner and the winning price, where disclosed, feed the win/loss analysis. A win is recorded by the award decision (Request Award), never here.',
+        fields: [
+          { name: 'tender_id', label: 'Tender (submitted)', required: true, domain: [['state', '=', 'submitted']] },
+          { name: 'result', label: 'Result', required: true },
+          { name: 'loss_reason_code', label: 'Loss Reason (governed)', required: true },
+          { name: 'awarded_to', label: 'Awarded To' },
+          { name: 'winning_value', label: 'Winning Price (where disclosed)' },
+          { name: 'notes', label: 'What Was Learned', type: 'text', required: true },
+          { name: 'our_value', label: 'Our Bid', readonly: true },
+          { name: 'price_gap_pct', label: 'Our Price vs Winner (%)', readonly: true },
+          { name: 'recorded_by_id', label: 'Recorded By', readonly: true }
+        ] }
     ] }
 };
 
@@ -1277,7 +1591,19 @@ export const FORM_MODELS = {
   'M36:Variation Order': 'fix.tender.variation',
   'M36:Quotation Template': 'fix.quotation.template',
   'M36:Document Template (bilingual)': 'fix.document.template',
-  'M36:Proforma Invoice (Local)': 'fix.sales.proforma'
+  'M36:Proforma Invoice (Local)': 'fix.sales.proforma',
+  'M36:Technical Review Request': 'fix.estimate.review',
+  'M36:Record Technical Review Outcome': 'fix.estimate.review',
+  'M36:Quotation Term': 'fix.quotation.term',
+  'M36:Renewal Quotation': 'fix.quotation',
+  'M36:Decide a Term Deviation': 'fix.quotation.term',
+  'M36:Finance Credit Override': 'fix.quotation.credit.override',
+  'M36:Accept by Phone (recorded consent)': 'fix.quotation',
+  'M36:Legal Hold': 'fix.quotation.legal.hold',
+  'M36:Release a Legal Hold': 'fix.quotation.legal.hold',
+  'M36:Tender Document': 'fix.tender.document',
+  'M36:Tender Outcome (loss)': 'fix.tender.outcome',
+  'M36:Standard Term (library)': 'fix.quotation.standard.term'
 };
 
 export const FORM_CHIPS = {
@@ -1298,6 +1624,18 @@ export const FORM_CHIPS = {
   'M36:Quotation Template': 'M36-form-template',
   'M36:Document Template (bilingual)': 'M24-form-template',
   'M36:Proforma Invoice (Local)': 'M36-form-proforma',
+  'M36:Technical Review Request': 'M36-form-est-review',
+  'M36:Record Technical Review Outcome': 'M36-form-est-review-decide',
+  'M36:Quotation Term': 'M36-form-term',
+  'M36:Renewal Quotation': 'M36-form-renewal',
+  'M36:Decide a Term Deviation': 'M36-form-term-decide',
+  'M36:Finance Credit Override': 'M36-form-credit-override',
+  'M36:Accept by Phone (recorded consent)': 'M36-form-phone',
+  'M36:Legal Hold': 'M36-form-legal-hold',
+  'M36:Release a Legal Hold': 'M36-form-hold-release',
+  'M36:Tender Document': 'M36-form-tender-doc',
+  'M36:Tender Outcome (loss)': 'M36-form-tender-outcome',
+  'M36:Standard Term (library)': 'M36-form-std-term',
   'M36:__by_model__': {
     'fix.estimate': 'M36-form-estimate',
     'fix.quotation': 'M36-record',
@@ -1309,7 +1647,14 @@ export const FORM_CHIPS = {
     'fix.quotation.delivery': 'M36-form-delivery',
     'fix.quotation.counter': 'M36-form-counter-offer',
     'fix.document.template': 'M24-form-template',
-    'fix.sales.proforma': 'M36-form-proforma'
+    'fix.sales.proforma': 'M36-form-proforma',
+    'fix.estimate.review': 'M36-form-est-review',
+    'fix.quotation.standard.term': 'M36-form-std-term',
+    'fix.quotation.term': 'M36-form-term',
+    'fix.quotation.credit.override': 'M36-form-credit-override',
+    'fix.quotation.legal.hold': 'M36-form-legal-hold',
+    'fix.tender.document': 'M36-form-tender-doc',
+    'fix.tender.outcome': 'M36-form-tender-outcome'
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
@@ -1328,7 +1673,16 @@ export const FORM_CHIPS = {
     'M36-tenders': 'M36-form-tender',
     'M36-boq': 'M36-form-boq',
     'M36-bonds': 'M36-form-bond',
-    'M36-variations': 'M36-form-variation'
+    'M36-variations': 'M36-form-variation',
+    'M36-est-reviews': 'M36-form-est-review',
+    'M36-std-terms': 'M36-form-std-term',
+    'M36-terms': 'M36-form-term',
+    'M36-term-deviations': 'M36-form-term',
+    'M36-credit-overrides': 'M36-form-credit-override',
+    'M36-renewals': 'M36-form-renewal',
+    'M36-legal-holds': 'M36-form-legal-hold',
+    'M36-tender-docs': 'M36-form-tender-doc',
+    'M36-tender-outcomes': 'M36-form-tender-outcome'
   }
 };
 

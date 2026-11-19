@@ -387,6 +387,14 @@ WRITABLE = {
         }
     ),
     "fix.estimate.line": frozenset(),
+    "fix.estimate.review": frozenset(
+        {
+            "estimate_id",
+            "question",
+            "reason",
+            "reviewer_id",
+        }
+    ),
     "fix.graded.stock": frozenset(
         {
             "acquisition_cost",
@@ -773,6 +781,7 @@ WRITABLE = {
             "payment_term_id",
             "picking_type_id",
             "quote_type",
+            "renewal_of_contract_id",
             "segment",
             "signed_attachment_id",
             "tds_rate",
@@ -795,6 +804,12 @@ WRITABLE = {
         }
     ),
     "fix.quotation.counter.line": frozenset(),
+    "fix.quotation.credit.override": frozenset(
+        {
+            "quotation_id",
+            "reason",
+        }
+    ),
     "fix.quotation.delivery": frozenset(
         {
             "channel",
@@ -809,6 +824,26 @@ WRITABLE = {
         }
     ),
     "fix.quotation.handoff": frozenset(),
+    "fix.quotation.legal.hold": frozenset(
+        {
+            "dispute_ref",
+            "quotation_id",
+            "reason",
+        }
+    ),
+    "fix.quotation.standard.term": frozenset(
+        {
+            "active",
+            "code",
+            "mandatory",
+            "name",
+            "quote_type",
+            "sequence",
+            "term_type",
+            "text_bn",
+            "text_en",
+        }
+    ),
     "fix.quotation.template": frozenset(
         {
             "advance_pct",
@@ -824,6 +859,17 @@ WRITABLE = {
             "segment",
             "validity_days",
             "warranty_terms",
+        }
+    ),
+    "fix.quotation.term": frozenset(
+        {
+            "deviation_reason",
+            "quotation_id",
+            "sequence",
+            "standard_term_id",
+            "term_type",
+            "text_bn",
+            "text_en",
         }
     ),
     "fix.quote.review": frozenset(),
@@ -1305,7 +1351,6 @@ WRITABLE = {
     "fix.tender": frozenset(
         {
             "award_ref",
-            "awarded_to",
             "awarded_value",
             "bid_security_amount",
             "bid_validity_days",
@@ -1340,7 +1385,6 @@ WRITABLE = {
             "teac_certificate_date",
             "teac_certificate_no",
             "tender_type",
-            "winning_value",
         }
     ),
     "fix.tender.bond": frozenset(
@@ -1353,6 +1397,28 @@ WRITABLE = {
             "guarantee_no",
             "issued_on",
             "tender_id",
+        }
+    ),
+    "fix.tender.document": frozenset(
+        {
+            "attachment_id",
+            "document_type",
+            "name",
+            "reference",
+            "required",
+            "sequence",
+            "tender_id",
+            "valid_until",
+        }
+    ),
+    "fix.tender.outcome": frozenset(
+        {
+            "awarded_to",
+            "loss_reason_code",
+            "notes",
+            "result",
+            "tender_id",
+            "winning_value",
         }
     ),
     "fix.tender.variation": frozenset(

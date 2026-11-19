@@ -57,3 +57,18 @@ access_fix_sales_proforma_line_author,fix.sales.proforma.line author,model_fix_s
 access_fix_sales_proforma_line_manager,fix.sales.proforma.line manager,model_fix_sales_proforma_line,group_quotation_manager,1,1,1,1
 access_fix_sales_proforma_line_account,fix.sales.proforma.line billing,model_fix_sales_proforma_line,account.group_account_invoice,1,1,1,1
 access_fix_discount_reason,fix.discount.reason,model_fix_discount_reason,base.group_user,1,1,1,1
+access_fix_quotation_standard_term,fix.quotation.standard.term,model_fix_quotation_standard_term,base.group_user,1,0,0,0
+access_fix_quotation_standard_term_manager,fix.quotation.standard.term manager,model_fix_quotation_standard_term,group_quotation_manager,1,1,1,1
+access_fix_quotation_term,fix.quotation.term,model_fix_quotation_term,base.group_user,1,0,0,0
+access_fix_quotation_term_author,fix.quotation.term author,model_fix_quotation_term,group_quotation_user,1,1,1,1
+access_fix_quotation_term_manager,fix.quotation.term manager,model_fix_quotation_term,group_quotation_manager,1,1,1,1
+access_fix_quotation_credit_override,fix.quotation.credit.override,model_fix_quotation_credit_override,base.group_user,1,0,0,0
+access_fix_quotation_credit_override_finance,fix.quotation.credit.override finance,model_fix_quotation_credit_override,account.group_account_manager,1,0,1,0
+access_fix_quotation_legal_hold,fix.quotation.legal.hold,model_fix_quotation_legal_hold,base.group_user,1,0,0,0
+access_fix_quotation_legal_hold_author,fix.quotation.legal.hold author,model_fix_quotation_legal_hold,group_quotation_user,1,0,1,0
+access_fix_estimate_review,fix.estimate.review,model_fix_estimate_review,base.group_user,1,1,1,0
+access_fix_estimate_review_manager,fix.estimate.review manager,model_fix_estimate_review,group_quotation_manager,1,1,1,1
+access_fix_tender_document,fix.tender.document,model_fix_tender_document,base.group_user,1,0,0,0
+access_fix_tender_document_bid,fix.tender.document bid,model_fix_tender_document,group_bid_coordinator,1,1,1,1
+access_fix_tender_outcome,fix.tender.outcome,model_fix_tender_outcome,base.group_user,1,0,0,0
+access_fix_tender_outcome_bid,fix.tender.outcome bid,model_fix_tender_outcome,group_bid_coordinator,1,0,1,0

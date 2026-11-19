@@ -41,6 +41,9 @@ SURFACES = {
             "action_create_proforma",
             "action_fix_print",
             "action_fix_print_receipt",
+            # capture pass 2 (19 Nov 2026)
+            "action_apply_standard_terms",
+            "action_record_phone_acceptance",
         },
     },
     # Commercial document standard (17 Nov 2026): the customer's local proforma.
@@ -111,7 +114,8 @@ SURFACES = {
             "action_request_award",
             "action_recall_approval",
             "action_record_outcome",
-            "action_record_loss",
+            # a loss is recorded with its governed reason on fix.tender.outcome
+            # (capture pass 2): the free-text Record Loss is not served
             "action_cancel",
             "action_create_contract",
             # quote-to-cash, tender part (13 Nov 2026): BOQ, pricing, acceptance
@@ -136,6 +140,43 @@ SURFACES = {
             "action_extend",
             "action_recall_approval",
         },
+    },
+    # Capture audit, second pass (2026-11-19): the spec records the pages
+    # are about that had nowhere to be captured.
+    "fix.quotation.standard.term": {
+        "order": "quote_type, term_type, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.quotation.term": {
+        "order": "quotation_id desc, term_type, sequence, id",
+        "limit": 300,
+        "actions": {"action_decide_deviation"},
+    },
+    "fix.quotation.credit.override": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_revoke"},
+    },
+    "fix.quotation.legal.hold": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_release"},
+    },
+    "fix.estimate.review": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_decide"},
+    },
+    "fix.tender.document": {
+        "order": "tender_id desc, sequence, id",
+        "limit": 300,
+        "actions": set(),
+    },
+    "fix.tender.outcome": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": set(),
     },
 }
 
@@ -342,6 +383,22 @@ def tender_winloss(env, date_from=None, date_to=None, **params):
         )
     decided = len(tenders.filtered(lambda t: t.state in ("won", "lost")))
     won = len(tenders.filtered(lambda t: t.state == "won"))
+    # FR-QTE-048: the governed loss reasons (Record a Tender Outcome)
+    reasons = dict(env["fix.tender"]._fields["loss_reason_code"].selection)
+    lost = tenders.filtered(lambda t: t.state in ("lost", "cancelled") and t.loss_reason_code)
+    by_reason = {}
+    for tender in lost:
+        by_reason[tender.loss_reason_code] = by_reason.get(tender.loss_reason_code, 0) + 1
+    reason_note = (
+        "Loss reasons: "
+        + ", ".join(
+            "%s %d" % (reasons.get(code, code), n)
+            for code, n in sorted(by_reason.items(), key=lambda kv: -kv[1])
+        )
+        + "."
+        if by_reason
+        else "No loss reason recorded yet."
+    )
     return _pack(
         "Tender Win/Loss",
         ["state", "tenders", "value"],
@@ -349,7 +406,8 @@ def tender_winloss(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Win rate = won / (won + lost): %d of %d decided (%.1f%%)."
-            % (won, decided, won / decided * 100.0 if decided else 0.0)
+            % (won, decided, won / decided * 100.0 if decided else 0.0),
+            reason_note,
         ],
         totals={
             "state": "Total",
