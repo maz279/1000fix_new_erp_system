@@ -131,7 +131,25 @@ per-intent threshold could never take effect.
 
 ## Deploy
 
-- **Landed** on `fix/a03-live-data-and-pending-work` and pushed (see the commit log for the SHA).
-- **Not deployed yet.** It needs `-u cd_contact_centre,cd_p03_portal` on fix_real and fix_dev, then a restart of 8069 and 8090. That waits for the owner's go-ahead.
-- The upgrade adds the `fix_assistant_unresolved` table, the intent, guard-rail, answer and bundle columns, and the ACL and isolation rows.
-- **fix_real holds no M32 business data yet:** 0 intents, conversations, guard rails, answers or bundles, and one Contact Centre Supervisor. fix_dev has 5 intents, 16 mined candidates and **no** supervisor.
+- **Landed** `bdee1d2e` on `fix/a03-live-data-and-pending-work` (compare-and-swap on `aec0f14e`). The shared branch and `fix/m32-capture-pass2` are both pushed.
+- **Deployed (owner's "Yes, deploy", 19 Nov).** M35's combined wave upgraded both databases from the shared checkout, so I ran no `-u` of my own (two sessions upgrading the same database collide):
+  - fix_real at 20:37 and fix_dev at about 20:42, covering cd_contact_centre 19.0.1.2.0 and cd_p03_portal together with M35's, M31's and M39's modules;
+  - backups by that wave, e.g. `1000 fix/backups/fix_dev_pre_m38_wave_2026-11-19.dump`;
+  - one restart at 20:51, once M36's cd_quotation was settled: **8069 = PID 52556 (fix_real), 8090 = PID 80704 (fix_dev)**.
+- **Checked on both databases:**
+  - cd_contact_centre is at 19.0.1.2.0;
+  - the `fix_assistant_unresolved` table and its company rule exist;
+  - the intent, guard-rail, answer and shadow columns exist (11 shadow columns);
+  - every employee is now read-only on intents and RAG sources.
+- **Boot:** fix_real loaded 155 modules and fix_dev 151, with no registry failure.
+- **Live walk, read-only, nothing saved,** with the dev login, on 8069 and 8090:
+  - all nine pages show exactly the "+" and chips in the table above;
+  - the 13 new or changed screens open, among them Unresolved Questions, Guard-Rail Firings, the Knowledge Gap Report, the Intervention Log, and the shadow, review, close and send forms.
+- **Errors seen during the walk, none from M32:**
+  - the browser could not register Odoo's service worker on the `*.localhost` host names (a PWA issue);
+  - one Postgres serialization retry on `mail_presence`.
+- **What the owner should do next:**
+  - **name a second Contact Centre Supervisor**: fix_real has one and fix_dev none, and the queue and guard-rail reviews and SOD-20 need two;
+  - register the intents with their category and threshold;
+  - set guard-rail stages.
+- fix_real holds no M32 business data yet.
