@@ -629,7 +629,7 @@ class FixConversationUnresolved(models.Model):
                     _logger.exception("Could not log conversation %s as unresolved", conv.id)
         return res
 
-    def _log_unresolved(self, reason):
+    def _log_unresolved(self, reason, signal=None):
         self.ensure_one()
         Unresolved = self.env["fix.assistant.unresolved"].sudo()
         if Unresolved.search_count([("conversation_id", "=", self.id), ("state", "=", "open")]):
@@ -651,7 +651,7 @@ class FixConversationUnresolved(models.Model):
                 "best_guess_intent": res.matched_intent or self.intent or False,
                 "confidence": res.confidence,
                 "handoff_reason": reason or False,
-                "signal": self.handoff_signal,
+                "signal": signal or self.handoff_signal,
             }
         )
         publish(

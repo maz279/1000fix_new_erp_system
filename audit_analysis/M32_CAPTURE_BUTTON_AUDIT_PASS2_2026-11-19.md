@@ -124,10 +124,37 @@ per-intent threshold could never take effect.
 - **Dialogue flows are not executed.** `flow_json` is stored but no engine runs it, so session continuity (FR-CAI-014) and slot-retry limits would be decorative fields. The Dialogue Flow form's "Slot Extraction" and "Fallback" tabs carry notes only.
 - **RAG freshness (FR-CAI-018, AUT-CAI-09).** Nothing indexes the sources: `chunk_count` and `last_indexed_at` are never written, so a freshness interval would flag everything as stale. This waits for the M61 indexer (W6).
 - **The assistant performs no actions** (`fix.assistant.action` is unchanged since pass 1). There is no OTP identity step (FR-CAI-021).
-- **Abandoned sessions** (AUT-CAI-08, "session ends without resolution") are not logged yet: only no-answer handoffs are.
-- **The emotional and operational detectors** (frustration, distress, SLA risk) still do not exist (pass-1 gap).
+- ~~Abandoned sessions not logged~~: **closed in pass 3** (below).
+- ~~No emotional detectors~~: distress, abuse, explicit request and frustration are **detected from pass 3** (below). The **operational** signals (SLA risk, repeat contact, high-value customer) still have no detector. They need rules over M27/M33 data rather than phrases.
 - **People:** one Contact Centre Supervisor on fix_real. The queue reviews, guard-rail reviews and SOD-20 all need at least two. **Name a second supervisor.**
 - **Owner decision (CTO):** the shadow pass rule (no fewer answers; at most 2% changed) is a measurable floor, not a labelled accuracy comparison. With labelled live traffic it could become one.
+
+## Pass 3 (same day): the two capture-shaped gaps pass 2 left open
+
+The goal check pointed out that pass 2 listed open gaps. Two of them are capture work and were built. The rest need whole new engines (dialogue execution, the RAG indexer, assistant-performed actions) or are the owner's people and data (a second supervisor, intents and guard-rail settings on fix_real).
+
+**7 Handoff Decision: Handoff Signal Phrases** (new register `fix.assistant.signal.phrase`, `models/fix_assistant_signals.py`). Pass 1 made the emotional triggers tunable, but nothing ever raised them.
+- The Customer Service Manager now records what a customer says that means **distress or a safety risk, abuse, an explicit request for a human, or frustration**: page 7 has a new **Add a Handoff Signal Phrase** chip and a **Handoff Signal Phrases** list.
+- **The live bot checks every customer message against the register before classifying it.**
+  - On a match it hands off on the same turn through the trigger table: distress is Urgent and alerts the supervisors (BRU-CAI-06, AUT-CAI-04); an explicit request is High (BRU-CAI-07).
+  - Nothing is classified or generated for that message.
+  - It publishes `sentiment.detected` (spec 12.3).
+  - When several signals match, the most serious one wins.
+- Phrases match as **whole words** after the assistant's own normalisation, and must have at least three letters.
+- A distress or explicit-request phrase is removed only by **a supervisor other than its author** (the SOD-20 pattern). Agents read the register and cannot change it.
+- **Safety floor:** ten English phrases (fire, smoke, electric shock, gas leak, burning smell, personal danger, self-harm, "human agent", "real person"), installed `noupdate`. **Bengali phrases are left to a native speaker (T08).**
+
+**9 Analytics: abandoned sessions.** A conversation the assistant took part in that the customer abandons is logged to the unresolved queue as `session_abandoned` (AUT-CAI-08). One the assistant never spoke in is not.
+
+**Evidence (pass 3)**
+- Node guard `test_m32_capture_pass3.py`: **3/3 fail on HEAD c73185f4** and pass after the change. With the pass-1/2 guards and the estate guard: 651 checks, 0 failures.
+- Live `test_m32_capture_pass3_live.py` on a private clone `fix_test_m32c3`, as non-admin supervisors and agents: **7/7**. With pass 2 (9) and pass 1 (44): **60/60**.
+- **Mutation check: 8/8 red**: detector off, precedence reversed, substring instead of whole-word match, author removes own distress phrase, handoff loses the signal, abandonment not logged, silent session logged, too-short phrase accepted.
+- **Regression found by the suite and fixed:** the "human agent" seed phrase caught M27's explicit-request messages before the `agent.request` intent did. That changed the recorded reason (`customer_requested_agent`) and the transfer wording two existing tests rely on. The detector now keeps that reason code and uses the engine's own transfer reply (`TRANSFER_REPLY`).
+- **Regression** on `fix_test_m32c3`: the `cd_contact_centre` suite with the A03 control, whitelist and registry guards and all three M32 guards. **699 passed, 9 failed, 230 skipped.**
+  - 8 of the failures are the base-reproduced set from pass 2.
+  - The ninth, the A03 control check on M35's `fix.campaign.spend`, fails identically from the shared checkout without the pass-3 code.
+- **UI walk** on a private server (port 8175): page 7 shows **Handoff Signal Phrase**. A distress phrase was saved through the form, and a customer message containing it was handed off at once (distress, Urgent) with the transfer reply and no classification. 0 console errors, 0 server errors.
 
 ## Deploy
 
@@ -153,3 +180,4 @@ per-intent threshold could never take effect.
   - register the intents with their category and threshold;
   - set guard-rail stages.
 - fix_real holds no M32 business data yet.
+- **Pass 3 deploy:** pending (it needs `-u cd_contact_centre,cd_p03_portal` on both databases and a restart).

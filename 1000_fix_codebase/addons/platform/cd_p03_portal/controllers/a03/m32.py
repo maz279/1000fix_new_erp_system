@@ -96,6 +96,14 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_review", "action_close_gap"},
     },
+    # --- M32 capture pass 3: the phrases that hand a conversation to a person
+    # (distress, abuse, explicit request, frustration). Written by a Contact
+    # Centre Supervisor; read by the live bot before it classifies.
+    "fix.assistant.signal.phrase": {
+        "order": "signal, phrase",
+        "limit": 300,
+        "actions": set(),
+    },
 }
 
 RESOLVED = ("resolved_ai", "resolved_agent")

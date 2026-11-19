@@ -48,3 +48,9 @@ from . import fix_cc_capture2
 # .dataset, .guardrail, .ask and fix.conversation (after
 # fix_assistant_registers, whose handoff stamp it reads), so it imports last.
 from . import fix_assistant_capture2
+
+# M32 capture audit pass 3: handoff signal phrases (detected before the
+# classifier in intake_message) and abandoned-session logging. Overrides
+# intake_message and _mark_abandoned and calls capture2's _log_unresolved, so
+# it imports after fix_assistant_capture2.
+from . import fix_assistant_signals

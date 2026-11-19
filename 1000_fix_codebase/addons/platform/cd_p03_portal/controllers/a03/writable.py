@@ -210,6 +210,15 @@ WRITABLE = {
             "source_type",
         }
     ),
+    "fix.assistant.signal.phrase": frozenset(
+        {
+            "active",
+            "language",
+            "note",
+            "phrase",
+            "signal",
+        }
+    ),
     "fix.assistant.unresolved": frozenset(
         {
             "disposition_input",

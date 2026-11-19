@@ -78,3 +78,6 @@ access_fix_cc_urgency_challenge,fix.cc.urgency.challenge,model_fix_cc_urgency_ch
 access_fix_assistant_unresolved,fix.assistant.unresolved,model_fix_assistant_unresolved,base.group_user,1,0,0,0
 access_fix_assistant_unresolved_sup,fix.assistant.unresolved supervisor,model_fix_assistant_unresolved,cd_contact_centre.group_cc_supervisor,1,1,0,0
 access_fix_assistant_unresolved_sys,fix.assistant.unresolved system,model_fix_assistant_unresolved,base.group_system,1,1,1,1
+access_fix_assistant_signal_phrase,fix.assistant.signal.phrase,model_fix_assistant_signal_phrase,base.group_user,1,0,0,0
+access_fix_assistant_signal_phrase_sup,fix.assistant.signal.phrase supervisor,model_fix_assistant_signal_phrase,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_assistant_signal_phrase_sys,fix.assistant.signal.phrase system,model_fix_assistant_signal_phrase,base.group_system,1,1,1,1

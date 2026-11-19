@@ -20,6 +20,11 @@
  *   8 the agent edits the AI answer before sending it (FR-CAI-038);
  *   9 the unresolved queue: review a question the assistant could not
  *     answer, and close a knowledge gap against its M61 article (KPI-184).
+ *
+ * Capture audit pass 3 (2026-11-19): 7 Handoff Signal Phrases, what a
+ * customer says that means distress, abuse, an explicit request for a human or
+ * frustration. The live bot hands off on them before classifying (FR-CAI-034,
+ * BRU-CAI-06/07); abandoned sessions also reach the unresolved queue.
  */
 
 export const MODULE = {
@@ -47,7 +52,8 @@ export const MODULE = {
     ]},
     { en: 'Actions & Handoff', bn: 'কাজ ও হ্যান্ডঅফ', screens: [
       { id: 'M32-authority', en: 'Action Authority Matrix', bn: 'কাজের কর্তৃত্ব', t: 'g' },
-      { id: 'M32-handoff-triggers', en: 'Handoff Triggers', bn: 'হ্যান্ডঅফ ট্রিগার', t: 'g' }
+      { id: 'M32-handoff-triggers', en: 'Handoff Triggers', bn: 'হ্যান্ডঅফ ট্রিগার', t: 'g' },
+      { id: 'M32-signal-phrases', en: 'Handoff Signal Phrases', bn: 'হ্যান্ডঅফ সংকেত বাক্যাংশ', t: 'g' }
     ]},
     { en: 'Grounding & Safety', bn: 'গ্রাউন্ডিং ও সুরক্ষা', screens: [
       { id: 'M32-rag', en: 'RAG Knowledge Sources', bn: 'আরএজি জ্ঞান ভাণ্ডার', t: 'g' },
@@ -74,7 +80,8 @@ export const MODULE = {
       { id: 'M32-form-shadow', en: 'Shadow-Evaluate a Release Bundle', bn: 'শ্যাডো মূল্যায়ন', t: 'f' },
       { id: 'M32-form-guardrail-review', en: 'Review a Guard-Rail Firing', bn: 'গার্ডরেইল সক্রিয়তা পর্যালোচনা', t: 'f' },
       { id: 'M32-form-unresolved-review', en: 'Review an Unresolved Question', bn: 'অমীমাংসিত প্রশ্ন পর্যালোচনা', t: 'f' },
-      { id: 'M32-form-gap-close', en: 'Close a Knowledge Gap', bn: 'জ্ঞান ঘাটতি বন্ধ', t: 'f' }
+      { id: 'M32-form-gap-close', en: 'Close a Knowledge Gap', bn: 'জ্ঞান ঘাটতি বন্ধ', t: 'f' },
+      { id: 'M32-form-signal-phrase', en: 'Handoff Signal Phrase', bn: 'হ্যান্ডঅফ সংকেত বাক্যাংশ', t: 'f' }
     ]},
     { en: 'Assistant Reports', bn: 'রিপোর্ট', screens: [
       { id: 'M32-rpt-coverage', en: 'Intent Coverage & FCR', bn: 'ইনটেন্ট কভারেজ ও এফসিআর', t: 'r' },
@@ -102,7 +109,7 @@ export const MODULE = {
   forms: ['Intent', 'Dialogue Flow', 'Guard-Rail Rule', 'RAG Knowledge Source', 'Model Provider', 'NLU Release Bundle',
     'Entity Definition', 'Action Authority Rule', 'Handoff Trigger', 'Review an AI Answer', 'Send a Reviewed Answer',
     'Accept a Candidate Intent', 'Reject a Candidate Intent', 'Shadow-Evaluate a Release Bundle',
-    'Review a Guard-Rail Firing', 'Review an Unresolved Question', 'Close a Knowledge Gap'],
+    'Review a Guard-Rail Firing', 'Review an Unresolved Question', 'Close a Knowledge Gap', 'Handoff Signal Phrase'],
   cross: ['M27 Contact Centre', 'M33 Party Master', 'M01 Service Orders Central Hub', 'M61 Knowledge Base'],
   freg: {
     src: 62,
@@ -122,7 +129,7 @@ export const MODULE = {
       ['6', 'Guard Rails', 7, { model: 'fix.assistant.guardrail', cols: ['name', 'stage', 'severity', 'rule', 'action', 'active'], screens: ['M32-guardrails', 'M32-guardrail-firings', 'M32-rpt-guardlog'], reports: ['Guard-Rail Intervention Log'], forms: ['Guard-Rail Rule', 'Review a Guard-Rail Firing'], create: 'M32-form-guardrail' }],
       /* 7 Handoff Decision (FR-CAI-036/037): the triggers, each independently
        * tunable; handoffs themselves are written by the assistant. */
-      ['7', 'Handoff Decision', 5, { model: 'fix.assistant.handoff.trigger', cols: ['signal', 'category', 'priority', 'notify_supervisor', 'mandatory', 'active'], screens: ['M32-handoff-triggers', 'M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: ['Handoff Trigger'], create: 'M32-form-handoff-trigger' }],
+      ['7', 'Handoff Decision', 5, { model: 'fix.assistant.handoff.trigger', cols: ['signal', 'category', 'priority', 'notify_supervisor', 'mandatory', 'active'], screens: ['M32-handoff-triggers', 'M32-signal-phrases', 'M32-handoff', 'M32-rpt-handoffrsn', 'M32-sessions'], reports: ['Handoff Reasons'], forms: ['Handoff Trigger', 'Handoff Signal Phrase'], create: 'M32-form-handoff-trigger' }],
       /* 8 Agent Assistance (FR-CAI-038): an AI answer is never auto-sent - a
        * person other than the asker reviews it, then it is sent. */
       ['8', 'Agent Assistance', 6, { model: 'fix.assistant.ask', cols: ['asked_at', 'intent', 'engine', 'grounded', 'requires_human', 'human_reviewed_by', 'sent_at'], screens: ['M32-assist', 'M32-asks'], reports: [], forms: ['Review an AI Answer', 'Send a Reviewed Answer'], create: 'M32-form-review-answer', domain: [['consumer', '=', 'm27_agent_assist']] }],
@@ -638,6 +645,27 @@ export const SCREENS = {
     ]
   },
 
+  /* Handoff Decision, pass 3: the phrases that raise the emotional signals. */
+  'M32-signal-phrases': { kind: 'model_list', model: 'fix.assistant.signal.phrase', create: true,
+    cols: ['signal', 'phrase', 'language', 'active', 'note'],
+    note: 'Said by a customer, these hand the conversation to a person at once, before the assistant classifies anything. Distress escalates as Urgent and alerts the supervisors. A distress or explicit-request phrase is removed only by a supervisor other than the one who added it.' },
+  'M32-form-signal-phrase': {
+    kind: 'model_form', model: 'fix.assistant.signal.phrase',
+    title: 'Handoff Signal Phrase', back: 'M32-signal-phrases',
+    newLabel: 'Add a Handoff Signal Phrase',
+    sections: [
+      { title: 'What The Customer Says',
+        note: 'Matched as whole words after the assistant\'s own normalisation (case, punctuation, Bengali spelling variants), at least three letters. Bengali phrases are authored by a native speaker (T08). How each signal is treated (priority, supervisor alert) is set in Handoff Triggers.',
+        fields: [
+        { name: 'signal', label: 'Signal', required: true },
+        { name: 'phrase', label: 'Phrase', required: true },
+        { name: 'language', label: 'Language', required: true },
+        { name: 'active', label: 'Active' },
+        { name: 'note', label: 'Why / Owner Note' }
+      ]}
+    ]
+  },
+
   /* Agent Assistance: an AI answer reaches a customer only after a person
    * other than the asker reviews it (FR-CAI-038, A03 audit M32 G12). */
   'M32-form-review-answer': {
@@ -920,6 +948,7 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_CHIPS = {
+  'M32:Handoff Signal Phrase': 'M32-form-signal-phrase',
   'M32:Shadow-Evaluate a Release Bundle': 'M32-form-shadow',
   'M32:Review a Guard-Rail Firing': 'M32-form-guardrail-review',
   'M32:Review an Unresolved Question': 'M32-form-unresolved-review',
@@ -941,6 +970,7 @@ export const FORM_CHIPS = {
   'M32:Guard-Rail Rule': 'M32-form-guardrail',
   'M32:RAG Knowledge Source': 'M32-form-rag',
   'M32:__by_model__': {
+    'fix.assistant.signal.phrase': 'M32-form-signal-phrase',
     'fix.assistant.unresolved': 'M32-form-unresolved',
     'fix.assistant.entity': 'M32-form-entity',
     'fix.assistant.action.authority': 'M32-form-authority',
@@ -955,6 +985,7 @@ export const FORM_CHIPS = {
     'fix.assistant.rag.source': 'M32-form-rag'
   },
   'M32:__by_screen__': {
+    'M32-signal-phrases': 'M32-form-signal-phrase',
     'M32-unresolved': 'M32-form-unresolved',
     'M32-guardrail-firings': 'M32-form-ask',
     'M32-entity-defs': 'M32-form-entity',
@@ -973,6 +1004,7 @@ export const FORM_CHIPS = {
 };
 
 export const FORM_MODELS = {
+  'M32:Handoff Signal Phrase': 'fix.assistant.signal.phrase',
   'M32:Shadow-Evaluate a Release Bundle': 'fix.assistant.dataset',
   'M32:Review a Guard-Rail Firing': 'fix.assistant.ask',
   'M32:Review an Unresolved Question': 'fix.assistant.unresolved',

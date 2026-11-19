@@ -436,6 +436,12 @@ ORDER_STATE_TEXT: dict[str, tuple[str, str]] = {
 }
 
 
+# What the assistant says when it hands a request to a person (authored).
+TRANSFER_REPLY = {
+    "bn": "আপনার অনুরোধটি আমাদের প্রতিনিধির কাছে হস্তান্তর করা হচ্ছে। অনুগ্রহ করে লাইনে থাকুন।",
+    "en": "Transferring your request to a customer care representative. Please hold.",
+}
+
 # Tier 1 (answer) and tier 2 (disambiguate) floors of the three-tier gate.
 CONFIDENT_THRESHOLD = 0.75
 DISAMBIGUATION_FLOOR = 0.50
@@ -534,8 +540,8 @@ class AssistantEngine:
                     resolvable=False,
                     requires_handoff=True,
                     handoff_reason=defn.handoff_reason or "auto_handoff_intent",
-                    response_text_bn="আপনার অনুরোধটি আমাদের প্রতিনিধির কাছে হস্তান্তর করা হচ্ছে। অনুগ্রহ করে লাইনে থাকুন।",
-                    response_text_en="Transferring your request to a customer care representative. Please hold.",
+                    response_text_bn=TRANSFER_REPLY["bn"],
+                    response_text_en=TRANSFER_REPLY["en"],
                 )
             elif defn.requires_grounding:
                 # The engine has no ERP access: it never invents the answer.
