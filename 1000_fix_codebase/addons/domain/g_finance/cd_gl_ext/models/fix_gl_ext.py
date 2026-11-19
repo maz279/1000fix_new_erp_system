@@ -1334,10 +1334,22 @@ def _attach_dimensions(env, move, dimension_by_line):
         # carries one; e.g. a payroll period without its own unit).
         if not dim_vals or ("operating_unit_id" not in dim_vals and not any(dim_vals.values())):
             continue
-        # A missing/empty OU falls back to the MOVE's company OU — never
+        # A missing/empty OU falls back to the BRANCH's own OU when the line
+        # names a branch of this company, else the MOVE's company OU — never
         # another company's (the dimension is the multi-entity ledger key).
-        operating_unit_id = dim_vals.get("operating_unit_id") or (
-            env["operating.unit"].search([("company_id", "=", move.company_id.id)], limit=1).id
+        # A02 ERP audit (19 Nov 2026): the AR family (invoice issue, receipt
+        # confirm) annotates a branch but no OU; the fallback took the
+        # company's FIRST OU, which on fix_real is "Main Operating Unit", and
+        # _check_branch_ou refused the posting for 57 of 73 branches. The
+        # first paid service order at any of them could not be invoiced.
+        branch = env["fix.branch"].browse(dim_vals.get("branch_id") or []).exists()
+        branch_ou = branch.operating_unit_id if branch else env["operating.unit"]
+        if branch_ou and branch_ou.company_id != move.company_id:
+            branch_ou = env["operating.unit"]
+        operating_unit_id = (
+            dim_vals.get("operating_unit_id")
+            or branch_ou.id
+            or env["operating.unit"].search([("company_id", "=", move.company_id.id)], limit=1).id
         )
         if not operating_unit_id:
             raise UserError(

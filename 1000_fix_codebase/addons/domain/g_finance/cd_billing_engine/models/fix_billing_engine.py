@@ -1170,8 +1170,10 @@ class FixArInvoice(models.Model):
         import time
 
         started = time.monotonic()
-        if order.state != "closed":
-            raise UserError("Auto-invoicing runs on closed jobs only (BRU-SRM-05)")
+        # BRU-SRM-05: Delivered or Closed. The supply (tax point) is the
+        # delivery; the close drain is the safety net (A02 ERP audit X-03).
+        if order.state not in ("delivered", "closed"):
+            raise UserError("Auto-invoicing runs on delivered or closed jobs only (BRU-SRM-05)")
         existing = self.search(
             [("source_model", "=", "fix.service.order"), ("source_id", "=", order.id)]
         )
@@ -1191,7 +1193,8 @@ class FixArInvoice(models.Model):
 
         # BRU-SRM-05 gate: the invoiced amount comes from the APPROVED
         # estimate of the closed order — never re-priced here.
-        estimate = order.estimate_ids.filtered(lambda e: e.state == "approved")[:1]
+        # the governing (latest approved) version, the one the customer paid on
+        estimate = order._fix_governing_estimate().filtered(lambda e: e.state == "approved")
         if not estimate:
             raise UserError(
                 "No approved estimate on %s — invoicing requires one (BRU-SRM-05)" % order.name
@@ -1359,7 +1362,40 @@ class FixArInvoice(models.Model):
         # the M19 posting the docstrings always claimed (skips with an
         # honest gl_note when the company's GL is unconfigured)
         invoice._post_issue_gl()
+        # A02 ERP audit (19 Nov 2026): the order was PAID before it closed
+        # (no device leaves unpaid). That money is a confirmed M20 receipt
+        # sitting on the customer's AR as a credit; the invoice it paid for
+        # stayed open, aged, and dunned a customer who owed nothing.
+        invoice._fix_apply_order_settlement(order)
         return invoice
+
+    def _fix_apply_order_settlement(self, order):
+        """Apply the receipts that settled ``order`` to this invoice, up to
+        its residual. A receipt of another customer, or one with nothing
+        unapplied, is left alone; what is not applied stays on the receipt
+        (the unapplied-cash queue shows it to finance)."""
+        self.ensure_one()
+        if self.state != "issued":
+            return self.env["fix.ar.allocation"]
+        Allocation = self.env["fix.ar.allocation"].sudo()
+        made = Allocation
+        for receipt in order.sudo()._fix_settlement_receipts():
+            self.invalidate_recordset(["amount_residual"])
+            receipt.invalidate_recordset(["unapplied_amount"])
+            if receipt.state != "confirmed" or receipt.customer_id != self.customer_id:
+                continue
+            amount = round(min(receipt.unapplied_amount, self.amount_residual), 2)
+            if amount <= 0.005:
+                continue
+            made |= Allocation.create(
+                {"receipt_id": receipt.id, "invoice_id": self.id, "amount": amount}
+            )
+        if made:
+            self.message_post(
+                body="Paid before release: BDT %.2f applied from %s."
+                % (sum(made.mapped("amount")), ", ".join(made.mapped("receipt_id.name")))
+            )
+        return made
 
     MUSHAK_SEQUENCE_CODE = "fix.mushak.63"
 

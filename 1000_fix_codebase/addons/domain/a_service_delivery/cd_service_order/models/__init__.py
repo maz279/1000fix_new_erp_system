@@ -43,3 +43,9 @@ from . import fix_sla_escalation
 # taxonomy and the fault <-> operation mapping; extends fix.fault.code and
 # fix.catalogue.item, so it imports after fix_fault_code.
 from . import fix_fault_taxonomy
+
+# isort: split
+# A02 ERP audit (2026-11-19): settlement top-up / cap / verified refund /
+# B2B credit release. Overrides methods of fix_service_order, so it imports
+# LAST. Keep it last.
+from . import fix_so_settlement_ext

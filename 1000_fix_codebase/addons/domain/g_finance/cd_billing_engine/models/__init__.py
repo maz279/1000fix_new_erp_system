@@ -13,6 +13,7 @@ from . import (
     fix_contract_billing_walker,
     fix_credit_limit_change,
     fix_finance_approval,
+    fix_order_settlement,
     fix_part_exemption_billing,
     fix_party_merge_consumer,
     fix_payment_method,

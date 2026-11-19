@@ -13,3 +13,9 @@ from . import (
 # M04 capture audit (18 Nov 2026): the high-value cash ID check extends the
 # counter sale and basket confirms above, so it loads last.
 from . import fix_m04_cash_id
+
+# isort: split
+# A02 ERP audit (19 Nov 2026): a service order's verified settlement raises its
+# M20 receipt (drawer / channel), and the order's cash takes the high-value ID
+# check. Extends fix.cash.id.check after fix_m04_cash_id, so it loads last.
+from . import fix_diagnostic_fee_receipt, fix_order_cash_receipt

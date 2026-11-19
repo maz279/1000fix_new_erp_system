@@ -17,6 +17,27 @@ from odoo.exceptions import UserError
 # nowhere, so the control was off everywhere). An explicit "0" is a branch's
 # own choice: the cash is recorded on the order's chatter and posts nothing.
 ORDER_CASH_REQUIRES_SHIFT_PARAM = "cd_front_desk.order_cash_requires_open_shift"
+# How the order's money was tendered (A02 ERP audit, 19 Nov 2026). Only cash
+# goes into a drawer; a wallet or card payment is matched by its TrxID. The
+# keys are the field order's on-site methods and the counter's tenders; the
+# finance bridge maps each to an M20 receipt method.
+SETTLEMENT_TENDERS = [
+    ("cash", "Cash"),
+    ("bkash", "bKash"),
+    ("nagad", "Nagad"),
+    ("rocket", "Rocket"),
+    ("upay", "Upay"),
+    ("card", "Card (POS)"),
+    ("sslcommerz", "SSLCOMMERZ Payment Link"),
+]
+COUNTER_TENDERS = SETTLEMENT_TENDERS  # backward-compatible name
+
+
+def fd_settlement_tender(env) -> str:
+    tender = env.context.get("fd_settlement_tender") or "cash"
+    if tender not in dict(SETTLEMENT_TENDERS):
+        raise UserError("Unknown tender '%s'." % tender)
+    return tender
 
 
 def fd_cash_requires_shift(env) -> bool:
@@ -37,20 +58,61 @@ class FixServiceOrderDrawer(models.Model):
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"counter_shift_id"}
+        return super()._fix_guarded_fields() | {"counter_shift_id", "settlement_tender"}
+
+    settlement_tender = fields.Selection(
+        SETTLEMENT_TENDERS,
+        string="Settlement Tender",
+        readonly=True,
+        copy=False,
+        help="How the order was paid. Only cash goes into the drawer; a wallet or card "
+        "payment is matched by its TrxID (A02 ERP audit: a bKash settlement used to land in "
+        "the drawer as cash and show a false shortage at the count).",
+    )
+
+    def action_mark_settled(
+        self, invoice_ref=None, amount_bdt=None, source="counter", reference=None, tender=None
+    ):
+        tender = tender or self.env.context.get("fd_settlement_tender") or "cash"
+        if tender not in dict(SETTLEMENT_TENDERS):
+            raise UserError("Unknown tender '%s'." % tender)
+        return super(
+            FixServiceOrderDrawer, self.with_context(fd_settlement_tender=tender)
+        ).action_mark_settled(
+            invoice_ref=invoice_ref, amount_bdt=amount_bdt, source=source, reference=reference
+        )
 
     def _fix_record_settlement(self, amount_bdt, reference, source):
+        tender = fd_settlement_tender(self.env)
+        # a top-up adds to what was settled: the drawer takes the difference
+        before = (
+            self.amount_settled_bdt or 0.0
+            if self.payment_settlement_state == "settled" and self.settlement_verified
+            else 0.0
+        )
         result = super()._fix_record_settlement(amount_bdt, reference, source)
+        if source in ("counter", "field_collection") and not before:
+            self._guarded().write({"settlement_tender": tender})
         if source == "counter":
-            self._fd_post_counter_cash()
+            taken = round((self.amount_settled_bdt or 0.0) - before, 2)
+            if tender == "cash":
+                self._fd_post_counter_cash(taken)
+            else:
+                self._fd_post_counter_noncash()
         return result
 
-    def _fd_post_counter_cash(self):
-        """Post the counter settlement to the branch's open cash shift."""
+    def _fd_post_counter_noncash(self):
+        """A wallet / card payment at the counter: no drawer cash. The
+        finance bridge raises its M20 receipt on the channel clearing."""
+        self.ensure_one()
+        return False
+
+    def _fd_post_counter_cash(self, amount=None):
+        """Post the counter settlement (or a top-up) to the branch's open cash shift."""
         self.ensure_one()
         Shift = self.env["fix.cash.shift"]
         shift = Shift._fd_open_shift_for(self.branch_id, self.company_id or self.env.company)
-        amount = self.amount_settled_bdt or 0.0
+        amount = self.amount_settled_bdt or 0.0 if amount is None else amount
         if not shift:
             if fd_cash_requires_shift(self.env):
                 raise UserError(

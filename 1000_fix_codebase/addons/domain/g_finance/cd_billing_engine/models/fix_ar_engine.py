@@ -615,6 +615,20 @@ class FixArReceipt(models.Model):
                 )
         return super().create(vals_list)
 
+    # --- hooks a bridge extends (A02 ERP audit, 19 Nov 2026) -------------
+    def _fix_debit_account(self, role):
+        """The account the receipt's money lands on: the method's role.
+        The front-desk bridge debits the DRAWER account for cash a counter
+        took for a service order (the account the M50 deposit credits)."""
+        self.ensure_one()
+        return _ar_account(self.env, self.company_id, role)
+
+    def _fix_nid_evidenced_elsewhere(self) -> bool:
+        """True when the statutory NID for this cash was already taken by
+        another control (the M04 high-value cash ID check, which keeps the
+        number in the resident store and only its last 4 digits)."""
+        return False
+
     def _nid_threshold(self):
         """FR-TAX-044 / BRU-TAX-18: the high-value cash threshold is M51
         statutory master data (fix.tax.parameter "nid_cash_threshold"),
@@ -652,7 +666,11 @@ class FixArReceipt(models.Model):
             if rec.amount <= 0:
                 raise UserError("Receipt amount must be positive")
             threshold = rec._nid_threshold()
-            if rec.method in NID_CASH_METHODS and rec.amount > threshold:
+            if (
+                rec.method in NID_CASH_METHODS
+                and rec.amount > threshold
+                and not rec._fix_nid_evidenced_elsewhere()
+            ):
                 nid = (rec.nid_captured or "").strip()
                 if not nid:
                     raise UserError(
@@ -666,7 +684,7 @@ class FixArReceipt(models.Model):
                         "FR-ARB-026" % nid
                     )
             role = METHOD_ROLE.get(rec.method)
-            account = _ar_account(rec.env, rec.company_id, role) if role else None
+            account = rec._fix_debit_account(role) if role else None
             if not account:
                 if role:
                     where = "cd_billing_engine.account_code.%s" % role
