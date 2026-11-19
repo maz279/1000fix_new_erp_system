@@ -11,6 +11,7 @@ from . import (
     fix_ar_invoice_document,
     fix_billing_engine,
     fix_contract_billing_walker,
+    fix_credit_limit_change,
     fix_finance_approval,
     fix_part_exemption_billing,
     fix_party_merge_consumer,

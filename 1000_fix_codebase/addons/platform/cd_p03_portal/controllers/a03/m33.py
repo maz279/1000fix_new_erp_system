@@ -19,7 +19,13 @@ SURFACES = {
         "limit": 200,
         # M33 capture audit 2026-11-14: status changes carry a reason and the
         # quality score is taken for the party in front of the steward.
-        "actions": {"action_reactivate_party", "action_set_party_status", "action_score_quality"},
+        "actions": {
+            "action_reactivate_party",
+            "action_set_party_status",
+            "action_score_quality",
+            # capture pass 2 (2026-11-19): FR-CPM-052, BRU-CPM-16
+            "action_set_consent_handling",
+        },
         # 2026-11-09: the party REGISTER is the customer master — internal
         # parties (login-backed users, employee-linked staff) never mix in.
         # Flows to the grid AND the branded export via model_records.
@@ -115,6 +121,49 @@ SURFACES = {
         "actions": {"action_toggle_hold"},
     },
     "fix.dedup.rule": {"order": "id desc", "limit": 400, "actions": set()},
+    # --- M33 capture audit pass 2 (2026-11-19) --------------------------------
+    # Contact points (FR-CPM-022, BRU-CPM-01): verification is the OTP's.
+    "fix.contact.point": {
+        "order": "partner_id, contact_type, id",
+        "limit": 300,
+        "actions": {"action_request_verification"},
+        "pickers": {"partner_id": [("party_status", "not in", ("merged", "blacklisted"))]},
+    },
+    # Party relationships (FR-CPM-006): a steward verifies; ended, never deleted.
+    "fix.party.relationship": {
+        "order": "date_from desc, id desc",
+        "limit": 300,
+        "actions": {"action_verify", "action_end"},
+        "pickers": {
+            "party_a_id": [("party_status", "not in", ("merged", "blacklisted"))],
+            "party_b_id": [("party_status", "not in", ("merged", "blacklisted"))],
+        },
+    },
+    # Corporate contact roles within the 1000FiX limit (FR-CPM-009/011).
+    "fix.party.contact.role": {
+        "order": "corporate_id, role, id",
+        "limit": 300,
+        "actions": {"action_suspend", "action_reinstate", "action_remove"},
+        "pickers": {
+            "corporate_id": [
+                ("party_status", "not in", ("merged", "blacklisted")),
+                "|",
+                ("is_company", "=", True),
+                ("party_class", "in", ("dealer", "corporate", "government")),
+            ],
+            "contact_id": [
+                ("party_status", "not in", ("merged", "blacklisted")),
+                ("is_company", "=", False),
+            ],
+        },
+    },
+    # The approval-controlled credit limit (FR-CPM-047, BRU-CPM-12, SOD-04);
+    # the model is cd_billing_engine's, beside the profile it changes.
+    "fix.credit.limit.change": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_approve", "action_reject", "action_cancel"},
+    },
     # PDPA record of processing (FR-CPM-044, BRU-CPM-15): append-only; the
     # Data Protection Officer records an activity, consent capture and
     # withdrawal record their own (M33 capture audit 2026-11-14).

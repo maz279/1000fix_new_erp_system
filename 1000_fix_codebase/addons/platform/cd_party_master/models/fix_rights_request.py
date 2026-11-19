@@ -164,6 +164,14 @@ class FixRightsRequest(models.Model):
                 raise ValidationError(
                     "Fulfilment needs its evidence reference — export ID, notice ID or file ref"
                 )
+            # BRU-CPM-10 (hard block): a rectification is notified to the
+            # data subject. notified_at was a field nothing read (M33 capture
+            # audit pass 2, 2026-11-19).
+            if req.request_type == "rectification" and not req.notified_at:
+                raise ValidationError(
+                    "Record when the party was told of the correction (Party Notified At) "
+                    "before closing a rectification (BRU-CPM-10)."
+                )
             req._guarded().write(
                 {
                     "state": "fulfilled",

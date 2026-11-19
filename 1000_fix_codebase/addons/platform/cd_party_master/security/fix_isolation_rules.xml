@@ -8,6 +8,11 @@
   Regenerate: python tooling/generators/generate-isolation-rules.py
 -->
 <odoo>
+    <record id="rule_fix_contact_point_company" model="ir.rule">
+        <field name="name">fix.contact.point: allowed companies</field>
+        <field name="model_id" ref="model_fix_contact_point"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_dedup_job_company" model="ir.rule">
         <field name="name">fix.dedup.job: allowed companies</field>
         <field name="model_id" ref="model_fix_dedup_job"/>
@@ -29,6 +34,11 @@
         <field name="model_id" ref="model_fix_otp_log"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_party_contact_role_company" model="ir.rule">
+        <field name="name">fix.party.contact.role: allowed companies</field>
+        <field name="model_id" ref="model_fix_party_contact_role"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_party_duplicate_company" model="ir.rule">
         <field name="name">fix.party.duplicate: allowed companies</field>
         <field name="model_id" ref="model_fix_party_duplicate"/>
@@ -47,6 +57,11 @@
     <record id="rule_fix_party_quality_company" model="ir.rule">
         <field name="name">fix.party.quality: allowed companies</field>
         <field name="model_id" ref="model_fix_party_quality"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_party_relationship_company" model="ir.rule">
+        <field name="name">fix.party.relationship: allowed companies</field>
+        <field name="model_id" ref="model_fix_party_relationship"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_party_role_company" model="ir.rule">

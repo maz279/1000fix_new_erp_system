@@ -117,3 +117,4 @@ access_fix_ar_unbilled_exception_account_readonly,fix.ar.unbilled.exception.acco
 access_fix_ar_unbilled_exception_account_invoice,fix.ar.unbilled.exception.account.invoice,model_fix_ar_unbilled_exception,account.group_account_invoice,1,1,1,0
 access_fix_ar_unbilled_exception_account_user,fix.ar.unbilled.exception.account.user,model_fix_ar_unbilled_exception,account.group_account_user,1,1,1,0
 access_fix_ar_unbilled_exception_account_manager,fix.ar.unbilled.exception.account.manager,model_fix_ar_unbilled_exception,account.group_account_manager,1,1,1,0
+access_fix_credit_limit_change,fix.credit.limit.change,model_fix_credit_limit_change,base.group_user,1,1,1,0

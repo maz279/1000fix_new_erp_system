@@ -23,3 +23,6 @@ access_fix_party_import_batch_loader,fix.party.import.batch loader,model_fix_par
 access_fix_party_import_line_loader,fix.party.import.line loader,model_fix_party_import_line,cd_party_master.group_party_registration_admin,1,1,1,1
 access_fix_processing_record,fix.processing.record,model_fix_processing_record,base.group_user,1,0,0,0
 access_fix_processing_record_dpo,fix.processing.record dpo,model_fix_processing_record,cd_party_master.group_party_dpo,1,0,1,0
+access_fix_contact_point,fix.contact.point,model_fix_contact_point,base.group_user,1,1,1,0
+access_fix_party_relationship,fix.party.relationship,model_fix_party_relationship,base.group_user,1,1,1,0
+access_fix_party_contact_role,fix.party.contact.role,model_fix_party_contact_role,base.group_user,1,1,1,0

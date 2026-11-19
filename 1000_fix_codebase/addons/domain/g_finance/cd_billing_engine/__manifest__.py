@@ -23,7 +23,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.5.0",
+    "version": "19.0.2.6.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",

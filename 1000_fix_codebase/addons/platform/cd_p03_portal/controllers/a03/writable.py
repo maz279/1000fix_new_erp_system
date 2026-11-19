@@ -712,12 +712,21 @@ WRITABLE = {
     ),
     "fix.consent": frozenset(
         {
+            "assisted_by_id",
             "channel",
             "notice_version_id",
             "partner_id",
             "proof",
             "purpose",
             "source",
+        }
+    ),
+    "fix.contact.point": frozenset(
+        {
+            "contact_type",
+            "is_primary",
+            "partner_id",
+            "value",
         }
     ),
     "fix.conversation": frozenset(
@@ -740,9 +749,15 @@ WRITABLE = {
             "wrapup_notes",
         }
     ),
+    "fix.credit.limit.change": frozenset(
+        {
+            "profile_id",
+            "proposed_limit",
+            "reason",
+        }
+    ),
     "fix.credit.profile": frozenset(
         {
-            "credit_limit",
             "customer_id",
             "hold_reason",
             "payment_terms_days",
@@ -1215,6 +1230,15 @@ WRITABLE = {
         }
     ),
     "fix.otp.log": frozenset(),
+    "fix.party.contact.role": frozenset(
+        {
+            "approval_limit",
+            "contact_id",
+            "corporate_id",
+            "date_from",
+            "role",
+        }
+    ),
     "fix.party.duplicate": frozenset(
         {
             "decision",
@@ -1248,6 +1272,15 @@ WRITABLE = {
         }
     ),
     "fix.party.quality": frozenset(),
+    "fix.party.relationship": frozenset(
+        {
+            "date_from",
+            "evidence",
+            "party_a_id",
+            "party_b_id",
+            "relation_type",
+        }
+    ),
     "fix.party.role": frozenset(
         {
             "company_id",
@@ -1478,6 +1511,7 @@ WRITABLE = {
             "company_type",
             "country_id",
             "customer_rank",
+            "delegated_contact_limit",
             "email",
             "is_company",
             "name",

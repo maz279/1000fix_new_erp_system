@@ -34,7 +34,11 @@ export const MODULE = {
       { id: 'M33-360', en: 'Customer 360', bn: 'কাস্টমার ৩৬০', t: 'r' },
       { id: 'M33-hierarchy', en: 'Account Hierarchies', bn: 'অ্যাকাউন্ট স্তর', t: 'g' },
       { id: 'M33-addresses', en: 'Party Addresses (BD + GPS)', bn: 'পার্টির ঠিকানা', t: 'g' },
-      { id: 'M33-form-classify', en: 'Classify a Party', bn: 'পার্টি শ্রেণিবিন্যাস', t: 'f' }
+      { id: 'M33-form-classify', en: 'Classify a Party', bn: 'পার্টি শ্রেণিবিন্যাস', t: 'f' },
+      { id: 'M33-contact-points', en: 'Contact Points', bn: 'যোগাযোগ পয়েন্ট', t: 'g' },
+      { id: 'M33-relationships', en: 'Party Relationships', bn: 'পার্টি সম্পর্ক', t: 'g' },
+      { id: 'M33-contact-roles', en: 'Corporate Contact Roles', bn: 'কর্পোরেট যোগাযোগ ভূমিকা', t: 'g' },
+      { id: 'M33-form-contact-limit', en: 'Corporate Contact Limit', bn: 'কর্পোরেট যোগাযোগ সীমা', t: 'f' }
     ]},
     { en: 'Identity & Verification', screens: [
       { id: 'M33-identity', en: 'Identity Documents (NID/BIN)', bn: 'পরিচয়পত্র', t: 'g' },
@@ -51,11 +55,13 @@ export const MODULE = {
       { id: 'M33-consent', en: 'Consent Register', bn: 'সম্মতি রেজিস্টার', t: 'g' },
       { id: 'M33-dsr', en: 'Data-Subject Requests', bn: 'ডেটা অনুরোধ', t: 'g' },
       { id: 'M33-processing', en: 'Record of Processing', bn: 'প্রক্রিয়াকরণ রেকর্ড', t: 'g' },
-      { id: 'M33-form-withdraw', en: 'Withdraw a Consent', bn: 'সম্মতি প্রত্যাহার', t: 'f' }
+      { id: 'M33-form-withdraw', en: 'Withdraw a Consent', bn: 'সম্মতি প্রত্যাহার', t: 'f' },
+      { id: 'M33-form-consent-handling', en: 'Consent Handling (minor / assisted)', bn: 'সম্মতি পরিচালনা', t: 'f' }
     ]},
     { en: 'Segments & Credit', screens: [
       { id: 'M33-segments', en: 'Segments', bn: 'সেগমেন্ট', t: 'g' },
       { id: 'M33-credit', en: 'Credit Profiles & Holds', bn: 'ক্রেডিট প্রোফাইল', t: 'g' },
+      { id: 'M33-credit-changes', en: 'Credit Limit Changes', bn: 'ক্রেডিট সীমা পরিবর্তন', t: 'g' },
       { id: 'M33-status', en: 'Party Status Lifecycle', bn: 'পার্টি স্ট্যাটাস', t: 'g' },
       { id: 'M33-form-party-status', en: 'Change Party Status', bn: 'পার্টি স্ট্যাটাস পরিবর্তন', t: 'f' },
       { id: 'M33-form-reactivate', en: 'Reactivate a Party', bn: 'পার্টি পুনরায় সক্রিয়', t: 'f' }
@@ -73,7 +79,8 @@ export const MODULE = {
   forms: ['Party Master', 'Party (multi-role)', 'Address with GPS', 'Identity Document', 'Credit Profile', 'Merge Request', 'Duplicate Detection Job',
     'Classify a Party', 'Account Hierarchy Link', 'Dedup Rule', 'Score a Party', 'Survivorship Rule',
     'Consent Record', 'Withdraw a Consent', 'Data-Subject Request', 'Transparency Notice', 'Processing Record',
-    'Change Party Status', 'Reactivate a Party'],
+    'Change Party Status', 'Reactivate a Party',
+    'Contact Point', 'Party Relationship', 'Corporate Contact Role', 'Corporate Contact Limit', 'Consent Handling', 'Credit Limit Change'],
   cross: ['Every module reads party', 'M07 CRM accounts', 'M20 credit control', 'P01 self-service profile', 'M29 record isolation'],
   freg: {
     src: 100,
@@ -85,23 +92,33 @@ export const MODULE = {
        * to raise a data-subject request, publish a notice or record
        * processing (FR-CPM-044 had no register). */
       /* 1 FR-CPM-001/002: the ONE party record first, its roles beside it */
-      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Party Master', 'Party (multi-role)'], create: 'M33-form-party' }],
+      /* Pass 2 (2026-11-19): a party's phones and emails are contact points
+       * with their own verification (FR-CPM-022, BRU-CPM-01), and its links
+       * to other parties are relationships (FR-CPM-006). Neither existed. */
+      ['1', 'Party Record & Roles', 12, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory', 'M33-contact-points', 'M33-relationships'], reports: [], forms: ['Party Master', 'Party (multi-role)', 'Contact Point', 'Party Relationship'], create: 'M33-form-party' }],
       /* 2 FR-CPM-003: Individual / Dealer / Corporate / Government is the party's
        * class; seller, brand partner, vendor are roles */
       ['2', 'Classification', 7, { model: 'fix.party.role', cols: ['partner_id', 'role_type', 'role_status', 'since'], screens: ['M33-party', 'M33-directory'], reports: [], forms: ['Classify a Party', 'Party (multi-role)'], create: 'M33-form-classify' }],
-      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-rpt-hiermap'], reports: ['Corporate Hierarchy Map'], forms: ['Account Hierarchy Link'] }],
+      /* Pass 2: who at a corporate account requests, approves, pays or
+       * administers (FR-CPM-009), inside the contact limit 1000FiX sets
+       * (FR-CPM-011). */
+      ['3', 'Account Hierarchy', 8, { model: 'fix.party.hierarchy', cols: ['parent_id', 'child_id', 'relation_type', 'date_from', 'date_to'], screens: ['M33-hierarchy', 'M33-contact-roles', 'M33-relationships', 'M33-rpt-hiermap'], reports: ['Corporate Hierarchy Map'], forms: ['Account Hierarchy Link', 'Corporate Contact Role', 'Corporate Contact Limit', 'Party Relationship'] }],
       /* 4 FR-CPM-014..016: the party's tagged Bangladesh addresses with GPS */
       ['4', 'Addresses (BD structure + GPS)', 7, { model: 'fix.bd.address', cols: ['party_id', 'address_tag', 'is_default', 'district', 'upazila', 'postcode', 'latitude', 'longitude'], domain: [['party_id', '!=', false]], screens: ['M33-addresses', 'M33-directory'], reports: ['Customer Growth by District'], forms: ['Address with GPS', 'Party Master'], create: 'M33-form-address' }],
-      ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-otp'], reports: [], forms: ['Identity Document'] }],
+      /* Pass 2: the OTP log verified nothing in particular; the contact
+       * point is what a code now verifies. */
+      ['5', 'Identity & OTP', 9, { model: 'fix.identity.document', cols: ['partner_id', 'active', 'residency_ref', 'document_type', 'document_number', 'issuing_country'], screens: ['M33-identity', 'M33-contact-points', 'M33-otp'], reports: [], forms: ['Identity Document', 'Contact Point'] }],
       ['6', 'Registration Approval', 6, { model: 'fix.registration.approval', cols: ['partner_id', 'party_class', 'lm_state', 'admin_state', 'requested_at', 'lm_decided_by'], screens: ['M33-approval'], reports: [], forms: [] }],
       ['7', 'Deduplication & Merge', 11, { model: 'fix.party.duplicate', cols: ['state', 'party_a', 'party_b', 'score', 'factors', 'reviewed_by'], screens: ['M33-dedupe', 'M33-merge', 'M33-dedup-rule', 'M33-rpt-mergeaudit'], reports: ['Duplicate Merge Audit'], forms: ['Merge Request', 'Duplicate Detection Job', 'Dedup Rule'] }],
       /* 8 FR-CPM-031/032: score the party in front of you; the per-attribute
        * survivorship rules are M64's golden rules (spec 12.1) */
       ['8', 'Golden Record & Quality', 9, { model: 'fix.party.quality', cols: ['partner_id', 'completeness', 'validity', 'recency', 'composite', 'deficiencies'], screens: ['M33-quality', 'M33-rpt-scorecard'], reports: ['Data Quality Scorecard'], forms: ['Score a Party', 'Survivorship Rule'], create: 'M33-form-score' }],
       /* 9 FR-CPM-035..044 */
-      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-processing', 'M33-rpt-consentcov'], reports: ['Consent Coverage Report'], forms: ['Consent Record', 'Withdraw a Consent', 'Data-Subject Request', 'Transparency Notice', 'Processing Record'] }],
+      ['9', 'Consent & DSR', 13, { model: 'fix.consent', cols: ['state', 'partner_id', 'purpose', 'channel', 'date_granted', 'date_withdrawn'], screens: ['M33-consent', 'M33-dsr', 'M33-transparency-notice', 'M33-processing', 'M33-rpt-consentcov'], reports: ['Consent Coverage Report'], forms: ['Consent Record', 'Withdraw a Consent', 'Consent Handling', 'Data-Subject Request', 'Transparency Notice', 'Processing Record'] }],
       ['10', 'Segments', 5, { model: 'fix.segment', cols: ['name', 'code', 'active', 'name_bn', 'criteria_json', 'evaluation_mode'], screens: ['M33-segments'], reports: ['Credit Exposure by Segment'], forms: [] }],
-      ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-rpt-creditexp'], reports: ['Credit Exposure by Segment'], forms: ['Credit Profile'] }],
+      /* Pass 2: a limit changed by any profile edit, with no approval
+       * (FR-CPM-047, BRU-CPM-12, SOD-04). It changes by an approved request. */
+      ['11', 'Credit Profile', 8, { model: 'fix.credit.profile', cols: ['customer_id', 'credit_limit', 'payment_terms_days', 'credit_hold', 'hold_reason', 'hold_by'], screens: ['M33-credit', 'M33-credit-changes', 'M33-rpt-creditexp'], reports: ['Credit Exposure by Segment'], forms: ['Credit Profile', 'Credit Limit Change'] }],
       /* 12 FR-CPM-005: restricting a party is a reasoned decision, reactivation a Tier 2 one */
       ['12', 'Status Lifecycle', 5, { model: 'res.partner', cols: ['name', 'party_status', 'status_reason', 'status_since'], screens: ['M33-status', 'M33-rpt-growth'], reports: ['Customer Growth by District'], forms: ['Change Party Status', 'Reactivate a Party'], create: 'M33-form-party-status' }],
       ['13', 'Real-Customer Cut-over', 5, { model: 'fix.party.import.batch', cols: ['name', 'sheet_kind', 'state', 'line_count', 'created_count', 'matched_count', 'quarantined_count'], screens: ['M33-import-batches', 'M33-import-lines'], reports: [], forms: [] }]
@@ -457,11 +474,23 @@ export const SCREENS = {
         note: 'RESIDENCY-CLASSIFIED: The document number routes through the residency service to the Bangladesh-resident store (Z4); the regional database holds only the pointer — the value never appears in caches, logs, or exports (FR-CPM-021, NFR-086/099).',
         fields: [] },
       { tab: 'docs', title: 'Scanned Document Attachment',
-        note: 'Attach front and back scanned copy of the statutory identity document. SHA-256 cryptographic verification checksum is generated automatically upon upload.',
+        note: 'Scans are NOT kept on this record (FR-CPM-024: images go to the Bangladesh-resident document store, never the party record). That store is not live yet (DEP-31), so no scan is captured here; the steward verifies against the original document.',
         fields: [] }
     ] },
 
-  'M33-form-credit': { kind: 'model_form', model: 'fix.credit.profile',
+  'M33-form-credit': {
+    lines: { field: 'limit_change_ids', title: 'Credit Limit Changes', readonlyGrid: true,
+      note: 'Every limit change asked for on this profile, and who decided it (BRU-CPM-12). Raise one with "Credit Limit Change".',
+      fields: [
+        { name: 'current_limit', label: 'Limit Then', readonly: true },
+        { name: 'proposed_limit', label: 'Proposed', readonly: true },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'requested_by', label: 'Requested By', readonly: true },
+        { name: 'decided_by', label: 'Decided By', readonly: true },
+        { name: 'decided_at', label: 'Decided At', readonly: true }
+      ]
+    },
+    kind: 'model_form', model: 'fix.credit.profile',
     title: 'Credit Profile', back: 'M33-credit',
     status: { field: 'credit_hold', labels: { true: 'On Hold', false: 'Active' } },
     tabs: [
@@ -473,7 +502,7 @@ export const SCREENS = {
     sections: [
       { tab: 'terms', title: 'Customer Credit Terms', fields: [
         { name: 'customer_id', required: true, label: 'Customer' },
-        { name: 'credit_limit', label: 'Credit Limit (BDT)' },
+        { name: 'credit_limit', readonly: true, label: 'Credit Limit (BDT): changed by an approved Credit Limit Change' },
         { name: 'payment_terms_days', required: true, label: 'Payment Terms (Days)' },
       ]},
       { tab: 'hold', title: 'Hold & Real-Time Exposure', fields: [
@@ -486,7 +515,7 @@ export const SCREENS = {
         note: 'M33 holds the limit and the hold status; M20 enforces it at order intake and invoice generation time (spec §3.3). Placing or releasing a hold is executed via the Toggle Hold action on the Credit Profiles screen with mandatory reason.',
         fields: [] },
       { tab: 'audit', title: 'DOFA Approval & Credit Review',
-        note: 'Credit limit assignments exceeding BDT 500,000 require Head of Commercial DOFA authorization. Audit trail captures all limit revisions and hold toggle timestamps.',
+        note: 'A new profile starts with no limit. The limit changes only through a Credit Limit Change that a Finance Manager (Accounting Administrator) other than the requester approves (BRU-CPM-12, SOD-04). Each change is kept on the Credit Limit Changes register and in the profile chatter.',
         fields: [] }
     ] },
 
@@ -539,6 +568,7 @@ export const SCREENS = {
       { tab: 'evidence', title: 'Evidence & Transparency Notice Link', fields: [
         { name: 'notice_version_id', required: true, label: 'Transparency Notice Version Presented' },
         { name: 'proof', required: true, label: 'Proof Reference (signed form ID / OTP session)' },
+        { name: 'assisted_by_id', label: 'Given By (verified guardian / representative, for a minor or assisted party)' },
         { name: 'source', label: 'Capture Channel / Portal' },
         { name: 'date_granted', readonly: true, label: 'Date Granted' },
         { name: 'date_withdrawn', readonly: true, label: 'Date Withdrawn' },
@@ -572,7 +602,7 @@ export const SCREENS = {
         { name: 'identity_verified', readonly: true, label: 'Identity Verified' },
         { name: 'evidence_ref', readonly: true, label: 'Evidence Reference / Export Link' },
         { name: 'fulfilled_at', readonly: true, label: 'Fulfilled Timestamp' },
-        { name: 'notified_at', label: 'Party Notified Timestamp' },
+        { name: 'notified_at', label: 'Party Notified At (a rectification is not closed without it, BRU-CPM-10)' },
         { name: 'decision', label: 'Decision Summary' },
         { name: 'rejected_reason', readonly: true, label: 'Rejection Legal Basis' },
       ]},
@@ -800,7 +830,8 @@ export const SCREENS = {
         { name: 'channel', label: 'Channel', readonly: true },
         { name: 'date_granted', label: 'Granted At', readonly: true },
         { name: 'notice_version_id', label: 'Notice Version', readonly: true },
-        { name: 'proof', label: 'Proof Reference', readonly: true }
+        { name: 'proof', label: 'Proof Reference', readonly: true },
+        { name: 'assisted_by_id', label: 'Given By (guardian / representative)', readonly: true }
       ]}
     ]
   },
@@ -888,6 +919,187 @@ export const SCREENS = {
         { name: 'party_status', label: 'Current Status', readonly: true },
         { name: 'status_reason', label: 'Reason for Reactivation', required: true }
       ]}
+    ]
+  },
+
+  /* ==================================================================
+   * M33 CAPTURE AUDIT PASS 2 (2026-11-19): the spec records (section 10.1)
+   * no page could capture, read FR by FR rather than counted.
+   * ================================================================== */
+  /* 1 / 5 Contact points (FR-CPM-022, BRU-CPM-01, KPI-125) */
+  'M33-contact-points': { kind: 'model_list', model: 'fix.contact.point', create: true,
+    cols: ['partner_id', 'contact_type', 'value', 'is_primary', 'state', 'verified_at'],
+    stateField: 'state',
+    actions: [{ m: 'action_request_verification', l: 'Send Verification Code' }],
+    empty: 'No contact point is recorded yet. Add the party\'s mobile or email, then send it a code.' },
+  'M33-form-contact-point': {
+    kind: 'model_form', model: 'fix.contact.point',
+    title: 'Contact Point', back: 'M33-contact-points',
+    status: { field: 'state', labels: { unverified: 'Unverified', pending: 'Code Sent', verified: 'Verified' } },
+    sections: [
+      { title: 'The Contact',
+        note: 'A mobile (11 digits, 013-019) or an email, WhatsApp or landline. One primary per type. Changing a verified contact makes it unverified again (FR-CPM-022).',
+        fields: [
+          { name: 'partner_id', label: 'Party', required: true },
+          { name: 'contact_type', label: 'Type', required: true },
+          { name: 'value', label: 'Number / Address', required: true },
+          { name: 'is_primary', label: 'Primary for this Type' }
+        ] },
+      { title: 'Verification',
+        note: 'Verified only by a one-time code: "Send Verification Code" on the list opens the OTP log line; the channel that sends the code marks it verified, and that stamps this contact (BRU-CPM-01).',
+        fields: [
+          { name: 'state', label: 'Verification', readonly: true },
+          { name: 'verified_at', label: 'Verified At', readonly: true },
+          { name: 'verification_method', label: 'Verified By', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 1 / 3 Party relationships (FR-CPM-006) */
+  'M33-relationships': { kind: 'model_list', model: 'fix.party.relationship', create: true,
+    cols: ['party_a_id', 'relation_type', 'party_b_id', 'date_from', 'date_to', 'verified'],
+    actions: [
+      { m: 'action_verify', l: 'Verify (data steward)' },
+      { m: 'action_end', l: 'End Relationship', ask: 'Why does it end?', kwarg: 'reason' }
+    ],
+    empty: 'No relationship between parties is recorded yet.' },
+  'M33-form-relationship': {
+    kind: 'model_form', model: 'fix.party.relationship',
+    title: 'Party Relationship', back: 'M33-relationships',
+    sections: [
+      { title: 'Who Is What To Whom',
+        note: 'Read as "Party A <relation> Party B": the employer, guardian, referrer, group or representative is Party A. Households and corporate groups are Account Hierarchy links.',
+        fields: [
+          { name: 'party_a_id', label: 'Party A', required: true },
+          { name: 'relation_type', label: 'Relation', required: true },
+          { name: 'party_b_id', label: 'Party B', required: true },
+          { name: 'date_from', label: 'Since', required: true },
+          { name: 'evidence', label: 'Evidence (guardianship document, power of attorney, letter)' }
+        ] },
+      { title: 'Verification',
+        note: 'A data steward who did not record it verifies it against the evidence. A minor\'s or an assisted party\'s consent is taken only through a VERIFIED guardian or authorised representative (BRU-CPM-16).',
+        fields: [
+          { name: 'verified', label: 'Verified', readonly: true },
+          { name: 'verified_by', label: 'Verified By', readonly: true },
+          { name: 'verified_at', label: 'Verified At', readonly: true },
+          { name: 'date_to', label: 'Ended', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 3 Corporate contact roles (FR-CPM-009/011) */
+  'M33-contact-roles': { kind: 'model_list', model: 'fix.party.contact.role', create: true,
+    cols: ['corporate_id', 'contact_id', 'role', 'state', 'approval_limit', 'date_from'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_suspend', l: 'Suspend', ask: 'Why is this person suspended?', kwarg: 'reason' },
+      { m: 'action_reinstate', l: 'Reinstate', ask: 'Why is this person reinstated?', kwarg: 'reason' },
+      { m: 'action_remove', l: 'Remove', ask: 'Why is this person removed?', kwarg: 'reason' }
+    ],
+    empty: 'No contact role is recorded at a corporate, dealer or government account yet.' },
+  'M33-form-contact-role': {
+    kind: 'model_form', model: 'fix.party.contact.role',
+    title: 'Corporate Contact Role', back: 'M33-contact-roles',
+    status: { field: 'state', labels: { active: 'Active', suspended: 'Suspended', removed: 'Removed' } },
+    sections: [
+      { title: 'The Role',
+        note: 'One person, one role, at one corporate, dealer or government account. The account may have no more active people than the contact limit 1000FiX set for it (FR-CPM-011).',
+        fields: [
+          { name: 'corporate_id', label: 'Corporate Account', required: true },
+          { name: 'contact_id', label: 'Contact Person', required: true },
+          { name: 'role', label: 'Role', required: true },
+          { name: 'approval_limit', label: 'Approval Limit (BDT, approvers only)' },
+          { name: 'date_from', label: 'From', required: true }
+        ] },
+      { title: 'Status',
+        note: 'Suspend, reinstate and remove from the list, always with a reason. A removed role is kept.',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'status_note', label: 'Last Status Reason', readonly: true },
+          { name: 'date_to', label: 'Removed On', readonly: true }
+        ] }
+    ]
+  },
+  'M33-form-contact-limit': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Corporate Contact Limit', back: 'M33-contact-roles',
+    newLabel: 'Set a Corporate Contact Limit',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the corporate, dealer or government account',
+      search: 'Search name / phone',
+      choose: 'Set this account\'s limit',
+      cols: ['name', 'party_class', 'party_status', 'delegated_contact_limit'],
+      domain: ['|', ['is_company', '=', true], ['party_class', 'in', ['dealer', 'corporate', 'government']]],
+      empty: 'No corporate, dealer or government account.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: How Many People May Act For It',
+        note: 'Set by a 1000FiX registration administrator (FR-CPM-011); 0 means no limit. A limit below the people already active is refused.',
+        fields: [
+          { name: 'name', label: 'Account', readonly: true },
+          { name: 'delegated_contact_limit', label: 'Most Active Contacts (0 = no limit)', required: true }
+        ] }
+    ]
+  },
+
+  /* 9 Minor / assisted consent (FR-CPM-052, BRU-CPM-16) */
+  'M33-form-consent-handling': {
+    kind: 'model_form', model: 'res.partner',
+    title: 'Consent Handling', back: 'M33-consent',
+    newLabel: 'Set Consent Handling (minor / assisted)',
+    pickRecord: {
+      label: 'Step 1 of 2: choose the party',
+      search: 'Search name / phone',
+      choose: 'Set this party\'s consent handling',
+      cols: ['name', 'party_class', 'consent_handling', 'consent_handling_reason'],
+      domain: [['party_status', '!=', 'merged']],
+      empty: 'No party.'
+    },
+    saveAction: { method: 'action_set_consent_handling', label: 'Set Handling', done: 'Consent handling set and logged on the party', kwargs: { handling: 'consent_handling', reason: 'consent_handling_reason' } },
+    sections: [
+      { title: 'Step 2 of 2: Who May Consent For This Party',
+        note: 'A minor or a party needing assistance consents only through a verified guardian or authorised representative, named on the consent (BRU-CPM-16). Anyone serving the party may raise the flag; only the Data Protection Officer clears it back to Standard.',
+        fields: [
+          { name: 'name', label: 'Party', readonly: true },
+          // guarded: the save action takes them (the engine opens its inputs)
+          { name: 'consent_handling', label: 'Consent Handling', required: true, readonly: true },
+          { name: 'consent_handling_reason', label: 'Reason', required: true, readonly: true }
+        ] }
+    ]
+  },
+
+  /* 11 Credit limit change (FR-CPM-047, BRU-CPM-12, SOD-04) */
+  'M33-credit-changes': { kind: 'model_list', model: 'fix.credit.limit.change', create: true,
+    cols: ['customer_id', 'current_limit', 'proposed_limit', 'state', 'requested_by', 'decided_by', 'decided_at'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_approve', l: 'Approve and Apply (Finance Manager)', ask: 'Note (optional)', kwarg: 'note' },
+      { m: 'action_reject', l: 'Reject', ask: 'Why is it rejected?', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Withdraw (requester)' }
+    ],
+    empty: 'No credit limit change has been requested.' },
+  'M33-form-credit-change': {
+    kind: 'model_form', model: 'fix.credit.limit.change',
+    title: 'Credit Limit Change', back: 'M33-credit-changes',
+    status: { field: 'state', labels: { submitted: 'Awaiting Finance Manager', approved: 'Approved and Applied', rejected: 'Rejected', cancelled: 'Withdrawn' } },
+    sections: [
+      { title: 'The Change Asked For',
+        note: 'A Finance Manager (Accounting Administrator) who did not raise it approves it, and the new limit applies at once (BRU-CPM-12, SOD-04). The limit in force when you ask is recorded beside it.',
+        fields: [
+          { name: 'profile_id', label: 'Credit Profile (customer)', required: true },
+          { name: 'current_limit', label: 'Limit Now (BDT)', readonly: true },
+          { name: 'proposed_limit', label: 'Proposed Limit (BDT)', required: true },
+          { name: 'reason', label: 'Why', required: true, type: 'text' }
+        ] },
+      { title: 'Decision',
+        fields: [
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'requested_by', label: 'Requested By', readonly: true },
+          { name: 'decided_by', label: 'Decided By', readonly: true },
+          { name: 'decided_at', label: 'Decided At', readonly: true },
+          { name: 'decision_note', label: 'Decision Note', readonly: true },
+          { name: 'applied_at', label: 'Applied At', readonly: true }
+        ] }
     ]
   },
 
@@ -1073,6 +1285,13 @@ export const FORM_CHIPS = {
   'M33:Processing Record': 'M33-form-processing',
   'M33:Change Party Status': 'M33-form-party-status',
   'M33:Reactivate a Party': 'M33-form-reactivate',
+  // capture pass 2 (2026-11-19)
+  'M33:Contact Point': 'M33-form-contact-point',
+  'M33:Party Relationship': 'M33-form-relationship',
+  'M33:Corporate Contact Role': 'M33-form-contact-role',
+  'M33:Corporate Contact Limit': 'M33-form-contact-limit',
+  'M33:Consent Handling': 'M33-form-consent-handling',
+  'M33:Credit Limit Change': 'M33-form-credit-change',
   'M33:__by_model__': {
     'fix.dedup.job': 'M33-form-dedup-job',
     'fix.transparency.notice': 'M33-form-transparency',
@@ -1090,7 +1309,11 @@ export const FORM_CHIPS = {
     'fix.party.hierarchy': 'M33-form-hierarchy',
     'fix.registration.approval': 'M33-form-approval',
     'fix.party.duplicate': 'M33-form-duplicate',
-    'fix.processing.record': 'M33-form-processing'
+    'fix.processing.record': 'M33-form-processing',
+    'fix.contact.point': 'M33-form-contact-point',
+    'fix.party.relationship': 'M33-form-relationship',
+    'fix.party.contact.role': 'M33-form-contact-role',
+    'fix.credit.limit.change': 'M33-form-credit-change'
   },
   'M33:__by_screen__': {
     'M33-dedup-jobs': 'M33-form-dedup-job',
@@ -1110,7 +1333,11 @@ export const FORM_CHIPS = {
     'M33-dedup-rule': 'M33-form-dedup-rule',
     'M33-transparency-notice': 'M33-form-transparency',
     'M33-addresses': 'M33-form-address',
-    'M33-processing': 'M33-form-processing'
+    'M33-processing': 'M33-form-processing',
+    'M33-contact-points': 'M33-form-contact-point',
+    'M33-relationships': 'M33-form-relationship',
+    'M33-contact-roles': 'M33-form-contact-role',
+    'M33-credit-changes': 'M33-form-credit-change'
   }
 };
 
@@ -1123,7 +1350,11 @@ export const FORM_MODELS = {
   'M33:Identity Document': 'fix.identity.document',
   'M33:Credit Profile': 'fix.credit.profile',
   'M33:Merge Request': 'fix.party.merge',
-  'M33:Processing Record': 'fix.processing.record'
+  'M33:Processing Record': 'fix.processing.record',
+  'M33:Contact Point': 'fix.contact.point',
+  'M33:Party Relationship': 'fix.party.relationship',
+  'M33:Corporate Contact Role': 'fix.party.contact.role',
+  'M33:Credit Limit Change': 'fix.credit.limit.change'
 };
 
 /* the module's "+ New" surface: the party itself is the anchor record. */

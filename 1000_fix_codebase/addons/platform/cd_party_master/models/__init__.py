@@ -1,3 +1,4 @@
+# ruff: noqa: I001
 # cd_party_master models — the party kernel and its M33 surfaces.
 # S8 duplicate-detection jobs (layer (c) of the three-layer model).
 from . import (
@@ -23,3 +24,7 @@ from . import (
     fix_transparency_notice,
     res_partner,
 )
+
+# M33 capture pass 2 extends res.partner, fix.otp.log and fix.consent: it must
+# load after them, so it is imported on its own, last.
+from . import fix_party_capture2
