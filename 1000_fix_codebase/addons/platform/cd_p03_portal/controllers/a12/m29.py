@@ -51,7 +51,18 @@ SURFACES = {
     "fix.privileged.session": {
         "order": "started_at desc, id desc",
         "limit": 400,
-        "actions": {"action_approve", "action_reject", "action_open", "action_close"},
+        # M29 capture pass 2: emergency break-glass, the post-hoc justification,
+        # the recorded actions (close asks for them) and the second-person review
+        "actions": {
+            "action_approve",
+            "action_reject",
+            "action_open",
+            "action_close",
+            "action_break_glass",
+            "action_justify",
+            "action_review_ok",
+            "action_review_misuse",
+        },
     },
     "fix.sensitive.field": {"order": "model_name, field_name", "limit": 400, "actions": set()},
     "res.device.log": {
@@ -65,10 +76,15 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_apply", "action_cancel"},
         # New User form: the Access Approver who files a joiner picks the
-        # employee by NAME without HR rights; the server offers only active
-        # employees with no login yet (never the browser's filter alone)
+        # employee by NAME without HR rights (names only, sudo).
+        # M29 capture pass 2 (2026-11-19): the surface used to fence the picker
+        # to employees with NO login. That fence applied to every form on this
+        # model, so a mover, a leaver or a suspension - all of which need a
+        # login - could pick nobody. Each form now states its own checked filter
+        # (New User: no login; Suspend / Reinstate: has a login), and the server
+        # re-derives and checks the login on create, so the browser's filter
+        # decides only what is offered, never what is accepted.
         "picker_names": ("employee_id",),
-        "pickers": {"employee_id": [("user_id", "=", False)]},
     },
     "fix.access.certification": {
         "order": "period desc, id desc",
@@ -101,6 +117,10 @@ SURFACES = {
             "action_set_severity",
             "action_confirm_severity",
             "action_reject_severity",
+            # M29 capture pass 2 (§8.3, AUT-SEC-13): the breach decision and the
+            # second officer's confirmation of "not notifiable"
+            "action_assess_breach",
+            "action_confirm_not_notifiable",
         },
         # E16: a reporter sees their own reports; breach text is for the officer
         "rules": True,
@@ -113,6 +133,24 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_remediate", "action_verify", "action_reopen", "action_accept_risk"},
         "rules": True,
+    },
+    # M29 capture pass 2 (FR-SEC-012): non-human identities with an accountable
+    # owner; read by Security Officers, Access Approvers and administrators (ACL)
+    "fix.service.account": {
+        "order": "state, name",
+        "limit": 300,
+        "actions": {
+            "action_register_rotation",
+            "action_suspend",
+            "action_reactivate",
+            "action_retire",
+        },
+    },
+    # M29 capture pass 2 (AUT-SEC-16, AC-26): penetration tests to closure
+    "fix.security.pentest": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_receive_report", "action_close"},
     },
     "ir.rule": {"order": "model_id, id", "limit": 400, "actions": set()},
     "ir.model.access": {"order": "model_id, id", "limit": 800, "actions": set()},
@@ -231,6 +269,10 @@ WRITABLE = {
         "ticket_ref",
         "duration_hours",
         "actions_count",
+        # pass 2: chosen at filing (the model refuses it later); the actions taken
+        # are the holder's record until the session closes
+        "break_glass",
+        "actions_summary",
     ),
     "fix.sensitive.field": (
         "model_name",
@@ -241,6 +283,9 @@ WRITABLE = {
         "lawful_basis",
         "retention_note",
         "active",
+        # pass 2 (FR-SEC-047): who classified it is stamped, never typed
+        "residency_class",
+        "owning_module",
     ),
     "res.device.log": (),
     # the access a joiner/mover grants is stated on the event (M29 capture
@@ -260,6 +305,7 @@ WRITABLE = {
         "valid_until",
         "permission_line_ids",
         "permission_bulk",
+        "suspend_reason",
     ),
     # narrowed module permissions are written by an applied event only
     "fix.module.permission": (),
@@ -293,6 +339,11 @@ WRITABLE = {
         "containment",
         "root_cause",
         "breach_assessment",
+        # pass 2: the breach facts; the decision and the clock are actions only
+        "owner_id",
+        "personal_data_involved",
+        "significant_damage_likely",
+        "data_subjects_estimate",
     ),
     # the lifecycle (state, remediation, verification, acceptance) is action-only;
     # severity is re-rated by a Security Officer only (the model refuses others)
@@ -305,6 +356,33 @@ WRITABLE = {
         "discovered_on",
         "owner_id",
         "detail",
+        "pentest_id",
+    ),
+    # pass 2: the credential changes through Register Rotation; the status,
+    # the orphan flag and the rotation date are the actions' and the job's
+    "fix.service.account": (
+        "name",
+        "kind",
+        "purpose",
+        "scopes",
+        "user_id",
+        "consumer_ref",
+        "owner_id",
+        "credential_ref",
+        "rotation_days",
+        "company_id",
+    ),
+    "fix.security.pentest": (
+        "title",
+        "provider",
+        "test_type",
+        "scope",
+        "test_from",
+        "test_to",
+        "coordinator_id",
+        "report_received_on",
+        "report_ref",
+        "company_id",
     ),
     "ir.rule": (
         "name",
@@ -413,13 +491,31 @@ def privileged_sessions(env, date_from=None, date_to=None, **params):
                 "started": s.started_at.strftime("%d %b %H:%M") if s.started_at else "—",
                 "minutes": s.duration_minutes if s.state == "closed" else "open",
                 "state": dict(s._fields["state"].selection).get(s.state),
+                # M29 capture pass 2 (§14 privileged access report): break-glass
+                # uses and whether someone else reviewed the session
+                "glass": "Yes" if s.break_glass else "—",
+                "review": dict(s._fields["review_outcome"].selection).get(s.review_outcome)
+                or ("awaiting justification" if s.break_glass and not s.justification else "—"),
             }
         )
     open_count = len([r for r in rows if r["state"] == "Open"])
     return _pack(
         "Privileged Session Log — %d open of %d" % (open_count, len(rows)),
-        ["session", "user", "kind", "reason", "ticket", "started", "minutes", "state"],
+        [
+            "session",
+            "user",
+            "kind",
+            "reason",
+            "ticket",
+            "started",
+            "minutes",
+            "glass",
+            "review",
+            "state",
+        ],
         {
+            "glass": "Break-Glass",
+            "review": "Review",
             "session": "Session",
             "user": "User",
             "kind": "Access Kind",
@@ -433,7 +529,10 @@ def privileged_sessions(env, date_from=None, date_to=None, **params):
         [
             "A privileged session is opened before sudo/admin work and closed after; duration is "
             "measured from the timestamps, not typed. Stale sessions are force-closed by the "
-            "M29 timeout cron (fix_rbac_ext.privileged_session_timeout_minutes)."
+            "M29 timeout cron (fix_rbac_ext.privileged_session_timeout_minutes).",
+            "Break-glass sessions open without prior approval, notify every approver, officer and "
+            "administrator at once, owe a written justification within 24 hours and are reviewed "
+            "by someone other than the holder (BRU-SEC-20).",
         ],
         empty="No privileged sessions recorded.",
     )
@@ -702,4 +801,33 @@ def kpis(env):
         "sod_failures": len(tests.filtered(lambda t: t.result == "fail")),
         "sod_tests": len(tests),
         "critical_vulns_overdue": len(vulns.filtered("is_overdue")),
+        # M29 capture pass 2
+        "breach_assessments_overdue": _breach_overdue(env),
+        "break_glass_unreviewed": _count(
+            "fix.privileged.session",
+            [
+                ("break_glass", "=", True),
+                ("state", "in", ("open", "closed")),
+                ("reviewed_by_id", "=", False),
+            ],
+        ),
+        "service_accounts_orphaned": _orphaned_accounts(env),
     }
+
+
+def _breach_overdue(env):
+    try:
+        incidents = env["fix.security.incident"].search(
+            [("personal_data_involved", "=", "yes"), ("state", "!=", "closed")]
+        )
+    except AccessError:
+        return 0
+    return len(incidents.filtered("breach_overdue"))
+
+
+def _orphaned_accounts(env):
+    try:
+        accounts = env["fix.service.account"].search([("state", "=", "active")])
+    except AccessError:
+        return 0
+    return len(accounts.filtered("is_orphaned"))

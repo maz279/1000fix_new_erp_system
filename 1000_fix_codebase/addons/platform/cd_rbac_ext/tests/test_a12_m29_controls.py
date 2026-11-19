@@ -721,7 +721,10 @@ def test_r5_incident_closure_discipline(odoo_env):
         Incident.create({"title": "A12 born closed", "category": "malware", "state": "closed"})
 
     # anyone may report; handling it is the officer's (E16)
-    inc = Incident.create({"title": "A12 leak", "category": "data_leak"}).with_user(officer)
+    # pass 2: "personal data involved?" is answered at filing (no: a config leak)
+    inc = Incident.create(
+        {"title": "A12 leak", "category": "data_leak", "personal_data_involved": "no"}
+    ).with_user(officer)
     with pytest.raises(UserError, match="Close a contained incident"), env.cr.savepoint():
         inc.action_close()
     inc.write({"containment": "revoked the sessions and forced a password reset"})

@@ -21,7 +21,10 @@ export const MODULE = {
     { l: 'Sessions Open', m: 'sessions_open' },
     { l: 'SoD Failures', m: 'sod_failures' },
     { l: 'SoD Tests', m: 'sod_tests' },
-    { l: 'Critical Vulns Past Due', m: 'critical_vulns_overdue' }
+    { l: 'Critical Vulns Past Due', m: 'critical_vulns_overdue' },
+    { l: 'Breach Assessments Overdue', m: 'breach_assessments_overdue' },
+    { l: 'Break-Glass Unreviewed', m: 'break_glass_unreviewed' },
+    { l: 'Orphaned Service Accounts', m: 'service_accounts_orphaned' }
   ],
   groups: [
     { en: 'Record Coverage', screens: [
@@ -31,7 +34,9 @@ export const MODULE = {
       { id: 'M29-users', en: 'Users', bn: 'ব্যবহারকারী', t: 'g' },
       { id: 'M29-sessions', en: 'Sessions & Device Trust', bn: 'সেশন', t: 'g' },
       { id: 'M29-jml', en: 'JML Automation', bn: 'জেএমএল', t: 'g' },
-      { id: 'M29-module-permissions', en: 'Module Permissions', bn: 'মডিউল অনুমতি', t: 'g' }
+      { id: 'M29-module-permissions', en: 'Module Permissions', bn: 'মডিউল অনুমতি', t: 'g' },
+      { id: 'M29-service-accounts', en: 'Service Accounts', bn: 'সার্ভিস অ্যাকাউন্ট', t: 'g' },
+      { id: 'M29-devices', en: 'Device Registry', bn: 'ডিভাইস নিবন্ধন', t: 'g' }
     ]},
     { en: 'Access', screens: [
       { id: 'M29-roles', en: 'Roles & Permission Sets', bn: 'ভূমিকা', t: 'g' },
@@ -42,18 +47,22 @@ export const MODULE = {
       { id: 'M29-assignments', en: 'Role Assignments', bn: 'ভূমিকা বরাদ্দ', t: 'g' },
       { id: 'M29-requests', en: 'Access Requests', bn: 'অ্যাক্সেস অনুরোধ', t: 'g' },
       { id: 'M29-groups', en: 'Odoo Groups', bn: 'গ্রুপ', t: 'g' },
-      { id: 'M29-acl', en: 'Model Access', bn: 'মডেল অ্যাক্সেস', t: 'g' }
+      { id: 'M29-acl', en: 'Model Access', bn: 'মডেল অ্যাক্সেস', t: 'g' },
+      { id: 'M29-delegations', en: 'Delegations of Authority', bn: 'ক্ষমতা অর্পণ', t: 'g' }
     ]},
     { en: 'Data Protection', screens: [
       { id: 'M29-classification', en: 'Classification (S0–S3)', bn: 'শ্রেণিবিন্যাস', t: 'g' },
       { id: 'M29-residency', en: 'Residency Enforcement', bn: 'আবাসিক প্রয়োগ', t: 'g' },
-      { id: 'M29-keys', en: 'Encryption & Keys', bn: 'এনক্রিপশন', t: 'g' }
+      { id: 'M29-keys', en: 'Encryption & Keys', bn: 'এনক্রিপশন', t: 'g' },
+      { id: 'M29-transfers', en: 'Cross-Border Transfers', bn: 'আন্তঃসীমান্ত স্থানান্তর', t: 'g' },
+      { id: 'M29-rights', en: 'Data-Subject Requests', bn: 'ডেটা-বিষয় অনুরোধ', t: 'g' }
     ]},
     { en: 'Monitoring', screens: [
       { id: 'M29-audit', en: 'Immutable Audit Trail', bn: 'অডিট ট্রেইল', t: 'g' },
       { id: 'M29-privileged', en: 'Privileged Access', bn: 'বিশেষ সুবিধাভোগী', t: 'g' },
       { id: 'M29-incidents', en: 'Security Incidents', bn: 'নিরাপত্তা ঘটনা', t: 'g' },
       { id: 'M29-vulnerabilities', en: 'Vulnerability Register', bn: 'দুর্বলতা নিবন্ধন', t: 'g' },
+      { id: 'M29-pentests', en: 'Penetration Tests', bn: 'পেনিট্রেশন টেস্ট', t: 'g' },
       { id: 'M29-sod', en: 'SoD Controls', bn: 'SoD নিয়ন্ত্রণ', t: 'g' },
       { id: 'M29-sodtests', en: 'SoD Test Runs', bn: 'SoD পরীক্ষা', t: 'g' },
       { id: 'M29-sod-exceptions', en: 'SoD Exceptions', bn: 'SoD ব্যতিক্রম', t: 'g' },
@@ -71,15 +80,24 @@ export const MODULE = {
    *     so the page captures the identity-lifecycle event, not a blank login.
    *   7 Monitoring: the audit trail is system-written; the page reports an
    *     incident (which writes its own audit row), requests break-glass access
-   *     and records a vulnerability (spec §10.1 fix.vulnerability). */
+   *     and records a vulnerability (spec §10.1 fix.vulnerability).
+   * Capture pass 2 (2026-11-19), spec §5/§8/§10/§11 against what each page offered:
+   *   1 Identity: suspend / reinstate an identity (§8.1), service accounts with an
+   *     accountable owner (FR-SEC-012), device registration (FR-SEC-010, M02's register).
+   *   2 Roles: delegation of authority (FR-SEC-019) is M63's substitution record.
+   *   6 Data Protection: cross-border transfer (FR-SEC-049, M60's gated register) and
+   *     data-subject requests (FR-SEC-051, M33's lifecycle); the classification now
+   *     carries the residency class (FR-SEC-047).
+   *   7 Monitoring: penetration tests to closure (AUT-SEC-16); the incident form
+   *     records the breach decision (AUT-SEC-13) and the session form break-glass. */
   freg: { src: 78, sub: [
-    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-jml', 'M29-module-permissions', 'M29-sessions'], reports: ['Authentication Trends'], forms: ['Provision Login', 'JML Event', 'User'], create: 'M29-form-provision', domain: [['share', '=', false]] }],
-    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl'], reports: ['Access Review Pack'], forms: ['Role', 'Model Access'] }],
+    ['1', 'Identity & MFA', 14, { model: 'res.users', cols: ['login', 'partner_id', 'company_id', 'active', 'create_date'], screens: ['M29-users', 'M29-jml', 'M29-module-permissions', 'M29-sessions', 'M29-service-accounts', 'M29-devices'], reports: ['Authentication Trends'], forms: ['Provision Login', 'JML Event', 'Suspend / Reinstate', 'Service Account', 'Device Registration', 'User'], create: 'M29-form-provision', domain: [['share', '=', false]] }],
+    ['2', 'Role & Group Model', 13, { model: 'fix.role', cols: ['code', 'name', 'fix_group_roll', 'keycloak_role', 'active'], screens: ['M29-roles', 'M29-groups', 'M29-acl', 'M29-delegations'], reports: ['Access Review Pack'], forms: ['Role', 'Model Access', 'Delegation of Authority'] }],
     ['3', 'Record & Field Rules', 15, { model: 'ir.rule', cols: ['name', 'model_id', 'perm_read', 'perm_write', 'global'], screens: ['M29-record', 'M29-fields', 'M29-isolation-tier'], reports: [], forms: ['Record Rule', 'Field Rule', 'Isolation Tier'] }],
     ['4', 'Access Requests', 10, { model: 'fix.access.request', cols: ['name', 'request_type', 'user_id', 'role_id', 'state'], screens: ['M29-requests', 'M29-cert-campaigns', 'M29-cert', 'M29-assignments'], reports: ['Access Review Pack'], forms: ['Access Request', 'Certification Campaign', 'Certification Line'] }],
     ['5', 'SoD Testing', 9, { model: 'fix.sod.test', cols: ['name', 'control_id', 'tested_on', 'violations_found', 'result'], screens: ['M29-sodtests', 'M29-sod', 'M29-sod-exceptions'], reports: ['SoD Test Results', 'SoD Violations'], forms: ['SoD Test Run', 'SoD Control', 'SoD Exception'] }],
-    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency'], reports: ['Sensitive-Data Access'], forms: ['Sensitive Field', 'Encryption Key'] }],
-    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-incidents', 'M29-privileged', 'M29-vulnerabilities'], reports: ['Privileged Session Log', 'Sensitive-Data Access', 'Vulnerability Register'], forms: ['Security Incident', 'Privileged Session', 'Vulnerability'], create: 'M29-form-incident' }]
+    ['6', 'Data Protection', 10, { model: 'fix.sensitive.field', cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'], screens: ['M29-classification', 'M29-keys', 'M29-residency', 'M29-transfers', 'M29-rights'], reports: ['Sensitive-Data Access'], forms: ['Sensitive Field', 'Encryption Key', 'Cross-Border Transfer', 'Data-Subject Request'] }],
+    ['7', 'Monitoring & Audit', 7, { model: 'fix.security.audit', cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label'], screens: ['M29-audit', 'M29-incidents', 'M29-privileged', 'M29-vulnerabilities', 'M29-pentests'], reports: ['Privileged Session Log', 'Sensitive-Data Access', 'Vulnerability Register'], forms: ['Security Incident', 'Privileged Session', 'Vulnerability', 'Penetration Test'], create: 'M29-form-incident' }]
   ] }
 };
 
@@ -96,8 +114,33 @@ export const SCREENS = {
     empty: 'No narrowed module permissions: every user has exactly what their roles give.',
     cols: ['user_id', 'area', 'module_name', 'level', 'can_approve', 'can_print', 'can_export', 'can_email', 'event_id', 'set_on'] },
   'M29-jml': { kind: 'model_list', model: 'fix.jml.event', stateField: 'state',
-    cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'effective_on', 'applied_on', 'result_note', 'state'],
+    cols: ['name', 'event_type', 'employee_id', 'user_id', 'role_id', 'suspend_reason', 'effective_on', 'applied_on', 'result_note', 'state'],
     actions: [{ m: 'action_apply', l: 'Apply' }, { m: 'action_cancel', l: 'Cancel' }] },
+  // Capture pass 2 (FR-SEC-012): non-human identities, each with an accountable owner.
+  // Orphaned accounts are flagged and suspended after 24 hours (BRU-SEC-17).
+  'M29-service-accounts': { kind: 'model_list', model: 'fix.service.account', stateField: 'state',
+    empty: 'No service accounts registered yet. Register every integration login, API client and robot with its owner.',
+    cols: ['code', 'name', 'kind', 'user_id', 'owner_id', 'next_rotation_on', 'is_orphaned', 'state'],
+    actions: [{ m: 'action_register_rotation', l: 'Register Rotation', ask: 'New vault reference (vault://...) of the credential you rotated', kwarg: 'new_vault_ref', states: ['active'] },
+              { m: 'action_suspend', l: 'Suspend', ask: 'Why is this account suspended?', kwarg: 'reason', states: ['active'] },
+              { m: 'action_reactivate', l: 'Reactivate', states: ['suspended'] },
+              { m: 'action_retire', l: 'Retire', ask: 'Why is this account retired?', kwarg: 'reason', states: ['active', 'suspended'] }] },
+  /* Capture pass 2: records other modules own, listed where M29 governs them. Each
+   * list is read under its owner's surface (rules, ACL); the page's chip opens the
+   * owner's form, and the owner's own screen keeps the row actions. */
+  // FR-SEC-010: devices registered to technicians (M02 enrols; the leaver
+  // hand-off deregisters them, AUT-SEC-03)
+  'M29-devices': { kind: 'model_list', model: 'fix.technician.device', create: false,
+    cols: ['device_uid', 'employee_id', 'platform', 'device_model', 'state', 'enrolled_at', 'last_sync_at', 'revoke_reason', 'revoked_at'] },
+  // FR-SEC-019: bounded delegation of approval authority (M63's substitution)
+  'M29-delegations': { kind: 'model_list', model: 'fix.approval.substitution', create: false,
+    cols: ['name', 'absent_approver_id', 'delegate_id', 'start_date', 'end_date', 'state'] },
+  // FR-SEC-049: the gated cross-border transfer register (M60 approves)
+  'M29-transfers': { kind: 'model_list', model: 'fix.grc.data.transfer', create: false,
+    cols: ['name', 'activity_id', 'destination_country_id', 'recipient', 'basis', 'approved_by_id', 'state'] },
+  // FR-SEC-051: data-subject requests (M33 owns the lifecycle; M29 executes)
+  'M29-rights': { kind: 'model_list', model: 'fix.rights.request', create: false,
+    cols: ['received_at', 'partner_id', 'request_type', 'statutory_due', 'state', 'evidence_ref'] },
   // What "held" means: who was actually given which role. Written by the grant paths only.
   'M29-assignments': { kind: 'model_list', model: 'fix.role.assignment', create: false,
     cols: ['user_id', 'role_id', 'request_id', 'granted_on', 'ended_on', 'end_reason', 'is_live'] },
@@ -128,7 +171,7 @@ export const SCREENS = {
 
   /* ---- Data protection ---- */
   'M29-classification': { kind: 'model_list', model: 'fix.sensitive.field',
-    cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule', 'lawful_basis', 'active'] },
+    cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'residency_class', 'masking_rule', 'owning_module', 'classified_by_id', 'active'] },
   // Residency is enforced by the write-time mixin; this screen is its per-read log.
   'M29-residency': { kind: 'model_list', model: 'fix.z4.access.audit', create: false,
     cols: ['user_id', 'access_time', 'access_type', 'case_id'] },
@@ -144,14 +187,20 @@ export const SCREENS = {
     cols: ['sequence', 'occurred_at', 'actor_id', 'event', 'object_label', 'detail', 'entry_hash'],
     actions: [{ m: 'action_verify_chain', l: 'Verify Chain' }] },
   'M29-privileged': { kind: 'model_list', model: 'fix.privileged.session', stateField: 'state',
-    cols: ['name', 'user_id', 'access_kind', 'ticket_ref', 'approver_id', 'started_at', 'expires_at', 'duration_minutes', 'state'],
-    actions: [{ m: 'action_approve', l: 'Approve' },
-              { m: 'action_reject', l: 'Reject', ask: 'Why is this session refused?', kwarg: 'reason' },
-              { m: 'action_open', l: 'Open Session' },
-              { m: 'action_close', l: 'Close Session' }] },
+    cols: ['name', 'user_id', 'access_kind', 'break_glass', 'ticket_ref', 'approver_id', 'started_at', 'expires_at', 'duration_minutes', 'review_outcome', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve', states: ['requested'] },
+              { m: 'action_reject', l: 'Reject', ask: 'Why is this session refused?', kwarg: 'reason', states: ['requested'] },
+              { m: 'action_open', l: 'Open Session', states: ['approved'] },
+              { m: 'action_break_glass', l: 'Break Glass (open now)', states: ['requested'] },
+              { m: 'action_close', l: 'Close Session', ask: 'What was done in the session? (the record of actions)', kwarg: 'summary', states: ['open'] },
+              { m: 'action_justify', l: 'Justify Break-Glass', ask: 'Why was emergency access needed, and what did it achieve?', kwarg: 'justification', states: ['open', 'closed'] },
+              { m: 'action_review_ok', l: 'Review: Justified', states: ['closed'] },
+              { m: 'action_review_misuse', l: 'Review: Not Justified', ask: 'What was not justified? (raises a security incident)', kwarg: 'note', states: ['closed'] }] },
   'M29-incidents': { kind: 'model_list', model: 'fix.security.incident', stateField: 'state',
-    cols: ['name', 'title', 'category', 'severity', 'severity_pending', 'detected_at', 'affected_user_id', 'state'],
+    cols: ['name', 'title', 'category', 'severity', 'personal_data_involved', 'breach_decision', 'breach_overdue', 'detected_at', 'owner_id', 'state'],
     actions: [{ m: 'action_contain', l: 'Contain' }, { m: 'action_close', l: 'Close' },
+              { m: 'action_assess_breach', l: 'Assess Breach', ask: 'Breach decision: notifiable or not notifiable', kwarg: 'decision' },
+              { m: 'action_confirm_not_notifiable', l: 'Confirm Not Notifiable' },
               { m: 'action_set_severity', l: 'Propose Severity', ask: 'New severity: low, medium, high or critical', kwarg: 'severity' },
               { m: 'action_confirm_severity', l: 'Confirm Severity' },
               { m: 'action_reject_severity', l: 'Refuse Severity Change' }] },
@@ -159,11 +208,18 @@ export const SCREENS = {
   // findings tracked to a second person's verified closure. A reporter and the
   // remediation owner see their own findings; a Security Officer sees all.
   'M29-vulnerabilities': { kind: 'model_list', model: 'fix.vulnerability', stateField: 'state',
-    cols: ['name', 'title', 'severity', 'source', 'component', 'owner_id', 'discovered_on', 'sla_due', 'is_overdue', 'state'],
+    cols: ['name', 'title', 'severity', 'source', 'component', 'pentest_id', 'owner_id', 'discovered_on', 'sla_due', 'is_overdue', 'state'],
     actions: [{ m: 'action_remediate', l: 'Mark Remediated', ask: 'What was done to remediate it?', kwarg: 'note', states: ['open'] },
               { m: 'action_verify', l: 'Verify Closed', states: ['remediated'] },
               { m: 'action_reopen', l: 'Send Back', ask: 'Why did the remediation not hold?', kwarg: 'note', states: ['remediated'] },
               { m: 'action_accept_risk', l: 'Accept Risk', ask: 'Reason and mitigating control for accepting this risk (runs for the configured period, 90 days by default)', kwarg: 'reason', states: ['open'] }] },
+  // Capture pass 2 (AUT-SEC-16, AC-26): an engagement, its report, and its findings
+  // (each a vulnerability) tracked to verified closure.
+  'M29-pentests': { kind: 'model_list', model: 'fix.security.pentest', stateField: 'state',
+    empty: 'No penetration tests recorded. Plan the annual test (NFR-067) here and load its findings as vulnerabilities.',
+    cols: ['name', 'title', 'provider', 'test_type', 'test_from', 'test_to', 'report_received_on', 'finding_count', 'open_count', 'state'],
+    actions: [{ m: 'action_receive_report', l: 'Report Received', states: ['planned'] },
+              { m: 'action_close', l: 'Close Engagement', states: ['received'] }] },
   'M29-sod': { kind: 'model_list', model: 'fix.sod.control',
     cols: ['code', 'name', 'control_type', 'pair_label', 'measurable', 'conflict_action', 'active'] },
   // A08 S4 / FR-SEC-024: the only way past a blocked duty conflict is a time-boxed
@@ -295,7 +351,7 @@ export const SCREENS = {
     back: 'M29-jml',
     status: { field: 'state', labels: { pending: 'Pending', applied: 'Applied', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Joiner / Mover / Leaver', note: 'Applying a joiner grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination). A mover also revokes the roles previously assigned. A leaver removes ALL groups and API keys and deactivates the user, and cannot be applied before its date. The login is the employee\'s own; for an employee with no login, a joiner creates it from the work email when it is applied (or use Provision a New Login). Additional roles pass the same SoD gate; the data scope sets the operating units the person sees (a mover replaces it). A second person applies: not the one affected and not the one who filed it.',
+      { title: 'Joiner / Mover / Leaver / Suspension', note: 'Suspend switches the login off and ends its sessions but keeps its roles; Reinstate switches back on only a login a suspension switched off (pick the suspension reason for a suspension). Applying a joiner grants every Odoo group mapped to the chosen role (blocked if a SoD control forbids the combination). A mover also revokes the roles previously assigned. A leaver removes ALL groups and API keys and deactivates the user, and cannot be applied before its date. The login is the employee\'s own; for an employee with no login, a joiner creates it from the work email when it is applied (or use Provision a New Login). Additional roles pass the same SoD gate; the data scope sets the operating units the person sees (a mover replaces it). A second person applies: not the one affected and not the one who filed it.',
         fields: [
           { name: 'event_type', required: true, label: 'Event Type' },
           { name: 'employee_id', required: true, label: 'Employee' },
@@ -306,6 +362,7 @@ export const SCREENS = {
           { name: 'default_operating_unit_id', label: 'Default Operating Unit' },
           { name: 'effective_on', required: true, label: 'Effective On' },
           { name: 'valid_until', label: 'Access Valid Until' },
+          { name: 'suspend_reason', label: 'Suspension Reason (suspend only)' },
           { name: 'reason', type: 'text', label: 'Business Justification' }
         ] },
       { title: 'What This Grants (read-only)', note: 'Computed when you save: the permission groups of each role, the data scope and any duty conflict between the chosen roles. Nothing is granted yet: a second person (an Access Approver who is neither you nor the person) applies it from JML Automation.',
@@ -426,6 +483,108 @@ export const SCREENS = {
     }
   },
 
+  /* Capture pass 2 (spec §8.1, `identity.suspended`): Active -> Suspended -> Active.
+   * Leave, an investigation or an unconfirmed certification switches the login off
+   * with its roles kept; the reinstatement switches it back on. A second Access
+   * Approver applies either, as with every JML event. */
+  'M29-form-suspend': {
+    kind: 'model_form',
+    model: 'fix.jml.event',
+    title: 'Suspend / Reinstate Access',
+    newLabel: 'Suspend or Reinstate a Login',
+    back: 'M29-jml',
+    status: { field: 'state', labels: { pending: 'Pending - awaiting a second approver', applied: 'Applied', cancelled: 'Cancelled' } },
+    sections: [
+      { title: 'Whose access', note: 'Only people who have a login are listed. Suspend switches the login off on the effective date and ends every open session; the roles, groups and records stay, so Reinstate restores exactly that access. A leaver, or a login whose access end date has passed, is not reinstated here: file a joiner. An Access Approver who is neither you nor the person applies it from JML Automation.',
+        fields: [
+          { name: 'event_type', required: true, label: 'Action', value: 'suspend' },
+          { name: 'employee_id', required: true, label: 'Employee', domain: [['user_id', '!=', false]] },
+          { name: 'suspend_reason', label: 'Suspension Reason (required to suspend)' },
+          { name: 'effective_on', required: true, label: 'Effective On' },
+          { name: 'reason', type: 'text', required: true, label: 'Justification' }
+        ] },
+      { title: 'What happens (read-only)', note: 'Computed when you save, stamped when it is applied.',
+        fields: [
+          { name: 'proposed_login', readonly: true, label: 'Login' },
+          { name: 'permission_preview', type: 'text', readonly: true, label: 'Effect' },
+          { name: 'applied_on', readonly: true, label: 'Applied On' },
+          { name: 'result_note', readonly: true, label: 'Result' }
+        ] }
+    ]
+  },
+
+  /* Capture pass 2 (FR-SEC-012, BRU-SEC-17, AUT-SEC-25): a non-human identity. */
+  'M29-form-service-account': {
+    kind: 'model_form',
+    model: 'fix.service.account',
+    title: 'Service Account',
+    back: 'M29-service-accounts',
+    status: { field: 'state', labels: { active: 'Active', suspended: 'Suspended', retired: 'Retired' } },
+    tabs: [
+      { id: 'account', label: '1. Account & Owner', bn: '১. অ্যাকাউন্ট ও মালিক', icon: '🤖', badge: '7' },
+      { id: 'credential', label: '2. Credential & Status', bn: '২. ক্রেডেনশিয়াল ও অবস্থা', icon: '🔑', badge: '9' }
+    ],
+    sections: [
+      { tab: 'account', title: 'Account', note: 'Every integration login, API client, scheduled robot or monitoring agent is registered here with ONE accountable person (FR-SEC-012). The permitted scope says what the credential may reach and nothing more.',
+        fields: [
+          { name: 'name', required: true, label: 'Account Name' },
+          { name: 'kind', required: true, label: 'Kind' },
+          { name: 'owner_id', required: true, label: 'Accountable Owner (a person)' },
+          { name: 'user_id', label: 'Technical Login (if it signs in)' },
+          { name: 'consumer_ref', label: 'API Consumer / Client ID' },
+          { name: 'purpose', type: 'text', required: true, label: 'Purpose' },
+          { name: 'scopes', type: 'text', required: true, label: 'Permitted Scope' }
+        ] },
+      { tab: 'credential', title: 'Credential', note: 'Only the vault reference is stored, never the secret. After saving, the reference changes through Register Rotation (the owner or a Security Officer), which restarts the rotation clock. The owner is reminded a week before a rotation falls due.',
+        fields: [
+          { name: 'credential_ref', required: true, label: 'Credential Vault Reference (vault://...)' },
+          { name: 'rotation_days', required: true, label: 'Rotate Every (days)' }
+        ] },
+      { tab: 'credential', title: 'Status (read-only)', note: 'An account whose owner leaves or is switched off is ORPHANED: it is flagged at once and suspended after 24 hours (BRU-SEC-17). Suspend and Retire switch its login off; a second person reactivates it, and only with an active owner.',
+        fields: [
+          { name: 'code', readonly: true, label: 'Reference' },
+          { name: 'is_orphaned', readonly: true, label: 'Orphaned' },
+          { name: 'orphan_flagged_on', readonly: true, label: 'Orphan Flagged On' },
+          { name: 'state_note', readonly: true, label: 'Last Status Change' },
+          { name: 'state_changed_by_id', readonly: true, label: 'Changed By' }
+        ] }
+    ]
+  },
+
+  /* Capture pass 2 (AUT-SEC-16, AC-26): a penetration test to verified closure. */
+  'M29-form-pentest': {
+    kind: 'model_form',
+    model: 'fix.security.pentest',
+    title: 'Penetration Test',
+    back: 'M29-pentests',
+    status: { field: 'state', labels: { planned: 'Planned', received: 'Report Received', closed: 'Closed' } },
+    tabs: [
+      { id: 'engagement', label: '1. Engagement', bn: '১. এনগেজমেন্ট', icon: '🎯', badge: '7' },
+      { id: 'report', label: '2. Report & Findings', bn: '২. রিপোর্ট ও ফলাফল', icon: '📄', badge: '6' }
+    ],
+    sections: [
+      { tab: 'engagement', title: 'Engagement', note: 'Who tests what, and when. The annual penetration test (NFR-067) and any targeted test are recorded here; only a Security Officer manages them.',
+        fields: [
+          { name: 'title', required: true, label: 'Engagement' },
+          { name: 'provider', required: true, label: 'Testing Provider' },
+          { name: 'test_type', required: true, label: 'Test Type' },
+          { name: 'test_from', required: true, label: 'Testing From' },
+          { name: 'test_to', required: true, label: 'Testing To' },
+          { name: 'coordinator_id', label: 'Coordinator' },
+          { name: 'scope', type: 'text', required: true, label: 'Scope' }
+        ] },
+      { tab: 'report', title: 'Report', note: 'Record the report, then press Report Received. Each finding is then filed on the Vulnerability form with this test picked: it gets an owner and a due date by severity (critical: 7 days). The engagement closes only when every finding is verified closed or its risk formally accepted (AC-26).',
+        fields: [
+          { name: 'report_received_on', label: 'Report Received On' },
+          { name: 'report_ref', label: 'Report Reference' },
+          { name: 'finding_count', readonly: true, label: 'Findings' },
+          { name: 'open_count', readonly: true, label: 'Still Open' },
+          { name: 'closed_on', readonly: true, label: 'Closed On' },
+          { name: 'closed_by_id', readonly: true, label: 'Closed By' }
+        ] }
+    ]
+  },
+
   'M29-form-cert': {
     kind: 'model_form',
     model: 'fix.access.certification',
@@ -497,7 +656,8 @@ export const SCREENS = {
     status: { field: 'state', labels: { open: 'Open', contained: 'Contained', closed: 'Closed' } },
     tabs: [
       { id: 'facts', label: '1. Incident Facts', bn: '১. ঘটনার তথ্য', icon: '🚨', badge: '7' },
-      { id: 'narrative', label: '2. Narrative & Closure', bn: '২. বিবরণ ও সমাপ্তি', icon: '📝', badge: '9' }
+      { id: 'narrative', label: '2. Narrative & Closure', bn: '২. বিবরণ ও সমাপ্তি', icon: '📝', badge: '9' },
+      { id: 'breach', label: '3. Breach Assessment', bn: '৩. লঙ্ঘন মূল্যায়ন', icon: '⚖️', badge: '11' }
     ],
     sections: [
       { tab: 'facts', title: 'Incident', note: 'Anyone may report an incident and read their own reports; a Security Officer handles it and reads them all. Open → contained (the containment note is required) → closed. Closing also requires a root cause, and a data leak needs the breach assessment and stays a data leak. The reporter sets the severity; after that one officer proposes a change and a second officer confirms it. A closed record cannot change.',
@@ -508,7 +668,9 @@ export const SCREENS = {
           { name: 'detected_at', required: true, label: 'Detected At' },
           { name: 'detected_by_id', label: 'Detected By' },
           { name: 'affected_user_id', label: 'Affected User' },
-          { name: 'session_id', label: 'Related Privileged Session' }
+          { name: 'session_id', label: 'Related Privileged Session' },
+          { name: 'owner_id', label: 'Incident Owner' },
+          { name: 'personal_data_involved', required: true, label: 'Personal Data Involved?' }
         ] },
       { tab: 'narrative', title: 'Narrative', note: 'The containment note gates Contained; the root cause (and, for a data leak, the breach assessment) gates Closed.',
         fields: [
@@ -521,6 +683,22 @@ export const SCREENS = {
           { name: 'severity_set_by_id', readonly: true, label: 'Severity Set By' },
           { name: 'severity_confirmed_by_id', readonly: true, label: 'Severity Confirmed By' },
           { name: 'resolved_on', readonly: true, label: 'Resolved On' }
+        ] },
+      { tab: 'breach', title: 'Breach facts', note: 'Spec §8.3 / NFR-094. When personal data is involved, the officers owe a breach assessment within 72 hours of detection. Significant damage likely makes it notifiable. Write the assessment on tab 2, then press Assess Breach on the list.',
+        fields: [
+          { name: 'significant_damage_likely', label: 'Significant Damage Likely?' },
+          { name: 'data_subjects_estimate', label: 'Data Subjects Affected (estimate)' },
+          { name: 'breach_assessment_due', readonly: true, label: 'Assessment Due' }
+        ] },
+      { tab: 'breach', title: 'Decision (read-only)', note: 'Notifiable starts the statutory clock and opens the M60 Personal Data Breach record, where the Compliance Officer notifies the Authority and the data subjects. Not notifiable needs a SECOND Security Officer to confirm it: the triager is never the sole judge (§13). An incident with personal data closes only once the decision is settled.',
+        fields: [
+          { name: 'breach_decision', readonly: true, label: 'Breach Decision' },
+          { name: 'breach_assessed_by_id', readonly: true, label: 'Assessed By' },
+          { name: 'breach_assessed_on', readonly: true, label: 'Assessed On' },
+          { name: 'breach_confirmed_by_id', readonly: true, label: "'Not Notifiable' Confirmed By" },
+          { name: 'breach_confirmed_on', readonly: true, label: 'Confirmed On' },
+          { name: 'statutory_clock_start', readonly: true, label: 'Statutory Clock Started' },
+          { name: 'm60_notification_ref', readonly: true, label: 'M60 Breach Record' }
         ] }
     ]
   },
@@ -675,16 +853,26 @@ export const SCREENS = {
     title: 'Privileged Session',
     back: 'M29-privileged',
     status: { field: 'state', labels: { requested: 'Requested', approved: 'Approved', rejected: 'Rejected', open: 'Open', closed: 'Closed', expired: 'Approval Lapsed' } },
+    tabs: [
+      { id: 'request', label: '1. Request', bn: '১. অনুরোধ', icon: '🛂', badge: '7' },
+      { id: 'timing', label: '2. Decision & Timing', bn: '২. সিদ্ধান্ত ও সময়', icon: '⏱️', badge: '8' },
+      { id: 'review', label: '3. Justification & Review', bn: '৩. যৌক্তিকতা ও পর্যালোচনা', icon: '🔎', badge: '7' }
+    ],
     sections: [
-      { title: 'Break-Glass Request', note: 'Requested in your own name → an Access Approver who is not you approves it, and the approval sets when it expires → you open it, which writes the audit row and notifies the approvers → you close it, or the timeout job does. This record is the control around privileged work: it does not itself hand out database access.',
+      { tab: 'request', title: 'Privileged Access Request', note: 'Requested in your own name → an Access Approver who is not you approves it, and the approval sets when it expires → you open it, which writes the audit row and notifies the approvers → you close it, or the timeout job does. This record is the control around privileged work: it does not itself hand out database access.',
         fields: [
           { name: 'access_kind', required: true, label: 'Access Kind' },
           { name: 'reason', required: true, label: 'Reason' },
           { name: 'ticket_ref', label: 'Ticket / Change Ref' },
           { name: 'duration_hours', label: 'Hours Needed (empty = the maximum allowed)' },
+          { name: 'break_glass', label: 'Emergency Break-Glass (open now, justify after)' },
           { name: 'actions_count', label: 'Actions Performed' }
         ] },
-      { title: 'Decision & Timing (read-only)', note: 'Stamped by the actions. The duration is measured from the timestamps, never typed.',
+      { tab: 'request', title: 'Record of actions', note: 'FR-SEC-034: what was done while the session was open. Required to close it (Close Session also asks for it). It cannot change once closed.',
+        fields: [
+          { name: 'actions_summary', type: 'text', label: 'Actions Taken' }
+        ] },
+      { tab: 'timing', title: 'Decision & Timing (read-only)', note: 'Stamped by the actions. The duration is measured from the timestamps, never typed.',
         fields: [
           { name: 'user_id', readonly: true, label: 'User' },
           { name: 'approver_id', readonly: true, label: 'Approver' },
@@ -694,6 +882,16 @@ export const SCREENS = {
           { name: 'started_at', readonly: true, label: 'Started At' },
           { name: 'ended_at', readonly: true, label: 'Ended At' },
           { name: 'duration_minutes', readonly: true, label: 'Duration (minutes, measured)' }
+        ] },
+      { tab: 'review', title: 'Break-glass justification & review (read-only)', note: 'Emergency break-glass (administrators and Security Officers only) opens at once without approval, for at most 4 hours, and tells every Access Approver, Security Officer and administrator immediately (AUT-SEC-10). The holder owes a written justification within 24 hours, or it is escalated. Every closed session is then reviewed by someone other than the holder; Not Justified raises a security incident.',
+        fields: [
+          { name: 'justification_due_at', readonly: true, label: 'Justification Due' },
+          { name: 'justification', type: 'text', readonly: true, label: 'Post-hoc Justification' },
+          { name: 'justification_escalated_on', readonly: true, label: 'Escalated On' },
+          { name: 'review_outcome', readonly: true, label: 'Review Outcome' },
+          { name: 'reviewed_by_id', readonly: true, label: 'Reviewed By' },
+          { name: 'reviewed_on', readonly: true, label: 'Reviewed On' },
+          { name: 'review_note', readonly: true, label: 'Review Note' }
         ] }
     ]
   },
@@ -714,6 +912,7 @@ export const SCREENS = {
           { name: 'component', required: true, label: 'Affected Component' },
           { name: 'discovered_on', required: true, label: 'Discovered On' },
           { name: 'owner_id', label: 'Remediation Owner' },
+          { name: 'pentest_id', label: 'Penetration Test (if a finding of one)' },
           { name: 'detail', type: 'text', label: 'Description' }
         ] },
       { title: 'Remediation & Closure (read-only)', note: 'Stamped by the actions: the owner or an officer marks it remediated with a note; a Security Officer who did not remediate it verifies the closure or sends it back. A risk acceptance is an officer decision with a reason, by someone who neither reported nor owns it, and it lapses on its end date.',
@@ -790,9 +989,16 @@ export const SCREENS = {
           { name: 'sensitivity', required: true, label: 'Sensitivity (S0–S3)' },
           { name: 'data_class', required: true, label: 'Data Class' },
           { name: 'masking_rule', required: true, label: 'Masking Rule' },
+          { name: 'residency_class', required: true, label: 'Residency Class' },
+          { name: 'owning_module', label: 'Owning Module (e.g. M21)' },
           { name: 'lawful_basis', label: 'Lawful Basis' },
           { name: 'retention_note', label: 'Retention Note' },
           { name: 'active', label: 'Active' }
+        ] },
+      { title: 'Classified (read-only)', note: 'FR-SEC-047: every field carries a sensitivity AND a residency class. A residency-classified field is at least S2, is stored in Bangladesh only and leaves the country only through an approved cross-border transfer (M60). Who classified it, and when, is stamped on every change and written to the audit trail.',
+        fields: [
+          { name: 'classified_by_id', readonly: true, label: 'Classified By' },
+          { name: 'classified_on', readonly: true, label: 'Classified On' }
         ] }
     ]
   },
@@ -859,6 +1065,15 @@ export const FORM_CHIPS = {
   'M29:Sensitive Field': 'M29-form-sensitive',
   'M29:Privileged Session': 'M29-form-session',
   'M29:Vulnerability': 'M29-form-vulnerability',
+  // capture pass 2 (2026-11-19)
+  'M29:Suspend / Reinstate': 'M29-form-suspend',
+  'M29:Service Account': 'M29-form-service-account',
+  'M29:Penetration Test': 'M29-form-pentest',
+  // records other modules own, captured where M29 governs them
+  'M29:Device Registration': 'M02-form-device',
+  'M29:Delegation of Authority': 'M63-form-substitution',
+  'M29:Cross-Border Transfer': 'M60-form-transfer',
+  'M29:Data-Subject Request': 'M33-form-dsr',
   'M29:__by_model__': {
     'fix.isolation.tier': 'M29-form-isolation-tier',
     'res.users': 'M29-form-user',
@@ -877,7 +1092,9 @@ export const FORM_CHIPS = {
     'fix.sod.test': 'M29-form-sodtest',
     'fix.sod.control': 'M29-form-sodcontrol',
     'fix.sod.mitigation': 'M29-form-sodexception',
-    'fix.vulnerability': 'M29-form-vulnerability'
+    'fix.vulnerability': 'M29-form-vulnerability',
+    'fix.service.account': 'M29-form-service-account',
+    'fix.security.pentest': 'M29-form-pentest'
   },
   'M29:__by_screen__': {
     'M29-isolation-tier': 'M29-form-isolation-tier',
@@ -897,7 +1114,13 @@ export const FORM_CHIPS = {
     'M29-sod-exceptions': 'M29-form-sodexception',
     'M29-sodtests': 'M29-form-sodtest',
     'M29-sod': 'M29-form-sodcontrol',
-    'M29-vulnerabilities': 'M29-form-vulnerability'
+    'M29-vulnerabilities': 'M29-form-vulnerability',
+    'M29-service-accounts': 'M29-form-service-account',
+    'M29-pentests': 'M29-form-pentest',
+    'M29-devices': 'M02-form-device',
+    'M29-delegations': 'M63-form-substitution',
+    'M29-transfers': 'M60-form-transfer',
+    'M29-rights': 'M33-form-dsr'
   }
 };
 

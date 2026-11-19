@@ -40,3 +40,9 @@ access_fix_module_permission,fix.module.permission,model_fix_module_permission,b
 access_fix_module_permission_system,fix.module.permission.system,model_fix_module_permission,base.group_system,1,1,1,1
 access_fix_jml_permission_line,fix.jml.permission.line,model_fix_jml_permission_line,base.group_user,1,1,0,0
 access_fix_jml_permission_line_system,fix.jml.permission.line.system,model_fix_jml_permission_line,base.group_system,1,1,1,1
+access_fix_service_account_owner,fix.service.account.owner,model_fix_service_account,base.group_user,1,0,0,0
+access_fix_service_account_officer,fix.service.account.officer,model_fix_service_account,cd_rbac_ext.group_security_officer,1,1,1,0
+access_fix_service_account_approver,fix.service.account.approver,model_fix_service_account,cd_rbac_ext.group_access_approver,1,1,1,0
+access_fix_service_account_system,fix.service.account.system,model_fix_service_account,base.group_system,1,1,1,0
+access_fix_security_pentest_officer,fix.security.pentest.officer,model_fix_security_pentest,cd_rbac_ext.group_security_officer,1,1,1,0
+access_fix_security_pentest_system,fix.security.pentest.system,model_fix_security_pentest,base.group_system,1,1,1,0

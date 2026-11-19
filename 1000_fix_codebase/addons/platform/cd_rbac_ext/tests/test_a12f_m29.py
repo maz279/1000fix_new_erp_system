@@ -202,7 +202,14 @@ def cert_line(c, role="R-30", user=None, reviewer=None, **kw):
 
 
 def incident(c, **kw):
-    vals = {"title": "a12f incident", "severity": "critical", "category": "data_leak"}
+    # M29 capture pass 2: an incident closes only once "personal data involved?"
+    # is answered; these suites test the other closure rules, so it says no
+    vals = {
+        "title": "a12f incident",
+        "severity": "critical",
+        "category": "data_leak",
+        "personal_data_involved": "no",
+    }
     vals.update(kw)
     return c.env["fix.security.incident"].sudo().create(vals)
 
@@ -728,7 +735,15 @@ def test_a12f_e10_walk_through_the_screen(c, p03):
         c.env["mail.message"].sudo().search_count([("model", "=", s._name), ("res_id", "=", s.id)])
         > before
     )
-    ok = p03.action(c.p, model=s._name, ids=[s.id], method="action_close")
+    # M29 capture pass 2 (FR-SEC-034): closing records what was done
+    assert not p03.action(c.p, model=s._name, ids=[s.id], method="action_close")["success"]
+    ok = p03.action(
+        c.p,
+        model=s._name,
+        ids=[s.id],
+        method="action_close",
+        kwargs={"summary": "Reset the stuck replication slot on the reporting replica."},
+    )
     assert ok["success"], ok
     assert s.state == "closed" and s.ended_at
 

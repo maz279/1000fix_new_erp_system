@@ -35,5 +35,26 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- M29 capture pass 2 (2026-11-19): BRU-SEC-17 / AUT-SEC-11 orphaned
+             service accounts, AUT-SEC-25 credential rotation reminders. -->
+        <record id="ir_cron_service_account_watch" model="ir.cron">
+            <field name="name">M29: orphaned service accounts and rotation due</field>
+            <field name="model_id" ref="model_fix_service_account"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_service_account_watch()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- BRU-SEC-20: a break-glass session without its justification escalates. -->
+        <record id="ir_cron_break_glass_followup" model="ir.cron">
+            <field name="name">M29: escalate unjustified break-glass sessions</field>
+            <field name="model_id" ref="model_fix_privileged_session"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_break_glass_followup()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

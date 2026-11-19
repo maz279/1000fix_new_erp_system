@@ -18,6 +18,18 @@
 #   * Certification Campaigns, Role Assignments and SoD Exceptions were on no
 #     sub-module page.
 #
+# Second pass (2026-11-19), spec §5/§8/§10/§11 against what each page offered:
+#   * Identity & MFA could not suspend or reinstate an identity (§8.1), register a
+#     service account with an accountable owner (FR-SEC-012) or a device
+#     (FR-SEC-010). Its JML form could not record a mover or a leaver at all: the
+#     surface fenced the employee picker to people with NO login.
+#   * Role & Group Model had no delegation of authority (FR-SEC-019).
+#   * Data Protection had no cross-border transfer (FR-SEC-049) or data-subject
+#     request (FR-SEC-051), and no residency class on a classification (FR-SEC-047).
+#   * Monitoring & Audit had no penetration test (AUT-SEC-16, AC-26), no breach
+#     decision on an incident (AUT-SEC-13) and no emergency break-glass path,
+#     post-hoc justification or session review (FR-SEC-034/035, BRU-SEC-20).
+#
 # Evaluated as the browser evaluates it: node runs the engine's own fregCreate
 # and fregPanels over the real registry fragments (the M28 guard's fixture).
 from __future__ import annotations
@@ -67,26 +79,38 @@ console.log(JSON.stringify({ subs,
   nav: mod.groups.flatMap((g) => g.screens.map((x) => x.id)),
   screens: Object.fromEntries(Object.entries(P03_DATA_SCREENS).filter(([id]) => id.startsWith('M29-')).map(([id, c]) => [id, {
     kind: c.kind, model: c.model || null, create: c.create, report: c.report || null,
-    newForm: c.newForm || null, newLabel: c.newLabel || null,
+    newForm: c.newForm || null, newLabel: c.newLabel || null, cols: c.cols || [],
     tabs: (c.tabs || []).map((x) => x.id),
     lines: c.lines ? { field: c.lines.field, tab: c.lines.tab || null, fixed: !!c.lines.fixedRows,
       cols: c.lines.fields.map((f) => ({ name: f.name, type: f.type || null, readonly: !!f.readonly })) } : null,
     actions: (c.actions || []).map((a) => ({ m: a.m, kwarg: a.kwarg || null })),
-    fields: (c.sections || []).flatMap((s) => s.fields || []).map((f) => ({
-      name: f.name, readonly: !!f.readonly, required: !!f.required })) }])),
+    fields: (c.sections || []).flatMap((s) => (s.fields || []).map((f) => ({ ...f, tab: s.tab || null }))).map((f) => ({
+      name: f.name, readonly: !!f.readonly, required: !!f.required, tab: f.tab,
+      value: f.value === undefined ? null : f.value, domain: f.domain || null })) }])),
   by_screen: P03_FORM_CHIPS['M29:__by_screen__'] }));
 """
 
 # What each page must let a person capture: the page's own "+ New" first,
 # then every other record the page covers, by its form screen.
 CAPTURES = {
-    "1": ["M29-form-provision", "M29-form-jml"],
-    "2": ["M29-form-role", "M29-form-acl"],
+    "1": [
+        "M29-form-provision",
+        "M29-form-jml",
+        "M29-form-suspend",
+        "M29-form-service-account",
+        "M02-form-device",
+    ],
+    "2": ["M29-form-role", "M29-form-acl", "M63-form-substitution"],
     "3": ["M29-form-rule", "M29-form-fieldrule", "M29-form-isolation-tier"],
     "4": ["M29-form-request", "M29-form-campaign", "M29-form-cert"],
     "5": ["M29-form-sodtest", "M29-form-sodcontrol", "M29-form-sodexception"],
-    "6": ["M29-form-sensitive", "M29-form-key"],
-    "7": ["M29-form-incident", "M29-form-session", "M29-form-vulnerability"],
+    "6": ["M29-form-sensitive", "M29-form-key", "M60-form-transfer", "M33-form-dsr"],
+    "7": [
+        "M29-form-incident",
+        "M29-form-session",
+        "M29-form-vulnerability",
+        "M29-form-pentest",
+    ],
 }
 
 # The record each page lists (its grid).
@@ -108,6 +132,11 @@ SYSTEM_WRITTEN = (
     "M29-groups",
     "M29-audit",
     "M29-residency",
+    # pass 2: other modules' records, captured through their owners' forms
+    "M29-devices",
+    "M29-delegations",
+    "M29-transfers",
+    "M29-rights",
 )
 
 
@@ -357,3 +386,147 @@ def test_every_workspace_endpoint_checks_the_module_permission():
     for need in ("view", "create", "edit", "approve", "print", "export", "email"):
         assert '"%s"' % need in text, need
     assert text.count("_gate(") >= 10, "records, form, write, action, report x3, list x2"
+
+
+# ---------------------------------------------------------------- second pass (2026-11-19)
+def _fields(m29, form):
+    return {f["name"]: f for f in m29["screens"][form]["fields"]}
+
+
+def test_the_jml_picker_is_not_fenced_to_people_without_a_login():
+    """The surface-wide fence made every JML form offer only login-less employees,
+    so a mover, a leaver or a suspension could pick nobody."""
+    text = (HERE.parent / "controllers" / "a12" / "m29.py").read_text(encoding="utf-8")
+    block = text[text.index('"fix.jml.event": {') : text.index('"fix.access.certification": {')]
+    assert '"pickers"' not in block, "the surface fences every JML form's employee picker"
+    assert '"picker_names": ("employee_id",)' in block
+
+
+def test_each_jml_form_states_its_own_employee_filter(m29):
+    assert _fields(m29, "M29-form-provision")["employee_id"]["domain"] == [["user_id", "=", False]]
+    assert _fields(m29, "M29-form-suspend")["employee_id"]["domain"] == [["user_id", "!=", False]]
+    assert _fields(m29, "M29-form-jml")["employee_id"]["domain"] is None
+
+
+def test_the_suspension_form_files_a_suspension(m29):
+    form = m29["screens"]["M29-form-suspend"]
+    fields = _fields(m29, "M29-form-suspend")
+    assert form["model"] == "fix.jml.event" and form["newLabel"]
+    assert fields["event_type"]["value"] == "suspend"
+    assert fields["reason"]["required"]
+    for stamp in ("applied_on", "result_note", "permission_preview"):
+        assert fields[stamp]["readonly"], stamp
+    assert "suspend_reason" in _fields(m29, "M29-form-jml")
+    assert "suspend_reason" in _controller()["WRITABLE"]["fix.jml.event"]
+
+
+STAMPS = {
+    "M29-form-service-account": {
+        "code",
+        "is_orphaned",
+        "orphan_flagged_on",
+        "state_note",
+        "state_changed_by_id",
+    },
+    "M29-form-incident": {
+        "breach_decision",
+        "breach_assessed_by_id",
+        "breach_assessed_on",
+        "breach_confirmed_by_id",
+        "breach_confirmed_on",
+        "statutory_clock_start",
+        "m60_notification_ref",
+        "breach_assessment_due",
+    },
+    "M29-form-session": {
+        "justification",
+        "justification_due_at",
+        "justification_escalated_on",
+        "reviewed_by_id",
+        "reviewed_on",
+        "review_outcome",
+        "review_note",
+    },
+    "M29-form-pentest": {"finding_count", "open_count", "closed_on", "closed_by_id"},
+    "M29-form-sensitive": {"classified_by_id", "classified_on"},
+}
+
+
+@pytest.mark.parametrize("form", sorted(STAMPS))
+def test_pass2_decisions_and_stamps_are_never_typed(m29, form):
+    fields = _fields(m29, form)
+    model = m29["screens"][form]["model"]
+    writable = set(_controller()["WRITABLE"][model])
+    for name in STAMPS[form]:
+        assert name in fields, "%s does not show %s" % (form, name)
+        assert fields[name]["readonly"], "%s lets %s be typed" % (form, name)
+        assert name not in writable, "%s.%s is writable" % (model, name)
+    assert "state" not in writable
+
+
+def test_the_session_form_offers_break_glass_and_the_record_of_actions(m29):
+    fields = _fields(m29, "M29-form-session")
+    assert not fields["break_glass"]["readonly"] and not fields["actions_summary"]["readonly"]
+    actions = {a["m"]: a["kwarg"] for a in m29["screens"]["M29-privileged"]["actions"]}
+    assert actions["action_close"] == "summary", "closing asks what was done (FR-SEC-034)"
+    assert actions["action_justify"] == "justification"
+    assert actions["action_review_misuse"] == "note"
+    for act in ("action_break_glass", "action_review_ok"):
+        assert act in actions, act
+
+
+def test_the_incident_form_records_the_breach_facts(m29):
+    fields = _fields(m29, "M29-form-incident")
+    assert fields["personal_data_involved"]["required"]
+    for name in ("significant_damage_likely", "data_subjects_estimate", "owner_id"):
+        assert not fields[name]["readonly"], name
+    actions = {a["m"]: a["kwarg"] for a in m29["screens"]["M29-incidents"]["actions"]}
+    assert actions["action_assess_breach"] == "decision"
+    assert "action_confirm_not_notifiable" in actions
+
+
+def test_the_classification_carries_the_residency_class(m29):
+    fields = _fields(m29, "M29-form-sensitive")
+    assert fields["residency_class"]["required"] and not fields["residency_class"]["readonly"]
+    assert "residency_class" in m29["screens"]["M29-classification"]["cols"]
+
+
+def test_a_pentest_finding_names_its_test(m29):
+    assert "pentest_id" in _fields(m29, "M29-form-vulnerability")
+    assert "pentest_id" in _controller()["WRITABLE"]["fix.vulnerability"]
+
+
+@pytest.mark.parametrize(
+    "form",
+    ["M29-form-session", "M29-form-service-account", "M29-form-incident", "M29-form-pentest"],
+)
+def test_long_pass2_forms_are_tabbed(m29, form):
+    """AGENTS.md: a form of more than 15 fields is a multi-tab form, and every
+    section of a tabbed form sits on one of its tabs."""
+    cfg = m29["screens"][form]
+    assert cfg["tabs"], form
+    assert all(f["tab"] in cfg["tabs"] for f in cfg["fields"]), form
+
+
+def test_the_pass2_kpis_are_served(m29):
+    text = (HERE.parent / "controllers" / "a12" / "m29.py").read_text(encoding="utf-8")
+    for kpi in (
+        "breach_assessments_overdue",
+        "break_glass_unreviewed",
+        "service_accounts_orphaned",
+    ):
+        assert kpi in m29["kpis"], kpi
+        assert '"%s":' % kpi in text, kpi
+
+
+def test_other_modules_records_open_their_owners_forms(m29):
+    by_screen = m29["by_screen"]
+    owners = {
+        "M29-devices": ("fix.technician.device", "M02-form-device"),
+        "M29-delegations": ("fix.approval.substitution", "M63-form-substitution"),
+        "M29-transfers": ("fix.grc.data.transfer", "M60-form-transfer"),
+        "M29-rights": ("fix.rights.request", "M33-form-dsr"),
+    }
+    for sid, (model, form) in owners.items():
+        assert m29["screens"][sid]["model"] == model, sid
+        assert by_screen[sid] == form, sid
