@@ -14,3 +14,13 @@ access_fix_qms_review_input,fix.qms.review.input,model_fix_qms_review_input,base
 access_fix_qms_review_input_qm,fix.qms.review.input,model_fix_qms_review_input,group_qms_quality_manager,1,1,1,1
 access_fix_qms_review_action,fix.qms.review.action,model_fix_qms_review_action,base.group_user,1,1,0,0
 access_fix_qms_review_action_qm,fix.qms.review.action,model_fix_qms_review_action,group_qms_quality_manager,1,1,1,1
+access_fix_qms_objective,fix.qms.objective,model_fix_qms_objective,base.group_user,1,1,1,0
+access_fix_qms_change_assessment,fix.qms.change.assessment,model_fix_qms_change_assessment,base.group_user,1,1,1,0
+access_fix_qms_checklist_item,fix.qms.checklist.item,model_fix_qms_checklist_item,base.group_user,1,1,1,1
+access_fix_qms_rca,fix.qms.rca,model_fix_qms_rca,base.group_user,1,1,1,0
+access_fix_capa_action,fix.capa.action,model_fix_capa_action,base.group_user,1,1,1,1
+access_fix_qms_audit_programme,fix.qms.audit.programme,model_fix_qms_audit_programme,base.group_user,1,1,1,0
+access_fix_qms_auditor_user,fix.qms.auditor,model_fix_qms_auditor,base.group_user,1,0,0,0
+access_fix_qms_auditor_qm,fix.qms.auditor,model_fix_qms_auditor,group_qms_quality_manager,1,1,1,0
+access_fix_qms_audit_finding,fix.qms.audit.finding,model_fix_qms_audit_finding,base.group_user,1,1,1,0
+access_fix_qms_evidence_release,fix.qms.evidence.release,model_fix_qms_evidence_release,base.group_user,1,1,1,0

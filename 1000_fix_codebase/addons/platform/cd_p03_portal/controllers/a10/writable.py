@@ -14,14 +14,26 @@
 WRITABLE = {
     "fix.capa": frozenset(
         {
+            "action_ids",
             "corrective_action",
             "due_on",
-            "implemented_by_id",
             "ncr_id",
+            "observation_window_days",
             "owner_id",
             "preventive_action",
             "severity",
             "verification_note",
+        }
+    ),
+    "fix.capa.action": frozenset(
+        {
+            "capa_id",
+            "due_on",
+            "executing_module",
+            "expected_outcome",
+            "external_ref",
+            "name",
+            "owner_id",
         }
     ),
     "fix.compliance.framework": frozenset(
@@ -284,6 +296,8 @@ WRITABLE = {
             "auditor_id",
             "branch_id",
             "offline_payload",
+            "process_ids",
+            "programme_id",
             "scheduled_on",
             "scope",
         }
@@ -417,13 +431,50 @@ WRITABLE = {
     "fix.legal.hold": frozenset(),
     "fix.ncr": frozenset(
         {
+            "clause_ref",
             "containment",
+            "containment_due",
+            "containment_owner_id",
             "description",
             "disposition_note",
+            "evidence_attachment_id",
+            "nc_type",
             "order_id",
-            "root_cause",
             "severity",
             "source",
+        }
+    ),
+    "fix.qms.audit.finding": frozenset(
+        {
+            "audit_id",
+            "classification",
+            "clause_ref",
+            "evidence",
+            "evidence_attachment_id",
+            "owner_id",
+            "statement",
+        }
+    ),
+    "fix.qms.audit.programme": frozenset(
+        {
+            "branch_ids",
+            "frequency_note",
+            "name",
+            "process_ids",
+            "supplier_seller_scope",
+            "year",
+        }
+    ),
+    "fix.qms.auditor": frozenset(
+        {
+            "active",
+            "competence_attachment_id",
+            "competence_note",
+            "employee_id",
+            "excluded_branch_ids",
+            "excluded_process_ids",
+            "qualified_on",
+            "standards",
         }
     ),
     "fix.qms.certification": frozenset(
@@ -438,24 +489,59 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.qms.change.assessment": frozenset(
+        {
+            "affects_checklists",
+            "affects_documents",
+            "affects_training",
+            "change_summary",
+            "checklists_updated",
+            "documents_updated",
+            "impact_note",
+            "process_id",
+            "reason",
+            "training_updated",
+        }
+    ),
     "fix.qms.checklist": frozenset(
         {
+            "applies_branch_ids",
+            "applies_brand",
+            "applies_customer_type",
+            "applies_delivery_mode",
+            "applies_device_category",
+            "applies_repair_level",
+            "applies_value_max",
+            "applies_value_min",
             "checklist_type",
             "iso_clause",
-            "item_count",
+            "item_ids",
             "name",
             "version",
         }
     ),
+    "fix.qms.checklist.item": frozenset(),
     "fix.qms.copq": frozenset(
         {
             "amount",
+            "attributed_cause",
+            "attribution_basis",
             "category",
-            "company_id",
             "currency_id",
-            "name",
+            "ncr_id",
+            "notes",
             "period",
             "source_ref",
+        }
+    ),
+    "fix.qms.evidence.release": frozenset(
+        {
+            "access_until",
+            "attachment_id",
+            "certification_id",
+            "document_id",
+            "external_party",
+            "request_note",
         }
     ),
     "fix.qms.gate": frozenset(
@@ -463,10 +549,32 @@ WRITABLE = {
             "blocking",
             "code",
             "company_id",
+            "independence_note",
+            "independence_required",
+            "independence_value_threshold",
             "mandatory_checklist_id",
             "name",
             "sequence",
             "stage",
+        }
+    ),
+    "fix.qms.objective": frozenset(
+        {
+            "actual",
+            "branch_id",
+            "higher_is_better",
+            "measure",
+            "name",
+            "owner_id",
+            "parent_id",
+            "period",
+            "policy_id",
+            "process_id",
+            "review_due",
+            "role",
+            "scope_level",
+            "target",
+            "unit",
         }
     ),
     "fix.qms.policy": frozenset(
@@ -485,11 +593,45 @@ WRITABLE = {
         {
             "code",
             "company_id",
+            "controls",
             "inputs",
+            "interactions",
             "iso_clause",
+            "kpi_definition",
             "name",
+            "outputs",
             "process_owner_id",
             "process_type",
+            "purpose",
+            "review_due",
+            "work_instruction_id",
+        }
+    ),
+    "fix.qms.rca": frozenset(
+        {
+            "cause_environment",
+            "cause_machine",
+            "cause_material",
+            "cause_measurement",
+            "cause_method",
+            "cause_people",
+            "contributing_factors",
+            "d1_team",
+            "d2_problem",
+            "d3_containment",
+            "d5_corrective",
+            "d6_implementation",
+            "d7_prevention",
+            "d8_recognition",
+            "method",
+            "ncr_id",
+            "root_cause",
+            "symptom",
+            "why_1",
+            "why_2",
+            "why_3",
+            "why_4",
+            "why_5",
         }
     ),
     "fix.qms.review": frozenset(

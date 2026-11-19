@@ -17,7 +17,7 @@ SURFACES = {
     "fix.qms.checklist": {
         "order": "name",
         "limit": 200,
-        "actions": {"action_publish", "action_retire"},
+        "actions": {"action_publish", "action_retire", "action_new_version"},
     },
     "fix.qms.gate": {
         "order": "sequence, id",
@@ -27,8 +27,13 @@ SURFACES = {
     "fix.ncr": {
         "order": "id desc",
         "limit": 400,
+        # M23 capture audit (2026-11-19): the typed "Set Root Cause" left the
+        # workspace — a person establishes the root cause through a completed
+        # Root-Cause Analysis (fix.qms.rca), which refuses a symptom repeated
+        # as the cause (BRU-QMS-04) and a major NCR without 8D (BRU-QMS-14).
+        # The model method stays for system hand-offs (M60 control tests).
         "actions": {
-            "action_set_root_cause",
+            "action_record_containment",
             "action_open_capa",
             "action_dispose",
             "action_close",
@@ -42,7 +47,7 @@ SURFACES = {
     "fix.internal.audit": {
         "order": "scheduled_on desc, id desc",
         "limit": 300,
-        "actions": {"action_execute", "action_report"},
+        "actions": {"action_execute", "action_report", "action_acknowledge"},
     },
     "fix.qms.certification": {
         "order": "audit_date desc, id desc",
@@ -67,6 +72,37 @@ SURFACES = {
         "actions": {"action_done"},
     },
     "fix.qms.copq": {"order": "period desc, id desc", "limit": 500, "actions": set()},
+    # M23 capture audit (2026-11-19): the spec records the pages lacked
+    "fix.qms.objective": {"order": "period desc, id desc", "limit": 300, "actions": set()},
+    "fix.qms.change.assessment": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_assess", "action_release", "action_reject"},
+    },
+    # items are authored inside their template's grid; this register reads
+    "fix.qms.checklist.item": {
+        "order": "checklist_id, sequence, id",
+        "limit": 500,
+        "actions": set(),
+    },
+    "fix.qms.rca": {"order": "id desc", "limit": 300, "actions": {"action_complete"}},
+    "fix.capa.action": {"order": "id desc", "limit": 400, "actions": {"action_done"}},
+    "fix.qms.audit.programme": {
+        "order": "year desc, id desc",
+        "limit": 100,
+        "actions": {"action_approve", "action_close"},
+    },
+    "fix.qms.auditor": {"order": "id desc", "limit": 200, "actions": set()},
+    "fix.qms.audit.finding": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {"action_raise_ncr", "action_close"},
+    },
+    "fix.qms.evidence.release": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_release", "action_refuse"},
+    },
 }
 
 
@@ -149,15 +185,12 @@ def ncr_capa_register(env, date_from=None, date_to=None, **params):
 def audit_programme(env, date_from=None, date_to=None, **params):
     """Audit programme status: internal audits and their findings."""
     audits = env["fix.internal.audit"].search([])
-    ncrs = env["fix.ncr"].search([])
     rows = []
     for audit in audits:
-        findings = ncrs.filtered(
-            lambda n, a=audit.id: getattr(n, "audit_id", False) and n.audit_id.id == a
-        )
+        findings = audit.finding_ids
         rows.append(
             {
-                "audit": audit.name if hasattr(audit, "name") else "Audit-%s" % audit.id,
+                "audit": audit.name or "Audit-%s" % audit.id,
                 "branch": audit.branch_id.name,
                 "scheduled": str(audit.scheduled_on),
                 "auditor": audit.auditor_id.name,
@@ -181,8 +214,8 @@ def audit_programme(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Findings count the NCRs linked to the audit; the audit record carries no name field "
-            "of its own, so the reference is shown as Audit-<id>."
+            "Findings count the audit's own finding records (major, minor, observation and "
+            "opportunity for improvement); a major or minor finding raises its NCR."
         ],
         totals={"audit": "Total", "findings": sum(r["findings"] for r in rows)},
         empty="No internal audits recorded.",
@@ -370,6 +403,9 @@ def kpis(env):
     # executed programmes). Findings are their own record — the GRC audit
     # finding (fix.audit.finding) — and one is open until its CAPA is closed.
     findings = env["fix.audit.finding"].search([("capa_status", "!=", "closed")])
+    # M23 capture audit (2026-11-19): the process audit now records its own
+    # findings (fix.qms.audit.finding) - an open one is any not yet closed
+    process_findings = env["fix.qms.audit.finding"].search_count([("state", "!=", "closed")])
     # first-pass yield is the QC checklist's own verdict: passed over
     # COMPLETED checks (passed or failed). Pending checks measure nothing.
     completed = env["fix.qc.checklist"].search([("state", "in", ("passed", "failed"))])
@@ -382,7 +418,7 @@ def kpis(env):
         "major_ncs": len(ncrs.filtered(lambda n: n.severity in ("major", "critical"))),
         "capa_on_time": round(len(on_time) / len(verdicts) * 100.0, 1) if verdicts else 0.0,
         "open_ncrs": len(open_ncrs),
-        "audit_findings": len(findings),
+        "audit_findings": len(findings) + process_findings,
         "first_pass_qc": first_pass,
         "copq": round(sum(float(c.amount or 0.0) for c in copq), 2),
     }

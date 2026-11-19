@@ -1,6 +1,10 @@
 /** @odoo-module **/
 /* A10 · Governance, Risk & Quality — M23 Quality Management (ISO 9001).
- * Registry-faithful: 4 groups / 14 screens / 5 reports / 5 forms / freg 78. */
+ * Registry-faithful: 4 groups / 14 screens / 5 reports / 5 forms / freg 78.
+ * M23 capture audit (2026-11-19): each sub-module page captures its own
+ * spec records — objectives, change assessments, checklist items, RCA, the
+ * CAPA action plan, the audit programme, auditor register, findings and
+ * evidence releases (cd_qms_process models/fix_qms_capture.py). */
 
 export const MODULE = {
   area: 'A10', code: 'M23', en: 'Quality Management (ISO)', title: 'M23 · Quality Management (ISO)',
@@ -15,44 +19,53 @@ export const MODULE = {
     { l: 'CoPQ', m: 'copq', prefix: '৳ ' }
   ],
   groups: [
-    { en: 'Record Coverage', screens: [
-      { id: 'M23-qms-copq', en: "Qms Copq", bn: "Qms Copq", t: 'g' }
-    ]},
     { en: 'Framework', screens: [
       { id: 'M23-policy', en: 'Policy & Objectives', bn: 'নীতি ও উদ্দেশ্য', t: 'g' },
+      { id: 'M23-objectives', en: 'Quality Objectives (cascade)', bn: 'গুণগত উদ্দেশ্য', t: 'g' },
       { id: 'M23-processes', en: 'Process Register (ISO map)', bn: 'প্রক্রিয়া রেজিস্টার', t: 'g' },
+      { id: 'M23-changes', en: 'Process Change Assessments', bn: 'প্রক্রিয়া পরিবর্তন মূল্যায়ন', t: 'g' },
       { id: 'M23-checklists', en: 'Checklist Authoring', bn: 'চেকলিস্ট রচনা', t: 'g' },
+      { id: 'M23-checklist-items', en: 'Checklist Items', bn: 'চেকলিস্ট আইটেম', t: 'g' },
       { id: 'M23-gates', en: 'Quality Gates', bn: 'গুণগত গেট', t: 'g' }
     ]},
     { en: 'Nonconformance', screens: [
       { id: 'M23-ncr', en: 'NCR Management', bn: 'অসঙ্গতি', t: 'g' },
-      { id: 'M23-rca', en: 'RCA (5-Why / 8D)', bn: 'মূল কারণ', t: 'g' },
-      { id: 'M23-capa', en: 'CAPA & Verification', bn: 'ক্যাপা', t: 'g' }
+      { id: 'M23-rca', en: 'RCA (5-Why / Ishikawa / 8D)', bn: 'মূল কারণ', t: 'g' },
+      { id: 'M23-capa', en: 'CAPA & Verification', bn: 'ক্যাপা', t: 'g' },
+      { id: 'M23-capa-actions', en: 'CAPA Action Plan', bn: 'ক্যাপা কর্মপরিকল্পনা', t: 'g' }
     ]},
     { en: 'Audits', screens: [
-      { id: 'M23-internal', en: 'Internal Audit Programme', bn: 'অভ্যন্তরীণ অডিট', t: 'g' },
+      { id: 'M23-programmes', en: 'Annual Audit Programme', bn: 'বার্ষিক অডিট কর্মসূচি', t: 'g' },
+      { id: 'M23-internal', en: 'Internal Audits', bn: 'অভ্যন্তরীণ অডিট', t: 'g' },
+      { id: 'M23-findings', en: 'Audit Findings', bn: 'অডিট পর্যবেক্ষণ', t: 'g' },
+      { id: 'M23-auditors', en: 'Auditor Register', bn: 'অডিটর রেজিস্টার', t: 'g' },
       { id: 'M23-external', en: 'Certification & Surveillance', bn: 'সার্টিফিকেশন', t: 'g' },
+      { id: 'M23-evidence', en: 'External Evidence Releases', bn: 'প্রমাণ প্রদান', t: 'g' },
       { id: 'M23-review', en: 'Management Review', bn: 'ব্যবস্থাপনা পর্যালোচনা', t: 'g' },
       { id: 'M23-review-inputs', en: 'Review Inputs (9.3.2)', bn: 'পর্যালোচনা উপাদান', t: 'g' },
       { id: 'M23-review-actions', en: 'Review Actions (9.3.3)', bn: 'পর্যালোচনা কর্ম', t: 'g' }
     ]},
     { en: 'Analytics', screens: [
       { id: 'M23-stat', en: 'Pareto & Control Charts', bn: 'প্যারেটো', t: 'r' },
-      { id: 'M23-copq', en: 'Cost of Poor Quality', bn: 'নিম্ন গুণগত ব্যয়', t: 'r' }
+      { id: 'M23-copq', en: 'Cost of Poor Quality', bn: 'নিম্ন গুণগত ব্যয়', t: 'r' },
+      { id: 'M23-qms-copq', en: 'CoPQ Ledger', bn: 'নিম্ন গুণগত ব্যয় খতিয়ান', t: 'g' }
     ]}
   ],
   reports: ['NCR & CAPA Register', 'Audit Programme Status', 'Repeat-Failure Escalation', 'CoPQ Analysis', 'Management Review Pack'],
-  forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template', 'Review Action'],
+  forms: ['NCR', 'CAPA', 'Audit Finding', 'Checklist Template', 'Review Action',
+          'Quality Objective', 'Process Change Assessment', 'Quality Gate', 'Root-Cause Analysis',
+          'Internal Audit', 'Audit Programme', 'Auditor', 'Certification / Surveillance',
+          'Evidence Release', 'CoPQ Entry'],
   cross: ['M01 Service Orders', 'M34 Complaints', 'M42 Suppliers', 'M24 Documents'],
   freg: { src: 78, sub: [
-    ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual'], screens: ['M23-policy'], reports: [], forms: [] }],
-    ['2', 'Process Register', 7, { model: 'fix.qms.process', cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'state'], screens: ['M23-processes'], reports: [], forms: [] }],
-    ['3', 'Checklists & Gates', 10, { model: 'fix.qms.checklist', cols: ['name', 'checklist_type', 'iso_clause', 'version', 'state'], screens: ['M23-checklists', 'M23-gates'], reports: [], forms: ['Checklist Template'] }],
-    ['4', 'NCR Management', 12, { model: 'fix.ncr', cols: ['name', 'source', 'severity', 'disposition', 'state'], screens: ['M23-ncr'], reports: ['NCR & CAPA Register'], forms: ['NCR'] }],
-    ['5', 'RCA & CAPA', 14, { model: 'fix.capa', cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'state'], screens: ['M23-rca', 'M23-capa'], reports: ['NCR & CAPA Register', 'Repeat-Failure Escalation'], forms: ['CAPA'] }],
-    ['6', 'Audit Programme', 13, { model: 'fix.internal.audit', cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'], screens: ['M23-internal', 'M23-external'], reports: ['Audit Programme Status'], forms: ['Audit Finding'] }],
-    ['7', 'Management Review', 7, { model: 'fix.qms.review', cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'], screens: ['M23-review'], reports: ['Management Review Pack'], forms: ['Review Action'] }],
-    ['8', 'Statistics & CoPQ', 9, { model: 'fix.qms.copq', cols: ['name', 'period', 'category', 'amount'], screens: ['M23-stat', 'M23-copq', 'M23-qms-copq'], reports: ['CoPQ Analysis', 'Repeat-Failure Escalation'], forms: [] }]
+    ['1', 'Policy & Objectives', 6, { model: 'fix.qms.policy', cols: ['name', 'year', 'objective', 'target', 'actual', 'state'], screens: ['M23-policy', 'M23-objectives'], reports: [], forms: ['Quality Objective'] }],
+    ['2', 'Process Register', 7, { model: 'fix.qms.process', cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'review_due', 'state'], screens: ['M23-processes', 'M23-changes'], reports: [], forms: ['Process Change Assessment'] }],
+    ['3', 'Checklists & Gates', 10, { model: 'fix.qms.checklist', cols: ['name', 'checklist_type', 'iso_clause', 'item_count', 'version', 'state'], screens: ['M23-checklists', 'M23-checklist-items', 'M23-gates'], reports: [], forms: ['Checklist Template', 'Quality Gate'] }],
+    ['4', 'NCR Management', 12, { model: 'fix.ncr', cols: ['name', 'source', 'nc_type', 'severity', 'containment_due', 'state'], screens: ['M23-ncr'], reports: ['NCR & CAPA Register'], forms: ['NCR'] }],
+    ['5', 'RCA & CAPA', 14, { model: 'fix.capa', cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'open_action_count', 'state'], screens: ['M23-rca', 'M23-capa', 'M23-capa-actions'], reports: ['NCR & CAPA Register', 'Repeat-Failure Escalation'], forms: ['Root-Cause Analysis', 'CAPA'] }],
+    ['6', 'Audit Programme', 13, { model: 'fix.internal.audit', cols: ['name', 'branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'], screens: ['M23-programmes', 'M23-internal', 'M23-findings', 'M23-auditors', 'M23-external', 'M23-evidence'], reports: ['Audit Programme Status'], forms: ['Internal Audit', 'Audit Finding', 'Audit Programme', 'Auditor', 'Certification / Surveillance', 'Evidence Release'] }],
+    ['7', 'Management Review', 7, { model: 'fix.qms.review', cols: ['name', 'review_date', 'chairperson_id', 'open_actions', 'state'], screens: ['M23-review', 'M23-review-inputs', 'M23-review-actions'], reports: ['Management Review Pack'], forms: ['Review Action'] }],
+    ['8', 'Statistics & CoPQ', 9, { model: 'fix.qms.copq', cols: ['name', 'period', 'category', 'ncr_id', 'attributed_cause', 'amount'], screens: ['M23-stat', 'M23-copq', 'M23-qms-copq'], reports: ['CoPQ Analysis', 'Repeat-Failure Escalation'], forms: ['CoPQ Entry'] }]
   ] }
 };
 
@@ -60,20 +73,32 @@ export const SCREENS = {
   'M23-policy': { kind: 'model_list', model: 'fix.qms.policy', stateField: 'state',
     cols: ['name', 'year', 'objective', 'target', 'actual', 'unit', 'state'],
     actions: [{ m: 'action_approve', l: 'Approve (QM)' }] },
+  'M23-objectives': { kind: 'model_list', model: 'fix.qms.objective',
+    cols: ['name', 'policy_id', 'scope_level', 'measure', 'target', 'actual', 'unit', 'attainment', 'owner_id', 'period'] },
   'M23-processes': { kind: 'model_list', model: 'fix.qms.process',
-    cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'process_type', 'state'],
+    cols: ['code', 'name', 'process_owner_id', 'iso_clause', 'process_type', 'review_due', 'state'],
     actions: [{ m: 'action_retire', l: 'Retire (QM)' }] },
+  'M23-changes': { kind: 'model_list', model: 'fix.qms.change.assessment', stateField: 'state',
+    cols: ['name', 'process_id', 'change_summary', 'affects_documents', 'affects_checklists', 'affects_training', 'assessed_by_id', 'state'],
+    actions: [{ m: 'action_assess', l: 'Record Assessment' },
+              { m: 'action_release', l: 'Release (QM)' },
+              { m: 'action_reject', l: 'Reject (QM)',
+                asks: [{ label: 'Why is the change rejected?', kwarg: 'reason' }] }] },
   'M23-checklists': { kind: 'model_list', model: 'fix.qms.checklist', stateField: 'state',
     cols: ['name', 'checklist_type', 'iso_clause', 'item_count', 'version', 'state'],
-    actions: [{ m: 'action_publish', l: 'Publish (QM)' }, { m: 'action_retire', l: 'Retire (QM)' }] },
+    actions: [{ m: 'action_publish', l: 'Publish (QM)' }, { m: 'action_retire', l: 'Retire (QM)' },
+              { m: 'action_new_version', l: 'New Version (QM)' }] },
+  'M23-checklist-items': { kind: 'model_list', model: 'fix.qms.checklist.item', create: false,
+    cols: ['checklist_id', 'sequence', 'section', 'name', 'response_type', 'acceptance_criteria', 'evidence_required', 'reportable'],
+    empty: 'No checklist item yet. Items are authored on a draft checklist template (Checklist Template form, Items grid); a published version is frozen and changes through New Version.' },
   'M23-gates': { kind: 'model_list', model: 'fix.qms.gate',
-    cols: ['sequence', 'code', 'name', 'stage', 'mandatory_checklist_id', 'blocking', 'state'],
+    cols: ['sequence', 'code', 'name', 'stage', 'mandatory_checklist_id', 'blocking', 'independence_required', 'state'],
     actions: [{ m: 'action_retire', l: 'Retire (QM)' }] },
   'M23-ncr': { kind: 'model_list', model: 'fix.ncr', stateField: 'state',
-    cols: ['name', 'source', 'severity', 'disposition', 'root_cause', 'state'],
+    cols: ['name', 'source', 'nc_type', 'severity', 'containment_due', 'containment_done_on', 'disposition', 'root_cause', 'state'],
     actions: [
-      { m: 'action_set_root_cause', l: 'Set Root Cause',
-        asks: [{ label: 'Root cause (5-Why / 8D analysis)', kwarg: 'root_cause' }] },
+      { m: 'action_record_containment', l: 'Confirm Containment',
+        asks: [{ label: 'Containment action taken (leave empty to keep the recorded one)', kwarg: 'note' }] },
       { m: 'action_open_capa', l: 'Open CAPA',
         asks: [
           { label: 'Corrective action', kwarg: 'corrective_action' },
@@ -87,10 +112,11 @@ export const SCREENS = {
         ] },
       { m: 'action_close', l: 'Close' }
     ] },
-  'M23-rca': { kind: 'model_list', model: 'fix.ncr', stateField: 'state',
-    cols: ['name', 'severity', 'root_cause', 'state'] },
+  'M23-rca': { kind: 'model_list', model: 'fix.qms.rca', stateField: 'state',
+    cols: ['name', 'ncr_id', 'ncr_severity', 'method', 'root_cause', 'completed_by_id', 'state'],
+    actions: [{ m: 'action_complete', l: 'Complete Analysis' }] },
   'M23-capa': { kind: 'model_list', model: 'fix.capa', stateField: 'state',
-    cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'effectiveness_result', 'state'],
+    cols: ['ncr_id', 'severity', 'owner_id', 'due_on', 'open_action_count', 'verification_due_on', 'effectiveness_result', 'state'],
     actions: [{ m: 'action_implement', l: 'Implement' },
               { m: 'action_verify', l: 'Verify',
                 asks: [
@@ -98,11 +124,32 @@ export const SCREENS = {
                   { label: 'Effective? (yes / no)', kwarg: 'effective' }
                 ] },
               { m: 'action_close', l: 'Close' }] },
+  'M23-capa-actions': { kind: 'model_list', model: 'fix.capa.action', stateField: 'state',
+    cols: ['capa_id', 'name', 'owner_id', 'executing_module', 'external_ref', 'due_on', 'done_on', 'state'],
+    actions: [{ m: 'action_done', l: 'Mark Done',
+                asks: [{ label: 'Evidence the action was done', kwarg: 'note' }] }] },
+  'M23-programmes': { kind: 'model_list', model: 'fix.qms.audit.programme', stateField: 'state',
+    cols: ['name', 'year', 'planned_count', 'uncovered_processes', 'approved_by_id', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve (QM)' }, { m: 'action_close', l: 'Close (QM)' }] },
   'M23-internal': { kind: 'model_list', model: 'fix.internal.audit', stateField: 'state',
-    cols: ['branch_id', 'scheduled_on', 'auditor_id', 'scope', 'state'],
+    cols: ['name', 'programme_id', 'branch_id', 'scheduled_on', 'auditor_id', 'scope', 'auditee_acknowledged_on', 'state'],
     actions: [{ m: 'action_execute', l: 'Execute',
                 asks: [{ label: 'Checklist capture (P11 offline payload JSON)', kwarg: 'payload' }] },
-              { m: 'action_report', l: 'Report' }] },
+              { m: 'action_report', l: 'Report' },
+              { m: 'action_acknowledge', l: 'Auditee Acknowledges' }] },
+  'M23-findings': { kind: 'model_list', model: 'fix.qms.audit.finding', stateField: 'state',
+    cols: ['name', 'audit_id', 'classification', 'clause_ref', 'statement', 'ncr_id', 'ncr_state', 'state'],
+    actions: [{ m: 'action_raise_ncr', l: 'Raise NCR' },
+              { m: 'action_close', l: 'Close (QM)',
+                asks: [{ label: 'How the observation / OFI was considered', kwarg: 'note' }] }] },
+  'M23-auditors': { kind: 'model_list', model: 'fix.qms.auditor',
+    cols: ['employee_id', 'standards', 'qualified_on', 'excluded_branch_ids', 'excluded_process_ids', 'active'] },
+  'M23-evidence': { kind: 'model_list', model: 'fix.qms.evidence.release', stateField: 'state',
+    cols: ['name', 'certification_id', 'external_party', 'request_note', 'approved_by_id', 'released_on', 'state'],
+    actions: [{ m: 'action_approve', l: 'Approve (QM)' },
+              { m: 'action_release', l: 'Release' },
+              { m: 'action_refuse', l: 'Refuse (QM)',
+                asks: [{ label: 'Why is the release refused?', kwarg: 'reason' }] }] },
   'M23-external': { kind: 'model_list', model: 'fix.qms.certification', stateField: 'result',
     cols: ['name', 'standard', 'body', 'audit_type', 'audit_date', 'valid_until', 'result'],
     actions: [{ m: 'action_pass', l: 'Mark Passed' },
@@ -143,17 +190,26 @@ export const SCREENS = {
       new: 'New', root_cause: 'Root Cause Identified', capa_open: 'CAPA Open',
       verification: 'Verification', closed: 'Closed' } },
     sections: [
-      { title: 'Nonconformance', note: 'Source, severity and what failed; the root cause, disposition and closure move through the row actions (ISO 9001 8.7).',
+      { title: 'Nonconformance', note: 'Where it came from, what kind it is, how severe and which ISO clause it breaches; any employee may raise one, with a photograph (FR-QMS-021..023, 031).',
         fields: [
           { name: 'source', required: true, label: 'Source' },
+          { name: 'nc_type', required: true, label: 'Type' },
           { name: 'severity', required: true, label: 'Severity' },
+          { name: 'clause_ref', label: 'ISO Clause Affected' },
           { name: 'order_id', label: 'Service Order' },
-          { name: 'description', required: true, type: 'text', label: 'Description' }
+          { name: 'description', required: true, type: 'text', label: 'Description' },
+          { name: 'evidence_attachment_id', label: 'Photo / Evidence' }
         ] },
-      { title: 'Analysis & Disposition', note: 'Working fields — the root cause lands via Set Root Cause, the disposition via Dispose (a use-as-is concession is authorised by the Quality Manager).',
+      { title: 'Containment', note: 'The interim action, its owner and its deadline, distinct from the corrective action; Confirm Containment stamps it done (FR-QMS-024, ISO 9001 8.7.1 f). A major non-conformance is contained within the declared interval (BRU-QMS-14).',
         fields: [
-          { name: 'root_cause', type: 'text', label: 'Root Cause' },
-          { name: 'containment', type: 'text', label: 'Containment (ISO 9001 8.7.1 f)' },
+          { name: 'containment', type: 'text', label: 'Containment Action' },
+          { name: 'containment_owner_id', label: 'Containment Owner' },
+          { name: 'containment_due', label: 'Containment Due' },
+          { name: 'containment_done_on', readonly: true, label: 'Confirmed On' }
+        ] },
+      { title: 'Analysis & Disposition', note: 'The root cause lands from a completed Root-Cause Analysis (5-Why, Ishikawa or 8D, never a repeat of the symptom); the disposition via Dispose (a use-as-is concession is authorised by the Quality Manager).',
+        fields: [
+          { name: 'root_cause', readonly: true, type: 'text', label: 'Root Cause' },
           { name: 'disposition_note', type: 'text', label: 'Disposition note' }
         ] }
     ]
@@ -176,29 +232,55 @@ export const SCREENS = {
           { name: 'corrective_action', required: true, type: 'text', label: 'Corrective Action' },
           { name: 'preventive_action', type: 'text', label: 'Preventive Action' }
         ] },
-      { title: 'Verification', note: 'Stamps of the implementer and the verifier, with the evidence note — read-only record of who decided (ISO 9001 10.2.2).',
+      { title: 'Verification', note: 'The effectiveness check falls due the observation window after implementation and cannot be given earlier (FR-QMS-035). Stamps of the implementer and the verifier, with the evidence note — read-only record of who decided (ISO 9001 10.2.2).',
         fields: [
-          { name: 'implemented_by_id', label: 'Implemented by' },
+          { name: 'observation_window_days', label: 'Observation Window (days)' },
+          { name: 'verification_due_on', readonly: true, label: 'Verification Due' },
+          { name: 'implemented_by_id', readonly: true, label: 'Implemented by' },
           { name: 'verification_note', type: 'text', label: 'Verification evidence' }
         ] }
-    ]
+    ],
+    lines: { field: 'action_ids', title: 'Action Plan',
+      note: 'One line per action, with its owner and due date; an action executed in another module (training in M22, a document change in M24, a supplier action in M42) names the record there. The CAPA is implemented only when every action is done with its evidence (FR-QMS-033, BRU-QMS-18).',
+      fields: [
+        { name: 'name', label: 'Action', required: true },
+        { name: 'owner_id', label: 'Owner', required: true },
+        { name: 'executing_module', label: 'Executed In', required: true },
+        { name: 'external_ref', label: 'Record in That Module' },
+        { name: 'due_on', label: 'Due' },
+        { name: 'expected_outcome', label: 'Expected Outcome' }
+      ] }
   },
 
   'M23-form-audit': {
     kind: 'model_form',
     model: 'fix.internal.audit',
-    title: 'Audit Finding',
+    title: 'Internal Audit',
     back: 'M23-internal',
     status: { field: 'state', labels: {
       planned: 'Planned', executed: 'Executed', reported: 'Reported' } },
     sections: [
-      { title: 'Internal Audit', note: 'Branch, date, auditor and scope. The audited processes link on the back-office form (an auditor may not own one); the checklist capture and report move through the row actions (ISO 9001 9.2).',
+      { title: 'Internal Audit', note: 'The programme it belongs to, the branch, date, auditor, scope and the processes audited. Once the auditor register is kept, the auditor is a registered one and never audits their own area, work or process (BRU-QMS-07); the checklist capture and report move through the row actions (ISO 9001 9.2).',
         fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'programme_id', label: 'Programme' },
           { name: 'branch_id', required: true, label: 'Branch' },
           { name: 'scheduled_on', required: true, label: 'Scheduled On' },
           { name: 'auditor_id', required: true, label: 'Auditor' },
-          { name: 'scope', label: 'Scope' },
+          { name: 'scope', required: true, label: 'Scope' },
+          { name: 'process_ids', label: 'Audited Processes' },
           { name: 'offline_payload', type: 'text', label: 'Checklist Capture (P11)' }
+        ] }
+    ],
+    grids: [
+      { field: 'finding_ids', title: 'Findings', readonlyGrid: true,
+        empty: 'No finding yet. While the audit is executed, record each one with the Audit Finding chip; a major or minor finding raises its NCR, and Report raises any still missing.',
+        fields: [
+          { name: 'name', label: 'Finding' },
+          { name: 'classification', label: 'Classification' },
+          { name: 'clause_ref', label: 'Clause' },
+          { name: 'ncr_id', label: 'NCR' },
+          { name: 'state', label: 'State' }
         ] }
     ]
   },
@@ -210,16 +292,43 @@ export const SCREENS = {
     back: 'M23-checklists',
     status: { field: 'state', labels: {
       draft: 'Draft', published: 'Published', retired: 'Retired' } },
+    tabs: [
+      { id: 'template', label: '1. Template & Items', bn: '১. টেমপ্লেট ও আইটেম', icon: '📋', badge: '5' },
+      { id: 'applies', label: '2. Applicability', bn: '২. প্রযোজ্যতা', icon: '🎯', badge: '7' }
+    ],
     sections: [
-      { title: 'Checklist Template', note: 'Type, ISO clause, item count and version; publishing makes it available to quality gates.',
+      { tab: 'template', title: 'Checklist Template', note: 'Type, ISO clause and version. The items are authored below; a template with no item is not published, and a published version is frozen — a change is a New Version, so an executed checklist keeps the version it used (FR-QMS-011/012, BRU-QMS-03).',
         fields: [
           { name: 'name', required: true, label: 'Checklist Name' },
           { name: 'checklist_type', required: true, label: 'Type' },
           { name: 'iso_clause', label: 'ISO Clause' },
-          { name: 'item_count', label: 'Items' },
-          { name: 'version', label: 'Version' }
+          { name: 'version', label: 'Version' },
+          { name: 'item_count', readonly: true, label: 'Items' }
+        ] },
+      { tab: 'applies', title: 'Where It Applies', note: 'Which jobs this checklist applies to: device category, brand, repair level, order value band, delivery mode, customer type and branches; an empty rule applies everywhere (FR-QMS-013).',
+        fields: [
+          { name: 'applies_device_category', label: 'Device Category' },
+          { name: 'applies_brand', label: 'Brand' },
+          { name: 'applies_repair_level', label: 'Repair Level' },
+          { name: 'applies_value_min', label: 'Value From (BDT)' },
+          { name: 'applies_value_max', label: 'Value To (BDT)' },
+          { name: 'applies_delivery_mode', label: 'Delivery Mode' },
+          { name: 'applies_customer_type', label: 'Customer Type' },
+          { name: 'applies_branch_ids', label: 'Branches (empty = all)' }
         ] }
-    ]
+    ],
+    lines: { field: 'item_ids', title: 'Items',
+      note: 'One line per check: what is checked, how it is answered, the acceptance criteria (required for a measurement or reading), the evidence it needs and whether a failure raises an NCR (FR-QMS-011/016/019).',
+      fields: [
+        { name: 'sequence', label: 'No.' },
+        { name: 'section', label: 'Section' },
+        { name: 'name', label: 'Item (English)', required: true },
+        { name: 'name_bn', label: 'Item (Bengali)' },
+        { name: 'response_type', label: 'Response', required: true },
+        { name: 'acceptance_criteria', label: 'Acceptance Criteria' },
+        { name: 'evidence_required', label: 'Evidence', required: true },
+        { name: 'reportable', label: 'Failure Raises NCR' }
+      ] }
   },
 
   'M23-form-policy': {
@@ -277,7 +386,7 @@ export const SCREENS = {
     title: "QMS Process",
     back: 'M23-processes',
     sections: [
-      { title: "QMS Process", note: "A QMS process: the owner, the inputs/outputs and the KPIs that show it is in control.",
+      { title: "QMS Process", note: "A QMS process: its owner, purpose and the ISO 9001 clause it satisfies (FR-QMS-003/005).",
         fields: [
           { name: 'name', required: true, label: "Name" },
           { name: 'code', required: true, label: "Code" },
@@ -285,7 +394,17 @@ export const SCREENS = {
           { name: 'process_type', required: true, label: "Process Type" },
           { name: 'process_owner_id', label: "Process Owner" },
           { name: 'iso_clause', label: "ISO 9001 Clause" },
-          { name: 'inputs', label: "Inputs" }
+          { name: 'purpose', type: 'text', label: "Purpose" },
+          { name: 'review_due', label: "Next Review" }
+        ] },
+      { title: "Inputs, Outputs & Control", note: "What enters and leaves the process, the processes it interacts with, its controls, the KPI that shows it is in control, and its process map or work instruction controlled in M24 (FR-QMS-003/004). A change to a registered process is released through a Process Change Assessment (BRU-QMS-10).",
+        fields: [
+          { name: 'inputs', label: "Inputs" },
+          { name: 'outputs', label: "Outputs" },
+          { name: 'interactions', label: "Interactions" },
+          { name: 'controls', type: 'text', label: "Controls" },
+          { name: 'kpi_definition', label: "Process KPI" },
+          { name: 'work_instruction_id', label: "Process Map / Work Instruction" }
         ] }
     ]
   },
@@ -304,6 +423,12 @@ export const SCREENS = {
           { name: 'stage', label: "Process Stage" },
           { name: 'mandatory_checklist_id', label: "Mandatory Checklist" },
           { name: 'blocking', label: "Blocks Progression" }
+        ] },
+      { title: "Independent Inspection", note: "Where a second person, not the technician, must perform the inspection: always, or above an order value; the risk basis is recorded and published to the executing modules (FR-QMS-015, BRU-QMS-02).",
+        fields: [
+          { name: 'independence_required', label: "Independent Inspection" },
+          { name: 'independence_value_threshold', label: "Independent Above (BDT)" },
+          { name: 'independence_note', label: "Risk Basis" }
         ] }
     ]
   },
@@ -359,23 +484,249 @@ export const SCREENS = {
 
   /* ===== triage coverage screens ===== */
   'M23-qms-copq': { kind: 'model_list', model: 'fix.qms.copq',
-    cols: ['name', 'amount', 'company_id', 'period', 'category', 'currency_id', 'source_ref'] },
+    cols: ['name', 'period', 'category', 'ncr_id', 'attributed_cause', 'amount', 'currency_id', 'source_ref'] },
 
   'M23-form-qms-copq': {
     kind: 'model_form',
     model: 'fix.qms.copq',
-    title: "Qms Copq",
+    title: "CoPQ Entry",
     back: 'M23-qms-copq',
     sections: [
-      { title: "Qms Copq", note: "Opened from the module's own record set. Every field here is the model's real field; the workflow rules live on the model and are not bypassed by this form.",
+      { title: "Cost of Poor Quality", note: "One cost of a quality failure in a period: its category (rework, scrap, warranty, complaint handling, inspection, downtime), the amount and the record it comes from (FR-QMS-030).",
         fields: [
-          { name: 'name', required: true, label: "Name" },
-          { name: 'amount', required: true, label: "Amount" },
-          { name: 'company_id', required: true, label: "Company" },
-          { name: 'period', required: true, label: "Period" },
+          { name: 'period', required: true, label: "Period (YYYY-MM)" },
           { name: 'category', required: true, label: "Category" },
+          { name: 'amount', required: true, label: "Amount" },
           { name: 'currency_id', required: true, label: "Currency" },
-          { name: 'source_ref', label: "Source Ref" }
+          { name: 'source_ref', label: "Source Record" },
+          { name: 'notes', label: "Notes" }
+        ] },
+      { title: "Attribution", note: "The non-conformance it belongs to and the cause it is attributed to — process, person, supplier, seller, model, part or training gap — with the basis of the attribution (FR-QMS-029/030).",
+        fields: [
+          { name: 'ncr_id', label: "NCR" },
+          { name: 'attributed_cause', required: true, label: "Attributed Cause" },
+          { name: 'attribution_basis', label: "Attribution Basis" }
+        ] }
+    ]
+  },
+
+  /* ===== M23 capture audit (2026-11-19): the spec records each page lacked ===== */
+  'M23-form-objective': {
+    kind: 'model_form',
+    model: 'fix.qms.objective',
+    title: 'Quality Objective',
+    back: 'M23-objectives',
+    sections: [
+      { title: 'Objective', note: 'A measurable quality objective of a policy year, with its owner and how it is measured; cascade it from a higher objective to a branch, process or role (ISO 9001 6.2, FR-QMS-001/002).',
+        fields: [
+          { name: 'name', required: true, label: 'Objective' },
+          { name: 'policy_id', required: true, label: 'Quality Policy' },
+          { name: 'parent_id', label: 'Cascaded From' },
+          { name: 'scope_level', required: true, label: 'Applies To' },
+          { name: 'branch_id', label: 'Branch' },
+          { name: 'process_id', label: 'Process' },
+          { name: 'role', label: 'Role' },
+          { name: 'owner_id', required: true, label: 'Owner' }
+        ] },
+      { title: 'Target & Attainment', note: 'The measurement basis, the target and the actual; attainment is computed (for lower-is-better objectives such as the rework rate, from the target over the actual).',
+        fields: [
+          { name: 'measure', required: true, label: 'Measurement Basis' },
+          { name: 'target', required: true, label: 'Target' },
+          { name: 'actual', label: 'Actual' },
+          { name: 'unit', label: 'Unit' },
+          { name: 'higher_is_better', label: 'Higher Is Better' },
+          { name: 'period', required: true, label: 'Period (YYYY or YYYY-MM)' },
+          { name: 'review_due', label: 'Next Review' },
+          { name: 'attainment', readonly: true, label: 'Attainment %' }
+        ] }
+    ]
+  },
+
+  'M23-form-change': {
+    kind: 'model_form',
+    model: 'fix.qms.change.assessment',
+    title: 'Process Change Assessment',
+    back: 'M23-changes',
+    status: { field: 'state', labels: {
+      draft: 'Draft', assessed: 'Assessed', released: 'Released', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Proposed Change', note: 'The registered process that changes, what changes and why. The change is released by the Quality Manager only after its QMS impact is assessed and every affected document, checklist and training item is updated (BRU-QMS-10).',
+        fields: [
+          { name: 'name', readonly: true, label: 'Reference' },
+          { name: 'process_id', required: true, label: 'Process' },
+          { name: 'change_summary', required: true, type: 'text', label: 'Proposed Change' },
+          { name: 'reason', type: 'text', label: 'Reason' }
+        ] },
+      { title: 'QMS Impact', note: 'Which documents, checklists and training the change touches, and the tick when each is updated; Release refuses while any affected item is not.',
+        fields: [
+          { name: 'impact_note', type: 'text', label: 'QMS Impact Assessment' },
+          { name: 'affects_documents', label: 'Affects Documents' },
+          { name: 'documents_updated', label: 'Documents Updated' },
+          { name: 'affects_checklists', label: 'Affects Checklists' },
+          { name: 'checklists_updated', label: 'Checklists Updated' },
+          { name: 'affects_training', label: 'Affects Training' },
+          { name: 'training_updated', label: 'Training Updated' },
+          { name: 'assessed_by_id', readonly: true, label: 'Assessed By' },
+          { name: 'released_by_id', readonly: true, label: 'Released By' }
+        ] }
+    ]
+  },
+
+  'M23-form-rca': {
+    kind: 'model_form',
+    model: 'fix.qms.rca',
+    title: 'Root-Cause Analysis',
+    back: 'M23-rca',
+    status: { field: 'state', labels: { draft: 'Draft', completed: 'Completed' } },
+    tabs: [
+      { id: 'problem', label: '1. Problem', bn: '১. সমস্যা', icon: '🔎', badge: '3' },
+      { id: 'why', label: '2. 5-Why', bn: '২. ৫-কেন', icon: '❓', badge: '5' },
+      { id: 'fish', label: '3. Ishikawa', bn: '৩. ইশিকাওয়া', icon: '🐟', badge: '6' },
+      { id: 'eightd', label: '4. 8D', bn: '৪. ৮ডি', icon: '8️⃣', badge: '7' },
+      { id: 'cause', label: '5. Root Cause', bn: '৫. মূল কারণ', icon: '🎯', badge: '2' }
+    ],
+    sections: [
+      { tab: 'problem', title: 'Non-Conformance & Method', note: 'The NCR investigated, the method and the symptom as observed. A major or critical non-conformance is investigated by 8D (BRU-QMS-14).',
+        fields: [
+          { name: 'ncr_id', required: true, label: 'NCR' },
+          { name: 'method', required: true, label: 'Method' },
+          { name: 'symptom', required: true, type: 'text', label: 'Symptom (what was observed)' }
+        ] },
+      { tab: 'why', title: '5-Why', note: 'At least three answered whys, each the cause of the one before.',
+        fields: [
+          { name: 'why_1', label: 'Why 1' },
+          { name: 'why_2', label: 'Why 2' },
+          { name: 'why_3', label: 'Why 3' },
+          { name: 'why_4', label: 'Why 4' },
+          { name: 'why_5', label: 'Why 5' }
+        ] },
+      { tab: 'fish', title: 'Ishikawa (fishbone)', note: 'The candidate causes by category; at least one category is filled.',
+        fields: [
+          { name: 'cause_people', type: 'text', label: 'People' },
+          { name: 'cause_method', type: 'text', label: 'Method' },
+          { name: 'cause_machine', type: 'text', label: 'Machine / Tools' },
+          { name: 'cause_material', type: 'text', label: 'Material / Parts' },
+          { name: 'cause_measurement', type: 'text', label: 'Measurement' },
+          { name: 'cause_environment', type: 'text', label: 'Environment' }
+        ] },
+      { tab: 'eightd', title: '8D Disciplines', note: 'All eight disciplines are recorded for an 8D; D4 is the root cause on the next tab (FR-QMS-027).',
+        fields: [
+          { name: 'd1_team', type: 'text', label: 'D1 Team' },
+          { name: 'd2_problem', type: 'text', label: 'D2 Problem Description' },
+          { name: 'd3_containment', type: 'text', label: 'D3 Interim Containment' },
+          { name: 'd5_corrective', type: 'text', label: 'D5 Permanent Corrective Action' },
+          { name: 'd6_implementation', type: 'text', label: 'D6 Implementation & Validation' },
+          { name: 'd7_prevention', type: 'text', label: 'D7 Prevent Recurrence' },
+          { name: 'd8_recognition', type: 'text', label: 'D8 Team Recognition / Closure' }
+        ] },
+      { tab: 'cause', title: 'Root Cause', note: 'Why it happened — never a repeat of the symptom (BRU-QMS-04). Complete Analysis lands it on the NCR, which can then open its CAPA.',
+        fields: [
+          { name: 'root_cause', required: true, type: 'text', label: 'Root Cause (D4)' },
+          { name: 'contributing_factors', type: 'text', label: 'Contributing Factors' }
+        ] }
+    ]
+  },
+
+  'M23-form-capa-action': {
+    kind: 'model_form',
+    model: 'fix.capa.action',
+    title: 'CAPA Action',
+    back: 'M23-capa-actions',
+    status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
+    sections: [
+      { title: 'Planned Action', note: 'One action of a CAPA, its owner and due date. Mark Done records the evidence; an action executed in another module names the record there (BRU-QMS-18).',
+        fields: [
+          { name: 'capa_id', required: true, label: 'CAPA' },
+          { name: 'name', required: true, type: 'text', label: 'Action' },
+          { name: 'owner_id', required: true, label: 'Owner' },
+          { name: 'executing_module', required: true, label: 'Executed In' },
+          { name: 'external_ref', label: 'Record in That Module' },
+          { name: 'expected_outcome', label: 'Expected Outcome' },
+          { name: 'due_on', label: 'Due' },
+          { name: 'evidence_note', readonly: true, type: 'text', label: 'Completion Evidence' }
+        ] }
+    ]
+  },
+
+  'M23-form-programme': {
+    kind: 'model_form',
+    model: 'fix.qms.audit.programme',
+    title: 'Audit Programme',
+    back: 'M23-programmes',
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', closed: 'Closed' } },
+    sections: [
+      { title: 'Annual Plan', note: 'The year\'s internal audit plan: the processes and branches in scope, the supplier and seller classes, and the frequency rules; the Quality Manager approves it. Each audit then names its programme (FR-QMS-040, BRU-QMS-17).',
+        fields: [
+          { name: 'name', required: true, label: 'Programme' },
+          { name: 'year', required: true, label: 'Year' },
+          { name: 'process_ids', label: 'Processes In Scope' },
+          { name: 'branch_ids', label: 'Branches / Workshops In Scope' },
+          { name: 'supplier_seller_scope', label: 'Supplier & Seller Classes' },
+          { name: 'frequency_note', type: 'text', label: 'Frequency Rules' },
+          { name: 'planned_count', readonly: true, label: 'Audits Planned' },
+          { name: 'uncovered_processes', readonly: true, label: 'Processes Without an Audit' }
+        ] }
+    ]
+  },
+
+  'M23-form-auditor': {
+    kind: 'model_form',
+    model: 'fix.qms.auditor',
+    title: 'Auditor',
+    back: 'M23-auditors',
+    sections: [
+      { title: 'Auditor Register', note: 'Kept by the Quality Manager: the auditor, the standards they audit, the competence evidence and their own area and work, which they may never audit. Once a company registers an auditor, every audit is assigned from this register (FR-QMS-041, BRU-QMS-07).',
+        fields: [
+          { name: 'employee_id', required: true, label: 'Auditor' },
+          { name: 'standards', required: true, label: 'Standards' },
+          { name: 'competence_note', required: true, type: 'text', label: 'Competence Evidence' },
+          { name: 'competence_attachment_id', label: 'Certificate' },
+          { name: 'qualified_on', required: true, label: 'Qualified On' },
+          { name: 'excluded_branch_ids', label: 'Own Area (excluded branches)' },
+          { name: 'excluded_process_ids', label: 'Own Work (excluded processes)' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
+
+  'M23-form-finding': {
+    kind: 'model_form',
+    model: 'fix.qms.audit.finding',
+    title: 'Audit Finding',
+    back: 'M23-findings',
+    status: { field: 'state', labels: { open: 'Open', ncr_raised: 'NCR Raised', closed: 'Closed' } },
+    sections: [
+      { title: 'Finding', note: 'Raised while the audit is executed: major or minor non-conformity, observation or opportunity for improvement, with the clause and the objective evidence. A non-conformity raises its NCR (Raise NCR, or automatically when the report is issued) (FR-QMS-043, AUT-QMS-14).',
+        fields: [
+          { name: 'audit_id', required: true, label: 'Audit' },
+          { name: 'classification', required: true, label: 'Classification' },
+          { name: 'clause_ref', required: true, label: 'ISO Clause' },
+          { name: 'statement', required: true, type: 'text', label: 'Finding' },
+          { name: 'evidence', required: true, type: 'text', label: 'Objective Evidence' },
+          { name: 'evidence_attachment_id', label: 'Evidence File' },
+          { name: 'owner_id', label: 'Auditee Owner' },
+          { name: 'ncr_id', readonly: true, label: 'NCR' }
+        ] }
+    ]
+  },
+
+  'M23-form-evidence': {
+    kind: 'model_form',
+    model: 'fix.qms.evidence.release',
+    title: 'Evidence Release',
+    back: 'M23-evidence',
+    status: { field: 'state', labels: {
+      requested: 'Requested', approved: 'Approved', released: 'Released', refused: 'Refused' } },
+    sections: [
+      { title: 'Evidence Request', note: 'What an external auditor (certification body, brand partner, corporate customer) asked for and the evidence to release. It is released only after a Quality Manager other than the one who recorded it approves, and every release is logged (FR-QMS-046, BRU-QMS-15).',
+        fields: [
+          { name: 'certification_id', label: 'External Audit' },
+          { name: 'external_party', required: true, label: 'Requested By (auditor / body)' },
+          { name: 'request_note', required: true, type: 'text', label: 'Evidence Requested' },
+          { name: 'document_id', label: 'Document (M24)' },
+          { name: 'attachment_id', label: 'Evidence File' },
+          { name: 'access_until', label: 'Access Until' },
+          { name: 'approved_by_id', readonly: true, label: 'Approved By' }
         ] }
     ]
   },
@@ -393,9 +744,19 @@ export const REPORT_ROUTES = {
 export const FORM_MODELS = {
   'M23:NCR': 'fix.ncr',
   'M23:CAPA': 'fix.capa',
-  'M23:Audit Finding': 'fix.internal.audit',
+  'M23:Audit Finding': 'fix.qms.audit.finding',
   'M23:Checklist Template': 'fix.qms.checklist',
-  'M23:Review Action': 'fix.qms.review.action'
+  'M23:Review Action': 'fix.qms.review.action',
+  'M23:Quality Objective': 'fix.qms.objective',
+  'M23:Process Change Assessment': 'fix.qms.change.assessment',
+  'M23:Quality Gate': 'fix.qms.gate',
+  'M23:Root-Cause Analysis': 'fix.qms.rca',
+  'M23:Internal Audit': 'fix.internal.audit',
+  'M23:Audit Programme': 'fix.qms.audit.programme',
+  'M23:Auditor': 'fix.qms.auditor',
+  'M23:Certification / Surveillance': 'fix.qms.certification',
+  'M23:Evidence Release': 'fix.qms.evidence.release',
+  'M23:CoPQ Entry': 'fix.qms.copq'
 };
 
 export const FORM_CHIPS = {
@@ -404,9 +765,18 @@ export const FORM_CHIPS = {
   'M23:Management Review': 'M23-form-review',
   'M23:NCR': 'M23-form-ncr',
   'M23:CAPA': 'M23-form-capa',
-  'M23:Audit Finding': 'M23-form-audit',
+  'M23:Audit Finding': 'M23-form-finding',
   'M23:Checklist Template': 'M23-form-checklist',
   'M23:Review Action': 'M23-form-review-action',
+  'M23:Quality Objective': 'M23-form-objective',
+  'M23:Process Change Assessment': 'M23-form-change',
+  'M23:Root-Cause Analysis': 'M23-form-rca',
+  'M23:Internal Audit': 'M23-form-audit',
+  'M23:Audit Programme': 'M23-form-programme',
+  'M23:Auditor': 'M23-form-auditor',
+  'M23:Certification / Surveillance': 'M23-form-certification',
+  'M23:Evidence Release': 'M23-form-evidence',
+  'M23:CoPQ Entry': 'M23-form-qms-copq',
   'M23:__by_model__': {
     'fix.qms.copq': 'M23-form-qms-copq',
     'fix.qms.process': 'M23-form-process',
@@ -418,7 +788,15 @@ export const FORM_CHIPS = {
     'fix.internal.audit': 'M23-form-audit',
     'fix.qms.checklist': 'M23-form-checklist',
     'fix.qms.policy': 'M23-form-policy',
-    'fix.qms.certification': 'M23-form-certification'
+    'fix.qms.certification': 'M23-form-certification',
+    'fix.qms.objective': 'M23-form-objective',
+    'fix.qms.change.assessment': 'M23-form-change',
+    'fix.qms.rca': 'M23-form-rca',
+    'fix.capa.action': 'M23-form-capa-action',
+    'fix.qms.audit.programme': 'M23-form-programme',
+    'fix.qms.auditor': 'M23-form-auditor',
+    'fix.qms.audit.finding': 'M23-form-finding',
+    'fix.qms.evidence.release': 'M23-form-evidence'
   },
   'M23:__by_screen__': {
     'M23-qms-copq': 'M23-form-qms-copq',
@@ -427,12 +805,19 @@ export const FORM_CHIPS = {
     'M23-review': 'M23-form-review',
     'M23-review-actions': 'M23-form-review-action',
     'M23-ncr': 'M23-form-ncr',
-    'M23-rca': 'M23-form-ncr',
+    'M23-rca': 'M23-form-rca',
     'M23-capa': 'M23-form-capa',
     'M23-internal': 'M23-form-audit',
     'M23-checklists': 'M23-form-checklist',
     'M23-policy': 'M23-form-policy',
-    'M23-external': 'M23-form-certification'
+    'M23-external': 'M23-form-certification',
+    'M23-objectives': 'M23-form-objective',
+    'M23-changes': 'M23-form-change',
+    'M23-capa-actions': 'M23-form-capa-action',
+    'M23-programmes': 'M23-form-programme',
+    'M23-auditors': 'M23-form-auditor',
+    'M23-findings': 'M23-form-finding',
+    'M23-evidence': 'M23-form-evidence'
   }
 };
 

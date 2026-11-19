@@ -22,7 +22,7 @@ management-system patterns:
 - fix.complaint EXTENSION — the M34 -> M23 stubs close: ncr_stub_ref /
   capa_stub_ref become real relations; action_raise_ncr creates the NCR
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.2.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Quality/Management System",
@@ -46,6 +46,8 @@ management-system patterns:
         # A10 S6 (M23-12): the M42 supplier-CAR hand-off — supplier.car.raised
         # arrives through the relay and raises the QMS NCR for majors.
         "data/fix_qms_consumers.xml",
+        # M23 capture audit (2026-11-19): numbering of the new records
+        "data/fix_qms_capture_data.xml",
         "views/fix_qms_views.xml",
     ],
     "installable": True,

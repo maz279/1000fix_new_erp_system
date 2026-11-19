@@ -314,6 +314,11 @@ class TestRegisterControls:
         qm = self._user(env, "Reg QM Two", ("cd_qms_process.group_qms_quality_manager",))
         process = env["fix.qms.process"].create({"name": "Bench repair", "code": "PR-BENCH"})
         checklist = env["fix.qms.checklist"].create({"name": "QC bench checklist"})
+        # M23 capture audit (2026-11-19): a template is published with its
+        # items (FR-QMS-011); one with none is refused
+        env["fix.qms.checklist.item"].create(
+            {"checklist_id": checklist.id, "name": "Screen intact"}
+        )
         gate = env["fix.qms.gate"].create({"name": "Pre-dispatch gate", "code": "GATE-1"})
         for rec, action in (
             (process, "action_retire"),
