@@ -90,4 +90,12 @@
 
 - Code: `f77fca97` on `fix/m23-capture-buttons`, rebased onto the shared branch at `f70e9feb`; re-tested after the rebase (static guard, QMS suite, estate page standard, A10 write whitelist: 706 passed, the one failure the pre-existing supplier-CAR relay test).
 - Landed on `fix/a03-live-data-and-pending-work` by compare-and-swap and pushed with the feature branch.
-- **Not deployed.** Going live needs, on `fix_real` and `fix_dev`: a backup, `-u cd_qms_process,cd_p03_portal`, and one restart of 8069/8090 (new models and SURFACES entries are read only at process start). That waits for the owner's OK and for coordination with any other session's pending deploy.
+- **Deployed 19 Nov 2026** as part of the combined M22/M23/M26/M27 upgrade, run by the M22 session with the owner's approval in that session:
+  - backups `backups/fix_{real,dev}_pre_combined_m22_m23_m26_m27_2026-11-19.dump`;
+  - `-u` including `cd_qms_process,cd_p03_portal` on `fix_real`, then `fix_dev`, exit 0;
+  - one restart at 10:57: 8069 = PID 64400, 8090 = PID 77212.
+- Verified read-only after the restart, on both databases:
+  - `cd_qms_process` 19.0.0.2.0 installed; all 9 new tables present, as are `fix_ncr.nc_type`, `fix_capa.observation_window_days`, `fix_internal_audit.programme_id`, `fix_qms_copq.attributed_cause`, and the 5 new sequences;
+  - the 3 published checklists now show `item_count` 0, the expected correction from the typed counts 14/9/22;
+  - the web bundle rebuilt after the restart (10:58 / 11:00) contains `M23-form-finding`, `-auditor`, `-evidence`, `-programme`, `-rca`, `M23-checklist-items` and "CoPQ Ledger";
+  - every M23 list (21) and form (19), requested from the live 8069 and 8090 servers with its declared columns and fields: 0 errors, 0 dropped.
