@@ -75,15 +75,13 @@ All decision and lifecycle stamps are guarded by `fix.guarded.mixin`, are absent
 
 - **Page guard** `cd_p03_portal/tests/test_m29_capture_buttons.py` runs the engine's own `fregCreate` / `fregPanels` in node over the real registry: **50 checks**. Run against unmodified HEAD (a6ca660a) in a throwaway tree, **22 fail**, covering every finding above; after the change, **50/50 pass**.
 - **Live suite** `cd_rbac_ext/tests/test_m29_capture_pass2_live.py`: **27 tests**, run as non-admin users (plain user, two officers, two approvers, administrator) through `/p03/model/form|write|action|choices` on a private clone (`fix_test_m29c2`, after `-u cd_rbac_ext,cd_grc,cd_p03_portal`, 0 errors). **27/27 pass.**
-- **Mutation check:** 28 mutants, each removing one new rule. **25 turn the suite red.** The 3 survivors are blocked by a second, equivalent defence:
-  - a plain user cannot create a service account or a penetration test (no ACL);
-  - a typed login on a suspension is unreachable, because an employee without a login is refused first.
-
-  Two earlier survivors ("facts editable after assessment", "break-glass switched on later") were caught only by the form lock. The tests now also assert the ORM refusal, and both mutants are red.
+- **Mutation check:** 28 mutants, each removing one new rule. **27 turn the suite red.**
+  - Four first survived because a second defence masked them: two were caught only by the form lock, and two by the ACL. The tests now also assert the ORM refusal, and a user granted the ACL directly but holding no appointment, so all four are red.
+  - The one survivor is a true equivalent. It removes the redundant re-derivation of the login on a suspension, but the base `create` already sets the employee's own login, and an employee without one is refused first.
 - **Regression** on the private clone, all of `cd_rbac_ext` (including 14 Nov's 43-test live suite) plus the M29/A12/estate/KPI/report-export portal guards and `cd_grc`:
   - **8 failures came from the new rules.** Older tests closed incidents without answering "personal data involved?", or closed sessions without a record of actions. One control test (x5) forbids the names `last_rotated_on` and `next_rotation_on` anywhere in m29.js. The tests now answer "no" or pass the summary, and the service-account form shows neither field (the rotation date stays on the list).
   - Re-run: **all green.**
-  - **3 `cd_grc` handoff failures** (risk register relay) **also fail with the `cd_grc` override removed.** The cloned DB carries 53,625 pending outbox events and those tests relay at most 10,000. They are a property of the test DB, not of this change.
+  - **3 `cd_grc` handoff failures** (risk register relay) **also fail with the `cd_grc` override removed.** Cause: the clone holds 52,625 events with no `relayed_at`, and the tests relay only the oldest 10,000, so their own event is never reached. On a copy with that backlog marked relayed, **all 11 handoff tests pass with the M29 code.**
 - **Headless browser walk** (Playwright, private server on port 8151 running this branch, signed in as a walk user on the clone only):
 
 | Page | "+" button | Forms capturing it (as rendered) |
