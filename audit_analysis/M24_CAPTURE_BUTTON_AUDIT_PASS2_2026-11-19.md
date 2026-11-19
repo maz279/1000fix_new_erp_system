@@ -1,6 +1,6 @@
 # M24 Documents & E-Signature: data-capture audit, second pass
 
-**Date:** 19 Nov 2026 · **Estate:** fix_real on port 8069 (fix_dev on 8090) · **Branch:** `fix/m24-capture-pass2` · **Status:** see §7
+**Date:** 19 Nov 2026 · **Estate:** fix_real on port 8069 (fix_dev on 8090) · **Branch:** `fix/m24-capture-pass2` · **Status:** LIVE on 8069 and 8090 (see §7)
 
 ## 1. The question
 
@@ -119,7 +119,19 @@ What this did not cover: a click-through on fix_real or fix_dev (not deployed ye
 
 ## 7. State
 
-- **Committed** `777b89e9` (fix) on `fix/m24-capture-pass2`, rebased onto the shared tip `555c8888` (M29). The only conflict was `a10/writable.py`, regenerated from all forms (M23's and M24's).
-- **After the rebase:** the M24, A10 whitelist, control-suite, estate and sub-module guards plus both module suites ran **914 tests, 0 failures caused by this change**. Three M23 tests failed only because the clone lacked M23's newly landed tables; after `-u cd_qms_process` on the clone all three pass.
-- **Landing:** this report is committed with the fix, landed on `fix/a03-live-data-and-pending-work` by compare-and-swap, and pushed together with the feature branch.
-- **Not yet deployed.** fix_real (8069) and fix_dev (8090) need `-u cd_document_core,cd_esignature,cd_p03_portal` and one restart before users see the new pages. The upgrade will mark the existing templates Draft v1 and change the template key to (code, version). It waits on the owner's go-ahead and on coordination with the peer sessions that also have modules waiting for a restart.
+**LIVE on fix_real (8069) and fix_dev (8090), 19 Nov 2026. The owner approved the deploy.**
+
+- **Landed** `61b4084b` (fix) and `fdee2885` (report) on `fix/a03-live-data-and-pending-work` by compare-and-swap. Both are pushed, with `fix/m24-capture-pass2`.
+  - The only rebase conflict was `a10/writable.py`, regenerated from all forms (M23's and M24's).
+  - After the rebase: M24, whitelist, control-suite, estate and sub-module guards plus both module suites ran 914 tests, 0 failures caused by this change. Three M23 tests needed M23's tables on the clone; after `-u cd_qms_process` they pass.
+- **Deploy:**
+  1. Checked that no other `odoo-bin` was running. The version gap on both databases was exactly `cd_document_core` and `cd_esignature`.
+  2. Backups: `1000 fix/backups/fix_{real,dev}_pre_m24_pass2_deploy_2026-11-19.dump`.
+  3. `-u cd_document_core,cd_esignature,cd_p03_portal --stop-after-init` on fix_real, then fix_dev. Both exited 0; the only errors were rST warnings from other modules' manifests. The gap was then 0 on both and the shared tip unchanged (`742e46bc`).
+  4. One restart of each: 8069 is now PID 44100 (155 modules loaded) and 8090 is PID 46556 (151 modules), with 0 registry failures and `/web/login` returning 200 on both.
+- **Verified live, read-only:**
+  - Both databases: modules at 19.0.2.0.0, all 15 new tables, 5 active M24 crons, the Disposal Approver group, and the template key `UNIQUE (code, version)`.
+  - The existing templates show **Draft v1**: 3 on fix_real, 4 on fix_dev.
+  - All 28 lists served with their declared columns, 0 dropped, on both servers.
+  - A headless walk signed in as the dev admin on both servers: all 7 pages show the "+ New" and chips in §4.1, every form opens with no error, all 17 lists render, and there were **0 console errors**. Nothing was saved on the live databases.
+- **Not done:** the owner items in §6 (role holders, a first document class, approving the existing templates).
