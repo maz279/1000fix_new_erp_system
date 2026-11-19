@@ -114,5 +114,14 @@ The browser pane was hidden, so the OWL page rendered empty; the workspace's own
 
 - **Landed** as `21ede0b2` on `fix/a03-live-data-and-pending-work` (rebased onto the M39/M31/M32 landings, compare-and-swap ref update, shared checkout synced). After the rebase: the A04 write whitelist regenerates with no diff, cd_storefront's isolation rules are clean, and the M38 / A04 / estate guards pass.
 - **Pushed:** `bdee1d2e..21ede0b2` and branch `fix/m38-capture-buttons`.
-- **Not deployed.** Both fix_real (8069) and fix_dev (8090) also lag three peers' landed modules — `cd_workshop`, `cd_contact_centre`, `cd_subscription` — so a restart must follow one `-u` that carries all four, or those modules' new fields load without columns. Deployment waits for the owner's go-ahead.
+- **Deployed (owner: "Deploy all four") on 19 Nov 2026, in one combined wave run by the M35 session**, so no two sessions upgraded at once:
+  - backups: `_migration/backups/fix_{real,dev}_pre_m35_capture2_2026-11-19.dump` (M35, before any `-u`) and `backups/fix_dev_pre_m38_wave_2026-11-19.dump` (this session);
+  - `-u cd_campaign,cd_p03_portal,cd_workshop,cd_contact_centre,cd_storefront,cd_subscription` on fix_real, then fix_dev. The restart was held until M36's `cd_quotation` (landed mid-wave) was upgraded too, so the version gap was empty on both databases before it;
+  - one restart: **8069 = PID 52556 (fix_real), 8090 = PID 80704 (fix_dev)**.
+- **Verified live, read-only** on both servers (dev login from a script with its own cookies; nothing saved):
+  - cd_storefront 19.0.0.2.0; all 9 new tables; 38 access rules and 12 isolation rules on the storefront models; sequences `SFC/` and `SFB/`; the Storefront Merchandiser role;
+  - **17/17 M38 lists** served with 0 dropped columns, and **15/15 forms** return every field they declare;
+  - the served bundle `/web/assets/bdee100/web.assets_web.min.js` carries the new forms and the "Request Order Change" and "Record Recovery Contact" buttons;
+  - no M38 error in either server log since the restart.
+- Not done live: a signed-in click-through in the browser pane, and any save on fix_real. Nothing on fix_real can be approved yet, because each storefront role has one holder (§4).
 - Private clone `fix_test_m38` (with `cd_storefront_finance` installed) is kept for re-runs.
