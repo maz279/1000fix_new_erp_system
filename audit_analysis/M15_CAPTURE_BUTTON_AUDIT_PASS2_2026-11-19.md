@@ -1,6 +1,6 @@
 # M15 Spare Parts & Inventory: data-capture audit, pass 2
 
-**Date:** 19 Nov 2026 · **Branch:** `fix/m15-capture-pass2` · **Status:** built and tested on a private clone; not yet landed or deployed (see §8)
+**Date:** 19 Nov 2026 · **Branch:** `fix/m15-capture-pass2` · **Status:** landed, pushed and live on fix_real (8069) and fix_dev (8090) since 19 Nov 08:06 (see §8)
 
 ## 1. The question
 
@@ -99,4 +99,31 @@ The private test DB `fix_test_m15c2` was cloned from `fix_dev` and upgraded with
 
 ## 8. State
 
-_filled in at landing / deploy_
+**Landed and pushed** on 19 Nov: shared branch `fix/a03-live-data-and-pending-work` 565f7ee9..946c088f (fix b17cab7f, test caf0b12e, docs 946c088f). The feature branch `fix/m15-capture-pass2` is pushed as well.
+
+**Deployed** on 19 Nov, with the owner's OK, as part of one combined deploy wave shared with M12, M14, M16, M17, M18, M20 and M21, so that 8069 and 8090 restarted only once:
+
+- **Upgrade.** `cd_inventory` 19.0.1.3.0 → 19.0.1.4.0 reached fix_real and fix_dev through the M16 session's `-u cd_requisition,cd_p03_portal`, which cascaded into it (exit 0 on both). The M21 session then ran the remaining combined `-u` and did the single restart at 08:06:51. A final gap check found no module behind its code on either database.
+- **Servers after the restart:** 8069 = PID 81988 (fix_real), 8090 = PID 21792 (fix_dev).
+
+**Verified live, read-only, on both databases** (`scratchpad/m15_verify_live.py`, `m15_walk_ro.mjs`; nothing was written to either estate):
+
+| Check | fix_real | fix_dev |
+|---|---|---|
+| `cd_inventory` installed | 19.0.1.4.0 | 19.0.1.4.0 |
+| Tables for the 5 new models | all present | all present |
+| ACLs / record rules | 3+2+2+2+2 / 2+2+1+1+1 | same |
+| Sequences RSV, BKO, RCL, CSR | present | present |
+| Parameter `reservation_validity_hours` | 72 | 72 |
+| Expiry cron on the new process | ran 08:24, done, 0 errors | ran 08:27, done, 0 errors |
+| Served bundle carries the 4 new forms | yes (17a52539) | yes (17a52539) |
+| `/p03/model/records` serves the 4 new models | yes | yes |
+| Headless walk: 13 pages, every "+ New" and chip opens its form | yes, 0 console errors | yes, 0 console errors |
+
+**Log notes:**
+- Both old processes logged `KeyError: 'fix.stock.reservation'` from the new cron. That happened between the `-u` and the restart, when the database already held the cron but the process had not loaded the model. It is gone after the restart.
+- The only other ERROR line since the restart on 8069 is a `could not serialize access` on `ir_config_parameter`. Two logins collided, and Odoo retried successfully.
+
+**Open:**
+- Nobody has created a reservation, backorder, recall or statement on either estate yet; the lists are empty.
+- The owner decisions in §6 and §7 are unchanged.
