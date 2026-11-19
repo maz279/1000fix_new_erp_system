@@ -188,6 +188,80 @@ SURFACES = {
         "limit": 300,
         "actions": set(),
     },
+    # --- M27 capture audit pass 2 (2026-11-19) -------------------
+    # The spec records the sub-module pages had no model for. Pickers are
+    # server-side: these reads run sudo, so a picker offers only what the
+    # record may name (internal users, an open queue, a closed contact).
+    "fix.cc.callback": {
+        "order": "promised_by, id",
+        "limit": 300,
+        "actions": {"action_mark_reached", "action_log_failed_attempt", "action_cancel"},
+        "pickers": {
+            "assigned_user_id": [("share", "=", False)],
+            "queue_id": [("active", "=", True)],
+        },
+    },
+    "fix.cc.voicemail": {
+        "order": "received_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_queue_as_conversation", "action_discard"},
+        "pickers": {"queue_id": [("active", "=", True)]},
+    },
+    "fix.cc.oncall.rota": {
+        "order": "start_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"user_id": [("share", "=", False)], "queue_id": [("active", "=", True)]},
+    },
+    "fix.cc.contact.forecast": {
+        "order": "forecast_date desc, interval_hour, channel",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"queue_id": [("active", "=", True)]},
+    },
+    "fix.cc.qa.calibration": {
+        "order": "session_date desc, id desc",
+        "limit": 200,
+        "actions": {"action_close"},
+        "pickers": {
+            "conversation_id": [("state", "in", ("resolved_agent", "resolved_ai"))],
+            "facilitator_id": [("share", "=", False)],
+            "rubric_id": [("state", "=", "published")],
+        },
+    },
+    "fix.cc.qa.calibration.line": {
+        "order": "session_id, id",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"evaluator_id": [("share", "=", False)]},
+    },
+    "fix.cc.qa.coaching": {
+        "order": "session_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_acknowledge"},
+        "pickers": {
+            "agent_id": [("share", "=", False)],
+            "coach_id": [("share", "=", False)],
+        },
+    },
+    "fix.cc.notif.throttle": {
+        "order": "purpose, channel",
+        "limit": 100,
+        "actions": set(),
+        "pickers": {},
+    },
+    "fix.cc.channel.preference": {
+        "order": "partner_id, category",
+        "limit": 300,
+        "actions": set(),
+        "pickers": {"partner_id": [("active", "=", True)]},
+    },
+    "fix.cc.urgency.challenge": {
+        "order": "raised_at desc, id desc",
+        "limit": 300,
+        "actions": {"action_uphold", "action_reject"},
+        "pickers": {"delivery_id": [("state", "in", ("sent", "delivered", "dry_run"))]},
+    },
 }
 
 RESOLVED_STATES = ("resolved_ai", "resolved_agent")

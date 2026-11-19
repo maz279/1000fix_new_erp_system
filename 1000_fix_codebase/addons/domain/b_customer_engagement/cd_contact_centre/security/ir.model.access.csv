@@ -53,3 +53,17 @@ access_fix_assistant_guardrail_sys,fix.assistant.guardrail system,model_fix_assi
 access_fix_assistant_entity_sys,fix.assistant.entity system,model_fix_assistant_entity,base.group_system,1,1,1,1
 access_fix_assistant_action_authority_sys,fix.assistant.action.authority system,model_fix_assistant_action_authority,base.group_system,1,1,1,1
 access_fix_assistant_handoff_trigger_sys,fix.assistant.handoff.trigger system,model_fix_assistant_handoff_trigger,base.group_system,1,1,1,1
+access_fix_cc_callback,fix.cc.callback,model_fix_cc_callback,base.group_user,1,1,1,0
+access_fix_cc_callback_sup,fix.cc.callback supervisor,model_fix_cc_callback,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_cc_voicemail,fix.cc.voicemail,model_fix_cc_voicemail,base.group_user,1,1,1,0
+access_fix_cc_oncall_rota,fix.cc.oncall.rota,model_fix_cc_oncall_rota,base.group_user,1,0,0,0
+access_fix_cc_oncall_rota_sup,fix.cc.oncall.rota supervisor,model_fix_cc_oncall_rota,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_cc_contact_forecast,fix.cc.contact.forecast,model_fix_cc_contact_forecast,base.group_user,1,1,1,0
+access_fix_cc_contact_forecast_sup,fix.cc.contact.forecast supervisor,model_fix_cc_contact_forecast,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_cc_qa_calibration,fix.cc.qa.calibration,model_fix_cc_qa_calibration,base.group_user,1,1,1,0
+access_fix_cc_qa_calibration_line,fix.cc.qa.calibration.line,model_fix_cc_qa_calibration_line,base.group_user,1,1,1,0
+access_fix_cc_qa_coaching,fix.cc.qa.coaching,model_fix_cc_qa_coaching,base.group_user,1,1,1,0
+access_fix_cc_notif_throttle,fix.cc.notif.throttle,model_fix_cc_notif_throttle,base.group_user,1,0,0,0
+access_fix_cc_notif_throttle_sup,fix.cc.notif.throttle supervisor,model_fix_cc_notif_throttle,cd_contact_centre.group_cc_supervisor,1,1,1,1
+access_fix_cc_channel_preference,fix.cc.channel.preference,model_fix_cc_channel_preference,base.group_user,1,1,1,0
+access_fix_cc_urgency_challenge,fix.cc.urgency.challenge,model_fix_cc_urgency_challenge,base.group_user,1,1,1,0

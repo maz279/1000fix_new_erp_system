@@ -47,6 +47,10 @@ CHANNELS = [
     ("chat", "Web Chat"),
     ("email", "Email"),
     ("in_app", "In-App"),
+    # M27 capture pass 2: inbound SMS replies (FR-CCE-012) and social
+    # messaging (FR-CCE-013) are logged contacts too.
+    ("sms", "SMS"),
+    ("social", "Social Messaging"),
 ]
 
 

@@ -48,9 +48,50 @@
         <field name="model_id" ref="model_fix_cc_agent_state_log"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_cc_callback_company" model="ir.rule">
+        <field name="name">fix.cc.callback: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_callback"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_callback_operating_unit" model="ir.rule">
+        <field name="name">fix.cc.callback: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cc_callback"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_cc_capacity_profile_company" model="ir.rule">
         <field name="name">fix.cc.capacity.profile: allowed companies</field>
         <field name="model_id" ref="model_fix_cc_capacity_profile"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_channel_preference_company" model="ir.rule">
+        <field name="name">fix.cc.channel.preference: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_channel_preference"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_contact_forecast_company" model="ir.rule">
+        <field name="name">fix.cc.contact.forecast: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_contact_forecast"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_notif_throttle_company" model="ir.rule">
+        <field name="name">fix.cc.notif.throttle: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_notif_throttle"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_oncall_rota_company" model="ir.rule">
+        <field name="name">fix.cc.oncall.rota: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_oncall_rota"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_qa_calibration_company" model="ir.rule">
+        <field name="name">fix.cc.qa.calibration: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_qa_calibration"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_qa_coaching_company" model="ir.rule">
+        <field name="name">fix.cc.qa.coaching: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_qa_coaching"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_cc_qa_rubric_company" model="ir.rule">
@@ -62,6 +103,22 @@
         <field name="name">fix.cc.script: allowed companies</field>
         <field name="model_id" ref="model_fix_cc_script"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_urgency_challenge_company" model="ir.rule">
+        <field name="name">fix.cc.urgency.challenge: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_urgency_challenge"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_voicemail_company" model="ir.rule">
+        <field name="name">fix.cc.voicemail: allowed companies</field>
+        <field name="model_id" ref="model_fix_cc_voicemail"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_cc_voicemail_operating_unit" model="ir.rule">
+        <field name="name">fix.cc.voicemail: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_cc_voicemail"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_cc_wfm_adherence_company" model="ir.rule">
         <field name="name">fix.cc.wfm.adherence: allowed companies</field>

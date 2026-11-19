@@ -18,7 +18,7 @@ CD-M27-nn + CD-M32-nn (P07-M05):
   infra/observability/ollama; this module is the Odoo-side register
 - The M27<->M32 co-design pair is one increment here (AR-006 pair 16)
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.1.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Contact Centre",
@@ -47,6 +47,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         # A10 S6 (M61 -> M27 hand-off): sync knowledge bindings on publish.
         "data/fix_knowledge_consumers.xml",
         "views/fix_contact_centre_views.xml",
+        # M27 capture audit pass 2: the missed-callback sweep.
+        "data/fix_cc_capture2_data.xml",
     ],
     "installable": True,
     "application": False,

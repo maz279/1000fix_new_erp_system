@@ -209,7 +209,10 @@ def test_outbound_dial_lists_moved_to_voice(m27):
     """Outbound voice (FR-CCE-004) is a Voice & IVR matter."""
     sub = _sub(m27, "1")
     assert "M27-outbound" in sub["screens"]
-    assert [f["f"] for f in sub["forms"]] == ["IVR Flow", "Outbound List"]
+    # pass 2 (2026-11-19) added Callback Request, Voicemail and On-Call Slot
+    # between them: see test_m27_capture_pass2.py
+    chips = [f["f"] for f in sub["forms"]]
+    assert chips[0] == "IVR Flow" and "Outbound List" in chips
 
 
 def test_agent_desktop_wraps_up_the_agents_conversations(m27):
@@ -277,7 +280,9 @@ def test_digital_contact_offers_only_digital_channels(m27):
     ]
     fields = _fields(m27, "M27-form-digital")
     keys = [c[0] for c in fields["channel"]["choices"]]
-    assert sorted(keys) == ["chat", "email", "in_app", "whatsapp"]
+    # digital channels only - never voice; pass 2 (2026-11-19) added inbound
+    # SMS (FR-CCE-012) and social messaging (FR-CCE-013)
+    assert sorted(keys) == ["chat", "email", "in_app", "sms", "social", "whatsapp"]
     # operating_unit_id is required on the model with no default
     assert fields["operating_unit_id"]["required"]
     assert fields["contact_identity"]["required"]

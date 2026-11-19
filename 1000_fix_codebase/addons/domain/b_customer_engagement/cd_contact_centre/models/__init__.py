@@ -37,3 +37,8 @@ from . import fix_approval_notify
 # handoff triggers. Extends fix.conversation and fix.assistant.intent (after
 # fix_assistant_llm), so it imports last.
 from . import fix_assistant_registers
+
+# M27 capture audit pass 2: callbacks, voicemail, on-call rota, volume
+# forecast, calibration, coaching, throttle, preference centre and urgency
+# challenges. Extends fix.cc.queue and fix.notif.delivery, so it imports last.
+from . import fix_cc_capture2

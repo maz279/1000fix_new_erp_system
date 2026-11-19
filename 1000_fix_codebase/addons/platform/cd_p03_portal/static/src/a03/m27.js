@@ -31,18 +31,27 @@ export const MODULE = {
     { en: 'Channels', bn: 'চ্যানেল', screens: [
       { id: 'M27-voice', en: 'Voice & IVR Flows', bn: 'ভয়েস ও আইভিআর', t: 'g' },
       { id: 'M27-digital', en: 'WhatsApp / Chat / Email / Social', bn: 'ডিজিটাল চ্যানেল', t: 'r' },
-      { id: 'M27-outbound', en: 'Outbound Campaigns', bn: 'আউটবাউন্ড ক্যাম্পেইন', t: 'g' }
+      { id: 'M27-outbound', en: 'Outbound Campaigns', bn: 'আউটবাউন্ড ক্যাম্পেইন', t: 'g' },
+      { id: 'M27-callbacks', en: 'Callbacks', bn: 'কলব্যাক', t: 'g' },
+      { id: 'M27-voicemails', en: 'Voicemail', bn: 'ভয়েসমেইল', t: 'g' },
+      { id: 'M27-oncall', en: 'On-Call Rota', bn: 'অন-কল রোস্টার', t: 'g' }
     ]},
     { en: 'Notification Hub', bn: 'নোটিফিকেশন হাব', screens: [
       { id: 'M27-templates', en: 'Notification Templates', bn: 'বিজ্ঞপ্তি টেমপ্লেট', t: 'g' },
       { id: 'M27-delivery', en: 'Delivery Tracking & Retry', bn: 'ডেলিভারি ট্র্যাকিং', t: 'r' },
       { id: 'M27-preferences', en: 'Consent & DND', bn: 'সম্মতি ও ডিএনডি', t: 'r' },
       { id: 'M27-dnd', en: 'BTRC DND Registry', bn: 'বিটিআরসি ডিএনডি তালিকা', t: 'g' },
-      { id: 'M27-suppressed', en: 'Suppressed at Send', bn: 'পাঠানোর সময় আটকানো', t: 'g' }
+      { id: 'M27-suppressed', en: 'Suppressed at Send', bn: 'পাঠানোর সময় আটকানো', t: 'g' },
+      { id: 'M27-channel-prefs', en: 'Preference Centre', bn: 'পছন্দ কেন্দ্র', t: 'g' },
+      { id: 'M27-challenges', en: 'Classification Challenges', bn: 'শ্রেণীকরণ চ্যালেঞ্জ', t: 'g' },
+      { id: 'M27-throttles', en: 'Volume Throttles', bn: 'বার্তা সীমা', t: 'g' }
     ]},
     { en: 'Quality & WFM', bn: 'গুণগত মান ও ওয়ার্কফোর্স', screens: [
       { id: 'M27-qa', en: 'QA Evaluations', bn: 'কিউএ মূল্যায়ন', t: 'g' },
-      { id: 'M27-wfm', en: 'Forecast & Roster', bn: 'পূর্বাভাস ও রোস্টার', t: 'g' }
+      { id: 'M27-wfm', en: 'Forecast & Roster', bn: 'পূর্বাভাস ও রোস্টার', t: 'g' },
+      { id: 'M27-forecasts', en: 'Volume Forecasts', bn: 'ভলিউম পূর্বাভাস', t: 'g' },
+      { id: 'M27-calibrations', en: 'Calibration Sessions', bn: 'ক্যালিব্রেশন', t: 'g' },
+      { id: 'M27-coaching', en: 'Coaching', bn: 'কোচিং', t: 'g' }
     ]},
     { en: 'Contact Centre Configuration', bn: 'কনফিগারেশন ও ফর্ম', screens: [
       { id: 'M27-queues', en: 'Queue Definitions', bn: 'কিউ সংজ্ঞা', t: 'g' },
@@ -100,7 +109,9 @@ export const MODULE = {
   ],
   reports: ['Channel Mix & Volumes', 'Service Level by Interval', 'AHT & FCR by Disposition', 'Notification Delivery by Channel', 'QA Score Distribution'],
   forms: ['IVR Flow', 'Notification Template', 'Disposition Code', 'Outbound List', 'Call Conversation', 'Queue Definition', 'QA Evaluation', 'Roster Shift', 'Delivery Provider', 'Routing Workstream', 'Capacity Profile', 'Agent Script', 'QA Rubric',
-    'Digital Contact', 'Wrap-Up & Disposition', 'Set My Presence', 'Routing Rule', 'DND Registry Entry', 'Consent Record'],
+    'Digital Contact', 'Wrap-Up & Disposition', 'Set My Presence', 'Routing Rule', 'DND Registry Entry', 'Consent Record',
+    'Callback Request', 'Voicemail', 'On-Call Slot', 'Volume Forecast', 'Calibration Session', 'Coaching Session',
+    'Notification Throttle', 'Notification Preference', 'Classification Challenge'],
   cross: ['M32 AI handoff', 'M33 Customer-360 pop', 'M01 create SO in-conversation', 'M55 agent roster'],
   freg: {
     src: 87,
@@ -109,23 +120,23 @@ export const MODULE = {
        * block (spec section 5) says the sub-module does - see
        * audit_analysis/M27_CAPTURE_BUTTON_AUDIT_2026-11-14.md. */
       /* FR-CCE-001..008: the IVR menu, and the outbound dial lists (outbound voice, FR-004) */
-      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice', 'M27-outbound'], reports: ['Channel Mix & Volumes'], forms: ['IVR Flow', 'Outbound List'] }],
+      ['1', 'Voice & IVR', 12, { model: 'fix.cc.ivr.flow', cols: ['name', 'active', 'channel', 'version', 'flow_json'], screens: ['M27-voice', 'M27-callbacks', 'M27-voicemails', 'M27-oncall', 'M27-outbound'], reports: ['Channel Mix & Volumes'], forms: ['IVR Flow', 'Callback Request', 'Voicemail', 'On-Call Slot', 'Outbound List'] }],
       /* FR-CCE-009..016: adapters write WhatsApp / chat contacts; e-mail and
        * social have no adapter, so an agent logs the contact with its messages */
-      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], reports: ['Channel Mix & Volumes'], forms: ['Digital Contact'], create: 'M27-form-digital', domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app']]] }],
+      ['2', 'Digital Channels', 12, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'state'], screens: ['M27-digital', 'M27-rpt-channelmix', 'M27-conversations'], reports: ['Channel Mix & Volumes'], forms: ['Digital Contact'], create: 'M27-form-digital', domain: [['channel', 'in', ['whatsapp', 'chat', 'email', 'in_app', 'sms', 'social']]] }],
       ['3', 'Unified Conversation Object', 8, { model: 'fix.conversation', cols: ['state', 'customer_id', 'channel', 'contact_identity', 'started_at', 'ended_at'], screens: ['M27-conversations'], reports: ['AHT & FCR by Disposition'], forms: ['Call Conversation'] }],
       ['4', 'Queue & Routing', 9, { model: 'fix.cc.queue', cols: ['name', 'code', 'sequence', 'active', 'channel', 'target_answer_seconds'], screens: ['M27-queues', 'M27-routing', 'M27-queue'], reports: ['Service Level by Interval'], forms: ['Queue Definition', 'Routing Rule', 'Routing Workstream', 'Capacity Profile'] }],
       /* FR-CCE-026..034: the agent's own desk - the conversations being
        * handled, wrapped up with a disposition (FR-033), and the agent's
        * presence (FR-032). It used to list and capture disposition CODES. */
       ['5', 'Agent Desktop', 10, { model: 'fix.conversation', cols: ['started_at', 'channel', 'contact_identity', 'customer_id', 'agent_id', 'queue_id', 'state'], screens: ['M27-desktop', 'M27-conversations', 'M27-presence', 'M27-dispositions'], reports: ['AHT & FCR by Disposition'], forms: ['Wrap-Up & Disposition', 'Set My Presence', 'Disposition Code', 'Agent Script'], create: 'M27-form-wrapup', domain: [['state', '=', 'with_agent']] }],
-      ['6', 'Workforce Management', 7, { model: 'fix.cc.wfm.shift', cols: ['state', 'agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour'], screens: ['M27-wfm', 'M27-rpt-slinterval'], reports: ['Service Level by Interval'], forms: ['Roster Shift'] }],
-      ['7', 'Quality Monitoring', 9, { model: 'fix.cc.qa.evaluation', cols: ['conversation_id', 'agent_id', 'score', 'criteria_json', 'notes', 'evaluated_at'], screens: ['M27-qa', 'M27-rpt-qadist'], reports: ['QA Score Distribution'], forms: ['QA Evaluation', 'QA Rubric'] }],
-      ['8', 'ERP Notification Service', 14, { model: 'fix.cc.notif.template', cols: ['name', 'active', 'channel', 'subject', 'body', 'consent_class'], screens: ['M27-templates', 'M27-delivery', 'M27-rpt-delivery'], reports: ['Notification Delivery by Channel'], forms: ['Notification Template', 'Delivery Provider'] }],
+      ['6', 'Workforce Management', 7, { model: 'fix.cc.wfm.shift', cols: ['state', 'agent_id', 'queue_id', 'shift_date', 'start_hour', 'end_hour'], screens: ['M27-wfm', 'M27-forecasts', 'M27-adherence', 'M27-rpt-slinterval'], reports: ['Service Level by Interval'], forms: ['Roster Shift', 'Volume Forecast'] }],
+      ['7', 'Quality Monitoring', 9, { model: 'fix.cc.qa.evaluation', cols: ['conversation_id', 'agent_id', 'score', 'criteria_json', 'notes', 'evaluated_at'], screens: ['M27-qa', 'M27-calibrations', 'M27-coaching', 'M27-rpt-qadist'], reports: ['QA Score Distribution'], forms: ['QA Evaluation', 'Calibration Session', 'Coaching Session', 'QA Rubric'] }],
+      ['8', 'ERP Notification Service', 14, { model: 'fix.cc.notif.template', cols: ['name', 'active', 'channel', 'subject', 'body', 'consent_class'], screens: ['M27-templates', 'M27-delivery', 'M27-throttles', 'M27-rpt-delivery'], reports: ['Notification Delivery by Channel'], forms: ['Notification Template', 'Notification Throttle', 'Delivery Provider'] }],
       /* FR-CCE-038..041, 046: consent is OWNED by M33 and enforced here; the
        * BTRC DND registry is M27's. It used to list and capture outbound dial
        * lists, which enforce nothing. */
-      ['9', 'Consent Enforcement', 6, { model: 'fix.dnd.registry', cols: ['msisdn', 'source', 'registered_on', 'active'], screens: ['M27-dnd', 'M27-suppressed', 'M27-preferences'], reports: [], forms: ['DND Registry Entry', 'Consent Record'], create: 'M27-form-dnd' }]
+      ['9', 'Consent Enforcement', 6, { model: 'fix.dnd.registry', cols: ['msisdn', 'source', 'registered_on', 'active'], screens: ['M27-dnd', 'M27-channel-prefs', 'M27-challenges', 'M27-suppressed', 'M27-preferences'], reports: [], forms: ['DND Registry Entry', 'Notification Preference', 'Classification Challenge', 'Consent Record'], create: 'M27-form-dnd' }]
     ]
   }
 };
@@ -1191,7 +1202,7 @@ export const SCREENS = {
         note: 'Link the customer when you can identify them: a contact left unidentified is flagged as such (BRU-CCE-10).',
         fields: [
         { name: 'channel', label: 'Channel', required: true,
-          choices: [['email', 'Email'], ['whatsapp', 'WhatsApp'], ['chat', 'Web Chat'], ['in_app', 'In-App']] },
+          choices: [['email', 'Email'], ['whatsapp', 'WhatsApp'], ['chat', 'Web Chat'], ['in_app', 'In-App'], ['sms', 'SMS'], ['social', 'Social Messaging']] },
         { name: 'contact_identity', label: 'Sender (number, WhatsApp ID or e-mail)', required: true },
         { name: 'customer_id', label: 'Customer' },
         { name: 'operating_unit_id', label: 'Contact Centre Operating Unit', required: true },
@@ -1275,6 +1286,305 @@ export const SCREENS = {
       }
     ]
   },
+  /* ==================================================================
+   * M27 CAPTURE AUDIT PASS 2 2026-11-19 - the spec records the pages had
+   * no model for (audit_analysis/M27_CAPTURE_BUTTON_AUDIT_PASS2_2026-11-19.md)
+   * ================================================================== */
+
+  /* Voice & IVR (FR-CCE-003): a callback offered instead of queueing */
+  'M27-callbacks': { kind: 'model_list', model: 'fix.cc.callback', create: true,
+    cols: ['promised_by', 'phone', 'partner_id', 'reason', 'assigned_user_id', 'attempt_count', 'state', 'within_window'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_mark_reached', l: 'Reached the Customer', states: ['requested', 'attempted'] },
+      { m: 'action_log_failed_attempt', l: 'Log a Failed Attempt', ask: 'What happened (no answer, busy, switched off...)', kwarg: 'note', states: ['requested', 'attempted'] },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why the callback is cancelled', kwarg: 'reason', states: ['requested', 'attempted'] }
+    ],
+    note: 'The promise is the window. A window that passes with nobody reached is marked missed every hour.',
+    empty: 'No callback is promised. + New Callback Request records one when a caller chooses a callback instead of waiting.' },
+  'M27-form-callback': {
+    kind: 'model_form', model: 'fix.cc.callback',
+    title: 'Callback Request', newLabel: 'Request a Callback', back: 'M27-callbacks',
+    status: { field: 'state', labels: { requested: 'Requested', attempted: 'Attempted', completed: 'Completed', missed: 'Missed', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'who', label: '1. Caller', bn: '১. কলার', icon: '📞' },
+      { id: 'when', label: '2. Promised Window', bn: '২. প্রতিশ্রুত সময়', icon: '⏰' }
+    ],
+    sections: [
+      {
+        tab: 'who',
+        title: 'Who To Call Back',
+        note: 'Link the conversation the caller left, so the callback is answered with its history.',
+        fields: [
+        { name: 'phone', label: 'Number To Call', required: true },
+        { name: 'partner_id', label: 'Customer' },
+        { name: 'conversation_id', label: 'From Conversation' },
+        { name: 'reason', label: 'What It Is About', required: true },
+        { name: 'language', label: 'Language' }
+        ]
+      },
+      {
+        tab: 'when',
+        title: 'Promised Window',
+        note: 'Call between these times. Reaching the customer inside the window counts toward the callback service level.',
+        fields: [
+        { name: 'promised_from', label: 'Call From', required: true },
+        { name: 'promised_by', label: 'Call By', required: true },
+        { name: 'queue_id', label: 'Queue' },
+        { name: 'assigned_user_id', label: 'Assigned Agent' },
+        { name: 'operating_unit_id', label: 'Operating Unit' },
+        { name: 'state', label: 'State', readonly: true },
+        { name: 'attempt_count', label: 'Attempts', readonly: true },
+        { name: 'last_attempt_note', label: 'Last Attempt', readonly: true },
+        { name: 'within_window', label: 'Honoured In Window', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* Voice & IVR (FR-CCE-007, AUT-CCE-11): out-of-hours voicemail */
+  'M27-voicemails': { kind: 'model_list', model: 'fix.cc.voicemail', create: true,
+    cols: ['received_at', 'caller_number', 'partner_id', 'duration_seconds', 'respond_by', 'state', 'conversation_id', 'conversation_state'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_queue_as_conversation', l: 'Queue as a Conversation', states: ['new'] },
+      { m: 'action_discard', l: 'Discard', ask: 'Why (silent, wrong number, duplicate...)', kwarg: 'reason', states: ['new'] }
+    ],
+    note: 'Out-of-hours messages, committed to the next business day (not Friday or Saturday). Queuing one opens a voice conversation, answered and measured like any other contact.',
+    empty: 'No voicemail is logged. Whoever clears the voicemail box records each message with + New Voicemail.' },
+  'M27-form-voicemail': {
+    kind: 'model_form', model: 'fix.cc.voicemail',
+    title: 'Voicemail', newLabel: 'Log a Voicemail', back: 'M27-voicemails',
+    status: { field: 'state', labels: { new: 'New', queued: 'Queued', discarded: 'Discarded' } },
+    sections: [
+      {
+        title: 'The Message',
+        note: 'Type or paste what the caller said. Queue it from the Voicemail list to open it as a conversation.',
+        fields: [
+        { name: 'caller_number', label: 'Caller Number', required: true },
+        { name: 'partner_id', label: 'Customer' },
+        { name: 'received_at', label: 'Left At', required: true },
+        { name: 'duration_seconds', label: 'Length (seconds)' },
+        { name: 'operating_unit_id', label: 'Contact Centre Operating Unit', required: true },
+        { name: 'queue_id', label: 'Queue' },
+        { name: 'language', label: 'Language' },
+        { name: 'transcript', label: 'What Was Said', type: 'text' },
+        { name: 'respond_by', label: 'Respond By', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* Voice & IVR (FR-CCE-008): who takes 16743 out of hours */
+  'M27-oncall': { kind: 'model_list', model: 'fix.cc.oncall.rota', create: true,
+    cols: ['start_at', 'end_at', 'queue_id', 'user_id', 'on_call_phone', 'role', 'active'],
+    note: 'While a queue is shut, its diversion names the primary on call. One primary per queue at a time.',
+    empty: 'No one is on call. A supervisor adds the out-of-hours rota with + New On-Call Slot.' },
+  'M27-form-oncall': {
+    kind: 'model_form', model: 'fix.cc.oncall.rota',
+    title: 'On-Call Slot', newLabel: 'Add an On-Call Slot', back: 'M27-oncall',
+    sections: [
+      {
+        title: 'Who Is On Call',
+        note: 'The rota is the 24/7 support model made real: a closed queue routes to this person. Supervisors maintain it.',
+        fields: [
+        { name: 'queue_id', label: 'Queue', required: true },
+        { name: 'user_id', label: 'On Call', required: true },
+        { name: 'on_call_phone', label: 'On-Call Number', required: true },
+        { name: 'role', label: 'Role', required: true },
+        { name: 'start_at', label: 'From', required: true },
+        { name: 'end_at', label: 'Until', required: true },
+        { name: 'note', label: 'Note' },
+        { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+
+  /* Workforce Management (FR-CCE-050): the volume forecast the roster is planned against */
+  'M27-forecasts': { kind: 'model_list', model: 'fix.cc.contact.forecast', create: true,
+    cols: ['forecast_date', 'interval_hour', 'channel', 'queue_id', 'forecast_volume', 'history_baseline', 'actual_volume', 'variance_pct', 'basis'],
+    note: 'Each hour is scored against the contacts that actually arrived. The history column is the same hour on the four previous same weekdays.',
+    empty: 'No forecast is entered. + New Volume Forecast records the expected contacts for a channel and hour.' },
+  'M27-form-forecast': {
+    kind: 'model_form', model: 'fix.cc.contact.forecast',
+    title: 'Volume Forecast', newLabel: 'Forecast Contact Volume', back: 'M27-forecasts',
+    sections: [
+      {
+        title: 'Expected Contacts',
+        note: 'One row per channel, queue and hour (BST). Name the driver when the number departs from history: a campaign, an outage, a holiday.',
+        fields: [
+        { name: 'forecast_date', label: 'Date', required: true },
+        { name: 'interval_hour', label: 'Hour (BST, 0-23)', required: true },
+        { name: 'channel', label: 'Channel', required: true },
+        { name: 'queue_id', label: 'Queue / Skill' },
+        { name: 'forecast_volume', label: 'Forecast Contacts', required: true },
+        { name: 'basis', label: 'Basis', required: true },
+        { name: 'driver_note', label: 'Known Driver' },
+        { name: 'history_baseline', label: 'Same-Hour History (4 wks)', readonly: true },
+        { name: 'actual_volume', label: 'Actual Contacts', readonly: true },
+        { name: 'variance_pct', label: 'Forecast Error %', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* Quality Monitoring (FR-CCE-055): evaluators score the same interaction */
+  'M27-calibrations': { kind: 'model_list', model: 'fix.cc.qa.calibration', create: true,
+    cols: ['session_date', 'name', 'conversation_id', 'rubric_id', 'mean_score', 'spread', 'consistent', 'agreed_score', 'state'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_close', l: 'Close with Agreed Score', ask: 'Agreed score 0-100 (blank = the mean)', kwarg: 'agreed_score', states: ['open'] }
+    ],
+    note: 'The spread between the highest and lowest score is the consistency measure. A supervisor closes the session.',
+    empty: 'No calibration session yet. + New Calibration Session picks an interaction for several evaluators to score.' },
+  'M27-form-calibration': {
+    lines: {
+      field: 'line_ids',
+      title: 'Evaluator Scores',
+      note: 'Each evaluator enters their own score. The agent who handled the interaction cannot calibrate it.',
+      fields: [
+        { name: 'evaluator_id', label: 'Evaluator', required: true },
+        { name: 'score', label: 'Score (0-100)', required: true },
+        { name: 'note', label: 'Note' }
+      ]
+    },
+    kind: 'model_form', model: 'fix.cc.qa.calibration',
+    title: 'Calibration Session', newLabel: 'Start a Calibration Session', back: 'M27-calibrations',
+    status: { field: 'state', labels: { open: 'Open', closed: 'Closed' } },
+    sections: [
+      {
+        title: 'What Is Being Calibrated',
+        note: 'Pick a closed interaction and the scorecard. At least two evaluators must score before it can be closed.',
+        fields: [
+        { name: 'name', label: 'Session', required: true },
+        { name: 'conversation_id', label: 'Interaction Scored', required: true },
+        { name: 'rubric_id', label: 'Scorecard' },
+        { name: 'facilitator_id', label: 'Facilitator', required: true },
+        { name: 'session_date', label: 'Date', required: true },
+        { name: 'tolerance', label: 'Tolerance (points)', required: true },
+        { name: 'mean_score', label: 'Mean', readonly: true },
+        { name: 'spread', label: 'Spread', readonly: true },
+        { name: 'consistent', label: 'Consistent', readonly: true },
+        { name: 'agreed_score', label: 'Agreed Score', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* Quality Monitoring (FR-CCE-056): coaching and the improvement after it */
+  'M27-coaching': { kind: 'model_list', model: 'fix.cc.qa.coaching', create: true,
+    cols: ['session_date', 'agent_id', 'coach_id', 'focus_area', 'baseline_score', 'later_score', 'later_count', 'improvement', 'state'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_acknowledge', l: 'Acknowledge (agent)', states: ['planned'] }
+    ],
+    note: 'Improvement is the agent\'s average QA score on evaluations made after the session, against the score coached from.',
+    empty: 'No coaching is recorded. + New Coaching Session records one from a QA evaluation.' },
+  'M27-form-coaching': {
+    kind: 'model_form', model: 'fix.cc.qa.coaching',
+    title: 'Coaching Session', newLabel: 'Record Coaching', back: 'M27-coaching',
+    status: { field: 'state', labels: { planned: 'Recorded', acknowledged: 'Acknowledged' } },
+    sections: [
+      {
+        title: 'Coaching',
+        note: 'The coach is never the agent. The agent acknowledges the session from the Coaching list.',
+        fields: [
+        { name: 'agent_id', label: 'Agent', required: true },
+        { name: 'evaluation_id', label: 'From Evaluation' },
+        { name: 'coach_id', label: 'Coach', required: true },
+        { name: 'session_date', label: 'Date', required: true },
+        { name: 'focus_area', label: 'Focus', required: true },
+        { name: 'agreed_actions', label: 'Agreed Actions', required: true, type: 'text' },
+        { name: 'follow_up_date', label: 'Review On' },
+        { name: 'baseline_score', label: 'Score Coached From', readonly: true },
+        { name: 'later_score', label: 'Average Score Since', readonly: true },
+        { name: 'improvement', label: 'Improvement', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* ERP Notification Service (FR-CCE-044, BRU-CCE-15): per-party volume ceiling */
+  'M27-throttles': { kind: 'model_list', model: 'fix.cc.notif.throttle', create: true,
+    cols: ['purpose', 'channel', 'max_messages', 'period_hours', 'active', 'note'],
+    note: 'A party already sent the maximum in the period has the next message deferred until the oldest one ages out. Service updates are never throttled.',
+    empty: 'No throttle is set, so a customer can be sent any number of promotional messages. A supervisor sets the ceiling with + New Notification Throttle.' },
+  'M27-form-throttle': {
+    kind: 'model_form', model: 'fix.cc.notif.throttle',
+    title: 'Notification Throttle', newLabel: 'Set a Volume Ceiling', back: 'M27-throttles',
+    sections: [
+      {
+        title: 'Ceiling Per Customer',
+        note: 'Applied at send, per customer (or per address when the recipient is not identified). Leave the channel empty to count every channel.',
+        fields: [
+        { name: 'purpose', label: 'Purpose', required: true },
+        { name: 'channel', label: 'Channel' },
+        { name: 'max_messages', label: 'Maximum Messages', required: true },
+        { name: 'period_hours', label: 'Per (hours)', required: true },
+        { name: 'note', label: 'Why This Ceiling' },
+        { name: 'active', label: 'Active' }
+        ]
+      }
+    ]
+  },
+
+  /* Consent Enforcement (FR-CCE-046, BRU-CCE-13): the preference centre */
+  'M27-channel-prefs': { kind: 'model_list', model: 'fix.cc.channel.preference', create: true,
+    cols: ['partner_id', 'category', 'preferred_channel', 'opted_out', 'mandatory', 'source', 'recorded_at', 'recorded_by_id'],
+    note: 'An opt-out is honoured at send. Service updates and payment notices are mandatory: the customer may choose the channel, not switch them off.',
+    empty: 'No preference is recorded. When a customer says which messages they want, record it with + New Notification Preference.' },
+  'M27-form-channel-pref': {
+    kind: 'model_form', model: 'fix.cc.channel.preference',
+    title: 'Notification Preference', newLabel: 'Record a Preference', back: 'M27-channel-prefs',
+    sections: [
+      {
+        title: 'What The Customer Asked For',
+        note: 'One row per customer and category. Consent (M33) still decides whether a promotion may go at all; a preference can only narrow it.',
+        fields: [
+        { name: 'partner_id', label: 'Customer', required: true },
+        { name: 'category', label: 'Category', required: true },
+        { name: 'preferred_channel', label: 'Preferred Channel' },
+        { name: 'opted_out', label: 'Opted Out' },
+        { name: 'source', label: 'Told Us Through', required: true },
+        { name: 'mandatory', label: 'Mandatory Category', readonly: true },
+        { name: 'recorded_at', label: 'Recorded At', readonly: true },
+        { name: 'recorded_by_id', label: 'Recorded By', readonly: true }
+        ]
+      }
+    ]
+  },
+
+  /* Consent Enforcement (FR-CCE-041, BRU-CCE-04): a classification challenged */
+  'M27-challenges': { kind: 'model_list', model: 'fix.cc.urgency.challenge', create: true,
+    cols: ['raised_at', 'delivery_id', 'claimed_purpose', 'claimed_class', 'proposed_class', 'source_model', 'raised_by_id', 'state', 'decided_by_id'],
+    stateField: 'state',
+    actions: [
+      { m: 'action_uphold', l: 'Uphold (misclassified)', ask: 'Finding and what happens next', kwarg: 'note', states: ['open'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the classification stands', kwarg: 'note', states: ['open'] }
+    ],
+    note: 'A promotion labelled as a service update skips consent, DND and the overnight window. A supervisor who did not raise the challenge decides it.',
+    empty: 'No message has been challenged. + New Classification Challenge questions how a sent message was classified.' },
+  'M27-form-challenge': {
+    kind: 'model_form', model: 'fix.cc.urgency.challenge',
+    title: 'Classification Challenge', newLabel: 'Challenge a Classification', back: 'M27-challenges',
+    status: { field: 'state', labels: { open: 'Open', upheld: 'Upheld', rejected: 'Rejected' } },
+    sections: [
+      {
+        title: 'The Message And The Challenge',
+        note: 'Pick the sent message. Its classification follows from the purpose it was sent under.',
+        fields: [
+        { name: 'delivery_id', label: 'Message Challenged', required: true },
+        { name: 'claimed_purpose', label: 'Sent As', readonly: true },
+        { name: 'claimed_class', label: 'Classified As', readonly: true },
+        { name: 'source_model', label: 'Raised By Module', readonly: true },
+        { name: 'proposed_class', label: 'Should Have Been', required: true },
+        { name: 'reason', label: 'Why', required: true, type: 'text' },
+        { name: 'decision_note', label: 'Decision', readonly: true }
+        ]
+      }
+    ]
+  },
 };
 
 export const REPORT_ROUTES = {
@@ -1309,8 +1619,26 @@ export const FORM_CHIPS = {
   'M27:DND Registry Entry': 'M27-form-dnd',
   /* consent is M33's record; M27 enforces it at send */
   'M27:Consent Record': 'M33-form-consent',
+  'M27:Callback Request': 'M27-form-callback',
+  'M27:Voicemail': 'M27-form-voicemail',
+  'M27:On-Call Slot': 'M27-form-oncall',
+  'M27:Volume Forecast': 'M27-form-forecast',
+  'M27:Calibration Session': 'M27-form-calibration',
+  'M27:Coaching Session': 'M27-form-coaching',
+  'M27:Notification Throttle': 'M27-form-throttle',
+  'M27:Notification Preference': 'M27-form-channel-pref',
+  'M27:Classification Challenge': 'M27-form-challenge',
   'M27:__by_model__': {
     'fix.dnd.registry': 'M27-form-dnd',
+    'fix.cc.callback': 'M27-form-callback',
+    'fix.cc.voicemail': 'M27-form-voicemail',
+    'fix.cc.oncall.rota': 'M27-form-oncall',
+    'fix.cc.contact.forecast': 'M27-form-forecast',
+    'fix.cc.qa.calibration': 'M27-form-calibration',
+    'fix.cc.qa.coaching': 'M27-form-coaching',
+    'fix.cc.notif.throttle': 'M27-form-throttle',
+    'fix.cc.channel.preference': 'M27-form-channel-pref',
+    'fix.cc.urgency.challenge': 'M27-form-challenge',
     'fix.notif.delivery': 'M27-form-delivery',
     'fix.notif.provider': 'M27-form-provider',
     'fix.routing.workstream': 'M27-form-workstream',
@@ -1358,7 +1686,16 @@ export const FORM_CHIPS = {
     'M27-macros': 'M27-form-macro',
     'M27-knowledge': 'M27-form-knowledge',
     'M27-dnd': 'M27-form-dnd',
-    'M27-suppressed': 'M27-form-delivery'
+    'M27-suppressed': 'M27-form-delivery',
+    'M27-callbacks': 'M27-form-callback',
+    'M27-voicemails': 'M27-form-voicemail',
+    'M27-oncall': 'M27-form-oncall',
+    'M27-forecasts': 'M27-form-forecast',
+    'M27-calibrations': 'M27-form-calibration',
+    'M27-coaching': 'M27-form-coaching',
+    'M27-throttles': 'M27-form-throttle',
+    'M27-channel-prefs': 'M27-form-channel-pref',
+    'M27-challenges': 'M27-form-challenge'
   }
 };
 
@@ -1384,7 +1721,16 @@ export const FORM_MODELS = {
   'M27:Set My Presence': 'fix.cc.presence.status',
   'M27:Routing Rule': 'fix.cc.routing.rule',
   'M27:DND Registry Entry': 'fix.dnd.registry',
-  'M27:Consent Record': 'fix.consent'
+  'M27:Consent Record': 'fix.consent',
+  'M27:Callback Request': 'fix.cc.callback',
+  'M27:Voicemail': 'fix.cc.voicemail',
+  'M27:On-Call Slot': 'fix.cc.oncall.rota',
+  'M27:Volume Forecast': 'fix.cc.contact.forecast',
+  'M27:Calibration Session': 'fix.cc.qa.calibration',
+  'M27:Coaching Session': 'fix.cc.qa.coaching',
+  'M27:Notification Throttle': 'fix.cc.notif.throttle',
+  'M27:Notification Preference': 'fix.cc.channel.preference',
+  'M27:Classification Challenge': 'fix.cc.urgency.challenge'
 };
 
 export const CREATE = {

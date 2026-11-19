@@ -348,6 +348,20 @@ WRITABLE = {
         }
     ),
     "fix.cc.agent.state.log": frozenset(),
+    "fix.cc.callback": frozenset(
+        {
+            "assigned_user_id",
+            "conversation_id",
+            "language",
+            "operating_unit_id",
+            "partner_id",
+            "phone",
+            "promised_by",
+            "promised_from",
+            "queue_id",
+            "reason",
+        }
+    ),
     "fix.cc.capacity.assignment": frozenset(),
     "fix.cc.capacity.profile": frozenset(
         {
@@ -358,6 +372,26 @@ WRITABLE = {
             "name",
             "reset_frequency",
             "work_item_limit",
+        }
+    ),
+    "fix.cc.channel.preference": frozenset(
+        {
+            "category",
+            "opted_out",
+            "partner_id",
+            "preferred_channel",
+            "source",
+        }
+    ),
+    "fix.cc.contact.forecast": frozenset(
+        {
+            "basis",
+            "channel",
+            "driver_note",
+            "forecast_date",
+            "forecast_volume",
+            "interval_hour",
+            "queue_id",
         }
     ),
     "fix.cc.disposition": frozenset(
@@ -411,6 +445,28 @@ WRITABLE = {
             "subject_bn",
         }
     ),
+    "fix.cc.notif.throttle": frozenset(
+        {
+            "active",
+            "channel",
+            "max_messages",
+            "note",
+            "period_hours",
+            "purpose",
+        }
+    ),
+    "fix.cc.oncall.rota": frozenset(
+        {
+            "active",
+            "end_at",
+            "note",
+            "on_call_phone",
+            "queue_id",
+            "role",
+            "start_at",
+            "user_id",
+        }
+    ),
     "fix.cc.outbound.list": frozenset(
         {
             "campaign_key",
@@ -427,6 +483,29 @@ WRITABLE = {
             "is_system_dnd",
             "name",
             "sequence",
+        }
+    ),
+    "fix.cc.qa.calibration": frozenset(
+        {
+            "conversation_id",
+            "facilitator_id",
+            "line_ids",
+            "name",
+            "rubric_id",
+            "session_date",
+            "tolerance",
+        }
+    ),
+    "fix.cc.qa.calibration.line": frozenset(),
+    "fix.cc.qa.coaching": frozenset(
+        {
+            "agent_id",
+            "agreed_actions",
+            "coach_id",
+            "evaluation_id",
+            "focus_area",
+            "follow_up_date",
+            "session_date",
         }
     ),
     "fix.cc.qa.criterion": frozenset(),
@@ -488,6 +567,25 @@ WRITABLE = {
     ),
     "fix.cc.script.completion": frozenset(),
     "fix.cc.script.step": frozenset(),
+    "fix.cc.urgency.challenge": frozenset(
+        {
+            "delivery_id",
+            "proposed_class",
+            "reason",
+        }
+    ),
+    "fix.cc.voicemail": frozenset(
+        {
+            "caller_number",
+            "duration_seconds",
+            "language",
+            "operating_unit_id",
+            "partner_id",
+            "queue_id",
+            "received_at",
+            "transcript",
+        }
+    ),
     "fix.cc.wfm.adherence": frozenset(),
     "fix.cc.wfm.shift": frozenset(
         {

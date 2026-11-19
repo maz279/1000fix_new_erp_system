@@ -444,6 +444,10 @@ class FixNotifDelivery(models.Model):
             # never enforced, and a marketing SMS was queued to a listed
             # number. This is the single exit, so it is enforced here.
             verdict = dict(verdict, allowed=False, decision="dnd_listed", reason=dnd_reason)
+        # M27 capture pass 2 (FR-CCE-046, BRU-CCE-13): the customer's own
+        # per-category opt-out, recorded in the preference centre, is
+        # enforced here, at the single exit. Hook: fix_cc_capture2.py.
+        verdict = self._fix_preference_verdict(partner_rec, purpose, channel, verdict)
         curfew = fix_btrc.curfew_verdict(purpose, channel)
         provider = self.env["fix.notif.provider"].provider_for(channel, company=company_rec)
 
@@ -479,6 +483,9 @@ class FixNotifDelivery(models.Model):
                 state="queued",
                 next_attempt_at=curfew["hold_until"] or fields.Datetime.now(),
             )
+            # M27 capture pass 2 (FR-CCE-044, BRU-CCE-15): a party over the
+            # configured volume for the period has the message deferred.
+            vals = self._fix_throttle_vals(vals, partner_rec, address)
         record = self.sudo().create(vals)
 
         # Two literal publish calls rather than one with a computed event
@@ -511,6 +518,16 @@ class FixNotifDelivery(models.Model):
                 event_payload,
             )
         return record
+
+    @api.model
+    def _fix_preference_verdict(self, partner, purpose, channel, verdict):
+        """The consent verdict after the customer's preference (no-op here)."""
+        return verdict
+
+    @api.model
+    def _fix_throttle_vals(self, vals, partner, address):
+        """The queued row's values after the volume throttle (no-op here)."""
+        return vals
 
     @api.model
     def _dnd_reason(self, purpose, channel, address) -> str:
