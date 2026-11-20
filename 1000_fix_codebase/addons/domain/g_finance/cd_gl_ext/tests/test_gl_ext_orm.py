@@ -316,6 +316,17 @@ def _close(env, period_end=date(2026, 9, 30), **vals):
     return env["fix.period.close"].create({"period_end": period_end, **vals})
 
 
+def _suspense_close(env, **vals):
+    """A06 ERP X04: a close measures the suspense rows OF ITS PERIOD (their
+    Asia/Dhaka business date). The rows these tests write are dated today, so
+    the close covers the current month."""
+    import pytz
+
+    today = datetime.now(pytz.timezone("Asia/Dhaka")).date()
+    nxt = (today.replace(day=28) + timedelta(days=4)).replace(day=1)
+    return _close(env, period_end=nxt - timedelta(days=1), **vals)
+
+
 class TestPeriodClose:
     def test_target_and_default_sla(self, odoo_env):
         close = _close(odoo_env)
@@ -438,9 +449,15 @@ class TestPeriodClose:
     def test_inventory_suspense_cutover(self, odoo_env):
         env, company, part, cutover = self._suspense_company(odoo_env)
         suspense = env["fix.inventory.valuation.suspense"]
-        e1 = suspense.create({"product_id": part.id, "quantity": 2.0, "unit_cost": 600.0})
-        e2 = suspense.create({"product_id": part.id, "quantity": 1.0, "unit_cost": 800.0})
-        close = _close(env, company_id=company.id, suspense_closing=2000.0)
+        # stock IN (A06 ERP X05: the default type, a job issue, is stock OUT and
+        # a cut-over crediting the suspense for it is the wrong direction)
+        e1 = suspense.create(
+            {"product_id": part.id, "quantity": 2.0, "unit_cost": 600.0, "entry_type": "receipt"}
+        )
+        e2 = suspense.create(
+            {"product_id": part.id, "quantity": 1.0, "unit_cost": 800.0, "entry_type": "receipt"}
+        )
+        close = _suspense_close(env, company_id=company.id, suspense_closing=2000.0)
         move = cutover(2000.0)
         close.cutover_move_id = move
 
@@ -467,9 +484,9 @@ class TestPeriodClose:
         no journal entry at all."""
         env, company, part, cutover = self._suspense_company(odoo_env)
         entry = env["fix.inventory.valuation.suspense"].create(
-            {"product_id": part.id, "quantity": 2.0, "unit_cost": 600.0}
+            {"product_id": part.id, "quantity": 2.0, "unit_cost": 600.0, "entry_type": "receipt"}
         )
-        close = _close(env, company_id=company.id, suspense_closing=1200.0)
+        close = _suspense_close(env, company_id=company.id, suspense_closing=1200.0)
         with (
             pytest.raises(UserError, match="Post the suspense cutover journal entry"),
             env.cr.savepoint(),
@@ -503,7 +520,7 @@ class TestPeriodClose:
                 "entry_type": "consumption",
             }
         )
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         close.cutover_move_id = cutover(31500.0)
         with pytest.raises(UserError, match="does not clear the suspense"), env.cr.savepoint():
             close.action_reconcile_inventory_suspense()
@@ -521,7 +538,7 @@ class TestPeriodClose:
             {"product_id": part.id, "quantity": 1.0, "unit_cost": 500.0}
         )
         entry.suspense_account_code = "999999"
-        close = _close(env, company_id=company.id, suspense_closing=500.0)
+        close = _suspense_close(env, company_id=company.id, suspense_closing=500.0)
         close.cutover_move_id = cutover(500.0)
         with pytest.raises(UserError, match="999999 are not in the chart"), env.cr.savepoint():
             close.action_reconcile_inventory_suspense()
@@ -529,7 +546,7 @@ class TestPeriodClose:
 
     def test_suspense_without_pending_entries_needs_no_voucher(self, odoo_env):
         env, company, _part, _cutover = self._suspense_company(odoo_env)
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         result = close.action_reconcile_inventory_suspense()
         assert result["status"] == "zero_cleared" and result["voucher_ref"] == ""
         assert (close.suspense_closing, close.suspense_reconciled) == (0.0, True)
@@ -596,7 +613,7 @@ class TestPeriodClose:
 
     def test_g1_cutover_clears_the_price_variance_to_the_ppv_account(self, odoo_env):
         env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5)
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         # the stock leg alone leaves the variance in the suspense account
         close.cutover_move_id = move(
             (acc["suspense"], 7437.5, 0.0), (acc["inventory"], 0.0, 7437.5)
@@ -621,7 +638,7 @@ class TestPeriodClose:
 
     def test_g1_cutover_refuses_the_variance_booked_the_wrong_way(self, odoo_env):
         env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5)
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         close.cutover_move_id = move(
             (acc["suspense"], 7475.0, 0.0),
             (acc["inventory"], 0.0, 7437.5),
@@ -634,7 +651,7 @@ class TestPeriodClose:
     def test_g1_a_favourable_variance_is_credited_to_ppv(self, odoo_env):
         """The vendor credited more than the stock's average cost: a gain."""
         env, company, rows, acc, move = self._ppv_world(odoo_env, -20.0)
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         close.cutover_move_id = move(
             (acc["suspense"], 7457.5, 0.0),
             (acc["inventory"], 0.0, 7437.5),
@@ -646,7 +663,7 @@ class TestPeriodClose:
 
     def test_g1_the_ppv_account_must_exist_in_the_chart(self, odoo_env):
         env, company, rows, acc, move = self._ppv_world(odoo_env, 37.5, ppv_code="600999")
-        close = _close(env, company_id=company.id)
+        close = _suspense_close(env, company_id=company.id)
         close.cutover_move_id = move(
             (acc["suspense"], 7437.5, 0.0),
             (acc["inventory"], 0.0, 7437.5),

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A06 ERP D4 / X19: an uncosted stock release is its company's and its location's OU's. -->
+<odoo>
+    <record id="rule_fix_stock_uncosted_release_company" model="ir.rule">
+        <field name="name">fix.stock.uncosted.release: allowed companies</field>
+        <field name="model_id" ref="model_fix_stock_uncosted_release"/>
+        <field name="domain_force">[('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
