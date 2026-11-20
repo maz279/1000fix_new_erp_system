@@ -249,6 +249,10 @@ def test_the_stock_switch_refuses_a_workshop_without_a_store(m31):
 # --- BER / scrap (B1, B2, M31 steps 11-12) ----------------------------------------------
 
 
+# A02 pass 2 M31-09: a BER compares the repair cost with the device value
+BER = {"estimated_repair_cost": 9000.0, "device_value": 5000.0}
+
+
 def _ber_ready(m, so_state="in_repair"):
     so = m.order(state=so_state)
     job = m.job(so=so)
@@ -259,17 +263,17 @@ def _ber_ready(m, so_state="in_repair"):
 
 def test_a_ber_needs_evidence(m31):
     _so, job = _ber_ready(m31, "diagnostic")
-    with refused(m31.env, UserError, "needs its evidence"):
-        job.action_propose_ber("Liquid damage", writeoff_amount=500.0)
+    with refused(m31.env, UserError, "needs its evidence|needs a photo"):
+        job.action_propose_ber("Liquid damage", writeoff_amount=500.0, **BER)
     _evidence(m31, job, "pre_repair_photo")
-    job.action_propose_ber("Liquid damage", writeoff_amount=500.0)
+    job.action_propose_ber("Liquid damage", writeoff_amount=500.0, **BER)
     assert job.ber_proposed_at
 
 
 def test_an_approved_ber_closes_the_job_and_the_order(m31):
     so, job = _ber_ready(m31, "diagnostic")
-    _evidence(m31, job, "diagnostic_report")
-    job.action_propose_ber("PMIC shorted, board cracked", writeoff_amount=4000.0)
+    _evidence(m31, job, "diagnostic_report", "pre_repair_photo")
+    job.action_propose_ber("PMIC shorted, board cracked", writeoff_amount=4000.0, **BER)
     job.sudo().write({"dofa_justification": "Photos and the diagnostic report attached"})
     approver = _tier2(m31, "ber")  # no workshop role: the apply runs under his ACLs
     _as(m31, m31.tech2, job).action_confirm_ber()
@@ -288,8 +292,8 @@ def test_an_approved_ber_closes_the_job_and_the_order(m31):
 
 def test_a_ber_is_refused_where_m01_cannot_follow(m31):
     so, job = _ber_ready(m31, "diagnostic")
-    _evidence(m31, job, "diagnostic_report")
-    job.action_propose_ber("Board cracked", writeoff_amount=4000.0)
+    _evidence(m31, job, "diagnostic_report", "pre_repair_photo")
+    job.action_propose_ber("Board cracked", writeoff_amount=4000.0, **BER)
     _set_order_state(so, "qc_pending")
     with refused(m31.env, UserError, "cannot close as BER while its service order"):
         _as(m31, m31.tech2, job).action_confirm_ber()
@@ -297,8 +301,8 @@ def test_a_ber_is_refused_where_m01_cannot_follow(m31):
 
 def test_a_rejected_ber_needs_a_new_confirmation(m31):
     _so, job = _ber_ready(m31, "diagnostic")
-    _evidence(m31, job, "diagnostic_report")
-    job.action_propose_ber("Board cracked", writeoff_amount=4000.0)
+    _evidence(m31, job, "diagnostic_report", "pre_repair_photo")
+    job.action_propose_ber("Board cracked", writeoff_amount=4000.0, **BER)
     job.sudo().write({"dofa_justification": "see report"})
     approver = _tier2(m31, "rej")
     _as(m31, m31.tech2, job).action_confirm_ber()
@@ -359,7 +363,8 @@ def test_delivery_publishes_the_m01_hand_back(m31):
         {"payment_settlement_state": "settled", "amount_settled_bdt": est.grand_total,
          "settlement_verified": True}
     )  # fmt: skip
-    job.action_deliver()
+    # A02 pass 2 M31-02: the hand-back is published by the release
+    job.action_release()
     payloads = _events(m31.env, job, "workshop.job.delivered")
     assert len(payloads) == 1
     assert (payloads[0]["service_order_id"], payloads[0]["workshop_job_id"]) == (so.id, job.id)

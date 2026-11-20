@@ -285,6 +285,10 @@ class P03CommercialDocs(http.Controller):
             # A02 ERP audit X-17: the A02 documents (report/p03_a02_documents.xml)
             "fix.counter.sale": "cd_p03_portal.report_a02_counter_receipt",
             "fix.data.wipe.certificate": "cd_p03_portal.report_a02_wipe_certificate",
+            # A02 pass 2 M06-10: intake receipt, custody form, hand-over receipt;
+            # and the quotation the customer accepts
+            "fix.data.recovery.case": "cd_p03_portal.report_a02_data_case",
+            "fix.data.quote": "cd_p03_portal.report_a02_data_quote",
             "fix.field.order": "cd_p03_portal.report_a02_field_service",
             "fix.consignment": "cd_p03_portal.report_a02_consignment_note",
             "fix.workshop.job": "cd_p03_portal.report_a02_workshop_job",

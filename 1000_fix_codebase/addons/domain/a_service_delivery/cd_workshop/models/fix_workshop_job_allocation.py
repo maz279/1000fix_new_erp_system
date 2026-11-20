@@ -14,7 +14,9 @@ from odoo.exceptions import UserError
 
 from .fix_workshop_job import (
     CLOSED_JOB_STATES,
+    GROUP_SUPERVISOR,
     ROUTING_LOCKED_FIELDS,
+    SUPERVISOR_ROUTING_STATES,
     TECHNICIAN_LOCKED_STATES,
 )
 
@@ -67,6 +69,17 @@ class FixWorkshopJobAllocation(models.Model):
                 (level or "").upper(),
                 bench.code,
                 (bench.repair_level or "").upper(),
+            )
+        # A02 pass 2 M31-05: an L2/L3 job goes only to an ESD-safe station,
+        # and an L3 job only to a bench of an ESD-certified workshop
+        if level in ("l2", "l3") and not bench.is_esd_safe:
+            return "Bench %s is not an ESD-safe station (%s repair)." % (
+                bench.code,
+                (level or "").upper(),
+            )
+        if level == "l3" and not bench.workshop_id.is_esd_certified:
+            return "Workshop %s is not ESD-certified: L3 board-level repair is done elsewhere." % (
+                bench.workshop_id.name
             )
         others = self.sudo().search_count(
             [
@@ -130,10 +143,24 @@ class FixWorkshopJobAllocation(models.Model):
         if not bench:
             raise UserError("That bench no longer exists.")
         technician = self.env["hr.employee"].browse(int(technician_id)) if technician_id else None
+        # A02 pass 2 M31-01: a job waiting for parts or back from a failed QC
+        # changes technician only by a supervisor's hand-over, with its note
+        supervisor_handover = (
+            technician
+            and technician != self.technician_id
+            and self.state in SUPERVISOR_ROUTING_STATES
+            and (self.env.su or self.env.user.has_group(GROUP_SUPERVISOR))
+        )
+        if supervisor_handover and not (note or "").strip():
+            raise UserError(
+                "Job %s is under way: the hand-over to another technician carries its note."
+                % self.name
+            )
         if (
             technician
             and technician != self.technician_id
             and self.state in TECHNICIAN_LOCKED_STATES
+            and not supervisor_handover
         ):
             raise UserError(
                 "Job %s is under way: its technician is fixed (QC independence and the "
@@ -155,7 +182,12 @@ class FixWorkshopJobAllocation(models.Model):
         vals = {"bench_id": bench.id, "bench_handover_note": (note or "").strip() or False}
         if target_tech and target_tech != previous_tech:
             vals["technician_id"] = target_tech.id
-        self.write(vals)
+        if supervisor_handover:
+            # the supervisor's hand-over passes the routing lock; the bench
+            # rules were checked above
+            self._guarded().write(vals)
+        else:
+            self.write(vals)
         if previous_bench != bench:
             for b in (previous_bench | bench).sudo():
                 b._compute_job_count()

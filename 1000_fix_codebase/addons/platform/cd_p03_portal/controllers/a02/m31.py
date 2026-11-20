@@ -22,7 +22,11 @@ _OPEN_HELD_STATES = (
     "qc_pending",
     "qc_failed",
     "ready",
+    "released",
 )
+# A02 pass 2 M31-02: a job is complete when the bench released it; the
+# customer hand-over (delivered) is M01's
+_COMPLETED_STATES = ("released", "delivered")
 
 SURFACES = {
     "fix.workshop.job": {
@@ -54,8 +58,12 @@ SURFACES = {
             "action_fail_burn_in",
             "action_pass_qc",
             "action_fail_qc",
-            "action_deliver",
+            # A02 pass 2 M31-02: the bench RELEASES to the front desk; the
+            # customer hand-over (Deliver) is M01's and closes the job
+            "action_release",
             "action_cancel",
+            # A02 pass 2 M31-01: the supervisor's level revision
+            "action_revise_level",
             # A02 audit B1: the waiver is a routed request; the BER write-off
             # is requested by Confirm BER and approved from the M63 inbox, so
             # neither action_dofa_approve nor a direct grant is offered.
@@ -195,10 +203,8 @@ SURFACES = {
         "order": "started_at desc, id desc",
         "limit": 200,
         "pickers": {
-            "job_id": [
-                ("state", "in", ("in_repair", "qc_failed")),
-                ("repair_level", "in", ("l2", "l3")),
-            ],
+            # A02 pass 2 M31-04: an L1 job whose protocol sets a burn-in runs too
+            "job_id": [("state", "in", ("in_repair", "qc_failed"))],
             "station_id": [("active", "=", True)],
         },
         "actions": {"action_extend"},
@@ -220,7 +226,8 @@ SURFACES = {
         "order": "started_at desc, id desc",
         "limit": 300,
         "pickers": {"job_id": [("state", "in", _OPEN_HELD_STATES)]},
-        "actions": {"action_stop"},
+        # A02 pass 2 M31-06: a supervisor corrects a segment with the reason
+        "actions": {"action_stop", "action_correct"},
     },
     "fix.workshop.cost.line": {"order": "job_id, sequence", "limit": 500, "actions": set()},
 }
@@ -263,7 +270,7 @@ def kpis(env):
     now = fields.Datetime.now()
 
     on_bench = Job.search_count([*domain, ("bench_id", "!=", False), ("state", "in", _WIP_STATES)])
-    completed = Job.search([*domain, ("state", "=", "delivered")], limit=500)
+    completed = Job.search([*domain, ("state", "in", _COMPLETED_STATES)])
     passed_first = sum(1 for j in completed if _first_pass(j))
     first_pass_yield = round(100.0 * passed_first / len(completed), 1) if completed else None
 
@@ -273,7 +280,6 @@ def kpis(env):
             ("repair_level", "=", "l3"),
             ("state", "in", ("intake", "diagnostic", "waiting_parts")),
         ],
-        limit=200,
     )
     l3_over_48h = sum(
         1 for j in l3_waiting if j.create_date and (now - j.create_date).total_seconds() > 48 * 3600
@@ -345,7 +351,7 @@ def _cycle_time_report(env, date_from=None, date_to=None, **params):
     rows = []
     for level in ("l1", "l2", "l3"):
         done = Job.search(
-            [*scope, ("repair_level", "=", level), ("state", "=", "delivered")], limit=300
+            [*scope, ("repair_level", "=", level), ("state", "in", _COMPLETED_STATES)]
         )
         durations = [
             (j.completed_at - j.create_date).total_seconds() / 86400.0
@@ -355,49 +361,103 @@ def _cycle_time_report(env, date_from=None, date_to=None, **params):
         rows.append(
             {
                 "level": level.upper(),
-                "delivered": len(done),
+                "released": len(done),
                 "avg_days": round(sum(durations) / len(durations), 1) if durations else None,
                 "max_days": round(max(durations), 1) if durations else None,
             }
         )
     return {
         "title": "Repair Cycle Time by Level",
-        "cols": ["level", "delivered", "avg_days", "max_days"],
+        "cols": ["level", "released", "avg_days", "max_days"],
         "labels": {
             "level": "Repair Level",
-            "delivered": "Delivered Jobs",
+            "released": "Released Jobs",
             "avg_days": "Avg Days",
             "max_days": "Max Days",
         },
         "rows": rows,
         "notes": [
             "Cycle time runs from the creation of the repair job to its completion; "
-            "only delivered jobs are counted.",
+            "jobs released by the bench (or since delivered) are counted.",
             _period_note(date_from, date_to),
         ],
     }
 
 
 def _rework_loop_report(env, date_from=None, date_to=None, **params):
+    """A02 pass 2 M31-11: the rework loops are the fix.workshop.rework rows
+    (QC failures AND failed burn-ins, each loop counted), against the jobs
+    QC'd in the period; it read the is_rework flag, so a failed burn-in and
+    a second loop on the same job were missed."""
+    Rework = env["fix.workshop.rework"].sudo().with_context(lang="en_US")
+    loops = Rework.search(_scope(env, date_from, date_to, "raised_at"))
     Job = _jobs(env)
-    reworks = Job.search([*_scope(env, date_from, date_to), ("is_rework", "=", True)], limit=300)
-    by_reason = {}
-    for j in reworks:
-        by_reason[j.rework_reason or "unspecified"] = (
-            by_reason.get(j.rework_reason or "unspecified", 0) + 1
-        )
+    qcd = Job.search_count(
+        [*_scope(env, date_from, date_to, "qc_inspected_at"), ("qc_inspected_at", "!=", False)]
+    )
+    by_key = {}
+    for loop in loops:
+        key = (loop.failed_at_state or "qc", (loop.reason or "unspecified").strip()[:80])
+        by_key[key] = by_key.get(key, 0) + 1
+    stages = dict(Rework._fields["failed_at_state"].selection)
     rows = [
-        {"reason": reason, "jobs": count}
-        for reason, count in sorted(by_reason.items(), key=lambda kv: -kv[1])
+        {"stage": stages.get(stage, stage), "reason": reason, "loops": count}
+        for (stage, reason), count in sorted(by_key.items(), key=lambda kv: -kv[1])
     ]
+    rate = round(100.0 * len(loops) / qcd, 1) if qcd else None
     return {
         "title": "Internal Rework Loop Analysis",
-        "cols": ["reason", "jobs"],
-        "labels": {"reason": "Rework Reason", "jobs": "Jobs"},
+        "cols": ["stage", "reason", "loops"],
+        "labels": {"stage": "Failed At", "reason": "Reason", "loops": "Loops"},
         "rows": rows,
         "notes": [
-            "A rework loop is a job sent back to repair after failing its quality check; "
-            "counts are live.",
+            "%d rework loop(s) over %d job(s) QC'd: %s loops per 100 QC'd jobs."
+            % (len(loops), qcd, rate if rate is not None else "-"),
+            "Each failed QC and each failed burn-in run is one loop (BRU-WSR-10).",
+            _period_note(date_from, date_to),
+        ],
+    }
+
+
+def _cost_variance_report(env, date_from=None, date_to=None, **params):
+    """A02 pass 2 M31-07 (D14): the repair cost against what the approved
+    estimate expected it to cost, per released job with a built cost sheet."""
+    Job = _jobs(env)
+    jobs = Job.search(
+        [
+            *_scope(env, date_from, date_to, "completed_at"),
+            ("state", "in", ("ready", *_COMPLETED_STATES)),
+        ]
+    )
+    rows = []
+    for job in jobs:
+        if not job.cost_line_ids:
+            continue
+        rows.append(
+            {
+                "job": job.name,
+                "level": (job.repair_level or "").upper(),
+                "estimated": round(job.estimated_cost or 0.0, 2),
+                "actual": round(job.full_cost or 0.0, 2),
+                "variance": round(job.cost_variance or 0.0, 2),
+                "flag": "over tolerance" if job.cost_variance_flag else "",
+            }
+        )
+    return {
+        "title": "Repair Cost Variance (actual vs estimated cost)",
+        "cols": ["job", "level", "estimated", "actual", "variance", "flag"],
+        "labels": {
+            "job": "Job",
+            "level": "Level",
+            "estimated": "Estimated Cost",
+            "actual": "Full Cost",
+            "variance": "Variance",
+            "flag": "Flag",
+        },
+        "rows": rows,
+        "notes": [
+            "Jobs with a built cost sheet; the estimated cost is the estimate's parts at "
+            "standard cost and its labour hours at the workshop rate.",
             _period_note(date_from, date_to),
         ],
     }
@@ -409,8 +469,7 @@ def _cost_report(env, date_from=None, date_to=None, **params):
     rows = []
     for level in ("l1", "l2", "l3"):
         done = Job.search(
-            [*scope, ("repair_level", "=", level), ("state", "in", ("ready", "delivered"))],
-            limit=300,
+            [*scope, ("repair_level", "=", level), ("state", "in", ("ready", *_COMPLETED_STATES))]
         )
         if not done:
             rows.append(
@@ -458,7 +517,6 @@ def _genealogy_report(env, date_from=None, date_to=None, **params):
     lines = Line.search(
         [*_scope(env, date_from, date_to), ("lot_serial_number", "!=", False)],
         order="id desc",
-        limit=200,
     )
     rows = [
         {
@@ -487,8 +545,7 @@ def _burnin_report(env, date_from=None, date_to=None, **params):
         [
             *_scope(env, date_from, date_to, "burn_in_started_at"),
             ("burn_in_started_at", "!=", False),
-        ],
-        limit=300,
+        ]
     )
     passed = sum(1 for j in tested if j.burn_in_passed)
     running = sum(1 for j in tested if j.state == "burn_in")
@@ -528,6 +585,7 @@ REPORTS = {
     "cost_per_repair": _cost_report,
     "parts_genealogy": _genealogy_report,
     "burn_in": _burnin_report,
+    "cost_variance": _cost_variance_report,
 }
 
 

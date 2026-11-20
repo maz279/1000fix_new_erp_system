@@ -492,7 +492,10 @@ def _verified_cert(env, **vals):
 def test_purge_closes_on_the_operators_verified_certificate(odoo_env):
     case = _case_in(odoo_env, "handover")
     case.write({"media_serial_number": "WD-123"})  # A02 M06-1: bound to the serial
-    cert = _verified_cert(odoo_env, serial_number="WD-123")
+    # A02 pass 2 M06-04 (D15): the lab's purge certificate of THIS case
+    cert = _verified_cert(
+        odoo_env, purpose="case_purge", case_id=case.id, lab_storage_ref="Z4-VOL-123"
+    )
     case.action_purge(certificate=cert)
     assert case.state == "purged"
     assert case.purge_certificate_id == cert

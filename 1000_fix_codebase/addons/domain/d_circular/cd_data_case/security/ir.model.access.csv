@@ -1,6 +1,6 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_data_recovery_case,fix.data.recovery.case,model_fix_data_recovery_case,group_data_recovery_operator,1,1,1,0
-access_fix_data_wipe_certificate,fix.data.wipe.certificate,model_fix_data_wipe_certificate,base.group_user,1,0,1,0
+access_fix_data_wipe_certificate,fix.data.wipe.certificate,model_fix_data_wipe_certificate,base.group_user,1,0,0,0
 access_fix_data_wipe_certificate_operator,fix.data.wipe.certificate.operator,model_fix_data_wipe_certificate,group_data_recovery_operator,1,1,1,0
 access_fix_data_wipe_certificate_verifier,fix.data.wipe.certificate.verifier,model_fix_data_wipe_certificate,group_wipe_verifier,1,1,0,0
 access_fix_z4_access_audit,fix.z4.access.audit,model_fix_z4_access_audit,group_data_recovery_operator,1,0,0,0
@@ -17,3 +17,6 @@ access_fix_data_retention_hold,fix.data.retention.hold,model_fix_data_retention_
 access_fix_data_recovered_inventory,fix.data.recovered.inventory,model_fix_data_recovered_inventory,group_data_recovery_operator,1,1,1,1
 access_fix_data_wipe_request,fix.data.wipe.request,model_fix_data_wipe_request,base.group_user,1,1,1,0
 access_fix_data_backup_run,fix.data.backup.run,model_fix_data_backup_run,base.group_user,1,0,1,0
+access_fix_data_case_read_log_mgr,fix.data.case.read.log.mgr,model_fix_data_case_read_log,group_data_lab_manager,1,0,0,0
+access_fix_data_sanitisation_rule_user,fix.data.sanitisation.rule.user,model_fix_data_sanitisation_rule,base.group_user,1,0,0,0
+access_fix_data_sanitisation_rule_qm,fix.data.sanitisation.rule.qm,model_fix_data_sanitisation_rule,cd_device_registry.group_device_quality_manager,1,1,1,1

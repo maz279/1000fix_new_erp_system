@@ -7,10 +7,19 @@
 # daily ESD log.
 import logging
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 logger = logging.getLogger(__name__)
+
+
+def dhaka_today(*_args):
+    """A02 pass 2 M31-05: the shop-floor day is Dhaka's (UTC+6). Between
+    00:00 and 06:00 local the UTC date is still yesterday, so a check taken
+    at the start of the morning shift did not count as today's."""
+    now = fields.Datetime.now().replace(tzinfo=pytz.UTC)
+    return now.astimezone(pytz.timezone("Asia/Dhaka")).date()
 
 
 class FixWorkshopBench(models.Model):
@@ -161,7 +170,7 @@ class FixWorkshopBench(models.Model):
     )
     esd_last_verified_date = fields.Date(
         string="Daily ESD Log Date",
-        default=fields.Date.context_today,
+        default=dhaka_today,
         tracking=True,
     )
     esd_compliant_today = fields.Boolean(
@@ -193,7 +202,7 @@ class FixWorkshopBench(models.Model):
         "is_esd_safe", "wrist_strap_mohm", "worksurface_rtg_mohm", "esd_last_verified_date"
     )
     def _compute_esd_compliant_today(self):
-        today = fields.Date.today()
+        today = dhaka_today()
         for rec in self:
             rec.esd_compliant_today = bool(
                 rec.is_esd_safe
@@ -219,7 +228,7 @@ class FixWorkshopBench(models.Model):
                 {
                     "wrist_strap_mohm": wrist_mohm,
                     "worksurface_rtg_mohm": surface_mohm,
-                    "esd_last_verified_date": fields.Date.today(),
+                    "esd_last_verified_date": dhaka_today(),
                     "is_esd_safe": True,
                 }
             )

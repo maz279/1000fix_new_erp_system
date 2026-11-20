@@ -296,13 +296,23 @@ def test_burn_in_qc_and_release(ws):
         env["fix.workshop.bench"],
         0,
     )  # bench released
+    # A02 pass 2 M31-02: released to the front desk, then closed by M01
+    job.action_release()
     job.action_deliver()
     assert job.state == "delivered"
     transitions = [
         json.loads(e.payload)["new_state"]
         for e in _events(env, "fix.workshop.job", job.id, "workshop.job.transitioned")
     ]
-    assert transitions == ["intake", "in_repair", "burn_in", "qc_pending", "ready", "delivered"]
+    assert transitions == [
+        "intake",
+        "in_repair",
+        "burn_in",
+        "qc_pending",
+        "ready",
+        "released",
+        "delivered",
+    ]
 
 
 def test_l1_job_goes_to_qc_without_burn_in(ws):
@@ -507,8 +517,11 @@ def test_job_milestones_follow_onto_the_service_order(ws, so):
             "service_report_attachment_id": report.id,
         }
     )
-    job.action_deliver()
-    assert so.state == "delivered"
+    # A02 pass 2 M31-02: the bench releases, M01 delivers, the job follows
+    job.action_release()
+    so.action_deliver()
+    env["fix.workshop.job"].consume_service_order_delivered({"payload": {"order_id": so.id}})
+    assert (so.state, job.state) == ("delivered", "delivered")
     payload = json.loads(
         _events(env, "fix.workshop.job", job.id, "workshop.job.transitioned")[-1].payload
     )

@@ -5,3 +5,7 @@ from . import fix_data_case, fix_data_case_ext, fix_data_case_secure
 # M06 capture pass 2 (2026-11-18): the records five pages could not capture.
 # isort: split
 from . import fix_data_capture
+
+# A02 ERP audit pass 2 (2026-11-20): extends every model above
+# isort: split
+from . import fix_data_case_a02r2

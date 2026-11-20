@@ -98,6 +98,43 @@ def m6(odoo_env):
             case.action_assign_staff(technician=tech, custodian=custodian)
         return case
 
+    def custody(case, giver=None, receiver=None):
+        """A02 pass 2 M06-03: the media is sealed, then one person hands the
+        case over and the receiver confirms it in their own session."""
+        giver, receiver = giver or custodian, receiver or tech
+        if not case.sudo().media_unit_ids:
+            env["fix.data.media.unit"].sudo().create(
+                {"case_id": case.id, "seal_number": "SEAL-P1-%d-%d" % (n, case.id)}
+            )
+        case.with_user(giver).action_take_custody(receiver.login)
+        case.with_user(receiver).action_confirm_custody()
+        return case
+
+    def purge_cert(case, ref=None, verify=True):
+        """A02 pass 2 M06-04 (D15): the lab's purge certificate of the case."""
+        log = (
+            env["ir.attachment"]
+            .with_user(tech)
+            .create({"name": "purge.log", "raw": b"lab copy %d destroyed" % case.id})
+        )
+        cert = (
+            env["fix.data.wipe.certificate"]
+            .with_user(tech)
+            .create(
+                {
+                    "purpose": "case_purge",
+                    "case_id": case.id,
+                    "lab_storage_ref": ref or "Z4-VOL-%d" % case.id,
+                    "method": "cryptographic_erase",
+                    "sector_count": 1000,
+                    "wipe_log_attachment_id": log.id,
+                }
+            )
+        )
+        if verify:
+            cert.with_user(verifier).action_verify()
+        return cert
+
     def evaluate(case, verdict="recoverable"):
         env["fix.data.evaluation"].with_user(tech).create(
             {"case_id": case.id, "verdict": verdict}
@@ -107,7 +144,7 @@ def m6(odoo_env):
         return env[QUOTE].with_user(tech).create({"case_id": case.id, "amount": amount, **vals})
 
     def recovering(case):
-        case.action_take_custody("desk")
+        custody(case)
         case.action_route_to_z4()
         evaluate(case)
         q = quote(case)
@@ -121,7 +158,9 @@ def m6(odoo_env):
 
     def image(case):
         case.action_record_image(source_hash=digest, image_hash=digest)
-        case.with_user(tech2).action_verify_image(recomputed_hash=digest)
+        # the second person is the case's custodian (A02 pass 2 M06-02: an
+        # operator not named on a case does not see it)
+        case.with_user(custodian).action_verify_image(recomputed_hash=digest)
 
     def recovered(case):
         recovering(case)
@@ -181,7 +220,7 @@ def m6(odoo_env):
 
 def _sent_and_requoted(m6):
     case = m6.new_case()
-    case.action_take_custody("desk")
+    m6.custody(case)
     m6.evaluate(case)
     first = m6.quote(case, amount=15000)
     first.action_send()
@@ -260,7 +299,7 @@ def test_p2_a_quote_needs_a_completed_recoverable_evaluation(m6):
 
 def test_p2_z4_work_is_for_the_named_staff_only(m6):
     case = m6.new_case(staffed=False)
-    case.action_take_custody("desk")
+    m6.custody(case)
     case.action_route_to_z4()
     m6.evaluate(case)
     q = m6.quote(case)

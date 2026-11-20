@@ -287,6 +287,15 @@ class P03A02WipeCertificate(models.AbstractModel):
             ("Device", cert.device_id.display_name or ""),
             ("Storage Media Serial No.", cert.serial_number or ""),
         ]
+        # A02 pass 2 M06-04 / M06-09: a case purge certifies the lab's copy;
+        # a destruction names its witness
+        if "purpose" in cert._fields:
+            media.insert(0, ("Certifies", _label(cert, "purpose")))
+            if cert.purpose == "case_purge":
+                media.append(("Data Recovery Case", cert.case_id.name or ""))
+                media.append(("Lab Copy / Key Destroyed", cert.lab_storage_ref or ""))
+            if cert.destruction_witness_id:
+                media.append(("Destruction Witnessed By", cert.destruction_witness_id.name))
         if request.media_description:
             media.append(("Media", request.media_description))
         p["blocks"] = [
@@ -295,6 +304,8 @@ class P03A02WipeCertificate(models.AbstractModel):
                 "title": "Sanitization",
                 "rows": [
                     ("Method", _label(cert, "method")),
+                    # A02 pass 2 M06-09 (D16): the standard the method meets
+                    ("Standard", cert.standard_ref if "standard_ref" in cert._fields else ""),
                     ("Wipe Tool / Version", cert.tool_name or ""),
                     ("Sectors Overwritten", f"{cert.sector_count or 0:,}"),
                     ("Duration (s)", f"{cert.duration_seconds or 0:,}"),
@@ -649,7 +660,45 @@ class P03A02WorkshopJobCard(models.AbstractModel):
                     ("QC Notes", job.qc_notes or ""),
                 ],
             },
+            # A02 pass 2 M31-10: the burn-in and the rework are part of the
+            # repair record
+            {
+                "title": "Burn-in & rework",
+                "rows": [
+                    ("Test Protocol", job.protocol_id.display_name or ""),
+                    ("Burn-In Started", self._dt(job.burn_in_started_at)),
+                    ("Burn-In Completed", self._dt(job.burn_in_completed_at)),
+                    ("Burn-In Minutes", "%.0f" % (job.burn_in_actual_minutes or 0.0)),
+                    ("Thermal / Stress Crashes", str(job.thermal_crash_count or 0)),
+                    (
+                        "Burn-In Result",
+                        "Passed"
+                        if job.burn_in_passed
+                        else ("Not run" if not job.burn_in_started_at else "Not passed"),
+                    ),
+                    ("Rework Loops", str(len(job.rework_ids))),
+                ],
+            },
         ]
+        if not self.env.context.get("customer_copy"):
+            # A02 pass 2 M31-10: the internal cost roll-up (the job card is
+            # the workshop's record; the customer's copy leaves it out)
+            p["blocks"].append(
+                {
+                    "title": "Internal cost roll-up (BDT)",
+                    "rows": [
+                        ("Parts Fitted", fmt_money(job.parts_total)),
+                        ("Labour", fmt_money(job.labour_cost)),
+                        ("Consumables", fmt_money(job.consumables_total)),
+                        ("Total Direct Cost", fmt_money(job.total_repair_cost)),
+                        ("Estimated Cost", fmt_money(job.estimated_cost)),
+                        ("Full Cost (cost sheet)", fmt_money(job.full_cost)),
+                    ],
+                }
+            )
+        # A02 pass 2 M31-10: only the parts fitted on the bench (consumed);
+        # a drafted, reserved or released line was printed as fitted
+        fitted = job.part_line_ids.filtered(lambda ln: ln.reservation_state == "consumed")
         p["tables"] = [
             {
                 "title": "Parts fitted",
@@ -662,7 +711,7 @@ class P03A02WorkshopJobCard(models.AbstractModel):
                         line.fitted_serial_number or line.lot_serial_number or "",
                         fmt_qty(line.quantity),
                     ]
-                    for i, line in enumerate(job.part_line_ids, 1)
+                    for i, line in enumerate(fitted, 1)
                 ],
             },
             {
@@ -685,4 +734,113 @@ class P03A02WorkshopJobCard(models.AbstractModel):
             },
         ]
         p["sign"] = ["Technician", "QC Inspector", "Customer — received in good condition"]
+        return p
+
+
+# ---------------------------------------------------- data recovery documents
+class P03A02DataCaseFile(models.AbstractModel):
+    """A02 pass 2 M06-10: the case's paper trail in one document - the intake
+    receipt, the chain-of-custody form (every hand-off with both people) and
+    the hand-over receipt."""
+
+    _name = "report.cd_p03_portal.report_a02_data_case"
+    _inherit = "report.cd_p03_portal.a02_document_base"
+    _description = "Data Recovery Case File (intake, custody, hand-over)"
+
+    _doc_model = "fix.data.recovery.case"
+
+    def _payload(self, case):
+        p = self._base(case, "DATA RECOVERY CASE FILE", _label(case, "state").upper())
+        p["party_label"] = "Customer"
+        p["bill_to"] = self._party(case.customer_id) if case.customer_id else {"name": "-"}
+        p["meta"] = [
+            ("Case No.", case.name or ""),
+            ("Media Received", self._dt(case.received_at)),
+            ("Media", _label(case, "media_type")),
+            ("Media Serial No.", case.media_serial_number or ""),
+        ]
+        units = case.media_unit_ids
+        recovered = "%d / %.2f" % (case.recovered_files_count or 0, case.recovered_volume_gb or 0.0)
+        p["blocks"] = [
+            {
+                "title": "Intake receipt",
+                "rows": [
+                    ("Reported Failure", case.failure_symptoms or ""),
+                    ("Data the Customer Needs", case.target_data_description or ""),
+                    ("Sealed Bags", ", ".join(units.mapped("seal_number")) or "-"),
+                    ("Customer Declarations", case.customer_declarations or ""),
+                ],
+            },
+            {
+                "title": "Hand-over receipt",
+                "rows": [
+                    ("Handed Over At", self._dt(case.handover_at)),
+                    ("Recipient", case.handover_recipient_id.display_name or ""),
+                    ("Recipient Verified By", _label(case, "handover_verification_method")),
+                    ("Verification", case.handover_verification_ref or ""),
+                    ("Target Drive S/N", case.encrypted_target_serial or ""),
+                    ("Recovered Files / GB", recovered),
+                ],
+            },
+        ]
+        p["tables"] = [
+            {
+                "title": "Chain of custody",
+                "cols": ["SL", "When", "Action", "Recorded By", "Second Person", "What"],
+                "rows": [
+                    [
+                        i,
+                        self._dt(ev.event_at),
+                        _label(ev, "action"),
+                        ev.actor_id.name or "",
+                        ev.witness_id.name or "",
+                        ev.description or "",
+                    ]
+                    for i, ev in enumerate(case.custody_event_ids.sorted("id"), 1)
+                ],
+            }
+        ]
+        p["sign"] = ["Received from the customer", "Lab custodian", "Customer - data received"]
+        return p
+
+
+class P03A02DataQuote(models.AbstractModel):
+    """A02 pass 2 M06-10: the data-recovery quotation the customer accepts."""
+
+    _name = "report.cd_p03_portal.report_a02_data_quote"
+    _inherit = "report.cd_p03_portal.a02_document_base"
+    _description = "Data Recovery Quotation"
+
+    _doc_model = "fix.data.quote"
+
+    def _payload(self, quote):
+        p = self._base(quote, "DATA RECOVERY QUOTATION", _label(quote, "state").upper())
+        customer = quote.customer_id if "customer_id" in quote._fields else None
+        customer = customer or quote.case_id.customer_id
+        p["party_label"] = "Quoted To"
+        p["bill_to"] = self._party(customer) if customer else {"name": "-"}
+        p["meta"] = [
+            ("Quotation No.", quote.name or ""),
+            ("Case No.", quote.case_id.name or ""),
+            ("Valid Until", self._d(quote.valid_until)),
+            ("Sent", self._dt(quote.sent_at)),
+        ]
+        p["blocks"] = [
+            {
+                "title": "Price and terms",
+                "rows": [
+                    ("Scope", quote.description or ""),
+                    ("Recovery Fee (BDT, before VAT)", fmt_money(quote.amount)),
+                    ("Donor Fee, non-refundable (BDT)", fmt_money(quote.donor_fee_bdt)),
+                    ("No Data, No Fee", "Yes" if quote.no_data_no_fee_applies else "No"),
+                    ("Accepted", self._dt(quote.accepted_at)),
+                    ("Acceptance", _label(quote, "acceptance_channel")),
+                ],
+            }
+        ]
+        p["notes"] = [
+            "Under no-data-no-fee the recovery fee is due only when the data you need is "
+            "recovered; the donor fee is due in every case."
+        ]
+        p["sign"] = ["For 1000FiX Services Ltd.", "Customer - accepted"]
         return p

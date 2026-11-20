@@ -88,7 +88,7 @@ export const MODULE = {
        * The protocol library and the evidence upload are its chips. */
       ['7', 'Testing & Burn-In', 8, { model: 'fix.workshop.test.result', cols: ['job_id', 'step_id', 'measured_value', 'unit', 'passed', 'tested_by_id', 'tested_at'], screens: ['M31-testing', 'M31-testresults', 'M31-protocols', 'M31-burnin-sessions'], reports: ['Burn-In Failure Report'], forms: ['Test Protocol Result', 'Test Protocol', 'Test Evidence', 'Burn-In Run'], create: 'M31-form-testresult' }],
       ['8', 'Rework & Transfers', 6, { model: 'fix.workshop.job', cols: ['name', 'rework_of_id', 'rework_count', 'workshop_id', 'state'], screens: ['M31-transfers', 'M31-reworks', 'M31-transfer', 'M31-record'], reports: ['Internal Rework Loop Analysis', 'Bench Utilisation by Workshop'], forms: ['Workshop Transfer', 'Job Routing'], create: 'M31-form-transfer', domain: [['is_rework', '=', true]] }],
-      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_cost', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput', 'M31-timelogs', 'M31-cost-jobs', 'M31-costlines'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost', 'Work Clock'], create: 'M31-form-labour' }]
+      ['9', 'Repair Costing', 7, { model: 'fix.workshop.job', cols: ['name', 'parts_total', 'labour_cost', 'total_repair_cost', 'labor_efficiency_pct'], screens: ['M31-costing', 'M31-throughput', 'M31-timelogs', 'M31-cost-jobs', 'M31-costlines', 'M31-rpt-costvar'], reports: ['Workshop Cost per Repair', 'Repair Cycle Time by Level'], forms: ['Labour & Cost', 'Work Clock'], create: 'M31-form-labour' }]
     ]
   }
 };
@@ -107,14 +107,21 @@ const JOB_FLOW = [
   { m: 'action_fail_burn_in', l: 'Fail Burn-In (Back to Bench)', ask: 'Why did the burn-in fail?', kwarg: 'reason' },
   { m: 'action_pass_qc', l: 'Pass QC (Inspector)', ask: 'QC inspection findings', kwarg: 'notes' },
   { m: 'action_fail_qc', l: 'Fail QC (NCR + Rework)', ask: 'Why did the job fail QC?', kwarg: 'reason' },
-  { m: 'action_deliver', l: 'Release / Deliver' },
-  { m: 'action_cancel', l: 'Cancel Job' }
+  /* A02 pass 2 M31-02: the bench releases to the front desk; the customer
+   * hand-over is M01's Deliver, which closes the job */
+  { m: 'action_release', l: 'Release to Front Desk' },
+  /* M31-08: a supervisor's decision, with the reason */
+  { m: 'action_cancel', l: 'Cancel Job (Supervisor)', ask: 'Why is the job cancelled?', kwarg: 'reason' },
+  /* M31-01: the level changes only by a supervisor, off the bench */
+  { m: 'action_revise_level', l: 'Revise Repair Level (Supervisor)', asks: [
+    { kwarg: 'level', label: 'New level (l1, l2 or l3)' },
+    { kwarg: 'reason', label: 'Why is the level revised?' }] }
 ];
 /* A02 audit B1: the waiver and the BER write-off are routed M63 approvals,
  * decided from the approver's inbox (M63 workspace), never pressed here. */
 const JOB_EXCEPTIONS = [
   { m: 'action_request_certification_waiver', l: 'Request Certification Waiver (to Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
-  { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', ask: 'BER reason and the evidence seen', kwarg: 'reason' },
+  { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', asks: [{ kwarg: 'reason', label: 'BER reason and the evidence seen' }, { kwarg: 'estimated_repair_cost', label: 'Estimated repair cost (BDT)', number: true }, { kwarg: 'device_value', label: 'Device value (BDT)', number: true }] },
   { m: 'action_confirm_ber', l: 'Confirm BER & Route Write-Off (Second Technician)' },
   { m: 'action_recall_approval', l: 'Recall BER Approval Request' }
 ];
@@ -165,7 +172,7 @@ export const SCREENS = {
       { m: 'action_wait_parts', l: 'Wait for Parts' },
       { m: 'action_start_repair', l: 'Start Repair (Order Approved)' },
       { m: 'action_request_certification_waiver', l: 'Request Certification Waiver (to Supervisor)', ask: 'Waiver justification', kwarg: 'reason' },
-      { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', ask: 'BER reason and the evidence seen', kwarg: 'reason' }
+      { m: 'action_propose_ber', l: 'Propose BER / Scrap (evidence attached)', asks: [{ kwarg: 'reason', label: 'BER reason and the evidence seen' }, { kwarg: 'estimated_repair_cost', label: 'Estimated repair cost (BDT)', number: true }, { kwarg: 'device_value', label: 'Device value (BDT)', number: true }] }
     ] },
   /* a part is added to a job here (Part Fitment); reserving and consuming it
    * stay the actions below */
@@ -203,6 +210,8 @@ export const SCREENS = {
   'M31-rpt-burnin': { kind: 'table_report', module: 'M31', report: 'burn_in', title: 'Burn-In Failure Report', period: false },
   'M31-throughput': { kind: 'table_report', module: 'M31', report: 'cycle_time', period: false },
   'M31-methods': { kind: 'table_report', module: 'M31', report: 'rework_loops', period: false },
+  /* A02 pass 2 M31-07 (D14): cost against the estimated cost */
+  'M31-rpt-costvar': { kind: 'table_report', module: 'M31', report: 'cost_variance', title: 'Repair Cost Variance', period: false },
 
   /* ===== service data-entry forms (registry names) ===== */
   'M31-form-job': {
@@ -216,7 +225,7 @@ export const SCREENS = {
      * required reported fault - so it opens existing jobs only. */
     create: false,
     pick: 'A repair order starts from its service order: use "Receive Device into Workshop", or open a job from this list.',
-    status: { field: 'state', labels: { draft: "Draft", intake: "Intake", diagnostic: "Diagnosis", waiting_parts: "Waiting Parts", in_repair: "In Repair", burn_in: "Burn-In", qc_pending: "QC Pending", qc_failed: "QC Failed", ready: "Ready", delivered: "Delivered", unrepairable: "Unrepairable (BER)", cancelled: "Cancelled" } },
+    status: { field: 'state', labels: { draft: "Draft", intake: "Intake", diagnostic: "Diagnosis", waiting_parts: "Waiting Parts", in_repair: "In Repair", burn_in: "Burn-In", qc_pending: "QC Pending", qc_failed: "QC Failed", ready: "Ready", released: "Released to Front Desk", delivered: "Delivered", unrepairable: "Unrepairable (BER)", cancelled: "Cancelled" } },
     tabs: [
       { id: 'job', label: '1. Depot Job & Bench', bn: '১. ওয়ার্কশপ জব ও বেঞ্চ', icon: '🔧', badge: '15' },
       { id: 'bookin', label: '1b. Book-In Receipt', bn: '১খ. বুক-ইন রসিদ', icon: '📥', badge: '8' },
@@ -240,8 +249,10 @@ export const SCREENS = {
           { name: 'technician_id', label: "Assigned Depot Technician" },
           { name: 'priority', required: true, label: "Repair Priority Tier" },
           { name: 'device_serial', label: "Device Serial / IMEI" },
+          { name: 'maintenance_request_id', label: "M45 Work Order (internal job)" },
           { name: 'estimate_id', label: "Approved Estimate (governing version)", readonly: true },
-          { name: 'estimate_ceiling', label: "Approved Amount (BDT)", readonly: true },
+          { name: 'estimate_ceiling', label: "Approved Price ex-VAT (cost gate, BDT)", readonly: true },
+          { name: 'estimated_cost', label: "Estimated Cost (BDT)", readonly: true },
           { name: 'cost_over_estimate', label: "Cost Above Approval (re-approval needed)", readonly: true },
           { name: 'rework_of_id', label: "Comeback Of Job", readonly: true },
           { name: 'high_value_device', label: "High-Value Device (secure store overnight)" },
@@ -275,6 +286,7 @@ export const SCREENS = {
       { tab: 'burnin', title: "Continuous 240-Minute Stress / Burn-In Gate (FLAW-31.3)",
         note: "L2/L3 repairs require >= 240 minutes (4 hours) continuous burn-in with 0 thermal crashes before QC.",
         fields: [
+          { name: 'protocol_id', label: "Test Protocol (QC is judged on it; sets the burn-in)" },
           { name: 'burn_in_duration_hours', label: "Target Burn-In Duration (Hours)" },
           { name: 'burn_in_actual_minutes', label: "Measured Burn-In Minutes (>= 240m)", readonly: true },
           { name: 'thermal_crash_count', label: "Thermal Crashes Logged (Must be 0)", readonly: true },
@@ -308,6 +320,9 @@ export const SCREENS = {
           { name: 'post_rework_photo_attachment_id', label: "Post-Rework Finished Board Photo" },
           { name: 'is_rework', label: "Internal Rework Loop Active", readonly: true },
           { name: 'calibration_review', label: "QC Marked for Review (instrument out of calibration)", readonly: true },
+          { name: 'released_at', label: "Released to Front Desk At", readonly: true },
+          { name: 'released_by_id', label: "Released By", readonly: true },
+          { name: 'release_location_id', label: "Outgoing Staging", readonly: true },
           { name: 'state', label: "Repair Job State", readonly: true }
         ] },
       { tab: 'waiver', title: "M22 Certification Waiver & BER / Scrap Write-Off (DOFA)",
@@ -318,12 +333,43 @@ export const SCREENS = {
           { name: 'certification_waiver_by_id', label: "Waiver Granted By", readonly: true },
           { name: 'ber_reason', label: "BER / Scrap Reason", type: "text", readonly: true },
           { name: 'ber_writeoff_amount', label: "Write-Off Amount (BDT)", readonly: true },
+          { name: 'ber_estimated_repair_cost', label: "BER: Estimated Repair Cost (BDT)", readonly: true },
+          { name: 'ber_device_value', label: "BER: Device Value (BDT)", readonly: true },
+          { name: 'cancel_reason', label: "Cancellation Reason", type: "text", readonly: true },
+          { name: 'cancelled_by_id', label: "Cancelled By", readonly: true },
           { name: 'dofa_justification', label: "DOFA Justification (Tier 2+)", type: "text" },
           { name: 'dofa_approved', label: "Write-Off DOFA Approved", readonly: true },
           { name: 'dofa_approved_by', label: "Write-Off Approved By", readonly: true },
           { name: 'approval_state', label: "Write-Off Approval (M63)", readonly: true },
           { name: 'ber_confirmed_by_id', label: "BER Confirmed By (Second Technician)", readonly: true }
         ] }
+    ],
+    /* A02 pass 2 X5-19: what the job recorded, read-only here (each has its
+     * own capture page and workflow) */
+    grids: [
+      { field: 'part_line_ids', tab: 'labor', title: 'Parts', readonlyGrid: true,
+        fields: [{ name: 'part_number', label: 'Part' }, { name: 'quantity', label: 'Qty' },
+          { name: 'unit_cost', label: 'Unit Cost' }, { name: 'subtotal', label: 'Subtotal' },
+          { name: 'reservation_state', label: 'State' }, { name: 'lot_serial_number', label: 'Lot / Serial' }] },
+      { field: 'consumable_ids', tab: 'labor', title: 'Consumables', readonlyGrid: true,
+        fields: [{ name: 'product_id', label: 'Consumable' }, { name: 'quantity', label: 'Qty' },
+          { name: 'subtotal', label: 'Subtotal' }, { name: 'recorded_by_id', label: 'Recorded By' }] },
+      { field: 'time_log_ids', tab: 'labor', title: 'Time Booked', readonlyGrid: true,
+        fields: [{ name: 'technician_id', label: 'Technician' }, { name: 'activity', label: 'Activity' },
+          { name: 'started_at', label: 'Started' }, { name: 'ended_at', label: 'Stopped' },
+          { name: 'minutes', label: 'Minutes' }, { name: 'rate_per_hour', label: 'Rate / h' }] },
+      { field: 'cost_line_ids', tab: 'labor', title: 'Cost Build-Up', readonlyGrid: true,
+        fields: [{ name: 'cost_type', label: 'Cost Type' }, { name: 'description', label: 'Basis' },
+          { name: 'amount', label: 'Amount (BDT)' }] },
+      { field: 'test_result_ids', tab: 'qc', title: 'Test Results', readonlyGrid: true,
+        fields: [{ name: 'step_id', label: 'Test' }, { name: 'measured_value', label: 'Measured' },
+          { name: 'passed', label: 'Passed' }, { name: 'tested_by_id', label: 'Tested By' },
+          { name: 'tested_at', label: 'Tested At' }] },
+      { field: 'evidence_ids', tab: 'qc', title: 'Evidence Pack', readonlyGrid: true,
+        fields: [{ name: 'evidence_type', label: 'Evidence' }, { name: 'document_id', label: 'Document' }] },
+      { field: 'rework_ids', tab: 'qc', title: 'Rework Loops', readonlyGrid: true,
+        fields: [{ name: 'iteration', label: 'Loop' }, { name: 'failed_at_state', label: 'Failed At' },
+          { name: 'reason', label: 'Reason' }, { name: 'raised_at', label: 'Recorded At' }] }
     ]
   },
   'M31-form-bench': {
@@ -992,8 +1038,13 @@ export const SCREENS = {
 
   /* 9: the work clock (FR-WSR-026) and the cost build-up (FR-WSR-043/044) */
   'M31-timelogs': { kind: 'model_list', model: 'fix.workshop.time.log', title: 'Time Booked',
-    cols: ['job_id', 'technician_id', 'activity', 'started_at', 'ended_at', 'minutes', 'running', 'note'],
-    actions: [{ m: 'action_stop', l: 'Stop / Pause the Clock', ask: 'Note (optional)', kwarg: 'note' }] },
+    cols: ['job_id', 'technician_id', 'activity', 'started_at', 'ended_at', 'minutes', 'rate_per_hour', 'running', 'corrected_by_id', 'note'],
+    actions: [{ m: 'action_stop', l: 'Stop / Pause the Clock', ask: 'Note (optional)', kwarg: 'note' },
+      /* A02 pass 2 M31-06: a supervisor corrects a stopped segment */
+      { m: 'action_correct', l: 'Correct Segment (Supervisor)', asks: [
+        { kwarg: 'started_at', label: 'Correct start (YYYY-MM-DD HH:MM:SS, UTC; blank keeps it)' },
+        { kwarg: 'ended_at', label: 'Correct stop (YYYY-MM-DD HH:MM:SS, UTC; blank keeps it)' },
+        { kwarg: 'reason', label: 'Why is it corrected?' }] }] },
   'M31-form-clock': {
     kind: 'model_form', model: 'fix.workshop.time.log', title: 'Work Clock', newLabel: 'Start the Work Clock', back: 'M31-timelogs',
     sections: [

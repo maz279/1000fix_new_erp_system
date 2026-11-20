@@ -110,6 +110,9 @@
     <template id="report_a02_field_service"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
     <template id="report_a02_consignment_note"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
     <template id="report_a02_workshop_job"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <!-- A02 pass 2 M06-10: the data recovery case file and quotation -->
+    <template id="report_a02_data_case"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_data_quote"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
 
     <!-- the counter receipt on the 80 mm roll (cd_doc_suite receipt body) -->
     <template id="report_a02_counter_receipt_80">
@@ -198,4 +201,28 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- A02 pass 2 M06-10 -->
+    <record id="action_report_a02_data_case" model="ir.actions.report">
+        <field name="name">Data Recovery Case File</field>
+        <field name="model">fix.data.recovery.case</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_data_case</field>
+        <field name="report_file">cd_p03_portal.report_a02_data_case</field>
+        <field name="print_report_name">'Case File %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.data.recovery.case')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_data_quote" model="ir.actions.report">
+        <field name="name">Data Recovery Quotation</field>
+        <field name="model">fix.data.quote</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_data_quote</field>
+        <field name="report_file">cd_p03_portal.report_a02_data_quote</field>
+        <field name="print_report_name">'Quotation %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.data.quote')]"/>
+        <field name="binding_type">report</field>
+    </record>
 </odoo>

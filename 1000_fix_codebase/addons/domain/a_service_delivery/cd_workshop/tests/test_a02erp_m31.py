@@ -191,6 +191,8 @@ def _transfer(m, job):
     dst = m.env["fix.workshop"].create(
         {"code": "WS-F17-%d" % job.id, "name": "F17 Depot", "name_bn": "ডিপো"}
     )
+    # A02 pass 2 M31-12: the supervisor confirms for HIS workshop
+    dst.sudo().write({"supervisor_user_ids": [(4, m.supv.id)]})
     t = (
         m.env["fix.workshop.transfer"]
         .with_user(m.tech)
@@ -243,6 +245,7 @@ def test_f17_a_transfer_leg_respects_one_live_leg(m31):
         }
     )
     dst = m31.env["fix.workshop"].create({"code": "WS-F17B", "name": "F17B", "name_bn": "ডি"})
+    dst.sudo().write({"supervisor_user_ids": [(4, m31.supv.id)]})
     t = (
         m31.env["fix.workshop.transfer"]
         .with_user(m31.tech)
