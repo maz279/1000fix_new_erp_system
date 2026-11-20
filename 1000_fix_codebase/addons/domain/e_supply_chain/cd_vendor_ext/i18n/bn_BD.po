@@ -1,0 +1,1343 @@
+# Bengali (Bangladesh) translation for cd_vendor_ext.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_vendor_ext
+#: model:ir.model.constraint,message:cd_vendor_ext.constraint_fix_supplier_profile_partner_company_unique
+msgid "A party has one supplier profile per legal entity (T-12)"
+msgstr "প্রতি আইনি প্রতিষ্ঠানে একটি পক্ষের একটিই সরবরাহকারী প্রোফাইল (T-12)"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__account_holder
+msgid "Account Holder"
+msgstr "হিসাবধারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__active
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__price
+msgid "Agreed Price"
+msgstr "সম্মত মূল্য"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_price_list
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__price_list_ids
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_price_list
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Agreed Prices"
+msgstr "সম্মত মূল্যসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__agreement_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__agreement_id
+msgid "Agreement"
+msgstr "চুক্তি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__name
+msgid "Agreement Reference"
+msgstr "চুক্তির রেফারেন্স"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__agreement_type
+msgid "Agreement Type"
+msgstr "চুক্তির ধরন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__agreement_ids
+msgid "Agreements"
+msgstr "চুক্তিসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__annual_spend
+msgid "Annual Spend"
+msgstr "বার্ষিক ব্যয়"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__approved_at
+msgid "Approved At"
+msgstr "অনুমোদনের সময়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__approved_by
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__approved_by
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__authorised_distributor
+msgid "Authorised Distributor"
+msgstr "অনুমোদিত পরিবেশক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__auto
+msgid "Auto-Renew"
+msgstr "স্বয়ংক্রিয় নবায়ন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__submitted
+msgid "Awaiting Approval"
+msgstr "অনুমোদনের অপেক্ষায়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__bank_name
+msgid "Bank"
+msgstr "ব্যাংক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__bank_verification
+msgid "Bank Account Verification"
+msgstr "ব্যাংক হিসাব যাচাই"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__branch_name
+msgid "Bank Branch"
+msgstr "ব্যাংক শাখা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__bank_letter
+msgid "Bank Confirmation Letter"
+msgstr "ব্যাংকের নিশ্চিতকরণ পত্র"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_bank_change
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_bank_change
+msgid "Bank Detail Changes"
+msgstr "ব্যাংক তথ্য পরিবর্তন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__blocked
+msgid "Blocked"
+msgstr "অবরুদ্ধ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__brand_authorisation
+msgid "Brand Authorisation"
+msgstr "ব্র্যান্ড অনুমোদনপত্র"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__brand_partner
+msgid "Brand Partner"
+msgstr "ব্র্যান্ড অংশীদার"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__cnf_agent
+msgid "C&F Agent"
+msgstr "সিঅ্যান্ডএফ এজেন্ট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cfr
+msgid "CFR"
+msgstr "CFR"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cif
+msgid "CIF"
+msgstr "CIF"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cip
+msgid "CIP"
+msgstr "CIP"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cpt
+msgid "CPT"
+msgstr "CPT"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__callback
+msgid "Call-back to Registered Contact"
+msgstr "নিবন্ধিত যোগাযোগে ফিরতি কল"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__cancelled_cheque
+msgid "Cancelled Cheque"
+msgstr "বাতিলকৃত চেক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__capabilities
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Capabilities"
+msgstr "সক্ষমতা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__capacity_note
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Capacity"
+msgstr "ধারণক্ষমতা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__cargo_insurer
+msgid "Cargo Insurer"
+msgstr "কার্গো বিমাকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__classification
+msgid "Classification"
+msgstr "শ্রেণিবিভাগ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__committed_value
+msgid "Committed Value"
+msgstr "প্রতিশ্রুত মূল্যমান"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__committed_volume
+msgid "Committed Volume"
+msgstr "প্রতিশ্রুত পরিমাণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__consignment
+msgid "Consignment"
+msgstr "কনসাইনমেন্ট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__courier
+msgid "Courier"
+msgstr "কুরিয়ার"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__courier_partner
+msgid "Courier Partner"
+msgstr "কুরিয়ার অংশীদার"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__critical
+msgid "Critical"
+msgstr "সংকটপূর্ণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__old_price
+msgid "Current Price"
+msgstr "বর্তমান মূল্য"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__current_risk_tier
+msgid "Current Risk Tier"
+msgstr "বর্তমান ঝুঁকির স্তর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__current_segment
+msgid "Current Segment"
+msgstr "বর্তমান সেগমেন্ট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__dap
+msgid "DAP"
+msgstr "DAP"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__ddp
+msgid "DDP"
+msgstr "DDP"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__decided_at
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__decided_at
+msgid "Decided At"
+msgstr "সিদ্ধান্তের সময়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__decided_by
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__decided_by
+msgid "Decided By"
+msgstr "সিদ্ধান্তদাতা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__incoterm
+msgid "Default Incoterm"
+msgstr "ডিফল্ট ইনকোটার্ম"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__reference
+msgid "Document Number"
+msgstr "দলিল নম্বর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__doc_type
+msgid "Document Type"
+msgstr "দলিলের ধরন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__document_ids
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__document_expiring_count
+msgid "Documents Expiring"
+msgstr "মেয়াদ শেষ হতে চলা দলিল"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__exw
+msgid "EXW"
+msgstr "EXW"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__effective_from
+msgid "Effective From"
+msgstr "কার্যকর হওয়ার তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__attachment_id
+msgid "Evidence File"
+msgstr "প্রমাণের ফাইল"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__evidence_hash
+msgid "Evidence SHA-256"
+msgstr "প্রমাণের SHA-256"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__expired
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__expires_on
+msgid "Expires On"
+msgstr "মেয়াদ শেষের তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__expiring
+msgid "Expiring"
+msgstr "মেয়াদ শেষ হতে চলেছে"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__fca
+msgid "FCA"
+msgstr "FCA"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__fob
+msgid "FOB"
+msgstr "FOB"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__framework
+msgid "Framework"
+msgstr "কাঠামো চুক্তি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__freight_forwarder
+msgid "Freight Forwarder"
+msgstr "ফ্রেইট ফরোয়ার্ডার"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__geography
+msgid "Geography"
+msgstr "ভৌগোলিক এলাকা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__iso_cert
+msgid "ISO / Other Certification"
+msgstr "আইএসও / অন্যান্য সনদ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__importer
+msgid "Importer"
+msgstr "আমদানিকারক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__in_person
+msgid "In-Person Verification"
+msgstr "সশরীরে যাচাই"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__insurance
+msgid "Insurance"
+msgstr "বিমা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__issuer
+msgid "Issued By"
+msgstr "জারিকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__issued_on
+msgid "Issued On"
+msgstr "জারির তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__justification
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+msgid "Justification"
+msgstr "যৌক্তিকতা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__lead_time_days
+msgid "Lead Time (days)"
+msgstr "সরবরাহ সময় (দিন)"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__local_distributor
+msgid "Local Distributor"
+msgstr "স্থানীয় পরিবেশক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__local_trader
+msgid "Local Trader"
+msgstr "স্থানীয় ব্যবসায়ী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.server,name:cd_vendor_ext.cron_fix_supplier_agreement_expiry_ir_actions_server
+msgid "M42: Supplier agreement expiry"
+msgstr "M42: সরবরাহকারী চুক্তির মেয়াদোত্তীর্ণতা"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.server,name:cd_vendor_ext.cron_fix_supplier_document_expiry_ir_actions_server
+msgid "M42: Supplier document expiry"
+msgstr "M42: সরবরাহকারী দলিলের মেয়াদোত্তীর্ণতা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__manual
+msgid "Manual Renewal"
+msgstr "হাতে নবায়ন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__medium
+msgid "Medium"
+msgstr "মাঝারি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__moq
+msgid "Minimum Order Qty"
+msgstr "সর্বনিম্ন অর্ডার পরিমাণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__account_number
+msgid "New Account Number"
+msgstr "নতুন হিসাব নম্বর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__next_review_due
+msgid "Next Review Due"
+msgstr "পরবর্তী পর্যালোচনার তারিখ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__next_segment_review
+msgid "Next Segment Review"
+msgstr "পরবর্তী সেগমেন্ট পর্যালোচনা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__notes
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__notice_days
+msgid "Notice Period (days)"
+msgstr "নোটিশ সময় (দিন)"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__oem
+msgid "OEM"
+msgstr "ওইএম"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__product_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__product_id
+msgid "Part"
+msgstr "যন্ত্রাংশ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__payment_terms_days
+msgid "Payment Terms (days)"
+msgstr "পরিশোধের শর্ত (দিন)"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__penalties
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Penalties"
+msgstr "জরিমানা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__draft
+msgid "Pending Verification"
+msgstr "যাচাইয়ের অপেক্ষায়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__preferred
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__preferred
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__preferred
+msgid "Preferred"
+msgstr "অগ্রাধিকারপ্রাপ্ত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__previous_value_hash
+msgid "Previous Value Hash"
+msgstr "পূর্ববর্তী মানের হ্যাশ"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_price_change
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_price_change
+msgid "Price Change Requests"
+msgstr "মূল্য পরিবর্তনের অনুরোধ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__proposed_price
+msgid "Proposed Price"
+msgstr "প্রস্তাবিত মূল্য"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__proposed_risk_tier
+msgid "Proposed Risk Tier"
+msgstr "প্রস্তাবিত ঝুঁকির স্তর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__proposed_segment
+msgid "Proposed Segment"
+msgstr "প্রস্তাবিত সেগমেন্ট"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__prospect
+msgid "Prospect"
+msgstr "সম্ভাব্য"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__rationale
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Rationale"
+msgstr "যুক্তি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__retender
+msgid "Re-Tender"
+msgstr "পুনঃদরপত্র"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__rebate_terms
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Rebate Terms"
+msgstr "রিবেটের শর্ত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__recycling_partner
+msgid "Recycling Partner"
+msgstr "পুনর্ব্যবহার অংশীদার"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__owner_user_id
+msgid "Relationship Owner"
+msgstr "সম্পর্কের দায়িত্বপ্রাপ্ত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__renewal_mode
+msgid "Renewal Mode"
+msgstr "নবায়ন পদ্ধতি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__restricted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__restricted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__restricted
+msgid "Restricted"
+msgstr "সীমাবদ্ধ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__risk_tier
+msgid "Risk Tier"
+msgstr "ঝুঁকির স্তর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__routing_number
+msgid "Routing Number"
+msgstr "রাউটিং নম্বর"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__segment
+msgid "Segment"
+msgstr "সেগমেন্ট"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_segment_review
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_segment_review
+msgid "Segment Reviews"
+msgstr "সেগমেন্ট পর্যালোচনা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__service
+msgid "Service"
+msgstr "সেবা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__service_levels
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Service Levels"
+msgstr "সেবার মান"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__service_provider
+msgid "Service Provider"
+msgstr "সেবা প্রদানকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__category_ids
+msgid "Spend categories this supplier is qualified to supply (FR-SRM2-005)"
+msgstr "এই সরবরাহকারী যেসব ব্যয় শ্রেণিতে সরবরাহের যোগ্য (FR-SRM2-005)"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Start Qualification"
+msgstr "যোগ্যতা যাচাই শুরু করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__state
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__status_reason
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Status Reason"
+msgstr "অবস্থার কারণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__strategic
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__strategic
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__strategic
+msgid "Strategic"
+msgstr "কৌশলগত"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__submitted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__category_ids
+msgid "Supplied Categories"
+msgstr "সরবরাহকৃত শ্রেণি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__profile_id
+msgid "Supplier"
+msgstr "সরবরাহকারী"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_price_list
+msgid "Supplier Agreed Price"
+msgstr "সরবরাহকারীর সম্মত মূল্য"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_agreement
+msgid "Supplier Agreement"
+msgstr "সরবরাহকারী চুক্তি"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_agreement
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_agreement
+msgid "Supplier Agreements"
+msgstr "সরবরাহকারী চুক্তিসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_bank_change
+msgid "Supplier Bank Detail Change Request"
+msgstr "সরবরাহকারীর ব্যাংক তথ্য পরিবর্তনের অনুরোধ"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_document
+msgid "Supplier Compliance Document"
+msgstr "সরবরাহকারীর সম্মতি দলিল"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_document
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_document
+msgid "Supplier Documents"
+msgstr "সরবরাহকারীর দলিলসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__partner_id
+msgid "Supplier Party"
+msgstr "সরবরাহকারী পক্ষ"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_price_change
+msgid "Supplier Price Change Request"
+msgstr "সরবরাহকারীর মূল্য পরিবর্তনের অনুরোধ"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_profile
+msgid "Supplier Profile"
+msgstr "সরবরাহকারী প্রোফাইল"
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_profile
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_profile
+msgid "Supplier Profiles"
+msgstr "সরবরাহকারী প্রোফাইলসমূহ"
+
+#. module: cd_vendor_ext
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_ws_supplier_relationship
+msgid "Supplier Relationship"
+msgstr "সরবরাহকারী সম্পর্ক"
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_segment_review
+msgid "Supplier Segment & Risk-Tier Review"
+msgstr "সরবরাহকারী সেগমেন্ট ও ঝুঁকি-স্তর পর্যালোচনা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__supply
+msgid "Supply"
+msgstr "সরবরাহ চুক্তি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__criticality
+msgid "Supply Criticality"
+msgstr "সরবরাহের গুরুত্ব"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__suspended
+msgid "Suspended"
+msgstr "স্থগিত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__tin
+msgid "TIN Certificate"
+msgstr "টিআইএন সনদ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__term_from
+msgid "Term From"
+msgstr "মেয়াদ শুরু"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__term_to
+msgid "Term To"
+msgstr "মেয়াদ শেষ"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Terminate"
+msgstr "সমাপ্ত করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__trade_licence
+msgid "Trade Licence"
+msgstr "ট্রেড লাইসেন্স"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__currency_id
+msgid "Trading Currency"
+msgstr "লেনদেনের মুদ্রা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__transactional
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__transactional
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__transactional
+msgid "Transactional"
+msgstr "লেনদেনভিত্তিক"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__under_qualification
+msgid "Under Qualification"
+msgstr "যোগ্যতা যাচাই চলছে"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__vat_bin
+msgid "VAT / BIN Registration"
+msgstr "ভ্যাট / বিআইএন নিবন্ধন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__valid_from
+msgid "Valid From"
+msgstr "কার্যকর শুরু"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__valid_to
+msgid "Valid To"
+msgstr "কার্যকর থাকবে"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__variance_pct
+msgid "Variance %"
+msgstr "পার্থক্য %"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__verification_note
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+msgid "Verification Evidence"
+msgstr "যাচাইয়ের প্রমাণ"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__verification_method
+msgid "Verification Method"
+msgstr "যাচাই পদ্ধতি"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__verified
+msgid "Verified"
+msgstr "যাচাইকৃত"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__verified_at
+msgid "Verified At"
+msgstr "যাচাইয়ের সময়"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__verified_by
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+msgid "Verify"
+msgstr "যাচাই করুন"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

@@ -1,0 +1,507 @@
+# Translation template for cd_supplier_scorecard — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_needaction
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__state__action_taken
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Action Taken"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_ids
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_state
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_type_icon
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__agenda
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Agenda"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_attachment_count
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__attendees
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Attendees"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__source__audit
+msgid "Audit"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__name
+msgid "CAR Reference"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Cancel"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_review__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__company_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.actions.act_window,name:cd_supplier_scorecard.action_fix_supplier_car
+#: model:ir.ui.menu,name:cd_supplier_scorecard.menu_fix_supplier_car
+msgid "Corrective Actions"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__create_uid
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__create_date
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__source__delivery
+msgid "Delivery"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__display_name
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__due_date
+msgid "Due Date"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__effectiveness__effective
+msgid "Effective"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__effectiveness
+msgid "Effectiveness"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__state__escalated
+msgid "Escalated"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__escalation_level
+msgid "Escalation Level"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_follower_ids
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_partner_ids
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__activity_type_icon
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__has_message
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_review__state__held
+msgid "Held"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__held_on
+msgid "Held On"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__activity_exception_icon
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__message_needaction
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__message_has_error
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__message_has_sms_error
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__message_has_error
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__source__inspection
+msgid "Inspection"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_is_follower
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__issue
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Issue"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__write_uid
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__write_date
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__ncr_ref
+msgid "M23 NCR Reference"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__ncr_ref
+msgid "M42 -> M23 stub: the supplier non-conformance reference until M23 NCR lands (IR-002 P08-M06-T05)"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.actions.server,name:cd_supplier_scorecard.cron_fix_supplier_car_escalation_ir_actions_server
+msgid "M42: Escalate overdue corrective actions"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Mark Held"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_has_error
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_ids
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__minutes
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Minutes"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_summary
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_type_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__next_review_due
+msgid "Next Review Due"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__effectiveness__not_effective
+msgid "Not Effective"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__message_needaction_counter
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__message_has_error_counter
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__state__open
+msgid "Open"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__operating_unit_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__outcomes
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_review_form
+msgid "Outcomes & Actions"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__owner_user_id
+msgid "Owner"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__effectiveness__partial
+msgid "Partially Effective"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.actions.act_window,name:cd_supplier_scorecard.action_fix_supplier_review
+#: model:ir.ui.menu,name:cd_supplier_scorecard.menu_fix_supplier_review
+msgid "Performance Reviews"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Record Response"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__required_action
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Required Action"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_user_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__period
+msgid "Review Period"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__root_cause
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Root Cause"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_review__state__scheduled
+msgid "Scheduled"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__scheduled_for
+msgid "Scheduled For"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__scorecard_id
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__source__scorecard
+msgid "Scorecard"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__source
+msgid "Source"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__state
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__state
+msgid "Status"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__activity_state
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__profile_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__profile_id
+msgid "Supplier"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model,name:cd_supplier_scorecard.model_fix_supplier_car
+msgid "Supplier Corrective Action Request"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model,name:cd_supplier_scorecard.model_fix_supplier_review
+msgid "Supplier Performance Review"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__state__responded
+msgid "Supplier Responded"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__supplier_response
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Supplier Response"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__activity_exception_decoration
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__verified_at
+msgid "Verified At"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__verified_by
+msgid "Verified By"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields.selection,name:cd_supplier_scorecard.selection__fix_supplier_car__state__verified
+msgid "Verified Closed"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model_terms:ir.ui.view,arch_db:cd_supplier_scorecard.view_fix_supplier_car_form
+msgid "Verify Effective"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__website_message_ids
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_car__website_message_ids
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,help:cd_supplier_scorecard.field_fix_supplier_review__period
+msgid "e.g. 2026-Q3 or 2026-H2"
+msgstr ""

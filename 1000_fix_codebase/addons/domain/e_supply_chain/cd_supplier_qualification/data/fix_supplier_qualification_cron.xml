@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_supplier_qualification scheduler — FR-SRM2-011 de-activate on lapse. -->
+<odoo noupdate="1">
+    <record id="cron_fix_supplier_qualification_expiry" model="ir.cron">
+        <field name="name">M42: Supplier qualification expiry</field>
+        <field name="model_id" ref="model_fix_supplier_qualification"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_expire_qualifications()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+    </record>
+</odoo>

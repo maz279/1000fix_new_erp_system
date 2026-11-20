@@ -1,0 +1,477 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_vendor_ext views — M42 supplier register, documents, bank change, agreements, prices. -->
+<odoo>
+
+    <record id="view_fix_supplier_profile_list" model="ir.ui.view">
+        <field name="name">fix.supplier.profile.list</field>
+        <field name="model">fix.supplier.profile</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="classification"/>
+                <field name="segment"/>
+                <field name="risk_tier"/>
+                <field name="document_expiring_count"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_profile_form" model="ir.ui.view">
+        <field name="name">fix.supplier.profile.form</field>
+        <field name="model">fix.supplier.profile</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start_qualification" type="object" string="Start Qualification" class="oe_highlight" invisible="state not in ('prospect')"/>
+                    <button name="action_activate" type="object" string="Activate" invisible="state not in ('under_qualification','suspended')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="prospect,under_qualification,active,suspended,blocked"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="partner_id"/>
+                            <field name="classification"/>
+                            <field name="segment"/>
+                            <field name="risk_tier"/>
+                            <field name="category_ids"/>
+                            <field name="owner_user_id"/>
+                        </group>
+                        <group>
+                            <field name="currency_id"/>
+                            <field name="incoterm"/>
+                            <field name="payment_terms_days"/>
+                            <field name="geography"/>
+                            <field name="next_segment_review"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Capabilities"/>
+                    <field name="capabilities" nolabel="1"/>
+                    <separator string="Capacity"/>
+                    <field name="capacity_note" nolabel="1"/>
+                    <separator string="Status Reason"/>
+                    <field name="status_reason" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_profile" model="ir.actions.act_window">
+        <field name="name">Supplier Profiles</field>
+        <field name="res_model">fix.supplier.profile</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_segment_review_list" model="ir.ui.view">
+        <field name="name">fix.supplier.segment.review.list</field>
+        <field name="model">fix.supplier.segment.review</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="current_segment"/>
+                <field name="proposed_segment"/>
+                <field name="current_risk_tier"/>
+                <field name="proposed_risk_tier"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_segment_review_form" model="ir.ui.view">
+        <field name="name">fix.supplier.segment.review.form</field>
+        <field name="model">fix.supplier.segment.review</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="oe_highlight" invisible="state not in ('draft')"/>
+                    <button name="action_approve" type="object" string="Approve" invisible="state not in ('submitted')"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="current_segment"/>
+                            <field name="proposed_segment"/>
+                            <field name="current_risk_tier"/>
+                            <field name="proposed_risk_tier"/>
+                        </group>
+                        <group>
+                            <field name="criticality"/>
+                            <field name="currency_id"/>
+                            <field name="annual_spend"/>
+                            <field name="next_review_due"/>
+                            <field name="decided_by"/>
+                            <field name="decided_at"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Rationale"/>
+                    <field name="rationale" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_segment_review" model="ir.actions.act_window">
+        <field name="name">Segment Reviews</field>
+        <field name="res_model">fix.supplier.segment.review</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_document_list" model="ir.ui.view">
+        <field name="name">fix.supplier.document.list</field>
+        <field name="model">fix.supplier.document</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="doc_type"/>
+                <field name="reference"/>
+                <field name="issued_on"/>
+                <field name="expires_on"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_document_form" model="ir.ui.view">
+        <field name="name">fix.supplier.document.form</field>
+        <field name="model">fix.supplier.document</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_verify" type="object" string="Verify" class="oe_highlight" invisible="state not in ('draft')"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('draft')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,verified,expired"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="doc_type"/>
+                            <field name="reference"/>
+                            <field name="issuer"/>
+                        </group>
+                        <group>
+                            <field name="issued_on"/>
+                            <field name="expires_on"/>
+                            <field name="attachment_id"/>
+                            <field name="evidence_hash"/>
+                            <field name="verified_by"/>
+                            <field name="verified_at"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Notes"/>
+                    <field name="notes" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_document" model="ir.actions.act_window">
+        <field name="name">Supplier Documents</field>
+        <field name="res_model">fix.supplier.document</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_bank_change_list" model="ir.ui.view">
+        <field name="name">fix.supplier.bank.change.list</field>
+        <field name="model">fix.supplier.bank.change</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="bank_name"/>
+                <field name="account_holder"/>
+                <field name="verification_method"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_bank_change_form" model="ir.ui.view">
+        <field name="name">fix.supplier.bank.change.form</field>
+        <field name="model">fix.supplier.bank.change</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="oe_highlight" invisible="state not in ('draft')"/>
+                    <button name="action_approve" type="object" string="Approve" invisible="state not in ('submitted')"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="bank_name"/>
+                            <field name="branch_name"/>
+                            <field name="routing_number"/>
+                            <field name="account_holder"/>
+                            <field name="account_number"/>
+                        </group>
+                        <group>
+                            <field name="verification_method"/>
+                            <field name="previous_value_hash"/>
+                            <field name="approved_by"/>
+                            <field name="approved_at"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Verification Evidence"/>
+                    <field name="verification_note" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_bank_change" model="ir.actions.act_window">
+        <field name="name">Bank Detail Changes</field>
+        <field name="res_model">fix.supplier.bank.change</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_agreement_list" model="ir.ui.view">
+        <field name="name">fix.supplier.agreement.list</field>
+        <field name="model">fix.supplier.agreement</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="profile_id"/>
+                <field name="agreement_type"/>
+                <field name="term_from"/>
+                <field name="term_to"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_agreement_form" model="ir.ui.view">
+        <field name="name">fix.supplier.agreement.form</field>
+        <field name="model">fix.supplier.agreement</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_activate" type="object" string="Activate" class="oe_highlight" invisible="state not in ('draft')"/>
+                    <button name="action_terminate" type="object" string="Terminate" invisible="state not in ('active','expiring')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,active,expiring,expired"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="profile_id"/>
+                            <field name="agreement_type"/>
+                            <field name="term_from"/>
+                            <field name="term_to"/>
+                            <field name="renewal_mode"/>
+                        </group>
+                        <group>
+                            <field name="currency_id"/>
+                            <field name="committed_value"/>
+                            <field name="committed_volume"/>
+                            <field name="notice_days"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Service Levels"/>
+                    <field name="service_levels" nolabel="1"/>
+                    <separator string="Penalties"/>
+                    <field name="penalties" nolabel="1"/>
+                    <separator string="Rebate Terms"/>
+                    <field name="rebate_terms" nolabel="1"/>
+                    <separator string="Agreed Prices"/>
+                    <field name="price_list_ids" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_agreement" model="ir.actions.act_window">
+        <field name="name">Supplier Agreements</field>
+        <field name="res_model">fix.supplier.agreement</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_price_change_list" model="ir.ui.view">
+        <field name="name">fix.supplier.price.change.list</field>
+        <field name="model">fix.supplier.price.change</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="product_id"/>
+                <field name="old_price"/>
+                <field name="proposed_price"/>
+                <field name="variance_pct"/>
+                <field name="effective_from"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_price_change_form" model="ir.ui.view">
+        <field name="name">fix.supplier.price.change.form</field>
+        <field name="model">fix.supplier.price.change</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="oe_highlight" invisible="state not in ('draft')"/>
+                    <button name="action_approve" type="object" string="Approve" invisible="state not in ('submitted')"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="state not in ('submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="agreement_id"/>
+                            <field name="product_id"/>
+                            <field name="effective_from"/>
+                        </group>
+                        <group>
+                            <field name="currency_id"/>
+                            <field name="old_price"/>
+                            <field name="proposed_price"/>
+                            <field name="variance_pct"/>
+                            <field name="decided_by"/>
+                            <field name="decided_at"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Justification"/>
+                    <field name="justification" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_price_change" model="ir.actions.act_window">
+        <field name="name">Price Change Requests</field>
+        <field name="res_model">fix.supplier.price.change</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_price_list_list" model="ir.ui.view">
+        <field name="name">fix.supplier.price.list.list</field>
+        <field name="model">fix.supplier.price.list</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="agreement_id"/>
+                <field name="product_id"/>
+                <field name="price"/>
+                <field name="moq"/>
+                <field name="lead_time_days"/>
+                <field name="valid_from"/>
+                <field name="valid_to"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_price_list_form" model="ir.ui.view">
+        <field name="name">fix.supplier.price.list.form</field>
+        <field name="model">fix.supplier.price.list</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="agreement_id"/>
+                            <field name="product_id"/>
+                            <field name="price"/>
+                            <field name="currency_id"/>
+                        </group>
+                        <group>
+                            <field name="moq"/>
+                            <field name="lead_time_days"/>
+                            <field name="valid_from"/>
+                            <field name="valid_to"/>
+                            <field name="approved_by"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_price_list" model="ir.actions.act_window">
+        <field name="name">Agreed Prices</field>
+        <field name="res_model">fix.supplier.price.list</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <!-- The M42 Supplier Relationship workspace menu (spec §13 roles). -->
+    <menuitem id="menu_ws_supplier_relationship" name="Supplier Relationship"
+              parent="cd_entity_config.menu_fix_operations_root"
+              groups="cd_rbac_ext.group_fix_portal_user"
+              sequence="92"/>
+    <menuitem id="menu_fix_supplier_profile" name="Supplier Profiles"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_profile" sequence="10"/>
+    <menuitem id="menu_fix_supplier_segment_review" name="Segment Reviews"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_segment_review" sequence="20"/>
+    <menuitem id="menu_fix_supplier_document" name="Supplier Documents"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_document" sequence="30"/>
+    <menuitem id="menu_fix_supplier_bank_change" name="Bank Detail Changes"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_bank_change" sequence="40"/>
+    <menuitem id="menu_fix_supplier_agreement" name="Supplier Agreements"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_agreement" sequence="50"/>
+    <menuitem id="menu_fix_supplier_price_change" name="Price Change Requests"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_price_change" sequence="60"/>
+    <menuitem id="menu_fix_supplier_price_list" name="Agreed Prices"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_price_list" sequence="70"/>
+
+</odoo>

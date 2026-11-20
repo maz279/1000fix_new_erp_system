@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_vendor_ext schedulers — T-07 document expiry, FR-SRM2-026 agreement expiry. -->
+<odoo noupdate="1">
+    <record id="cron_fix_supplier_document_expiry" model="ir.cron">
+        <field name="name">M42: Supplier document expiry</field>
+        <field name="model_id" ref="model_fix_supplier_document"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_expire_documents()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+    </record>
+    <record id="cron_fix_supplier_agreement_expiry" model="ir.cron">
+        <field name="name">M42: Supplier agreement expiry</field>
+        <field name="model_id" ref="model_fix_supplier_agreement"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_agreement_expiry()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+    </record>
+</odoo>

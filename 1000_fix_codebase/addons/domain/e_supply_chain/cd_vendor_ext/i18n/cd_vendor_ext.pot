@@ -1,0 +1,1338 @@
+# Translation template for cd_vendor_ext — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: cd_vendor_ext
+#: model:ir.model.constraint,message:cd_vendor_ext.constraint_fix_supplier_profile_partner_company_unique
+msgid "A party has one supplier profile per legal entity (T-12)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__account_holder
+msgid "Account Holder"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_needaction
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Activate"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__active
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__active
+msgid "Active"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_type_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__price
+msgid "Agreed Price"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_price_list
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__price_list_ids
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_price_list
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Agreed Prices"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__agreement_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__agreement_id
+msgid "Agreement"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__name
+msgid "Agreement Reference"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__agreement_type
+msgid "Agreement Type"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__agreement_ids
+msgid "Agreements"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__annual_spend
+msgid "Annual Spend"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Approve"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__approved
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__approved
+msgid "Approved"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__approved_at
+msgid "Approved At"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__approved_by
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__approved_by
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_attachment_count
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__authorised_distributor
+msgid "Authorised Distributor"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__auto
+msgid "Auto-Renew"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__submitted
+msgid "Awaiting Approval"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__bank_name
+msgid "Bank"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__bank_verification
+msgid "Bank Account Verification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__branch_name
+msgid "Bank Branch"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__bank_letter
+msgid "Bank Confirmation Letter"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_bank_change
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_bank_change
+msgid "Bank Detail Changes"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__blocked
+msgid "Blocked"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__brand_authorisation
+msgid "Brand Authorisation"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__brand_partner
+msgid "Brand Partner"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__cnf_agent
+msgid "C&F Agent"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cfr
+msgid "CFR"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cif
+msgid "CIF"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cip
+msgid "CIP"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__cpt
+msgid "CPT"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__callback
+msgid "Call-back to Registered Contact"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__cancelled_cheque
+msgid "Cancelled Cheque"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__capabilities
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Capabilities"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__capacity_note
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Capacity"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__cargo_insurer
+msgid "Cargo Insurer"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__classification
+msgid "Classification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__committed_value
+msgid "Committed Value"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__committed_volume
+msgid "Committed Volume"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__company_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__consignment
+msgid "Consignment"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__courier
+msgid "Courier"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__courier_partner
+msgid "Courier Partner"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__create_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__create_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__critical
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__critical
+msgid "Critical"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__currency_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__currency_id
+msgid "Currency"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__old_price
+msgid "Current Price"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__current_risk_tier
+msgid "Current Risk Tier"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__current_segment
+msgid "Current Segment"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__dap
+msgid "DAP"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__ddp
+msgid "DDP"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__decided_at
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__decided_at
+msgid "Decided At"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__decided_by
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__decided_by
+msgid "Decided By"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__incoterm
+msgid "Default Incoterm"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__display_name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__reference
+msgid "Document Number"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__doc_type
+msgid "Document Type"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__document_ids
+msgid "Documents"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__document_expiring_count
+msgid "Documents Expiring"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__draft
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__exw
+msgid "EXW"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__effective_from
+msgid "Effective From"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__attachment_id
+msgid "Evidence File"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__evidence_hash
+msgid "Evidence SHA-256"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__expired
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__expired
+msgid "Expired"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__expires_on
+msgid "Expires On"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__expiring
+msgid "Expiring"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__fca
+msgid "FCA"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__incoterm__fob
+msgid "FOB"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_follower_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_partner_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_type_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__framework
+msgid "Framework"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__freight_forwarder
+msgid "Freight Forwarder"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__geography
+msgid "Geography"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__has_message
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__high
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__high
+msgid "High"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__iso_cert
+msgid "ISO / Other Certification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_exception_icon
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_needaction
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_sms_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__importer
+msgid "Importer"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__verification_method__in_person
+msgid "In-Person Verification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__insurance
+msgid "Insurance"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_is_follower
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__issuer
+msgid "Issued By"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__issued_on
+msgid "Issued On"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__justification
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+msgid "Justification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__write_uid
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__write_date
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__lead_time_days
+msgid "Lead Time (days)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__local_distributor
+msgid "Local Distributor"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__local_trader
+msgid "Local Trader"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__low
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__low
+msgid "Low"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.server,name:cd_vendor_ext.cron_fix_supplier_agreement_expiry_ir_actions_server
+msgid "M42: Supplier agreement expiry"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.server,name:cd_vendor_ext.cron_fix_supplier_document_expiry_ir_actions_server
+msgid "M42: Supplier document expiry"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__manual
+msgid "Manual Renewal"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__risk_tier__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__criticality__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_risk_tier__medium
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_risk_tier__medium
+msgid "Medium"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__moq
+msgid "Minimum Order Qty"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__account_number
+msgid "New Account Number"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_summary
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_type_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__next_review_due
+msgid "Next Review Due"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__next_segment_review
+msgid "Next Segment Review"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__notes
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+msgid "Notes"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__notice_days
+msgid "Notice Period (days)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_needaction_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__message_has_error_counter
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__oem
+msgid "OEM"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__operating_unit_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__product_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__product_id
+msgid "Part"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__payment_terms_days
+msgid "Payment Terms (days)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__penalties
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Penalties"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__draft
+msgid "Pending Verification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__preferred
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__preferred
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__preferred
+msgid "Preferred"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__previous_value_hash
+msgid "Previous Value Hash"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_price_change
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_price_change
+msgid "Price Change Requests"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__proposed_price
+msgid "Proposed Price"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__proposed_risk_tier
+msgid "Proposed Risk Tier"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__proposed_segment
+msgid "Proposed Segment"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__prospect
+msgid "Prospect"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__rationale
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Rationale"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__renewal_mode__retender
+msgid "Re-Tender"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__rebate_terms
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Rebate Terms"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__recycling_partner
+msgid "Recycling Partner"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Reject"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__rejected
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__rejected
+msgid "Rejected"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__owner_user_id
+msgid "Relationship Owner"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__renewal_mode
+msgid "Renewal Mode"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_user_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__restricted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__restricted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__restricted
+msgid "Restricted"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__risk_tier
+msgid "Risk Tier"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__routing_number
+msgid "Routing Number"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__segment
+msgid "Segment"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_segment_review
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_segment_review
+msgid "Segment Reviews"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__service
+msgid "Service"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__service_levels
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Service Levels"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__service_provider
+msgid "Service Provider"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__category_ids
+msgid "Spend categories this supplier is qualified to supply (FR-SRM2-005)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Start Qualification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__state
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__state
+msgid "Status"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__status_reason
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
+msgid "Status Reason"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_state
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__strategic
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__strategic
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__strategic
+msgid "Strategic"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
+msgid "Submit"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_price_change__state__submitted
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__state__submitted
+msgid "Submitted"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__category_ids
+msgid "Supplied Categories"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__profile_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__name
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__profile_id
+msgid "Supplier"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_price_list
+msgid "Supplier Agreed Price"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_agreement
+msgid "Supplier Agreement"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_agreement
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_agreement
+msgid "Supplier Agreements"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_bank_change
+msgid "Supplier Bank Detail Change Request"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_document
+msgid "Supplier Compliance Document"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_document
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_document
+msgid "Supplier Documents"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__partner_id
+msgid "Supplier Party"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_price_change
+msgid "Supplier Price Change Request"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_profile
+msgid "Supplier Profile"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.actions.act_window,name:cd_vendor_ext.action_fix_supplier_profile
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_fix_supplier_profile
+msgid "Supplier Profiles"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.ui.menu,name:cd_vendor_ext.menu_ws_supplier_relationship
+msgid "Supplier Relationship"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model,name:cd_vendor_ext.model_fix_supplier_segment_review
+msgid "Supplier Segment & Risk-Tier Review"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__agreement_type__supply
+msgid "Supply"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__criticality
+msgid "Supply Criticality"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__suspended
+msgid "Suspended"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__tin
+msgid "TIN Certificate"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__term_from
+msgid "Term From"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__term_to
+msgid "Term To"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
+msgid "Terminate"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__terminated
+msgid "Terminated"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__trade_licence
+msgid "Trade Licence"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__currency_id
+msgid "Trading Currency"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__segment__transactional
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__current_segment__transactional
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_segment_review__proposed_segment__transactional
+msgid "Transactional"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__activity_exception_decoration
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__under_qualification
+msgid "Under Qualification"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__doc_type__vat_bin
+msgid "VAT / BIN Registration"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__valid_from
+msgid "Valid From"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__valid_to
+msgid "Valid To"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__variance_pct
+msgid "Variance %"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__verification_note
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_bank_change_form
+msgid "Verification Evidence"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__verification_method
+msgid "Verification Method"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_document__state__verified
+msgid "Verified"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__verified_at
+msgid "Verified At"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__verified_by
+msgid "Verified By"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_document_form
+msgid "Verify"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__website_message_ids
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_agreement__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_bank_change__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_document__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_change__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_price_list__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_profile__website_message_ids
+#: model:ir.model.fields,help:cd_vendor_ext.field_fix_supplier_segment_review__website_message_ids
+msgid "Website communication history"
+msgstr ""

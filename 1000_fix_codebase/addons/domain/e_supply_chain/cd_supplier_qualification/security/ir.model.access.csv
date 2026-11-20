@@ -1,0 +1,5 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_qualification_questionnaire,fix.qualification.questionnaire,model_fix_qualification_questionnaire,base.group_user,1,1,1,0
+access_fix_qualification_question,fix.qualification.question,model_fix_qualification_question,base.group_user,1,1,1,1
+access_fix_supplier_qualification,fix.supplier.qualification,model_fix_supplier_qualification,base.group_user,1,1,1,0
+access_fix_supplier_screening,fix.supplier.screening,model_fix_supplier_screening,base.group_user,1,1,1,0
