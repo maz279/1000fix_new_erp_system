@@ -3,7 +3,9 @@ from . import (
     fix_consignment,
     fix_consignment_consumers,
     fix_consignment_ext,
+    fix_consignment_release,
     fix_courier,
     fix_damage_claim,
+    fix_logistics_charge,
     fix_logistics_controls,
 )

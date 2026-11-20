@@ -45,6 +45,12 @@
 
     <!-- label / value sections and simple tables of a non-commercial document -->
     <template id="a02_doc_sections">
+        <!-- A02 ERP audit pass 2 M02-14: a scannable code (waybill) and
+             evidence images (the customer's signature) -->
+        <div t-if="p.get('qr')" style="float: right; text-align: center; margin: 4px 0 4px 8px;">
+            <img t-att-src="'/report/barcode/?barcode_type=QR&amp;value=%s&amp;width=110&amp;height=110' % p['qr']" style="width: 28mm; height: 28mm;"/>
+            <div style="font-size: 9px;" t-esc="p['qr']"/>
+        </div>
         <t t-foreach="p.get('blocks') or []" t-as="blk">
             <div class="cds-party-label" style="margin-top: 8px;" t-esc="blk['title']"/>
             <table class="cds-meta cds-extra">
@@ -67,6 +73,10 @@
                     </tr>
                 </tbody>
             </table>
+        </t>
+        <t t-foreach="p.get('images') or []" t-as="img">
+            <div class="cds-party-label" style="margin-top: 8px;" t-esc="img['title']"/>
+            <img t-att-src="img['src']" style="max-height: 30mm; max-width: 70mm; border: 1px solid #ccc;"/>
         </t>
     </template>
 

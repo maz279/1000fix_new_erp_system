@@ -134,6 +134,8 @@ class FixDamageClaim(models.Model):
             ("carrier", "Carrier"),
             ("branch", "Branch"),
             ("customer", "Customer"),
+            # A02 ERP audit pass 2 M03-07: our own rider caused it
+            ("rider", "Rider (own fleet)"),
             ("shared", "Shared"),
         ],
         required=True,
@@ -282,12 +284,26 @@ class FixDamageClaim(models.Model):
 
     def _claim_assert_liability_decided(self):
         """A02 ERP audit M03-F11: the payout is decided on a decided
-        liability; 'pending' was approved and settled."""
+        liability; 'pending' was approved and settled.
+
+        A02 ERP audit pass 2 M03-07: nobody is paid for damage they are liable
+        for. A customer whose own packing or handling caused it was paid out
+        (BDT 4,500 on a 'customer liable' claim); a rider likewise."""
         for rec in self:
             if rec.liability == "pending":
                 raise UserError(
-                    "Claim %s: decide who is liable (carrier, branch, customer or shared) "
-                    "before the payout is put for approval." % rec.name
+                    "Claim %s: decide who is liable (carrier, branch, customer, rider or "
+                    "shared) before the payout is put for approval." % rec.name
+                )
+            if (rec.claimant, rec.liability) in (("customer", "customer"), ("rider", "rider")):
+                raise UserError(
+                    "Claim %s: the %s is liable for the damage, so no payout is made to them."
+                    % (rec.name, rec.claimant)
+                )
+            if rec.liability == "rider" and not rec.consignment_id.sudo().rider_id:
+                raise UserError(
+                    "Claim %s: the rider is held liable but consignment %s names no rider."
+                    % (rec.name, rec.consignment_id.sudo().name)
                 )
 
     def action_request_approval(self, justification=None):
@@ -518,9 +534,47 @@ class FixDamageClaim(models.Model):
                     "approved_by": rec.approved_by_id.id,
                     "settled_by": self.env.user.id,
                     "settled_at": fields.Datetime.to_string(now),
+                    "rider_id": rec.consignment_id.rider_id.id
+                    if rec.liability == "rider"
+                    else None,
                 },
             )
+            if rec.liability == "rider":
+                rec._claim_request_rider_recovery(amount)
         return True
+
+    def _claim_request_rider_recovery(self, amount):
+        """A02 ERP audit pass 2 M03-07: our rider is liable, so the payout is
+        recovered from the rider (payroll deduction, like a COD shortage):
+        announced for finance / payroll and put to the payroll managers."""
+        self.ensure_one()
+        rider = self.consignment_id.sudo().rider_id
+        publish(
+            self.env,
+            "damage.claim.rider_recovery_requested",
+            "fix.damage.claim",
+            self.id,
+            {
+                "claim": self.name,
+                "consignment": self.consignment_id.name,
+                "rider_id": rider.id,
+                "rider_name": rider.name,
+                "amount": amount,
+                "currency": self.currency_id.name,
+            },
+        )
+        group = self.env.ref("cd_payroll_bd.group_payroll_manager", raise_if_not_found=False)
+        if not group:
+            group = self.env.ref("account.group_account_manager", raise_if_not_found=False)
+        users = group.sudo().all_user_ids.filtered(lambda u: u.active) if group else []
+        for user in users:
+            self.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Rider recovery: %s" % self.name,
+                note="Recover BDT %.2f from rider %s (damage claim %s on %s)."
+                % (amount, rider.name, self.name, self.consignment_id.name),
+                user_id=user.id,
+            )
 
     def _dofa_void_approval(self, reason: str):
         """An approval that no longer covers the payout sends the claim back

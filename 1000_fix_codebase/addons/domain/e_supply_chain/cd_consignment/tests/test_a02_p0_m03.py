@@ -99,6 +99,27 @@ def w(odoo_env, monkeypatch):
         lambda self, phone, code: sms.append((phone, code)),
     )
 
+    def make_ready(order_):
+        """Walk an order to Ready with a passed QC checklist (setup only)."""
+        if order_.state == "ready":
+            return order_
+        for st in (
+            "intake",
+            "diagnostic",
+            "estimate_pending",
+            "estimate_sent",
+            "awaiting_approval",
+            "approved",
+            "in_repair",
+            "qc_pending",
+        ):
+            order_.state = st
+        env["fix.qc.checklist"].create(
+            {"order_id": order_.id, "state": "passed", "qc_round": order_.qc_round}
+        )
+        order_.state = "ready"
+        return order_
+
     def free_order():
         """The shared order, or a fresh one when it already has a live leg
         (A02 ERP audit M03-F3: one device, one live leg)."""
@@ -130,7 +151,13 @@ def w(odoo_env, monkeypatch):
 
     def cons(state="draft", ctype="delivery", **kw):
         if "service_order_id" not in kw:
-            kw["service_order_id"] = free_order().id
+            order_ = free_order()
+            # A02 ERP audit pass 2 M03-01 (D1): a delivery leg of a service
+            # order leaves only once the order is Ready (and paid: these
+            # orders owe nothing, they have no estimate)
+            if ctype == "delivery":
+                make_ready(order_)
+            kw["service_order_id"] = order_.id
         rec = env["fix.consignment"].create(
             {
                 "consignment_type": ctype,
@@ -187,6 +214,7 @@ def w(odoo_env, monkeypatch):
         order=order,
         customer=customer,
         free_order=free_order,
+        make_ready=make_ready,
         cons=cons,
         moving=moving,
         at_door=at_door,

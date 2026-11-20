@@ -29,6 +29,8 @@
         "security/fix_isolation_rules.xml",
         "security/fix_field_service_security.xml",
         "security/ir.model.access.csv",
+        # A02 ERP audit pass 2 M02-08: own-order write rule
+        "security/fix_field_a02r2_rules.xml",
         "data/ir_sequence.xml",
         # owner decision (20 Nov 2026): the default depot of a new route
         "data/fix_default_depot.xml",
@@ -36,6 +38,8 @@
         "data/ir_cron.xml",
         # M02 capture audit 2026-11-18: the six capture registers' sequences
         "data/fix_field_capture_data.xml",
+        # A02 ERP audit pass 2: on-site receipt sequence, D19/D20/D21/D5 parameters
+        "data/fix_field_a02r2_data.xml",
         # sample field orders removed from install data (R01 re-audit 2026-10-22):
         # synthetic records belong in db/seeds (DE-12/13), and they required a
         # service order that a clean install does not have (NOT NULL order_id).

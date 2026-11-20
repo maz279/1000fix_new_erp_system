@@ -319,6 +319,17 @@ export const SCREENS = {
     title: 'Field Work Order',
     back: 'M02-record',
     status: { field: 'state' },
+    /* A02 ERP audit pass 2 X5-19: the parts picked and fitted on the job */
+    lines: { field: 'part_line_ids', title: 'Parts', readonlyGrid: true,
+      note: 'Picked and fitted by the technician app; a part not on the approved estimate is refused (D5).',
+      fields: [
+        { name: 'product_id', label: 'Part', readonly: true },
+        { name: 'quantity', label: 'Qty', readonly: true },
+        { name: 'unit_cost', label: 'Unit Cost', readonly: true },
+        { name: 'subtotal', label: 'Subtotal', readonly: true },
+        { name: 'lot_serial_number', label: 'Serial / Lot', readonly: true },
+        { name: 'state', label: 'State', readonly: true }
+      ] },
     tabs: [
       { id: 'dispatch', label: '1. Dispatch & Zone', bn: '১. ডিসপ্যাচ ও জোন', icon: '🚐', badge: '15' },
       { id: 'schedule', label: '2. Technician & SLA', bn: '২. টেকনিশিয়ান ও সময়সূচি', icon: '⏱️', badge: '6' },
@@ -400,6 +411,10 @@ export const SCREENS = {
           { name: 'onsite_payment_method', label: 'On-Site Payment Channel', readonly: true },
           { name: 'onsite_payment_trx_id', label: 'MFS / POS Gateway TrxID', readonly: true },
           { name: 'onsite_payment_state', label: 'On-Site Payment Status', readonly: true },
+          /* A02 ERP audit pass 2 M02-13 / M02-01 */
+          { name: 'onsite_receipt_no', label: 'On-Site Receipt No.', readonly: true },
+          { name: 'onsite_collected_at', label: 'Collected At', readonly: true },
+          { name: 'cash_settlement_ref', label: 'Recorded On The Order As', readonly: true },
           { name: 'cash_declared_by_id', label: 'Hand-over Declared By', readonly: true },
           { name: 'cash_declared_at', label: 'Hand-over Declared At', readonly: true },
           { name: 'cash_shift_id', label: 'Accepted Into Branch Cash Shift (M04)', readonly: true },
@@ -628,7 +643,9 @@ export const SCREENS = {
     actions: [{ m: 'action_end', l: 'End Pause', states: ['active'] }],
     empty: 'No tracking pause. A technician (or a dispatcher for them) records a break or the end of duty with + New Tracking Pause; no position is stored while it runs (BRU-FSM-05).' },
   'M02-failed-visits': { kind: 'model_list', title: 'Failed Visits', title_bn: 'ব্যর্থ ভিজিট', model: 'fix.field.visit.exception',
-    cols: ['name', 'field_order_id', 'technician_id', 'exception_type', 'follow_up', 'distance_from_site_m', 'recorded_at'],
+    cols: ['name', 'field_order_id', 'technician_id', 'zone_id', 'exception_type', 'follow_up', 'distance_from_site_m', 'wasted_fee_bdt', 'fee_waived_by_id', 'recorded_at'],
+    /* A02 ERP audit pass 2 M02-12 (D21): the wasted-visit fee is waived by a dispatcher */
+    actions: [{ m: 'action_waive_fee', l: 'Waive Wasted-Visit Fee (dispatcher)', ask: 'Reason for waiving the fee', kwarg: 'reason' }],
     empty: 'No failed visit. The technician sent to the site records one with + New Failed Visit Report, with a photo and the position it was taken at (BRU-FSM-09); the order returns to the dispatch queue.' },
   'M02-field-cash': { kind: 'model_list', title: 'Field Cash Reconciliation', title_bn: 'ফিল্ড নগদ মিলকরণ', model: 'fix.field.cash.recon', stateField: 'state',
     cols: ['name', 'employee_id', 'recon_date', 'order_count', 'cash_collected', 'cash_handed_over', 'cash_outstanding', 'counted_amount', 'variance', 'state', 'confirmed_by_id'],
