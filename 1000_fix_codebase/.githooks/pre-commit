@@ -10,9 +10,31 @@
 set -eu
 hp=$(git config core.hooksPath)
 cfg="$hp/../.pre-commit-config.yaml"
-if ! command -v pre-commit >/dev/null 2>&1; then
-  echo "pre-commit: NOT INSTALLED - XS-19 makes this hook mandatory." >&2
+
+# The runner: the `pre-commit` launcher, or the same package run through its
+# interpreter. On Windows, Smart App Control can block the unsigned launcher pip
+# generates (pre-commit.exe: "An Application Control policy has blocked this
+# file") while python.exe and the installed package are allowed. Falling back
+# to `python -m pre_commit` runs the very same hooks - nothing is skipped.
+runner=()
+if command -v pre-commit >/dev/null 2>&1 && pre-commit --version >/dev/null 2>&1; then
+  runner=(pre-commit)
+else
+  candidates=()
+  if launcher=$(command -v pre-commit 2>/dev/null); then
+    candidates+=("$(dirname "$launcher")/python")
+  fi
+  candidates+=(python3 python)
+  for py in "${candidates[@]}"; do
+    if "$py" -m pre_commit --version >/dev/null 2>&1; then
+      runner=("$py" -m pre_commit)
+      break
+    fi
+  done
+fi
+if [ ${#runner[@]} -eq 0 ]; then
+  echo "pre-commit: NOT INSTALLED (or blocked) - XS-19 makes this hook mandatory." >&2
   echo "  remedy: pip install pre-commit  (or: uv sync, then use 'uv run git commit')" >&2
   exit 1
 fi
-exec pre-commit run --config "$cfg" --hook-stage pre-commit
+exec "${runner[@]}" run --config "$cfg" --hook-stage pre-commit
