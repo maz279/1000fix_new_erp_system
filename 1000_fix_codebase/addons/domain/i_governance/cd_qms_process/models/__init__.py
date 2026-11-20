@@ -5,3 +5,6 @@
 # ruff: noqa: I001
 from . import fix_qms, fix_qms_ops, fix_supplier_car_consumer
 from . import fix_qms_capture
+
+# A02 ERP pass 2 X5-14: M01 qc_failed / rework.detected -> NCR (extends fix.ncr).
+from . import fix_a02r2_quality_consumers
