@@ -250,7 +250,7 @@ def _paid_order(so, amount=3000.0, settle=3450.0):
     est.with_user(so.clerk2).action_approve()
     shift = _open_drawer(so)
     taken = shift.cash_payments if shift else 0.0
-    o.with_user(so.cashier).action_mark_settled("POS-HB-%d" % n, settle)
+    o.with_user(so.cashier).action_mark_settled("POS-HB-%d" % n, settle, tender="cash")
     assert o.payment_settlement_state == "settled" and o.amount_settled_bdt == settle
     if shift:  # the counter cash is in the drawer, not only on the order
         assert o.counter_shift_id == shift and shift.cash_payments == taken + settle

@@ -127,7 +127,7 @@ def test_flaw_01_1_settlement_delivery_gate(odoo_env):
         )
 
     # Mark settled -> delivery succeeds
-    order.action_mark_settled("INV-M01-001", estimate.grand_total)
+    order.action_mark_settled("INV-M01-001", estimate.grand_total, tender="cash")
     assert order.payment_settlement_state == "settled"
     order.action_deliver()
     assert order.state == "delivered"
