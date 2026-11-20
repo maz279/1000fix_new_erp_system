@@ -63,11 +63,11 @@ All fifteen are decided and applied.
 - Code (2ed13e31): O5 workshop and field repair technicians read a captured passcode (counter clerks
   still cannot; purged at hand-over); O6 90 days' repair warranty on every category; O8 routes start at
   the default depot Shewrapara HQ 23.7905, 90.3735 (`cd_field_service.default_depot`).
-- Data (both DBs unless stated): O10 rider-shortage payroll account 2001821 (fix_real only — fix_dev's
-  chart has no 2001821, so payroll recovery stays refused there); O11 labour rate BDT 500/h on all 3
+- Data (both DBs unless stated): O10 rider-shortage payroll account 2001821 Payable-Salary Expense on fix_real,
+  230000 Salary Payable on fix_dev (both checked 20 Nov: credit side 100203 / 128100); O11 labour rate BDT 500/h on all 3
   workshops; O12 terms acceptance on Extended Warranty and AMC / Maintenance Contract Charge.
-- Workshops draw parts from Warranty HO/Stock (fix_real, all 3 workshops). fix_dev has no such store:
-  its workshops stay unlinked and a bench part issue there is refused until a store is set.
+- Workshops draw parts from Warranty HO/Stock (fix_real, WARRANTY-HO) and from HO-WTY, fix_dev's
+  head-office warranty store (all 3 workshops on each).
 - Chattogram Central Depot: benches BENCH-CTG-L1-01, BENCH-CTG-L1-02 (L1) and BENCH-CTG-L2-01 (L2).
 - The finance bridge is installed on fix_dev (owner approved).
 
@@ -83,9 +83,9 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
    receipt Dr 100108.
 
 ## Still the business's to supply
-- **Technician certifications: fix_real has 0.** Field dispatch checks certification, so no fix_real
-  job can be dispatched until HR records them (M21/M22). Not fabricated here.
-- fix_dev: no Warranty HO/Stock store and no account 2001821 (see above).
+- **Technician certifications** (HR records them in M22, owner 20 Nov). fix_real has none yet, so
+  until then each field dispatch needs an approved per-order certification waiver (BRU-LMS-01).
+  Not fabricated here.
 
 ## Owner decisions (original list)
 | # | Decision | Effect until decided |
@@ -106,11 +106,26 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
 | O14 | M39 to bill `msp.device_uplift` | uplift event published, not billed |
 | O15 | Who holds `account.group_account_manager` (credit release on orders and data cases) | nobody can release on credit |
 
-## Known limits (stated, not hidden)
-- A refunded counter settlement leaves its M20 receipt "unapplied" in the AR sub-ledger (the GL is
-  right: the refund debits the customer's credit); finance clears it from the unapplied queue.
-- A diagnostic fee on a declined repair stays as the customer's credit; it is invoiced or refunded
-  by finance from the unapplied-cash queue (no automatic fee invoice).
-- Pre-existing failures outside A02 seen during the runs (cd_competency / cd_vehicle_dispatch
-  calling a removed P03 dispatch path; `test_a04_register_reconciliation`; `test_m04_submodule_capture`)
-  are listed in the stream reports and were not changed.
+## Closed in the last round (20 Nov, after the owner decisions)
+- **Declined repair charged its diagnostic fee** (FR-SRM-029, SP-013 step 19). Cancelling with
+  `customer_declined` / `estimate_declined` now raises a Mushak 6.3 invoice for the fee taken at intake
+  (one Diagnostic / Inspection line, charge code CHG-DIAG, VAT backed out of the price the customer
+  paid) and pays it from the intake's advance receipt. Before, the fee sat as the customer's credit:
+  no revenue, no VAT, and auto-match could offer it to their next invoice. A refusal (credit hold, no
+  charge code) never undoes the cancel; finance retries with **Invoice Diagnostic Fee** on the order.
+  Other cancel reasons (duplicate, unreachable...) leave the fee as the customer's credit to move or
+  refund. Tests: `cd_front_desk_finance/tests/test_a02_declined_repair_fee.py`.
+- A refunded counter settlement no longer stays "unapplied": the refund is an M20 `fix.ar.refund`
+  against the receipt, which takes it off the receipt (`test_a02_p1p2_cd_settlement_ext.py`,
+  `test_a02_erp_review_money.py` assert unapplied 0). The earlier note here was out of date.
+- Dispatch tests in cd_competency (M22) and cd_vehicle_dispatch (M46) still called the removed
+  workspace `action_dispatch`; the workspace dispatches by saving a `fix.dispatch.decision`, which runs
+  `action_dispatch` and so both gates. The tests now dispatch that way and still prove the gates refuse.
+- fix_dev: workshops draw from `HO-WTY` (its head-office warranty store, the equivalent of fix_real's
+  Warranty HO/Stock) and rider payroll recovery posts to `230000 Salary Payable` (fix_real 2001821).
+
+## Operating notes (by design, not defects)
+- Technician certifications are HR's data (owner, 20 Nov: HR records them in M22). Until a
+  technician holds one, a field dispatch needs an approved per-order certification waiver
+  (BRU-LMS-01); fix_real has none recorded yet.
+- A declined repair's device goes back through the normal return / hand-over; only the fee is billed.
