@@ -379,6 +379,18 @@ class FixMspPatchUpdate(models.Model):
     exception_approved_at = fields.Datetime(
         string="Exception Approved At", readonly=True, copy=False
     )
+    # A02 ERP pass 2 (M05-S10): the client's approval of an install outside
+    # an open maintenance window
+    client_approval_contact_id = fields.Many2one(
+        "fix.msp.client.contact", string="Client Approver", readonly=True, copy=False
+    )
+    client_approval_evidence = fields.Char(
+        string="Client Approval Evidence", readonly=True, copy=False
+    )
+    client_approved_at = fields.Datetime(string="Client Approved At", readonly=True, copy=False)
+    client_approval_recorded_by_id = fields.Many2one(
+        "res.users", string="Client Approval Recorded By", readonly=True, copy=False
+    )
 
     # Odoo 19: models.Constraint replaces the legacy _sql_constraints list
     _asset_patch_unique = models.Constraint(
@@ -403,7 +415,17 @@ class FixMspPatchUpdate(models.Model):
             "exception_reason",
             "exception_approved_by_id",
             "exception_approved_at",
+            "client_approval_contact_id",
+            "client_approval_evidence",
+            "client_approved_at",
+            "client_approval_recorded_by_id",
         }
+
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if len(self) == 1 and self.state != "missing":
+            locked = locked | set(self._PATCH_FROZEN)
+        return locked
 
     # ---- the install exception (A02 audit B1) ----------------------------
     def _approval_group_xmlid(self):
@@ -500,21 +522,113 @@ class FixMspPatchUpdate(models.Model):
             )
         return True
 
+    # ---- A02 ERP pass 2 (M05-S10) ------------------------------------------
+    _PATCH_FROZEN = ("msp_contract_id", "asset_id", "severity", "category")
+    _SEVERITY_RANK = {"low": 0, "medium": 1, "high": 2, "critical": 3}
+
+    def write(self, vals):
+        """What a patch is (contract, asset, severity, category) decides who
+        approves it and how fast: it is fixed once the patch leaves 'missing',
+        and even while missing a lower severity is a change manager's call
+        (an engineer downgraded a critical patch and approved it himself)."""
+        if not self._fix_guard_open():
+            for upd in self.filtered("id"):
+                changed = [
+                    n
+                    for n in self._PATCH_FROZEN
+                    if n in vals and upd._fix_guard_differs(n, vals[n], upd[n])
+                ]
+                if not changed:
+                    continue
+                if upd.state != "missing":
+                    raise UserError(
+                        "%s of patch %s cannot change: it is %s."
+                        % (
+                            ", ".join(upd._fields[n].string for n in changed),
+                            upd.identifier or upd.title,
+                            upd.state,
+                        )
+                    )
+                if "severity" in changed and self._SEVERITY_RANK.get(
+                    vals["severity"], 0
+                ) < self._SEVERITY_RANK.get(upd.severity, 0):
+                    require_role(
+                        self.env,
+                        [GROUP_CAB, GROUP_CHANGE_MANAGER],
+                        "Lowering a patch's severity",
+                    )
+        return super().write(vals)
+
+    def action_record_client_approval(self, contact_id=None, evidence=None):
+        """The client's approval of an install outside an open maintenance
+        window: a registered contact allowed to approve changes, and the
+        evidence (OTP reference, signed e-mail) of the approval."""
+        require_role(self.env, [GROUP_ENGINEER], "Recording the client's patch approval")
+        evidence = (evidence or "").strip()
+        if len(evidence) < 10:
+            raise UserError(
+                "Record the evidence of the client's approval (OTP reference or the e-mail), "
+                "at least 10 characters."
+            )
+        Contact = self.env["fix.msp.client.contact"].sudo()
+        try:
+            contact = Contact.browse(int(contact_id or 0)).exists()
+        except (TypeError, ValueError):
+            contact = Contact
+        for upd in self:
+            if upd.state == "installed":
+                raise UserError("Patch %s is already installed." % (upd.identifier or upd.title))
+            if (
+                not contact
+                or contact.msp_contract_id != upd.msp_contract_id
+                or not contact.active
+                or not contact.can_approve_changes
+            ):
+                raise UserError(
+                    "The client's approval comes from a registered contact of %s who may "
+                    "approve changes (Client Contacts)." % upd.msp_contract_id.name
+                )
+            upd._guarded().write(
+                {
+                    "client_approval_contact_id": contact.id,
+                    "client_approval_evidence": evidence,
+                    "client_approved_at": fields.Datetime.now(),
+                    "client_approval_recorded_by_id": self.env.uid,
+                }
+            )
+            upd.message_post(
+                body="Client approval of an out-of-window install from %s, recorded by %s: %s"
+                % (contact.partner_id.name, self.env.user.name, evidence)
+            )
+        return True
+
     def _install_gate(self):
         """Refuse an install outside the business's window / test rules unless
         an approved exception covers it (A02 audit B1)."""
         self.ensure_one()
         name = self.identifier or self.title
-        if _param_on(self.env, PATCH_WINDOW_PARAM):
-            Window = self.env["fix.msp.maintenance.window"].sudo()
-            windows = Window.search([("state", "=", "active")])
-            in_window = any(w._msp_open_for(self.msp_contract_id) for w in windows)
-            if not in_window and not self._install_exception_covers("outside_window"):
-                raise UserError(
-                    "Patch %s may be installed only inside an approved maintenance window "
-                    "that is open now for this contract, or with an approved install "
-                    "exception (Request Exception)." % name
-                )
+        Window = self.env["fix.msp.maintenance.window"].sudo()
+        windows = Window.search([("state", "=", "active")])
+        in_window = any(w._msp_open_for(self.msp_contract_id) for w in windows)
+        # A02 ERP pass 2 (M05-S10): an install outside an open window touches
+        # the client's estate when the client did not plan for it: the client
+        # approves it first (a contact who may approve changes, evidenced).
+        if not in_window and not self.client_approved_at:
+            raise UserError(
+                "Patch %s is outside an open maintenance window for %s: record the client's "
+                "approval first (Record Client Approval: a contact who may approve changes, "
+                "with the OTP reference or e-mail)." % (name, self.msp_contract_id.name)
+            )
+        if (
+            _param_on(self.env, PATCH_WINDOW_PARAM)
+            and not in_window
+            and not self._install_exception_covers("outside_window")
+        ):
+            raise UserError(
+                "Patch %s may be installed only inside an approved maintenance window "
+                "that is open now for this contract, or with an approved install "
+                "exception (Request Exception)." % name
+            )
         if (
             _param_on(self.env, PATCH_TEST_PARAM)
             and not self.tested_at
@@ -573,6 +687,9 @@ class FixMspPatchUpdate(models.Model):
                     [GROUP_ENGINEER, GROUP_CAB, GROUP_CHANGE_MANAGER],
                     "Approving a patch",
                 )
+            # A02 ERP pass 2 (M05-S10): the engineer who logged the patch does
+            # not approve it himself (a patch the collector logs has no person)
+            require_other_person(self.env, upd.create_uid, "Approving a patch")
             upd._guarded().write(
                 {
                     "state": "approved",
@@ -1005,10 +1122,12 @@ class FixMspSlaCredit(models.Model):
         for credit in self:
             msp = credit.msp_contract_id.sudo()
             base, basis, invoiced = msp._msp_credit_base(credit.period_label)
+            terms = msp._msp_period_terms(credit.period_label)
             credit._guarded().write(
                 {
-                    "target_snapshot": msp.sla_target_pct or 0.0,
-                    "contract_value_snapshot": msp.monthly_value or 0.0,
+                    # the terms in force in the credit's month (M05-S13)
+                    "target_snapshot": terms.sla_target_pct or 0.0,
+                    "contract_value_snapshot": terms.monthly_value or 0.0,
                     "invoiced_value": invoiced,
                     "credit_base_value": base,
                     "value_basis": basis,
@@ -1876,20 +1995,31 @@ class FixMspContractEngines(models.Model):
         first, last = month_dates(period_label)
         if not first or "fix.subscription.charge" not in self.env:
             return 0.0
+        # A02 ERP pass 2 (M05-S03): a charge counts for the days of its cycle
+        # that fall in the month. A quarterly or annual charge whose cycle
+        # started in the month was counted whole (three or twelve months of
+        # fee as one month's base), and a 30-day cycle straddling two months
+        # gave one month all of it and the other none.
         charges = (
             self.env["fix.subscription.charge"]
             .sudo()
             .search(
                 [
                     ("subscription_id.contract_id", "=", self.contract_id.id),
-                    ("period_start", ">=", first),
                     ("period_start", "<=", last),
+                    ("period_end", ">=", first),
                     ("invoice_id.state", "in", ("issued", "paid")),
                     ("company_id", "=", self.company_id.id),
                 ]
             )
         )
-        return round(sum(charges.mapped("amount")), 2)
+        total = 0.0
+        for charge in charges:
+            cycle = (charge.period_end - charge.period_start).days + 1
+            overlap = (min(charge.period_end, last) - max(charge.period_start, first)).days + 1
+            if cycle > 0 and overlap > 0:
+                total += (charge.amount or 0.0) * overlap / cycle
+        return round(total, 2)
 
     def _msp_credit_base(self, period_label):
         """(base, basis, invoiced): the figure an SLA credit for the period is
@@ -1900,7 +2030,15 @@ class FixMspContractEngines(models.Model):
         invoiced = self._msp_invoiced_value(period_label)
         if invoiced > 0.005:
             return invoiced, "invoiced", invoiced
-        return self.monthly_value or 0.0, "contract", 0.0
+        # A02 ERP pass 2 (M05-S13): the monthly fee in force in that month
+        return self._msp_period_terms(period_label).monthly_value or 0.0, "contract", 0.0
+
+    def _msp_period_terms(self, period_label):
+        """The terms that govern a month's measure: those in force on its last
+        day (A02 ERP pass 2, M05-S13), else today's."""
+        self.ensure_one()
+        _first, last = month_dates(period_label)
+        return self._msp_terms_at(last) if last else self.sudo()
 
     def action_compute_sla_credits(self):
         """Draft a credit for every period whose report attainment missed the
@@ -1927,34 +2065,55 @@ class FixMspContractEngines(models.Model):
                     [tuple(reports.ids)],
                 )
                 missing = Report.browse([row[0] for row in self.env.cr.fetchall()])
+            # A02 ERP pass 2 (M05-S08): a month before the SLA binds has no
+            # figure by design - it is neither flagged nor credited
+            missing = missing.filtered(lambda r: not r.sla_not_binding)
             for report in missing.filtered(lambda r: not r.attainment_flagged):
                 report._guarded().write({"attainment_flagged": True})
                 report.message_post(
                     body="No SLA attainment figure on this report, so no SLA credit was "
                     "computed for %s. Regenerate the report to compute one." % report.period_label
                 )
-            for report in (reports - missing).filtered(
-                lambda r, c=contract: r.msp_contract_id == c
-            ):
+            measured = (reports - missing).filtered(
+                lambda r, c=contract: r.msp_contract_id == c and not r.sla_not_binding
+            )
+            for report in measured:
                 attainment = round((report.sla_attainment or 0.0) * 100.0, 1)
-                if attainment >= contract.sla_target_pct:
+                # the target in force in the report's month (M05-S13)
+                target = contract._msp_period_terms(report.period_label).sla_target_pct or 0.0
+                if attainment >= target:
                     continue
-                if Credit.search_count(
+                existing = Credit.search(
                     [
                         ("msp_contract_id", "=", contract.id),
                         ("period_label", "=", report.period_label),
-                    ]
-                ):
+                    ],
+                    limit=1,
+                )
+                if existing:
+                    # A02 ERP pass 2 (M05-S01): a draft credit with no report
+                    # (typed by hand) took the month's slot and the computed
+                    # credit was skipped for good. The report is attached to
+                    # it, so the month's computed figure stands beside any
+                    # manual one.
+                    if not existing.service_report_id and existing.state == "draft":
+                        existing._guarded().sudo().write({"service_report_id": report.id})
+                        existing._msp_pin_terms()
+                        existing.message_post(
+                            body="The %s service report (attainment %.1f%%, target %.1f%%) was "
+                            "attached: the computed credit stands beside the manual figure."
+                            % (report.period_label, attainment, target)
+                        )
                     continue
                 Credit._guarded().create(
                     {
                         "msp_contract_id": contract.id,
                         "service_report_id": report.id,
                         "period_label": report.period_label,
-                        "operating_unit_id": report.operating_unit_id.id
-                        or contract.operating_unit_id.id,
-                        "reason": "Attainment %.1f%% below target %.1f%%"
-                        % (attainment, contract.sla_target_pct),
+                        "company_id": contract.company_id.id,
+                        "operating_unit_id": contract.operating_unit_id.id
+                        or report.operating_unit_id.id,
+                        "reason": "Attainment %.1f%% below target %.1f%%" % (attainment, target),
                     }
                 )
         return True

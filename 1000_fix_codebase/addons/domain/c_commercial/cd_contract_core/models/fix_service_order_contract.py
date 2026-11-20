@@ -146,7 +146,34 @@ class FixServiceOrderContract(models.Model):
                 ("msp_contract_id.contract_id", "=", contract.id),
             ]
         )
-        return any(getattr(a.msp_contract_id, "entitled", True) for a in assets)
+        # A02 ERP pass 2 (M05-S09, owner decision D10): the per-device fee
+        # covers labour and remote support. A contract still in service
+        # covers the order; but parts and out-of-scope work on it are an
+        # overage the client approves on the estimate, unless the MSP
+        # contract includes parts. Every MSP ticket was a zero-charge AMC
+        # order, so parts left the store free.
+        msps = assets.mapped("msp_contract_id").filtered(
+            lambda m: getattr(m, "entitled", True)
+            and getattr(m, "lifecycle", "in_service") == "in_service"
+        )
+        if not msps:
+            return False
+        return not self._fix_msp_overage_work() or any(
+            getattr(m, "parts_included", False) for m in msps
+        )
+
+    def _fix_msp_overage_work(self) -> bool:
+        """The order's latest estimate prices parts or other (out-of-scope)
+        work: what the MSP fee does not cover."""
+        self.ensure_one()
+        estimate = (
+            self.env["fix.estimate"]
+            .sudo()
+            .search([("order_id", "=", self.id)], order="version desc, id desc", limit=1)
+        )
+        if not estimate:
+            return False
+        return (estimate.parts_total or 0.0) + (estimate.other_total or 0.0) > 0.005
 
     def _fix_zero_charge_basis(self) -> str:
         basis = super()._fix_zero_charge_basis()

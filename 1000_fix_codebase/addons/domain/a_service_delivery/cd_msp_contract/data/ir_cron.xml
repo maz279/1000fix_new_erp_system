@@ -51,5 +51,29 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A02 ERP pass 2 (M05-S18): open alerts past their response target
+             or the threshold share of their resolution target go to the next
+             rota level; a breached resolution target is announced once. -->
+        <record id="ir_cron_msp_threshold_escalations" model="ir.cron">
+            <field name="name">M05: escalate alerts at their SLA thresholds</field>
+            <field name="model_id" ref="model_fix_msp_alert"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_threshold_escalations()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A02 ERP pass 2 (M05-S08): an onboarding not live when the SLA binds
+             (target go-live, at most 30 days from the contract start) is
+             escalated once. -->
+        <record id="ir_cron_msp_onboarding_overdue" model="ir.cron">
+            <field name="name">M05: escalate onboardings past the SLA binding date</field>
+            <field name="model_id" ref="model_fix_msp_contract"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_onboarding_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

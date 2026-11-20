@@ -397,12 +397,12 @@ class FixMspContractOnboarding(models.Model):
         raised from its start to the go-live are not measured; everything
         else is."""
         self.ensure_one()
+        binds = self._msp_sla_binds_at()
+        if not binds:
+            return None
         project = self.onboarding_ids.sorted("id")[:1]
-        if not project or not project.create_date:
-            return None
-        if self._msp_service_history(before=project.create_date):
-            return None
-        return project.create_date, self.service_live_at or False
+        # A02 ERP pass 2 (M05-S08): the window ends when the SLA binds
+        return project.create_date, binds
 
     def _msp_period_sla(self, alerts, as_of=None) -> dict:
         """Alerts raised during a genuine onboarding (before go-live) are not
@@ -410,12 +410,13 @@ class FixMspContractOnboarding(models.Model):
         is, so an onboarding project never suspends the SLA of a contract that
         is already in service."""
         self.ensure_one()
-        window = self._msp_onboarding_window()
-        if window:
-            start, live = window
-            alerts = alerts.filtered(
-                lambda a: not (a.create_date >= start and (not live or a.create_date < live))
-            )
+        # A02 ERP pass 2 (M05-S08, owner decision D9): the SLA binds at the
+        # go-live, but never later than the target go-live date and never
+        # later than 30 days from the contract start: an onboarding that never
+        # went live suspended the SLA for ever.
+        binds = self._msp_sla_binds_at()
+        if binds:
+            alerts = alerts.filtered(lambda a: a.create_date >= binds)
         return super()._msp_period_sla(alerts, as_of=as_of)
 
     def action_record_data_returned(self, evidence=None):

@@ -19,7 +19,7 @@
 # surfaces offer Request / Recall Approval; the decision is taken in the
 # approver's inbox, so the record's own approve method is no longer listed.
 import logging
-from datetime import datetime, time
+from datetime import datetime, time, timedelta
 
 import pytz
 from odoo import fields, http
@@ -28,6 +28,12 @@ from odoo.http import request
 from ..p03_service_order_api import _require_internal
 
 _logger = logging.getLogger(__name__)
+DHAKA = pytz.timezone("Asia/Dhaka")
+
+
+def _dhaka_today():
+    return datetime.now(DHAKA).date()
+
 
 SURFACES = {
     "fix.msp.contract": {
@@ -78,8 +84,22 @@ SURFACES = {
             "action_to_ticket",
             "action_resolve",
             "action_escalate",
+            # A02 ERP pass 2: reasoned reclassification while new (M05-S02),
+            # waiting-on-client pauses (M05-S18), a field visit (M05-S16)
+            "action_reclassify",
+            "action_pause",
+            "action_resume",
+            "action_escalate_to_field",
         },
     },
+    # A02 ERP pass 2 (M05-S13 / S18): the terms history and the SLA pauses,
+    # read-only (written by Amend Terms and Pause / Resume)
+    "fix.msp.terms.amendment": {
+        "order": "effective_date desc, id desc",
+        "limit": 200,
+        "actions": set(),
+    },
+    "fix.msp.alert.pause": {"order": "started_at desc", "limit": 200, "actions": set()},
     "fix.remote.session": {
         "order": "id desc",
         "limit": 200,
@@ -94,7 +114,8 @@ SURFACES = {
     "fix.msp.service.report": {
         "order": "id desc",
         "limit": 100,
-        "actions": {"action_generate_bilingual_report"},
+        # A02 ERP pass 2 (M05-S15): the printable bilingual client report
+        "actions": {"action_generate_bilingual_report", "action_print_service_report"},
     },
     "fix.msp.runbook": {
         "order": "id desc",
@@ -133,6 +154,8 @@ SURFACES = {
             "action_request_window_exception",
             "action_request_test_exception",
             "action_recall_approval",
+            # A02 ERP pass 2 (M05-S10): an out-of-window install needs it
+            "action_record_client_approval",
         },
     },
     "fix.msp.sla.credit": {
@@ -271,13 +294,25 @@ def kpis(env):
     # open desk items: client reports and tickets not yet resolved
     open_tickets = Alert.search_count(domain + DESK + [("state", "!=", "resolved")])
 
-    # SLA credits MTD: committed money (approved + applied) for this month's
-    # period, at the amount approved (A02 ERP audit M05-F21: it filtered the
-    # creation date and summed the live amount, which moves after approval)
-    period = fields.Date.context_today(Alert).strftime("%Y-%m")
-    credits = Credit.search(
-        [*domain, ("state", "in", ("approved", "applied")), ("period_label", "=", period)]
+    # SLA credits MTD (A02 ERP pass 2, M05-S12): the credits APPROVED this
+    # Dhaka month, at the amount approved. It filtered the credit's own period
+    # label for the current month, but a month's credit is drafted only after
+    # that month closes, so the tile always read 0. The last closed month's
+    # credits (whatever their state) are a second figure.
+    today = _dhaka_today()
+    month_start_utc, month_end_utc = _period_bounds(
+        env.with_context(tz="Asia/Dhaka"), today.replace(day=1), today
     )
+    credits = Credit.search(
+        [
+            *domain,
+            ("state", "in", ("approved", "applied")),
+            ("approved_at", ">=", month_start_utc),
+            ("approved_at", "<=", month_end_utc),
+        ]
+    )
+    last_label = (today.replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
+    last_month = Credit.search([*domain, ("period_label", "=", last_label)])
     tracked = Patch.search_count(domain)
     installed = Patch.search_count([*domain, ("state", "=", "installed")])
     return {
@@ -285,6 +320,7 @@ def kpis(env):
         "remote_resolution": _resolution_counts(env)["rate"],
         "open_msp_tickets": open_tickets,
         "sla_credits_mtd": round(sum(credits.mapped("approved_amount")), 2),
+        "sla_credits_last_month": round(sum(last_month.mapped("credit_amount")), 2),
         "patch_compliance": round(100.0 * installed / tracked, 1) if tracked else None,
         "oncall_escalations": Alert.search_count(
             [*domain, ("escalated", "=", True), ("create_date", ">=", month_start)]
@@ -804,7 +840,94 @@ def _security_posture_report(env, **params):
     }
 
 
+def _msp_billing_reconciliation_report(env, **params):
+    """A02 ERP pass 2 (M05-S06, owner decision D8): the M05 contract's terms
+    are the price master; per MSP contract, its monthly fee against what its
+    M39 subscription bills a month. A difference, no subscription, more than
+    one, or an amendment not billed automatically is flagged."""
+    Contract = env["fix.msp.contract"].sudo().with_context(lang="en_US")
+    Sub = env.get("fix.subscription")
+    Amendment = env["fix.msp.terms.amendment"].sudo()
+    months = {"monthly": 1, "quarterly": 3, "annual": 12}
+    rows = []
+    for msp in Contract.search(_company(env), order="name"):
+        subs = (
+            Sub.sudo().search(
+                [
+                    ("contract_id", "=", msp.contract_id.id),
+                    ("state", "not in", ("cancelled", "churned")),
+                ]
+            )
+            if Sub is not None
+            else []
+        )
+        fee = round((msp.per_device_monthly or 0.0) * (msp.device_count or 0), 2)
+        billed = round(
+            sum((s.recurring_amount or 0.0) / months.get(s.billing_cycle, 1) for s in subs), 2
+        )
+        open_rows = Amendment.search_count(
+            [
+                ("msp_contract_id", "=", msp.id),
+                ("billing_state", "in", ("pending", "requested", "flagged")),
+            ]
+        )
+        flags = []
+        if len(subs) != 1:
+            flags.append("%d live subscriptions" % len(subs))
+        if abs(fee - billed) > 0.005:
+            flags.append("difference")
+        if open_rows:
+            flags.append("%d amendment(s) not billed" % open_rows)
+        if msp.lifecycle == "offboarded" and subs:
+            flags.append("offboarded but still billed")
+        rows.append(
+            {
+                "contract": msp.name,
+                "client": msp.contract_id.customer_id.name or "-",
+                "lifecycle": dict(msp._fields["lifecycle"].selection).get(msp.lifecycle, ""),
+                "devices": msp.device_count,
+                "msp_fee": fee,
+                "subscriptions": len(subs),
+                "m39_monthly": billed,
+                "difference": round(billed - fee, 2),
+                "flag": "; ".join(flags) or "OK",
+            }
+        )
+    return {
+        "title": "MSP Fee vs M39 Billing Reconciliation",
+        "cols": [
+            "contract",
+            "client",
+            "lifecycle",
+            "devices",
+            "msp_fee",
+            "subscriptions",
+            "m39_monthly",
+            "difference",
+            "flag",
+        ],
+        "labels": {
+            "contract": "MSP Contract",
+            "client": "Client",
+            "lifecycle": "Lifecycle",
+            "devices": "Covered Devices",
+            "msp_fee": "MSP Monthly Fee (terms)",
+            "subscriptions": "Live Subscriptions",
+            "m39_monthly": "M39 Bills a Month",
+            "difference": "Difference",
+            "flag": "Flag",
+        },
+        "rows": rows,
+        "notes": [
+            "The MSP contract's terms are the price master (covered devices x per-device "
+            "price); the subscription's recurring amount is converted to a month by its "
+            "billing cycle. Every commercial amendment is sent to M39 as a price change."
+        ],
+    }
+
+
 REPORTS = {
+    "msp_billing_reconciliation": _msp_billing_reconciliation_report,
     "sla_by_client": _sla_by_client_report,
     "remote_resolution": _remote_resolution_report,
     "estate_health": _estate_health_report,

@@ -30,5 +30,15 @@
             <field name="module">cd_settlement_ext</field>
         </record>
 
+        <!-- A02 ERP pass 2 (M05-S17): remote-support hours above the MSP
+             contract's entitlement become a draft invoice at its overage rate. -->
+        <record id="consumer_msp_remote_hours_overage" model="fix.event.consumer">
+            <field name="name">M20: invoice MSP remote-hours overage</field>
+            <field name="event_type">msp.remote_hours_overage</field>
+            <field name="model">fix.finance.handback</field>
+            <field name="method">consume_msp_remote_hours_overage</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+
     </data>
 </odoo>

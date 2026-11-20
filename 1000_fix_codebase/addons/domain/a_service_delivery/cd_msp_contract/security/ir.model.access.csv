@@ -9,7 +9,7 @@ access_fix_msp_alert_eng,fix.msp.alert engineer,model_fix_msp_alert,group_msp_en
 access_fix_remote_session,fix.remote.session,model_fix_remote_session,base.group_user,1,0,0,0
 access_fix_remote_session_eng,fix.remote.session engineer,model_fix_remote_session,group_msp_engineer,1,1,1,0
 access_fix_msp_service_report,fix.msp.service.report,model_fix_msp_service_report,base.group_user,1,0,0,0
-access_fix_msp_service_report_eng,fix.msp.service.report engineer,model_fix_msp_service_report,group_msp_engineer,1,1,1,0
+access_fix_msp_service_report_eng,fix.msp.service.report engineer,model_fix_msp_service_report,group_msp_engineer,1,1,0,0
 access_fix_msp_runbook,fix.msp.runbook,model_fix_msp_runbook,base.group_user,1,0,0,0
 access_fix_msp_runbook_eng,fix.msp.runbook engineer,model_fix_msp_runbook,group_msp_engineer,1,1,1,1
 access_fix_msp_runbook_run,fix.msp.runbook.run,model_fix_msp_runbook_run,base.group_user,1,0,0,0
@@ -58,3 +58,5 @@ access_fix_msp_onboarding,fix.msp.onboarding,model_fix_msp_onboarding,base.group
 access_fix_msp_onboarding_eng,fix.msp.onboarding engineer,model_fix_msp_onboarding,group_msp_engineer,1,1,1,0
 access_fix_msp_onboarding_step,fix.msp.onboarding.step,model_fix_msp_onboarding_step,base.group_user,1,0,0,0
 access_fix_msp_onboarding_step_eng,fix.msp.onboarding.step engineer,model_fix_msp_onboarding_step,group_msp_engineer,1,1,1,0
+access_fix_msp_terms_amendment,fix.msp.terms.amendment,model_fix_msp_terms_amendment,base.group_user,1,0,0,0
+access_fix_msp_alert_pause,fix.msp.alert.pause,model_fix_msp_alert_pause,base.group_user,1,0,0,0
