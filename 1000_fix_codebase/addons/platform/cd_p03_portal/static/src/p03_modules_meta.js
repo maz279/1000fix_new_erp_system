@@ -800,12 +800,54 @@ export const P03_MODULES = {
     area: 'A06', code: 'M43', en: 'Demand Planning', title: 'M43 · Demand Planning',
     bn: 'চাহিদা পরিকল্পনা', icon: '📈',
     desc: 'Forecast orchestration with MAPE tracking, safety stock, reorder policies, multi-echelon rebalancing.',
-    kpis: [{ l: 'Transfers in Transit' }],
+    kpis: [{ l: 'Forecast MAPE' }, { l: 'Service Level Target' }, { l: 'Planned Orders' },
+           { l: 'Stockout Incidents' }, { l: 'Excess Stock Value' }, { l: 'Rebalance Proposals' }],
     groups: [
-      { en: 'Inter-Branch', screens: [{ id: 'M43-transfers', en: 'Inter-Branch Stock Transfers', bn: 'শাখা স্টক স্থানান্তর', t: 'g' }] }
+      { en: 'Forecasting', screens: [
+        { id: 'M43-history', en: 'History Assembly', bn: 'ইতিহাস সংকলন', t: 'g' },
+        { id: 'M43-models', en: 'Model Orchestration', bn: 'মডেল অর্কেস্ট্রেশন', t: 'c' },
+        { id: 'M43-accuracy', en: 'Accuracy & Bias (MAPE)', bn: 'নির্ভুলতা', t: 'r' }] },
+      { en: 'Policies', screens: [
+        { id: 'M43-segments', en: 'Part Segmentation', bn: 'পার্টস সেগমেন্টেশন', t: 'g' },
+        { id: 'M43-safety', en: 'Safety Stock & ROP', bn: 'সেফটি স্টক', t: 'g' },
+        { id: 'M43-leadtime', en: 'Lead-Time Modelling', bn: 'লিড-টাইম', t: 'g' }] },
+      { en: 'Execution', screens: [
+        { id: 'M43-planned', en: 'Planned Orders → PR', bn: 'পরিকল্পিত অর্ডার', t: 'g' },
+        { id: 'M43-rebalance', en: 'Network Rebalancing', bn: 'নেটওয়ার্ক পুনঃসমন্বয়', t: 'c' },
+        { id: 'M43-vanpar', en: 'Van-Stock Par Calculation', bn: 'ভ্যান প্যারামিটার', t: 'g' }] },
+      { en: 'Simulation', screens: [
+        { id: 'M43-whatif', en: 'What-If Simulation', bn: 'সিমুলেশন', t: 'c' }] }
     ],
-    reports: ['Transit Discrepancy Log'], forms: ['Create Inter-Branch Transfer'], cross: ['M15 Inventory', 'M04 Logistics'],
-    freg: { src: 78, sub: [['1', 'Stock Transfer Manifest Generator', 10], ['2', 'Destination Seal Verification', 8]] }
+    reports: ['Forecast Accuracy by Class', 'Stockout Root Causes', 'Excess & Obsolescence Exposure', 'Rebalancing Savings', 'New-Part Introduction'],
+    // Data-entry forms = the capture labels below, in sub-module order
+    // (registry forms 'Review Cycle', 'Policy Assignment', 'Rebalance Proposal' kept verbatim).
+    forms: ['Demand History Adjustment', 'Part Segment Classification', 'Review Cycle', 'Forecast Override',
+            'Demand Driver', 'Accuracy Review Note', 'Policy Assignment', 'Service-Level Target',
+            'Lead-Time Profile', 'Planned Order', 'Rebalance Proposal', 'Network Stocking Policy',
+            'Van Par Recommendation', 'What-If Simulation'],
+    cross: ['M26 Forecast Models', 'M16 Planned Orders', 'M15 Stock Positions', 'M37 Lifecycle States'],
+    freg: { src: 58, sub: [
+      ['1', 'History & Cleansing', 7], ['2', 'Segmentation', 6], ['3', 'Forecast Orchestration', 8],
+      ['4', 'Accuracy Tracking', 6], ['5', 'Safety Stock & ROP', 9], ['6', 'Lead-Time', 5],
+      ['7', 'Planned Orders', 6], ['8', 'Multi-Echelon Rebalancing', 7], ['9', 'What-If', 4]] },
+    // Capture map (cd_demand_plan, CD-M43-01): every sub-module (freg) and
+    // every screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Demand History Adjustment', bn: 'চাহিদা ইতিহাস সমন্বয়', model: 'fix.demand.adjustment', freg: ['1'], screens: ['M43-history'] },
+      { en: 'Part Segment Classification', bn: 'পার্টস সেগমেন্ট শ্রেণীকরণ', model: 'fix.part.segment', freg: ['2'], screens: ['M43-segments'] },
+      { en: 'Review Cycle', bn: 'পর্যালোচনা চক্র', model: 'fix.planning.run', freg: ['3'], screens: ['M43-models'] },
+      { en: 'Forecast Override', bn: 'পূর্বাভাস পরিবর্তন', model: 'fix.forecast.override', freg: ['3'], screens: ['M43-models'] },
+      { en: 'Demand Driver', bn: 'চাহিদা চালক', model: 'fix.demand.driver', freg: ['3'], screens: ['M43-models'] },
+      { en: 'Accuracy Review Note', bn: 'নির্ভুলতা পর্যালোচনা নোট', model: 'fix.forecast.accuracy.review', freg: ['4'], screens: ['M43-accuracy'] },
+      { en: 'Policy Assignment', bn: 'নীতি নির্ধারণ', model: 'fix.replenishment.parameter', freg: ['5'], screens: ['M43-safety'] },
+      { en: 'Service-Level Target', bn: 'সার্ভিস লেভেল লক্ষ্য', model: 'fix.service.level.target', freg: ['5'], screens: ['M43-safety'] },
+      { en: 'Lead-Time Profile', bn: 'লিড-টাইম প্রোফাইল', model: 'fix.lead.time.model', freg: ['6'], screens: ['M43-leadtime'] },
+      { en: 'Planned Order', bn: 'পরিকল্পিত অর্ডার', model: 'fix.planned.order', freg: ['7'], screens: ['M43-planned'] },
+      { en: 'Rebalance Proposal', bn: 'পুনঃসমন্বয় প্রস্তাব', model: 'fix.rebalance.proposal', freg: ['8'], screens: ['M43-rebalance'] },
+      { en: 'Network Stocking Policy', bn: 'নেটওয়ার্ক স্টকিং নীতি', model: 'fix.network.policy', freg: ['8'], screens: ['M43-rebalance'] },
+      { en: 'Van Par Recommendation', bn: 'ভ্যান প্যার সুপারিশ', model: 'fix.van.par.recommendation', freg: ['8'], screens: ['M43-vanpar'] },
+      { en: 'What-If Simulation', bn: 'কী-যদি সিমুলেশন', model: 'fix.planning.simulation', freg: ['9'], screens: ['M43-whatif'] }
+    ]
   },
 
   M44: {

@@ -414,3 +414,84 @@ class TestP03ConsolesAndRoles(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestP03CaptureMap(unittest.TestCase):
+    """Every workspace sub-module and screen of a module that declares a
+    `captures` map opens a REAL capture form (M43 first, CD-M43-01). A
+    module without a map keeps the intake modal — never a wrong form."""
+
+    def _meta(self):
+        import shutil
+        import subprocess
+        import tempfile
+        node = shutil.which("node")
+        if not node:
+            self.skipTest("node not available to evaluate p03_modules_meta.js")
+        src = (MODULE / "static" / "src" / "p03_modules_meta.js").read_text(encoding="utf-8")
+        src = src.replace("export const ", "const ").replace("export function ", "function ")
+        src += "\nprocess.stdout.write(JSON.stringify(P03_MODULES));\n"
+        with tempfile.NamedTemporaryFile("w", suffix=".js", delete=False, encoding="utf-8") as fh:
+            fh.write(src)
+            path = fh.name
+        try:
+            proc = subprocess.run([node, path], capture_output=True, text=True, timeout=60)
+        finally:
+            Path(path).unlink(missing_ok=True)
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        return json.loads(proc.stdout)
+
+    def _defined_models(self):
+        import re
+        names = set()
+        for py in (REPO / "addons").rglob("*.py"):
+            names.update(re.findall(r'_name\s*=\s*"([\w.]+)"', py.read_text(encoding="utf-8", errors="ignore")))
+        return names
+
+    def test_m43_matches_the_nav_registry(self):
+        meta = self._meta()["M43"]
+        reg = next(m for m in self.registry_modules() if m["id"] == "M43")
+        self.assertEqual([g["en"] for g in meta["groups"]], [g["en"] for g in reg["groups"]])
+        self.assertEqual([s["id"] for g in meta["groups"] for s in g["screens"]],
+                         [s["id"] for g in reg["groups"] for s in g["screens"]])
+        self.assertEqual(meta["reports"], reg["reports"])
+        self.assertEqual([s[:2] for s in meta["freg"]["sub"]], [s[:2] for s in reg["freg"]["sub"]])
+        self.assertEqual([k["l"] for k in meta["kpis"]], reg["kpis"])
+        for f in reg["forms"]:
+            self.assertIn(f, meta["forms"], f"registry form {f!r} lost from M43")
+
+    def registry_modules(self):
+        reg = json.loads((REPO / "contracts" / "nav" / "registry.json").read_text(encoding="utf-8"))
+        mods = reg["modules"]
+        return mods if isinstance(mods, list) else list(mods.values())
+
+    def test_every_m43_sub_module_and_screen_has_a_capture(self):
+        meta = self._meta()["M43"]
+        caps = meta["captures"]
+        for sub in meta["freg"]["sub"]:
+            self.assertTrue([c for c in caps if sub[0] in c["freg"]],
+                            f"M43 sub-module {sub[1]!r} has no data-capture form")
+        for g in meta["groups"]:
+            for sc in g["screens"]:
+                self.assertTrue([c for c in caps if sc["id"] in c["screens"]],
+                                f"M43 screen {sc['en']!r} has no data-capture form")
+
+    def test_capture_targets_are_real_models(self):
+        defined = self._defined_models()
+        for mid, mod in self._meta().items():
+            for cap in mod.get("captures", []):
+                self.assertIn(cap["model"], defined, f"{mid} capture {cap['en']!r} targets a missing model")
+                self.assertIn(cap["en"], mod["forms"], f"{mid} capture {cap['en']!r} is not listed as a form")
+                self.assertTrue(cap.get("bn"), f"{mid} capture {cap['en']!r} has no Bengali label")
+
+    def test_capture_buttons_route_through_the_capture_map(self):
+        xml = (MODULE / "static" / "src" / "p03_workspace.xml").read_text(encoding="utf-8")
+        js = (MODULE / "static" / "src" / "p03_workspace.js").read_text(encoding="utf-8")
+        ws = xml[xml.index("t-elif=\"state.viewMode === 'workspace'\""):xml.index("VIEW C: SUB-MODULE CAPABILITY VIEW")]
+        self.assertNotIn("+ New Service Order", ws, "module header hard-codes the service-order intake")
+        self.assertIn('t-on-click="openHeaderCapture"', ws)
+        self.assertIn("this.openCapture(f)", ws)
+        self.assertIn('t-on-click="openFregCapture"', xml)
+        self.assertIn('t-on-click="openScreenCapture"', xml)
+        self.assertIn('res_model: cap.model', js)
+        self.assertIn('target: "new"', js)

@@ -1,8 +1,788 @@
-# Bengali translations for cd_demand_plan (P09) — 100% coverage.
+# Bengali translations for cd_demand_plan (P09, CD-M43-01) — 100% coverage.
 msgid ""
 msgstr ""
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 
-msgid "Demand Planning & Replenishment"
-msgstr "Demand Planning & Replenishment (বাংলা)"
+msgid "12-Month Consumption Value"
+msgstr "১২ মাসের ব্যবহার মূল্য"
+
+msgid "ABC Class"
+msgstr "ABC শ্রেণী"
+
+msgid "Accuracy Review Notes"
+msgstr "নির্ভুলতা পর্যালোচনা নোট"
+
+msgid "Actual Lead Time (days)"
+msgstr "প্রকৃত লিড টাইম (দিন)"
+
+msgid "Actual Receipts"
+msgstr "প্রকৃত প্রাপ্তি"
+
+msgid "Actual − Quoted (days)"
+msgstr "প্রকৃত − উদ্ধৃত (দিন)"
+
+msgid "Adjusted Quantity"
+msgstr "সমন্বিত পরিমাণ"
+
+msgid "Annual Holding Cost per Unit (BDT)"
+msgstr "প্রতি ইউনিট বার্ষিক মজুত খরচ (টাকা)"
+
+msgid "Applied"
+msgstr "প্রয়োগকৃত"
+
+msgid "Applied At"
+msgstr "প্রয়োগের সময়"
+
+msgid "Applied to M15"
+msgstr "M15-এ প্রয়োগকৃত"
+
+msgid "Applied to M15 At"
+msgstr "M15-এ প্রয়োগের সময়"
+
+msgid "Apply"
+msgstr "প্রয়োগ করুন"
+
+msgid "Apply Override"
+msgstr "পরিবর্তন প্রয়োগ করুন"
+
+msgid "Apply to M15"
+msgstr "M15-এ প্রয়োগ করুন"
+
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+msgid "Avg. Inter-Demand Interval (ADI)"
+msgstr "গড় চাহিদা-ব্যবধান (ADI)"
+
+msgid "Base Cycle-Stock Value"
+msgstr "ভিত্তি সাইকেল-স্টক মূল্য"
+
+msgid "Base Safety-Stock Value"
+msgstr "ভিত্তি সেফটি-স্টক মূল্য"
+
+msgid "Base Service Level (%)"
+msgstr "ভিত্তি সার্ভিস লেভেল (%)"
+
+msgid "Base Snapshot Ref."
+msgstr "ভিত্তি স্ন্যাপশট রেফা."
+
+msgid "Basis"
+msgstr "ভিত্তি"
+
+msgid "Basis (Bengali)"
+msgstr "ভিত্তি (বাংলা)"
+
+msgid "Basis (zone consumption, job mix, FTF impact)"
+msgstr "ভিত্তি (জোন ব্যবহার, কাজের মিশ্রণ, FTF প্রভাব)"
+
+msgid "Benefit Value"
+msgstr "সুবিধার মূল্য"
+
+msgid "Branch Opening"
+msgstr "শাখা উদ্বোধন"
+
+msgid "CV² of Demand Size"
+msgstr "চাহিদার আকারের CV²"
+
+msgid "Cancel"
+msgstr "বাতিল করুন"
+
+msgid "Cancellation Reason"
+msgstr "বাতিলের কারণ"
+
+msgid "Cancelled"
+msgstr "বাতিল"
+
+msgid "Censored-Demand Correction"
+msgstr "সীমিত-চাহিদা সংশোধন"
+
+msgid "Classified At"
+msgstr "শ্রেণীকরণের সময়"
+
+msgid "Cleanse History"
+msgstr "ইতিহাস পরিশোধন"
+
+msgid "Close"
+msgstr "বন্ধ করুন"
+
+msgid "Close on Receipt"
+msgstr "প্রাপ্তিতে বন্ধ করুন"
+
+msgid "Closed"
+msgstr "বন্ধ"
+
+msgid "Completed At"
+msgstr "সম্পন্নের সময়"
+
+msgid "Computed & Audit"
+msgstr "গণনাকৃত ও নিরীক্ষা"
+
+msgid "Computed At"
+msgstr "গণনার সময়"
+
+msgid "Consolidated Into"
+msgstr "একীভূত হয়েছে"
+
+msgid "Constraints Applied"
+msgstr "প্রযুক্ত সীমাবদ্ধতা"
+
+msgid "Continuous Reorder Point"
+msgstr "নিরবচ্ছিন্ন রি-অর্ডার পয়েন্ট"
+
+msgid "Contract / AMC Schedule"
+msgstr "চুক্তি / AMC সময়সূচি"
+
+msgid "Cost per Order (BDT)"
+msgstr "প্রতি অর্ডার খরচ (টাকা)"
+
+msgid "Criticality"
+msgstr "গুরুত্ব"
+
+msgid "Croston / SBA"
+msgstr "ক্রস্টন / SBA"
+
+msgid "Current Stock"
+msgstr "বর্তমান স্টক"
+
+msgid "Cycle Name"
+msgstr "চক্রের নাম"
+
+msgid "Cycle Service Target (%)"
+msgstr "সাইকেল সার্ভিস লক্ষ্য (%)"
+
+msgid "Daily Demand Std. Dev."
+msgstr "দৈনিক চাহিদার মানক বিচ্যুতি"
+
+msgid "Declining"
+msgstr "হ্রাসমান"
+
+msgid "Degraded Forecasts"
+msgstr "অবনমিত পূর্বাভাস"
+
+msgid "Degraded Local Fallback"
+msgstr "অবনমিত স্থানীয় বিকল্প"
+
+msgid "Demand Change (%)"
+msgstr "চাহিদা পরিবর্তন (%)"
+
+msgid "Demand Driver"
+msgstr "চাহিদা চালক"
+
+msgid "Demand Drivers"
+msgstr "চাহিদা চালকসমূহ"
+
+msgid "Demand Plan"
+msgstr "চাহিদা পরিকল্পনা"
+
+msgid "Demand Plans"
+msgstr "চাহিদা পরিকল্পনাসমূহ"
+
+msgid "Demand Stream"
+msgstr "চাহিদার ধারা"
+
+msgid "Destination Location"
+msgstr "গন্তব্য লোকেশন"
+
+msgid "Domestic"
+msgstr "দেশীয়"
+
+msgid "Draft"
+msgstr "খসড়া"
+
+msgid "Driver"
+msgstr "চালক"
+
+msgid "Driving Parameter"
+msgstr "চালক প্যারামিটার"
+
+msgid "Economic Order Qty"
+msgstr "অর্থনৈতিক অর্ডার পরিমাণ"
+
+msgid "Effective From"
+msgstr "কার্যকর শুরু"
+
+msgid "Effective To"
+msgstr "কার্যকর শেষ"
+
+msgid "End of Life"
+msgstr "জীবনকাল শেষ"
+
+msgid "Erratic"
+msgstr "অনিয়মিত"
+
+msgid "Exclude"
+msgstr "বাদ দিন"
+
+msgid "Expected Impact (%)"
+msgstr "প্রত্যাশিত প্রভাব (%)"
+
+msgid "Exponential Smoothing (ETS)"
+msgstr "এক্সপোনেনশিয়াল স্মুদিং (ETS)"
+
+msgid "Fill-Rate Target (%)"
+msgstr "ফিল-রেট লক্ষ্য (%)"
+
+msgid "Final Forecast"
+msgstr "চূড়ান্ত পূর্বাভাস"
+
+msgid "Finance Sign-off"
+msgstr "অর্থ বিভাগের অনুমোদন"
+
+msgid "Finding"
+msgstr "পর্যবেক্ষণ"
+
+msgid "Finding (Bengali)"
+msgstr "পর্যবেক্ষণ (বাংলা)"
+
+msgid "Forecast Overrides"
+msgstr "পূর্বাভাস পরিবর্তনসমূহ"
+
+msgid "Forecast Quantity"
+msgstr "পূর্বাভাস পরিমাণ"
+
+msgid "Forecasts Generated"
+msgstr "তৈরি পূর্বাভাস"
+
+msgid "Forward-Stock Branches"
+msgstr "অগ্রবর্তী-স্টক শাখা"
+
+msgid "From"
+msgstr "থেকে"
+
+msgid "From (Surplus)"
+msgstr "থেকে (উদ্বৃত্ত)"
+
+msgid "Full Network"
+msgstr "সম্পূর্ণ নেটওয়ার্ক"
+
+msgid "Growth"
+msgstr "বৃদ্ধি"
+
+msgid "History Adjustments"
+msgstr "ইতিহাস সমন্বয়সমূহ"
+
+msgid "Hold on Vans"
+msgstr "ভ্যানে রাখুন"
+
+msgid "Horizon (months)"
+msgstr "দিগন্ত (মাস)"
+
+msgid "Import"
+msgstr "আমদানি"
+
+msgid "In Review"
+msgstr "পর্যালোচনাধীন"
+
+msgid "Include"
+msgstr "অন্তর্ভুক্ত করুন"
+
+msgid "Incremental"
+msgstr "ক্রমবর্ধমান"
+
+msgid "Installed Base"
+msgstr "স্থাপিত ভিত্তি"
+
+msgid "Intermittent"
+msgstr "বিরতিপূর্ণ"
+
+msgid "Last Updated"
+msgstr "সর্বশেষ হালনাগাদ"
+
+msgid "Lead Time (days)"
+msgstr "লিড টাইম (দিন)"
+
+msgid "Lead-Time Change (%)"
+msgstr "লিড-টাইম পরিবর্তন (%)"
+
+msgid "Lead-Time Demand Bootstrap"
+msgstr "লিড-টাইম চাহিদা বুটস্ট্র্যাপ"
+
+msgid "Lead-Time Profile"
+msgstr "লিড-টাইম প্রোফাইল"
+
+msgid "Lead-Time Profiles"
+msgstr "লিড-টাইম প্রোফাইলসমূহ"
+
+msgid "Lead-Time Std. Dev. (days)"
+msgstr "লিড-টাইম মানক বিচ্যুতি (দিন)"
+
+msgid "Location"
+msgstr "লোকেশন"
+
+msgid "Location (blank = network)"
+msgstr "লোকেশন (ফাঁকা = নেটওয়ার্ক)"
+
+msgid "Location Type"
+msgstr "লোকেশনের ধরন"
+
+msgid "Lumpy"
+msgstr "অসম"
+
+msgid "M15 Transfer Ref."
+msgstr "M15 স্থানান্তর রেফা."
+
+msgid "M16 Purchase Order Ref."
+msgstr "M16 ক্রয় আদেশ রেফা."
+
+msgid "M16 Requisition Ref."
+msgstr "M16 রিকুইজিশন রেফা."
+
+msgid "Mark Converted"
+msgstr "রূপান্তরিত চিহ্নিত করুন"
+
+msgid "Mark Transferred"
+msgstr "স্থানান্তরিত চিহ্নিত করুন"
+
+msgid "Market Intelligence"
+msgstr "বাজার তথ্য"
+
+msgid "Mature"
+msgstr "পরিপক্ব"
+
+msgid "Max Qty"
+msgstr "সর্বোচ্চ পরিমাণ"
+
+msgid "Mean Actual (days)"
+msgstr "প্রকৃত গড় (দিন)"
+
+msgid "Mean Daily Demand"
+msgstr "গড় দৈনিক চাহিদা"
+
+msgid "Mean Lead Time (days)"
+msgstr "গড় লিড টাইম (দিন)"
+
+msgid "Measured Bias (%)"
+msgstr "পরিমাপকৃত পক্ষপাত (%)"
+
+msgid "Measured MAPE (%)"
+msgstr "পরিমাপকৃত MAPE (%)"
+
+msgid "Min Qty"
+msgstr "সর্বনিম্ন পরিমাণ"
+
+msgid "Min-Max"
+msgstr "সর্বনিম্ন-সর্বোচ্চ"
+
+msgid "Move to Another Stream"
+msgstr "অন্য ধারায় সরান"
+
+msgid "Move to Review"
+msgstr "পর্যালোচনায় পাঠান"
+
+msgid "Net Benefit"
+msgstr "নিট সুবিধা"
+
+msgid "Network"
+msgstr "নেটওয়ার্ক"
+
+msgid "Network Stocking Policies"
+msgstr "নেটওয়ার্ক স্টকিং নীতিসমূহ"
+
+msgid "New"
+msgstr "নতুন"
+
+msgid "Nine-Box Cell"
+msgstr "নাইন-বক্স ঘর"
+
+msgid "No Action"
+msgstr "কোনো পদক্ষেপ নয়"
+
+msgid "No Stock / Order on Demand"
+msgstr "স্টক নয় / চাহিদামতো অর্ডার"
+
+msgid "Note (Bengali)"
+msgstr "মন্তব্য (বাংলা)"
+
+msgid "Notes (Bengali)"
+msgstr "মন্তব্য (বাংলা)"
+
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+msgid "Operations Sign-off"
+msgstr "অপারেশনস অনুমোদন"
+
+msgid "Ordered On"
+msgstr "অর্ডারের তারিখ"
+
+msgid "Original Quantity"
+msgstr "মূল পরিমাণ"
+
+msgid "Outlier Treatment"
+msgstr "অস্বাভাবিক মান নিষ্পত্তি"
+
+msgid "Override Forecast"
+msgstr "পরিবর্তিত পূর্বাভাস"
+
+msgid "Overrides"
+msgstr "পরিবর্তনসমূহ"
+
+msgid "P95 (days)"
+msgstr "P95 (দিন)"
+
+msgid "PO / Consignment Ref."
+msgstr "PO / চালান রেফা."
+
+msgid "Pack Size"
+msgstr "প্যাকের আকার"
+
+msgid "Par Max"
+msgstr "প্যার সর্বোচ্চ"
+
+msgid "Par Min"
+msgstr "প্যার সর্বনিম্ন"
+
+msgid "Part Segments"
+msgstr "পার্টস সেগমেন্টসমূহ"
+
+msgid "Parts Processed"
+msgstr "প্রক্রিয়াকৃত পার্টস"
+
+msgid "Pending Planner Review"
+msgstr "পরিকল্পনাকারীর পর্যালোচনা বাকি"
+
+msgid "Period"
+msgstr "সময়কাল"
+
+msgid "Period End"
+msgstr "সময়কাল শেষ"
+
+msgid "Period Start"
+msgstr "সময়কাল শুরু"
+
+msgid "Periodic Review"
+msgstr "পর্যায়ক্রমিক পর্যালোচনা"
+
+msgid "Planned Order"
+msgstr "পরিকল্পিত অর্ডার"
+
+msgid "Planned Orders"
+msgstr "পরিকল্পিত অর্ডারসমূহ"
+
+msgid "Planner"
+msgstr "পরিকল্পনাকারী"
+
+msgid "Planner Override"
+msgstr "পরিকল্পনাকারীর পরিবর্তন"
+
+msgid "Planner Review Required"
+msgstr "পরিকল্পনাকারীর পর্যালোচনা প্রয়োজন"
+
+msgid "Planner Reviewed"
+msgstr "পর্যালোচিত পরিকল্পনাকারী"
+
+msgid "Policy Assignments"
+msgstr "নীতি নির্ধারণসমূহ"
+
+msgid "Procurement Sign-off"
+msgstr "ক্রয় বিভাগের অনুমোদন"
+
+msgid "Product"
+msgstr "পণ্য"
+
+msgid "Propose"
+msgstr "প্রস্তাব করুন"
+
+msgid "Propose Method Re-selection"
+msgstr "পদ্ধতি পুনঃনির্বাচনের প্রস্তাব"
+
+msgid "Proposed"
+msgstr "প্রস্তাবিত"
+
+msgid "Provisional (readiness failed)"
+msgstr "অস্থায়ী (প্রস্তুতি ব্যর্থ)"
+
+msgid "Publish to M15"
+msgstr "M15-এ প্রকাশ করুন"
+
+msgid "Publish to M15 / M41"
+msgstr "M15 / M41-এ প্রকাশ করুন"
+
+msgid "Published"
+msgstr "প্রকাশিত"
+
+msgid "Published to M15"
+msgstr "M15-এ প্রকাশিত"
+
+msgid "Purchase"
+msgstr "ক্রয়"
+
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+msgid "Rationale"
+msgstr "যুক্তি"
+
+msgid "Rationale (Bengali)"
+msgstr "যুক্তি (বাংলা)"
+
+msgid "Reason"
+msgstr "কারণ"
+
+msgid "Reason (Bengali)"
+msgstr "কারণ (বাংলা)"
+
+msgid "Rebalance Proposals"
+msgstr "পুনঃসমন্বয় প্রস্তাবসমূহ"
+
+msgid "Received On"
+msgstr "প্রাপ্তির তারিখ"
+
+msgid "Reclassify To"
+msgstr "পুনঃশ্রেণীকরণ"
+
+msgid "Recommended Order Qty"
+msgstr "প্রস্তাবিত অর্ডার পরিমাণ"
+
+msgid "Reference"
+msgstr "রেফারেন্স"
+
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+msgid "Release to M16"
+msgstr "M16-এ ছাড়ুন"
+
+msgid "Reorder Point"
+msgstr "রি-অর্ডার পয়েন্ট"
+
+msgid "Reorder Qty"
+msgstr "রি-অর্ডার পরিমাণ"
+
+msgid "Replace Value"
+msgstr "মান প্রতিস্থাপন"
+
+msgid "Required By"
+msgstr "প্রয়োজনের তারিখ"
+
+msgid "Reset"
+msgstr "পুনরায় সেট করুন"
+
+msgid "Resulting Investment"
+msgstr "ফলস্বরূপ বিনিয়োগ"
+
+msgid "Resulting Service Level (%)"
+msgstr "ফলস্বরূপ সার্ভিস লেভেল (%)"
+
+msgid "Review Cycle"
+msgstr "পর্যালোচনা চক্র"
+
+msgid "Review Cycles"
+msgstr "পর্যালোচনা চক্রসমূহ"
+
+msgid "Review Notes"
+msgstr "পর্যালোচনা নোট"
+
+msgid "Review Parameters"
+msgstr "প্যারামিটার পর্যালোচনা"
+
+msgid "Review Period (days)"
+msgstr "পর্যালোচনার সময়কাল (দিন)"
+
+msgid "Reviewer"
+msgstr "পর্যালোচক"
+
+msgid "Run"
+msgstr "চালানো হয়েছে"
+
+msgid "Run At"
+msgstr "চালানোর সময়"
+
+msgid "Run By"
+msgstr "চালিয়েছেন"
+
+msgid "Run Simulation"
+msgstr "সিমুলেশন চালান"
+
+msgid "Running"
+msgstr "চলমান"
+
+msgid "Safety Factor (z)"
+msgstr "নিরাপত্তা গুণক (z)"
+
+msgid "Safety Stock"
+msgstr "সেফটি স্টক"
+
+msgid "Samples"
+msgstr "নমুনা"
+
+msgid "Scenario"
+msgstr "দৃশ্যপট"
+
+msgid "Scope (category / location)"
+msgstr "পরিধি (শ্রেণী / লোকেশন)"
+
+msgid "Seasonality"
+msgstr "মৌসুমি প্রভাব"
+
+msgid "Segment (e.g. AX, job-stopping)"
+msgstr "সেগমেন্ট (যেমন AX, কাজ-বন্ধকারী)"
+
+msgid "Send Back"
+msgstr "ফেরত পাঠান"
+
+msgid "Service-Level Target"
+msgstr "সার্ভিস লেভেল লক্ষ্য"
+
+msgid "Service-Level Targets"
+msgstr "সার্ভিস লেভেল লক্ষ্যসমূহ"
+
+msgid "Set By"
+msgstr "নির্ধারণকারী"
+
+msgid "Sign: Finance"
+msgstr "স্বাক্ষর: অর্থ"
+
+msgid "Sign: Operations"
+msgstr "স্বাক্ষর: অপারেশনস"
+
+msgid "Sign: Procurement"
+msgstr "স্বাক্ষর: ক্রয়"
+
+msgid "Signed Off"
+msgstr "অনুমোদিত হয়েছে"
+
+msgid "Simulated Service Level (%)"
+msgstr "সিমুলেটেড সার্ভিস লেভেল (%)"
+
+msgid "Smooth"
+msgstr "মসৃণ"
+
+msgid "Source Reference"
+msgstr "উৎস রেফারেন্স"
+
+msgid "Spare Part"
+msgstr "যন্ত্রাংশ"
+
+msgid "Spare Part (blank = all)"
+msgstr "যন্ত্রাংশ (ফাঁকা = সব)"
+
+msgid "Start Cycle"
+msgstr "চক্র শুরু করুন"
+
+msgid "Started At"
+msgstr "শুরুর সময়"
+
+msgid "Statistical Forecast"
+msgstr "পরিসংখ্যানগত পূর্বাভাস"
+
+msgid "Std. Deviation (days)"
+msgstr "মানক বিচ্যুতি (দিন)"
+
+msgid "Stock Centrally"
+msgstr "কেন্দ্রীয়ভাবে স্টক"
+
+msgid "Stock Location"
+msgstr "স্টক লোকেশন"
+
+msgid "Stockout Risk (%)"
+msgstr "স্টক-শূন্যতার ঝুঁকি (%)"
+
+msgid "Stream Reclassification"
+msgstr "ধারা পুনঃশ্রেণীকরণ"
+
+msgid "Submit"
+msgstr "জমা দিন"
+
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+msgid "Suggested Supplier"
+msgstr "প্রস্তাবিত সরবরাহকারী"
+
+msgid "Superseded"
+msgstr "প্রতিস্থাপিত"
+
+msgid "Supplier"
+msgstr "সরবরাহকারী"
+
+msgid "Supplier MOQ"
+msgstr "সরবরাহকারীর ন্যূনতম অর্ডার"
+
+msgid "Supplier-Quoted Lead Time (days)"
+msgstr "সরবরাহকারী-উদ্ধৃত লিড টাইম (দিন)"
+
+msgid "Target"
+msgstr "লক্ষ্য"
+
+msgid "To"
+msgstr "পর্যন্ত"
+
+msgid "To (Shortage)"
+msgstr "গন্তব্য (ঘাটতি)"
+
+msgid "Transfer"
+msgstr "স্থানান্তর"
+
+msgid "Transfer Cost"
+msgstr "স্থানান্তর খরচ"
+
+msgid "Transferred"
+msgstr "স্থানান্তরিত"
+
+msgid "Update Demand Drivers"
+msgstr "চাহিদা চালক হালনাগাদ"
+
+msgid "Van"
+msgstr "ভ্যান"
+
+msgid "Van Par Recommendations"
+msgstr "ভ্যান প্যার সুপারিশসমূহ"
+
+msgid "Version"
+msgstr "সংস্করণ"
+
+msgid "Warranty Campaign"
+msgstr "ওয়ারেন্টি ক্যাম্পেইন"
+
+msgid "What-If Simulation"
+msgstr "কী-যদি সিমুলেশন"
+
+msgid "What-If Simulations"
+msgstr "কী-যদি সিমুলেশনসমূহ"
+
+msgid "Withdraw"
+msgstr "প্রত্যাহার করুন"
+
+msgid "Withdrawn"
+msgstr "প্রত্যাহৃত"
+
+msgid "XYZ Class"
+msgstr "XYZ শ্রেণী"
+
+msgid "কারণ (বাংলা)"
+msgstr "কারণ (বাংলা)"
+
+msgid "চক্রের নাম (বাংলা)"
+msgstr "চক্রের নাম (বাংলা)"
+
+msgid "চালক (বাংলা)"
+msgstr "চালক (বাংলা)"
+
+msgid "দৃশ্যপট (বাংলা)"
+msgstr "দৃশ্যপট (বাংলা)"
+
+msgid "পর্যবেক্ষণ (বাংলা)"
+msgstr "পর্যবেক্ষণ (বাংলা)"
+
+msgid "ভিত্তি (বাংলা)"
+msgstr "ভিত্তি (বাংলা)"
+
+msgid "মন্তব্য (বাংলা)"
+msgstr "মন্তব্য (বাংলা)"
+
+msgid "যুক্তি (বাংলা)"
+msgstr "যুক্তি (বাংলা)"
+
+msgid "লক্ষ্য (বাংলা)"
+msgstr "লক্ষ্য (বাংলা)"

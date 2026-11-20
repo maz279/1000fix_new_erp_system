@@ -577,6 +577,8 @@ export class P03Workspace extends Component {
     /* Resolve a cross-navigation term to a real module/screen — no dead
        hardcoded targets. */
     openCross(term) {
+        const code = String(term).split(" ")[0];
+        if (/^M\d{2}$/.test(code) && P03_MODULES[code]) return this.openModule(code);
         const q = String(term).toLowerCase();
         const mod = Object.values(P03_MODULES).find(m =>
             m.title.toLowerCase().includes(q) || m.en.toLowerCase().includes(q) ||
@@ -698,7 +700,9 @@ export class P03Workspace extends Component {
             module: mod,
             screens: mappedScreens.slice(0, 6),
             reports: mod.reports.slice(0, 4),
-            forms: mod.forms.slice(0, 3),
+            forms: mod.captures
+                ? mod.captures.filter(c => c.freg.includes(sub[0])).map(c => c.en)
+                : mod.forms.slice(0, 3),
             gridData: grid
         };
         this.state.viewMode = "freg";
@@ -758,6 +762,7 @@ export class P03Workspace extends Component {
             mid: hit.mid,
             moduleTitle: hit.m.title,
             groupTitle: customGroupEn || hit.g.en,
+            captureLabel: ((hit.m.captures || []).find(c => c.screens.includes(hit.sc.id)) || {}).en || null,
             gridData: grid
         };
         this.state.filteredGridRows = [...grid.rows];
@@ -832,6 +837,68 @@ export class P03Workspace extends Component {
             console.error("Failed to load order", e);
             this.showToast("Failed to load the order from the backend.");
         }
+    }
+
+    /* --- Data capture routing (module-aware) ---------------------------
+       A module that declares a `captures` map (P03_MODULES[mid].captures)
+       opens the REAL Odoo form each label captures into. A module without
+       one keeps the service-order intake modal until its phase maps it. */
+    findCapture(label, mid) {
+        const mod = P03_MODULES[mid || this.state.activeModuleId];
+        return ((mod && mod.captures) || []).find(c => c.en === label) || null;
+    }
+
+    get headerCaptureLabel() {
+        const caps = this.state.activeModule && this.state.activeModule.captures;
+        return caps && caps.length ? `+ New ${caps[0].en}` : "+ New Service Order";
+    }
+
+    get fregCaptureLabel() {
+        const f = this.state.activeFreg;
+        return f && f.module.captures && f.forms.length ? `+ New ${f.forms[0]}` : "+ New Entry";
+    }
+
+    get screenCaptureLabel() {
+        const sc = this.state.activeScreen;
+        return sc && sc.captureLabel ? `+ New ${sc.captureLabel}` : "+ New Record";
+    }
+
+    async openCapture(label, mid) {
+        const cap = this.findCapture(label, mid);
+        if (!cap) {
+            this.openNewForm();
+            return;
+        }
+        try {
+            await this.actionService.doAction({
+                type: "ir.actions.act_window",
+                name: cap.en,
+                res_model: cap.model,
+                views: [[false, "form"]],
+                target: "new",
+            });
+        } catch (e) {
+            console.error(`Capture '${cap.en}' failed to open`, e);
+            this.showToast(`'${cap.en}' could not open — is its module installed?`);
+        }
+    }
+
+    openHeaderCapture() {
+        const caps = this.state.activeModule && this.state.activeModule.captures;
+        if (caps && caps.length) return this.openCapture(caps[0].en);
+        this.openNewForm();
+    }
+
+    openFregCapture() {
+        const f = this.state.activeFreg;
+        if (f && f.module.captures && f.forms.length) return this.openCapture(f.forms[0], f.mid);
+        this.openNewForm();
+    }
+
+    openScreenCapture() {
+        const sc = this.state.activeScreen;
+        if (sc && sc.captureLabel) return this.openCapture(sc.captureLabel, sc.mid);
+        this.openNewForm();
     }
 
     openNewForm() {

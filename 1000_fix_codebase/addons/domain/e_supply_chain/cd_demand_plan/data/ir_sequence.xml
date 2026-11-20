@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_planned_order" model="ir.sequence">
+            <field name="name">Planned Order Reference Sequence</field>
+            <field name="code">fix.planned.order</field>
+            <field name="prefix">DPL/PO/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

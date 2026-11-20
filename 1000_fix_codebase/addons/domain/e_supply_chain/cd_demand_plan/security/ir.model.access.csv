@@ -1,2 +1,17 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_demand_plan,fix.demand.plan,model_fix_demand_plan,base.group_user,1,1,1,0
+access_fix_demand_adjustment,fix.demand.adjustment,model_fix_demand_adjustment,base.group_user,1,1,1,0
+access_fix_part_segment,fix.part.segment,model_fix_part_segment,base.group_user,1,1,1,0
+access_fix_planning_run,fix.planning.run,model_fix_planning_run,base.group_user,1,1,1,0
+access_fix_forecast_override,fix.forecast.override,model_fix_forecast_override,base.group_user,1,1,1,0
+access_fix_demand_driver,fix.demand.driver,model_fix_demand_driver,base.group_user,1,1,1,0
+access_fix_forecast_accuracy_review,fix.forecast.accuracy.review,model_fix_forecast_accuracy_review,base.group_user,1,1,1,0
+access_fix_service_level_target,fix.service.level.target,model_fix_service_level_target,base.group_user,1,1,1,0
+access_fix_lead_time_model,fix.lead.time.model,model_fix_lead_time_model,base.group_user,1,1,1,0
+access_fix_lead_time_observation,fix.lead.time.observation,model_fix_lead_time_observation,base.group_user,1,1,1,0
+access_fix_replenishment_parameter,fix.replenishment.parameter,model_fix_replenishment_parameter,base.group_user,1,1,1,0
+access_fix_planned_order,fix.planned.order,model_fix_planned_order,base.group_user,1,1,1,0
+access_fix_rebalance_proposal,fix.rebalance.proposal,model_fix_rebalance_proposal,base.group_user,1,1,1,0
+access_fix_network_policy,fix.network.policy,model_fix_network_policy,base.group_user,1,1,1,0
+access_fix_van_par_recommendation,fix.van.par.recommendation,model_fix_van_par_recommendation,base.group_user,1,1,1,0
+access_fix_planning_simulation,fix.planning.simulation,model_fix_planning_simulation,base.group_user,1,1,1,0

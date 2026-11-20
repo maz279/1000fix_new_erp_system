@@ -24,6 +24,14 @@ class FixDemandPlan(models.Model):
     forecast_quantity = fields.Float(
         string="Forecast Quantity",
         help="The M26 forecast model's output; replaces heuristics")
+    override_quantity = fields.Float(
+        string="Planner Override", tracking=True,
+        help="Set by an applied fix.forecast.override; the statistical "
+             "forecast above is retained (BRU-DPL-06)")
+    final_quantity = fields.Float(compute="_compute_recommended",
+                                  string="Final Forecast", store=True)
+    override_ids = fields.One2many("fix.forecast.override", "demand_plan_id",
+                                   string="Overrides")
     current_stock = fields.Float(string="Current Stock")
     reorder_point = fields.Float(string="Reorder Point",
                                  help="M15's reorder seam, consumed here")
@@ -33,10 +41,14 @@ class FixDemandPlan(models.Model):
     state = fields.Selection([("draft", "Draft"), ("approved", "Approved")],
                              default="draft", required=True, tracking=True)
 
-    @api.depends("forecast_quantity", "current_stock", "reorder_point")
+    @api.depends("forecast_quantity", "override_quantity", "current_stock",
+                 "reorder_point")
     def _compute_recommended(self):
         for rec in self:
-            gap = rec.forecast_quantity - rec.current_stock
+            # the planner's applied override wins; the statistical
+            # forecast_quantity stays untouched beside it
+            rec.final_quantity = rec.override_quantity or rec.forecast_quantity
+            gap = rec.final_quantity - rec.current_stock
             rec.recommended_order = max(gap, 0) if gap > rec.reorder_point else 0
 
     def action_approve(self):
