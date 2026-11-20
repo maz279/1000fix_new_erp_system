@@ -102,6 +102,15 @@ def check_po_completeness() -> list[str]:
         if not po.is_file():
             failures.append(f"{cd_dir.name}: i18n/ templates exist but bn_BD.po is missing")
             continue
+        # Odoo's PO reader needs "#. module: <name>" (and "#: model:..."
+        # occurrences) on every entry: a hand-written file without them
+        # crashes the translation loader the moment bn_BD is active, and
+        # would translate nothing even if it parsed.
+        for f in (*pots, po):
+            fmt = odoo_format_violation(f.read_text(encoding="utf-8"))
+            if fmt:
+                failures.append(f"{cd_dir.name}: {f.name} is not in Odoo PO format ({fmt}); "
+                                "export it from the runtime (odoo-bin i18n export)")
         translated = parse_po_msgstr(po.read_text(encoding="utf-8"))
         for pot in pots:
             for msgid in parse_pot_msgids(pot.read_text(encoding="utf-8")):
@@ -110,6 +119,15 @@ def check_po_completeness() -> list[str]:
                 if not translated.get(msgid, "").strip():
                     failures.append(f"{cd_dir.name}: bn_BD.po has no translation for {msgid!r}")
     return failures
+
+
+def odoo_format_violation(text: str) -> str:
+    """'' when every non-header entry carries an Odoo module comment."""
+    entries = [b for b in re.split(r"\n\s*\n", text) if re.search(r'^msgid "', b, re.M)]
+    bad = [b for b in entries
+           if not re.search(r'^msgid ""\s*$\nmsgstr', b, re.M)  # skip the header block
+           and "#. module:" not in b]
+    return f"{len(bad)} entr{'y' if len(bad) == 1 else 'ies'} without '#. module:'" if bad else ""
 
 
 def parse_pot_msgids(text: str) -> list[str]:

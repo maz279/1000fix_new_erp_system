@@ -1,4 +1,4 @@
-# Translation template for cd_supplier_scorecard — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Translation template for cd_supplier_scorecard — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
 # Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
@@ -278,6 +278,12 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__my_activity_date_deadline
 #: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__my_activity_date_deadline
 msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
 msgstr ""
 
 #. module: cd_supplier_scorecard

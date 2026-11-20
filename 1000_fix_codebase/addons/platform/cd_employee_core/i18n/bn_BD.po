@@ -1,42 +1,176 @@
 # Bengali (Bangladesh) translation for cd_employee_core.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__active
+msgid "Active"
+msgstr "সক্রিয়"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__additional_role_ids
 msgid "Additional Roles"
 msgstr "অতিরিক্ত ভূমিকা"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__branch_id
 msgid "Assigned Branch"
 msgstr "নিযুক্ত শাখা"
 
+#. module: cd_employee_core
+#: model:ir.model,name:cd_employee_core.model_fix_branch
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_fix_branch__employee_manager_id
+msgid "Branch Manager (Employee)"
+msgstr "শাখা ব্যবস্থাপক (কর্মী)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__employment_status
+msgid "Derived from Odoo's hr state + M21-core lifecycle tracking"
+msgstr "Odoo-র hr অবস্থা + M21-core জীবনচক্র ট্র্যাকিং থেকে নির্ণীত"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_fix_branch__display_name
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_employee_core
+#: model:ir.model,name:cd_employee_core.model_hr_employee
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__employee_code
 msgid "Employee Code"
 msgstr "কর্মী কোড"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__employment_status
+msgid "Employment Status"
+msgstr "চাকরির অবস্থা"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_fix_branch__employee_manager_id
+msgid "HR-grade manager record; manager_id (res.users) is the accountable login, this is the employment record."
+msgstr "এইচআর-পর্যায়ের ব্যবস্থাপক রেকর্ড; manager_id (res.users) হলো জবাবদিহিমূলক লগইন, আর এটি চাকরির রেকর্ড।"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_fix_branch__id
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__joined_date
 msgid "Joined Date"
 msgstr "যোগদানের তারিখ"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__joining
+msgid "Joining (Pre-Start)"
+msgstr "যোগদানরত (শুরুর আগে)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__keycloak_user_id
 msgid "Keycloak User ID"
 msgstr "Keycloak ব্যবহারকারী আইডি"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__leaving
+msgid "Leaving"
+msgstr "বিদায়রত"
+
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__left
+msgid "Left"
+msgstr "চাকরি ছেড়েছেন"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__left_date
 msgid "Left Date"
 msgstr "ত্যাগের তারিখ"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__legacy_reference
+msgid "Legacy Reference"
+msgstr "পূর্ববর্তী রেফারেন্স"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__partner_id
 msgid "Linked Party"
 msgstr "সংযুক্ত পার্টি"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__legacy_reference
+msgid "MIG-03: permanent source system reference (FR-SRM-088)"
+msgstr "MIG-03: উৎস সিস্টেমের স্থায়ী রেফারেন্স (FR-SRM-088)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__notice_period
+msgid "Notice Period"
+msgstr "নোটিশ পিরিয়ড"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__party_role_id
 msgid "Party Role (Employee)"
 msgstr "পার্টি ভূমিকা (কর্মী)"
 
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__employee_code
+msgid "Payroll reference (M56); the identity documents carry the PII, not this model"
+msgstr "পেরোল রেফারেন্স (M56); ব্যক্তিগত শনাক্তযোগ্য তথ্য (PII) পরিচয়পত্রে থাকে, এই মডেলে নয়"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,field_description:cd_employee_core.field_hr_employee__primary_role_id
 msgid "Primary Business Role (M29)"
 msgstr "প্রধান ব্যবসায়িক ভূমিকা (M29)"
 
-msgid "Branch Manager (Employee)"
-msgstr "শাখা ব্যবস্থাপক (কর্মী)"
+#. module: cd_employee_core
+#: model:ir.model.fields.selection,name:cd_employee_core.selection__hr_employee__employment_status__prospect
+msgid "Prospect"
+msgstr "সম্ভাব্য"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__additional_role_ids
+msgid "Secondary roles; SoD controls check for conflicts"
+msgstr "সহায়ক ভূমিকাসমূহ; SoD নিয়ন্ত্রণ দ্বন্দ্ব যাচাই করে"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__keycloak_user_id
+msgid "The Keycloak user UUID — provisioned on employee.joined, deprovisioned on employee.left within 1 hour (KPI-090)"
+msgstr "Keycloak ব্যবহারকারীর UUID — employee.joined-এ প্রভিশন হয়, employee.left-এ ১ ঘণ্টার মধ্যে ডিপ্রভিশন হয় (KPI-090)"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__branch_id
+msgid "The branch this employee reports to"
+msgstr "এই কর্মী যে শাখার অধীনে"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__party_role_id
+msgid "The fix.party.role record linking this employee to the party kernel. An employee is a party with an employee role."
+msgstr "এই কর্মীকে পার্টি কার্নেলের সাথে সংযুক্তকারী fix.party.role রেকর্ড। কর্মী হলেন কর্মী ভূমিকাসহ একটি পার্টি।"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__primary_role_id
+msgid "The primary fix.role — drives M29's permission model"
+msgstr "প্রধান fix.role — M29-এর অনুমতি মডেল পরিচালনা করে"
+
+#. module: cd_employee_core
+#: model:ir.model.fields,help:cd_employee_core.field_hr_employee__partner_id
+msgid "The res.partner this employee maps to through the party kernel"
+msgstr "পার্টি কার্নেলের মাধ্যমে এই কর্মীর সাথে সংশ্লিষ্ট res.partner"

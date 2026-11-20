@@ -1,63 +1,503 @@
 # Bengali (Bangladesh) translation for cd_requisition.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__acknowledged
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__acknowledged_at
+msgid "Acknowledged At"
+msgstr "স্বীকৃতির সময়"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_needaction
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_needaction
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_state
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_state
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_type_icon
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_type_icon
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_attachment_count
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_attachment_count
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__company_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__converted
+msgid "Converted to PO"
+msgstr "PO-তে রূপান্তরিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__create_uid
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__create_uid
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__create_date
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__create_date
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__currency_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__currency_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__branch_id
 msgid "Deliver-to Branch"
 msgstr "ডেলিভি শাখা"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__description
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__display_name
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__display_name
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__draft
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__emergency
+msgid "Emergency (job-stopped)"
+msgstr "অতি জরুরি (কাজ বন্ধ)"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__estimate_amount
 msgid "Estimated Amount"
 msgstr "আনুমানিক পরিমাণ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_follower_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_follower_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_partner_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_partner_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__activity_type_icon
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__activity_type_icon
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__has_message
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__has_message
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__activity_exception_icon
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__activity_exception_icon
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__message_needaction
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__message_needaction
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__message_has_error
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__message_has_sms_error
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__message_has_error
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__message_has_sms_error
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__message_has_error
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_is_follower
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_is_follower
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__write_uid
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__write_uid
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__write_date
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__write_date
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__line_total
 msgid "Line Total"
 msgstr "লাইন মোট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__line_ids
 msgid "Lines"
 msgstr "লাইনসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_has_error
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_has_error
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_summary
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_summary
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_type_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_type_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__message_needaction_counter
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__message_needaction_counter
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__message_has_error_counter
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__message_has_error_counter
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__order_id
+msgid "Order"
+msgstr "ক্রম"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__date_order
 msgid "Order Date"
 msgstr "অর্ডারের তারিখ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__qty_ordered
 msgid "Ordered"
 msgstr "অর্ডিত"
 
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__acknowledged_at
+msgid "P05 vendor portal acknowledgement"
+msgstr "P05 ভেন্ডর পোর্টালে স্বীকৃতি"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__name
 msgid "PO Reference"
 msgstr "PO রেফারেন্স"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__partially_received
+msgid "Partially Received"
+msgstr "আংশিক গৃহীত"
+
+#. module: cd_requisition
+#: model:ir.ui.menu,name:cd_requisition.menu_ws_procurement
 msgid "Procurement"
 msgstr "প্রকিউরমেন্ট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__product_id
 msgid "Product"
 msgstr "পণ্য"
 
+#. module: cd_requisition
+#: model:ir.model,name:cd_requisition.model_fix_purchase_order
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__purchase_order_id
 msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
+#. module: cd_requisition
+#: model:ir.model,name:cd_requisition.model_fix_purchase_order_line
+msgid "Purchase Order Line"
+msgstr "ক্রয় আদেশের লাইন"
+
+#. module: cd_requisition
+#: model:ir.actions.act_window,name:cd_requisition.action_fix_purchase_order
+#: model:ir.ui.menu,name:cd_requisition.menu_fix_purchase_orders
 msgid "Purchase Orders"
 msgstr "ক্রয় আদেশসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__qty_received
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__received
 msgid "Received"
 msgstr "গৃহীত"
 
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__requested_by
 msgid "Requested By"
 msgstr "অনুরোধকারী"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__branch_id
 msgid "Requesting Branch"
 msgstr "অনুরোধকারী শাখা"
 
+#. module: cd_requisition
+#: model:ir.model,name:cd_requisition.model_fix_requisition
+msgid "Requisition"
+msgstr "চাহিদাপত্র"
+
+#. module: cd_requisition
+#: model:ir.actions.act_window,name:cd_requisition.action_fix_requisition
+#: model:ir.ui.menu,name:cd_requisition.menu_fix_requisitions
 msgid "Requisitions"
 msgstr "ক্রয় অনুরোধসমূহ"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__activity_user_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__activity_user_id
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_purchase_order__state__sent
+msgid "Sent"
+msgstr "প্রেরিত"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__state
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__activity_state
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__activity_state
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__amount_total
+#: model_terms:ir.ui.view,arch_db:cd_requisition.view_fix_purchase_order_form
 msgid "Total"
 msgstr "মোট"
 
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__activity_exception_decoration
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__activity_exception_decoration
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__unit_price
 msgid "Unit Price"
 msgstr "একক মূল্য"
 
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__urgency
+msgid "Urgency"
+msgstr "জরুরিতা"
+
+#. module: cd_requisition
+#: model:ir.model.fields.selection,name:cd_requisition.selection__fix_requisition__urgency__urgent
+msgid "Urgent (stock-out)"
+msgstr "জরুরি (মজুদ শেষ)"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__vendor_id
 msgid "Vendor"
 msgstr "ভেন্ডর"
+
+#. module: cd_requisition
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order__website_message_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_purchase_order_line__website_message_ids
+#: model:ir.model.fields,field_description:cd_requisition.field_fix_requisition__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_requisition
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order__website_message_ids
+#: model:ir.model.fields,help:cd_requisition.field_fix_purchase_order_line__website_message_ids
+#: model:ir.model.fields,help:cd_requisition.field_fix_requisition__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

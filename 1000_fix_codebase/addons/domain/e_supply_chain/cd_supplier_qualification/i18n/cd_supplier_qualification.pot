@@ -1,4 +1,4 @@
-# Translation template for cd_supplier_qualification — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Translation template for cd_supplier_qualification — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
 # Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
@@ -366,6 +366,14 @@ msgstr ""
 #. module: cd_supplier_qualification
 #: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__outcome__review
 msgid "Needs Review"
+msgstr ""
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
 msgstr ""
 
 #. module: cd_supplier_qualification

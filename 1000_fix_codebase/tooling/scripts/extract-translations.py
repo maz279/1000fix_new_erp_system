@@ -1,6 +1,11 @@
 #!/usr/bin/env python3
 """extract-translations — P04-M08-T02 (AS-12, AR-007 §3.1 i18n/).
 
+SUPERSEDED by tooling/scripts/export-translations.py. The templates this
+writes have no "#. module:" / "#: model:" lines, so Odoo cannot load them:
+with the bn_BD language active they crash the install, and FF-25 now
+rejects them. Use the runtime export instead.
+
 The translation workflow:
   1. This script extracts every user-facing string from a cd_* module into
      i18n/<module>.pot (Gettext template) — field labels, selection labels,

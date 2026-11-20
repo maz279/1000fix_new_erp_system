@@ -1,30 +1,623 @@
-# Translation of Odoo Server.
-# This file contains the translation of the following modules:
-# 	* cd_loyalty
-#
+# Bengali (Bangladesh) translation for cd_loyalty.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-"Project-Id-Version: Odoo Server 19.0\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-10-17 12:00+0000\n"
-"PO-Revision-Date: 2026-10-17 12:00+0000\n"
-"Last-Translator: \n"
-"Language-Team: Bengali (Bangladesh)\n"
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
-"MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
 #. module: cd_loyalty
-#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__name
-msgid "Programme Name"
-msgstr "প্রোগ্রামের নাম"
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_needaction
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
 #. module: cd_loyalty
-#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__name
-msgid "Tier Name"
-msgstr "টায়ারের নাম"
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Activate"
+msgstr "সক্রিয় করুন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__active
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__active
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_account__state__active
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_redemption_stub__status__active
+msgid "Active (Wave 2)"
+msgstr "সক্রিয় (ওয়েভ 2)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__state__active
+msgid "Active / Usable"
+msgstr "সক্রিয় / ব্যবহারযোগ্য"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_type_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__min_spend_bdt
+msgid "Alternative spend-based threshold for tier qualification."
+msgstr "টায়ার যোগ্যতার জন্য ব্যয়ভিত্তিক বিকল্প সীমা।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__discount_value
+msgid "Amount in BDT (for fixed) or percentage (for percentage)."
+msgstr "টাকায় পরিমাণ (নির্দিষ্টের ক্ষেত্রে) বা শতাংশ (শতাংশের ক্ষেত্রে)।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_attachment_count
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__bdt_per_point
+msgid "BDT Value Per Point"
+msgstr "প্রতি পয়েন্টের মূল্য (টাকা)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__balance_after
+msgid "Balance After Transaction"
+msgstr "লেনদেনের পর ব্যালেন্স"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Beneficiary"
+msgstr "সুবিধাভোগী"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Benefit Terms"
+msgstr "সুবিধার শর্তাবলি"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__bonus_points
+msgid "Bonus Points Amount"
+msgstr "বোনাস পয়েন্টের পরিমাণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__reward_type__bonus_points
+msgid "Bonus Points Grant"
+msgstr "বোনাস পয়েন্ট প্রদান"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__points_multiplier
+msgid "Bonus multiplier on base points earned (e.g., 1.5x for Gold)."
+msgstr "অর্জিত মূল পয়েন্টের ওপর বোনাস গুণক (যেমন, Gold-এর জন্য 1.5x)।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__campaign_bonus
+msgid "Campaign Promotion"
+msgstr "প্রচারণা প্রমোশন"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Cancel"
+msgstr "বাতিল করুন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_account__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_redemption_stub__status__closed
+msgid "Closed (Replaced in Wave 3)"
+msgstr "বন্ধ (ওয়েভ 3-এ প্রতিস্থাপিত)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__company_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Configuration"
+msgstr "কনফিগারেশন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__create_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__create_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_redemption_stub
+msgid "Cross-Wave Loyalty Redemption Stub (M10 -> M11/M20)"
+msgstr "ক্রস-ওয়েভ লয়্যালটি রিডেম্পশন স্টাব (M10 -> M11/M20)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__currency_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__currency_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__currency_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__tier_id
+msgid "Current Tier"
+msgstr "বর্তমান টায়ার"
+
+#. module: cd_loyalty
+#: model:ir.actions.act_window,name:cd_loyalty.action_fix_loyalty_account
+#: model:ir.ui.menu,name:cd_loyalty.menu_fix_loyalty_accounts
+msgid "Customer Accounts"
+msgstr "গ্রাহক অ্যাকাউন্টসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__adjustment
+msgid "Customer Care Adjustment"
+msgstr "কাস্টমার কেয়ার সমন্বয়"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Customer Loyalty Account"
+msgstr "গ্রাহক লয়্যালটি অ্যাকাউন্ট"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_tree
+msgid "Customer Loyalty Accounts"
+msgstr "গ্রাহক লয়্যালটি অ্যাকাউন্টসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_account
+msgid "Customer Loyalty Membership Account"
+msgstr "গ্রাহক লয়্যালটি সদস্যপদ অ্যাকাউন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__partner_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__partner_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__partner_id
+msgid "Customer Party"
+msgstr "গ্রাহক পার্টি"
+
+#. module: cd_loyalty
+#: model:ir.model.constraint,message:cd_loyalty.constraint_fix_loyalty_account_partner_prog_unique
+msgid "Customer already has an active account in this loyalty programme."
+msgstr "এই লয়্যালটি প্রোগ্রামে গ্রাহকের ইতিমধ্যে একটি সক্রিয় অ্যাকাউন্ট আছে।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__name_bn
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__name_bn
+msgid "DE-17: Localised display name"
+msgstr "DE-17: স্থানীয়কৃত প্রদর্শন নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__expiry_date
+msgid "Date when these points expire if unredeemed."
+msgstr "রিডিম না করলে এই পয়েন্টগুলোর মেয়াদ যে তারিখে শেষ হবে।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__dedicated_support
+msgid "Dedicated Support Line"
+msgstr "ডেডিকেটেড সাপোর্ট লাইন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__description
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__dedicated_support
+msgid "Direct VIP queue routing at contact centre."
+msgstr "কন্টাক্ট সেন্টারে সরাসরি VIP কিউ-তে রাউটিং।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__discount_type
+msgid "Discount Type"
+msgstr "ছাড়ের ধরন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__discount_value
+msgid "Discount Value"
+msgstr "ছাড়ের মান"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__labour_discount_pct
+msgid "Discount percentage applied to repair labour estimates."
+msgstr "মেরামতের মজুরির আনুমানিক খরচে প্রযোজ্য ছাড়ের শতাংশ।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__parts_discount_pct
+msgid "Discount percentage applied to spare parts prices."
+msgstr "খুচরা যন্ত্রাংশের মূল্যে প্রযোজ্য ছাড়ের শতাংশ।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__display_name
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__state__draft
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__state__draft
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Earning & Redemption Rules"
+msgstr "অর্জন ও রিডেম্পশনের নিয়ম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__enrollment_date
+msgid "Enrollment Date"
+msgstr "নিবন্ধনের তারিখ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__sequence
+msgid "Evaluation and display order"
+msgstr "মূল্যায়ন ও প্রদর্শনের ক্রম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__expiry_date
+msgid "Expiration Date"
+msgstr "মেয়াদোত্তীর্ণের তারিখ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__expiry_milestone
+msgid "Expiry Milestone"
+msgstr "মেয়াদ শেষের মাইলফলক"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__voucher_discount_type__fixed_bdt
+msgid "Fixed BDT"
+msgstr "নির্দিষ্ট টাকা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__discount_type__fixed_bdt
+msgid "Fixed BDT Discount"
+msgstr "নির্দিষ্ট টাকার ছাড়"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_follower_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_partner_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__activity_type_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__has_message
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__name
+msgid "Hook Description"
+msgstr "হুকের বিবরণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__activity_exception_icon
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__message_needaction
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__message_has_sms_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__message_has_error
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_is_follower
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__voucher_ids
+msgid "Issued Vouchers"
+msgstr "ইস্যুকৃত ভাউচার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__labour_discount_pct
+msgid "Labour Discount (%)"
+msgstr "লেবার ছাড় (%)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__tier_upgraded_date
+msgid "Last Tier Upgrade Date"
+msgstr "সর্বশেষ টায়ার উন্নীতকরণের তারিখ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__write_uid
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__write_date
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__lifetime_points_earned
+msgid "Lifetime Points Earned"
+msgstr "আজীবন অর্জিত পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__lifetime_points_redeemed
+msgid "Lifetime Points Redeemed"
+msgstr "আজীবন রিডিমকৃত পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__lifetime_spend_bdt
+msgid "Lifetime Spend (BDT)"
+msgstr "আজীবন ব্যয় (টাকা)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__min_points_threshold
+msgid "Lifetime points required to achieve or maintain this tier."
+msgstr "এই টায়ার অর্জন বা বজায় রাখতে প্রয়োজনীয় আজীবন পয়েন্ট।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__service_order_id
+msgid "Linked repair order generating or redeeming points."
+msgstr "পয়েন্ট অর্জন বা রিডিমকারী সংযুক্ত মেরামত অর্ডার।"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_program
+msgid "Loyalty & Privilege Programme"
+msgstr "লয়্যালটি ও প্রিভিলেজ প্রোগ্রাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__account_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__account_id
+msgid "Loyalty Account"
+msgstr "লয়্যালটি অ্যাকাউন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_campaign_hook
+msgid "Loyalty Campaign Integration Hook"
+msgstr "লয়্যালটি প্রচারণা ইন্টিগ্রেশন হুক"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_tier
+msgid "Loyalty Membership Tier"
+msgstr "লয়্যালটি সদস্যপদ টায়ার"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_ledger
+msgid "Loyalty Points Audit Ledger"
+msgstr "লয়্যালটি পয়েন্ট নিরীক্ষা লেজার"
+
+#. module: cd_loyalty
+#: model:ir.model,name:cd_loyalty.model_fix_loyalty_voucher
+msgid "Loyalty Privilege Voucher"
+msgstr "লয়্যালটি প্রিভিলেজ ভাউচার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__program_id
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Loyalty Programme"
+msgstr "লয়্যালটি প্রোগ্রাম"
+
+#. module: cd_loyalty
+#: model:ir.actions.act_window,name:cd_loyalty.action_fix_loyalty_program
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_tree
+msgid "Loyalty Programmes"
+msgstr "লয়্যালটি প্রোগ্রামসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__points_cost
+msgid "Loyalty points deducted from customer account upon voucher generation."
+msgstr "ভাউচার তৈরির সময় গ্রাহকের অ্যাকাউন্ট থেকে কর্তিত লয়্যালটি পয়েন্ট।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__campaign_id
+msgid "Marketing Campaign"
+msgstr "মার্কেটিং প্রচারণা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__account_ids
+msgid "Member Accounts"
+msgstr "সদস্য অ্যাকাউন্টসমূহ"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Member Information"
+msgstr "সদস্যের তথ্য"
 
 #. module: cd_loyalty
 #: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__name
@@ -32,6 +625,604 @@ msgid "Membership Number"
 msgstr "সদস্যপদ নম্বর"
 
 #. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__tier_ids
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Membership Tiers"
+msgstr "সদস্যপদ টায়ারসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_has_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__min_spend_bdt
+msgid "Minimum Order Spend (BDT)"
+msgstr "সর্বনিম্ন অর্ডার ব্যয় (টাকা)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__min_points_threshold
+msgid "Minimum Points Required"
+msgstr "প্রয়োজনীয় সর্বনিম্ন পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__min_points_to_redeem
+msgid "Minimum Points to Redeem"
+msgstr "রিডিমের জন্য সর্বনিম্ন পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__min_spend_bdt
+msgid "Minimum Spend (BDT)"
+msgstr "সর্বনিম্ন ব্যয় (টাকা)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__min_spend_bdt
+msgid "Minimum service order amount before this voucher can be applied."
+msgstr "এই ভাউচার প্রয়োগের আগে সার্ভিস অর্ডারের সর্বনিম্ন পরিমাণ।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__bdt_per_point
+msgid "Monetary conversion value when redeeming points."
+msgstr "পয়েন্ট রিডিমের সময় আর্থিক রূপান্তর মূল্য।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_summary
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_type_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__message_needaction_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__message_has_error_counter
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__operating_unit_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__order_amount_bdt
+msgid "Order Amount (BDT)"
+msgstr "অর্ডারের পরিমাণ (টাকা)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__campaign_id
+msgid "Originating Campaign"
+msgstr "উৎস প্রচারণা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__parts_discount_pct
+msgid "Parts Discount (%)"
+msgstr "যন্ত্রাংশ ছাড় (%)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__voucher_discount_type__percentage
+msgid "Percentage (%)"
+msgstr "শতাংশ (%)"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__discount_type__percentage
+msgid "Percentage Discount (%)"
+msgstr "শতাংশ ছাড় (%)"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Point Accumulators"
+msgstr "পয়েন্ট সঞ্চয়কারী"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__points
+msgid "Points Amount"
+msgstr "পয়েন্টের পরিমাণ"
+
+#. module: cd_loyalty
+#: model:ir.actions.act_window,name:cd_loyalty.action_fix_loyalty_ledger
+#: model:ir.ui.menu,name:cd_loyalty.menu_fix_loyalty_ledger
+msgid "Points Audit Ledger"
+msgstr "পয়েন্ট নিরীক্ষা লেজার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__points_cost
+msgid "Points Burned to Issue"
+msgstr "ইস্যু করতে ব্যয়িত পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__expiration
+msgid "Points Expiration"
+msgstr "পয়েন্টের মেয়াদোত্তীর্ণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__expiry_months
+msgid "Points Expiration Window (Months)"
+msgstr "পয়েন্টের মেয়াদ (মাস)"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Points Ledger"
+msgstr "পয়েন্ট লেজার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__points_multiplier
+msgid "Points Multiplier"
+msgstr "পয়েন্ট গুণক"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__points_per_bdt
+msgid "Points Per BDT Spent"
+msgstr "প্রতি টাকা ব্যয়ে পয়েন্ট"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__ledger_ids
+msgid "Points Transactions"
+msgstr "পয়েন্ট লেনদেনসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__bonus_points
+msgid "Points awarded to each qualifying campaign responder."
+msgstr "প্রত্যেক যোগ্য প্রচারণা সাড়াদাতাকে প্রদত্ত পয়েন্ট।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__state__posted
+msgid "Posted"
+msgstr "পোস্ট করা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__priority_diagnostic
+msgid "Priority Diagnostics"
+msgstr "অগ্রাধিকার ডায়াগনোসিস"
+
+#. module: cd_loyalty
+#: model:ir.ui.menu,name:cd_loyalty.menu_fix_loyalty_root
+msgid "Privilege & Loyalty"
+msgstr "প্রিভিলেজ ও লয়্যালটি"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Privilege Voucher"
+msgstr "প্রিভিলেজ ভাউচার"
+
+#. module: cd_loyalty
+#: model:ir.actions.act_window,name:cd_loyalty.action_fix_loyalty_voucher
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_tree
+msgid "Privilege Vouchers"
+msgstr "প্রিভিলেজ ভাউচারসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__program_id
+msgid "Programme"
+msgstr "প্রোগ্রাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__code
+msgid "Programme Code"
+msgstr "প্রোগ্রাম কোড"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__name
+msgid "Programme Name"
+msgstr "প্রোগ্রামের নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__name_bn
+msgid "Programme Name (Bengali)"
+msgstr "প্রোগ্রামের নাম (বাংলা)"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "Programme Name (e.g., 1000FiX Care Club)"
+msgstr "প্রোগ্রামের নাম (যেমন, 1000FiX Care Club)"
+
+#. module: cd_loyalty
+#: model:ir.model.constraint,message:cd_loyalty.constraint_fix_loyalty_program_code_unique
+msgid "Programme code must be unique per company."
+msgstr "প্রোগ্রাম কোড প্রতিটি কোম্পানিতে অনন্য হতে হবে।"
+
+#. module: cd_loyalty
+#: model:ir.ui.menu,name:cd_loyalty.menu_fix_loyalty_programs
+msgid "Programmes & Tiers"
+msgstr "প্রোগ্রাম ও টায়ার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_campaign_hook__reward_type__voucher
+msgid "Promotional Voucher Issuance"
+msgstr "প্রচারমূলক ভাউচার ইস্যু"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__priority_diagnostic
+msgid "Queue diagnostic jobs with expedited priority."
+msgstr "ডায়াগনোসিস কাজগুলো দ্রুত অগ্রাধিকারে কিউতে রাখুন।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__points_per_bdt
+msgid "Rate of point accumulation. 0.01 means 1 point earned per 100 BDT spent."
+msgstr "পয়েন্ট সঞ্চয়ের হার। 0.01 মানে প্রতি 100 টাকা ব্যয়ে 1 পয়েন্ট অর্জিত হয়।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__notes
+msgid "Reason / Narration"
+msgstr "কারণ / বিবরণ"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Recalculate Tier"
+msgstr "টায়ার পুনর্গণনা করুন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_voucher__state__redeemed
+msgid "Redeemed"
+msgstr "রিডিমকৃত"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__service_order_id
+msgid "Redeemed On Service Order"
+msgstr "যে সার্ভিস অর্ডারে রিডিম হয়েছে"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_voucher_form
+msgid "Redemption Details"
+msgstr "রিডিমের বিবরণ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__redeemed_at
+msgid "Redemption Timestamp"
+msgstr "রিডিমের সময়"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__referral_bonus
+msgid "Referral Reward"
+msgstr "রেফারেল পুরস্কার"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__activity_user_id
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__state__reversed
+msgid "Reversed"
+msgstr "রিভার্সকৃত"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__reward_type
+msgid "Reward Type"
+msgstr "পুরস্কারের ধরন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__sequence
+msgid "Sequence"
+msgstr "ক্রম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__accrual
+msgid "Service Accrual"
+msgstr "সার্ভিস অর্জন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__service_order_id
+msgid "Service Order Reference"
+msgstr "সার্ভিস অর্ডার রেফারেন্স"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__points
+msgid "Signed point quantity: positive for accruals, negative for redemptions."
+msgstr "চিহ্নযুক্ত পয়েন্ট সংখ্যা: অর্জনে ধনাত্মক, রিডিমে ঋণাত্মক।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__balance_after
+msgid "Snapshot of spendable points balance after posting."
+msgstr "পোস্টিংয়ের পর ব্যবহারযোগ্য পয়েন্ট ব্যালান্সের স্ন্যাপশট।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__points_balance
+msgid "Spendable Points Balance"
+msgstr "ব্যবহারযোগ্য পয়েন্ট ব্যালান্স"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__state
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__status
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__activity_state
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__stub_code
+msgid "Stub Identifier"
+msgstr "স্টাব শনাক্তকারী"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Suspend"
+msgstr "স্থগিত করুন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_account__state__suspended
+msgid "Suspended"
+msgstr "স্থগিত"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__program_id
+msgid "Target Programme"
+msgstr "লক্ষ্য প্রোগ্রাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__min_points_to_redeem
+msgid "Threshold before a customer can apply points toward service invoices."
+msgstr "সার্ভিস চালানে পয়েন্ট প্রয়োগের আগে গ্রাহকের ন্যূনতম সীমা।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__code
+msgid "Tier Code"
+msgstr "টায়ার কোড"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__name
+msgid "Tier Name"
+msgstr "টায়ারের নাম"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__name_bn
+msgid "Tier Name (Bengali)"
+msgstr "টায়ারের নাম (বাংলা)"
+
+#. module: cd_loyalty
+#: model:ir.model.constraint,message:cd_loyalty.constraint_fix_loyalty_tier_tier_code_unique
+msgid "Tier code must be unique within a loyalty programme."
+msgstr "টায়ার কোড একটি লয়্যালটি প্রোগ্রামের মধ্যে অনন্য হতে হবে।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__account_count
+msgid "Total Members"
+msgstr "মোট সদস্য"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__transaction_type
+msgid "Transaction Type"
+msgstr "লেনদেনের ধরন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__activity_exception_decoration
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__order_amount_bdt
+msgid "Underlying commercial invoice/estimate amount."
+msgstr "মূল বাণিজ্যিক চালান/আনুমানিক খরচের পরিমাণ।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__expiry_months
+msgid "Unused points expire after this many months from accrual date."
+msgstr "অব্যবহৃত পয়েন্ট অর্জনের তারিখ থেকে এত মাস পর মেয়াদোত্তীর্ণ হয়।"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__valid_from
+msgid "Valid From"
+msgstr "কার্যকর শুরু"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__valid_until
+msgid "Valid Until"
+msgstr "কার্যকর থাকবে"
+
+#. module: cd_loyalty
+#: model:ir.model.fields.selection,name:cd_loyalty.selection__fix_loyalty_ledger__transaction_type__redemption
+msgid "Voucher / Bill Redemption"
+msgstr "ভাউচার / বিল রিডিম"
+
+#. module: cd_loyalty
 #: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__name
 msgid "Voucher Code"
 msgstr "ভাউচার কোড"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__voucher_discount_type
+msgid "Voucher Discount Type"
+msgstr "ভাউচার ছাড়ের ধরন"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__voucher_discount_value
+msgid "Voucher Discount Value"
+msgstr "ভাউচার ছাড়ের মান"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__voucher_validity_days
+msgid "Voucher Validity (Days)"
+msgstr "ভাউচারের মেয়াদ (দিন)"
+
+#. module: cd_loyalty
+#: model:ir.model.constraint,message:cd_loyalty.constraint_fix_loyalty_voucher_voucher_code_unique
+msgid "Voucher code must be globally unique."
+msgstr "ভাউচার কোড সর্বজনীনভাবে অনন্য হতে হবে।"
+
+#. module: cd_loyalty
+#: model:ir.ui.menu,name:cd_loyalty.menu_fix_loyalty_vouchers
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_account_form
+msgid "Vouchers"
+msgstr "ভাউচারসমূহ"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_account__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_campaign_hook__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_ledger__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_program__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_redemption_stub__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_tier__website_message_ids
+#: model:ir.model.fields,field_description:cd_loyalty.field_fix_loyalty_voucher__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_loyalty
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_account__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_campaign_hook__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_ledger__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_program__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_redemption_stub__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_tier__website_message_ids
+#: model:ir.model.fields,help:cd_loyalty.field_fix_loyalty_voucher__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_loyalty
+#: model_terms:ir.ui.view,arch_db:cd_loyalty.view_fix_loyalty_program_form
+msgid "বাংলা নাম"
+msgstr "বাংলা নাম"

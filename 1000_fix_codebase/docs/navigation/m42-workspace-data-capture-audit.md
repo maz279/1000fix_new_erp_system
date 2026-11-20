@@ -86,9 +86,14 @@ each sub-module to the spec entity that people actually record:
    forms, but their form buttons honestly say "not yet wired" until each
    module's models declare `_p03_capture` and `p03_capture_map.js` gains the
    module. This includes M16, whose `fix.purchase.order` already exists.
-2. **Bengali at runtime.** Odoo 19 ships only `bn_IN`; it never loads the
-   estate-wide `bn_BD.po` files. This is pre-existing, and a decision is needed
-   (add a `bn_BD` `res.lang`, or ship `bn.po`).
+2. ~~**Bengali at runtime.**~~ Done. `cd_entity_config` now ships the
+   `bn_BD` language (lakh grouping, dd/mm/yyyy, week starting Saturday).
+   Activating it showed that 65 of the 71 `bn_BD.po` files were hand-written
+   without Odoo's `#. module:` / `#: model:` lines, which crashed install and
+   could never translate. All 72 installable addons were re-exported from the
+   runtime (7,424 entries) and are now 100% Bengali. FF-25 rejects the old
+   format, and `tooling/scripts/export-translations.py` replaces
+   `extract-translations.py`. A fresh full install with `bn_BD` active passes.
 3. ~~**Role groups.**~~ Done: six §13 function groups (Viewer, Procurement
    Officer, Quality Manager, Procurement Manager, Finance Manager, CFO) in
    `cd_vendor_ext/security/fix_vendor_ext_security.xml`. ACLs are per group,

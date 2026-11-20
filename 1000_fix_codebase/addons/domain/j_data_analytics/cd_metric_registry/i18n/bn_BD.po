@@ -1,4 +1,532 @@
-# Bengali for cd_metric_registry (P11).
+# Bengali (Bangladesh) translation for cd_metric_registry.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-"Language: bn_BD"
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__api
+msgid "API Resource"
+msgstr "API রিসোর্স"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__accuracy
+msgid "Accuracy (value match)"
+msgstr "নির্ভুলতা (মান মিল)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_needaction
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_needaction
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_state
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_state
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_type_icon
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_type_icon
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_attachment_count
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_attachment_count
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__threshold
+msgid "Below this, the rule fires"
+msgstr "এর নিচে গেলে রুলটি সক্রিয় হয়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__classification
+msgid "Classification"
+msgstr "শ্রেণিবিভাগ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__company_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__company_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__completeness
+msgid "Completeness (% non-null)"
+msgstr "সম্পূর্ণতা (% non-null)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__confidential
+msgid "Confidential"
+msgstr "গোপনীয়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__consistency
+msgid "Consistency (cross-source)"
+msgstr "সামঞ্জস্য (ক্রস-সোর্স)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__create_uid
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__create_uid
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__create_date
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__create_date
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__steward_id
+msgid "DA-003: named people, not named roles"
+msgstr "DA-003: নির্দিষ্ট ব্যক্তি, নির্দিষ্ট ভূমিকা নয়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__classification
+msgid "DA-005 classification; S3 entities must NEVER appear in the analytical warehouse (NFR-086c)"
+msgstr "DA-005 শ্রেণিবিভাগ; S3 সত্তা কখনোই বিশ্লেষণী ওয়্যারহাউসে থাকতে পারবে না (NFR-086c)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__retention_policy
+msgid "DA-006: how long this data lives"
+msgstr "DA-006: এই ডেটা কতদিন থাকবে"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_entity
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_entity
+msgid "Data Entity"
+msgstr "ডেটা সত্তা"
+
+#. module: cd_metric_registry
+#: model:ir.model,name:cd_metric_registry.model_fix_data_entity
+msgid "Data Entity (Catalogue)"
+msgstr "ডেটা সত্তা (ক্যাটালগ)"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_lineage
+#: model:ir.model,name:cd_metric_registry.model_fix_data_lineage
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_lineage
+msgid "Data Lineage"
+msgstr "ডেটা লিনিয়েজ"
+
+#. module: cd_metric_registry
+#: model:ir.actions.act_window,name:cd_metric_registry.action_fix_data_quality_rule
+#: model:ir.model,name:cd_metric_registry.model_fix_data_quality_rule
+#: model:ir.ui.menu,name:cd_metric_registry.menu_fix_data_quality_rule
+msgid "Data Quality Rule"
+msgstr "ডেটা মান রুল"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__steward_id
+msgid "Data Steward"
+msgstr "ডেটা স্টুয়ার্ড"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__table
+msgid "Database Table"
+msgstr "ডাটাবেস টেবিল"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__display_name
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__display_name
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__document
+msgid "Document Type"
+msgstr "দলিলের ধরন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__entity_id
+msgid "Entity"
+msgstr "প্রতিষ্ঠান"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__entity_type
+msgid "Entity Type"
+msgstr "সত্তার ধরন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__event
+msgid "Event Stream"
+msgstr "ইভেন্ট স্ট্রিম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__state__failing
+msgid "Failing"
+msgstr "ব্যর্থ হচ্ছে"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_follower_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_follower_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_partner_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_partner_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__activity_type_icon
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__activity_type_icon
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__has_message
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__has_message
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__activity_exception_icon
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__activity_exception_icon
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__message_needaction
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__message_needaction
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__message_has_error
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__message_has_sms_error
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__message_has_error
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__message_has_sms_error
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__message_has_error
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__internal
+msgid "Internal"
+msgstr "অভ্যন্তরীণ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_is_follower
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_is_follower
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__last_checked
+msgid "Last Checked"
+msgstr "সর্বশেষ যাচাই"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__last_result
+msgid "Last Result %"
+msgstr "সর্বশেষ ফলাফল %"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__write_uid
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__write_uid
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__write_date
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__write_date
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_has_error
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_has_error
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__name
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__name
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_summary
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_summary
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_type_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_type_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__message_needaction_counter
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__message_needaction_counter
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__message_has_error_counter
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__message_has_error_counter
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__operating_unit_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__operating_unit_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__lineage_order
+msgid "Order"
+msgstr "ক্রম"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__owner_module
+msgid "Owning Module"
+msgstr "মালিক মডিউল"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__state__passing
+msgid "Passing"
+msgstr "উত্তীর্ণ হচ্ছে"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__public
+msgid "Public"
+msgstr "পাবলিক"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__entity_type__report
+msgid "Report/KPI"
+msgstr "রিপোর্ট/KPI"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_entity__classification__residency_classified
+msgid "Residency-Classified (S3)"
+msgstr "রেসিডেন্সি-শ্রেণিভুক্ত (S3)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__activity_user_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__activity_user_id
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__retention_policy
+msgid "Retention Policy"
+msgstr "সংরক্ষণ নীতি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__rule_type
+msgid "Rule Type"
+msgstr "নিয়মের ধরন"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__source_entity_id
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__activity_state
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__activity_state
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__target_entity_id
+msgid "Target"
+msgstr "লক্ষ্য"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__owner_module
+msgid "The cd_* module that owns this entity (FF-27)"
+msgstr "এই সত্তার মালিক cd_* মডিউল (FF-27)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__lineage_order
+msgid "The position in the lineage chain (1=source, N=dashboard)"
+msgstr "লিনিয়েজ চেইনে অবস্থান (1=উৎস, N=ড্যাশবোর্ড)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__threshold
+msgid "Threshold %"
+msgstr "সীমা %"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__timeliness
+msgid "Timeliness (freshness)"
+msgstr "সময়ানুবর্তিতা (হালনাগাদতা)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__transformation
+msgid "Transformation Logic"
+msgstr "রূপান্তর যুক্তি"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__activity_exception_decoration
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__activity_exception_decoration
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields.selection,name:cd_metric_registry.selection__fix_data_quality_rule__rule_type__uniqueness
+msgid "Uniqueness (no duplicates)"
+msgstr "অনন্যতা (কোনো ডুপ্লিকেট নেই)"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_entity__website_message_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_lineage__website_message_ids
+#: model:ir.model.fields,field_description:cd_metric_registry.field_fix_data_quality_rule__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_entity__website_message_ids
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__website_message_ids
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_quality_rule__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_metric_registry
+#: model:ir.model.fields,help:cd_metric_registry.field_fix_data_lineage__transformation
+msgid "What happens between source and target (the dbt model, the event handler, the aggregation)"
+msgstr "উৎস ও লক্ষ্যের মধ্যে যা ঘটে (dbt মডেল, ইভেন্ট হ্যান্ডলার, অ্যাগ্রিগেশন)"

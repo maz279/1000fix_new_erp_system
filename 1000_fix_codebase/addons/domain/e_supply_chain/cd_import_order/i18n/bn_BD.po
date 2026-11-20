@@ -1,8 +1,300 @@
-# Bengali translations for cd_import_order (P09) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_import_order.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Import, Trade Compliance & Landed Cost"
-msgstr "Import, Trade Compliance & Landed Cost (বাংলা)"
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__country_origin
+msgid "Country of Origin"
+msgstr "উৎপত্তির দেশ"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__customs_duty
+msgid "Customs Duty"
+msgstr "কাস্টমস শুল্ক"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__fob_value
+msgid "FOB Value"
+msgstr "FOB মূল্য"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__freight_cost
+msgid "Freight"
+msgstr "মালভাড়া (ফ্রেইট)"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__message_has_error
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_import_order
+#: model:ir.actions.act_window,name:cd_import_order.action_fix_import_order
+#: model:ir.model,name:cd_import_order.model_fix_import_order
+#: model:ir.ui.menu,name:cd_import_order.menu_fix_import_order
+msgid "Import Order"
+msgstr "আমদানি অর্ডার"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__customs
+msgid "In Customs"
+msgstr "কাস্টমসে আছে"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__insurance_cost
+msgid "Insurance"
+msgstr "বিমা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__landed_cost
+msgid "Landed Cost"
+msgstr "ল্যান্ডেড খরচ"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__landed
+msgid "Landed Cost Applied"
+msgstr "ল্যান্ডেড খরচ প্রয়োগ করা হয়েছে"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__received
+msgid "Received"
+msgstr "গৃহীত"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_import_order
+#: model:ir.model.fields.selection,name:cd_import_order.selection__fix_import_order__state__shipped
+msgid "Shipped"
+msgstr "প্রেরিত"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__supplier_id
+msgid "Supplier"
+msgstr "সরবরাহকারী"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_import_order
+#: model:ir.model.fields,field_description:cd_import_order.field_fix_import_order__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_import_order
+#: model:ir.model.fields,help:cd_import_order.field_fix_import_order__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

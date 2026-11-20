@@ -1,60 +1,548 @@
 # Bengali (Bangladesh) translation for cd_ap_ext.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_tree
 msgid "3-Way"
 msgstr "থ্রি-ওয়ে"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_needaction
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_needaction
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_state
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_state
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_type_icon
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_type_icon
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_attachment_count
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_attachment_count
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__match_state__blocked
+msgid "Blocked"
+msgstr "অবরুদ্ধ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__amount
 msgid "Claimed Amount"
 msgstr "দাবিকৃত পরিমাণ"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__company_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__create_uid
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__create_uid
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__create_date
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__create_date
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__currency_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__currency_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__description
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__display_name
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__display_name
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__display_name
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_certificate__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__employee_id
 msgid "Employee"
 msgstr "কর্মী"
 
+#. module: cd_ap_ext
+#: model:ir.model,name:cd_ap_ext.model_fix_expense_claim
+msgid "Expense Claim"
+msgstr "খরচ দাবি"
+
+#. module: cd_ap_ext
+#: model:ir.actions.act_window,name:cd_ap_ext.action_fix_expense_claim
+#: model:ir.ui.menu,name:cd_ap_ext.menu_fix_expense_claim
 msgid "Expense Claims"
 msgstr "ব্যয় দাবিসমূহ"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__expense_date
+msgid "Expense Date"
+msgstr "খরচের তারিখ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_follower_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_follower_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_partner_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_partner_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__activity_type_icon
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__activity_type_icon
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__has_message
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__has_message
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_certificate__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__activity_exception_icon
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__activity_exception_icon
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__message_needaction
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__message_needaction
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__message_has_error
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__message_has_sms_error
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__message_has_error
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__message_has_sms_error
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__message_has_error
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__invoice_id
+msgid "Invoice"
+msgstr "চালান"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__invoice_date
+msgid "Invoice Date"
+msgstr "চালানের তারিখ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_is_follower
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_is_follower
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__write_uid
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__write_uid
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__write_date
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__write_date
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__line_total
 msgid "Line Total"
 msgstr "লাইন মোট"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__line_ids
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
 msgid "Lines"
 msgstr "লাইনসমূহ"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__match_detail
+msgid "Match Detail"
+msgstr "মিলের বিবরণ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__match_state__matched
+msgid "Matched"
+msgstr "মিলেছে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_has_error
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_has_error
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_summary
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_summary
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_type_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_type_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__message_needaction_counter
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__message_needaction_counter
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__message_has_error_counter
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__message_has_error_counter
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__operating_unit_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__paid
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__product_id
 msgid "Product"
 msgstr "পণ্য"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__requisition_id
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
 msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__quantity
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__activity_user_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__activity_user_id
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__activity_state
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__activity_state
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_expense_claim__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__subtotal
 msgid "Subtotal"
 msgstr "উপমোট"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_category
+msgid "TDS Category"
+msgstr "TDS শ্রেণি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__tds_amount
 msgid "TDS Deducted"
 msgstr "TDS কর্তন"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__tds_exempt
+msgid "Tds Exempt"
+msgstr "TDS অব্যাহতি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__match_state
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
 msgid "Three-Way Match"
 msgstr "থ্রি-ওয়ে ম্যাচ"
 
+#. module: cd_ap_ext
+#: model_terms:ir.ui.view,arch_db:cd_ap_ext.view_fix_vendor_invoice_form
+msgid "Total"
+msgstr "মোট"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__total_payable
 msgid "Total Payable"
 msgstr "মোট প্রদেয়"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__activity_exception_decoration
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__activity_exception_decoration
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__unit_price
 msgid "Unit Price"
 msgstr "একক মূল্য"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice__match_state__unmatched
+msgid "Unmatched"
+msgstr "মেলেনি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__vendor_id
 msgid "Vendor"
 msgstr "ভেন্ডর"
 
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_withholding_certificate__vendor_invoice_id
+msgid "Vendor Invoice"
+msgstr "বিক্রেতার চালান"
+
+#. module: cd_ap_ext
+#: model:ir.model,name:cd_ap_ext.model_fix_vendor_invoice
+msgid "Vendor Invoice (three-way match)"
+msgstr "ভেন্ডর চালান (থ্রি-ওয়ে ম্যাচ)"
+
+#. module: cd_ap_ext
+#: model:ir.model,name:cd_ap_ext.model_fix_vendor_invoice_line
+msgid "Vendor Invoice Line"
+msgstr "ভেন্ডর চালানের লাইন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__invoice_ref
 msgid "Vendor Invoice Ref"
 msgstr "ভেন্ডর চালান রেফারেন্স"
 
+#. module: cd_ap_ext
+#: model:ir.actions.act_window,name:cd_ap_ext.action_fix_vendor_invoice
+#: model:ir.ui.menu,name:cd_ap_ext.menu_fix_vendor_invoice
 msgid "Vendor Invoices"
 msgstr "ভেন্ডর চালানসমূহ"
 
-msgid "Vendor Invoice"
-msgstr "বিক্রেতার চালান"
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__tds_exempt
+msgid "Vendor holds a valid exempt certificate (ATS)"
+msgstr "ভেন্ডরের বৈধ অব্যাহতি সনদ (ATS) আছে"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_expense_claim__website_message_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice__website_message_ids
+#: model:ir.model.fields,field_description:cd_ap_ext.field_fix_vendor_invoice_line__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_expense_claim__website_message_ids
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice__website_message_ids
+#: model:ir.model.fields,help:cd_ap_ext.field_fix_vendor_invoice_line__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_ap_ext
+#: model:ir.model,name:cd_ap_ext.model_fix_withholding_certificate
+msgid "Withholding Tax Certificate"
+msgstr "উৎসে কর কর্তন সনদ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__commission
+msgid "commission"
+msgstr "কমিশন"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__professional_fees
+msgid "professional_fees"
+msgstr "পেশাগত ফি"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__rent_commercial
+msgid "rent_commercial"
+msgstr "বাণিজ্যিক ভাড়া"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__service_contractor
+msgid "service_contractor"
+msgstr "সেবা ঠিকাদার"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__service_general
+msgid "service_general"
+msgstr "সাধারণ সেবা"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__supply_of_goods
+msgid "supply_of_goods"
+msgstr "পণ্য সরবরাহ"
+
+#. module: cd_ap_ext
+#: model:ir.model.fields.selection,name:cd_ap_ext.selection__fix_vendor_invoice_line__tds_category__transport
+msgid "transport"
+msgstr "পরিবহন"

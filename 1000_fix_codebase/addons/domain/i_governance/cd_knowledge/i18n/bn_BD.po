@@ -1,8 +1,315 @@
-# Bengali translations for cd_knowledge (P09) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_knowledge.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Knowledge Management & Technical Library"
-msgstr "Knowledge Management & Technical Library (বাংলা)"
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__archived
+msgid "Archived"
+msgstr "সংরক্ষণাগারভুক্ত"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__category
+msgid "Category"
+msgstr "বিভাগ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__tags
+msgid "Comma-separated search tags"
+msgstr "কমা-বিভক্ত সার্চ ট্যাগ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__content
+msgid "Content"
+msgstr "বিষয়বস্তু"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__title_bn
+msgid "DE-17"
+msgstr "DE-17"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__device_guide
+msgid "Device Guide"
+msgstr "ডিভাইস নির্দেশিকা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__helpful_votes
+msgid "Helpful Votes"
+msgstr "সহায়ক ভোট"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__message_has_error
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_knowledge
+#: model:ir.actions.act_window,name:cd_knowledge.action_fix_knowledge_article
+#: model:ir.model,name:cd_knowledge.model_fix_knowledge_article
+#: model:ir.ui.menu,name:cd_knowledge.menu_fix_knowledge_article
+msgid "Knowledge Article"
+msgstr "জ্ঞানভান্ডার নিবন্ধ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__policy
+msgid "Policy"
+msgstr "নীতি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__state__published
+msgid "Published"
+msgstr "প্রকাশিত"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__repair_procedure
+msgid "Repair Procedure"
+msgstr "মেরামত পদ্ধতি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__tags
+msgid "Tags"
+msgstr "ট্যাগসমূহ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__title_bn
+msgid "Title (Bengali)"
+msgstr "শিরোনাম (বাংলা)"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__training
+msgid "Training Material"
+msgstr "প্রশিক্ষণ উপকরণ"
+
+#. module: cd_knowledge
+#: model:ir.model.fields.selection,name:cd_knowledge.selection__fix_knowledge_article__category__troubleshooting
+msgid "Troubleshooting Guide"
+msgstr "সমস্যা সমাধান নির্দেশিকা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__views
+msgid "Views"
+msgstr "দেখার সংখ্যা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,field_description:cd_knowledge.field_fix_knowledge_article__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_knowledge
+#: model:ir.model.fields,help:cd_knowledge.field_fix_knowledge_article__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

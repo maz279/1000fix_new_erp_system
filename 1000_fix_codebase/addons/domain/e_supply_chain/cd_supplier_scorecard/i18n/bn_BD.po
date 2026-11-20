@@ -282,6 +282,12 @@ msgid "My Activity Deadline"
 msgstr "আমার কার্যক্রমের শেষ সময়"
 
 #. module: cd_supplier_scorecard
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_supplier_scorecard
 #: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_car__activity_date_deadline
 #: model:ir.model.fields,field_description:cd_supplier_scorecard.field_fix_supplier_review__activity_date_deadline
 msgid "Next Activity Deadline"

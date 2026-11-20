@@ -1,4 +1,4 @@
-# Translation template for cd_vendor_ext — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Translation template for cd_vendor_ext — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
 # Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
@@ -781,6 +781,17 @@ msgstr ""
 #. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__account_number
 msgid "New Account Number"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_bank_change__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_document__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_change__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_price_list__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
 msgstr ""
 
 #. module: cd_vendor_ext

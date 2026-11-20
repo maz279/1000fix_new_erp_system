@@ -1,105 +1,948 @@
 # Bengali (Bangladesh) translation for cd_device_registry.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__purchase_channel__1000fix
+msgid "1000FiX"
+msgstr "1000FiX"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__compatibility_type__certified_aftermarket
+msgid "1000FiX Certified Grade-A Aftermarket"
+msgstr "1000FiX সার্টিফায়েড গ্রেড-এ আফটারমার্কেট"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_needaction
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_needaction
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_needaction
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_needaction
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__active
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__active
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__status__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__lifecycle_stage__active
+msgid "Active Lifecycle"
+msgstr "সক্রিয় জীবনচক্র"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_state
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_state
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_state
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_type_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_type_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_type_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__consumable
+msgid "Adhesive / Screw / Thermal"
+msgstr "আঠা / স্ক্রু / থার্মাল"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_attachment_count
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_attachment_count
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_attachment_count
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_attachment_count
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__battery
+msgid "Battery Pack"
+msgstr "ব্যাটারি প্যাক"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__branch_id
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_search
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__brand_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__brand_id
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_search
 msgid "Brand"
 msgstr "ব্র্যান্ড"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__warranty_type__brand_auth
+msgid "Brand Authorisation"
+msgstr "ব্র্যান্ড অনুমোদনপত্র"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__purchase_channel__brand_store
+msgid "Brand Store"
+msgstr "ব্র্যান্ড স্টোর"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__camera
+msgid "Camera Module"
+msgstr "ক্যামেরা মডিউল"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__charging_port
+msgid "Charging Port / Flex Cable"
+msgstr "চার্জিং পোর্ট / ফ্লেক্স ক্যাবল"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__company_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__company_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__compatibility_type
+msgid "Compatibility Grade"
+msgstr "সামঞ্জস্যতা গ্রেড"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__corporate
+msgid "Corporate Reallocation"
+msgstr "কর্পোরেট পুনর্বণ্টন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__coverage_details
+msgid "Coverage Details"
+msgstr "কভারেজের বিবরণ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__create_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__create_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__create_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__create_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__create_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__create_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__create_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__create_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__currency_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__owner_id
 msgid "Current Owner"
 msgstr "বর্তমান মালিক"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__date
 msgid "Date"
 msgstr "তারিখ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__deductible
 msgid "Deductible"
 msgstr "কর্তনযোগ্য খরচ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__warranty_status
+msgid "Derived from the warranty record's dates and status"
+msgstr "ওয়ারেন্টি রেকর্ডের তারিখ ও অবস্থা থেকে নির্ণীত"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_device_registry
+#: model:ir.model,name:cd_device_registry.model_fix_device
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__device_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__device_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__device_id
 msgid "Device"
 msgstr "ডিভাইস"
 
+#. module: cd_device_registry
+#: model:ir.model,name:cd_device_registry.model_fix_device_history
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__history_ids
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_form
 msgid "Device History"
 msgstr "ডিভাইস ইতিহাস"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__device_model_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__model_id
 msgid "Device Model"
 msgstr "ডিভাইস মডেল"
 
+#. module: cd_device_registry
+#: model:ir.model,name:cd_device_registry.model_fix_device_ownership
+msgid "Device Ownership Transfer"
+msgstr "ডিভাইস মালিকানা হস্তান্তর"
+
+#. module: cd_device_registry
+#: model:ir.ui.menu,name:cd_device_registry.menu_ws_devices
 msgid "Device Registry"
 msgstr "ডিভাইস রেজিস্ট্রি"
 
+#. module: cd_device_registry
+#: model:ir.model,name:cd_device_registry.model_fix_device_part_compatibility
+msgid "Device Spare Part Compatibility Matrix"
+msgstr "ডিভাইস ও খুচরা যন্ত্রাংশ সামঞ্জস্যতা ম্যাট্রিক্স"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__device_type
 msgid "Device Type"
 msgstr "ডিভাইসের ধরন"
 
+#. module: cd_device_registry
+#: model:ir.actions.act_window,name:cd_device_registry.action_fix_device
+#: model:ir.ui.menu,name:cd_device_registry.menu_fix_devices
 msgid "Devices"
 msgstr "ডিভাইসসমূহ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__display
+msgid "Display / Screen Assembly"
+msgstr "ডিসপ্লে / স্ক্রিন অ্যাসেম্বলি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__display_name
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__display_name
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__display_name
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__display_name
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__document_ids
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__end_date
 msgid "End Date"
 msgstr "শেষ তারিখ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__lifecycle_stage__end_of_life
+msgid "End of Life (No OEM Parts)"
+msgstr "জীবনকাল শেষ (OEM যন্ত্রাংশ নেই)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__end_of_support_date
+msgid "End of Support Date"
+msgstr "সাপোর্ট সমাপ্তির তারিখ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__notes
+msgid "Engineering Compatibility Notes"
+msgstr "ইঞ্জিনিয়ারিং সামঞ্জস্যতা নোট"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__estimated_residual_value_bdt
+msgid "Estimated Residual Value (BDT)"
+msgstr "আনুমানিক অবশিষ্ট মূল্য (টাকা)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__event_type
+msgid "Event Type"
+msgstr "ইভেন্টের ধরন"
+
+#. module: cd_device_registry
+#: model_terms:ir.actions.act_window,help:cd_device_registry.action_fix_device
+msgid "Every device is identified by serial/IMEI uniqueness and carries its warranty and ownership history."
+msgstr "প্রতিটি ডিভাইস অনন্য সিরিয়াল/IMEI দ্বারা শনাক্ত হয় এবং এর ওয়ারেন্টি ও মালিকানার ইতিহাস বহন করে।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__status__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__warranty_status__extended
+msgid "Extended Warranty"
+msgstr "বর্ধিত ওয়ারেন্টি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__warranty_type__extended
+msgid "Extended/1000FiX"
+msgstr "বর্ধিত/1000FiX"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_follower_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_follower_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_follower_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_follower_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_partner_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_partner_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_partner_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_partner_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__activity_type_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__activity_type_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__activity_type_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__from_partner_id
 msgid "From"
 msgstr "হইতে"
 
-msgid "Group By"
-msgstr "গ্রুপ অনুযায়ী"
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__gift
+msgid "Gift"
+msgstr "উপহার"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__has_message
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__has_message
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__has_message
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__has_message
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__casing
+msgid "Housing / Chassis"
+msgstr "হাউজিং / চ্যাসিস"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_1
 msgid "IMEI 1"
 msgstr "IMEI ১"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__imei_2
 msgid "IMEi 2 (Dual SIM)"
 msgstr "IMEI ২ (ডুয়াল সিম)"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__activity_exception_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__activity_exception_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__activity_exception_icon
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_device_registry
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_form
 msgid "Identity"
 msgstr "পরিচয়"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__message_needaction
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__message_needaction
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__message_needaction
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__message_needaction
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__message_has_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__message_has_sms_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__message_has_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__message_has_sms_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__message_has_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__message_has_sms_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__message_has_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__message_has_sms_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__message_has_error
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__in_service
+msgid "In Service"
+msgstr "সার্ভিসে আছে"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__warranty_status__in_warranty
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_search
 msgid "In Warranty"
 msgstr "ওয়ারেন্টির অধীনে"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_is_follower
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_is_follower
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_is_follower
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_is_follower
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__write_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__write_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__write_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__write_uid
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__write_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__write_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__write_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__write_date
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__legacy_reference
+msgid "Legacy Reference"
+msgstr "পূর্ববর্তী রেফারেন্স"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__lifecycle_stage
+msgid "Lifecycle Stage"
+msgstr "জীবনচক্রের ধাপ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__motherboard
+msgid "Logic Board / PCB"
+msgstr "লজিক বোর্ড / PCB"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__lost
+msgid "Lost/Stolen"
+msgstr "হারানো/চুরি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__lifecycle_stage
+msgid "M17 W2: device hardware lifecycle progression affecting spare parts availability"
+msgstr "M17 W2: খুচরা যন্ত্রাংশের প্রাপ্যতাকে প্রভাবিত করে এমন ডিভাইস হার্ডওয়্যারের জীবনচক্রের অগ্রগতি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__mac_address
 msgid "MAC Address"
 msgstr "MAC অ্যাড্রেস"
 
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__legacy_reference
+msgid "MIG-03: permanent source system reference (FR-SRM-088)"
+msgstr "MIG-03: উৎস সিস্টেমের স্থায়ী রেফারেন্স (FR-SRM-088)"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__warranty_type__manufacturer
+msgid "Manufacturer Warranty"
+msgstr "প্রস্তুতকারকের ওয়ারেন্টি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__serial_number
+msgid "Manufacturer serial number — unique when present"
+msgstr "প্রস্তুতকারকের সিরিয়াল নম্বর — থাকলে অবশ্যই অনন্য"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_has_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_has_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_has_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_has_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_summary
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_summary
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_summary
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_type_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_type_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_type_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__warranty_type__none
+msgid "No Warranty"
+msgstr "ওয়ারেন্টি নেই"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__notes
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__message_needaction_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__message_needaction_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__message_needaction_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__message_needaction_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__message_has_error_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__message_has_error_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__message_has_error_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__message_has_error_counter
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__lifecycle_stage__obsolete
+msgid "Obsolete / Recycle Only"
+msgstr "অপ্রচলিত / শুধু রিসাইকেলযোগ্য"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__purchase_channel__online
+msgid "Online"
+msgstr "অনলাইন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__operating_unit_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__operating_unit_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__compatibility_type__oem
+msgid "Original Equipment Manufacturer (OEM)"
+msgstr "মূল যন্ত্রাংশ প্রস্তুতকারক (OEM)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__warranty_status__out_of_warranty
+msgid "Out of Warranty"
+msgstr "ওয়ারেন্টির বাইরে"
+
+#. module: cd_device_registry
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_form
 msgid "Ownership"
 msgstr "মালিকানা"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__transfer
+msgid "Ownership Transfer"
+msgstr "মালিকানা হস্তান্তর"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__transferred
+msgid "Ownership Transferred"
+msgstr "মালিকানা হস্তান্তরিত"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__category
+msgid "Part Category"
+msgstr "যন্ত্রাংশের শ্রেণি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__part_name
+msgid "Part Description"
+msgstr "যন্ত্রাংশের বিবরণ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__part_number
+msgid "Part Number / SKU"
+msgstr "যন্ত্রাংশ নম্বর / এসকেইউ"
+
+#. module: cd_device_registry
+#: model:ir.model.constraint,message:cd_device_registry.constraint_fix_device_part_compatibility_unique_model_part
+msgid "Part compatibility entry already exists for this device model."
+msgstr "এই ডিভাইস মডেলের জন্য যন্ত্রাংশ সামঞ্জস্যতা এন্ট্রি আগে থেকেই আছে।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__status__pending
+msgid "Pending Verification"
+msgstr "যাচাইয়ের অপেক্ষায়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__imei_1
+msgid "Primary IMEI for mobile devices — unique when present"
+msgstr "মোবাইল ডিভাইসের প্রধান IMEI — থাকলে অবশ্যই অনন্য"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__proof_document_id
 msgid "Proof Document"
 msgstr "প্রমাণ দলিল"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__purchase_channel
+msgid "Purchase Channel"
+msgstr "ক্রয়ের মাধ্যম"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__purchase_date
 msgid "Purchase Date"
 msgstr "ক্রয়ের তারিখ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__proof_document_id
+msgid "Purchase receipt or warranty card via the M24-core API"
+msgstr "M24-core API-এর মাধ্যমে ক্রয়ের রসিদ বা ওয়ারেন্টি কার্ড"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__qc
+msgid "Quality Check"
+msgstr "মান যাচাই"
+
+#. module: cd_device_registry
+#: model_terms:ir.actions.act_window,help:cd_device_registry.action_fix_device
+msgid "Register the first device"
+msgstr "প্রথম ডিভাইস নিবন্ধন করুন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__registered
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__registered
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_search
 msgid "Registered"
 msgstr "নিবন্ধিত"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__branch_id
 msgid "Registered At"
 msgstr "নিবন্ধনের সময়"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__repair
+msgid "Repair"
+msgstr "মেরামত"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__repaired
+msgid "Repaired"
+msgstr "মেরামতকৃত"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__activity_user_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__activity_user_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__activity_user_id
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__return
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__return
+msgid "Return"
+msgstr "ফেরত"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__returned
+msgid "Returned to Owner"
+msgstr "মালিককে ফেরত দেওয়া হয়েছে"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_ownership__transfer_type__sale
+msgid "Sale"
+msgstr "বিক্রয়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__state__scrapped
+msgid "Scrapped"
+msgstr "বাতিল (স্ক্র্যাপ)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__serial_number
 msgid "Serial Number"
 msgstr "সিরিয়াল নম্বর"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__service_order
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__category__speaker
+msgid "Speaker / Audio Module"
+msgstr "স্পিকার / অডিও মডিউল"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__start_date
 msgid "Start Date"
 msgstr "শুরুর তারিখ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__status
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__activity_state
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__activity_state
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__activity_state
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__technician_id
 msgid "Technician"
 msgstr "টেকনিশিয়ান"
 
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_part_compatibility__compatibility_type__incompatible
+msgid "Tested Incompatible / High Risk"
+msgstr "পরীক্ষায় অসামঞ্জস্যপূর্ণ / উচ্চ ঝুঁকি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__owner_id
+msgid "The party currently owning this device"
+msgstr "যে পার্টি বর্তমানে এই ডিভাইসের মালিক"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__purchase_channel__third_party
+msgid "Third Party"
+msgstr "তৃতীয় পক্ষ"
+
+#. module: cd_device_registry
+#: model:ir.model.constraint,message:cd_device_registry.constraint_fix_device_imei1_unique_when_set
+msgid "This IMEI is already registered (duplicate detection)."
+msgstr "এই IMEI আগে থেকেই নিবন্ধিত (ডুপ্লিকেট শনাক্তকরণ)।"
+
+#. module: cd_device_registry
+#: model:ir.model.constraint,message:cd_device_registry.constraint_fix_device_serial_unique_when_set
+msgid "This serial number is already registered (duplicate detection)."
+msgstr "এই সিরিয়াল নম্বর আগে থেকেই নিবন্ধিত (ডুপ্লিকেট শনাক্তকরণ)।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__to_partner_id
 msgid "To"
 msgstr "প্রতি"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__transfer_date
 msgid "Transfer Date"
 msgstr "হস্তান্তরের তারিখ"
 
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__transfer_type
+msgid "Transfer Type"
+msgstr "হস্তান্তরের ধরন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__activity_exception_decoration
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__activity_exception_decoration
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__activity_exception_decoration
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__purchase_channel__unknown
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__warranty_status__unknown
+msgid "Unknown"
+msgstr "অজানা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__verified_at
+msgid "Verified At"
+msgstr "যাচাইয়ের সময়"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__verified_by
+msgid "Verified By"
+msgstr "যাচাইকারী"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device__lifecycle_stage__vintage
+msgid "Vintage (Limited Parts Support)"
+msgstr "পুরোনো মডেল (সীমিত যন্ত্রাংশ সহায়তা)"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_warranty__status__voided
+msgid "Voided"
+msgstr "বাতিলকৃত"
+
+#. module: cd_device_registry
+#: model:ir.model,name:cd_device_registry.model_fix_warranty
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__warranty_id
+#: model_terms:ir.ui.view,arch_db:cd_device_registry.view_fix_device_form
 msgid "Warranty"
 msgstr "ওয়ারেন্টি"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__warranty_status
+msgid "Warranty Status"
+msgstr "ওয়ারেন্টির অবস্থা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__warranty_type
+msgid "Warranty Type"
+msgstr "ওয়ারেন্টির ধরন"
+
+#. module: cd_device_registry
+#: model:ir.model.fields.selection,name:cd_device_registry.selection__fix_device_history__event_type__warranty
+msgid "Warranty Update"
+msgstr "ওয়ারেন্টি হালনাগাদ"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device__website_message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_history__website_message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_ownership__website_message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_device_part_compatibility__website_message_ids
+#: model:ir.model.fields,field_description:cd_device_registry.field_fix_warranty__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_device_registry
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device__website_message_ids
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_history__website_message_ids
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_ownership__website_message_ids
+#: model:ir.model.fields,help:cd_device_registry.field_fix_device_part_compatibility__website_message_ids
+#: model:ir.model.fields,help:cd_device_registry.field_fix_warranty__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

@@ -1,66 +1,804 @@
 # Bengali (Bangladesh) translation for cd_mdm_core.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__proposed_changes
+msgid "A JSON object of {field: new_value} pairs"
+msgstr "{field: new_value} জোড়ার একটি JSON অবজেক্ট"
 
+#. module: cd_mdm_core
+#: model:ir.model.constraint,message:cd_mdm_core.constraint_fix_mdm_stewardship_domain_company_unique
+msgid "A stewardship governance record already exists for this domain within the company."
+msgstr "এই কোম্পানিতে এই ডোমেইনের জন্য একটি স্টুয়ার্ডশিপ গভর্ন্যান্স রেকর্ড ইতিমধ্যে বিদ্যমান।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_needaction
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_needaction
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_needaction
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__active
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_state
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_state
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_state
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_type_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_type_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_type_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
 msgid "Approve"
-msgstr "অনুমোদন"
+msgstr "অনুমোদন করুন"
 
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_attachment_count
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_attachment_count
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_attachment_count
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
+msgid "Audit Data Quality"
+msgstr "ডেটার মান নিরীক্ষা করুন"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
+msgid "Audit Status"
+msgstr "নিরীক্ষার অবস্থা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_stewardship__domain__product
+msgid "Catalogue & Spare Parts Master (M37 / M15)"
+msgstr "ক্যাটালগ ও খুচরা যন্ত্রাংশ মাস্টার (M37 / M15)"
+
+#. module: cd_mdm_core
+#: model:ir.ui.menu,name:cd_mdm_core.menu_fix_mdm_change_request
 msgid "Change Requests"
 msgstr "পরিবর্তনের অনুরোধ"
 
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__company_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__completeness_score
+msgid "Completeness Score (%)"
+msgstr "সম্পূর্ণতা স্কোর (%)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__weight
+msgid "Contribution to the match score when this field matches (0-1.0)"
+msgstr "এই ফিল্ড মিললে ম্যাচ স্কোরে অবদান (0-1.0)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__create_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__create_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__create_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__create_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__create_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__create_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
 msgid "Current Values"
 msgstr "বর্তমান মানসমূহ"
 
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__current_values
 msgid "Current Values (JSON)"
 msgstr "বর্তমান মানসমূহ (JSON)"
 
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__domain
+msgid "Data Domain"
+msgstr "ডেটা ডোমেইন"
+
+#. module: cd_mdm_core
+#: model:ir.actions.act_window,name:cd_mdm_core.action_fix_mdm_stewardship
+msgid "Data Stewardship & Quality"
+msgstr "ডেটা স্টুয়ার্ডশিপ ও মান"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__description
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__description
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_stewardship__domain__asset
+msgid "Device & Customer Asset Registry (M17)"
+msgstr "ডিভাইস ও গ্রাহক সম্পদ রেজিস্ট্রি (M17)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__display_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__display_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__display_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_tree
+msgid "Domain Data Stewardship"
+msgstr "ডোমেইন ডেটা স্টুয়ার্ডশিপ"
+
+#. module: cd_mdm_core
+#: model:ir.ui.menu,name:cd_mdm_core.menu_fix_mdm_stewardship
+msgid "Domain Stewardship"
+msgstr "ডোমেইন স্টুয়ার্ডশিপ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_match_rule__match_type__exact
+msgid "Exact Match"
+msgstr "হুবহু মিল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__field_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__field_name
 msgid "Field"
 msgstr "ফিল্ড"
 
-msgid "MDM Change Request"
-msgstr "MDM পরিবর্তনের অনুরোধ"
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_follower_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_follower_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_follower_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
 
-msgid "MDM Change Requests"
-msgstr "MDM পরিবর্তনের অনুরোধসমূহ"
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_partner_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_partner_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_partner_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
 
-msgid "Master Data Governance"
-msgstr "মাস্টার ডেটা গভর্নেন্স"
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__activity_type_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__activity_type_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__activity_type_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
 
-msgid "Proposed Changes"
-msgstr "প্রস্তাবিত পরিবর্তন"
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_match_rule__match_type__fuzzy
+msgid "Fuzzy (normalised)"
+msgstr "ফাজি (স্বাভাবিকীকৃত)"
 
-msgid "Proposed Changes (JSON)"
-msgstr "প্রস্তাবিত পরিবর্তন (JSON)"
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_stewardship__domain__financial
+msgid "General Ledger & Operating Units (M19 / M30)"
+msgstr "জেনারেল লেজার ও অপারেটিং ইউনিট (M19 / M30)"
 
-msgid "Reference"
-msgstr "রেফারেন্স"
-
-msgid "Reject"
-msgstr "প্রত্যাখ্যান"
-
-msgid "Source Priority Order"
-msgstr "উৎসের অগ্রাধিকার ক্রম"
-
-msgid "Submit"
-msgstr "জমা দিন"
-
-msgid "Target Model"
-msgstr "লক্ষ্য মডেল"
-
-msgid "Target Record ID"
-msgstr "লক্ষ্য রেকর্ড আইডি"
-
-msgid "Match Rules"
-msgstr "ম্যাচ রুলসমূহ"
-
+#. module: cd_mdm_core
+#: model:ir.actions.act_window,name:cd_mdm_core.action_fix_mdm_golden_rule
+#: model:ir.ui.menu,name:cd_mdm_core.menu_fix_mdm_golden_rule
 msgid "Golden Record Rules"
 msgstr "গোল্ডেন রেকর্ড রুলসমূহ"
 
+#. module: cd_mdm_core
+#: model:ir.model,name:cd_mdm_core.model_fix_mdm_golden_rule
+msgid "Golden Record Survivorship Rule"
+msgstr "গোল্ডেন রেকর্ড সারভাইভরশিপ রুল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__has_message
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__has_message
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__has_message
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__priority__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__highest_priority_source
+msgid "Highest-Priority Source"
+msgstr "সর্বোচ্চ অগ্রাধিকারের উৎস"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__strategy
+msgid "How the winning value is chosen when duplicates conflict"
+msgstr "ডুপ্লিকেটের মধ্যে দ্বন্দ্ব হলে বিজয়ী মান কীভাবে বেছে নেওয়া হয়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__activity_exception_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__activity_exception_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__activity_exception_icon
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__message_needaction
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__message_needaction
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__message_needaction
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__message_has_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__message_has_sms_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__message_has_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__message_has_sms_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__message_has_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__message_has_sms_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__message_has_error
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__implemented
+msgid "Implemented"
+msgstr "বাস্তবায়িত"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_is_follower
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_is_follower
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_is_follower
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__last_audit_date
+msgid "Last Audit Timestamp"
+msgstr "সর্বশেষ নিরীক্ষার সময়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__write_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__write_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__write_uid
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__write_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__write_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__write_date
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__lead_steward_id
+msgid "Lead Data Steward"
+msgstr "প্রধান ডেটা স্টুয়ার্ড"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__longest_value
+msgid "Longest Non-Empty Value"
+msgstr "দীর্ঘতম অ-খালি মান"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__priority__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_mdm_core
+#: model:ir.model,name:cd_mdm_core.model_fix_mdm_change_request
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
+msgid "MDM Change Request"
+msgstr "MDM পরিবর্তনের অনুরোধ"
+
+#. module: cd_mdm_core
+#: model:ir.actions.act_window,name:cd_mdm_core.action_fix_mdm_change_request
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_tree
+msgid "MDM Change Requests"
+msgstr "MDM পরিবর্তনের অনুরোধসমূহ"
+
+#. module: cd_mdm_core
+#: model:ir.model,name:cd_mdm_core.model_fix_mdm_match_rule
+msgid "MDM Match Rule"
+msgstr "MDM ম্যাচ রুল"
+
+#. module: cd_mdm_core
+#: model:ir.model,name:cd_mdm_core.model_fix_mdm_stewardship
+msgid "Master Data Domain Stewardship & Quality Engine"
+msgstr "মাস্টার ডেটা ডোমেইন স্টুয়ার্ডশিপ ও মান ইঞ্জিন"
+
+#. module: cd_mdm_core
+#: model:ir.ui.menu,name:cd_mdm_core.menu_fix_mdm_root
+msgid "Master Data Governance"
+msgstr "মাস্টার ডেটা গভর্নেন্স"
+
+#. module: cd_mdm_core
+#: model:ir.actions.act_window,name:cd_mdm_core.action_fix_mdm_match_rule
+#: model:ir.ui.menu,name:cd_mdm_core.menu_fix_mdm_match_rule
+msgid "Match Rules"
+msgstr "ম্যাচ রুলসমূহ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__match_type
+msgid "Match Type"
+msgstr "মিলের ধরন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_has_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_has_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_has_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__most_recent
+msgid "Most Recent Non-Empty"
+msgstr "সর্বশেষ অ-খালি মান"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__most_verified
+msgid "Most Verified (verification_status = verified)"
+msgstr "সর্বাধিক যাচাইকৃত (verification_status = verified)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_summary
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_summary
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_summary
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_type_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_type_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_type_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__priority__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__normalize
+msgid "Normalize"
+msgstr "স্বাভাবিকীকরণ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__message_needaction_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__message_needaction_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__message_needaction_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__message_has_error_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__message_has_error_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__message_has_error_counter
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_match_rule__match_type__numeric
+msgid "Numeric"
+msgstr "সংখ্যাসূচক"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__model_name
+msgid "Odoo model name, e.g. 'res.partner' or 'fix.catalogue.item'"
+msgstr "Odoo মডেলের নাম, যেমন 'res.partner' বা 'fix.catalogue.item'"
+
+#. module: cd_mdm_core
+#: model:ir.model.constraint,message:cd_mdm_core.constraint_fix_mdm_match_rule_model_field_unique
+msgid "One match rule per model+field"
+msgstr "প্রতি model+field-এ একটি ম্যাচ রুল"
+
+#. module: cd_mdm_core
+#: model:ir.model.constraint,message:cd_mdm_core.constraint_fix_mdm_golden_rule_model_field_unique
+msgid "One survivorship rule per model+field"
+msgstr "প্রতি model+field-এ একটি সারভাইভরশিপ রুল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__priority_source_ids
+msgid "Only used with strategy=highest_priority_source"
+msgstr "শুধু strategy=highest_priority_source হলে ব্যবহৃত হয়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__operating_unit_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__overall_quality_score
+msgid "Overall Quality Index (%)"
+msgstr "সামগ্রিক মান সূচক (%)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_stewardship__domain__party
+msgid "Party / Customer Master (M33)"
+msgstr "পার্টি / গ্রাহক মাস্টার (M33)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__uniqueness_score
+msgid "Percentage of golden records with zero duplicate matches."
+msgstr "শূন্য ডুপ্লিকেট মিলসহ গোল্ডেন রেকর্ডের শতাংশ।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__completeness_score
+msgid "Percentage of mandatory attributes populated across master records."
+msgstr "মাস্টার রেকর্ডজুড়ে পূরণকৃত বাধ্যতামূলক বৈশিষ্ট্যের শতাংশ।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__validity_score
+msgid "Percentage of records passing format & regex rules (e.g. NID, BIN, IMEI)."
+msgstr "ফরম্যাট ও regex নিয়মে উত্তীর্ণ রেকর্ডের শতাংশ (যেমন NID, BIN, IMEI)।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_match_rule__match_type__phonetic
+msgid "Phonetic (Bengali-aware)"
+msgstr "ধ্বনিভিত্তিক (বাংলা-সমর্থিত)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__priority
+msgid "Priority"
+msgstr "অগ্রাধিকার"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
+msgid "Proposed Changes"
+msgstr "প্রস্তাবিত পরিবর্তন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__proposed_changes
+msgid "Proposed Changes (JSON)"
+msgstr "প্রস্তাবিত পরিবর্তন (JSON)"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
+msgid "Quality Metrics"
+msgstr "মানের মেট্রিকসমূহ"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__records_audited_count
+msgid "Records Audited"
+msgstr "নিরীক্ষিত রেকর্ড"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__reference
+msgid "Reference"
+msgstr "রেফারেন্স"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_golden_rule__strategy__manual_review
+msgid "Require Manual Review"
+msgstr "ম্যানুয়াল পর্যালোচনা প্রয়োজন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__activity_user_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__activity_user_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__activity_user_id
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__review_notes
+msgid "Review Notes"
+msgstr "পর্যালোচনা নোট"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__reviewed_at
+msgid "Reviewed At"
+msgstr "পর্যালোচনার সময়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__reviewed_by
+msgid "Reviewed By"
+msgstr "পর্যালোচনাকারী"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__sequence
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__sequence
+msgid "Sequence"
+msgstr "ক্রম"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__current_values
+msgid "Snapshot of current values at submission time"
+msgstr "জমা দেওয়ার সময়ের বর্তমান মানের স্ন্যাপশট"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__priority_source_ids
 msgid "Source Priority Order"
 msgstr "উৎসের অগ্রাধিকার ক্রম"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__activity_state
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__activity_state
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__activity_state
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__name
+msgid "Stewardship Domain Title"
+msgstr "স্টুয়ার্ডশিপ ডোমেইনের শিরোনাম"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__strategy
+msgid "Strategy"
+msgstr "কৌশল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__normalize
+msgid "Strip spaces, case-fold, normalise Bengali digits before matching"
+msgstr "মেলানোর আগে স্পেস বাদ দিন, কেস-ফোল্ড করুন, বাংলা অঙ্ক স্বাভাবিক করুন"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_change_request_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__submitted_by
+msgid "Submitted By"
+msgstr "জমাদানকারী"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__model_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__model_name
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__model_name
+msgid "Target Model"
+msgstr "লক্ষ্য মডেল"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__record_id
+msgid "Target Record ID"
+msgstr "লক্ষ্য রেকর্ড আইডি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__record_id
+msgid "The database ID of the record this change request governs"
+msgstr "এই পরিবর্তনের অনুরোধ যে রেকর্ড নিয়ন্ত্রণ করে তার ডাটাবেস আইডি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__title
+msgid "Title"
+msgstr "শিরোনাম"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__activity_exception_decoration
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__activity_exception_decoration
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__activity_exception_decoration
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__state__under_review
+msgid "Under Review"
+msgstr "পর্যালোচনাধীন"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__uniqueness_score
+msgid "Uniqueness Score (%)"
+msgstr "অনন্যতা স্কোর (%)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields.selection,name:cd_mdm_core.selection__fix_mdm_change_request__priority__urgent
+msgid "Urgent"
+msgstr "জরুরি"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__validity_score
+msgid "Validity Score (%)"
+msgstr "বৈধতা স্কোর (%)"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_change_request__website_message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_golden_rule__website_message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__website_message_ids
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_stewardship__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_change_request__website_message_ids
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__website_message_ids
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_match_rule__website_message_ids
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_stewardship__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,field_description:cd_mdm_core.field_fix_mdm_match_rule__weight
+msgid "Weight"
+msgstr "ভার"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__field_name
+msgid "e.g. 'phone' — the field this rule decides"
+msgstr "যেমন 'phone' — এই রুল যে ফিল্ডের সিদ্ধান্ত নেয়"
+
+#. module: cd_mdm_core
+#: model:ir.model.fields,help:cd_mdm_core.field_fix_mdm_golden_rule__model_name
+msgid "e.g. 'res.partner' — the model this rule governs"
+msgstr "যেমন 'res.partner' — এই রুল যে মডেল নিয়ন্ত্রণ করে"
+
+#. module: cd_mdm_core
+#: model_terms:ir.ui.view,arch_db:cd_mdm_core.view_fix_mdm_stewardship_form
+msgid "e.g. Party Domain Governance"
+msgstr "যেমন পার্টি ডোমেইন গভর্ন্যান্স"

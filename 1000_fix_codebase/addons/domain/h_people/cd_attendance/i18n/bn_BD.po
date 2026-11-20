@@ -1,65 +1,546 @@
-# Bengali translations for cd_attendance (M55, P08-M02) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_attendance.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Attendance Record"
-msgstr "উপস্থিতি রেকর্ড"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
-msgid "Shift Template"
-msgstr "শিফট টেমপ্লেট"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
 
-msgid "Roster Slot"
-msgstr "রোস্টার স্লট"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
 
-msgid "Attendance Lock"
-msgstr "উপস্থিতি লক"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
 
-msgid "Biometric Device"
-msgstr "বায়োমেট্রিক ডিভাইস"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
 
-msgid "Mobile (Geofenced)"
-msgstr "মোবাইল (জিওফেন্স)"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
 
-msgid "Manual"
-msgstr "ম্যানুয়াল"
-
-msgid "Device Reference"
-msgstr "ডিভাইস রেফারেন্স"
-
-msgid "Latitude (P02 geofence)"
-msgstr "অক্ষাংশ (P02 জিওফেন্স)"
-
-msgid "Longitude (P02 geofence)"
-msgstr "দ্রাঘিমাংশ (P02 জিওফেন্স)"
-
-msgid "Check Out"
-msgstr "চেক আউট"
-
-msgid "Lock Period"
-msgstr "পিরিয়ড লক করুন"
-
-msgid "Re-open"
-msgstr "পুনরায় খুলুন"
-
-msgid "Locked"
-msgstr "লক করা"
-
-msgid "Re-opened"
-msgstr "পুনরায় খোলা"
-
-msgid "Shift"
-msgstr "শিফট"
-
-msgid "Branch"
-msgstr "শাখা"
-
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_attendance
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance
 msgid "Attendance"
 msgstr "উপস্থিতি"
 
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_lock
+msgid "Attendance Lock"
+msgstr "উপস্থিতি লক"
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_attendance_lock
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance_lock
+msgid "Attendance Locks"
+msgstr "উপস্থিতি লকসমূহ"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_record
+msgid "Attendance Record"
+msgstr "উপস্থিতি রেকর্ড"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__biometric
+msgid "Biometric Device"
+msgstr "বায়োমেট্রিক ডিভাইস"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__branch_id
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_in
+msgid "Check In"
+msgstr "চেক ইন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_out
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Check Out"
+msgstr "চেক আউট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__date
+msgid "Date"
+msgstr "তারিখ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__device_ref
+msgid "Device Reference"
+msgstr "ডিভাইস রেফারেন্স"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__display_label
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__display_label
+msgid "Display Label"
+msgstr "প্রদর্শিত লেবেল"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__employee_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__employee_id
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__end_hour
+msgid "End Hour"
+msgstr "শেষ ঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__overtime_hours
+msgid "Hours beyond the statutory 8/day"
+msgstr "আইনি সীমা দৈনিক ৮ ঘণ্টার অতিরিক্ত ঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__device_ref
+msgid "INT-041 device id. The biometric TEMPLATE never lands here - S3 residency data routes through fix.identity.document"
+msgstr "INT-041 ডিভাইস আইডি। বায়োমেট্রিক TEMPLATE কখনো এখানে রাখা হয় না - S3 রেসিডেন্সি ডেটা fix.identity.document এর মাধ্যমে যায়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_lat
+msgid "Latitude (P02 geofence)"
+msgstr "অক্ষাংশ (P02 জিওফেন্স)"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Lock Period"
+msgstr "পিরিয়ড লক করুন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__locked
+msgid "Locked"
+msgstr "লক করা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_long
+msgid "Longitude (P02 geofence)"
+msgstr "দ্রাঘিমাংশ (P02 জিওফেন্স)"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__manual
+msgid "Manual"
+msgstr "ম্যানুয়াল"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__mobile
+msgid "Mobile (Geofenced)"
+msgstr "মোবাইল (জিওফেন্স)"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__on_leave
+msgid "On Leave"
+msgstr "ছুটিতে"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__overtime_hours
+msgid "Overtime Hours"
+msgstr "অতিরিক্ত কর্মঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__period_end
+msgid "Period End"
+msgstr "পর্যায় সমাপ্তি"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__period_start
+msgid "Period Start"
+msgstr "পিরিয়ড শুরু"
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Re-open"
+msgstr "পুনরায় খুলুন"
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__unlocked
+msgid "Re-opened"
+msgstr "পুনরায় খোলা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_roster
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_roster
 msgid "Roster"
 msgstr "রোস্টার"
 
-msgid "Attendance Locks"
-msgstr "উপস্থিতি লকসমূহ"
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_roster_slot
+msgid "Roster Slot"
+msgstr "রোস্টার স্লট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__on_leave
+msgid "Set when an approved fix.leave.request covers this date"
+msgstr "এই তারিখ অনুমোদিত fix.leave.request-এর আওতায় থাকলে নির্ধারিত হয়"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__shift_id
+msgid "Shift"
+msgstr "শিফট"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_shift_template
+msgid "Shift Template"
+msgstr "শিফট টেমপ্লেট"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__source
+msgid "Source"
+msgstr "উৎস"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__start_hour
+msgid "Start Hour"
+msgstr "শুরুর ঘণ্টা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_work_order
+msgid "Work Order"
+msgstr "ওয়ার্ক অর্ডার"
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__worked_hours
+msgid "Worked Hours"
+msgstr "কাজের ঘণ্টা"

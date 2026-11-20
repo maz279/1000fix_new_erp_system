@@ -1,45 +1,177 @@
 # Bengali (Bangladesh) translation for cd_event_outbox.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__aggregate
 msgid "Aggregate"
 msgstr "অ্যাগ্রিগেট"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__aggregate_id
 msgid "Aggregate ID"
 msgstr "অ্যাগ্রিগেট আইডি"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__aggregate
+msgid "Aggregate root, e.g. 'res.partner'"
+msgstr "অ্যাগ্রিগেট রুট, যেমন 'res.partner'"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__metadata_json
+msgid "Correlation id, causation id, source, timestamp"
+msgstr "কোরিলেশন আইডি, কজেশন আইডি, উৎস, টাইমস্ট্যাম্প"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__event_type
+msgid "Dot-notation type, e.g. 'party.created'"
+msgstr "ডট-নোটেশন ধরন, যেমন 'party.created'"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__event_id
 msgid "Event ID"
 msgstr "ইভেন্ট আইডি"
 
+#. module: cd_event_outbox
+#: model:ir.model.constraint,message:cd_event_outbox.constraint_fix_event_outbox_event_id_unique
+msgid "Event ID must be globally unique"
+msgstr "ইভেন্ট আইডি অবশ্যই সর্বজনীনভাবে অনন্য হতে হবে"
+
+#. module: cd_event_outbox
+#: model:ir.actions.act_window,name:cd_event_outbox.action_fix_event_outbox
+#: model:ir.model,name:cd_event_outbox.model_fix_event_outbox
+#: model:ir.ui.menu,name:cd_event_outbox.menu_fix_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_tree
 msgid "Event Outbox"
 msgstr "ইভেন্ট আউটবক্স"
 
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Event Outbox Entry"
 msgstr "ইভেন্ট আউটবক্স এন্ট্রি"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__event_type
 msgid "Event Type"
 msgstr "ইভেন্টের ধরন"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__failed
+msgid "Failed"
+msgstr "অনুত্তীর্ণ"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__event_id
+msgid "Globally unique event identifier for idempotency"
+msgstr "আইডেম্পোটেন্সির জন্য সর্বজনীনভাবে অনন্য ইভেন্ট শনাক্তকারী"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_event_outbox
+#: model:ir.ui.menu,name:cd_event_outbox.menu_fix_event_outbox_root
 msgid "Integration Platform"
 msgstr "ইন্টিগ্রেশন প্ল্যাটফর্ম"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__last_error
+msgid "Last Error"
+msgstr "সর্বশেষ ত্রুটি"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Metadata"
 msgstr "মেটাডেটা"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__metadata_json
 msgid "Metadata (JSON)"
 msgstr "মেটাডেটা (JSON)"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__operating_unit_id
 msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
+msgstr "অপারেটিং ইউনিট"
 
+#. module: cd_event_outbox
+#: model_terms:ir.ui.view,arch_db:cd_event_outbox.view_fix_event_outbox_form
 msgid "Payload"
 msgstr "পেলোড"
 
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__payload
 msgid "Payload (JSON)"
 msgstr "পেলোড (JSON)"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__publish_attempts
+msgid "Publish Attempts"
+msgstr "প্রকাশের চেষ্টা"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields.selection,name:cd_event_outbox.selection__fix_event_outbox__status__published
+msgid "Published"
+msgstr "প্রকাশিত"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__published_at
+msgid "Published At"
+msgstr "প্রকাশের সময়"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,field_description:cd_event_outbox.field_fix_event_outbox__status
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__payload
+msgid "The event payload as a JSON string"
+msgstr "JSON স্ট্রিং হিসেবে ইভেন্ট পেলোড"
+
+#. module: cd_event_outbox
+#: model:ir.model.fields,help:cd_event_outbox.field_fix_event_outbox__status
+msgid "pending = in the outbox, not yet on the bus"
+msgstr "pending = আউটবক্সে আছে, এখনো বাসে যায়নি"

@@ -5,26 +5,626 @@ msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__nps_score
+msgid "-100..+100 — detractors(1-3) vs promoters(5)"
+msgstr "-100..+100 — সমালোচক(1-3) বনাম প্রচারক(5)"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__score
+msgid "0-100: 60% on-time, 40% quality (100 - rejections)"
+msgstr "0-100: 60% সময়মতো, 40% মান (100 - প্রত্যাখ্যান)"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__ncr_stub_ref
+msgid "AR-006 §5.4 STUB: M23 lands W5 — the NCR reference links then; stub expiry 2027-03-31"
+msgstr "AR-006 §5.4 STUB: M23 W5-এ আসবে — তখন NCR রেফারেন্স যুক্ত হবে; স্টাবের মেয়াদ শেষ 2027-03-31"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_needaction
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_needaction
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_state
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_state
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_type_icon
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_type_icon
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_attachment_count
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_attachment_count
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__billing
+msgid "Billing"
+msgstr "বিলিং"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__capa_open
+msgid "CAPA Open"
+msgstr "সিএপিএ চালু"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__capa_stub_ref
+msgid "Capa Stub Ref"
+msgstr "CAPA স্টাব রেফারেন্স"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__category
+msgid "Category"
+msgstr "বিভাগ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__comment
+msgid "Comment"
+msgstr "মন্তব্য"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__company_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__company_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_cx_feedback
+#: model:ir.model,name:cd_cx_feedback.model_fix_complaint
+msgid "Complaint"
+msgstr "অভিযোগ"
+
+#. module: cd_cx_feedback
+#: model:ir.actions.act_window,name:cd_cx_feedback.action_fix_complaint
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_complaint
 msgid "Complaints"
 msgstr "অভিযোগসমূহ"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__create_uid
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__create_uid
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__create_date
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__create_date
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__critical
+msgid "Critical"
+msgstr "সংকটপূর্ণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__customer_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__delay
+msgid "Delay / SLA"
+msgstr "বিলম্ব / SLA"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__device_damage
+msgid "Device Damage"
+msgstr "ডিভাইসের ক্ষতি"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__display_name
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__display_name
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_follower_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_follower_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_partner_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_partner_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__activity_type_icon
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__activity_type_icon
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__rejection_count
+msgid "From the M52 matcher's blocked invoices"
+msgstr "M52 ম্যাচারের আটকে থাকা চালান থেকে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__has_message
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__has_message
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__activity_exception_icon
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__activity_exception_icon
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__message_needaction
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__message_needaction
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__message_has_error
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__message_has_sms_error
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__message_has_error
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__message_has_sms_error
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__message_has_error
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__investigating
+msgid "Investigating"
+msgstr "তদন্ত চলছে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_is_follower
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_is_follower
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__write_uid
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__write_uid
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__write_date
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__write_date
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__lines_late
+msgid "Lines Late"
+msgstr "বিলম্বিত লাইন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__lines_on_time
+msgid "Lines On Time"
+msgstr "সময়মতো লাইন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__major
+msgid "Major"
+msgstr "বড়"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_has_error
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_has_error
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__severity__minor
+msgid "Minor"
+msgstr "গৌণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__ncr_raised
+msgid "NCR Raised"
+msgstr "NCR উত্থাপিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__ncr_stub_ref
+msgid "Ncr Stub Ref"
+msgstr "NCR স্টাব রেফারেন্স"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_summary
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_summary
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_type_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_type_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__nps_score
+msgid "Nps Score"
+msgstr "NPS স্কোর"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__message_needaction_counter
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__message_needaction_counter
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__message_has_error_counter
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__message_has_error_counter
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__on_time_pct
+msgid "On Time Pct"
+msgstr "সময়মতো %"
+
+#. module: cd_cx_feedback
+#: model:ir.model.constraint,message:cd_cx_feedback.constraint_fix_supplier_scorecard_vendor_period_unique
+msgid "One scorecard per vendor and period"
+msgstr "প্রতিটি ভেন্ডর ও পিরিয়ডের জন্য একটিই স্কোরকার্ড"
+
+#. module: cd_cx_feedback
+#: model:ir.model.constraint,message:cd_cx_feedback.constraint_fix_survey_order_unique
+msgid "One survey per service order"
+msgstr "প্রতিটি সার্ভিস অর্ডারের জন্য একটিই জরিপ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__operating_unit_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__rating
+msgid "Overall Rating (NPS-style)"
+msgstr "সামগ্রিক রেটিং (NPS-ধাঁচ)"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__period
+msgid "Period"
+msgstr "পর্যায়"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__po_count
+msgid "Po Count"
+msgstr "PO সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__rejection_count
+msgid "Rejection Count"
+msgstr "প্রত্যাখ্যানের সংখ্যা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__resolution
+msgid "Resolution"
+msgstr "সমাধান"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__responded
+msgid "Responded"
+msgstr "সাড়া দিয়েছে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__activity_user_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__activity_user_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__root_cause
+msgid "Root Cause Identified"
+msgstr "মূল কারণ চিহ্নিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__capa_stub_ref
+msgid "STUB: the CAPA reference links when M23 lands"
+msgstr "STUB: M23 এলে CAPA রেফারেন্স যুক্ত হবে"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__score
+msgid "Score"
+msgstr "স্কোর"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__state__sent
+msgid "Sent"
+msgstr "প্রেরিত"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__service_order_id
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__service_quality
+msgid "Service Quality"
+msgstr "সেবার মান"
+
+#. module: cd_cx_feedback
+#: model:ir.model,name:cd_cx_feedback.model_fix_survey
+msgid "Service Survey"
+msgstr "সার্ভিস জরিপ"
+
+#. module: cd_cx_feedback
+#: model:ir.actions.act_window,name:cd_cx_feedback.action_fix_survey
+msgid "Service Surveys"
+msgstr "সার্ভিস জরিপসমূহ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__severity
+msgid "Severity"
+msgstr "তীব্রতা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__source_event_id
+msgid "Source Event"
+msgstr "উৎস ইভেন্ট"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__category__staff_conduct
+msgid "Staff Conduct"
+msgstr "কর্মীর আচরণ"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__state
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__activity_state
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__activity_state
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_cx_feedback
+#: model:ir.model,name:cd_cx_feedback.model_fix_supplier_scorecard
+msgid "Supplier Scorecard"
+msgstr "সরবরাহকারী স্কোরকার্ড"
+
+#. module: cd_cx_feedback
+#: model:ir.actions.act_window,name:cd_cx_feedback.action_fix_supplier_scorecard
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_supplier_scorecard
 msgid "Supplier Scorecards"
 msgstr "সরবরাহকারী স্কোরকার্ডসমূহ"
 
+#. module: cd_cx_feedback
+#: model:ir.ui.menu,name:cd_cx_feedback.menu_fix_survey
 msgid "Surveys"
 msgstr "সমীক্ষাসমূহ"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__source_event_id
+msgid "The service_order.closed event — replay key"
+msgstr "service_order.closed ইভেন্ট — রিপ্লে কী"
+
+#. module: cd_cx_feedback
+#: model_terms:ir.ui.view,arch_db:cd_cx_feedback.view_fix_survey_tree
 msgid "Triggered"
 msgstr "ট্রিগার্ড"
 
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__activity_exception_decoration
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__activity_exception_decoration
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__vendor_id
 msgid "Vendor"
 msgstr "ভেন্ডর"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_complaint__state__verification
+msgid "Verification"
+msgstr "যাচাই"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_complaint__website_message_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_supplier_scorecard__website_message_ids
+#: model:ir.model.fields,field_description:cd_cx_feedback.field_fix_survey__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_complaint__website_message_ids
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__website_message_ids
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_survey__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields,help:cd_cx_feedback.field_fix_supplier_scorecard__period
+msgid "YYYY-MM"
+msgstr "YYYY-MM"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__2
+msgid "খারাপ / Poor"
+msgstr "খারাপ / Poor"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__1
+msgid "খুব খারাপ / Very Poor"
+msgstr "খুব খারাপ / Very Poor"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__5
+msgid "খুব ভালো / Excellent"
+msgstr "খুব ভালো / Excellent"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__4
+msgid "ভালো / Good"
+msgstr "ভালো / Good"
+
+#. module: cd_cx_feedback
+#: model:ir.model.fields.selection,name:cd_cx_feedback.selection__fix_survey__rating__3
+msgid "মোটামুটি / Fair"
+msgstr "মোটামুটি / Fair"

@@ -1,21 +1,431 @@
 # Bengali (Bangladesh) translation for cd_wms_structure.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__capacity_qty
+msgid "0 = unconstrained bin"
+msgstr "0 = সীমাহীন বিন"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_needaction
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_needaction
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_state
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_state
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_type_icon
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_type_icon
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_attachment_count
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_attachment_count
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__barcode
+msgid "Barcode"
+msgstr "বারকোড"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__bin_ids
 msgid "Bins"
 msgstr "বিনসমূহ"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__branch_id
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__capacity_qty
+msgid "Capacity Qty"
+msgstr "ধারণক্ষমতা পরিমাণ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__code
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__code
+msgid "Code"
+msgstr "কোড"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__create_uid
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__create_uid
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__create_date
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__create_date
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__dispatch
+msgid "Dispatch"
+msgstr "ডিসপ্যাচ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__display_name
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__display_name
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__reservable
+msgid "False for quarantine/blocked zones — BRU-INV-08"
+msgstr "কোয়ারেন্টাইন/অবরুদ্ধ জোনের জন্য মিথ্যা — BRU-INV-08"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_follower_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_follower_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_partner_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_partner_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__activity_type_icon
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__activity_type_icon
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__has_message
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__has_message
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__activity_exception_icon
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__activity_exception_icon
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__message_needaction
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__message_needaction
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__message_has_error
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__message_has_sms_error
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__message_has_error
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__message_has_sms_error
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__message_has_error
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_is_follower
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_is_follower
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__write_uid
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__write_uid
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__write_date
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__write_date
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__storage
+msgid "Main Storage"
+msgstr "প্রধান স্টোরেজ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_has_error
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_has_error
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__name
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__name
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_summary
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_summary
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_type_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_type_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__message_needaction_counter
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__message_needaction_counter
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__message_has_error_counter
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__message_has_error_counter
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__inspection
+msgid "Quality Inspection"
+msgstr "মান পরিদর্শন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__quarantine
+msgid "Quarantine / Blocked"
+msgstr "কোয়ারেন্টাইন / অবরুদ্ধ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__barcode
+msgid "RF-scannable bin barcode"
+msgstr "RF-স্ক্যানযোগ্য বিন বারকোড"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__receiving
+msgid "Receiving"
+msgstr "গ্রহণ"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__reservable
+msgid "Reservable"
+msgstr "সংরক্ষণযোগ্য (রিজার্ভ)"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__activity_user_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__activity_user_id
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields.selection,name:cd_wms_structure.selection__fix_warehouse_zone__zone_type__returns
+msgid "Returns"
+msgstr "ফেরত"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__activity_state
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__activity_state
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__activity_exception_decoration
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__activity_exception_decoration
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_wms_structure
+#: model:ir.model,name:cd_wms_structure.model_fix_warehouse
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__warehouse_id
+msgid "Warehouse"
+msgstr "গুদাম"
+
+#. module: cd_wms_structure
+#: model:ir.model,name:cd_wms_structure.model_fix_warehouse_bin
+msgid "Warehouse Bin"
+msgstr "গুদাম বিন"
+
+#. module: cd_wms_structure
+#: model:ir.model,name:cd_wms_structure.model_fix_warehouse_zone
+msgid "Warehouse Zone"
+msgstr "গুদাম জোন"
+
+#. module: cd_wms_structure
+#: model:ir.model.constraint,message:cd_wms_structure.constraint_fix_warehouse_code_company_unique
+msgid "Warehouse code must be unique per company"
+msgstr "প্রতি কোম্পানিতে গুদাম কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_wms_structure
+#: model:ir.actions.act_window,name:cd_wms_structure.action_fix_warehouse
+#: model:ir.ui.menu,name:cd_wms_structure.menu_fix_warehouse
 msgid "Warehouses"
 msgstr "গুদামসমূহ"
 
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__website_message_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__website_message_ids
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse__website_message_ids
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_bin__website_message_ids
+#: model:ir.model.fields,help:cd_wms_structure.field_fix_warehouse_zone__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_bin__zone_id
+msgid "Zone"
+msgstr "জোন"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse_zone__zone_type
+msgid "Zone Type"
+msgstr "জোনের ধরন"
+
+#. module: cd_wms_structure
+#: model:ir.model.constraint,message:cd_wms_structure.constraint_fix_warehouse_zone_code_warehouse_unique
+msgid "Zone code must be unique within the warehouse"
+msgstr "গুদামের মধ্যে জোন কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_wms_structure
+#: model:ir.model.fields,field_description:cd_wms_structure.field_fix_warehouse__zone_ids
 msgid "Zones"
 msgstr "অঞ্চলসমূহ"

@@ -1,4 +1,4 @@
-# Translation template for cd_supplier_risk — exported from the Odoo 19 runtime (odoo-bin i18n export).
+# Translation template for cd_supplier_risk — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
 # Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
@@ -267,6 +267,11 @@ msgstr ""
 #. module: cd_supplier_risk
 #: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__my_activity_date_deadline
 msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
 msgstr ""
 
 #. module: cd_supplier_risk

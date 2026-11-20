@@ -1,8 +1,425 @@
-# Bengali translations for cd_facility (P10).
+# Bengali (Bangladesh) translation for cd_facility.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Facility & Branch Infrastructure"
-msgstr "Facility & Branch Infrastructure (\u09ac\u09be\u0982\u09b2\u09be)"
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_needaction
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_ids
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_state
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_type_icon
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__address
+msgid "Address"
+msgstr "ঠিকানা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__assigned_to
+msgid "Assigned To"
+msgstr "দায়িত্বপ্রাপ্ত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_attachment_count
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__branch_id
+msgid "Branch (M30)"
+msgstr "শাখা (M30)"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__company_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__office
+msgid "Corporate Office"
+msgstr "কর্পোরেট অফিস"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__create_uid
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__create_date
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__data_centre
+msgid "Data Centre"
+msgstr "ডেটা সেন্টার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__display_name
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__estimated_cost
+msgid "Estimated Cost"
+msgstr "আনুমানিক ব্যয়"
+
+#. module: cd_facility
+#: model:ir.actions.act_window,name:cd_facility.action_fix_facility_work_order
+#: model:ir.model,name:cd_facility.model_fix_facility_work_order
+#: model:ir.ui.menu,name:cd_facility.menu_fix_facility_work_order
+msgid "Facility Work Order"
+msgstr "স্থাপনা ওয়ার্ক অর্ডার"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__floor_area_sqm
+msgid "Floor Area (sqm)"
+msgstr "মেঝের আয়তন (বর্গমিটার)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_follower_ids
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_partner_ids
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__activity_type_icon
+#: model:ir.model.fields,help:cd_facility.field_fix_site__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__has_message
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__activity_exception_icon
+#: model:ir.model.fields,help:cd_facility.field_fix_site__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__message_needaction
+#: model:ir.model.fields,help:cd_facility.field_fix_site__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__message_has_error
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__message_has_sms_error
+#: model:ir.model.fields,help:cd_facility.field_fix_site__message_has_error
+#: model:ir.model.fields,help:cd_facility.field_fix_site__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__inspection
+msgid "Inspection"
+msgstr "পরিদর্শন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_is_follower
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__write_uid
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__write_date
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__lease_end
+msgid "Lease End"
+msgstr "লিজ সমাপ্তি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__lease_start
+msgid "Lease Start"
+msgstr "লিজ শুরু"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__maintenance
+msgid "Maintenance"
+msgstr "রক্ষণাবেক্ষণ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_has_error
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_ids
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__monthly_rent
+msgid "Monthly Rent (BDT)"
+msgstr "মাসিক ভাড়া (টাকা)"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__name
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_summary
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_type_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__message_needaction_counter
+#: model:ir.model.fields,help:cd_facility.field_fix_site__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__message_has_error_counter
+#: model:ir.model.fields,help:cd_facility.field_fix_site__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__repair
+msgid "Repair"
+msgstr "মেরামত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__activity_user_id
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__state__scheduled
+msgid "Scheduled"
+msgstr "নির্ধারিত"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__scheduled_date
+msgid "Scheduled Date"
+msgstr "নির্ধারিত তারিখ"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__branch
+msgid "Service Branch"
+msgstr "সার্ভিস শাখা"
+
+#. module: cd_facility
+#: model:ir.actions.act_window,name:cd_facility.action_fix_site
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__site_id
+#: model:ir.ui.menu,name:cd_facility.menu_fix_site
+msgid "Site"
+msgstr "সাইট"
+
+#. module: cd_facility
+#: model:ir.model,name:cd_facility.model_fix_site
+msgid "Site / Facility"
+msgstr "সাইট / স্থাপনা"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__site_type
+msgid "Site Type"
+msgstr "সাইটের ধরন"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__state
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__activity_state
+#: model:ir.model.fields,help:cd_facility.field_fix_site__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__activity_exception_decoration
+#: model:ir.model.fields,help:cd_facility.field_fix_site__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_facility_work_order__work_type__upgrade
+msgid "Upgrade"
+msgstr "আপগ্রেড"
+
+#. module: cd_facility
+#: model:ir.model.fields.selection,name:cd_facility.selection__fix_site__site_type__warehouse
+msgid "Warehouse"
+msgstr "গুদাম"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__website_message_ids
+#: model:ir.model.fields,field_description:cd_facility.field_fix_site__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_facility
+#: model:ir.model.fields,help:cd_facility.field_fix_facility_work_order__website_message_ids
+#: model:ir.model.fields,help:cd_facility.field_fix_site__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_facility
+#: model:ir.model.fields,field_description:cd_facility.field_fix_facility_work_order__work_type
+msgid "Work Type"
+msgstr "কাজের ধরন"

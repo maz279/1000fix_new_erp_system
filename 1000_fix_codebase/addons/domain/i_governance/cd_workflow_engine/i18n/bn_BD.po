@@ -1,33 +1,430 @@
 # Bengali (Bangladesh) translation for cd_workflow_engine.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__code
 msgid "AUT Code"
 msgstr "AUT কোড"
 
+#. module: cd_workflow_engine
+#: model:ir.model.constraint,message:cd_workflow_engine.constraint_fix_automation_code_unique
+msgid "AUT code must be unique"
+msgstr "AUT কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__action
 msgid "Action"
 msgstr "কার্যক্রম"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_needaction
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_ids
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_state
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_type_icon
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__airflow
+msgid "Apache Airflow (scheduled / threshold workflow)"
+msgstr "Apache Airflow (নির্ধারিত সময় / সীমাভিত্তিক ওয়ার্কফ্লো)"
+
+#. module: cd_workflow_engine
+#: model:ir.model,name:cd_workflow_engine.model_fix_approval_matrix
+msgid "Approval Authority Matrix"
+msgstr "অনুমোদন কর্তৃত্ব ম্যাট্রিক্স"
+
+#. module: cd_workflow_engine
+#: model:ir.actions.act_window,name:cd_workflow_engine.action_fix_approval_matrix
+#: model:ir.ui.menu,name:cd_workflow_engine.menu_fix_approval_matrix
 msgid "Approval Matrix"
 msgstr "অনুমোদন ম্যাট্রিক্স"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__approver_role
 msgid "Approver Role (R-nn)"
 msgstr "অনুমোদক ভূমিকা (R-nn)"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__threshold
+msgid "At or below: delegated; above: the named role approves"
+msgstr "সীমার সমান বা নিচে: অর্পিত; উপরে: নির্দিষ্ট ভূমিকা অনুমোদন করে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_attachment_count
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_workflow_engine
+#: model:ir.actions.act_window,name:cd_workflow_engine.action_fix_automation
+#: model:ir.ui.menu,name:cd_workflow_engine.menu_fix_automation
 msgid "Automation Register"
 msgstr "অটোমেশন রেজিস্টার"
 
+#. module: cd_workflow_engine
+#: model:ir.model,name:cd_workflow_engine.model_fix_automation
+msgid "Business Automation"
+msgstr "ব্যবসায়িক স্বয়ংক্রিয়করণ"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__company_id
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__create_uid
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__create_date
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__credit_note
+msgid "Credit Note"
+msgstr "ক্রেডিট নোট"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__decision_domain
+msgid "Decision Domain"
+msgstr "সিদ্ধান্তের ক্ষেত্র"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__discount
+msgid "Discount"
+msgstr "ছাড়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__display_name
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__domain_service
+msgid "Domain Service (named L5 engine)"
+msgstr "ডোমেইন সার্ভিস (নির্দিষ্ট L5 ইঞ্জিন)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__engine
+msgid "Engine"
+msgstr "ইঞ্জিন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__engine_ref
 msgid "Engine Reference"
 msgstr "ইঞ্জিন রেফারেন্স"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__estimate
+msgid "Estimate Approval"
+msgstr "আনুমানিক খরচ অনুমোদন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__expense
+msgid "Expense Claim"
+msgstr "খরচ দাবি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__failure_policy
+msgid "Failure Policy"
+msgstr "ব্যর্থতা নীতি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_follower_ids
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_partner_ids
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__activity_type_icon
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__approver_role
+msgid "From the reconciled 53-role register"
+msgstr "সমন্বিত 53-ভূমিকার রেজিস্টার থেকে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__has_message
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__id
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__activity_exception_icon
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__message_needaction
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__message_has_error
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__message_has_sms_error
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__message_has_error
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_is_follower
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__write_uid
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__write_date
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__failure_policy__manual_fallback
+msgid "Manual Fallback (the catalogue's named fallback)"
+msgstr "ম্যানুয়াল বিকল্প (ক্যাটালগে নির্দিষ্ট বিকল্প)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_has_error
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_ids
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_summary
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_type_id
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__notes
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__message_needaction_counter
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__message_has_error_counter
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__engine__odoo_automated_action
+msgid "Odoo Automated Action (event + server action)"
+msgstr "Odoo স্বয়ংক্রিয় অ্যাকশন (ইভেন্ট + সার্ভার অ্যাকশন)"
+
+#. module: cd_workflow_engine
+#: model:ir.model.constraint,message:cd_workflow_engine.constraint_fix_approval_matrix_domain_threshold_unique
+msgid "One threshold per decision domain and currency"
+msgstr "প্রতি সিদ্ধান্ত ক্ষেত্র ও মুদ্রায় একটি সীমা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__requisition
+msgid "Requisition"
+msgstr "চাহিদাপত্র"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__activity_user_id
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_automation__failure_policy__retry
+msgid "Retry then alert"
+msgstr "পুনরায় চেষ্টা, তারপর সতর্কতা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__engine_ref
+msgid "Server-action xml id / Airflow dag_id / service route"
+msgstr "সার্ভার-অ্যাকশন xml id / Airflow dag_id / সার্ভিস রুট"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__activity_state
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__adjustment
+msgid "Stock Adjustment"
+msgstr "মজুদ সমন্বয়"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__engine
+msgid "T04: every automation has a named engine"
+msgstr "T04: প্রতিটি স্বয়ংক্রিয়করণের একটি নির্দিষ্ট ইঞ্জিন রয়েছে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__failure_policy
+msgid "The catalogue names each automation's fallback; the engine honours it"
+msgstr "ক্যাটালগে প্রতিটি স্বয়ংক্রিয়করণের বিকল্প উল্লেখ থাকে; ইঞ্জিন তা মেনে চলে"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__threshold
 msgid "Threshold"
 msgstr "সীমা"
 
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__trigger
 msgid "Trigger"
 msgstr "ট্রিগার"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__activity_exception_decoration
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_approval_matrix__website_message_ids
+#: model:ir.model.fields,field_description:cd_workflow_engine.field_fix_automation__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_approval_matrix__website_message_ids
+#: model:ir.model.fields,help:cd_workflow_engine.field_fix_automation__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_workflow_engine
+#: model:ir.model.fields.selection,name:cd_workflow_engine.selection__fix_approval_matrix__decision_domain__write_off
+msgid "Write-Off"
+msgstr "অবলোপন"

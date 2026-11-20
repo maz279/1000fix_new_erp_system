@@ -1,107 +1,577 @@
-# Bengali translations for cd_payroll_bd (M56, P08-M03) — 100% coverage.
+# Translation template for cd_payroll_bd — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-""
-""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
-msgid "Payroll Period"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_needaction
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_needaction
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_needaction
+msgid "Action Needed"
 msgstr ""
 
-msgid "Payslip"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_ids
+msgid "Activities"
 msgstr ""
 
-msgid "BEFTN Batch"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_exception_decoration
+msgid "Activity Exception Decoration"
 msgstr ""
 
-msgid "Slips"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_state
+msgid "Activity State"
 msgstr ""
 
-msgid "Net Total"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_type_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_type_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_type_icon
+msgid "Activity Type Icon"
 msgstr ""
 
-msgid "Draft"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__incentive
+msgid "Applied by the M57 incentive engine before approval"
 msgstr ""
 
-msgid "Attendance Locked"
-msgstr ""
-
-msgid "Calculated"
-msgstr ""
-
-msgid "Approved"
-msgstr ""
-
-msgid "Paid"
-msgstr ""
-
-msgid "Posted"
-msgstr ""
-
-msgid "Verify Attendance Lock"
-msgstr ""
-
-msgid "Calculate"
-msgstr ""
-
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
 msgid "Approve"
 msgstr ""
 
-msgid "Pay (BEFTN)"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__approved
+msgid "Approved"
 msgstr ""
 
-msgid "Post to GL"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_attachment_count
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_attachment_count
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_attachment_count
+msgid "Attachment Count"
 msgstr ""
 
-msgid "Payroll Periods"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__attendance_locked
+msgid "Attendance Locked"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_beftn_batch
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__beftn_batch_id
+msgid "BEFTN Batch"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__basic
 msgid "Basic (Monthly)"
 msgstr ""
 
-msgid "Overtime Hours"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Calculate"
 msgstr ""
 
-msgid "Incentive (M57)"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__calculated
+msgid "Calculated"
 msgstr ""
 
-msgid "PF Employee %"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__company_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__company_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__company_id
+msgid "Company"
 msgstr ""
 
-msgid "PF Employer %"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__create_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__create_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__create_uid
+msgid "Created by"
 msgstr ""
 
-msgid "YTD Taxable Outside This Slip"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__create_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__create_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__create_date
+msgid "Created on"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__currency_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__currency_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__currency_id
+msgid "Currency"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__display_name
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__display_name
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__employee_id
+msgid "Employee"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__employee_count
+msgid "Employee Count"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__settlement_date
+msgid "Engine-computed: after the 16:00 cut-off, or Fri/Sat/holiday, the next working day (Sun-Thu week)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_follower_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_follower_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_partner_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_partner_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_type_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_type_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gross
 msgid "Gross"
 msgstr ""
 
-msgid "Overtime Pay"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__has_message
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__has_message
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__has_message
+msgid "Has Message"
 msgstr ""
 
-msgid "PF Employee"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__id
+msgid "ID"
 msgstr ""
 
-msgid "PF Employer"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_exception_icon
+msgid "Icon"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_exception_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_exception_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_needaction
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_needaction
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_sms_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_sms_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__incentive
+msgid "Incentive (M57)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__tax_withheld
 msgid "Income Tax Withheld"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_is_follower
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_is_follower
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__write_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__write_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__write_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__write_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__name
+msgid "Name"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__net
 msgid "Net Pay"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__net_total
+msgid "Net Total"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_summary
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_summary
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_type_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_type_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_needaction_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_needaction_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_error_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_error_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__ot_hours
+msgid "Overtime Hours"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__overtime
+msgid "Overtime Pay"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__annual_taxable_other
+msgid "P08-M03-T08: migrated YTD statutory balances land here"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee
+msgid "PF Employee"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee_pct
+msgid "PF Employee %"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer
+msgid "PF Employer"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer_pct
+msgid "PF Employer %"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__paid
+msgid "Paid"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Pay (BEFTN)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payroll
 msgid "Payroll"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payroll_period
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__period_id
+msgid "Payroll Period"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payroll_period
+msgid "Payroll Periods"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payslip
+msgid "Payslip"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payslip
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__payslip_ids
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payslips
 msgid "Payslips"
 msgstr ""
 
-msgid "Total Amount"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__period_id
+msgid "Period"
 msgstr ""
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_end
+msgid "Period End"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_start
+msgid "Period Start"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Post to GL"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__posted
+msgid "Posted"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_user_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_user_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__settled
+msgid "Settled"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__settlement_date
+msgid "Settlement Date"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__slip_count
+msgid "Slips"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__state
+msgid "State"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_state
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_state
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__submitted
 msgid "Submitted"
 msgstr ""
 
-msgid "Settled"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__submitted_at
+msgid "Submitted At"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__total_amount
+msgid "Total Amount"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_exception_decoration
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_exception_decoration
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Verify Attendance Lock"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__website_message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__website_message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__website_message_ids
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__website_message_ids
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__annual_taxable_other
+msgid "YTD Taxable Outside This Slip"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "অতিরিক্ত কর্মঘণ্টা:"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "আয়কর কর্তন:"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "কর্মী:"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "নিট বেতন:"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "প্রভিডেন্ট ফান্ড (কর্মী):"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "বেতন স্লিপ"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model:ir.actions.report,name:cd_payroll_bd.action_report_payslip_bn
+msgid "বেতন স্লিপ (Payslip)"
+msgstr ""
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "মূল বেতন:"
 msgstr ""

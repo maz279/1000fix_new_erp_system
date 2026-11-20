@@ -1,8 +1,499 @@
-# Bengali translations for cd_grc (P09) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_grc.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Governance, Risk & Compliance"
-msgstr "Governance, Risk & Compliance (বাংলা)"
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_needaction
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_ids
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_state
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_type_icon
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__5
+msgid "Almost Certain"
+msgstr "প্রায় নিশ্চিত"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__annual
+msgid "Annual"
+msgstr "বার্ষিক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_attachment_count
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__category
+msgid "Category"
+msgstr "বিভাগ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__company_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__compliance
+msgid "Compliance"
+msgstr "কমপ্লায়েন্স"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__continuous
+msgid "Continuous"
+msgstr "নিরবচ্ছিন্ন"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_control
+#: model:ir.model,name:cd_grc.model_fix_control
+#: model:ir.ui.menu,name:cd_grc.menu_fix_control
+msgid "Control"
+msgstr "নিয়ন্ত্রণ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__control_type
+msgid "Control Type"
+msgstr "নিয়ন্ত্রণের ধরন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__corrective
+msgid "Corrective"
+msgstr "সংশোধনমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__create_uid
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__create_date
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__cyber
+msgid "Cyber Security"
+msgstr "সাইবার নিরাপত্তা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__daily
+msgid "Daily"
+msgstr "দৈনিক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__detective
+msgid "Detective"
+msgstr "শনাক্তকরণমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__display_name
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__effective
+msgid "Effective"
+msgstr "কার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__financial
+msgid "Financial"
+msgstr "আর্থিক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_follower_ids
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_partner_ids
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__activity_type_icon
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__frequency
+msgid "Frequency"
+msgstr "পুনরাবৃত্তির হার"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__has_message
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__activity_exception_icon
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__message_needaction
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__message_has_error
+#: model:ir.model.fields,help:cd_grc.field_fix_control__message_has_sms_error
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__message_has_error
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__impact
+msgid "Impact"
+msgstr "প্রভাব"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__state__inactive
+msgid "Inactive"
+msgstr "নিষ্ক্রিয়"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__ineffective
+msgid "Ineffective"
+msgstr "অকার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__1
+msgid "Insignificant"
+msgstr "নগণ্য"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_is_follower
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__last_tested
+msgid "Last Tested"
+msgstr "সর্বশেষ পরীক্ষা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__write_uid
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__write_date
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__likelihood
+msgid "Likelihood"
+msgstr "সম্ভাবনা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__4
+msgid "Likely"
+msgstr "সম্ভাব্য"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__4
+msgid "Major"
+msgstr "বড়"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_has_error
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_ids
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__2
+msgid "Minor"
+msgstr "গৌণ"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__mitigating
+msgid "Mitigating"
+msgstr "প্রশমন চলছে"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__mitigation
+msgid "Mitigation"
+msgstr "প্রশমন"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__3
+msgid "Moderate"
+msgstr "মাঝারি"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__name
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_summary
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_type_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__message_needaction_counter
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__message_has_error_counter
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__operating_unit_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__operational
+msgid "Operational"
+msgstr "পরিচালনগত"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__test_result__partially
+msgid "Partially Effective"
+msgstr "আংশিক কার্যকর"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__3
+msgid "Possible"
+msgstr "সম্ভব"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__control_type__preventive
+msgid "Preventive"
+msgstr "প্রতিরোধমূলক"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__1
+msgid "Rare"
+msgstr "বিরল"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__activity_user_id
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__risk_id
+msgid "Risk Addressed"
+msgstr "সংশ্লিষ্ট ঝুঁকি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__owner_id
+msgid "Risk Owner"
+msgstr "ঝুঁকির দায়িত্বপ্রাপ্ত"
+
+#. module: cd_grc
+#: model:ir.actions.act_window,name:cd_grc.action_fix_risk_register
+#: model:ir.ui.menu,name:cd_grc.menu_fix_risk_register
+msgid "Risk Register"
+msgstr "ঝুঁকি রেজিস্টার"
+
+#. module: cd_grc
+#: model:ir.model,name:cd_grc.model_fix_risk_register
+msgid "Risk Register Entry"
+msgstr "ঝুঁকি রেজিস্টার এন্ট্রি"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__risk_score
+msgid "Risk Score"
+msgstr "ঝুঁকি স্কোর"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__impact__5
+msgid "Severe"
+msgstr "গুরুতর"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__state
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__activity_state
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__category__strategic
+msgid "Strategic"
+msgstr "কৌশলগত"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__test_result
+msgid "Test Result"
+msgstr "পরীক্ষার ফলাফল"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__activity_exception_decoration
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_risk_register__likelihood__2
+msgid "Unlikely"
+msgstr "অসম্ভাব্য"
+
+#. module: cd_grc
+#: model:ir.model.fields,field_description:cd_grc.field_fix_control__website_message_ids
+#: model:ir.model.fields,field_description:cd_grc.field_fix_risk_register__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_grc
+#: model:ir.model.fields,help:cd_grc.field_fix_control__website_message_ids
+#: model:ir.model.fields,help:cd_grc.field_fix_risk_register__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_grc
+#: model:ir.model.fields.selection,name:cd_grc.selection__fix_control__frequency__weekly
+msgid "Weekly"
+msgstr "সাপ্তাহিক"

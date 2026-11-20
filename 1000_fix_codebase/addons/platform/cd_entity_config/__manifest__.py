@@ -16,6 +16,8 @@ Owns:
 - fix.bd.address (8 divisions / 64 districts / upazilas / unions)
 - fix.country.pack (interface M51 consumes instead of M65)
 - fix.notification.config (Novu channel routing, ADR-022)
+- the bn_BD (Bengali, Bangladesh) language, so every module's
+  i18n/bn_BD.po loads at runtime (AS-12)
 
 CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
     """,
@@ -30,6 +32,7 @@ CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
         "operating_unit",
     ],
     "data": [
+        "data/res_lang_bn_bd.xml",
         "security/cd_entity_config_security.xml",
         "security/ir.model.access.csv",
         "views/fix_portal_shell_views.xml",

@@ -1,50 +1,394 @@
-# Bengali translations for cd_fixed_asset_ext (M49, P08-M08).
+# Bengali (Bangladesh) translation for cd_fixed_asset_ext.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Fixed Asset"
-msgstr "স্থায়ী সম্পদ"
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__budget_reference
+msgid "AR-006 5.4 NOT-A-PREREQ: M49 does NOT read M54. This is a free-text advisory pointer, deliberately NOT a relation — the M49<->M54 break"
+msgstr "AR-006 5.4 NOT-A-PREREQ: M49, M54 পড়ে না। এটি একটি মুক্ত-লেখা পরামর্শমূলক নির্দেশক, ইচ্ছাকৃতভাবে কোনো সম্পর্ক (relation) নয় — M49<->M54 বিচ্ছেদ"
 
-msgid "CWIP Entry"
-msgstr "সিডব্লিউআইপি এন্ট্রি"
-
-msgid "Capitalisation Seam (M19)"
-msgstr "মূলধনীকরণ সীম (M19)"
-
-msgid "Gross"
-msgstr "স্থূল"
-
-msgid "Salvage Value"
-msgstr "অবশিষ্ট মূল্য"
-
-msgid "Monthly Depreciation"
-msgstr "মাসিক অবচয়"
-
-msgid "Budget Reference (Advisory)"
-msgstr "বাজেট রেফারেন্স (পরামর্শমূলক)"
-
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
 msgid "Accrue Month"
 msgstr "মাস জমা"
 
-msgid "Dispose"
-msgstr "নিষ্পত্তি"
-
-msgid "Disposed"
-msgstr "নিষ্পত্তিকৃত"
-
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__amount
 msgid "Accumulated Cost"
 msgstr "সঞ্চিত ব্যয়"
 
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_needaction
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_ids
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_state
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_type_icon
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_attachment_count
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__budget_reference
+msgid "Budget Reference (Advisory)"
+msgstr "বাজেট রেফারেন্স (পরামর্শমূলক)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_cwip
+#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_cwip
+msgid "CWIP"
+msgstr "সিডব্লিউআইপি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_cwip_entry
+msgid "CWIP Entry"
+msgstr "সিডব্লিউআইপি এন্ট্রি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__seam_id
+msgid "Capitalisation Seam (M19)"
+msgstr "মূলধনীকরণ সীম (M19)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_cwip_entry__state__capitalised
 msgid "Capitalised"
 msgstr "মূলধনীকৃত"
 
-msgid "Resulting Asset"
-msgstr "ফলাফল সম্পদ"
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__category
+msgid "Category"
+msgstr "বিভাগ"
 
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__company_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__create_uid
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__create_date
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__currency_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__display_name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_fixed_asset_ext
+#: model_terms:ir.ui.view,arch_db:cd_fixed_asset_ext.view_fix_fixed_asset_form
+msgid "Dispose"
+msgstr "নিষ্পত্তি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__disposed
+msgid "Disposed"
+msgstr "নিষ্পত্তিকৃত"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_fixed_asset__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__seam_id
+msgid "Finance posted the capitalisation event; this asset consumed it (AR-006 pair 14)"
+msgstr "ফাইন্যান্স মূলধনীকরণ ইভেন্ট পোস্ট করেছে; এই সম্পদ তা গ্রহণ করেছে (AR-006 pair 14)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model,name:cd_fixed_asset_ext.model_fix_fixed_asset
+msgid "Fixed Asset"
+msgstr "স্থায়ী সম্পদ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.actions.act_window,name:cd_fixed_asset_ext.action_fix_fixed_asset
+#: model:ir.ui.menu,name:cd_fixed_asset_ext.menu_fix_fixed_assets
 msgid "Fixed Assets"
 msgstr "স্থায়ী সম্পদসমূহ"
 
-msgid "CWIP"
-msgstr "সিডব্লিউআইপি"
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_follower_ids
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_partner_ids
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__activity_type_icon
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__gross
+msgid "Gross"
+msgstr "স্থূল"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__has_message
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__activity_exception_icon
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__message_needaction
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_error
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_sms_error
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_error
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_is_follower
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__write_uid
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__write_date
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__life_months
+msgid "Life Months"
+msgstr "আয়ুষ্কাল (মাস)"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_error
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_ids
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__monthly_depreciation
+msgid "Monthly Depreciation"
+msgstr "মাসিক অবচয়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__name
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_summary
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_type_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__message_needaction_counter
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_error_counter
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields.selection,name:cd_fixed_asset_ext.selection__fix_cwip_entry__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__purchase_date
+msgid "Purchase Date"
+msgstr "ক্রয়ের তারিখ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__activity_user_id
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__asset_id
+msgid "Resulting Asset"
+msgstr "ফলাফল সম্পদ"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__salvage
+msgid "Salvage Value"
+msgstr "অবশিষ্ট মূল্য"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__state
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__activity_state
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__activity_exception_decoration
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_cwip_entry__website_message_ids
+#: model:ir.model.fields,field_description:cd_fixed_asset_ext.field_fix_fixed_asset__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_fixed_asset_ext
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_cwip_entry__website_message_ids
+#: model:ir.model.fields,help:cd_fixed_asset_ext.field_fix_fixed_asset__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
