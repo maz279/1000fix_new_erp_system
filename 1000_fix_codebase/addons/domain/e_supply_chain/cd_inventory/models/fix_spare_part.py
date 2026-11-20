@@ -172,9 +172,12 @@ class FixSparePart(models.Model):
         readonly=False,
         help="BRU-WMS-11: hazardous parts are put away only into hazardous bins.",
     )
-    min_qty = fields.Float(string="Minimum Reorder Point", default=5.0)
-    max_qty = fields.Float(string="Target Max Stock", default=25.0)
-    safety_stock = fields.Float(string="Safety Buffer Stock", default=3.0)
+    # A06 ERP audit A23 (owner recommendation 7): no default min 5 / max 25. A
+    # part's levels are set per location on its reorder rules (M43 publishes
+    # them, D7); unset means unset, and no KPI reads these as a minimum.
+    min_qty = fields.Float(string="Minimum Reorder Point", default=0.0)
+    max_qty = fields.Float(string="Target Max Stock", default=0.0)
+    safety_stock = fields.Float(string="Safety Buffer Stock", default=0.0)
     criticality = fields.Selection(
         [
             ("low", "Low — substitute available"),

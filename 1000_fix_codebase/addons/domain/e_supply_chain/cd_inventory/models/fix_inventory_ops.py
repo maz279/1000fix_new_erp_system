@@ -28,17 +28,24 @@ from .fix_inventory_approval import (
     APPROVER_FINANCE_GROUP,
     CONTROLLER_GROUP,
     COST_GROUP,
+    DEFAULT_COUNT_TOLERANCE_PCT,
+    DEFAULT_TRANSFER_THRESHOLD,
+    DEFAULT_VAN_TOLERANCE_PCT,
+    DEFAULT_WRITEOFF_THRESHOLD,
     PARAM_COUNT_TOLERANCE_PCT,
     PARAM_TRANSFER_THRESHOLD,
     PARAM_VAN_TOLERANCE_PCT,
     PARAM_WRITEOFF_THRESHOLD,
+    QUALITY_MANAGER_GROUP,
     VALUED_CLASSES,
     VAN_VARIANCE_GROUPS,
     check_location_usable,
     check_quantity,
+    has_group_safe,
     inv_param,
     location_class,
 )
+from .fix_stock_move_log import move_ctx
 from .fix_valuation_suspense import PRICE_VARIANCE_PARAM
 
 _logger = logging.getLogger(__name__)
@@ -75,6 +82,27 @@ EPS = 1e-6
 RECEIPT_PO_STATES = ("sent", "acknowledged", "partially_received", "received")
 # A06 final pass B15: what happens to a transfer's short quantity
 TRANSFER_RESOLUTIONS = ("found", "returned", "quarantine")
+# A06 ERP audit A04: a count in these states freezes what it counts
+OPEN_COUNT_STATES = ("draft", "recount", "to_approve", "to_dofa")
+# A06 ERP audit A15 (BRU-INV-04/06): the ownership-class changes a document may
+# make. Customer property is never re-classed (it is the customer's); van stock
+# is the class of a van location, never chosen.
+CLASS_CHANGES = {
+    ("consignment", "owned"),  # bought from the consignor
+    ("consignment", "warranty"),
+    ("owned", "warranty"),
+    ("warranty", "owned"),
+    ("owned", "bench"),
+    ("bench", "owned"),
+}
+
+
+def location_ou(location):
+    """A06 ERP audit X21: the operating unit a bucket at this location belongs
+    to: the location's own, else its branch's. The record rules decide who
+    sees a bucket on it, so it must be the branch that holds the stock."""
+    location = location.sudo()
+    return location.operating_unit_id or location.branch_id.operating_unit_id
 
 
 def _changes(records, vals):
@@ -269,6 +297,7 @@ class FixStockOnhand(models.Model):
         check_quantity(part, abs(delta), "movement")
         if not location.active or location.state != "active":
             raise UserError("Location %s is not active and cannot move stock." % location.code)
+        self._fix_check_count_freeze(part, location, ownership, status)
         row = self._bucket(part, location, ownership, status)
         Ledger = self.sudo()
         today = fields.Date.context_today(self)
@@ -277,10 +306,10 @@ class FixStockOnhand(models.Model):
             if cost is None:
                 master = part.sudo()
                 cost = master.average_cost or master.unit_cost
-            return Ledger.create(
+            row = Ledger.create(
                 {
                     "company_id": location.company_id.id or part.company_id.id,
-                    "operating_unit_id": location.operating_unit_id.id or False,
+                    "operating_unit_id": location_ou(location).id or False,
                     "part_id": part.id,
                     "location_id": location.id,
                     "ownership_class": ownership,
@@ -291,6 +320,8 @@ class FixStockOnhand(models.Model):
                     "last_move_date": today,
                 }
             )
+            self.env["fix.stock.move.log"]._fix_log(row, delta, cost)
+            return row
         if not row:
             # A ledger-native movement always demands its bucket; the legacy
             # flag only lets a caller ask "nothing there" without an error.
@@ -325,8 +356,58 @@ class FixStockOnhand(models.Model):
                 )
             if vals["qty"] < (vals.get("reserved", row.reserved) or 0.0) - EPS:
                 vals["reserved"] = vals["qty"]
+        moved_cost = unit_cost if (delta > 0 and unit_cost is not None) else row.unit_cost
         row.sudo().write(vals)
+        self.env["fix.stock.move.log"]._fix_log(row, delta, moved_cost)
         return row
+
+    @api.model
+    def _fix_check_count_freeze(self, part, location, ownership, status):
+        """A06 ERP audit A04 (FR-INV-051): while a count is open the stock it
+        counts does not move, so a movement between the snapshot and the
+        posting is never counted twice (once by the ledger, once by the
+        variance). A cycle count freezes the unrestricted bucket of each part
+        it counts; a full count locks every movement at its location. The
+        count's own posting passes (context fix_count_posting)."""
+        if self.env.context.get("fix_count_posting"):
+            return
+        Count = self.env["fix.stock.count"].sudo()
+        full = Count.search(
+            [
+                ("location_id", "=", location.id),
+                ("count_type", "=", "full"),
+                ("state", "in", OPEN_COUNT_STATES),
+            ],
+            limit=1,
+        )
+        if full:
+            raise UserError(
+                "%s is locked by full count %s (FR-INV-051): no stock moves there until the "
+                "count is posted or cancelled." % (location.code, full.name)
+            )
+        if status != "unrestricted":
+            return
+        line = (
+            self.env["fix.stock.count.line"]
+            .sudo()
+            .search(
+                [
+                    ("part_id", "=", part.id),
+                    ("count_id.location_id", "=", location.id),
+                    ("count_id.state", "in", OPEN_COUNT_STATES),
+                    "|",
+                    ("ownership_class", "=", ownership),
+                    ("ownership_class", "=", False),
+                ],
+                limit=1,
+            )
+        )
+        if line:
+            raise UserError(
+                "%s at %s is being counted (%s): it does not move until the count is posted "
+                "or cancelled, so nothing is counted twice (A06 A04)."
+                % (part.part_number, location.code, line.count_id.name)
+            )
 
     @api.model
     def _fix_move_status(self, part, location, ownership, qty, from_status, to_status):
@@ -367,6 +448,52 @@ class FixStockOnhand(models.Model):
             )
         row.sudo().write({"reserved": round(reserved - qty, 4)})
         return row
+
+    @api.model
+    def _fix_free_for_loss(self, part, location, ownership, loss, why):
+        """A06 ERP audit A05: before a loss leaves a bucket, make sure it
+        takes FREE stock. When the loss is larger than the free quantity, the
+        reservations on the bucket are released (lowest priority, newest first)
+        until it is covered: each records why and its requester is told.
+        Reserved quantity no reservation record explains (an M41 wave pick)
+        is never taken: the loss is refused until that pick is settled.
+        Returns the released reservations."""
+        row = self._bucket(part, location, ownership)
+        Reservation = self.env["fix.stock.reservation"].sudo()
+        if not row:
+            return Reservation
+        short = round(loss - ((row.qty or 0.0) - (row.reserved or 0.0)), 4)
+        if short <= EPS:
+            return Reservation
+        holds = Reservation.search(
+            [
+                ("state", "=", "active"),
+                ("part_id", "=", part.id),
+                ("location_id", "=", location.id),
+                ("booked_class", "=", ownership),
+            ],
+            order="priority desc, reserved_at desc, id desc",
+        )
+        released = Reservation
+        for hold in holds:
+            if short <= EPS:
+                break
+            open_qty = round((hold.qty or 0.0) - (hold.qty_consumed or 0.0), 4)
+            reason = "Released: the stock it held was lost (%s)" % why
+            hold._release_open("released", reason)
+            hold._notify(
+                "Reservation %s of %s at %s was released: %s. Reserve again or raise a "
+                "backorder." % (hold.name, part.part_number, location.code, reason)
+            )
+            released |= hold
+            short = round(short - open_qty, 4)
+        if short > EPS:
+            raise UserError(
+                "%s of %s at %s is held by warehouse picks (no reservation record): settle "
+                "or cancel them before this loss (%s) is posted."
+                % (round(short, 4), part.part_number, location.code, why)
+            )
+        return released
 
     @api.model
     def _fix_revalue(self, part, location, ownership, amount, ref):
@@ -595,6 +722,19 @@ class FixStockReceipt(models.Model):
                 )
         return super().write(vals)
 
+    @api.constrains("purchase_order_id", "ownership_class")
+    def _check_po_class(self):
+        """A06 ERP audit A13: goods bought on a purchase order are 1000FiX's
+        own stock: they are never received as consignment or customer
+        property (which carry no value)."""
+        for rec in self:
+            if rec.purchase_order_id and rec.ownership_class != "owned":
+                raise ValidationError(
+                    "Receipt %s is against purchase order %s: purchased goods are received "
+                    "as owned stock, not %s."
+                    % (rec.name, rec.purchase_order_id.name, rec.ownership_class)
+                )
+
     @api.constrains("purchase_order_id", "partner_id")
     def _check_po_partner(self):
         for rec in self:
@@ -617,10 +757,22 @@ class FixStockReceipt(models.Model):
     def _check_source(self):
         """A receipt names its purchase order, or records why it has none."""
         self.ensure_one()
-        if self._is_system_handoff() or self.env.su:
+        if self._is_system_handoff():
             return
         if self.purchase_order_id:
-            self._check_against_po()
+            # A06 ERP audit A01 (P0): a manual receipt against a PO was invisible
+            # to M16, whose own goods receipt then received the same goods again
+            # (stock and value doubled, the vendor billed once) and it skipped
+            # M16's receiver role, SOD-02 and the three-way quantity. Goods
+            # against a purchase order are received only through M16's goods
+            # receipt, which hands them to M15 itself.
+            raise UserError(
+                "Receipt %s names purchase order %s: goods against a purchase order are "
+                "received only through its M16 goods receipt, which posts them into stock. "
+                "A direct receipt names no purchase order and records its reason."
+                % (self.name, self.purchase_order_id.sudo().name)
+            )
+        if self.env.su:
             return
         if not (self.direct_reason or "").strip() and not (self.source_ref or "").strip():
             raise UserError(
@@ -720,11 +872,14 @@ class FixStockReceipt(models.Model):
             if not rec.line_ids:
                 raise UserError("A receipt needs at least one line")
             rec._check_source()
-            if any(line.qty_accepted <= 0 for line in rec.line_ids):
-                raise UserError("The inspection gate requires an accepted quantity on every line")
+            # A06 ERP audit A12: a line wholly rejected at inspection is recorded
+            # (accepted 0: it all goes to quarantine); a line must still have
+            # received something
             for line in rec.line_ids:
                 check_quantity(line.part_id, line.qty_received, "received quantity")
-                check_quantity(line.part_id, line.qty_accepted, "accepted quantity")
+                check_quantity(
+                    line.part_id, line.qty_accepted, "accepted quantity", allow_zero=True
+                )
             rec._guarded().write(
                 {
                     "state": "inspected",
@@ -752,8 +907,21 @@ class FixStockReceipt(models.Model):
                     "Receipt %s names no purchase order: only an Inventory Controller posts "
                     "a direct receipt." % rec.name
                 )
+            if (
+                not self.env.su
+                and not rec._is_system_handoff()
+                and self.env.user in (rec.inspected_by_id | rec.create_uid)
+            ):
+                # A06 ERP audit A12: who received or inspected the goods does
+                # not also put them into stock
+                raise UserError(
+                    "Segregation of duties: you received or inspected %s, so a different "
+                    "person posts it." % rec.name
+                )
             check_location_usable(rec.location_id, self.env)
             cls = location_class(rec.location_id, rec.ownership_class)
+            rec = rec.with_context(**move_ctx(rec))
+            Onhand = Onhand.with_context(**move_ctx(rec))
             for line in rec.line_ids:
                 part = line.part_id
                 cost = rec._line_cost(line)
@@ -775,7 +943,8 @@ class FixStockReceipt(models.Model):
                             "Serial %s of %s has already been received: a serial is "
                             "received once (BRU-INV-14)." % (line.line_no, part.part_number)
                         )
-                Onhand._apply(part, rec.location_id, cls, line.qty_accepted, cost)
+                if line.qty_accepted > EPS:
+                    Onhand._apply(part, rec.location_id, cls, line.qty_accepted, cost)
                 Suspense._fix_post(
                     "receipt",
                     part,
@@ -787,12 +956,15 @@ class FixStockReceipt(models.Model):
                 )
                 if line.line_no:
                     lot = Lots._fix_find(part, line.line_no)
+                    # a serial rejected whole (A12) is received into quarantine
+                    lot_status = "in_stock" if line.qty_accepted > EPS else "quarantined"
+                    lot_qty = line.qty_accepted if line.qty_accepted > EPS else rejected
                     if lot:
                         lot._guarded().write(
                             {
-                                "qty": (lot.qty or 0.0) + line.qty_accepted,
+                                "qty": (lot.qty or 0.0) + lot_qty,
                                 "location_id": rec.location_id.id,
-                                "status": "in_stock",
+                                "status": lot_status,
                             }
                         )
                     else:
@@ -802,7 +974,8 @@ class FixStockReceipt(models.Model):
                                 "company_id": rec.company_id.id,
                                 "part_id": part.id,
                                 "location_id": rec.location_id.id,
-                                "qty": line.qty_accepted,
+                                "qty": lot_qty,
+                                "status": lot_status,
                                 "received_on": rec.received_on,
                                 "source_ref": rec.name,
                             }
@@ -994,6 +1167,17 @@ class FixStockTransfer(models.Model):
         default="draft",
     )
     line_ids = fields.One2many("fix.stock.transfer.line", "transfer_id", string="Lines")
+    # A06 ERP audit A14: which class of stock moves. Consignment, warranty
+    # reserve and customer property move between stores as themselves (they
+    # keep their class); company stock leaving or reaching a van is van stock.
+    ownership_class = fields.Selection(
+        OWNERSHIP_CLASSES,
+        string="Stock Class",
+        required=True,
+        default="owned",
+        help="The class of stock this transfer moves; it keeps its class at the destination "
+        "(company stock at a van is van stock).",
+    )
     transfer_value = fields.Float(
         string="Transfer Value (BDT)",
         compute="_compute_transfer_value",
@@ -1016,7 +1200,76 @@ class FixStockTransfer(models.Model):
         "A transfer moves stock between two different locations",
     )
 
-    _DOC_FIELDS = ("from_location_id", "to_location_id", "company_id")
+    _DOC_FIELDS = ("from_location_id", "to_location_id", "company_id", "ownership_class")
+
+    @api.constrains("from_location_id", "to_location_id", "company_id", "ownership_class")
+    def _check_same_company(self):
+        """A06 ERP audit X20 / A16 (lead default): a transfer never crosses
+        companies: there is no intercompany sale or settlement behind it, so
+        one company's stock would appear in another's books for nothing."""
+        for rec in self:
+            companies = (rec.from_location_id | rec.to_location_id).sudo().mapped("company_id")
+            if len(companies) > 1 or (companies and companies != rec.company_id):
+                raise ValidationError(
+                    "Transfer %s would move stock between companies (%s): transfers stay "
+                    "inside one company. Stock for another company is sold to it."
+                    % (rec.name, ", ".join(companies.mapped("name")))
+                )
+            if rec.ownership_class == "van":
+                raise ValidationError(
+                    "Van stock is the class of stock at a van location: transfer it as owned "
+                    "stock."
+                )
+
+    def _src_class(self):
+        self.ensure_one()
+        return location_class(self.from_location_id, self.ownership_class or "owned")
+
+    def _dst_class(self):
+        self.ensure_one()
+        return location_class(self.to_location_id, self.ownership_class or "owned")
+
+    def _fix_post_ou_move(self, part, qty, cost):
+        """A06 ERP audit A16: stock that changes operating unit moves its value
+        with it: out of the sender's OU, into the receiver's (net nil for the
+        company). Nothing is booked inside one OU or for an unvalued class."""
+        self.ensure_one()
+        src_ou = location_ou(self.from_location_id)
+        dst_ou = location_ou(self.to_location_id)
+        if src_ou == dst_ou or self._src_class() not in VALUED_CLASSES:
+            return
+        Suspense = self.env["fix.inventory.valuation.suspense"]
+        Suspense._fix_post(
+            "transfer",
+            part,
+            -qty,
+            cost,
+            self.name,
+            location=self.from_location_id,
+            ownership=self._src_class(),
+        )
+        Suspense._fix_post(
+            "transfer",
+            part,
+            qty,
+            cost,
+            self.name,
+            location=self.to_location_id,
+            ownership=self._dst_class(),
+        )
+
+    def _fix_check_canceller(self):
+        """A06 ERP audit A34: who raised it, or an approver, cancels it."""
+        if self.env.su:
+            return
+        user = self.env.user
+        if any(user.has_group(g) for g in self._inv_approver_groups()):
+            return
+        for rec in self:
+            if user not in (rec.create_uid | rec.requested_by_id):
+                raise AccessError(
+                    "Only who raised %s or an Inventory Controller cancels it." % rec.name
+                )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1048,7 +1301,7 @@ class FixStockTransfer(models.Model):
         """(quantity, unit cost at the source) of each line."""
         self.ensure_one()
         Onhand = self.env["fix.stock.onhand"]
-        cls = location_class(self.from_location_id)
+        cls = self._src_class()
         rows = []
         for line in self.line_ids:
             bucket = Onhand._bucket(line.part_id, self.from_location_id, cls)
@@ -1062,7 +1315,7 @@ class FixStockTransfer(models.Model):
         self.ensure_one()
         return all(cost > EPS for _qty, cost in self._fix_line_costs())
 
-    @api.depends("line_ids.qty", "line_ids.part_id", "from_location_id")
+    @api.depends("line_ids.qty", "line_ids.part_id", "from_location_id", "ownership_class")
     def _compute_transfer_value(self):
         for rec in self:
             rec.transfer_value = round(sum(q * c for q, c in rec._fix_line_costs()), 2)
@@ -1124,7 +1377,7 @@ class FixStockTransfer(models.Model):
 
     def action_submit(self):
         self._require(("draft",), "be submitted")
-        threshold = inv_param(self.env, PARAM_TRANSFER_THRESHOLD, 0.0)
+        threshold = inv_param(self.env, PARAM_TRANSFER_THRESHOLD, DEFAULT_TRANSFER_THRESHOLD)
         for rec in self:
             if not rec.line_ids:
                 raise UserError("A transfer needs at least one line")
@@ -1164,6 +1417,7 @@ class FixStockTransfer(models.Model):
 
     def action_cancel(self):
         self._require(("draft", "submitted", "approved"), "be cancelled")
+        self._fix_check_canceller()
         self._guarded().write({"state": "cancelled"})
         return True
 
@@ -1184,7 +1438,8 @@ class FixStockTransfer(models.Model):
                 raise UserError("A transfer needs at least one line")
             check_location_usable(rec.from_location_id, self.env)
             rec._check_serial_lines()
-            cls = location_class(rec.from_location_id)
+            cls = rec._src_class()
+            Onhand = Onhand.with_context(**move_ctx(rec))
             for line in rec.line_ids:
                 Onhand._fix_check_bins(line.part_id, rec.from_location_id, line.qty)
                 cost = Onhand._fix_move_status(
@@ -1216,8 +1471,9 @@ class FixStockTransfer(models.Model):
                     "receive it." % rec.name
                 )
             check_location_usable(rec.to_location_id, self.env)
-            src_cls = location_class(rec.from_location_id)
-            dst_cls = location_class(rec.to_location_id)
+            src_cls = rec._src_class()
+            dst_cls = rec._dst_class()
+            Onhand = Onhand.with_context(**move_ctx(rec))
             discrepancies = []
             moved = []
             for line in rec.line_ids:
@@ -1246,6 +1502,7 @@ class FixStockTransfer(models.Model):
                         Onhand._apply(line.part_id, rec.from_location_id, src_cls, -arrived)
                 if arrived > EPS:
                     Onhand._apply(line.part_id, rec.to_location_id, dst_cls, arrived, cost)
+                    rec._fix_post_ou_move(line.part_id, arrived, cost)
                     if line.lot_id:
                         line.lot_id._fix_move("in_stock", rec.to_location_id)
                 line.sudo()._guarded().write(
@@ -1290,16 +1547,17 @@ class FixStockTransfer(models.Model):
             raise UserError("Record how the transfer discrepancy was resolved.")
         self._require(("discrepancy",), "have a discrepancy resolved")
         self._inv_check_approver()
-        Onhand = self.env["fix.stock.onhand"]
         for rec in self.sudo():
-            src_cls = location_class(rec.from_location_id)
-            dst_cls = location_class(rec.to_location_id)
+            Onhand = self.env["fix.stock.onhand"].with_context(**move_ctx(rec))
+            src_cls = rec._src_class()
+            dst_cls = rec._dst_class()
             for line in rec.line_ids.filtered(lambda ln: (ln.discrepancy_qty or 0.0) > EPS):
                 short = line.discrepancy_qty
                 part = line.part_id
                 if resolution == "found":
                     Onhand._apply(part, rec.from_location_id, src_cls, -short, status="in_transit")
                     Onhand._apply(part, rec.to_location_id, dst_cls, short, line.unit_cost)
+                    rec._fix_post_ou_move(part, short, line.unit_cost)
                     if line.lot_id:
                         line.lot_id._fix_move("in_stock", rec.to_location_id)
                 elif resolution == "returned":
@@ -1495,6 +1753,23 @@ class FixStockCount(models.Model):
         help="Gains plus losses: the value the approval matrix decides on (BRU-INV-11).",
     )
     line_ids = fields.One2many("fix.stock.count.line", "count_id", string="Lines")
+    # A06 ERP audit A05: a count loss never takes reserved stock silently: the
+    # reservations it had to release to post are recorded here (and each says
+    # why it was released, and its requester is told)
+    released_reservation_ids = fields.Many2many(
+        "fix.stock.reservation",
+        "fix_stock_count_released_reservation_rel",
+        "count_id",
+        "reservation_id",
+        string="Reservations Released by the Loss",
+        readonly=True,
+        copy=False,
+    )
+    # A06 ERP audit X19 / D4: a variance on stock that carries no cost has no
+    # value to set against the tolerance or the DOFA ladder: it is approved
+    zero_cost_lines = fields.Integer(
+        string="Uncosted Lines", compute="_compute_zero_cost_lines", groups=COST_GROUP
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1503,7 +1778,12 @@ class FixStockCount(models.Model):
             "recount_requested",
             "submitted_at",
             "posted_at",
+            "released_reservation_ids",
         }
+
+    def _compute_zero_cost_lines(self):
+        for rec in self:
+            rec.zero_cost_lines = len(rec.line_ids.filtered(lambda ln: ln._zero_cost()))
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1556,11 +1836,14 @@ class FixStockCount(models.Model):
         return super().write(vals)
 
     def _tolerance_ok(self, line):
-        pct = inv_param(self.env, PARAM_COUNT_TOLERANCE_PCT, 0.0)
+        pct = inv_param(self.env, PARAM_COUNT_TOLERANCE_PCT, DEFAULT_COUNT_TOLERANCE_PCT)
         expected = line._snapshot().expected_qty
         delta = abs(line._line_delta())
         if delta <= EPS:
             return True
+        if line._zero_cost():
+            # X19 / D4: uncosted stock is counted, but its variance is approved
+            return False
         return delta <= abs(expected) * pct / 100.0 + EPS
 
     def action_submit(self):
@@ -1599,6 +1882,32 @@ class FixStockCount(models.Model):
                 raise UserError("Explain an 'Other' variance reason in the note.")
             rec._inv_stamp_request()
             rec._guarded().write({"state": "to_approve"})
+        return True
+
+    def action_cancel(self, note=None):
+        """A06 ERP audit A04: a count freezes what it counts, so an abandoned
+        count must be closable: its counter or an Inventory Controller cancels
+        it before it is submitted for approval."""
+        for rec in self:
+            if rec.state not in ("draft", "recount"):
+                raise UserError(
+                    "Count %s is %s: an approver rejects it instead."
+                    % (rec.name, dict(self._fields["state"].selection)[rec.state])
+                )
+            if not (
+                self.env.su
+                or self.env.user in (rec.create_uid | rec.counted_by_id)
+                or self.env.user.has_group(CONTROLLER_GROUP)
+            ):
+                raise AccessError(
+                    "Only who raised count %s or an Inventory Controller cancels it." % rec.name
+                )
+        for rec in self.sudo():
+            vals = {"state": "cancelled"}
+            if note:
+                vals["approval_note"] = ("cancelled: %s" % note)[:250]
+            rec._guarded().write(vals)
+            rec.line_ids.mapped("floor_count_id")._fix_cancel_from_m15()
         return True
 
     def action_post(self):
@@ -1679,22 +1988,37 @@ class FixStockCount(models.Model):
         return True
 
     def _post_count(self):
-        """Apply every line's variance to the ledger (system path)."""
+        """Apply every line's variance to the ledger (system path). The
+        counted stock was frozen since its snapshot (A04), so the variance is
+        against what the ledger still holds; a loss takes free stock first and
+        releases reservations, on the record, only for what is left (A05)."""
         self.ensure_one()
-        Onhand = self.env["fix.stock.onhand"]
+        ctx = dict(move_ctx(self), fix_count_posting=self.id)
+        Onhand = self.env["fix.stock.onhand"].with_context(**ctx)
         Suspense = self.env["fix.inventory.valuation.suspense"]
         moved = []
         for line in self.line_ids:
             delta = round(line._line_delta(), 4)
             snap = line._snapshot()
             if abs(delta) > EPS:
+                if delta < 0:
+                    released = Onhand._fix_free_for_loss(
+                        line.part_id,
+                        self.location_id,
+                        line.ownership_class,
+                        -delta,
+                        "count %s" % self.name,
+                    )
+                    if released:
+                        self._guarded().write(
+                            {"released_reservation_ids": [(4, r.id) for r in released]}
+                        )
                 bucket = Onhand._apply(
                     line.part_id,
                     self.location_id,
                     line.ownership_class,
                     delta,
                     unit_cost=None,
-                    from_reserved=True,
                 )
                 cost = bucket.sudo().unit_cost if bucket else snap.unit_cost
                 Suspense._fix_post(
@@ -1781,6 +2105,11 @@ class FixStockCountLine(models.Model):
             self.env["fix.stock.count.snapshot"].sudo().search([("line_id", "=", self.id)], limit=1)
         )
         return snap
+
+    def _zero_cost(self) -> bool:
+        """X19 / D4: owned stock counted at no cost (its value is unknown)."""
+        self.ensure_one()
+        return self.ownership_class in VALUED_CLASSES and (self._snapshot().unit_cost or 0.0) <= EPS
 
     def _final_qty(self):
         """The recount replaces the first count once a recount was asked for."""
@@ -1939,17 +2268,40 @@ class FixStockVanRecon(models.Model):
     )
     confirmed_by_id = fields.Many2one("res.users", string="Confirmed By", readonly=True)
     notes = fields.Char()
+    # A06 ERP audit A11: the van is counted part by part. The per-part lines
+    # carry what the ledger expected, what was counted and its value; an
+    # approved discrepancy corrects the ledger from them.
+    line_ids = fields.One2many("fix.stock.van.recon.line", "recon_id", string="Parts Counted")
+    variance_value = fields.Float(
+        string="Variance Value (BDT)",
+        compute="_compute_variance_value",
+        groups=COST_GROUP,
+        help="Gains less losses at the van's average cost of each part.",
+    )
+    ledger_corrected = fields.Boolean(string="Ledger Corrected", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "expected_qty", "confirmed_by_id"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "expected_qty",
+            "confirmed_by_id",
+            "ledger_corrected",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.id:
             locked |= {"location_id", "technician_id"}
             if self.state != "draft":
-                locked |= {"counted_qty", "recon_date"}
+                locked |= {"counted_qty", "recon_date", "line_ids"}
         return locked
+
+    @api.depends("line_ids.variance", "line_ids.unit_cost")
+    def _compute_variance_value(self):
+        for rec in self:
+            rec.variance_value = round(
+                sum((ln.variance or 0.0) * (ln.sudo().unit_cost or 0.0) for ln in rec.line_ids), 2
+            )
 
     def _inv_excluded_users(self):
         return super()._inv_excluded_users() | self.confirmed_by_id | self.technician_id.user_id
@@ -2013,17 +2365,84 @@ class FixStockVanRecon(models.Model):
                 )
         return super().write(vals)
 
+    def _fix_van_buckets(self):
+        """The van's unrestricted ledger rows, per part (class van)."""
+        self.ensure_one()
+        rows = (
+            self.env["fix.stock.onhand"]
+            .sudo()
+            .search(
+                [
+                    ("location_id", "=", self.location_id.id),
+                    ("stock_status", "=", "unrestricted"),
+                    ("ownership_class", "=", "van"),
+                ]
+            )
+        )
+        return {row.part_id: row for row in rows}
+
+    def _fix_prepare_lines(self):
+        """Fill the per-part lines at confirmation: a part the ledger holds
+        that the technician did not list was counted as none; every line
+        takes what the ledger expects NOW and its cost (A11)."""
+        self.ensure_one()
+        buckets = self._fix_van_buckets()
+        Line = self.env["fix.stock.van.recon.line"].sudo()
+        if not self.line_ids:
+            if (self.counted_qty or 0.0) > EPS and buckets:
+                raise UserError(
+                    "Count each part on van %s (one line per part): a total number of pieces "
+                    "cannot say which part is over or short, so the ledger could not be "
+                    "corrected (A06 A11)." % self.location_id.code
+                )
+            if (self.counted_qty or 0.0) > EPS:
+                raise UserError(
+                    "Van %s holds nothing on the ledger: list the parts found on it, one "
+                    "line per part." % self.location_id.code
+                )
+        listed = self.line_ids.mapped("part_id")
+        for part in buckets:
+            if part not in listed:
+                Line._guarded().create(
+                    {"recon_id": self.id, "part_id": part.id, "counted_qty": 0.0}
+                )
+        for line in self.line_ids:
+            check_quantity(line.part_id, line.counted_qty, "counted quantity", allow_zero=True)
+            row = buckets.get(line.part_id)
+            line.sudo()._guarded().write(
+                {
+                    "expected_qty": round(row.qty, 4) if row else 0.0,
+                    "unit_cost": (row.unit_cost if row else 0.0)
+                    or line.part_id.sudo().average_cost
+                    or 0.0,
+                }
+            )
+        if self.line_ids:
+            self.sudo()._guarded().write(
+                {"counted_qty": round(sum(self.line_ids.mapped("counted_qty")), 4)}
+            )
+
     def action_confirm(self):
-        pct = inv_param(self.env, PARAM_VAN_TOLERANCE_PCT, 0.0)
+        pct = inv_param(self.env, PARAM_VAN_TOLERANCE_PCT, DEFAULT_VAN_TOLERANCE_PCT)
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Reconciliation %s has already been confirmed." % rec.name)
             if (rec.counted_qty or 0.0) < 0:
                 raise UserError("A counted quantity cannot be negative.")
+            rec._fix_prepare_lines()
             # re-read the ledger at confirmation: what the van holds NOW
             expected = self._van_ledger_qty(rec.location_id)
             variance = round((rec.counted_qty or 0.0) - expected, 4)
-            within = abs(variance) <= EPS or abs(variance) <= abs(expected) * pct / 100.0 + EPS
+            if rec.line_ids:
+                # D8: the van tolerance is judged part by part (a surplus of one
+                # part never hides the loss of another)
+                within = all(
+                    abs(ln.sudo().variance) <= EPS
+                    or abs(ln.sudo().variance) <= abs(ln.sudo().expected_qty) * pct / 100.0 + EPS
+                    for ln in rec.line_ids
+                )
+            else:
+                within = abs(variance) <= EPS or abs(variance) <= abs(expected) * pct / 100.0 + EPS
             rec.sudo()._guarded().write(
                 {
                     "expected_qty": expected,
@@ -2045,23 +2464,164 @@ class FixStockVanRecon(models.Model):
                         "expected_qty": expected,
                         "counted_qty": rec.counted_qty,
                         "variance": variance,
+                        "variance_value": rec.sudo().variance_value,
+                        "lines": [
+                            {
+                                "part_id": ln.part_id.id,
+                                "expected": ln.sudo().expected_qty,
+                                "counted": ln.counted_qty,
+                            }
+                            for ln in rec.line_ids
+                            if abs(ln.sudo().variance) > EPS
+                        ],
                     },
                 )
         return True
 
     def action_resolve(self, note=None):
-        """An Inventory Controller (not the technician or the counter)
-        accepts the investigation of a discrepancy; the van may issue again."""
+        """An approver (not the technician or the counter) accepts the
+        investigation of a discrepancy; the van may issue again. A06 ERP audit
+        A11: the approval corrects the ledger part by part at the van's
+        average cost (a loss frees reservations on the record, never silently);
+        a variance worth more than the write-off threshold (D8) is decided by
+        an Inventory Controller or a finance approver, not the branch."""
         for rec in self:
             if rec.state != "discrepancy":
                 raise UserError("Reconciliation %s has no open discrepancy." % rec.name)
         if not (note or "").strip():
             raise UserError("Record how the van discrepancy was resolved.")
         self._inv_check_approver()
+        threshold = inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, DEFAULT_WRITEOFF_THRESHOLD)
+        user = self.env.user
         for rec in self.sudo():
+            value = sum(abs(ln.variance or 0.0) * (ln.unit_cost or 0.0) for ln in rec.line_ids)
+            if (
+                not self.env.su
+                and value > threshold + EPS
+                and not user.has_group(CONTROLLER_GROUP)
+                and not user.has_group(APPROVER_FINANCE_GROUP)
+            ):
+                raise AccessError(
+                    "Van discrepancy %s moves BDT %.2f, above the write-off threshold BDT %.2f: "
+                    "an Inventory Controller or a finance approver decides it."
+                    % (rec.name, value, threshold)
+                )
             rec._inv_stamp_approval(note)
+            rec._fix_correct_ledger()
             rec._guarded().write({"state": "resolved"})
         return True
+
+    def _fix_correct_ledger(self):
+        """Apply each line's variance to the van's ledger (system path)."""
+        self.ensure_one()
+        Onhand = self.env["fix.stock.onhand"].sudo().with_context(**move_ctx(self))
+        Suspense = self.env["fix.inventory.valuation.suspense"]
+        moved = []
+        for line in self.line_ids:
+            delta = round(line.variance or 0.0, 4)
+            if abs(delta) <= EPS:
+                continue
+            cost = line.unit_cost or 0.0
+            if delta < 0:
+                Onhand._fix_free_for_loss(
+                    line.part_id, self.location_id, "van", -delta, "van recon %s" % self.name
+                )
+            Onhand._apply(
+                line.part_id,
+                self.location_id,
+                "van",
+                delta,
+                unit_cost=None if delta < 0 else cost,
+            )
+            Suspense._fix_post(
+                "adjustment",
+                line.part_id,
+                delta,
+                cost,
+                self.name,
+                location=self.location_id,
+                ownership="van",
+            )
+            moved.append({"part_id": line.part_id.id, "delta": delta, "unit_cost": cost})
+        self._guarded().write({"ledger_corrected": bool(moved)})
+        if moved:
+            _event(
+                self.env,
+                "stock.adjusted",
+                "fix.stock.van.recon",
+                self.id,
+                {
+                    "count": self.name,
+                    "location_id": self.location_id.id,
+                    "reason_code": "van_variance",
+                    "approved_by": self.approved_by_id.id or None,
+                    "lines": moved,
+                },
+            )
+
+
+class FixStockVanReconLine(models.Model):
+    """One part of a van count (A06 ERP audit A11). The technician gives the
+    counted quantity; the expected quantity and the cost are the ledger's,
+    written at confirmation and hidden from the technician (blind count)."""
+
+    _name = "fix.stock.van.recon.line"
+    _description = "Van Reconciliation Line"
+    _order = "recon_id, id"
+    _inherit = ["fix.guarded.mixin"]
+
+    recon_id = fields.Many2one("fix.stock.van.recon", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="recon_id.company_id", store=True, index=True)
+    part_id = fields.Many2one(
+        "fix.spare.part", string="Spare Part", required=True, ondelete="restrict"
+    )
+    counted_qty = fields.Float(string="Counted")
+    expected_qty = fields.Float(string="Expected", readonly=True, groups=VAN_VARIANCE_GROUPS)
+    variance = fields.Float(
+        string="Variance",
+        compute="_compute_variance",
+        store=True,
+        groups=VAN_VARIANCE_GROUPS,
+    )
+    unit_cost = fields.Float(string="Unit Cost (BDT)", readonly=True, groups=COST_GROUP)
+    variance_value = fields.Float(
+        string="Variance Value (BDT)", compute="_compute_variance", store=True, groups=COST_GROUP
+    )
+
+    _part_unique = models.Constraint(
+        "UNIQUE (recon_id, part_id)", "Count each part once per van reconciliation"
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"expected_qty", "unit_cost"}
+
+    @api.depends("counted_qty", "expected_qty", "unit_cost")
+    def _compute_variance(self):
+        for line in self:
+            line.variance = round((line.counted_qty or 0.0) - (line.expected_qty or 0.0), 4)
+            line.variance_value = round(line.variance * (line.unit_cost or 0.0), 2)
+
+    def _refuse_unless_draft(self, recons):
+        if not self._fix_guard_open() and recons.filtered(lambda r: r.state != "draft"):
+            raise UserError("A confirmed van reconciliation is final: its count cannot change.")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        ids = {v.get("recon_id") for v in vals_list if v.get("recon_id")}
+        self._refuse_unless_draft(self.env["fix.stock.van.recon"].browse(list(ids)))
+        for vals in vals_list:
+            vals.pop("expected_qty", None)
+            vals.pop("unit_cost", None)
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if self:
+            self._refuse_unless_draft(self.mapped("recon_id"))
+        return super().write(vals)
+
+    def unlink(self):
+        self._refuse_unless_draft(self.mapped("recon_id"))
+        return super().unlink()
 
 
 # =========================================================================
@@ -2228,6 +2788,18 @@ class FixStockQuarantine(models.Model):
         return round((rec.qty or 0.0) * (rec.unit_cost or 0.0), 2)
 
     def action_release(self):
+        """A06 ERP audit A10 (lead default): rejected, suspect-counterfeit or
+        recalled stock goes back into usable stock only on the decision of the
+        Quality Manager or an Inventory Controller."""
+        if not (
+            self.env.su
+            or self.env.user.has_group(CONTROLLER_GROUP)
+            or has_group_safe(self.env, QUALITY_MANAGER_GROUP)
+        ):
+            raise AccessError(
+                "Only the Quality Manager or an Inventory Controller releases quarantined "
+                "stock back into use."
+            )
         Onhand = self.env["fix.stock.onhand"]
         for rec in self:
             if rec.state != "quarantined":
@@ -2250,7 +2822,7 @@ class FixStockQuarantine(models.Model):
         """Scrap directly when the write-off has a known value within the
         configured threshold; above it, or with no cost recorded, the
         write-off needs approval first."""
-        threshold = inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, 0.0)
+        threshold = inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, DEFAULT_WRITEOFF_THRESHOLD)
         for rec in self:
             if rec.state != "quarantined":
                 raise UserError("Scrap a quarantined quantity")
@@ -2403,6 +2975,15 @@ class FixStockRtv(models.Model):
         help="The serial returned (required for a serialized part not sent from quarantine).",
     )
     qty = fields.Float(string="Quantity")
+    # A06 ERP audit A14: unused brand consignment goes back to its brand on an
+    # RTV of its own class (it no longer has to pass through quarantine)
+    ownership_class = fields.Selection(
+        OWNERSHIP_CLASSES,
+        string="Stock Class",
+        required=True,
+        default="owned",
+        help="The class of stock returned (company stock at a van is van stock).",
+    )
     reason = fields.Selection(
         [
             ("doa", "Dead on Arrival"),
@@ -2515,6 +3096,7 @@ class FixStockRtv(models.Model):
         "company_id",
         "receipt_id",
         "no_receipt_reason",
+        "ownership_class",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -2733,6 +3315,15 @@ class FixStockRtv(models.Model):
 
     def action_cancel(self):
         self._require(("draft", "submitted", "approved"), "be cancelled")
+        # A06 ERP audit A34: who raised it, or an approver
+        if not self.env.su and not any(
+            self.env.user.has_group(g) for g in self._inv_approver_groups()
+        ):
+            for rec in self:
+                if self.env.user not in (rec.create_uid | rec.requested_by_id):
+                    raise AccessError(
+                        "Only who raised %s or an Inventory Controller cancels it." % rec.name
+                    )
         self._guarded().write({"state": "cancelled"})
         return True
 
@@ -2750,7 +3341,7 @@ class FixStockRtv(models.Model):
             cls = (
                 rec.quarantine_id.ownership_class
                 if rec.quarantine_id
-                else location_class(rec.location_id)
+                else location_class(rec.location_id, rec.ownership_class or "owned")
             )
             status = rec._source_status()
             bucket = Onhand._bucket(rec.part_id, rec.location_id, cls, status)
@@ -2782,6 +3373,15 @@ class FixStockRtv(models.Model):
 
     def action_mark_credited(self, credit_ref=None):
         self._require(("shipped",), "be closed")
+        # A06 ERP audit A34: closing a return on the vendor's credit is an
+        # Inventory Controller's or a finance approver's, never the shipper's
+        if not self.env.su and not (
+            self.env.user.has_group(CONTROLLER_GROUP)
+            or self.env.user.has_group(APPROVER_FINANCE_GROUP)
+        ):
+            raise AccessError(
+                "Only an Inventory Controller or a finance approver records the vendor's credit."
+            )
         ref = (credit_ref or "").strip()
         if not ref:
             raise UserError("Record the vendor credit note or replacement reference.")
@@ -3047,6 +3647,17 @@ class FixStockClassChange(models.Model):
             check_quantity(rec.part_id, rec.qty, "class change quantity")
             if not (rec.reason or "").strip():
                 raise UserError("A class change needs its reason.")
+            if (rec.from_class, rec.to_class) not in CLASS_CHANGES:
+                # A06 ERP audit A15 / BRU-INV-04
+                raise UserError(
+                    "Stock does not change from %s to %s: customer property stays the "
+                    "customer's, van stock is the class of a van location, and own stock is "
+                    "returned to a brand by an RTV, not re-classed."
+                    % (
+                        dict(OWNERSHIP_CLASSES)[rec.from_class],
+                        dict(OWNERSHIP_CLASSES)[rec.to_class],
+                    )
+                )
             rec._inv_stamp_request()
             rec._guarded().write({"state": "submitted"})
         return True

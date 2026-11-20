@@ -9,6 +9,17 @@
 # alert is raised only on ENTERING the reorder point (one event per
 # shortage), the sweep is an ir.cron, the alert raises a draft M16
 # requisition suggestion and the state is guarded.
+#
+# A06 ERP audit (20 Nov 2026), owner decision D7 - one replenishment engine
+# (M43-02/03, A25): M43 sets min/max; this sweep is the ONLY document raiser.
+#   - the position it compares with the minimum is the inventory position:
+#     unrestricted available stock + open purchase quantity not yet received
+#     (M16 PO lines and M44 import orders) + stock in transit to the location;
+#   - a van or branch store below its minimum gets an M15 TRANSFER from the
+#     warehouse that supplies it; only a warehouse (central store) raises a
+#     purchase requisition;
+#   - a rule whose requisition was rejected or cancelled, or whose transfer was
+#     cancelled, is free again (it no longer reads "in flight" forever).
 from __future__ import annotations
 
 import logging
@@ -17,7 +28,14 @@ from datetime import datetime
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
-from .fix_inventory_approval import VALUED_CLASSES
+from .fix_inventory_approval import VALUED_CLASSES, location_class
+
+EPS = 1e-6
+# requisition / PO / import states whose quantity is no longer coming
+DEAD_REQ_STATES = ("rejected", "cancelled", "cancel")
+OPEN_PO_STATES = ("approved", "sent", "acknowledged", "partially_received")
+CLOSED_IMPORT_STATES = ("received", "landed", "closed", "cancelled", "cancel", "draft")
+OPEN_TRANSFER_STATES = ("draft", "submitted", "approved", "dispatched")
 
 _logger = logging.getLogger(__name__)
 
@@ -132,6 +150,25 @@ class FixReorderRule(models.Model):
     requisition_id = fields.Many2one(
         "fix.requisition", string="Replenishment Requisition", readonly=True, copy=False
     )
+    transfer_id = fields.Many2one(
+        "fix.stock.transfer", string="Replenishment Transfer", readonly=True, copy=False
+    )
+    on_order_qty = fields.Float(
+        string="On Order",
+        compute="_compute_position",
+        help="Ordered from suppliers and not yet received: open M16 purchase order lines "
+        "delivering here and M44 import orders for this location (D7).",
+    )
+    in_transit_qty = fields.Float(
+        string="In Transit",
+        compute="_compute_position",
+        help="Dispatched or approved transfers into this location not yet received (D7).",
+    )
+    position_qty = fields.Float(
+        string="Inventory Position",
+        compute="_compute_position",
+        help="Available + on order + in transit: what the minimum is compared with (D7).",
+    )
     suggested_order_qty = fields.Float(
         string="Suggested Order Qty",
         compute="_compute_suggested_order_qty",
@@ -166,6 +203,7 @@ class FixReorderRule(models.Model):
             "state",
             "last_alert_date",
             "requisition_id",
+            "transfer_id",
             "published_by_id",
             "published_at",
             "plan_source_ref",
@@ -198,13 +236,112 @@ class FixReorderRule(models.Model):
             else:
                 rec.current_stock = 0.0
 
+    def _compute_position(self):
+        for rec in self:
+            on_order = rec._fix_on_order_qty()
+            transit = rec._fix_in_transit_qty()
+            rec.on_order_qty = on_order
+            rec.in_transit_qty = transit
+            rec.position_qty = round((rec.current_stock or 0.0) + on_order + transit, 4)
+
     @api.depends("current_stock", "max_qty", "min_qty")
     def _compute_suggested_order_qty(self):
         for rec in self:
-            if rec.current_stock <= rec.min_qty:
-                rec.suggested_order_qty = max(0.0, rec.max_qty - rec.current_stock)
+            position = rec.position_qty
+            if position <= rec.min_qty + EPS:
+                rec.suggested_order_qty = max(0.0, rec.max_qty - position)
             else:
                 rec.suggested_order_qty = 0.0
+
+    # ------------------------------------------------------- D7 position
+    def _fix_is_warehouse(self) -> bool:
+        """Only a warehouse (a central store) buys; a van or branch store is
+        refilled by a transfer (D7)."""
+        self.ensure_one()
+        return self.location_id.location_type == "central"
+
+    def _fix_on_order_qty(self) -> float:
+        """Open purchase quantity not yet received, for this rule's part at
+        this location: requisitions this rule (or anyone) raised that are not
+        dead and not yet ordered, M16 PO lines of open orders delivering to
+        the location's branch, and M44 import orders for the location. Read
+        only (guarded: the procurement addons may be absent). Only a
+        warehouse buys, so only a warehouse has anything on order."""
+        self.ensure_one()
+        if not self.location_id or not self.spare_part_id or not self._fix_is_warehouse():
+            return 0.0
+        env = self.env
+        part = self.spare_part_id.sudo()
+        product = part.product_id
+        total = 0.0
+        if "fix.requisition" in env and product:
+            Req = env["fix.requisition"].sudo()
+            domain = [
+                ("product_id", "=", product.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "not in", (*DEAD_REQ_STATES, "converted", "done")),
+            ]
+            if "branch_id" in Req._fields and self.branch_id:
+                domain.append(("branch_id", "=", self.branch_id.id))
+            total += sum(Req.search(domain).mapped("qty"))
+        if "fix.purchase.order.line" in env and product:
+            Line = env["fix.purchase.order.line"].sudo()
+            domain = [
+                ("product_id", "=", product.id),
+                ("order_id.company_id", "=", self.company_id.id),
+                ("order_id.state", "in", OPEN_PO_STATES),
+            ]
+            if self.branch_id:
+                domain += [
+                    "|",
+                    ("order_id.branch_id", "=", self.branch_id.id),
+                    ("order_id.branch_id", "=", False),
+                ]
+            for line in Line.search(domain):
+                received = line.qty_received if "qty_received" in line._fields else 0.0
+                total += max((line.qty_ordered or 0.0) - (received or 0.0), 0.0)
+        if "fix.import.order" in env:
+            Imp = env["fix.import.order"].sudo()
+            if "location_id" in Imp._fields and "line_ids" in Imp._fields:
+                orders = Imp.search(
+                    [
+                        ("location_id", "=", self.location_id.id),
+                        ("state", "not in", CLOSED_IMPORT_STATES),
+                    ]
+                )
+                # a PO-linked import is the PO's own goods: counted once, there
+                for order in orders.filtered(lambda o: not o.purchase_order_id):
+                    for line in order.line_ids:
+                        if "part_id" in line._fields and line.part_id == part:
+                            total += line.quantity or 0.0
+        return round(total, 4)
+
+    def _fix_in_transit_qty(self) -> float:
+        """Approved or dispatched transfers into this location, not yet in."""
+        self.ensure_one()
+        if not self.location_id or not self.spare_part_id:
+            return 0.0
+        lines = (
+            self.env["fix.stock.transfer.line"]
+            .sudo()
+            .search(
+                [
+                    ("part_id", "=", self.spare_part_id.id),
+                    ("transfer_id.to_location_id", "=", self.location_id.id),
+                    ("transfer_id.state", "in", OPEN_TRANSFER_STATES),
+                ]
+            )
+        )
+        return round(sum(lines.mapped("qty")), 4)
+
+    def _fix_document_dead(self) -> bool:
+        """A25: the requisition was rejected/cancelled or the transfer cancelled."""
+        self.ensure_one()
+        req = self.requisition_id.sudo()
+        if req and req.state in DEAD_REQ_STATES:
+            return True
+        transfer = self.transfer_id.sudo()
+        return bool(transfer) and transfer.state == "cancelled"
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -225,10 +362,13 @@ class FixReorderRule(models.Model):
 
     # ----------------------------------------------------------- alerting
     def _enter_alert(self) -> dict:
-        """Raise the alert once: state, event, requisition suggestion."""
+        """Raise the alert once: state, event, and the ONE replenishment
+        document (D7): a transfer from the supplying warehouse for a van or
+        branch store, a purchase requisition for a warehouse."""
         self.ensure_one()
         self._compute_current_stock()
-        order_qty = max(1.0, self.max_qty - self.current_stock)
+        self._compute_position()
+        order_qty = max(1.0, self.max_qty - self.position_qty)
         now_utc = fields.Datetime.now()
         self._guarded().write({"state": "alert", "last_alert_date": now_utc})
 
@@ -243,6 +383,8 @@ class FixReorderRule(models.Model):
             "branch_id": self.branch_id.id,
             "branch_name": self.branch_id.name,
             "current_stock": self.current_stock,
+            "on_order_qty": self.on_order_qty,
+            "in_transit_qty": self.in_transit_qty,
             "min_qty": self.min_qty,
             "suggested_order_qty": order_qty,
             "m43_dynamic_reorder_point": self.compute_dynamic_reorder_point(),
@@ -255,7 +397,10 @@ class FixReorderRule(models.Model):
         except Exception:
             _logger.exception("reorder.triggered event publish failed for rule %s", self.id)
 
-        self._draft_requisition(order_qty)
+        if self._fix_is_warehouse():
+            self._draft_requisition(order_qty)
+        else:
+            self._draft_transfer(order_qty)
         return {
             "status": "alert_triggered",
             "rule": self.name,
@@ -329,6 +474,58 @@ class FixReorderRule(models.Model):
         self._guarded().write({"state": "ordered", "requisition_id": requisition.id})
         return requisition
 
+    def _draft_transfer(self, order_qty):
+        """D7 / M43-03: a van or branch store below its minimum is refilled
+        from the warehouse that supplies it, by an M15 transfer raised as a
+        draft (the store submits it; above the transfer threshold it is
+        approved). Fails closed: with no supplying warehouse, or a warehouse
+        that cannot spare the quantity, the alert stands and says why."""
+        self.ensure_one()
+        try:
+            source = self.location_id._fix_supplier_location()
+        except UserError as exc:
+            self.message_post(body="Replenishment alert raised; NO transfer raised: %s" % exc)
+            return False
+        Onhand = self.env["fix.stock.onhand"]
+        bucket = Onhand._bucket(self.spare_part_id, source, location_class(source, "owned"))
+        free = (bucket.qty - bucket.reserved) if bucket else 0.0
+        qty = min(order_qty, max(free, 0.0))
+        if self.spare_part_id.uom and self.spare_part_id.uom.strip().upper() in ("PCS", "PC"):
+            qty = float(int(qty))
+        if qty <= EPS:
+            self.message_post(
+                body="Replenishment alert raised; NO transfer raised: %s holds no available %s "
+                "(its own rule replenishes it)." % (source.code, self.spare_part_id.part_number)
+            )
+            return False
+        try:
+            with self.env.cr.savepoint():
+                transfer = (
+                    self.env["fix.stock.transfer"]
+                    .sudo()
+                    .create(
+                        {
+                            "company_id": self.company_id.id,
+                            "from_location_id": source.id,
+                            "to_location_id": self.location_id.id,
+                            "operating_unit_id": self.location_id.operating_unit_id.id
+                            or source.operating_unit_id.id
+                            or False,
+                            "line_ids": [(0, 0, {"part_id": self.spare_part_id.id, "qty": qty})],
+                        }
+                    )
+                )
+        except Exception as exc:  # the transfer model refused it
+            _logger.warning("reorder rule %s: transfer not raised: %s", self.name, exc)
+            self.message_post(body="Replenishment alert raised; transfer refused: %s" % exc)
+            return False
+        self._guarded().write({"state": "ordered", "transfer_id": transfer.id})
+        self.message_post(
+            body="Transfer %s raised from %s for %s %s (D7)."
+            % (transfer.name, source.code, qty, self.spare_part_id.part_number)
+        )
+        return transfer
+
     def _replenishment_requester(self):
         """Who the requisition is raised in the name of (A06 M15-12): the
         rule's requester, else the location's custodian, else the branch
@@ -366,13 +563,17 @@ class FixReorderRule(models.Model):
                 "%s is %s: it is not reordered."
                 % (self.spare_part_id.part_number, self.spare_part_id.state)
             )
-        if self.current_stock > self.min_qty:
+        self._compute_position()
+        if self.position_qty > self.min_qty + EPS:
             raise UserError(
-                "Stock of %s at %s is %s, above the reorder point %s: nothing to reorder."
+                "Stock of %s at %s is %s available, %s on order and %s in transit: above the "
+                "reorder point %s, nothing to reorder."
                 % (
                     self.spare_part_id.part_number,
                     self.location_id.code,
                     self.current_stock,
+                    self.on_order_qty,
+                    self.in_transit_qty,
                     self.min_qty,
                 )
             )
@@ -404,14 +605,23 @@ class FixReorderRule(models.Model):
         triggered = []
         for rule in rules:
             rule._compute_current_stock()
+            if rule.state == "ordered" and rule._fix_document_dead():
+                # A25: a rejected/cancelled requisition or a cancelled transfer
+                # frees the rule; the shortage is judged again below
+                rule._guarded().write(
+                    {"state": "active", "requisition_id": False, "transfer_id": False}
+                )
+            rule._compute_position()
             if (
                 rule.state == "active"
-                and rule.current_stock <= rule.min_qty
+                and rule.position_qty <= rule.min_qty + EPS
                 and rule.spare_part_id.state == "active"
             ):
                 triggered.append(rule._enter_alert())
             elif rule.state in ("alert", "ordered") and rule.current_stock > rule.min_qty:
-                rule._guarded().write({"state": "active", "requisition_id": False})
+                rule._guarded().write(
+                    {"state": "active", "requisition_id": False, "transfer_id": False}
+                )
         return {
             "rules_checked": len(rules),
             "alerts_triggered": len(triggered),

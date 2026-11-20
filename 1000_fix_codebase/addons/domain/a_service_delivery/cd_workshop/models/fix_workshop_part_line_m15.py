@@ -6,12 +6,22 @@
 # (CD-M31-02) validates an Odoo stock.move where a workshop names an Odoo
 # stock location; the company's spare parts, though, live in M15's own ledger
 # (fix.stock.onhand). So when the line's product is an M15 spare part
-# (fix.spare.part.product_id) and no Odoo move carried it, consuming the line
-# issues it from the workshop's M15 store through M15's own issue
+# (fix.spare.part.product_id), consuming the line issues it from the
+# workshop's M15 store through M15's own issue
 # (fix.stock.consumption.action_scan_and_consume): average cost, location
 # bucket, serial control and the job link all apply, and the line keeps the
 # issue it caused. A product that is not an M15 part is unchanged unless
 # cd_workshop.m15_issue_required is on.
+#
+# A06 ERP audit (20 Nov 2026), owner decision D3:
+#   A06/A08 the store is the workshop's own M15 store when it is of the job's
+#           warranty status, else the branch hub's one store of that status
+#           (M15 decides, refusing ambiguity), and the job's reservation is
+#           drawn first;
+#   X23     Reserve holds the part in M15 (a fix.stock.reservation for the job),
+#           Release gives it back;
+#   X24     an M15 part never leaves through an Odoo stock.move: M15 is its
+#           ledger, so the workshop's Odoo location is not used for it.
 from odoo import fields, models
 from odoo.exceptions import UserError
 
@@ -26,28 +36,41 @@ class FixWorkshopM15Store(models.Model):
         string="M15 Parts Store",
         domain="[('location_type', 'in', ('branch', 'central'))]",
         help="The M15 spare-parts location this workshop's bench issues from. Empty: "
-        "the active branch store of the workshop's branch hub.",
+        "the branch hub's one store of the job's warranty status (D3).",
+    )
+    m15_warranty_location_id = fields.Many2one(
+        "fix.stock.location",
+        string="M15 Warranty Parts Store",
+        domain="[('location_type', 'in', ('branch', 'central')), ('stock_type', '=', 'warranty')]",
+        help="D3: the warranty store this workshop's warranty jobs draw from. Empty: the "
+        "branch hub's one warranty store.",
     )
 
+    def _a06_m15_fixed_store(self, warranty):
+        """The workshop's own store for a job of this warranty status, if set."""
+        self.ensure_one()
+        if warranty:
+            return self.m15_warranty_location_id or (
+                self.m15_location_id
+                if (self.m15_location_id.stock_type or False) == "warranty"
+                else self.env["fix.stock.location"]
+            )
+        return (
+            self.m15_location_id
+            if (self.m15_location_id.stock_type or False) != "warranty"
+            else self.env["fix.stock.location"]
+        )
+
     def _a06_m15_store(self):
+        """The non-warranty store (kept for callers: same name, no argument)."""
         self.ensure_one()
         if self.m15_location_id:
             return self.m15_location_id
         if not self.branch_id:
             return self.env["fix.stock.location"]
-        return (
-            self.env["fix.stock.location"]
-            .sudo()
-            .search(
-                [
-                    ("branch_id", "=", self.branch_id.id),
-                    ("location_type", "=", "branch"),
-                    ("state", "=", "active"),
-                    ("company_id", "=", self.company_id.id),
-                ],
-                limit=1,
-            )
-        )
+        return self.env["fix.stock.location"]._fix_job_store(
+            self.company_id, self.branch_id, False, self.env["fix.spare.part"], 0.0
+        )[0]
 
 
 class FixWorkshopPartLineM15(models.Model):
@@ -61,6 +84,14 @@ class FixWorkshopPartLineM15(models.Model):
         ondelete="restrict",
         help="The M15 spare-parts issue this fitted part caused.",
     )
+    m15_reservation_id = fields.Many2one(
+        "fix.stock.reservation",
+        string="M15 Reservation",
+        readonly=True,
+        copy=False,
+        ondelete="restrict",
+        help="X23: the M15 reservation holding this part for the job.",
+    )
     # lot_serial_number records the REPLACED component (parts genealogy); a
     # serialized M15 part is issued by the serial of the unit fitted.
     fitted_serial_number = fields.Char(
@@ -71,7 +102,7 @@ class FixWorkshopPartLineM15(models.Model):
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"m15_consumption_id"}
+        return super()._fix_guarded_fields() | {"m15_consumption_id", "m15_reservation_id"}
 
     def _a06_m15_part(self):
         self.ensure_one()
@@ -94,6 +125,31 @@ class FixWorkshopPartLineM15(models.Model):
         raw = self.env["ir.config_parameter"].sudo().get_param(M15_REQUIRED_PARAM, "0")
         return str(raw).strip() in ("1", "true", "True")
 
+    def _a06_job_warranty(self) -> bool:
+        job = self.job_id.sudo()
+        order = job.order_id if "order_id" in job._fields else False
+        return bool(order) and order.order_category == "warranty"
+
+    def _a06_m15_store_for(self, part):
+        """(store, reservation) for this line (D3, M15 decides)."""
+        self.ensure_one()
+        job = self.job_id.sudo()
+        workshop = job.workshop_id
+        warranty = self._a06_job_warranty()
+        held = self.m15_reservation_id.sudo()
+        if held and held.state == "active":
+            return held.location_id, held
+        fixed = workshop._a06_m15_fixed_store(warranty) if workshop else False
+        return self.env["fix.stock.location"]._fix_job_store(
+            job.company_id,
+            workshop.branch_id if workshop else False,
+            warranty,
+            part,
+            self.quantity or 0.0,
+            job_ref=job.name,
+            fixed=fixed or None,
+        )
+
     def _a06_issue_from_m15(self):
         """Issue this line from the workshop's M15 store, as the system (the
         technician holds no stock rights), with every M15 issue rule."""
@@ -107,7 +163,7 @@ class FixWorkshopPartLineM15(models.Model):
                     "part before it is fitted." % (self.product_id.display_name, M15_REQUIRED_PARAM)
                 )
             return self.env["fix.stock.consumption"]
-        store = job.workshop_id._a06_m15_store() if job.workshop_id else False
+        store, reservation = self._a06_m15_store_for(part)
         if not store:
             raise UserError(
                 "Workshop %s has no M15 parts store: set one on the workshop (or give its "
@@ -125,24 +181,81 @@ class FixWorkshopPartLineM15(models.Model):
                 "Job %s has no technician to record the issue of %s against."
                 % (job.name, part.part_number)
             )
-        issue = (
-            self.env["fix.stock.consumption"]
+        vals = {
+            "company_id": job.company_id.id,
+            "service_order_ref": job.name,
+            "product_id": part.id,
+            "location_id": store.id,
+            "technician_id": technician.id,
+            "quantity": self.quantity,
+            "serial_number": self.fitted_serial_number or False,
+            "scanned_code": self.fitted_serial_number or part.part_number,
+        }
+        if reservation:
+            vals["reservation_id"] = reservation.id
+            if reservation.booked_class not in ("owned", "van"):
+                vals["issue_class"] = reservation.booked_class
+        issue = self.env["fix.stock.consumption"].sudo().create(vals)
+        issue.action_scan_and_consume()
+        return issue
+
+    # ---- X23: Reserve holds the part in M15 --------------------------------
+    def _a06_reserve_in_m15(self):
+        self.ensure_one()
+        part = self._a06_m15_part()
+        if not part or (self.m15_reservation_id and self.m15_reservation_id.state == "active"):
+            return self.env["fix.stock.reservation"]
+        job = self.job_id.sudo()
+        store, held = self._a06_m15_store_for(part)
+        if held:
+            return held
+        if not store:
+            raise UserError(
+                "Workshop %s has no M15 parts store to reserve %s at."
+                % (job.workshop_id.name or "-", part.part_number)
+            )
+        reservation = (
+            self.env["fix.stock.reservation"]
             .sudo()
             .create(
                 {
                     "company_id": job.company_id.id,
-                    "service_order_ref": job.name,
-                    "product_id": part.id,
+                    "part_id": part.id,
                     "location_id": store.id,
-                    "technician_id": technician.id,
-                    "quantity": self.quantity,
-                    "serial_number": self.fitted_serial_number or False,
-                    "scanned_code": self.fitted_serial_number or part.part_number,
+                    "qty": self.quantity,
+                    "service_order_ref": job.name,
+                    "notes": "Workshop part line %s" % (self.display_name or self.id),
                 }
             )
         )
-        issue.action_scan_and_consume()
-        return issue
+        reservation.action_reserve()
+        self.sudo()._guarded().write({"m15_reservation_id": reservation.id})
+        return reservation
+
+    def _m31_reserve_move(self):
+        """X24: an M15 part is held and issued in M15, never by an Odoo move."""
+        self.ensure_one()
+        if self._a06_m15_part():
+            return self.env["stock.move"]
+        return super()._m31_reserve_move()
+
+    def action_reserve(self):
+        for rec in self:
+            if rec.reservation_state == "draft":
+                rec._a06_reserve_in_m15()
+        return super().action_reserve()
+
+    def action_release_reservation(self):
+        """Release the line; its M15 reservation goes back to available stock
+        (the name and signature A02's workshop cancel calls)."""
+        result = super().action_release_reservation()
+        for rec in self.sudo():
+            held = rec.m15_reservation_id
+            if held and held.state == "active":
+                held._release_open(
+                    "released", "Workshop part line released (%s)" % (rec.job_id.name or "-")
+                )
+        return result
 
     def action_return_to_m15(self, reason=None, notes=""):
         """An unused or DOA part comes off the bench: M15 takes it back at the
@@ -171,8 +284,13 @@ class FixWorkshopPartLineM15(models.Model):
             return None
         part = self._a06_m15_part()
         job = self.job_id.sudo()
-        store = job.workshop_id._a06_m15_store() if part and job.workshop_id else False
-        if not part or not store:
+        if not part or not job.workshop_id:
+            return None
+        try:
+            store, _held = self._a06_m15_store_for(part)
+        except UserError:
+            return None
+        if not store:
             return None
         from odoo.addons.cd_inventory.models.fix_inventory_approval import location_class
 
