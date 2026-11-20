@@ -4,6 +4,7 @@
 # built-in reports (/p03/model/report). Same contract as a02/m01..m31.
 import logging
 
+import pytz
 from odoo import fields, http
 from odoo.http import request
 
@@ -36,7 +37,18 @@ SURFACES = {
             "action_release_hold",
             # BRU-LOG-03: the second signature on a high-value dispatch
             "action_countersign_dispatch",
+            # A02 ERP audit pass 2 M03-04: proof of collection at the door
+            "action_send_pickup_otp",
+            "action_verify_pickup_otp",
+            "action_attach_pickup_evidence",
+            "action_scan_pickup_serial",
         },
+    },
+    # A02 ERP audit pass 2 M03-05 (D22): the pick & drop tariff (zone x weight)
+    "fix.logistics.tariff": {
+        "order": "zone_id, consignment_type, weight_from_kg, id",
+        "limit": 300,
+        "actions": set(),
     },
     "fix.courier.partner": {"order": "name", "limit": 100, "actions": set()},
     "fix.courier.booking": {
@@ -82,6 +94,15 @@ SURFACES = {
 }
 
 
+def _dhaka_day(stamp):
+    """The Asia/Dhaka calendar day of a naive-UTC datetime."""
+    if not stamp:
+        return None
+    if not hasattr(stamp, "hour"):
+        return stamp
+    return pytz.utc.localize(stamp).astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
 def _cons(env):
     return env["fix.consignment"].sudo().with_context(lang="en_US")
 
@@ -104,7 +125,9 @@ def kpis(env):
 
     in_transit = Cons.search_count([*domain, ("state", "=", "in_transit")])
 
-    delivered = Cons.search([*domain, ("state", "=", "delivered")], limit=500)
+    # A02 ERP audit pass 2 X5-17: every delivered leg (the first 500 rows in
+    # the default order stood in for "delivered" before)
+    delivered = Cons.search([*domain, ("state", "=", "delivered")])
     # A02 ERP audit M03-F20: the scheduled date is the planned dispatch
     # (stamped at creation), so "delivered by the scheduled date" was ~0%.
     # On-time = delivered by the promise: dispatch + the courier's SLA, or the
@@ -711,10 +734,12 @@ def _rider_day_report(env, date_from=None, date_to=None, **params):
     Cons = _cons(env)
     groups = {}
     for c in Cons.search(
-        [*_scope(env, date_from, date_to, "scheduled_date"), ("rider_id", "!=", False)], limit=400
+        [*_scope(env, date_from, date_to, "scheduled_date"), ("rider_id", "!=", False)]
     ):
         stamp = c.scheduled_date or c.create_date
-        day = stamp.date() if hasattr(stamp, "date") else stamp
+        # A02 ERP audit pass 2 X5-23: the run date is the Dhaka day (a 00:00-06:00
+        # run was filed under the previous UTC day)
+        day = _dhaka_day(stamp)
         key = (c.rider_id.name, day)
         row = groups.setdefault(
             key, {"jobs": 0, "open": 0, "transit": 0, "delivered": 0, "kg": 0.0, "value": 0.0}

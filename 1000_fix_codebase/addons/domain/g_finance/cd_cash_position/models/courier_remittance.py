@@ -35,6 +35,7 @@ from .treasury_common import (
     GROUP_ACCOUNTANT,
     GROUP_ADMIN,
     bank_account_of,
+    float_param,
     post_treasury_move,
     require_other_person,
     require_role,
@@ -42,6 +43,9 @@ from .treasury_common import (
 )
 
 _REF_SPLIT = re.compile(r"[\s,;]+")
+# A02 ERP audit pass 2 M03-06 (D22): how far above the courier's rate card its
+# deducted delivery charges may run, in percent.
+RATE_TOLERANCE_PARAM = "cd_cash_position.courier_rate_tolerance_pct"
 
 
 def live_cod_orders(env, company, exclude=None):
@@ -57,6 +61,22 @@ def live_cod_orders(env, company, exclude=None):
             domain.append(("id", "!=", exclude.id))
         orders |= env[model].sudo().search(domain).mapped("order_ids")
     return orders
+
+
+def live_cod_legs(env, company, exclude=None):
+    """A02 ERP audit pass 2 M03-02 (D1): service-order cash-on-delivery legs
+    (fix.consignment with a cod_amount) already counted by a live courier
+    remittance or rider settlement of the company (a model that carries
+    them in ``consignment_ids``)."""
+    legs = env["fix.consignment"]
+    for model in ("fix.cod.settlement", "fix.courier.remittance"):
+        if model not in env or "consignment_ids" not in env[model]._fields:
+            continue
+        domain = [("company_id", "=", company.id), ("state", "!=", "disputed")]
+        if exclude is not None and exclude._name == model and exclude.id:
+            domain.append(("id", "!=", exclude.id))
+        legs |= env[model].sudo().search(domain).mapped("consignment_ids")
+    return legs
 
 
 class FixCourierRemittance(models.Model):
@@ -98,6 +118,16 @@ class FixCourierRemittance(models.Model):
         "remittance_id",
         "order_id",
         string="COD Orders",
+        readonly=True,
+    )
+    # A02 ERP audit pass 2 M03-02 (D1): the service-order cash-on-delivery
+    # legs the courier carried; their collection is in COD clearing too
+    consignment_ids = fields.Many2many(
+        "fix.consignment",
+        "fix_courier_remittance_leg_rel",
+        "remittance_id",
+        "consignment_id",
+        string="Service-Order COD Legs",
         readonly=True,
     )
     order_count = fields.Integer(compute="_compute_amounts", store=True, string="Orders")
@@ -152,7 +182,15 @@ class FixCourierRemittance(models.Model):
     move_id = fields.Many2one("account.move", string="GL Entry", readonly=True, copy=False)
 
     _GUARDED = frozenset(
-        {"name", "state", "submitted_by_id", "settled_by_id", "move_id", "order_ids"}
+        {
+            "name",
+            "state",
+            "submitted_by_id",
+            "settled_by_id",
+            "move_id",
+            "order_ids",
+            "consignment_ids",
+        }
     )
     _TERMS = (
         "courier_id",
@@ -207,12 +245,21 @@ class FixCourierRemittance(models.Model):
         return super(FixCourierRemittance, self._guarded()).create(vals_list).with_env(self.env)
 
     @api.depends(
-        "order_ids.total_amount", "delivery_charges", "cod_charges", "other_charges", "net_amount"
+        "order_ids.total_amount",
+        "consignment_ids.cod_amount",
+        "delivery_charges",
+        "cod_charges",
+        "other_charges",
+        "net_amount",
     )
     def _compute_amounts(self):
         for rec in self:
-            rec.order_count = len(rec.order_ids)
-            rec.gross_amount = round(sum(rec.order_ids.mapped("total_amount")), 2)
+            rec.order_count = len(rec.order_ids) + len(rec.consignment_ids)
+            rec.gross_amount = round(
+                sum(rec.order_ids.mapped("total_amount"))
+                + sum(rec.consignment_ids.mapped("cod_amount")),
+                2,
+            )
             rec.total_charges = round(
                 (rec.delivery_charges or 0.0)
                 + (rec.cod_charges or 0.0)
@@ -254,10 +301,36 @@ class FixCourierRemittance(models.Model):
             return "%s is already in another COD settlement or courier remittance" % order.name
         return ""
 
+    def _leg_problem(self, leg, live):
+        """Why the service-order COD leg ``leg`` cannot be settled here, or ''."""
+        self.ensure_one()
+        leg = leg.sudo()
+        if (
+            not leg.service_order_id
+            or leg.company_id != self.company_id
+            or leg.state != "delivered"
+            or leg.courier_partner_id != self.courier_id
+            or (leg.cod_amount or 0.0) <= 0.005
+            or not leg.cod_collected_at
+        ):
+            return "%s is not a delivered cash-on-delivery leg carried by %s" % (
+                leg.name,
+                self.courier_id.name,
+            )
+        if leg.cod_remitted_at:
+            return "%s was already handed in" % leg.name
+        if leg in live:
+            return "%s is already in another COD settlement or courier remittance" % leg.name
+        return ""
+
     def _check_orders(self):
         for rec in self:
             live = live_cod_orders(self.env, rec.company_id, exclude=rec)
             problems = [p for p in (rec._order_problem(o, live) for o in rec.order_ids) if p]
+            live_legs = live_cod_legs(self.env, rec.company_id, exclude=rec)
+            problems += [
+                p for p in (rec._leg_problem(c, live_legs) for c in rec.consignment_ids) if p
+            ]
             if problems:
                 raise UserError("%s: %s." % (rec.name, "; ".join(problems)))
 
@@ -280,6 +353,55 @@ class FixCourierRemittance(models.Model):
         )
         live = live_cod_orders(self.env, self.company_id, exclude=self)
         return orders.filtered(lambda o: not self._order_problem(o, live))
+
+    def _open_legs(self):
+        """Delivered service-order COD legs this courier carried, not yet
+        handed in nor in a live settlement."""
+        self.ensure_one()
+        legs = (
+            self.env["fix.consignment"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("courier_partner_id", "=", self.courier_id.id),
+                    ("state", "=", "delivered"),
+                    ("service_order_id", "!=", False),
+                    ("cod_amount", ">", 0),
+                    ("cod_collected_at", "!=", False),
+                    ("cod_remitted_at", "=", False),
+                ]
+            )
+        )
+        live = live_cod_legs(self.env, self.company_id, exclude=self)
+        return legs.filtered(lambda c: not self._leg_problem(c, live))
+
+    def _legs_named(self, tokens):
+        """The service-order COD legs among the statement's references, by
+        consignment number or courier tracking (AWB) number."""
+        self.ensure_one()
+        Leg = self.env["fix.consignment"].sudo()
+        found = Leg
+        for token in tokens:
+            match = Leg.search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("name", "=", token),
+                    ("service_order_id", "!=", False),
+                    ("cod_amount", ">", 0),
+                ]
+            )
+            if not match and "fix.courier.booking" in self.env:
+                bookings = (
+                    self.env["fix.courier.booking"]
+                    .sudo()
+                    .search([("awb_no", "=", token), ("company_id", "=", self.company_id.id)])
+                )
+                match = bookings.consignment_id.filtered(
+                    lambda c: c.service_order_id and c.cod_amount > 0
+                )
+            found |= match
+        return found
 
     def _orders_named(self, references):
         """The orders the courier's statement names, by order number,
@@ -308,7 +430,7 @@ class FixCourierRemittance(models.Model):
                     match = Order.search(
                         [("carrier_consignment_id", "in", bookings.consignment_id.ids)]
                     )
-            if not match:
+            if not match and not self._legs_named([token]):
                 unknown.append(token)
             found |= match
         if unknown:
@@ -331,12 +453,21 @@ class FixCourierRemittance(models.Model):
                 named = rec._orders_named(str(references))
                 live = live_cod_orders(self.env, rec.company_id, exclude=rec)
                 problems = [p for p in (rec._order_problem(o, live) for o in named) if p]
+                legs = rec._legs_named([t for t in _REF_SPLIT.split(str(references)) if t])
+                live_legs = live_cod_legs(self.env, rec.company_id, exclude=rec)
+                problems += [p for p in (rec._leg_problem(c, live_legs) for c in legs) if p]
                 if problems:
                     raise UserError("%s: %s." % (rec.name, "; ".join(problems)))
             else:
                 named = rec._open_orders()
+                legs = rec._open_legs()
             orders = rec.order_ids | named
-            rec._guarded().write({"order_ids": [(6, 0, orders.ids)]})
+            rec._guarded().write(
+                {
+                    "order_ids": [(6, 0, orders.ids)],
+                    "consignment_ids": [(6, 0, (rec.consignment_ids | legs).ids)],
+                }
+            )
         return True
 
     def action_remove_orders(self, references=None):
@@ -348,13 +479,19 @@ class FixCourierRemittance(models.Model):
             if not (references and str(references).strip()):
                 raise UserError("Name the orders to remove (order or consignment numbers).")
             named = rec._orders_named(str(references))
-            rec._guarded().write({"order_ids": [(6, 0, (rec.order_ids - named).ids)]})
+            legs = rec._legs_named([t for t in _REF_SPLIT.split(str(references)) if t])
+            rec._guarded().write(
+                {
+                    "order_ids": [(6, 0, (rec.order_ids - named).ids)],
+                    "consignment_ids": [(6, 0, (rec.consignment_ids - legs).ids)],
+                }
+            )
         return True
 
     # ------------------------------------------------------------ workflow
     def _check_terms(self):
         self.ensure_one()
-        if not self.order_ids:
+        if not (self.order_ids or self.consignment_ids):
             raise UserError(
                 "%s covers no delivered COD orders of %s: nothing to settle."
                 % (self.name, self.courier_id.name)
@@ -387,6 +524,7 @@ class FixCourierRemittance(models.Model):
                     self.difference,
                 )
             )
+        self._check_rate_card()
         other = self.sudo().search(
             [
                 ("id", "!=", self.id),
@@ -401,6 +539,41 @@ class FixCourierRemittance(models.Model):
             raise UserError(
                 "%s's payout %s is already settled or in progress on %s."
                 % (self.courier_id.name, self.batch_ref, other.name)
+            )
+
+    def _rate_card_expected(self) -> float:
+        """What the courier's own rate card (base + per kg, volumetric
+        surcharge) charges for the consignments this batch covers."""
+        self.ensure_one()
+        legs = (self.order_ids.carrier_consignment_id | self.consignment_ids).sudo()
+        return round(
+            sum(legs.mapped("base_freight_bdt")) + sum(legs.mapped("volumetric_surcharge_bdt")),
+            2,
+        )
+
+    def _check_rate_card(self):
+        """A02 ERP audit pass 2 M03-06 (D22): the delivery charges a courier
+        deducts are checked against its rate card, within a tolerance (5%);
+        they were taken on trust. A courier with no rate card (base and per-kg
+        rate both 0) cannot be checked and is refused until one is recorded."""
+        self.ensure_one()
+        charged = self.delivery_charges or 0.0
+        if charged <= 0.005:
+            return
+        courier = self.courier_id.sudo()
+        if not (courier.base_rate or courier.per_kg_rate):
+            raise UserError(
+                "%s deducted BDT %.2f of delivery charges but has no rate card (base and per-kg "
+                "rate) to check them against: record the contracted rates first (D22)."
+                % (courier.name, charged)
+            )
+        tolerance = float_param(self.env, RATE_TOLERANCE_PARAM, 5.0)
+        expected = self._rate_card_expected()
+        if charged > expected * (1 + tolerance / 100.0) + 0.005:
+            raise UserError(
+                "%s: %s deducted BDT %.2f of delivery charges; its rate card gives BDT %.2f for "
+                "these consignments (+%.0f%% tolerance). Dispute the difference with the courier "
+                "(D22)." % (self.name, courier.name, charged, expected, tolerance)
             )
 
     def action_submit(self):
@@ -459,6 +632,8 @@ class FixCourierRemittance(models.Model):
                 {"state": "settled", "settled_by_id": self.env.uid, "move_id": move.id}
             )
             rec._fix_mark_bookings_settled()
+            # D1: the service-order legs' COD is handed in
+            rec.consignment_ids.sudo()._m03_mark_cod_remitted()
         return True
 
     def _fix_mark_bookings_settled(self):
@@ -472,7 +647,11 @@ class FixCourierRemittance(models.Model):
             .sudo()
             .search(
                 [
-                    ("consignment_id", "in", self.order_ids.carrier_consignment_id.ids),
+                    (
+                        "consignment_id",
+                        "in",
+                        (self.order_ids.carrier_consignment_id | self.consignment_ids).ids,
+                    ),
                     ("partner_id", "=", self.courier_id.id),
                     ("cod_settled_on", "=", False),
                 ]
