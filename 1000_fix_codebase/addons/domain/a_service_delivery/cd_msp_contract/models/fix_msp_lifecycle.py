@@ -13,14 +13,23 @@
 # FILE NAME IS LOAD-BEARING: sorts after fix_msp_ext, so the models it
 # extends are all defined first.
 import logging
-from datetime import timedelta
+from datetime import datetime, time, timedelta
 
+import pytz
+from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
 
-from .msp_periods import dhaka_previous_month
+from .msp_periods import BD_TZ, dhaka_month, dhaka_previous_month, dhaka_today
+
+
+def _dhaka_midnight(day):
+    """Midnight in Dhaka at the END of ``day``, as naive UTC."""
+    local = datetime.combine(day, time.max)
+    return BD_TZ.localize(local).astimezone(pytz.utc).replace(tzinfo=None)
+
 
 _logger = logging.getLogger(__name__)
 
@@ -120,9 +129,11 @@ class FixMspContractLifecycle(models.Model):
     # ---- SLA measure (A02 audit M05-P2) ------------------------------------
     def _msp_target_hours(self, alert) -> float:
         self.ensure_one()
+        # A02 ERP pass 2 (M05-S13): the target in force when it was raised
+        terms = self._msp_terms_at(alert.create_date)
         if alert.severity == "major":
-            return self.alert_resolve_hours_major or 4.0
-        return self.alert_resolve_hours_minor or 24.0
+            return terms.alert_resolve_hours_major or 4.0
+        return terms.alert_resolve_hours_minor or 24.0
 
     def _msp_period_sla(self, alerts, as_of=None) -> dict:
         """Within / breached / pending counts and the attainment for ``alerts``.
@@ -200,31 +211,95 @@ class FixMspContractLifecycle(models.Model):
         )
         return self._msp_period_sla(alerts)["pending"]
 
+    def _msp_report_months(self, today=None):
+        """Every finished Dhaka month this contract owes a report for, oldest
+        first (A02 ERP pass 2, M05-S14): from the month its service started
+        (go-live, else the M08 term start) to last month, within the term and
+        never after the offboarding (M05-S07). At most 24 months back."""
+        self.ensure_one()
+        today = today or dhaka_today()
+        last = dhaka_previous_month(today)
+        term = self.contract_id.sudo()
+        start = term.date_start
+        if self.service_live_at:
+            start = (
+                max(start, self.service_live_at.date()) if start else self.service_live_at.date()
+            )
+        if not start:
+            return []
+        start = max(start.replace(day=1), (today.replace(day=1) - relativedelta(months=24)))
+        months = []
+        day = start
+        while True:
+            bounds = dhaka_month(day)
+            if bounds[2] > last[2]:
+                break
+            ended = term.date_end and bounds[0] > _dhaka_midnight(term.date_end)
+            gone = self.offboarded_at and self.offboarded_at < bounds[0]
+            if not ended and not gone:
+                months.append(bounds)
+            day = day.replace(day=1) + relativedelta(months=1)
+        return months
+
     @api.model
     def cron_monthly_service_reports(self):
-        """Generate last month's report for every MSP contract that has none
-        yet, then compute its SLA credits. Idempotent: run daily, it acts once
-        per contract and month. One savepoint per contract, so one bad row
-        does not stop the others."""
-        period = self._msp_previous_month()
+        """Generate every unreported finished month's report of every MSP
+        contract, then compute its SLA credits. Idempotent: run daily, it acts
+        once per contract and month. One savepoint per contract, so one bad row
+        does not stop the others.
+
+        A02 ERP pass 2 (M05-S14): it looked at last month only, so a month
+        whose alerts were still open on the 1st, or a day the cron did not run,
+        was never reported (and its credit never computed). It now walks every
+        month since go-live; a month still unreportable on the 10th opens an
+        activity for the contract's owner."""
         Report = self.env["fix.msp.service.report"].sudo()
+        today = dhaka_today()
+        last = self._msp_previous_month()
         done = 0
         for msp in self.sudo().search([]):
             if msp._msp_never_in_force():
                 continue
             try:
                 with self.env.cr.savepoint():
-                    # A02 ERP audit M05-F8: wait until every alert of the
-                    # month can be judged; the next run tries again
-                    if not Report.search_count(
-                        [("msp_contract_id", "=", msp.id), ("period_label", "=", period[2])]
-                    ) and not msp._msp_period_pending(period):
+                    for period in msp._msp_report_months(today):
+                        report = Report.search(
+                            [("msp_contract_id", "=", msp.id), ("period_label", "=", period[2])],
+                            limit=1,
+                        )
+                        # M05-S01: a report with no attainment figure is
+                        # recomputed (it no longer blocks the month's credit)
+                        if report and not report._msp_needs_figure():
+                            continue
+                        # A02 ERP audit M05-F8: wait until every alert of the
+                        # month can be judged; the next run tries again
+                        if msp._msp_period_pending(period):
+                            if period[2] == last[2] and today.day >= 10:
+                                msp._msp_report_overdue_activity(period)
+                            continue
                         msp.action_monthly_report(period)
                         done += 1
                     msp.action_compute_sla_credits()
             except Exception:
                 _logger.exception("M05 monthly report failed for MSP contract %s", msp.id)
         return done
+
+    def _msp_report_overdue_activity(self, period):
+        """Once a month: the report of ``period`` is still not made on the
+        10th (alerts open inside their target)."""
+        self.ensure_one()
+        if self.report_overdue_activity_period == period[2]:
+            return
+        self._guarded().write({"report_overdue_activity_period": period[2]})
+        user = self.create_uid if self.create_uid and self.create_uid.active else self.env.user
+        self.activity_schedule(
+            "mail.mail_activity_data_todo",
+            user_id=user.id,
+            summary="%s service report overdue" % period[2],
+            note="The %s report of %s is still not made: alerts of the month are open inside "
+            "their target. Resolve them so the month is judged and its credit computed."
+            % (period[2], self.name),
+        )
 
 
 class FixMspServiceReportLifecycle(models.Model):

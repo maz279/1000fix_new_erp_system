@@ -25,7 +25,6 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .msp_periods import dhaka_previous_month
 from .msp_roles import GROUP_ENGINEER, require_role
 
 METRICS = [
@@ -283,20 +282,14 @@ class FixMonitoredAssetReading(models.Model):
 class FixMspContractReportOnce(models.Model):
     _inherit = "fix.msp.contract"
 
-    def action_generate_monthly_report(self):
+    def action_generate_monthly_report(self, period=None):
         """One report per contract and month: a second click made a second
         report of the same period, read twice by Client Reporting (the nightly
-        run already skipped a period that had one)."""
+        run already skipped a period that had one). A02 ERP pass 2 (M05-S01):
+        the check is in action_monthly_report, which recomputes a report that
+        has no attainment figure instead of refusing it."""
         self.ensure_one()
-        label = dhaka_previous_month()[2]
-        if self.env["fix.msp.service.report"].search_count(
-            [("msp_contract_id", "=", self.id), ("period_label", "=", label)]
-        ):
-            raise UserError(
-                "The %s service report of %s already exists - open it on Client Service "
-                "Reviews (Regenerate Summary rewrites its text)." % (label, self.name)
-            )
-        return super().action_generate_monthly_report()
+        return super().action_generate_monthly_report(period=period)
 
 
 # ---------------------------------------------------------------------------
@@ -523,8 +516,13 @@ class FixMonitoredAssetCoverage(models.Model):
         One open gap alert per asset; none while a maintenance window
         suppresses alerting. An asset never seen counts from its enrolment."""
         cutoff = fields.Datetime.now() - timedelta(hours=COVERAGE_GAP_HOURS)
+        # A02 ERP pass 2 (M05-S07): an agent recorded as removed is not a gap,
+        # and a contract no longer in service (offboarding / offboarded) or
+        # whose M08 term is not in force raises nothing
         stale = self.sudo().search(
             [
+                ("agent_removed_at", "=", False),
+                ("msp_contract_id.lifecycle", "=", "in_service"),
                 "|",
                 ("last_seen", "<", cutoff),
                 "&",
@@ -532,6 +530,7 @@ class FixMonitoredAssetCoverage(models.Model):
                 ("create_date", "<", cutoff),
             ]
         )
+        stale = stale.filtered(lambda a: not a.msp_contract_id._msp_entitlement_denial())
         Alert = self.env["fix.msp.alert"].sudo()
         Window = self.env["fix.msp.maintenance.window"].sudo()
         raised = 0
@@ -553,8 +552,7 @@ class FixMonitoredAssetCoverage(models.Model):
             )
             alert = Alert._guarded().create(
                 {
-                    "company_id": asset.company_id.id,
-                    "operating_unit_id": asset.operating_unit_id.id or False,
+                    # the contract's company / OU (A02 ERP pass 2, M05-S11)
                     "msp_contract_id": asset.msp_contract_id.id,
                     "asset_id": asset.id,
                     "severity": "major",
@@ -695,8 +693,7 @@ class FixMspBackupJob(models.Model):
         label = dict(self._fields["outcome"].selection)[self.outcome].lower()
         alert = Alert.create(
             {
-                "company_id": self.company_id.id,
-                "operating_unit_id": self.operating_unit_id.id or False,
+                # the contract's company / OU (A02 ERP pass 2, M05-S11)
                 "msp_contract_id": self.asset_id.msp_contract_id.id,
                 "asset_id": self.asset_id.id,
                 "severity": "major" if self.outcome == "failed" else "minor",

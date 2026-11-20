@@ -516,6 +516,7 @@ WRITABLE = {
             "source",
         }
     ),
+    "fix.msp.alert.pause": frozenset(),
     "fix.msp.alert.rule": frozenset(
         {
             "active",
@@ -588,8 +589,13 @@ WRITABLE = {
             "holiday_calendar_id",
             "monitoring_scope",
             "name",
+            "overage_hourly_rate",
+            "parts_included",
             "per_device_monthly",
             "recording_retention_days",
+            "remote_hours_monthly",
+            "response_hours_major",
+            "response_hours_minor",
             "sla_target_pct",
             "unattended_access",
         }
@@ -730,6 +736,7 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.msp.terms.amendment": frozenset(),
     "fix.offline.conflict.review": frozenset(
         {
             "decision",

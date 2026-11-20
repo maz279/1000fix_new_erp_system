@@ -306,7 +306,8 @@ def test_a_holiday_on_the_contract_calendar_stops_the_clock(m5):
         {"msp_contract_id": m5.msp.id, "asset_id": m5.asset.id, "message": "x", "severity": "major"}
     )
     alert.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s", (start, alert.id)
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
+        (start, alert.id),
     )
     alert.invalidate_recordset()
     m5.msp.write({"alert_resolve_hours_major": 4.0})

@@ -11,7 +11,7 @@ escrow holds and clawbacks, payout reconciliation, seller statement
 issue/settle, and the IAS 37 workmanship-warranty provision posted to GL.
 Technician incentives are Payroll (A09), not settlement.
 """,
-    "version": "19.0.0.4.1",
+    "version": "19.0.0.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Settlement & Payout (W7)",

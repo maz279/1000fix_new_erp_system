@@ -20,4 +20,7 @@ from . import (
     # A02 ERP audit (2026-11-19, stream B1): the guarded contract terms and the
     # credit's report check extend everything above, so they load last.
     fix_msp_a02_controls,
+    # A02 ERP pass 2 (2026-11-20, stream S4): terms history, alert SLA stamps
+    # and pauses, metering, the client report; extends everything above.
+    fix_msp_a02r2,
 )

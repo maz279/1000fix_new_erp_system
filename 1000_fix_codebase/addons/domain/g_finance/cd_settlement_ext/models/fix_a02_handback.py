@@ -30,8 +30,12 @@
 #     system parameter cd_settlement_ext.account_code.<role>). A role with no
 #     account leaves the M50 debit empty, so M50 clears the payment to its
 #     outgoing-payments account, and the instruction says so.
+from decimal import ROUND_HALF_UP, Decimal
+
 from odoo import Command, api, fields, models
 from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account
+from odoo.addons.cd_billing_engine.models.fix_billing_engine import m51_determine
+from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 # role -> (M20 role used when no system parameter names an account, label).
@@ -91,6 +95,24 @@ def _handback_account(env, company, role):
         "Debit account not set: %s. Until it is, M50 posts the payment to its "
         "outgoing-payments clearing account." % reason
     )
+
+
+SLA_SOURCE = "fix.msp.sla.credit"
+
+
+def _vat_ratio(invoice):
+    """VAT / total payable of an invoice (the credit note's own _vat_split)."""
+    if not invoice or not invoice.total_payable:
+        return 0.0
+    return min(max((invoice.vat_amount or 0.0) / invoice.total_payable, 0.0), 0.99)
+
+
+def _sla_gross(net, invoice):
+    """A02 ERP pass 2 (M05-S04): the gross credit note for a net (pre-VAT)
+    SLA credit against ``invoice``; the net itself while no invoice is
+    linked."""
+    ratio = _vat_ratio(invoice)
+    return round(net / (1.0 - ratio), 2) if ratio else round(net, 2)
 
 
 class FixFinanceHandback(models.AbstractModel):
@@ -593,7 +615,11 @@ class FixFinanceHandback(models.AbstractModel):
         for invoice in charges.mapped("invoice_id"):
             if invoice.customer_id.commercial_partner_id != customer.commercial_partner_id:
                 continue
-            if invoice.total_payable - invoice.credited_amount + 0.005 >= amount:
+            # A02 ERP pass 2 (M05-S04): the credit note is the net credit
+            # grossed up by THIS invoice's VAT, so that is what it must take
+            if invoice.total_payable - invoice.credited_amount + 0.005 >= _sla_gross(
+                amount, invoice
+            ):
                 return invoice
         return Invoice
 
@@ -637,6 +663,11 @@ class FixFinanceHandback(models.AbstractModel):
             )
         company = credit.company_id
         invoice = self._sla_invoice(credit, customer, amount)
+        # A02 ERP pass 2 (M05-S04, owner decision D7): the SLA credit is a
+        # share of the fee BEFORE VAT; the credit note reverses the VAT that
+        # was charged on that share too (Mushak 6.7), so it is the net credit
+        # grossed up by the invoice's VAT ratio. source_amount keeps the net.
+        gross = _sla_gross(amount, invoice)
         note = CreditNote.create(
             {
                 "company_id": company.id,
@@ -649,7 +680,7 @@ class FixFinanceHandback(models.AbstractModel):
                 ).id,
                 "invoice_id": invoice.id or False,
                 "customer_id": (invoice.customer_id or customer).id,
-                "amount": amount,
+                "amount": gross,
                 "reason_code": "sla_credit",
                 "source_model": credit._name,
                 "source_id": credit.id,
@@ -658,16 +689,17 @@ class FixFinanceHandback(models.AbstractModel):
             }
         )
         where = (
-            "against invoice %s" % invoice.name
+            "against invoice %s (BDT %.2f before VAT, grossed up by its VAT)"
+            % (invoice.name, amount)
             if invoice
             else "with no invoice yet: finance links the invoice it credits before it can be "
-            "submitted"
+            "submitted, and the amount is then grossed up by that invoice's VAT"
         )
         body = (
             "draft credit note #%s for BDT %.2f (%s, %s) %s, for finance to approve and issue."
             % (
                 note.id,
-                amount,
+                gross,
                 msp.name,
                 credit.period_label,
                 where,
@@ -676,6 +708,88 @@ class FixFinanceHandback(models.AbstractModel):
         note.message_post(body="Raised from applied SLA credit: %s" % body)
         self._handback_note(credit, "Finance hand-back (SLA credit):", body)
         return {"model": note._name, "id": note.id, "created": True}
+
+    # ------------------------------------------- M05 remote-hours overage
+    @api.model
+    def consume_msp_remote_hours_overage(self, event: dict) -> dict:
+        """R8 consumer of msp.remote_hours_overage (A02 ERP pass 2, M05-S17,
+        owner decision D11): the remote-support hours above a contract's
+        monthly entitlement become a draft M20 invoice to the client, at the
+        contract's overage rate, VAT by M51. The figures are re-read from the
+        service report; one invoice per report."""
+        self._handback_assert_relay()
+        label = "MSP overage hand-back"
+        report, payload = self._handback_source(event, "fix.msp.service.report", label)
+        amount = round(report.overage_amount or 0.0, 2)
+        self._handback_check_amount(label, payload, "amount", amount)
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        key = [("source_model", "=", report._name), ("source_id", "=", report.id)]
+        invoice = Invoice.search(key, limit=1)
+        if invoice:
+            return {"model": invoice._name, "id": invoice.id, "created": False}
+        if amount <= 0.005:
+            return {"created": False, "reason": "no overage on the report"}
+        msp = report.msp_contract_id
+        contract = msp.contract_id
+        customer = contract.customer_id
+        if not customer:
+            raise UserError(
+                "%s refused: contract %s names no customer." % (label, contract.display_name)
+            )
+        company = report.company_id or msp.company_id
+        first = fields.Date.to_date("%s-01" % report.period_label)
+        det = m51_determine(
+            self.env,
+            [
+                tax_logic.TaxLine(
+                    product_code="SVC",
+                    qty=Decimal("1"),
+                    unit_price=Decimal(str(amount)).quantize(Decimal("0.01"), ROUND_HALF_UP),
+                )
+            ],
+            on_date=first,
+            company=company,
+        ).lines[0]
+        description = (
+            "Remote support overage %s: %.2f h above the %.1f h entitlement at BDT %.2f"
+            % (
+                report.period_label,
+                report.overage_hours,
+                report.remote_hours_entitled,
+                report.overage_rate,
+            )
+        )
+        invoice = Invoice.create(
+            {
+                "company_id": company.id,
+                "operating_unit_id": self._handback_ou(
+                    company, report.operating_unit_id, msp.operating_unit_id
+                ).id,
+                "customer_id": customer.id,
+                "source_model": report._name,
+                "source_id": report.id,
+                "invoice_date": first,
+                "manual_reason": "%s (%s)" % (description, msp.name),
+                "line_ids": [
+                    Command.create(
+                        {
+                            "description": description,
+                            "taxable_amount": float(det.taxable_amount),
+                            "vat_amount": float(det.vat_amount),
+                            "line_total": float(det.line_total),
+                        }
+                    )
+                ],
+            }
+        )
+        body = "draft invoice #%s for BDT %.2f before VAT (%s), for finance to issue." % (
+            invoice.id,
+            amount,
+            description,
+        )
+        invoice.message_post(body="Raised from the MSP service report: %s" % body)
+        self._handback_note(report, "Finance hand-back (remote-hours overage):", body)
+        return {"model": invoice._name, "id": invoice.id, "created": True}
 
 
 class FixCreditNoteHandback(models.Model):
@@ -734,6 +848,23 @@ class FixCreditNoteHandback(models.Model):
     def write(self, vals):
         if not self.env.su and self._HANDBACK_FIELDS & set(vals):
             raise UserError("The hand-back source of a credit note %s." % RELAY_ONLY)
+        if "invoice_id" in vals and "amount" not in vals:
+            # an SLA credit note raised before its invoice was net: linking
+            # the invoice grosses it up by that invoice's VAT (M05-S04)
+            def net_sla(note):
+                return (
+                    note.source_model == SLA_SOURCE
+                    and note.state == "draft"
+                    and abs((note.amount or 0.0) - (note.source_amount or 0.0)) <= 0.005
+                )
+
+            invoice = self.env["fix.ar.invoice"].sudo().browse(vals["invoice_id"] or 0).exists()
+            for note in self.filtered(net_sla):
+                super(FixCreditNoteHandback, note).write(
+                    dict(vals, amount=_sla_gross(note.source_amount or 0.0, invoice))
+                )
+            rest = self.filtered(lambda n: not net_sla(n))
+            return super(FixCreditNoteHandback, rest).write(vals) if rest else True
         return super().write(vals)
 
     @api.constrains("invoice_id", "customer_id", "source_model", "amount", "source_amount")
@@ -743,7 +874,11 @@ class FixCreditNoteHandback(models.Model):
                 raise ValidationError("A credit note needs the invoice it credits.")
             if not note.source_model:
                 continue
-            if note.amount > (note.source_amount or 0.0) + 0.005:
+            cap = note.source_amount or 0.0
+            if note.source_model == SLA_SOURCE:
+                # the net SLA credit plus the VAT charged on it (M05-S04)
+                cap = _sla_gross(cap, note.invoice_id)
+            if note.amount > cap + 0.005:
                 raise ValidationError(
                     "Credit note #%s cannot exceed the BDT %.2f its source handed back."
                     % (note.id, note.source_amount or 0.0)

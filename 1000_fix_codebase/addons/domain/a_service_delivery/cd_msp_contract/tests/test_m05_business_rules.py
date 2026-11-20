@@ -72,7 +72,7 @@ def test_business_hours_skip_the_bangladesh_weekend():
 def test_the_sla_deadline_follows_the_coverage_window(m5):
     alert = _alert(m5, severity="major")
     alert.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
         (datetime(2026, 11, 12, 11, 0), alert.id),
     )
     alert.invalidate_recordset()

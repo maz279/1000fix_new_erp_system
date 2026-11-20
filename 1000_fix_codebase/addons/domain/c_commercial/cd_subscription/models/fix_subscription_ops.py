@@ -579,6 +579,20 @@ class FixSubscriptionProration(models.Model):
         the next cycle (service write, under the approval)."""
         for rec in self:
             sub = rec.subscription_id.sudo()
+            # A02 ERP pass 2 (M05-S05): a change computed from an amount the
+            # subscription no longer has would overwrite the change applied in
+            # between (two MSP uplifts approved one after the other kept only
+            # the second). It is refused; void it and raise it again.
+            if (
+                rec.change_type != "cancel"
+                and abs((sub.recurring_amount or 0.0) - (rec.old_amount or 0.0)) > 0.005
+            ):
+                raise UserError(
+                    "Plan change %s was computed from a recurring amount of %.2f, but %s now "
+                    "bills %.2f (another change was applied since). Void it and raise it again "
+                    "from the current amount."
+                    % (rec.name, rec.old_amount, sub.name, sub.recurring_amount)
+                )
             vals = {}
             if rec.change_type != "cancel":
                 vals["recurring_amount"] = rec.new_amount
@@ -592,6 +606,12 @@ class FixSubscriptionProration(models.Model):
                 body="Plan change %s approved: %s"
                 % (rec.name, ", ".join("%s=%s" % kv for kv in vals.items()))
             )
+            # the MSP terms amendments this change billed (M05-S05)
+            Amendment = self.env.get("fix.msp.terms.amendment")
+            if Amendment is not None:
+                Amendment.sudo()._guarded().search(
+                    [("billing_ref", "=", "fix.subscription.proration,%s" % rec.id)]
+                ).write({"billing_state": "billed"})
 
     def _approval_on_rejected(self, comment):
         self.sudo().filtered(lambda r: r.state == "pending")._guarded().write({"state": "void"})

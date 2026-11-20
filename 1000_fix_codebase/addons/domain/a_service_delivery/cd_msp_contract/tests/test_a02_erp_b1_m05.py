@@ -83,7 +83,7 @@ def test_f2_a_project_on_a_contract_with_history_suspends_nothing(m5):
     )
     m5.env.flush_all()
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
         (project.create_date - timedelta(days=40), alert.id),
     )
     m5.env.invalidate_all()
@@ -175,12 +175,14 @@ def test_f3_an_approved_credit_keeps_the_terms_it_was_drafted_on(m5):
 
 def test_f4_raising_the_devices_publishes_the_uplift(m5):
     _as(m5.msp, m5.fin).action_amend_terms(term="device_count", value="6", reason=REASON)
+    # A02 ERP pass 2 (M05-S06): every fee change publishes one event type
     event = m5.env["fix.event.outbox"].search(
-        [("event_type", "=", "msp.device_uplift"), ("aggregate_id", "=", m5.msp.id)]
+        [("event_type", "=", "msp.commercial_terms_amended"), ("aggregate_id", "=", m5.msp.id)]
     )
     assert len(event) == 1
     payload = json.loads(event.payload)
-    assert (payload["added_devices"], payload["monthly_increase"]) == (2, 5000.0)
+    assert (payload["new_device_count"] - payload["old_device_count"]) == 2
+    assert payload["monthly_delta"] == 5000.0
 
 
 def test_f4_no_enrolment_without_a_contracted_count(m5):
@@ -223,7 +225,7 @@ def test_f8_the_report_waits_until_every_alert_can_be_judged(m5):
         m5.msp.action_monthly_report(period)
     assert m5.msp._msp_period_pending(period) == 1
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE msp_contract_id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE msp_contract_id = %s",
         (now - timedelta(hours=30), m5.msp.id),
     )
     m5.env.invalidate_all()

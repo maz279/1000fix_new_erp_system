@@ -284,8 +284,9 @@ def test_b1_a_credit_on_a_term_never_in_force_is_not_requested(m5):
     msp = m5.env["fix.msp.contract"].create(
         {"name": "draft MSP", "contract_id": draft.id, "operating_unit_id": m5.ou.id}
     )
+    # A02 ERP pass 2 (M05-S01): a hand-typed credit carries its amount
     cr = _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
-        {"msp_contract_id": msp.id, "period_label": "2026-04", "manual_amount": 0.0}
+        {"msp_contract_id": msp.id, "period_label": "2026-04", "manual_amount": 100.0}
     )
     with pytest.raises(UserError, match="never came"):
         _as(cr, m5.eng).action_request_approval()
@@ -305,12 +306,35 @@ def _patch(m5, ident, severity="medium"):
             "operating_unit_id": m5.ou.id,
         }
     )
-    _as(upd, m5.eng if severity != "critical" else m5.cab).action_approve()
+    # A02 ERP pass 2 (M05-S10): never the engineer who logged it
+    _as(upd, m5.eng2 if severity != "critical" else m5.cab).action_approve()
     return upd
 
 
-def test_b1_patch_install_today_needs_no_window(m5):
+def _client_approval(m5, upd):
+    """A02 ERP pass 2 (M05-S10): outside an open window the client's
+    change approver agrees first."""
+    partner = m5.env["res.partner"].create(
+        {"name": "Client approver %s" % upd.identifier, "parent_id": m5.customer.id}
+    )
+    contact = m5.env["fix.msp.client.contact"].create(
+        {
+            "msp_contract_id": m5.msp.id,
+            "partner_id": partner.id,
+            "role": "approver",
+            "can_approve_changes": True,
+        }
+    )
+    _as(upd, m5.eng).action_record_client_approval(
+        contact_id=contact.id, evidence="OTP ref fix.otp.log 1001"
+    )
+
+
+def test_b1_patch_install_outside_a_window_needs_the_client_not_an_exception(m5):
     upd = _patch(m5, "KB-TODAY")
+    with pytest.raises(UserError, match="client's approval"):
+        _as(upd, m5.eng).action_install()
+    _client_approval(m5, upd)
     _as(upd, m5.eng).action_install()
     assert upd.state == "installed"
 
@@ -333,6 +357,7 @@ def test_b1_outside_window_install_needs_a_routed_exception(m5):
         _as(upd, m5.eng).action_install()  # pending is not approved
     approve_via_inbox(upd, m5.cm)
     assert upd.exception_approved_by_id == m5.cm
+    _client_approval(m5, upd)
     _as(upd, m5.eng).action_install()
     assert upd.state == "installed"
 
@@ -354,6 +379,7 @@ def test_b1_critical_patch_exception_goes_to_the_cab(m5):
 
 def test_b1_skipping_the_test_needs_an_exception_or_a_test(m5):
     m5.env["ir.config_parameter"].set_param(TEST_SWITCH, "1")
+    _window(m5)  # inside an open window (M05-S10)
     upd = _patch(m5, "KB-TEST")
     with pytest.raises(UserError, match="pre-deployment test"):
         _as(upd, m5.eng).action_install()
@@ -383,7 +409,7 @@ def _alert(m5, created, severity="minor", state="new", resolved_in=None):
     )
     m5.env.flush_all()
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s, resolved_at = %s WHERE id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s, resolved_at = %s WHERE id = %s",
         (created, created + timedelta(hours=resolved_in) if resolved_in else None, alert.id),
     )
     m5.env.invalidate_all()

@@ -100,7 +100,8 @@ def _alert(msp, asset=None, state="new", created=None, resolved_in=None):
     if created:
         msp.env.flush_all()
         msp.env.cr.execute(
-            "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s", (created, alert.id)
+            "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
+            (created, alert.id),
         )
         if resolved_in is not None:
             msp.env.cr.execute(

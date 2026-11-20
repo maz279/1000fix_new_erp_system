@@ -4,7 +4,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .msp_periods import dhaka_previous_month
+from .msp_periods import dhaka_month, dhaka_previous_month, month_dates
 
 
 class FixMspContract(models.Model):
@@ -41,14 +41,19 @@ class FixMspContract(models.Model):
         "fix.msp.service.report", "msp_contract_id", string="Service Reports"
     )
 
-    def action_generate_monthly_report(self):
-        """The contract form's "Generate Report" button: the report of the previous
-        calendar month, opened in a form. (The button used to call
-        action_monthly_report, which REQUIRES ``period`` - every click raised.)"""
+    def action_generate_monthly_report(self, period=None):
+        """The contract form's "Generate Report" button: the report of the
+        month named (YYYY-MM; default: the previous Dhaka calendar month),
+        opened in a form. (The button used to call action_monthly_report,
+        which REQUIRES ``period`` - every click raised.)
+
+        A02 ERP pass 2 (M05-S14): the button takes the month, so a month the
+        nightly run could not report (alerts still open then) is reported
+        once it can be; only a finished month is reported."""
         self.ensure_one()
         # A02 ERP audit M05-F15: the Dhaka calendar month, not naive UTC days
-        period = dhaka_previous_month()
-        report = self.action_monthly_report(period)
+        bounds = self._msp_period_bounds(period) if period else dhaka_previous_month()
+        report = self.action_monthly_report(bounds)
         return {
             "type": "ir.actions.act_window",
             "res_model": "fix.msp.service.report",
@@ -56,15 +61,84 @@ class FixMspContract(models.Model):
             "view_mode": "form",
         }
 
+    def _msp_period_bounds(self, period):
+        """(utc_start, utc_end, label) of a 'YYYY-MM' month, or of the bounds
+        given. Refuses a month not yet finished in Dhaka."""
+        if isinstance(period, tuple | list):
+            return tuple(period)
+        first, _last = month_dates(period)
+        if not first:
+            raise UserError("Name the month as YYYY-MM (e.g. 2026-10).")
+        bounds = dhaka_month(first)
+        if bounds[1] >= fields.Datetime.now():
+            raise UserError(
+                "%s is not finished yet: a month is reported once it is over." % bounds[2]
+            )
+        return bounds
+
+    def _msp_period_figures(self, period, alerts, measure):
+        """The A02 ERP pass 2 figures of a month: response and MTTA / MTTR
+        (M05-S18), the remote hours and their overage (M05-S17), patch
+        compliance and estate health for the client report (M05-S15)."""
+        self.ensure_one()
+        terms = self._msp_terms_at(period[1])
+        minutes = self._msp_remote_minutes(period[0], period[1])
+        entitled = terms.remote_hours_monthly or 0.0
+        over = round(max(minutes / 60.0 - entitled, 0.0), 2) if entitled else 0.0
+        rate = terms.overage_hourly_rate or 0.0
+        Patch = self.env["fix.msp.patch.update"].sudo()
+        tracked = Patch.search_count([("msp_contract_id", "=", self.id)])
+        installed = Patch.search_count(
+            [("msp_contract_id", "=", self.id), ("state", "=", "installed")]
+        )
+        scores = self.asset_ids.mapped("health_score")
+        return {
+            "response_breached_count": measure.get("response_breached", 0),
+            "mtta_minutes": measure.get("mtta_minutes", 0.0),
+            "mttr_minutes": measure.get("mttr_minutes", 0.0),
+            "remote_minutes": minutes,
+            "remote_hours_entitled": entitled,
+            "overage_hours": over,
+            "overage_rate": rate,
+            "overage_amount": round(over * rate, 2),
+            "overage_flagged": bool(over and not rate),
+            "patch_compliance_pct": round(100.0 * installed / tracked, 1) if tracked else 0.0,
+            "health_score_avg": round(sum(scores) / len(scores), 1) if scores else 0.0,
+        }
+
     def action_monthly_report(self, period):
         """Journey 6's ending: the client-facing monthly report."""
         self.ensure_one()
-        alerts = self.env["fix.msp.alert"].search(
-            [
-                ("msp_contract_id", "=", self.id),
-                ("create_date", ">=", period[0]),
-                ("create_date", "<=", period[1]),
-            ]
+        period = self._msp_period_bounds(period)
+        # A02 ERP pass 2 (M05-S07): a month that began after the offboarding
+        # completed is not a service month
+        if self.offboarded_at and self.offboarded_at < period[0]:
+            raise UserError(
+                "%s was offboarded on %s: %s is not a service month."
+                % (self.name, self.offboarded_at.date(), period[2])
+            )
+        Report = self.env["fix.msp.service.report"].sudo()
+        existing = Report.search(
+            [("msp_contract_id", "=", self.id), ("period_label", "=", period[2])], limit=1
+        )
+        # A02 ERP pass 2 (M05-S01): a report with no attainment figure (and
+        # not merely "not yet binding") is recomputed in place; one with its
+        # figure stays the month's report
+        if existing and not existing._msp_needs_figure():
+            raise UserError(
+                "The %s service report of %s already exists - open it on Client Service "
+                "Reviews (Regenerate Summary rewrites its text)." % (period[2], self.name)
+            )
+        alerts = (
+            self.env["fix.msp.alert"]
+            .sudo()
+            .search(
+                [
+                    ("msp_contract_id", "=", self.id),
+                    ("create_date", ">=", period[0]),
+                    ("create_date", "<=", period[1]),
+                ]
+            )
         )
         # A02 audit M05-P2: "within SLA" was resolved / total, with no time
         # measure. It is now measured from each alert's resolution time against
@@ -85,34 +159,65 @@ class FixMspContract(models.Model):
         within = measure["within"]
         sla_pct = measure["attainment"]
         device_cnt = self.device_count or len(self.asset_ids)
-        # The figures are guarded on the report (A02 audit M05-2): they drive
-        # the SLA credit, so only this computation may write them.
-        report = (
-            self.env["fix.msp.service.report"]
-            ._guarded()
-            .create(
-                {
-                    "msp_contract_id": self.id,
-                    "period_label": period[2],
-                    "alert_count": len(alerts),
-                    "resolved_count": within,
-                    "resolved_total_count": len(resolved),
-                    "breached_count": measure["breached"],
-                    "pending_count": measure["pending"],
-                    "sla_attainment": sla_pct,
-                    "summary_en": (
-                        f"Monthly Managed Services Operations Report for {period[2]}: "
-                        f"{len(alerts)} alerts processed, {within} incidents resolved within SLA. "
-                        f"SLA attainment achieved: {sla_pct * 100:.1f}% across {device_cnt} covered endpoints."
-                    ),
-                    "summary_bn": (
-                        f"{period[2]} মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: "
-                        f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {within}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
-                        f"এসএলএ অর্জনের হার {sla_pct * 100:.1f}%, আওতাভুক্ত সচল ডিভাইস সংখ্যা {device_cnt}টি।"
-                    ),
-                }
+        # A02 ERP pass 2 (M05-S08): a month wholly before the SLA binds is
+        # "not yet binding": no attainment (never a free 100 %), no credit
+        binds = self._msp_sla_binds_at()
+        not_binding = bool(binds and binds > period[1])
+        figures = self._msp_period_figures(period, alerts, measure)
+        if not_binding:
+            text_en = (
+                "Monthly Managed Services Operations Report for %s: %d alerts processed. The "
+                "SLA is not yet binding (onboarding; it binds from %s UTC), so no attainment "
+                "is measured for this month." % (period[2], len(alerts), binds)
             )
+            text_bn = (
+                "%s মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: মোট %dটি সতর্কতা প্রক্রিয়া "
+                "করা হয়েছে। অনবোর্ডিং চলছে, এসএলএ এখনও বাধ্যতামূলক হয়নি (%s UTC থেকে হবে), তাই "
+                "এই মাসের এসএলএ অর্জন পরিমাপ করা হয়নি।" % (period[2], len(alerts), binds)
+            )
+        else:
+            text_en = (
+                f"Monthly Managed Services Operations Report for {period[2]}: "
+                f"{len(alerts)} alerts processed, {within} incidents resolved within SLA. "
+                f"SLA attainment achieved: {sla_pct * 100:.1f}% across {device_cnt} covered "
+                f"endpoints."
+            )
+            text_bn = (
+                f"{period[2]} মাসের পরিচালিত সেবাসমূহ (MSP) কার্যক্রম প্রতিবেদন: "
+                f"মোট {len(alerts)}টি সতর্কতা প্রক্রিয়া করা হয়েছে, {within}টি ঘটনা নির্ধারিত এসএলএ সীমার মধ্যে সমাধান করা হয়েছে। "
+                f"এসএলএ অর্জনের হার {sla_pct * 100:.1f}%, আওতাভুক্ত সচল ডিভাইস সংখ্যা {device_cnt}টি।"
+            )
+        vals = dict(
+            figures,
+            msp_contract_id=self.id,
+            period_label=period[2],
+            alert_count=len(alerts),
+            resolved_count=within,
+            resolved_total_count=len(resolved),
+            breached_count=measure["breached"],
+            pending_count=measure["pending"],
+            sla_not_binding=not_binding,
+            sla_binds_at=binds or False,
+            summary_en=text_en,
+            summary_bn=text_bn,
+            attainment_flagged=False,
         )
+        if not not_binding:
+            vals["sla_attainment"] = sla_pct
+        # The figures are guarded on the report (A02 audit M05-2): they drive
+        # the SLA credit, so only this computation may write them. The report
+        # is the system's (A02 ERP pass 2, M05-S01): nobody creates one by hand.
+        if existing:
+            existing._guarded().write(vals)
+            report = existing
+        else:
+            report = Report._guarded().create(
+                dict(
+                    vals,
+                    company_id=self.company_id.id,
+                    operating_unit_id=self.operating_unit_id.id or False,
+                )
+            )
         publish(
             self.env,
             "msp.service_report_published",
@@ -120,6 +225,27 @@ class FixMspContract(models.Model):
             report.id,
             {"contract": self.name, "period": period[2]},
         )
+        if report.overage_amount > 0.005 and not report.overage_published_at:
+            # M05-S17 (D11): the hours above the entitlement are billed
+            report._guarded().write({"overage_published_at": fields.Datetime.now()})
+            publish(
+                self.env,
+                "msp.remote_hours_overage",
+                "fix.msp.service.report",
+                report.id,
+                {
+                    "msp_contract_id": self.id,
+                    "period": period[2],
+                    "hours": report.overage_hours,
+                    "rate": report.overage_rate,
+                    "amount": report.overage_amount,
+                },
+            )
+        elif report.overage_flagged:
+            self.message_post(
+                body="%s: %.2f remote-support hours above the entitlement were NOT billed - "
+                "the contract has no overage rate (flagged)." % (period[2], report.overage_hours)
+            )
         return report.with_env(self.env)
 
 
@@ -274,6 +400,12 @@ class FixMspAlert(models.Model):
                     "customer_id": rec.msp_contract_id.contract_id.customer_id.id,
                     "branch_id": device.branch_id.id,
                     "fault_description": "MSP alert: %s" % rec.message,
+                    # A02 ERP pass 2 (M05-S09): the order's true channel; the
+                    # fee covers labour and remote work only (owner decision
+                    # D10), so parts and out-of-scope work are priced on an
+                    # estimate the client approves (cd_contract_core
+                    # _fix_msp_covers) unless the contract includes parts
+                    "service_type": "msp_alert",
                     "order_category": "amc",
                     "contract_id": rec.msp_contract_id.contract_id.id,
                 }

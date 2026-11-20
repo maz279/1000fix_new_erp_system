@@ -359,8 +359,10 @@ def test_P1_install_only_from_approved(m5):
     _as(upd, m5.eng).action_defer(days=2, reason="vendor recall pending")  # M05-F18
     with pytest.raises(UserError, match="only an approved patch"):
         _as(upd, m5.eng).action_install()
-    _as(upd, m5.eng).action_approve()
-    assert upd.approved_by_id == m5.eng
+    # A02 ERP pass 2 (M05-S10): another engineer approves, inside a window
+    _as(upd, m5.eng2).action_approve()
+    assert upd.approved_by_id == m5.eng2
+    _as(_window(m5, m5.cm, name="P1 window"), m5.cab).action_approve()
     _as(upd, m5.eng).action_install()
     assert upd.state == "installed" and upd.installed_at
 
