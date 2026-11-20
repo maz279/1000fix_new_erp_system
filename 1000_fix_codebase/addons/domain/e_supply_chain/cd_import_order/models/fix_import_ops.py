@@ -1274,9 +1274,8 @@ class FixImportLca(models.Model):
                 raise UserError("Approve an applied LCA")
             require_other_person(rec.env, rec, "LCA %s" % rec.lca_no)
             lc = rec.lc_id
-            if (
-                rec.currency_id != lc.currency_id
-                or abs((rec.amount or 0.0) - (lc.amount or 0.0)) > 0.005
+            if rec.currency_id != lc.currency_id or not any(
+                abs((rec.amount or 0.0) - target) <= 0.005 for target in rec._lca_targets()
             ):
                 raise UserError(
                     "LCA %s authorises %.2f %s but LC %s is %.2f %s: the LCA must cover the LC value."
@@ -1297,6 +1296,37 @@ class FixImportLca(models.Model):
                 }
             )
         return True
+
+    def _lca_targets(self):
+        """The amounts an LCA of this LC may authorise: the LC value, or - for
+        an approved amendment raising the LC that is not yet applied (M44-23
+        needs the raise covered BEFORE it applies) - the amended value or the
+        part of it the approved LCAs do not cover yet. Without this a larger
+        amendment could never be applied: its LCA was refused for not equalling
+        the current LC value."""
+        self.ensure_one()
+        lc = self.lc_id
+        targets = [lc.amount or 0.0]
+        covered = sum(
+            self.sudo()
+            .search(
+                [
+                    ("lc_id", "=", lc.id),
+                    ("state", "=", "approved"),
+                    ("currency_id", "=", lc.currency_id.id),
+                ]
+            )
+            .mapped("amount")
+        )
+        for amend in (
+            self.env["fix.import.lc.amendment"]
+            .sudo()
+            .search([("lc_id", "=", lc.id), ("state", "=", "draft")])
+        ):
+            new = amend._amended_amount()
+            if amend.approval_state == "approved" and new > (lc.amount or 0.0) + 0.005:
+                targets += [new, round(new - covered, 2)]
+        return targets
 
     def action_reject(self, reason=None):
         require_group(self.env, APPROVER, "Rejecting an LCA")
