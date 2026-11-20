@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 pass 2 (M04-01 / X5-02, owner decision D2, 20 Nov 2026): the accounts a
+  drawer cash-out posts to. noupdate: finance owns the values once installed.
+  Every one is Dr; the drawer cash (cd_cash_position.account_code.branch_cash)
+  is credited.
+    petty expense       500211 Miscellaneous Expense (default category)
+                        500002 Conveyance Expense / 500011 Entertainment Expenses
+    staff advance       100029 Advance Loan (Office Employee), employee partner
+    safe drop           100112 Cash in Safe (the account is created on the chart
+                        by finance; until it exists a safe drop is refused)
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="param_account_petty_expense" model="ir.config_parameter">
+            <field name="key">cd_front_desk_finance.account_code.petty_expense</field>
+            <field name="value">500211</field>
+        </record>
+        <record id="param_account_petty_conveyance" model="ir.config_parameter">
+            <field name="key">cd_front_desk_finance.account_code.petty_conveyance</field>
+            <field name="value">500002</field>
+        </record>
+        <record id="param_account_petty_entertainment" model="ir.config_parameter">
+            <field name="key">cd_front_desk_finance.account_code.petty_entertainment</field>
+            <field name="value">500011</field>
+        </record>
+        <record id="param_account_staff_advance" model="ir.config_parameter">
+            <field name="key">cd_front_desk_finance.account_code.staff_advance</field>
+            <field name="value">100029</field>
+        </record>
+        <record id="param_account_branch_safe" model="ir.config_parameter">
+            <field name="key">cd_cash_position.account_code.branch_safe</field>
+            <field name="value">100112</field>
+        </record>
+    </data>
+</odoo>

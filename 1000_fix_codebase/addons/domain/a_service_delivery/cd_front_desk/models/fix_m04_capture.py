@@ -9,6 +9,9 @@
 #   taken at the counter when the device is released. M34's survey is raised
 #   only when the order CLOSES (NT-024 deferred send), so the counter had no
 #   way to record what the customer said at the counter.
+import secrets
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
@@ -186,8 +189,19 @@ COUNTER_RATINGS = [
 ]
 
 
+# A02 pass 2 (M04-06): how long a rating link stays open, in hours
+RATING_LINK_HOURS_PARAM = "cd_front_desk.counter_rating_link_hours"
+DEFAULT_RATING_LINK_HOURS = 24.0
+
+
 class FixServiceOrderCounterRating(models.Model):
-    """FR-FRD-029: the customer's quick rating at the counter, at handover."""
+    """FR-FRD-029: the customer's quick rating at the counter, at handover.
+
+    A02 pass 2 (M04-06): the rating was typed by the counter staff it rated.
+    The customer now gives it themselves: the counter asks for it (Ask the
+    Customer to Rate), which opens a one-time rating page for this order on
+    the counter tablet or the customer's phone; the page records the
+    customer's stars and comment, once. Staff cannot type or change it."""
 
     _inherit = "fix.service.order"
 
@@ -196,45 +210,112 @@ class FixServiceOrderCounterRating(models.Model):
     )
     counter_feedback = fields.Char(string="Customer's Comment at Handover", copy=False)
     counter_rated_by_id = fields.Many2one(
-        "res.users", string="Rating Taken By", readonly=True, copy=False
+        "res.users",
+        string="Rating Asked By",
+        readonly=True,
+        copy=False,
+        help="The staff member who handed the customer the rating page.",
     )
-    counter_rated_at = fields.Datetime(string="Rating Taken At", readonly=True, copy=False)
+    counter_rated_at = fields.Datetime(string="Rating Given At", readonly=True, copy=False)
+    counter_rating_token = fields.Char(
+        readonly=True, copy=False, index=True, groups="base.group_system"
+    )
+    counter_rating_requested_at = fields.Datetime(
+        string="Rating Asked At", readonly=True, copy=False
+    )
+    counter_rating_url = fields.Char(
+        string="Customer Rating Page",
+        compute="_compute_counter_rating_url",
+        help="Open on the counter tablet or send to the customer's phone: the customer rates "
+        "the service there, once.",
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"counter_rated_by_id", "counter_rated_at"}
+        return super()._fix_guarded_fields() | {
+            "counter_rated_by_id",
+            "counter_rated_at",
+            "counter_rating_token",
+            "counter_rating_requested_at",
+            # M04-06: the customer's own words, written only by the rating page
+            "counter_rating",
+            "counter_feedback",
+        }
 
-    def write(self, vals):
-        # the release form sends every field it shows: only a value that
-        # differs from what is stored is a rating being taken
-        rated = self.browse()
-        if {"counter_rating", "counter_feedback"} & set(vals) and not self.env.su:
-            for order in self:
-                changed = [
-                    k
-                    for k in ("counter_rating", "counter_feedback")
-                    if k in vals and (vals[k] or False) != (order[k] or False)
-                ]
-                if not changed:
-                    continue
-                if order.counter_rated_at:
-                    raise UserError(
-                        "Order %s: the customer already rated the handover; a rating is not "
-                        "changed afterwards." % order.name
-                    )
-                if order.state not in ("ready", "delivered"):
-                    raise UserError(
-                        "Order %s: the customer's rating is taken at handover, when the device "
-                        "is ready or released." % order.name
-                    )
-                if not vals.get("counter_rating"):
-                    raise UserError(
-                        "Order %s: choose the customer's rating (1 to 5) with the comment."
-                        % order.name
-                    )
-                rated |= order
-        res = super().write(vals)
-        if rated:
-            rated._guarded().write(
-                {"counter_rated_by_id": self.env.uid, "counter_rated_at": fields.Datetime.now()}
+    def _compute_counter_rating_url(self):
+        base = self.env["ir.config_parameter"].sudo().get_param("web.base.url") or ""
+        for order in self:
+            token = order.sudo().counter_rating_token
+            order.counter_rating_url = (
+                "%s/fix/counter-rating/%s" % (base, token)
+                if token and not order.counter_rated_at
+                else False
             )
-        return res
+
+    def action_request_counter_rating(self):
+        """The counter asks the customer to rate: a one-time page for this
+        order. Asking again replaces the earlier link."""
+        for order in self:
+            if order.counter_rated_at:
+                raise UserError("Order %s: the customer already rated the handover." % order.name)
+            if order.state not in ("ready", "delivered"):
+                raise UserError(
+                    "Order %s: the customer's rating is taken at handover, when the device is "
+                    "ready or released." % order.name
+                )
+            order._guarded().sudo().write(
+                {
+                    "counter_rating_token": secrets.token_urlsafe(24),
+                    "counter_rating_requested_at": fields.Datetime.now(),
+                    "counter_rated_by_id": self.env.uid,
+                }
+            )
+            order.message_post(
+                body="%s asked the customer to rate the handover." % self.env.user.name
+            )
+        if len(self) == 1:
+            return {"rating_url": self.counter_rating_url}
+        return True
+
+    @api.model
+    def _fd_rating_link_hours(self) -> float:
+        raw = self.env["ir.config_parameter"].sudo().get_param(RATING_LINK_HOURS_PARAM)
+        try:
+            return float(raw) if raw not in (None, False, "") else DEFAULT_RATING_LINK_HOURS
+        except ValueError:
+            return DEFAULT_RATING_LINK_HOURS
+
+    @api.model
+    def _fd_order_for_rating(self, token):
+        """The order a live rating link belongs to, or an empty recordset."""
+        token = (token or "").strip()
+        if len(token) < 16:
+            return self.browse()
+        order = self.sudo().search([("counter_rating_token", "=", token)], limit=1)
+        if not order or order.counter_rated_at or order.state not in ("ready", "delivered"):
+            return self.browse()
+        asked = order.counter_rating_requested_at
+        if not asked or fields.Datetime.now() > asked + timedelta(
+            hours=self._fd_rating_link_hours()
+        ):
+            return self.browse()
+        return order
+
+    @api.model
+    def _fd_take_customer_rating(self, token, rating, feedback=None):
+        """The rating page: the customer's stars and comment, once."""
+        order = self._fd_order_for_rating(token)
+        if not order:
+            raise UserError("This rating link is no longer open.")
+        rating = str(rating or "").strip()
+        if rating not in dict(COUNTER_RATINGS):
+            raise UserError("Choose from 1 to 5 stars.")
+        order._guarded().write(
+            {
+                "counter_rating": rating,
+                "counter_feedback": (feedback or "").strip()[:500] or False,
+                "counter_rated_at": fields.Datetime.now(),
+                "counter_rating_token": False,
+            }
+        )
+        order.message_post(body="The customer rated the handover %s/5." % rating)
+        return order

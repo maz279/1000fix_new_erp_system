@@ -29,7 +29,13 @@ SETTLEMENT_TENDERS = [
     ("upay", "Upay"),
     ("card", "Card (POS)"),
     ("sslcommerz", "SSLCOMMERZ Payment Link"),
+    # A02 pass 2 (D1): cash the rider / courier collects on a delivery leg. It
+    # never enters a drawer: the M20 receipt debits COD clearing, and the
+    # rider's COD settlement (M50) relieves it.
+    ("cod", "Cash on Delivery (rider / courier)"),
 ]
+# A02 pass 2 (D1): COD is collected on a delivery leg, never at the counter
+COD_TENDER = "cod"
 COUNTER_TENDERS = SETTLEMENT_TENDERS  # backward-compatible name
 # who, besides a Service Order Cashier, verifies a field collection at the drawer
 FD_VERIFIER_GROUPS = ("cd_front_desk.group_fd_cashier", "cd_front_desk.group_fd_branch_manager")
@@ -40,6 +46,26 @@ def fd_settlement_tender(env) -> str:
     if tender not in dict(SETTLEMENT_TENDERS):
         raise UserError("Unknown tender '%s'." % tender)
     return tender
+
+
+def fd_require_counter_tender(env, source):
+    """X5-01 (A02 pass 2, P0): a counter settlement names its tender. The
+    workspace sent none, and the missing tender defaulted to cash, so a bKash
+    or card payment went into the drawer as cash (and its GL to drawer cash):
+    the count then showed a shortage of exactly that money. Trusted service
+    code (superuser) keeps the cash default it always had."""
+    if source != "counter":
+        return
+    tender = env.context.get("fd_settlement_tender")
+    if not tender and not env.su:
+        raise UserError(
+            "Say how the customer paid (cash, bKash, Nagad, Rocket, Upay or card): a counter "
+            "payment is never assumed to be cash."
+        )
+    if tender == COD_TENDER:
+        raise UserError(
+            "Cash on delivery is collected by the rider on the delivery leg, not at the counter."
+        )
 
 
 def fd_cash_requires_shift(env) -> bool:
@@ -75,25 +101,35 @@ class FixServiceOrderDrawer(models.Model):
     def action_mark_settled(
         self, invoice_ref=None, amount_bdt=None, source="counter", reference=None, tender=None
     ):
-        tender = tender or self.env.context.get("fd_settlement_tender") or "cash"
-        if tender not in dict(SETTLEMENT_TENDERS):
+        tender = tender or self.env.context.get("fd_settlement_tender")
+        if tender and tender not in dict(SETTLEMENT_TENDERS):
             raise UserError("Unknown tender '%s'." % tender)
-        return super(
-            FixServiceOrderDrawer, self.with_context(fd_settlement_tender=tender)
-        ).action_mark_settled(
+        # X5-01: no silent "cash" for a counter settlement (checked where the
+        # settlement is recorded, _fix_record_settlement, for every caller)
+        ctx = {"fd_settlement_tender": tender} if tender else {}
+        return super(FixServiceOrderDrawer, self.with_context(**ctx)).action_mark_settled(
             invoice_ref=invoice_ref, amount_bdt=amount_bdt, source=source, reference=reference
         )
 
     def _fix_record_settlement(self, amount_bdt, reference, source):
-        tender = fd_settlement_tender(self.env)
-        # a top-up adds to what was settled: the drawer takes the difference
+        fd_require_counter_tender(self.env, source)
+        # interface contract (20 Nov): a COD settlement is source "cod" and
+        # its tender is always cod, whatever the caller's context says
+        tender = COD_TENDER if source == COD_TENDER else fd_settlement_tender(self.env)
+        if tender == COD_TENDER and source != COD_TENDER:
+            raise UserError(
+                "Cash on delivery is recorded as a COD settlement (source 'cod') on the "
+                "delivery leg, not as a %s payment." % source
+            )
+        # a top-up adds to what was paid (a part payment or a settlement): the
+        # drawer takes the difference
         before = (
             self.amount_settled_bdt or 0.0
-            if self.payment_settlement_state == "settled" and self.settlement_verified
+            if self.payment_settlement_state in ("settled", "partial") and self.settlement_verified
             else 0.0
         )
         result = super()._fix_record_settlement(amount_bdt, reference, source)
-        if source in ("counter", "field_collection") and not before:
+        if source in ("counter", "field_collection", COD_TENDER) and not before:
             self._guarded().write({"settlement_tender": tender})
         if source == "counter":
             taken = round((self.amount_settled_bdt or 0.0) - before, 2)
@@ -134,7 +170,7 @@ class FixServiceOrderDrawer(models.Model):
                 "settlement is verified at its own branch." % (order.name, unit.display_name)
             )
         if (
-            order.payment_settlement_state == "settled"
+            order.payment_settlement_state in ("settled", "partial")
             and not order.settlement_verified
             and order.settlement_source == "field_collection"
             and (order.settlement_tender or "cash") == "cash"

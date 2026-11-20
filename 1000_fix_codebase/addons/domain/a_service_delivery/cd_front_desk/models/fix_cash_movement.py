@@ -20,6 +20,19 @@ from .fix_cash_shift import GROUP_CASHIER, GROUP_MANAGER
 PETTY_LIMIT_PARAM = "cd_front_desk.petty_expense_approval_bdt"
 DEFAULT_PETTY_LIMIT = 500.0
 MANUAL_TYPES = ("safe_drop", "petty_expense", "staff_advance")
+# A02 pass 2 (M04-01 / X5-02, owner decision D2): what a petty expense paid
+# from the drawer was for decides the expense account it is booked to (the
+# finance bridge resolves each category's account from a system parameter).
+EXPENSE_CATEGORIES = [
+    ("misc", "Miscellaneous"),
+    ("conveyance", "Conveyance"),
+    ("entertainment", "Entertainment"),
+]
+# D20: a technician's field cash short at the hand-in leaves the drawer's
+# expected total as a payroll recovery (written by the shift, never typed)
+FIELD_SHORTAGE = "field_shortage"
+# the cash-outs the books post (finance bridge): every type that leaves the drawer
+CASH_OUT_TYPES = (*MANUAL_TYPES, FIELD_SHORTAGE)
 
 
 class FixCashMovement(models.Model):
@@ -48,6 +61,7 @@ class FixCashMovement(models.Model):
             ("safe_drop", "Safe Drop / Transfer Out"),
             ("petty_expense", "Petty Expense Paid From Drawer"),
             ("staff_advance", "Staff Cash Advance"),
+            (FIELD_SHORTAGE, "Field Cash Shortage (Payroll Recovery)"),
         ],
         string="Type",
         required=True,
@@ -60,6 +74,20 @@ class FixCashMovement(models.Model):
     )
     amount = fields.Monetary(currency_field="currency_id", required=True)
     reason = fields.Char(string="Reason / Payee", help="What the cash was for, or who received it.")
+    expense_category = fields.Selection(
+        EXPENSE_CATEGORIES,
+        string="Expense Category",
+        default="misc",
+        help="A petty expense's category decides its expense account (Miscellaneous, "
+        "Conveyance, Entertainment).",
+    )
+    employee_id = fields.Many2one(
+        "hr.employee",
+        string="Staff Member",
+        index=True,
+        help="Who received a staff cash advance (or owes a field cash shortage): the advance "
+        "is booked to their account.",
+    )
     reference = fields.Char(string="Source Document", readonly=True)
     receipt_attachment_id = fields.Many2one("ir.attachment", string="Voucher / Receipt Scan")
     state = fields.Selection(
@@ -97,6 +125,8 @@ class FixCashMovement(models.Model):
                 "amount",
                 "reason",
                 "receipt_attachment_id",
+                "expense_category",
+                "employee_id",
             }
         return locked
 
@@ -128,11 +158,24 @@ class FixCashMovement(models.Model):
                     )
                 if not (vals.get("reason") or "").strip():
                     raise UserError("Say what the cash left the drawer for (reason / payee).")
+                if vals.get("movement_type") == "staff_advance" and not vals.get("employee_id"):
+                    raise UserError(
+                        "A staff cash advance names the staff member who received it: it is "
+                        "booked to their advance account."
+                    )
         return super().create(vals_list)
 
     def write(self, vals):
         if not self._fix_guard_open():
-            locked = {"shift_id", "movement_type", "amount", "reason", "receipt_attachment_id"}
+            locked = {
+                "shift_id",
+                "movement_type",
+                "amount",
+                "reason",
+                "receipt_attachment_id",
+                "expense_category",
+                "employee_id",
+            }
             if self.filtered(lambda r: r.state != "draft") and locked & set(vals):
                 raise UserError(
                     "A posted or approved cash movement is not changed: record a new movement "
@@ -202,6 +245,10 @@ class FixCashMovement(models.Model):
                 )
             if rec.state not in ("draft", "approved"):
                 raise UserError("Movement %s is already %s." % (rec.name, rec.state))
+            if rec.movement_type == "staff_advance" and not rec.employee_id:
+                raise UserError(
+                    "Movement %s: name the staff member who received the advance." % rec.name
+                )
             rec.shift_id._post_cash_movement("cash_advances", rec.amount, movement=rec)
         return True
 

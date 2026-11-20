@@ -132,7 +132,25 @@ class FixCashShift(models.Model):
     def create(self, vals_list):
         # the branch decides the unit: the Shift Open/Close form never asks
         fill_operating_unit(self.env, vals_list)
-        return super().create(vals_list)
+        # A02 pass 2 (M04-03): the float is what the last close left in the
+        # drawer (its count less what was banked from it). Left empty, the
+        # shift opens with that; a different float is a cash difference a
+        # Branch Manager approves (and the finance bridge posts).
+        proposals = []
+        for vals in vals_list:
+            basis, proposed = self._fd_float_proposal(
+                vals.get("branch_id"), vals.get("company_id") or self.env.company.id
+            )
+            proposals.append((basis, proposed))
+            if basis and not vals.get("opening_float"):
+                vals["opening_float"] = proposed
+        shifts = super().create(vals_list)
+        for shift, (basis, proposed) in zip(shifts, proposals, strict=True):
+            if basis:
+                shift._guarded().write(
+                    {"float_basis_shift_id": basis.id, "proposed_float": proposed}
+                )
+        return shifts
 
     def _fix_guarded_fields(self) -> set:
         # A02 audit M04-1/-2/-3: the drawer totals, the count, the sign-off
@@ -156,6 +174,11 @@ class FixCashShift(models.Model):
             "reconciled_at",
             "closed_at",
             "opened_at",
+            # A02 pass 2 (M04-03): the proposed float and its approval
+            "float_basis_shift_id",
+            "proposed_float",
+            "float_approved_by_id",
+            "float_approved_at",
         }
 
     # What the shift was opened with: frozen once the drawer leaves "open"
@@ -334,6 +357,37 @@ class FixCashShift(models.Model):
     )
     variance_approved_at = fields.Datetime(string="Variance Approved At", readonly=True)
 
+    # A02 pass 2 (M04-03): the opening float is the last close's cash, not a
+    # free figure. The proposal, the difference and who accepted it.
+    float_basis_shift_id = fields.Many2one(
+        "fix.cash.shift",
+        string="Float Proposed From",
+        readonly=True,
+        copy=False,
+        help="The branch's last closed shift: its count, less what the bank deposits took, is "
+        "the cash the drawer should open with.",
+    )
+    proposed_float = fields.Monetary(
+        string="Proposed Opening Float",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
+    float_variance = fields.Monetary(
+        string="Float Difference",
+        currency_field="currency_id",
+        compute="_compute_float_variance",
+        store=True,
+        help="Declared float less the proposed float: a shortage (negative) or surplus found "
+        "when the drawer was opened. A Branch Manager approves it before the drawer takes "
+        "cash; the finance bridge posts it as a cash variance.",
+    )
+    float_approved_by_id = fields.Many2one(
+        "res.users", string="Float Difference Approved By", readonly=True, copy=False
+    )
+    float_approved_at = fields.Datetime(
+        string="Float Difference Approved At", readonly=True, copy=False
+    )
     reconciliation_notes = fields.Text()
     reconciled_by = fields.Many2one("res.users", readonly=True)
     reconciled_at = fields.Datetime(readonly=True)
@@ -364,6 +418,92 @@ class FixCashShift(models.Model):
             # figure and defeat the blind count (A02 audit M04-11).
             counted = rec.blind_count_submitted or rec.state in ("closed", *FINAL_STATES)
             rec.variance = rec.closing_counted - rec.expected_closing if counted else 0.0
+
+    @api.depends("opening_float", "proposed_float", "float_basis_shift_id")
+    def _compute_float_variance(self):
+        for rec in self:
+            rec.float_variance = (
+                round(rec.opening_float - rec.proposed_float, 2)
+                if rec.float_basis_shift_id
+                else 0.0
+            )
+
+    # ------------------------------------------------------------ opening float
+
+    @api.model
+    def _fd_float_proposal(self, branch_id, company_id):
+        """(last closed shift, the float it leaves) for a new shift of the
+        branch, or (empty, 0.0) when the branch never closed a shift: the
+        last close's count less what the bank deposits of that cash day took
+        (_fd_banked_on; M50 tells, when installed)."""
+        empty = self.browse()
+        if not branch_id:
+            return empty, 0.0
+        last = self.sudo().search(
+            [
+                ("branch_id", "=", branch_id),
+                ("company_id", "=", company_id),
+                ("state", "in", ("closed", *FINAL_STATES)),
+            ],
+            order="closed_at desc, id desc",
+            limit=1,
+        )
+        if not last:
+            return empty, 0.0
+        banked = self._fd_banked_on(last)
+        return last, max(round(last.closing_counted - banked, 2), 0.0)
+
+    @api.model
+    def _fd_banked_on(self, shift):
+        """What the bank deposits took from ``shift``'s cash day (M50 overrides)."""
+        return 0.0
+
+    def _fd_float_unapproved(self) -> bool:
+        self.ensure_one()
+        return bool(
+            self.float_basis_shift_id
+            and abs(self.float_variance or 0.0) >= 0.01
+            and not self.float_approved_by_id
+        )
+
+    def _fd_require_float_settled(self, action):
+        for rec in self:
+            if rec._fd_float_unapproved():
+                raise UserError(
+                    "Shift #%s opened with BDT %.2f where the last close left BDT %.2f (%s BDT "
+                    "%.2f): a Branch Manager who does not run this drawer approves the opening "
+                    "float before it can %s (M04-03)."
+                    % (
+                        rec.id,
+                        rec.opening_float,
+                        rec.proposed_float,
+                        "short" if rec.float_variance < 0 else "over",
+                        abs(rec.float_variance),
+                        action,
+                    )
+                )
+
+    def action_approve_opening_float(self):
+        """A Branch Manager who did not handle the drawer accepts the
+        difference between the declared float and the last close's cash."""
+        self._fd_require_group(GROUP_MANAGER, "Branch Manager", "approve an opening float")
+        self._fd_require_independent("approve the opening float of")
+        for rec in self:
+            if rec.state != "open":
+                raise UserError("Shift #%s is not open." % rec.id)
+            if not rec._fd_float_unapproved():
+                raise UserError(
+                    "Shift #%s opened with the proposed float: nothing to approve." % rec.id
+                )
+            rec._guarded().write(
+                {"float_approved_by_id": self.env.uid, "float_approved_at": fields.Datetime.now()}
+            )
+            rec.message_post(
+                body="Opening float BDT %.2f approved by %s (the last close left BDT %.2f: "
+                "difference BDT %.2f)."
+                % (rec.opening_float, self.env.user.name, rec.proposed_float, rec.float_variance)
+            )
+        return True
 
     # ------------------------------------------------------------ constraints
 
@@ -495,6 +635,8 @@ class FixCashShift(models.Model):
         if field not in ("cash_payments", "cash_refunds", "cash_advances", "field_cash_deposited"):
             raise UserError("Unknown drawer movement %s." % field)
         Movement = self.env["fix.cash.movement"].sudo()._guarded()
+        # M04-03: a drawer whose float nobody accepted takes no cash
+        self._fd_require_float_settled("take or pay out cash")
         for rec in self:
             if rec.state != "open":
                 raise UserError(
@@ -521,12 +663,72 @@ class FixCashShift(models.Model):
                     }
                 )
 
-    def _post_field_cash(self, amount, reference=None):
+    def _post_field_cash(self, amount, reference=None, order=None):
         """HS-08: M02 field COD handed over into this drawer (see
-        cd_field_service action_handover_field_cash)."""
+        cd_field_service action_accept_field_cash).
+
+        ``order`` is the service order the cash was collected for. A02 pass 2
+        (D3, M02-01): the finance bridge guarantees the drawer never moves
+        without a receipt: the order's recorded field settlement is booked,
+        or, when none was recorded (a part payment on site), the cash is
+        booked as an advance receipt on the order."""
         if amount <= 0:
             raise UserError("Field cash handed over must be a positive amount.")
         self._post_cash_movement("field_cash_deposited", amount, reference=reference)
+
+    def _fix_book_field_cash_shortage(self, employee, amount, reference):
+        """D20 (A02 pass 2): a technician handed in less field cash than this
+        drawer took on his declaration (the receipts booked the full amount).
+        The shortfall leaves the drawer's expected total as a payroll recovery
+        owed by ``employee``: one movement of type field_shortage, posted at
+        once; the finance bridge books it Dr payroll recovery (the rider COD
+        shortage account, cd_cash_position.account_code.rider_shortage_payroll)
+        / Cr drawer cash, with the employee as partner.
+
+        Idempotent on ``reference`` within the company: calling it again for
+        the same reconciliation returns the movement already booked.
+        Returns the fix.cash.movement."""
+        self.ensure_one()
+        try:
+            amount = round(float(amount or 0.0), 2)
+        except (TypeError, ValueError):
+            raise UserError("A field cash shortage is an amount.") from None
+        if amount <= 0:
+            raise UserError("A field cash shortage is a positive amount.")
+        if not employee:
+            raise UserError("Name the employee who owes the field cash shortage.")
+        reference = (reference or "").strip()
+        if not reference:
+            raise UserError("A field cash shortage carries the reference of its reconciliation.")
+        Movement = self.env["fix.cash.movement"].sudo()
+        booked = Movement.search(
+            [
+                ("movement_type", "=", "field_shortage"),
+                ("reference", "=", reference),
+                ("company_id", "=", self.company_id.id),
+                ("state", "=", "posted"),
+            ],
+            limit=1,
+        )
+        if booked:
+            return booked
+        movement = Movement._guarded().create(
+            {
+                "shift_id": self.id,
+                "movement_type": "field_shortage",
+                "amount": amount,
+                "employee_id": employee.id,
+                "reason": "Field cash short, recovered from %s's pay" % employee.name,
+                "reference": reference,
+                "recorded_by_id": self.env.uid,
+            }
+        )
+        self._post_cash_movement("cash_advances", amount, movement=movement)
+        self.sudo().message_post(
+            body="Field cash shortage of BDT %.2f (%s) booked against %s for payroll recovery."
+            % (amount, reference, employee.name)
+        )
+        return movement
 
     @api.model
     def _fd_open_shift_for(self, branch, company=None, user=None):
@@ -560,6 +762,7 @@ class FixCashShift(models.Model):
 
     def action_close_shift(self):
         self._fd_require_cashier("close a cash shift")
+        self._fd_require_float_settled("be closed")
         for rec in self:
             if rec.state != "open":
                 raise ValidationError("Only open shifts can be closed.")
@@ -632,6 +835,21 @@ class FixCashShift(models.Model):
                     )
                 )
             rec._guarded().write({"state": "closed", "closed_at": fields.Datetime.now()})
+            # A02 pass 2 (M04-04): the shift is closed when its count is
+            # confirmed (the variance is frozen and, in the finance bridge,
+            # posted now); reconcile is the manager's later review
+            publish(
+                self.env,
+                "shift.closed",
+                "fix.cash.shift",
+                rec.id,
+                {
+                    "shift_id": rec.id,
+                    "branch": rec.branch_id.name,
+                    "variance": rec.variance,
+                    "currency": rec.currency_id.name,
+                },
+            )
 
     def action_approve_variance(self):
         """A02 audit M04-2: a variance beyond tolerance is approved by a Branch
@@ -692,6 +910,7 @@ class FixCashShift(models.Model):
                         "variance before reconciliation."
                     )
             now = fields.Datetime.now()
+            was_closed = rec.state == "closed"
             rec._guarded().write(
                 {
                     "closed_at": rec.closed_at or now,
@@ -700,16 +919,19 @@ class FixCashShift(models.Model):
                     "reconciled_at": now,
                 }
             )
-            # A02 audit B2: a literal publish() so FF-48 sees the event
-            publish(
-                self.env,
-                "shift.closed",
-                "fix.cash.shift",
-                rec.id,
-                {
-                    "shift_id": rec.id,
-                    "branch": rec.branch_id.name,
-                    "variance": rec.variance,
-                    "currency": rec.currency_id.name,
-                },
-            )
+            # A02 audit B2 / pass 2 M04-04: shift.closed is published when the
+            # count is confirmed (action_confirm_closed). A shift reconciled
+            # straight from counting closes here, and publishes here.
+            if not was_closed:
+                publish(
+                    self.env,
+                    "shift.closed",
+                    "fix.cash.shift",
+                    rec.id,
+                    {
+                        "shift_id": rec.id,
+                        "branch": rec.branch_id.name,
+                        "variance": rec.variance,
+                        "currency": rec.currency_id.name,
+                    },
+                )

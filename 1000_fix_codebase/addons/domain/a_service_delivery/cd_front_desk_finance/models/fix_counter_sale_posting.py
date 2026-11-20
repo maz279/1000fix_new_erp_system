@@ -74,6 +74,7 @@ BILLING = "cd_billing_engine.account_code."
 DRAWER_PARAM = "cd_cash_position.account_code.branch_cash"
 CHANNEL_PARAM = "cd_cash_position.account_code.channel_clearing"
 SHORTAGE_PARAM = "cd_cash_position.account_code.cash_shortage"
+SAFE_PARAM = "cd_cash_position.account_code.branch_safe"
 ACCOUNT_ROLES = {
     "parts_revenue": ("parts revenue", (PARAM + "parts_revenue", BILLING + "revenue")),
     "labour_revenue": ("labour / service revenue", (PARAM + "labour_revenue", BILLING + "revenue")),
@@ -98,6 +99,31 @@ ACCOUNT_ROLES = {
     "cash_overage": (
         "cash overage (drawer over)",
         (PARAM + "cash_overage", SHORTAGE_PARAM),
+    ),
+    # A02 pass 2 (M04-01 / X5-02, owner decision D2): the drawer's cash-outs
+    # (fix_cash_movement_posting). Defaults ship as noupdate parameters
+    # (data/fix_cash_out_accounts.xml): 500211 / 500002 / 500011 / 100029.
+    "petty_expense": ("petty expense (Miscellaneous)", (PARAM + "petty_expense",)),
+    "petty_conveyance": (
+        "petty expense: Conveyance",
+        (PARAM + "petty_conveyance", PARAM + "petty_expense"),
+    ),
+    "petty_entertainment": (
+        "petty expense: Entertainment",
+        (PARAM + "petty_entertainment", PARAM + "petty_expense"),
+    ),
+    "staff_advance": (
+        "staff cash advance (Advance Loan, office employee)",
+        (PARAM + "staff_advance",),
+    ),
+    # the branch safe: the M50 deposit may bank it (cd_cash_position reads the
+    # same key); 100112 "Cash in Safe" is created on the chart by finance
+    "branch_safe": ("cash in the branch safe", (SAFE_PARAM,)),
+    # D20: a technician's field cash shortage is recovered through payroll,
+    # like the rider COD shortage (the same parameter, 2001821 on fix_real)
+    "payroll_recovery": (
+        "cash shortage recovered through payroll",
+        ("cd_cash_position.account_code.rider_shortage_payroll",),
     ),
 }
 PAYMENT_ROLE = {

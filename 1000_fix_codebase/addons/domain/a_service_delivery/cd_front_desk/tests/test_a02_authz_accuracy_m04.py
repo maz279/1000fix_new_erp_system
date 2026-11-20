@@ -82,11 +82,15 @@ def test_counter_cash_needs_an_open_shift_when_the_switch_is_absent(m04):
     so_cashier = _user(m, "socash3", "cd_service_order.group_so_cashier")
     order = _order(m)
     with _refused(m.env, UserError, "no open cash shift"):
-        order.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-G3-1", "counter")
+        order.with_user(so_cashier).with_context(
+            fd_settlement_tender="cash"
+        )._fix_record_settlement(400.0, "CTR-G3-1", "counter")
     assert order.payment_settlement_state == "unpaid"
     # with the drawer open the same settlement lands in it
     s = m.shift()
-    order.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-G3-1", "counter")
+    order.with_user(so_cashier).with_context(fd_settlement_tender="cash")._fix_record_settlement(
+        400.0, "CTR-G3-1", "counter"
+    )
     assert order.counter_shift_id == s and s.sudo().cash_payments == 400.0
 
 
@@ -95,5 +99,7 @@ def test_an_explicit_zero_still_switches_the_open_shift_rule_off(m04):
     m.env["ir.config_parameter"].set_param(SHIFT_PARAM, "0")
     so_cashier = _user(m, "socash4", "cd_service_order.group_so_cashier")
     order = _order(m)
-    order.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-G3-2", "counter")
+    order.with_user(so_cashier).with_context(fd_settlement_tender="cash")._fix_record_settlement(
+        400.0, "CTR-G3-2", "counter"
+    )
     assert not order.counter_shift_id and order.payment_settlement_state == "settled"

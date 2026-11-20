@@ -21,7 +21,7 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
-from .fix_cash_shift import GROUP_MANAGER, fill_operating_unit
+from .fix_cash_shift import GROUP_CASHIER, GROUP_MANAGER, fill_operating_unit
 from .fix_service_order_drawer import fd_cash_requires_shift
 
 logger = logging.getLogger(__name__)
@@ -472,6 +472,19 @@ class FixWalkinIntake(models.Model):
                     raise UserError(
                         "Intake %s: enter the receipt / TrxID of the BDT %.2f diagnostic fee."
                         % (label, fee)
+                    )
+                # M04-02 (A02 pass 2): a wallet / card fee is money the books
+                # take on the receptionist's word otherwise: a cashier (or the
+                # branch manager) takes it, as at the drawer
+                if not (
+                    self.env.su
+                    or self.env.user.has_group(GROUP_CASHIER)
+                    or self.env.user.has_group(GROUP_MANAGER)
+                ):
+                    raise UserError(
+                        "Intake %s: a BDT %.2f diagnostic fee paid by %s is taken by a Front "
+                        "Desk Cashier, who checks the transaction. Ask the cashier to complete "
+                        "the hand-over." % (label, fee, rec.payment_channel)
                     )
                 continue
             if rec.diagnostic_fee_shift_id:

@@ -28,7 +28,7 @@ A separate module on purpose (the cd_vehicle_dispatch / bridge lesson): the
 front desk keeps its dependencies, and a server that has not installed the
 bridge never loads it.
 """,
-    "version": "19.0.0.3.0",
+    "version": "19.0.0.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Front Desk",
@@ -45,6 +45,8 @@ bridge never loads it.
         "data/fix_counter_basket_data.xml",
         "views/fix_counter_basket_views.xml",
         "data/fix_counter_posting_cron.xml",
+        # A02 pass 2 (M04-01): the accounts a drawer cash-out posts to
+        "data/fix_cash_out_accounts.xml",
         "views/fix_counter_sale_finance_views.xml",
     ],
     "installable": True,

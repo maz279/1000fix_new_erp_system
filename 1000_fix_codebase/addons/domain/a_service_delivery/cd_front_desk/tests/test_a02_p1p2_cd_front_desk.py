@@ -270,7 +270,9 @@ def test_m01_counter_settlement_lands_in_the_drawer(m04):
     so_cashier = _user(m, "socash", "cd_service_order.group_so_cashier")
     s = m.shift()
     order = _order(m)
-    order.with_user(so_cashier)._fix_record_settlement(700.0, "CTR-0001", "counter")
+    order.with_user(so_cashier).with_context(fd_settlement_tender="cash")._fix_record_settlement(
+        700.0, "CTR-0001", "counter"
+    )
     assert order.counter_shift_id == s and s.sudo().cash_payments == 700.0
     assert s.sudo().expected_closing == 5700.0
     with _refused(m.env, UserError, GUARD):
@@ -288,12 +290,16 @@ def test_counter_cash_with_no_open_shift_is_a_switch(m04):
     # test_a02_authz_accuracy_m04)
     m.env["ir.config_parameter"].set_param("cd_front_desk.order_cash_requires_open_shift", "0")
     order = _order(m)
-    order.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-0002", "counter")
+    order.with_user(so_cashier).with_context(fd_settlement_tender="cash")._fix_record_settlement(
+        400.0, "CTR-0002", "counter"
+    )
     assert not order.counter_shift_id and order.payment_settlement_state == "settled"
     m.env["ir.config_parameter"].set_param("cd_front_desk.order_cash_requires_open_shift", "1")
     order2 = _order(m)
     with _refused(m.env, UserError, "no open cash shift"):
-        order2.with_user(so_cashier)._fix_record_settlement(400.0, "CTR-0003", "counter")
+        order2.with_user(so_cashier).with_context(
+            fd_settlement_tender="cash"
+        )._fix_record_settlement(400.0, "CTR-0003", "counter")
     assert order2.payment_settlement_state != "settled"
 
 
