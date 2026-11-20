@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import contextlib
 from datetime import date, datetime, timedelta
+from statistics import NormalDist
 
 import pytest
 from odoo import fields
@@ -63,18 +64,19 @@ def test_m43_plain_user_reads_but_cannot_create(m43):
 
 # ===================================================================== reference / proper path
 def test_m43_00_proper_path_plan_to_submitted_requisition(m43):
-    """Planner prepares, a different approver approves, the planner releases:
-    the requisition is a DRAFT submitted into M16, never born approved."""
+    """Planner prepares, a different approver approves, the planner releases.
+    A06 ERP D7: the release publishes min/max to M15, whose sweep raises the
+    requisition (a draft suggestion, never born approved)."""
     plan = m43.ready_plan(forecast=10, stock=5, avg=2, std=0, lead=10)
-    assert plan.recommended_order == pytest.approx(85.0)
+    # inventory position 5 <= ROP 20 -> up to target 80 (M43-06)
+    assert plan.recommended_order == pytest.approx(75.0)
     req = _release(m43, plan)
-    assert req, "the plan raised a requisition"
+    assert req, "M15's sweep raised a requisition"
     assert plan.state == "released"
-    assert req.state == "submitted", req.state  # M16's own approval decides it
-    assert req.qty == pytest.approx(85.0)
-    assert req.estimate_amount == pytest.approx(85_000.0)
+    assert req.state not in ("approved", "converted"), req.state
+    assert req.qty == pytest.approx(75.0)
+    assert req.estimate_amount == pytest.approx(75_000.0)
     assert req.demand_plan_id == plan
-    assert req.requested_by.user_id == m43.planner
     assert plan.approved_by_id == m43.approver
 
 
@@ -122,24 +124,23 @@ def test_m43_02_current_stock_from_m15_owned_onhand(m43):
 
 
 def test_m43_03_below_rop_orders_up_to_target(m43):
-    """Finding E03: forecast 10, stock 5, ROP 20 recommended 0. Now: projected
-    5 - 10 = -5 <= ROP 20 -> order up to target 80 (ROP 20 + 2/day x 30): 85."""
+    """Finding E03: forecast 10, stock 5, ROP 20 recommended 0. A06 ERP M43-06:
+    the inventory position 5 <= ROP 20 -> order up to target 80: 75."""
     plan = m43.ready_plan(forecast=10, stock=5, avg=2, std=0, lead=10, review=30)
     assert plan.reorder_point == pytest.approx(20.0)
     assert plan.target_level == pytest.approx(80.0)
     assert plan.projected_stock == pytest.approx(-5.0)
-    assert plan.recommended_order == pytest.approx(85.0)
-    assert plan.projected_stock + plan.recommended_order == pytest.approx(plan.target_level)
+    assert plan.recommended_order == pytest.approx(75.0)
+    assert plan.inventory_position + plan.recommended_order == pytest.approx(plan.target_level)
 
 
 def test_m43_04_order_restores_target_not_zero(m43):
     """Finding E04: forecast 100, stock 0, ROP 50 recommended 100 (ending at 0).
-    Now: ROP 50 (5/day x 10), target 200, projected -100 -> order 300."""
+    Now: ROP 50 (5/day x 10), target 200, position 0 -> order 200 (M43-06)."""
     plan = m43.ready_plan(forecast=100, stock=0, avg=5, std=0, lead=10, review=30)
     assert plan.reorder_point == pytest.approx(50.0)
-    assert plan.recommended_order == pytest.approx(300.0)
-    assert plan.recommended_order >= 150
-    assert plan.projected_stock + plan.recommended_order == pytest.approx(200.0)
+    assert plan.recommended_order == pytest.approx(200.0)
+    assert plan.inventory_position + plan.recommended_order == pytest.approx(200.0)
 
 
 def test_m43_04b_above_rop_no_order_and_net_of_on_order(m43):
@@ -158,19 +159,21 @@ def test_m43_04b_above_rop_no_order_and_net_of_on_order(m43):
             "estimate_amount": 30_000,
             "requested_by": m43.tech.id,
             "operating_unit_id": m43.ou.id,
+            "branch_id": m43.branch.id,  # M43-05: netted for its own branch
         }
     )
     low.invalidate_recordset()
     assert low.on_order_qty == pytest.approx(30.0)
-    # projected 0 + 30 - 10 = 20 <= ROP 20 -> up to target 80: 60
-    assert low.recommended_order == pytest.approx(60.0)
+    # M43-06: position 0 + 30 = 30 > ROP 20 -> nothing (the ROP holds the
+    # lead-time demand; the forecast is not subtracted again)
+    assert low.recommended_order == 0.0
 
 
 def test_m43_05_recommended_order_not_writable(m43):
     plan = m43.ready_plan()
     with pytest.raises(REFUSED), m43.env.cr.savepoint():
         plan.with_user(m43.planner).write({"recommended_order": 99_999})
-    assert plan.recommended_order == pytest.approx(85.0)
+    assert plan.recommended_order == pytest.approx(75.0)
 
 
 # ===================================================================== plan approval
@@ -223,14 +226,14 @@ def test_m43_09_refused_plan_cannot_be_forced(m43):
 
 def test_m43_10_approval_pinned_and_voided_on_change(m43):
     plan = _approve(m43, m43.ready_plan())
-    assert plan.approved_order_qty == pytest.approx(85.0)
+    assert plan.approved_order_qty == pytest.approx(75.0)
     # live stock moves after approval: the approved quantity does not
     m43.env["fix.stock.onhand"].search(
         [("part_id", "=", m43.part.id), ("location_id", "=", m43.loc.id)]
     ).write({"qty": 0})
     plan.invalidate_recordset()
-    assert plan.recommended_order == pytest.approx(90.0)
-    assert plan.approved_order_qty == pytest.approx(85.0)
+    assert plan.recommended_order == pytest.approx(80.0)
+    assert plan.approved_order_qty == pytest.approx(75.0)
     # an input change by another planner voids the approval
     plan.with_user(m43.planner2).write({"location_id": m43.loc2.id})
     assert plan.state == "draft" and not plan.approved_by_id and plan.approved_order_qty == 0
@@ -240,7 +243,14 @@ def test_m43_10_approval_pinned_and_voided_on_change(m43):
     plan.with_user(m43.planner2).write({"location_id": m43.loc.id})
     plan.with_user(m43.approver).action_approve()
     plan.with_user(m43.planner).action_generate_pr()
-    assert plan.sudo().pr_requisition_id.qty == pytest.approx(plan.approved_order_qty)
+    # D7: the pinned min/max reach M15; its sweep orders on today's stock
+    rule = (
+        m43.env["fix.reorder.rule"]
+        .sudo()
+        .search([("spare_part_id", "=", m43.part.id), ("location_id", "=", m43.loc.id)])
+    )
+    assert rule.min_qty == pytest.approx(plan.approved_reorder_point)
+    assert rule.max_qty == pytest.approx(plan.approved_target_level)
     with pytest.raises(UserError, match="released"), m43.env.cr.savepoint():
         plan.with_user(m43.planner).write({"period_start": m43.this_month - timedelta(days=1)})
 
@@ -301,27 +311,29 @@ def test_m43_14_p03_actions_need_the_roles(m43, p03):
     assert req and req.state not in ("approved", "converted")
 
 
-def test_m43_15_requester_is_the_releasing_planner(m43):
+def test_m43_15_requester_is_m15s_replenishment_requester(m43):
+    """A06 ERP D7: M15 raises the document, in the name of its rule's
+    replenishment requester (rule, custodian, branch manager, default, acting
+    user), never of a stranger."""
     m43.env["hr.employee"].create({"name": "AAAA Unrelated Storekeeper"})
     req = _release(m43, m43.ready_plan())
-    assert req.requested_by.user_id == m43.planner
-    # a releaser with no employee record is refused, never attributed to someone else
-    orphan = m43.user("orphan", [PLANNER], employee=False)
-    other = m43.env["product.template"].create({"name": "M43 other", "standard_price": 10.0})
-    plan = m43.plan(name="second", location_id=m43.loc2.id, product_id=other.id)
-    m43.policy(2, 0, 10, loc=m43.loc2)
-    m43.forecast(10, loc=m43.loc2)
-    plan.with_user(m43.approver).action_approve()
-    with pytest.raises(UserError, match="employee"), m43.env.cr.savepoint():
-        plan.with_user(orphan).action_generate_pr()
+    rule = (
+        m43.env["fix.reorder.rule"]
+        .sudo()
+        .search([("spare_part_id", "=", m43.part.id), ("location_id", "=", m43.loc.id)])
+    )
+    assert req.requested_by == rule._replenishment_requester()
+    assert req.requested_by.name != "AAAA Unrelated Storekeeper"
 
 
-def test_m43_16_zero_value_requisition_refused(m43):
+def test_m43_16_m43_raises_no_priced_requisition_of_its_own(m43):
+    """A06 ERP D7: pricing the purchase document is M15/M16's; a plan with no
+    PO price is still published and M15 prices from the part's cost."""
     m43.tmpl.standard_price = 0.0
     plan = _approve(m43, m43.ready_plan())
-    with pytest.raises(UserError, match="no purchase price"), m43.env.cr.savepoint():
-        plan.with_user(m43.planner).action_generate_pr()
-    assert not plan.sudo().pr_requisition_id
+    plan.with_user(m43.planner).action_generate_pr()
+    req = plan.sudo().pr_requisition_id
+    assert req and not (req.description or "").startswith("Planned order")
 
 
 def test_m43_16b_unsourced_plan_refused(m43):
@@ -387,12 +399,10 @@ def test_m43_20_price_and_vendor_from_last_po(m43):
     m43.env["fix.supplier"].create(
         {"name": vendor.name, "partner_id": vendor.id, "status": "active"}
     )
+    price, last_vendor = plan._pr_price_and_vendor(m43.prod)
+    assert price == pytest.approx(1200.0) and last_vendor == vendor
     plan.with_user(m43.planner).action_generate_pr()
-    req = plan.sudo().pr_requisition_id
-    # the open PO line (1 unit) is on order: projected 5 + 1 - 10 = -4 -> 84
-    assert req.qty == pytest.approx(84.0)
-    assert req.estimate_amount == pytest.approx(84 * 1200.0)
-    assert req.vendor_id == vendor
+    assert plan.state == "released"
 
 
 # ===================================================================== forecasts
@@ -538,9 +548,10 @@ def test_m43_29_period_must_be_a_month(m43):
 # ===================================================================== policy
 def test_m43_30_safety_stock_formula(m43):
     pol = m43.policy(4, 2, 9, state="draft")
-    assert pol.safety_stock == pytest.approx(9.9)
-    assert pol.reorder_point == pytest.approx(45.9)
-    assert pol.target_level == pytest.approx(45.9 + 4 * 30)
+    ss = round(NormalDist().inv_cdf(0.95) * 2 * 3, 2)  # M43-08: inverse normal
+    assert pol.safety_stock == pytest.approx(ss)
+    assert pol.reorder_point == pytest.approx(36 + ss)
+    assert pol.target_level == pytest.approx(36 + ss + 4 * 30)
 
 
 def test_m43_31_policy_statistics_from_m15_history(m43):
@@ -565,7 +576,8 @@ def test_m43_31_policy_statistics_from_m15_history(m43):
     pol.with_user(m43.planner).action_refresh_from_history()
     assert pol.avg_daily_demand == pytest.approx(1.0)
     assert pol.demand_stddev == pytest.approx((10 / 9) ** 0.5, abs=1e-3)
-    assert pol.safety_stock == pytest.approx(round(1.65 * (10 / 9) ** 0.5 * 3, 2))
+    z = NormalDist().inv_cdf(0.95)
+    assert pol.safety_stock == pytest.approx(round(z * (10 / 9) ** 0.5 * 3, 2))
 
 
 def test_m43_32_policy_computes_not_writable(m43):
@@ -668,7 +680,7 @@ def test_m43_36_activation_publishes_rop_to_m15_reorder_rule(m43):
 def test_m43_37_plan_rop_is_the_policy_rop(m43):
     m43.policy(4, 2, 9)
     plan = m43.plan()
-    assert plan.reorder_point == pytest.approx(45.9)
+    assert plan.reorder_point == pytest.approx(36 + round(NormalDist().inv_cdf(0.95) * 6, 2))
     with pytest.raises(REFUSED), m43.env.cr.savepoint():
         plan.with_user(m43.planner).write({"reorder_point": 0})
 
@@ -775,7 +787,8 @@ def test_m43_44_scenario_applies_lead_time_delta(m43):
     assert s.product_id == m43.prod
     assert s.base_reorder_point == pytest.approx(45.9)
     assert s.projected_lead_time == 39
-    assert s.projected_safety_stock == pytest.approx(round(1.65 * 2 * 39**0.5, 2))
+    z = NormalDist().inv_cdf(0.95)
+    assert s.projected_safety_stock == pytest.approx(round(z * 2 * 39**0.5, 2))
     assert s.projected_reorder_point == pytest.approx(round(4 * 39 + s.projected_safety_stock, 2))
 
 

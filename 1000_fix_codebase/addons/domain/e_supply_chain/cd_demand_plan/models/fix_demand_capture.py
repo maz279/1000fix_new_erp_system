@@ -28,20 +28,23 @@ from .fix_demand_common import (
     CFG_LEAD_TIME_WINDOW_DAYS,
     PERIOD_RE,
     PLANNER,
-    Z_FACTORS,
     add_months,
     consumed_by_day,
     consumed_by_month,
+    dhaka_today,
     has_usable_history,
     mean_and_stddev,
     month_start,
     param,
     refuse_self_decision,
     require_role,
+    z_for,
 )
 
 CFG_LTB_CFO_THRESHOLD = "cd_demand_plan.ltb_cfo_threshold"  # default 500,000 BDT
 CFO = "cd_entity_config.group_dofa_tier_4"
+# M43-08: a service level is any percentage (50 to 99.99); 90/95/98/99 are the
+# segment defaults the owner keeps (D7)
 SERVICE_LEVELS = [("90", "90%"), ("95", "95%"), ("98", "98%"), ("99", "99%")]
 ABC = [("a", "A"), ("b", "B"), ("c", "C")]
 CRITICALITY = [("low", "Low"), ("medium", "Medium"), ("high", "High"), ("critical", "Critical")]
@@ -312,6 +315,62 @@ class FixDemandAdjustment(models.Model):
             touched.append(row.period)
         return out, sorted(touched)
 
+    @api.model
+    def _excluded_periods(self, company, part, location, periods):
+        """M43-10: the months an applied 'exclude' treatment drops from the
+        series. They are not zero-demand months: the average and the deviation
+        are taken over the months that remain."""
+        if not part or not periods:
+            return set()
+        return set(
+            self.sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("part_id", "=", part.id),
+                    ("location_id", "=", location.id if location else False),
+                    ("period", "in", list(periods)),
+                    ("state", "=", "applied"),
+                    ("adjustment_type", "=", "outlier_exclude"),
+                ]
+            )
+            .mapped("period")
+        )
+
+    @api.model
+    def _overlay_daily(self, company, part, location, first, daily):
+        """M43-10: the policy's DAILY series with the applied adjustments laid
+        over it: an excluded month's days leave the sample, a replaced,
+        reclassified or censored month is rescaled to its adjusted total (spread
+        evenly when M15 shows nothing). Returns the series to measure."""
+        if not part or not daily:
+            return list(daily)
+        by_month = {}
+        for i in range(len(daily)):
+            day = first + timedelta(days=i)
+            by_month.setdefault("%04d-%02d" % (day.year, day.month), []).append(i)
+        rows = self.sudo().search(
+            [
+                ("company_id", "=", company.id),
+                ("part_id", "=", part.id),
+                ("location_id", "=", location.id if location else False),
+                ("period", "in", list(by_month)),
+                ("state", "=", "applied"),
+            ]
+        )
+        series = list(daily)
+        dropped = set()
+        for row in rows:
+            idx = by_month[row.period]
+            if row.adjustment_type == "outlier_exclude":
+                dropped.update(idx)
+                continue
+            source = sum(series[i] for i in idx)
+            target = row.adjusted_qty or 0.0
+            for i in idx:
+                series[i] = series[i] * target / source if source > 0 else target / len(idx)
+        return [q for i, q in enumerate(series) if i not in dropped]
+
 
 # =====================================================================
 # Page 3 - Forecast Orchestration: known demand drivers (FR-DPL-013)
@@ -469,7 +528,9 @@ class FixDemandServiceTarget(models.Model):
     abc_class = fields.Selection(ABC, string="ABC Class", required=True)
     criticality = fields.Selection(CRITICALITY, help="Empty = any criticality")
     location_type = fields.Selection(LOCATION_TYPES, help="Empty = any location")
-    target_pct = fields.Selection(SERVICE_LEVELS, string="Target Service Level", required=True)
+    target_pct = fields.Float(
+        string="Target Service Level %", required=True, help="50 to 99.99 (M43-08)"
+    )
     effective_from = fields.Date(required=True, default=fields.Date.context_today)
     rationale = fields.Char()
     state = fields.Selection(
@@ -482,6 +543,12 @@ class FixDemandServiceTarget(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"approved_by_id", "approved_on"}
+
+    @api.constrains("target_pct")
+    def _check_target(self):
+        for rec in self:
+            if not 50.0 <= (rec.target_pct or 0.0) < 100.0:
+                raise ValidationError("A service-level target is 50% to 99.99%.")
 
     def _key_domain(self):
         return [
@@ -697,7 +764,7 @@ class FixDemandLeadTime(models.Model):
         """Mean, deviation and P95 of the actual receipts of this product
         from this supplier (M16 PO sent -> receipt; M44 commitment -> receipt)."""
         require_role(self.env, PLANNER, what="Measuring a lead time")
-        today = fields.Date.today()
+        today = dhaka_today()  # M43-21
         for rec in self:
             samples = supplier_lead_times(
                 rec.env,
@@ -798,7 +865,7 @@ class FixDemandNpi(models.Model):
 
     @api.depends("analogy_part_id", "company_id")
     def _compute_analogy(self):
-        first = add_months(fields.Date.today().replace(day=1), -12)
+        first = add_months(dhaka_today().replace(day=1), -12)
         for rec in self:
             if not rec.analogy_part_id:
                 rec.analogy_monthly_avg = 0.0
@@ -1144,7 +1211,7 @@ class FixDemandVanPar(models.Model):
     replenish_days = fields.Integer(
         string="Van Replenishment Cycle (days)", default=7, help="Days between van top-ups"
     )
-    service_level_pct = fields.Selection(SERVICE_LEVELS, required=True, default="95")
+    service_level_pct = fields.Float(string="Service Level %", required=True, default=95.0)
     avg_daily_demand = fields.Float(string="Van Avg Daily Use", readonly=True)
     demand_stddev = fields.Float(string="Van Use Std Dev", readonly=True)
     suggested_min = fields.Float(string="Suggested Min", readonly=True)
@@ -1178,7 +1245,14 @@ class FixDemandVanPar(models.Model):
             "published_rule_id",
         }
 
-    @api.constrains("van_location_id", "history_days", "replenish_days", "min_qty", "max_qty")
+    @api.constrains(
+        "van_location_id",
+        "history_days",
+        "replenish_days",
+        "min_qty",
+        "max_qty",
+        "service_level_pct",
+    )
     def _check_par(self):
         for rec in self:
             if rec.van_location_id.location_type != "van":
@@ -1189,6 +1263,8 @@ class FixDemandVanPar(models.Model):
                 raise ValidationError("The van replenishment cycle is 1 to 90 days.")
             if rec.min_qty < 0 or rec.max_qty < 0:
                 raise ValidationError("Par levels cannot be negative.")
+            if not 50.0 <= (rec.service_level_pct or 0.0) < 100.0:
+                raise ValidationError("The service level is 50% to 99.99%.")
 
     def write(self, vals):
         res = super().write(vals)
@@ -1204,7 +1280,7 @@ class FixDemandVanPar(models.Model):
         z x sigma x sqrt(cycle); max = min + use over one more cycle. The
         planner's par defaults to the suggestion."""
         require_role(self.env, PLANNER, what="Computing a van par")
-        today = fields.Date.today()
+        today = dhaka_today()  # M43-21
         for rec in self:
             if rec.state != "proposed":
                 raise UserError("Compute a proposed van par")
@@ -1217,7 +1293,7 @@ class FixDemandVanPar(models.Model):
                 rec.history_days,
             )
             mean, std = mean_and_stddev(daily)
-            z = Z_FACTORS.get(int(rec.service_level_pct), 1.65)
+            z = z_for(rec.service_level_pct)  # M43-08: inverse normal, any level
             cycle = rec.replenish_days
             low = ceil(round(mean * cycle + z * std * sqrt(cycle), 6))
             high = ceil(round(low + mean * cycle, 6))
@@ -1303,7 +1379,7 @@ class FixDemandPolicyCapture(models.Model):
         Network = self.env["fix.demand.network.policy"]
         for rec in self:
             target = Target._for_policy(rec)
-            if target and int(rec.service_level_pct) < int(target.target_pct):
+            if target and rec.service_level_pct + 1e-9 < target.target_pct:
                 raise UserError(
                     "Policy %s serves %s%% but the service-level target %s for this segment "
                     "is %s%% (FR-DPL-018): raise the service level."

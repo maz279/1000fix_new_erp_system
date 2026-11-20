@@ -27,8 +27,9 @@ def test_order_up_to(projected, rop, target, expected):
 
 
 def test_safety_stock_formula():
-    assert c.safety_stock("95", 2, 9) == pytest.approx(9.9)
-    assert c.safety_stock("99", 2.2, 13) == pytest.approx(round(2.33 * 2.2 * 13**0.5, 2))
+    # A06 ERP M43-08: z is the inverse normal of the level
+    assert c.safety_stock("95", 2, 9) == pytest.approx(round(1.644854 * 2 * 3, 2))
+    assert c.safety_stock("99", 2.2, 13) == pytest.approx(round(2.326348 * 2.2 * 13**0.5, 2))
     assert c.safety_stock("95", 2, 0) == 0.0
 
 

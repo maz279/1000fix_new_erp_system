@@ -13,6 +13,22 @@
 #  - M43-1/M43-5/M43-12: the plan releases a DRAFT requisition submitted into
 #    M16's own approval, priced and attributed to the planner's employee, and
 #    a plan can never produce a second requisition.
+#
+# A06 ERP audit (2026-11-20), owner decision D7 - ONE replenishment engine:
+#  - M43-02: the plan no longer raises its own requisition. Release PUBLISHES
+#    the approved reorder point and target (min/max) to the M15 reorder rule of
+#    the part at the location and asks M15's sweep - the only document raiser,
+#    which nets on-order and in-transit - to act on that rule now. The
+#    requisition M15 raises is linked back to the plan.
+#  - M43-05: stock on order is netted per LOCATION (requisitions and POs of the
+#    location's branch, transfers in transit to it, imports receiving at it).
+#  - M43-06: the order compares the INVENTORY POSITION (usable stock + on
+#    order) with the reorder point, which already holds the lead-time demand;
+#    the period forecast is shown, not subtracted a second time.
+#  - M43-04: the estimate is in BDT: a foreign-currency PO price is converted.
+import inspect
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -24,15 +40,19 @@ from .fix_demand_common import (
     PLANNER,
     apply_moq_pack,
     budget_headroom,
+    dhaka_today,
     has_usable_history,
     months_between,
     on_hand,
     on_order,
     order_up_to,
     param,
+    po_line_bdt_price,
     refuse_self_decision,
     require_role,
 )
+
+_logger = logging.getLogger(__name__)
 
 # what the approval covered: changing one of these voids it
 PLAN_PINNED = {
@@ -56,6 +76,7 @@ PLAN_POSITION = (
     "safety_stock",
     "reorder_point",
     "target_level",
+    "inventory_position",
     "projected_stock",
     "raw_order_qty",
     "recommended_order",
@@ -119,10 +140,16 @@ class FixDemandPlan(models.Model):
     safety_stock = fields.Float(string="Safety Stock", compute="_compute_position")
     reorder_point = fields.Float(string="Reorder Point", compute="_compute_position")
     target_level = fields.Float(string="Target (Max) Level", compute="_compute_position")
+    inventory_position = fields.Float(
+        string="Inventory Position",
+        compute="_compute_position",
+        help="Usable stock + on order at the location: what is compared with the reorder "
+        "point (M43-06)",
+    )
     projected_stock = fields.Float(
         string="Projected Stock",
         compute="_compute_position",
-        help="Stock + on order - forecast demand of the period",
+        help="Inventory position - forecast demand of the period (shown, not ordered on)",
     )
     raw_order_qty = fields.Float(
         compute="_compute_position",
@@ -140,7 +167,7 @@ class FixDemandPlan(models.Model):
         [
             ("draft", "Draft"),
             ("approved", "Approved"),
-            ("released", "Released to M16"),
+            ("released", "Published to M15"),
             ("converted", "Converted to PO"),
             ("closed", "Closed (received)"),
         ],
@@ -278,9 +305,16 @@ class FixDemandPlan(models.Model):
         )
         demand = round(sum(forecasts.mapped("forecast_qty")), 3)
         stock = on_hand(self.env, company, self.part_id, self.location_id)
-        incoming = on_order(self.env, company, self.product_id.product_variant_ids)
-        projected = round(stock + incoming - demand, 3)
-        raw = order_up_to(projected, policy.reorder_point, policy.target_level) if policy else 0.0
+        incoming = on_order(
+            self.env,
+            company,
+            self.product_id.product_variant_ids,
+            location=self.location_id,
+            part=self.part_id,
+        )
+        position = round(stock + incoming, 3)
+        projected = round(position - demand, 3)
+        raw = order_up_to(position, policy.reorder_point, policy.target_level) if policy else 0.0
         out.update(
             policy_id=policy.id,
             forecast_quantity=demand,
@@ -290,6 +324,7 @@ class FixDemandPlan(models.Model):
             safety_stock=policy.safety_stock,
             reorder_point=policy.reorder_point,
             target_level=policy.target_level,
+            inventory_position=position,
             projected_stock=projected,
             raw_order_qty=raw,
             recommended_order=apply_moq_pack(raw, policy.moq_qty, policy.pack_size),
@@ -341,8 +376,9 @@ class FixDemandPlan(models.Model):
                 )
             if pos["recommended_order"] <= 0:
                 raise UserError(
-                    "Nothing to replenish — the projected stock %.2f is above the reorder "
-                    "point %.2f" % (pos["projected_stock"], pos["reorder_point"])
+                    "Nothing to replenish — the inventory position %.2f (stock + on order) is "
+                    "above the reorder point %.2f"
+                    % (pos["inventory_position"], pos["reorder_point"])
                 )
             rec._guarded().write(
                 {
@@ -384,7 +420,12 @@ class FixDemandPlan(models.Model):
                 limit=1,
             )
         )
-        price = line.unit_price if line else (product.standard_price or 0.0)
+        # M43-04: the last PO's price in BDT (a USD PO is converted at its rate)
+        price = (
+            po_line_bdt_price(self.env, self.company_id, line)
+            if line
+            else (product.standard_price or 0.0)
+        )
         vendor = self.vendor_id or (line.order_id.vendor_id if line else self.env["res.partner"])
         return price, vendor
 
@@ -411,19 +452,21 @@ class FixDemandPlan(models.Model):
             )
 
     def action_generate_pr(self):
-        """Release the approved quantity to M16 as a DRAFT requisition and
-        submit it into M16's own approval (never born approved)."""
-        require_role(self.env, PLANNER, APPROVER, what="Releasing a planned order to M16")
-        Requisition = self.env["fix.requisition"]
+        """D7 / M43-02: publish the approved reorder point and target (min/max)
+        to the M15 reorder rule of the part at the location and run M15's sweep
+        on that rule. M15 is the only raiser of replenishment documents: a
+        warehouse below its minimum drafts the requisition (netting what is on
+        order), a van or branch gets a transfer from its parent warehouse. M43
+        raises no requisition of its own, so nothing is ordered twice."""
+        require_role(self.env, PLANNER, APPROVER, what="Publishing a planned order to M15")
         for plan in self:
-            if plan.pr_requisition_id or Requisition.sudo().search_count(
+            if plan.pr_requisition_id or self.env["fix.requisition"].sudo().search_count(
                 [("demand_plan_id", "=", plan.id)]
             ):
                 raise UserError("Plan %s already has a requisition" % plan.name)
             if plan.state != "approved":
-                raise UserError("Approve the plan before generating a requisition")
-            qty = plan.approved_order_qty
-            if qty <= 0:
+                raise UserError("Approve the plan before publishing it to M15")
+            if plan.approved_order_qty <= 0:
                 raise UserError("Nothing to order — the plan has no approved quantity")
             if not plan.part_id:
                 raise UserError("Plan %s has no M15 spare part: the order is unsourced" % plan.name)
@@ -431,65 +474,96 @@ class FixDemandPlan(models.Model):
             if not product:
                 raise UserError("Plan %s has no purchasable product variant" % plan.name)
             price, vendor = plan._pr_price_and_vendor(product)
-            if price <= 0:
-                raise UserError(
-                    "Plan %s cannot be released: %s has no purchase price or standard cost, "
-                    "so the requisition would carry no value for M16's authority check."
-                    % (plan.name, product.display_name)
-                )
             plan._refuse_unsourced(vendor)
-            employee = self.env.user.employee_id
-            if not employee:
-                raise UserError(
-                    "Your user has no employee record: a requisition is requested by an employee."
-                )
-            ou = (
-                plan.operating_unit_id
-                or self.env.user.default_operating_unit_id
-                or self.env["operating.unit"].search(
-                    [("company_id", "=", plan.company_id.id)], limit=1
-                )
-            )
-            if not ou:
-                raise UserError("Plan %s has no operating unit for its requisition" % plan.name)
-            estimate = round(qty * price, 2)
+            estimate = round(plan.approved_order_qty * (price or 0.0), 2)
             # M43-5 budget check (report only unless cd_demand_plan.enforce_budget = 1)
-            remaining, budget_note = budget_headroom(self.env, plan.company_id, fields.Date.today())
+            remaining, budget_note = budget_headroom(self.env, plan.company_id, dhaka_today())
             if remaining is not None and estimate > remaining:
-                budget_note = "Over budget: BDT %.2f requisition against BDT %.2f remaining. %s" % (
-                    estimate,
-                    remaining,
-                    budget_note,
+                budget_note = (
+                    "Over budget: BDT %.2f planned order against BDT %.2f remaining. %s"
+                    % (
+                        estimate,
+                        remaining,
+                        budget_note,
+                    )
                 )
                 if param(self.env, CFG_ENFORCE_BUDGET, 0, int):
                     raise UserError("Plan %s cannot be released. %s" % (plan.name, budget_note))
-            vals = {
-                "description": "Planned order — %s (%s)" % (plan.product_id.name, plan.name),
-                "product_id": product.id,
-                "qty": qty,
-                "estimate_amount": estimate,
-                "urgency": "normal",
-                "requested_by": employee.id,
-                "operating_unit_id": ou.id,
-                "company_id": plan.company_id.id,
-                "demand_plan_id": plan.id,
-                "vendor_id": vendor.id,
-            }
-            requisition = Requisition.create(vals)
-            plan._guarded().write(
-                {
-                    "pr_requisition_id": requisition.id,
-                    "state": "released",
-                    "budget_check": budget_note,
-                }
-            )
-            # B2 contract: M16's own submission routes the approval
-            requisition.action_submit()
+            rule = plan._publish_min_max()
+            requisition = plan._m15_sweep(rule)
+            vals = {"state": "released", "budget_check": budget_note}
+            if requisition:
+                vals["pr_requisition_id"] = requisition.id
+                requisition.sudo().write({"demand_plan_id": plan.id})
+            plan._guarded().write(vals)
             plan.message_post(
-                body="Released to M16 as requisition %s (%s units, BDT %.2f), submitted for "
-                "approval. %s" % (requisition.display_name, qty, estimate, budget_note)
+                body="Published to M15 reorder rule %s (min %.2f / max %.2f); M15's sweep %s. "
+                "Planned order %.2f units, estimate BDT %.2f. %s"
+                % (
+                    rule.display_name,
+                    plan.approved_reorder_point,
+                    plan.approved_target_level,
+                    "raised requisition %s" % requisition.display_name
+                    if requisition
+                    else "raised no purchase document (the location is replenished by "
+                    "transfer, or its stock and orders already cover the minimum)",
+                    plan.approved_order_qty,
+                    estimate,
+                    budget_note,
+                )
             )
         return True
+
+    def _publish_min_max(self):
+        """The approved min (reorder point) and max (target) on M15's rule of
+        the part at the location (B1 contract), with the plan as provenance."""
+        self.ensure_one()
+        Rule = self.env["fix.reorder.rule"]
+        kwargs = {}
+        try:
+            accepted = inspect.signature(Rule._fix_publish_from_plan).parameters
+        except (TypeError, ValueError):
+            accepted = {}
+        policy = self.env["fix.demand.policy"].sudo().browse(self._position()["policy_id"])
+        if "predicted_demand" in accepted and policy:
+            kwargs["predicted_demand"] = round((policy.avg_daily_demand or 0.0) * 7, 3)
+        rule = Rule._fix_publish_from_plan(
+            self.part_id,
+            self.location_id,
+            self.approved_reorder_point,
+            self.approved_target_level,
+            self.name,
+            **kwargs,
+        )
+        if policy and rule:
+            policy._guarded().write(
+                {"published_on": fields.Datetime.now(), "published_rule_id": rule[:1].id}
+            )
+        return rule[:1]
+
+    def _m15_sweep(self, rule):
+        """Run M15's replenishment sweep on the rule just published and return
+        the requisition it raised, if any. M15 owns the decision: the
+        recordset sweep (fix.reorder.rule._fix_sweep) when M15 provides it,
+        else the rule's own trigger, which acts only at or below the minimum."""
+        self.ensure_one()
+        Rule = self.env["fix.reorder.rule"]
+        if not rule:
+            return self.env["fix.requisition"]
+        before = rule.sudo().requisition_id
+        if hasattr(Rule, "_fix_sweep"):
+            Rule._fix_sweep(rule)
+        elif rule.sudo().state in ("active", "draft"):
+            try:
+                with self.env.cr.savepoint():
+                    rule.sudo().action_trigger_reorder()
+            except UserError as exc:
+                # above the minimum, discontinued part: M15's answer, recorded
+                _logger.info("M43 plan %s: M15 sweep raised nothing: %s", self.name, exc)
+        after = rule.sudo().requisition_id
+        if after and after != before and not after.demand_plan_id:
+            return after
+        return self.env["fix.requisition"]
 
     def action_reopen(self, reason=None):
         """M16 refused the planned order (requisition rejected or cancelled, or
