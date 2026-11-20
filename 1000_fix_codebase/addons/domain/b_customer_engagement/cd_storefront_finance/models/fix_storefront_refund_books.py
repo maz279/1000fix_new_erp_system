@@ -274,9 +274,10 @@ class FixStorefrontRefundBooks(models.AbstractModel):
         taken. The whole order comes back: a return names no lines."""
         order = self.order_id.sudo()
         # returned before they ever left the ledger: nothing to bring back
-        order.line_ids.filtered(lambda ln: ln.stock_state in ("none", "pending")).write(
-            {"stock_state": "cancelled"}
-        )
+        # (and what was reserved for them is free again - M38-F6)
+        unissued = order.line_ids.filtered(lambda ln: ln.stock_state in ("none", "pending"))
+        unissued._sfb_release_reservation()
+        unissued.write({"stock_state": "cancelled"})
         issued = order.line_ids.filtered(lambda ln: ln.stock_state == "issued")
         if not issued:
             self._guarded().write({"restock_state": "not_required"})
@@ -340,6 +341,28 @@ class FixStorefrontRefundBooks(models.AbstractModel):
                 "Invoice %s is to %s, the return is from %s."
                 % (invoice.name, invoice.customer_id.name, self.customer_id.name)
             )
+        # A04 ERP audit M38-F3: one refund per return. A treasury instruction
+        # raised for it outside this credit note (the former relay path) means
+        # the money is already on its way: refuse a second payment.
+        if "fix.payment.execution" in self.env:
+            other = (
+                self.env["fix.payment.execution"]
+                .sudo()
+                .search(
+                    [
+                        ("source_model", "=", self._name),
+                        ("source_id", "=", self.id),
+                        ("state", "not in", ("cancelled", "rejected", "failed")),
+                    ],
+                    limit=1,
+                )
+            )
+            if other:
+                raise UserError(
+                    "%s is already being refunded by treasury instruction %s: cancel it before "
+                    "the credit note pays the customer again (one refund per return)."
+                    % (self.name, other.name)
+                )
         note = request_credit_note(
             self,
             invoice,
@@ -374,6 +397,32 @@ class FixCreditNoteStorefront(models.Model):
         "upay": "mobile_fs",
         "mobile_wallet": "mobile_fs",
     }
+
+    _SF_SOURCES = ("fix.storefront.return", "fix.storefront.rma", "fix.storefront.order")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A04 ERP audit M38-F3: one live credit note per storefront return
+        (or cancelled order). Two paths each raised one for the same 1,150
+        return; a second is refused whoever raises it."""
+        if "source_model" in self._fields:
+            for vals in vals_list:
+                model, sid = vals.get("source_model"), vals.get("source_id")
+                if model in self._SF_SOURCES and sid:
+                    dup = self.sudo().search(
+                        [
+                            ("source_model", "=", model),
+                            ("source_id", "=", sid),
+                            ("state", "!=", "rejected"),
+                        ],
+                        limit=1,
+                    )
+                    if dup:
+                        raise UserError(
+                            "%s #%s is already credited by M20 credit note #%s: one refund per "
+                            "storefront return." % (model, sid, dup.id)
+                        )
+        return super().create(vals_list)
 
     def _fix_refund_method(self):
         invoice = self.invoice_id

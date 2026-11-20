@@ -16,6 +16,8 @@ from odoo.tools.safe_eval import safe_eval
 
 from libs.py.fix_residency import ResidencyError
 
+from .b4_helpers import customer_receipt
+
 SELLER = "fix.marketplace.seller"
 ORDER = "fix.marketplace.order"
 QUOTE = "fix.seller.quote"
@@ -99,6 +101,7 @@ def _order_in(env, state, seller=None, price=2500.0):
     order = _order(env)
     quote = _quote(env, order, seller, price)
     order.action_select_quote(quote)
+    customer_receipt(env, order)  # A04 ERP M12-F1: the customer paid (M20)
     order.write({"state": state})
     return order
 
@@ -108,8 +111,23 @@ def _order_in(env, state, seller=None, price=2500.0):
 # --------------------------------------------------------------------------
 
 
-def test_submit_kyc_without_documents_issues_local_z4_token(odoo_env):
+def _kyc_docs(env, seller):
+    """The seller's KYC documents, attached to the seller (A04 ERP M12-F8)."""
+    env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": SELLER, "res_id": seller.id}
+    )
+
+
+def test_submit_kyc_without_documents_is_refused(odoo_env):
+    """A04 ERP audit M12-F8: KYC was "submitted" (and then verified) on a
+    made-up z4-token with no document behind it. No document, no submission."""
     seller = _seller(odoo_env, verified=False, approved=False)
+    with pytest.raises(UserError, match="KYC documents"), odoo_env.cr.savepoint():
+        seller.action_submit_kyc(
+            nid_number="1990123456789", trade_license_no="TL-77", tin_number="TIN-9"
+        )
+    assert seller.kyc_status == "pending"
+    _kyc_docs(odoo_env, seller)
     seller.action_submit_kyc(
         nid_number="1990123456789", trade_license_no="TL-77", tin_number="TIN-9"
     )
@@ -118,7 +136,7 @@ def test_submit_kyc_without_documents_issues_local_z4_token(odoo_env):
     assert seller.nid_number == "1990123456789"
     assert seller.trade_license_no == "TL-77"
     assert seller.tin_number == "TIN-9"
-    assert seller.kyc_doc_z4_ref.startswith(f"z4-token-{seller.id}-")
+    assert seller.kyc_doc_z4_ref.startswith("attachment:")
     assert _events(odoo_env, "seller.kyc_submitted", SELLER, seller.id) == [
         {
             "seller": seller.name,
@@ -131,8 +149,10 @@ def test_submit_kyc_without_documents_issues_local_z4_token(odoo_env):
 
 def test_submit_kyc_keeps_existing_identity_and_masks_missing_or_short_nid(odoo_env):
     blank = _seller(odoo_env, name="Blank Shop", verified=False)
+    _kyc_docs(odoo_env, blank)
     blank.action_submit_kyc()
     short = _seller(odoo_env, name="Short NID Shop", verified=False, nid_number="123")
+    _kyc_docs(odoo_env, short)
     short.action_submit_kyc()
     assert short.nid_number == "123"
     for seller in (blank, short):
@@ -153,22 +173,23 @@ def test_submit_kyc_routes_documents_through_z4_vault(odoo_env):
     assert seller.kyc_doc_z4_ref == "z4://seller-kyc/abc"
 
 
-def test_submit_kyc_vault_reply_without_key_falls_back_to_token(odoo_env):
+def test_submit_kyc_vault_reply_without_key_is_refused(odoo_env):
+    """A04 ERP M12-F8: no vault key, no token invented in its place."""
     seller = _seller(odoo_env, verified=False)
     with patch("libs.py.fix_residency.ResidencyClient") as client_cls:
         client_cls.return_value.put.return_value = {}
-        seller.action_submit_kyc(doc_payload="scan")
-    assert seller.kyc_doc_z4_ref.startswith(f"z4-token-{seller.id}-")
+        with pytest.raises(UserError, match="Z4 vault"), odoo_env.cr.savepoint():
+            seller.action_submit_kyc(doc_payload="scan")
+    assert not seller.kyc_doc_z4_ref and seller.kyc_status == "pending"
 
 
-def test_submit_kyc_vault_outage_falls_back_to_token(odoo_env, caplog):
+def test_submit_kyc_vault_outage_is_refused(odoo_env):
     seller = _seller(odoo_env, verified=False)
     with patch("libs.py.fix_residency.ResidencyClient") as client_cls:
         client_cls.return_value.put.side_effect = ResidencyError("residency service unreachable")
-        seller.action_submit_kyc(doc_payload="scan")
-    assert seller.kyc_doc_z4_ref.startswith(f"z4-token-{seller.id}-")
-    assert seller.kyc_status == "in_review"
-    assert "fix_residency put fallback" in caplog.text
+        with pytest.raises(UserError, match="Z4 vault"), odoo_env.cr.savepoint():
+            seller.action_submit_kyc(doc_payload="scan")
+    assert seller.kyc_status == "pending"
 
 
 def test_cfo_approval_records_approver(odoo_env):
@@ -235,12 +256,12 @@ def test_reject_kyc_records_reason(odoo_env):
 
 def test_order_created_with_defaults_and_event(odoo_env):
     order = _order(odoo_env, budget=4000)
-    assert order.name == "MKT/New"
+    assert order.name.startswith("MKT/2")  # A04 ERP M12-F13: numbered
     assert order.state == "open"
     assert order.order_type == "service_quote"
     assert order.currency_id == odoo_env.ref("base.BDT")
     assert _events(odoo_env, "marketplace_order.created", ORDER, order.id) == [
-        {"order": "MKT/New", "budget": 4000.0, "type": "service_quote"}
+        {"order": order.name, "budget": 4000.0, "type": "service_quote"}
     ]
 
 
@@ -483,13 +504,12 @@ def test_commission_rate_is_configurable_and_fails_closed(odoo_env):
     params.set_param("cd_marketplace.platform_commission_rate", "0.08")
     assert _order(odoo_env).commission_rate == 0.08
     params.set_param("cd_marketplace.platform_commission_rate", "junk")
-    unset = _order_in(odoo_env, "reviewed", price=2000)
-    assert unset.commission_rate == 0.0
-    with pytest.raises(UserError, match="No platform commission rate"):
-        unset.action_earn_commission()
-    assert unset.state == "reviewed"
+    # A04 ERP M12-F4/F10: with no rate anywhere the job is not even awarded
+    # (fail closed at award, where the one rate is pinned)
+    with pytest.raises(UserError, match="no tier rate"):
+        _order_in(odoo_env, "reviewed", price=2000)
     with pytest.raises(UserError, match="between 0 and 1"):
-        unset.commission_rate = 1.5
+        order.commission_rate = 1.5
 
 
 def test_commission_blocked_by_open_dispute(odoo_env):
@@ -511,8 +531,11 @@ def test_paid_after_commission_once_the_escrow_has_run(odoo_env):
             "delivery_confirmed_at": fields.Datetime.now() - timedelta(days=8),
         }
     )
-    order.action_paid()
-    assert order.state == "paid"
+    # A04 ERP audit M12-F2: with every guard met, the order is still paid out
+    # only by the M53 payout run's bank-confirmed discharge, never by hand
+    with pytest.raises(UserError, match="payout run"):
+        order.action_paid()
+    assert order.state == "commissioned"
 
 
 @pytest.mark.parametrize("state", ["open", "selected", "reviewed", "cancelled", "paid"])
@@ -774,7 +797,7 @@ def test_dispute_sets_48h_sla_and_locks_payout(odoo_env):
     seller = order.selected_quote_id.seller_id
     before = fields.Datetime.now()
     dispute = _dispute(odoo_env, order, seller, disputed_amount=1200, dispute_reason="delay")
-    assert dispute.name == "DSP/New"
+    assert dispute.name.startswith("DSP/2")  # A04 ERP M12-F13: numbered
     assert dispute.state == "raised"
     assert before + timedelta(hours=48) <= dispute.sla_deadline
     assert dispute.sla_deadline <= fields.Datetime.now() + timedelta(hours=48)
@@ -783,7 +806,7 @@ def test_dispute_sets_48h_sla_and_locks_payout(odoo_env):
     assert order.has_open_dispute is True
     assert _events(odoo_env, "marketplace.dispute_raised", DISPUTE, dispute.id) == [
         {
-            "dispute": "DSP/New",
+            "dispute": dispute.name,
             "order": order.name,
             "seller": seller.name,
             "amount": 1200.0,

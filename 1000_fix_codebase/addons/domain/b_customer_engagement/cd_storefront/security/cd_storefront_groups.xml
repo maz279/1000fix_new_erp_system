@@ -61,10 +61,21 @@
             <field name="comment">Writes and publishes storefront banners, pages and collections.</field>
         </record>
 
+        <!-- A04 ERP audit (20 Nov 2026) M38-F5: any internal user could
+             create and write carts and record the customer's terms or the
+             client's approval. Assisted ordering (R08/R34) is this role's. -->
+        <record id="group_fix_storefront_assisted_sales" model="res.groups">
+            <field name="name">Storefront Assisted Sales</field>
+            <field name="privilege_id" ref="privilege_fix_storefront"/>
+            <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">Captures assisted and corporate carts for customers (hotline, branch) and places them through the storefront checkout. The customer's terms and the client's approval are recorded by someone other than the person who captured the cart.</field>
+        </record>
+
         <record id="group_fix_storefront_manager" model="res.groups">
             <field name="name">Storefront Manager</field>
             <field name="privilege_id" ref="privilege_fix_storefront"/>
-            <field name="implied_ids" eval="[(4, ref('group_fix_storefront_operator')), (4, ref('group_fix_storefront_payment_officer')), (4, ref('group_fix_storefront_refund_approver')), (4, ref('group_fix_storefront_merchandiser'))]"/>
+            <field name="implied_ids" eval="[(4, ref('group_fix_storefront_operator')), (4, ref('group_fix_storefront_payment_officer')), (4, ref('group_fix_storefront_refund_approver')), (4, ref('group_fix_storefront_merchandiser')), (4, ref('group_fix_storefront_assisted_sales'))]"/>
             <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
             <field name="comment">Everything an operator, a payment officer and a refund approver do.</field>
         </record>

@@ -13,6 +13,7 @@ import pytest
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from . import test_a08_m53_controls as _base
+from .b4_marketplace_fixtures import link_receipt, marketplace_ready
 
 c = _base.c
 as_ = _base.as_
@@ -300,6 +301,10 @@ def _marketplace_row(c):
         }
     )
     _seller, order = _commissioned_order(c, gross=4000.0)
+    # A04 ERP M12-F1/F9 (setup): the customer paid into M20; the M51 agent
+    # VAT position and the collections role are configured
+    link_receipt(c.env, order, amount=4000.0)
+    marketplace_ready(c.env, c.company, collections_code="101000")
     out = c.env["fix.a04.finance.consumers"].consume_commission_earned(
         {"aggregate": "fix.marketplace.order", "aggregate_id": order.id, "payload": {}}
     )
@@ -386,13 +391,16 @@ def _accrued_for(c, taxable):
     """Proper path for a second referred customer (one commission per customer)."""
     customer = c.env["res.partner"].create({"name": "M53 Referred %s" % uuid.uuid4().hex[:4]})
     inv = _base.paid_invoice(c, taxable, customer=customer)
-    r = as_(c, c.acct)["fix.referral"].create(
+    # A04 ERP audit M40-F4/F10: the referral manager records it, on consent
+    r = as_(c, c.sales)["fix.referral"].create(
         {
             "name": "REF-%s" % uuid.uuid4().hex[:6],
             "partner_id": c.fpartner.id,
             "referred_partner_id": customer.id,
             "company_id": c.company.id,
             "operating_unit_id": c.ou.id,
+            "consent_given": True,
+            "consent_method": "written",
         }
     )
     r.with_user(c.sales).action_convert(invoice=inv)

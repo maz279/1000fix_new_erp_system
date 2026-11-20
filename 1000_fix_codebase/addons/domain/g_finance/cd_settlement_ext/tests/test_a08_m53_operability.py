@@ -15,6 +15,10 @@ from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_settlement_ext.tests.b4_marketplace_fixtures import (
+    link_receipt,
+    marketplace_ready,
+)
 from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
     _commissioned_order,
     accrued_referral,
@@ -451,7 +455,9 @@ def test_m53_15_an_order_earns_one_row_with_its_order_and_scheme(c):  # noqa: F8
     out = Cons.consume_commission_earned(event)
     row = c.env["fix.commission.ledger"].browse(out["id"])
     assert out["created"] and row.marketplace_order_id == order and row.scheme_id == scheme
-    assert row.commission_rate == 0.12 and row.tds_amount > 0
+    # A04 ERP M12-F10: ONE rate - the order's, pinned at award (this order was
+    # staged at 0.10); the scheme in force supplies the TDS
+    assert row.commission_rate == order.commission_rate == 0.10 and row.tds_amount > 0
     # the replay, through either door, finds the same row
     assert Cons.consume_commission_earned(event)["created"] is False
     assert c.env["fix.commission.ledger"].consume_commission_earned(event)["id"] == row.id
@@ -460,6 +466,10 @@ def test_m53_15_an_order_earns_one_row_with_its_order_and_scheme(c):  # noqa: F8
     )
     # and finance can accrue it (a row with no order link could not)
     declare_marketplace_agent(c.env, c.company)
+    # A04 ERP M12-F1/F9 (setup): the customer paid into M20, and the declared
+    # M51 agent VAT position and the collections role are configured
+    link_receipt(c.env, order, amount=order.selected_quote_id.quoted_price)
+    marketplace_ready(c.env, c.company, collections_code="101000")
     row.with_user(c.acct).action_post_to_gl()
     assert row.state == "accrued" and row.gl_move_id
 
@@ -654,6 +664,10 @@ def test_m53_4_link_source_checks_payee_and_amount_then_it_accrues(c, p03):  # n
     assert res["success"], res
     assert row.marketplace_order_id == order
     declare_marketplace_agent(c.env, c.company)
+    # A04 ERP M12-F1/F9 (setup): the customer paid into M20, and the declared
+    # M51 agent VAT position and the collections role are configured
+    link_receipt(c.env, order, amount=order.selected_quote_id.quoted_price)
+    marketplace_ready(c.env, c.company, collections_code="101000")
     row.with_user(c.acct).action_post_to_gl()
     assert row.state == "accrued" and row.scheme_id and row.tds_amount > 0
 
@@ -1065,10 +1079,16 @@ def test_m53_12_seller_with_no_scheme_is_refused_at_accrual(c):  # noqa: F811
         }
     )
     declare_marketplace_agent(c.env, c.company)
+    # A04 ERP M12-F1/F9 (setup): the customer paid into M20, and the declared
+    # M51 agent VAT position and the collections role are configured
+    link_receipt(c.env, order, amount=order.selected_quote_id.quoted_price)
+    marketplace_ready(c.env, c.company, collections_code="101000")
     row.with_user(c.acct).action_post_to_gl()
-    assert row.state == "accrued" and row.commission_rate == 0.08 and row.scheme_id
-    # no PSR on file: the non-filer uplift applies (10% x 1.5 on 4,000)
-    assert row.tds_amount == 600.0 and not row.psr_verified
+    # A04 ERP M12-F10: the order's pinned rate (0.10) stays the one rate; the
+    # scheme found at accrual supplies the TDS
+    assert row.state == "accrued" and row.commission_rate == 0.10 and row.scheme_id
+    # no PSR on file: the non-filer uplift applies (10% of the 5,000 commission x 1.5)
+    assert row.tds_amount == 750.0 and not row.psr_verified
 
 
 # ================================================================= M53-13: generator and price

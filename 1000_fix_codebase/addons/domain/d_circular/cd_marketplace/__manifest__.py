@@ -5,7 +5,7 @@
     "description": """
 CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.4.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Marketplace & Seller Ecosystem",
@@ -24,6 +24,9 @@ CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
         # (fix.approvable.mixin, M63). Already loaded before this module
         # (cd_service_order depends on it).
         "cd_workflow_engine",
+        # A04 ERP audit (20 Nov 2026) M12-F1/F3: the customer's money is an M20
+        # receipt, refunded by an M20 refund (cd_billing_engine).
+        "cd_billing_engine",
     ],
     "data": [
         "security/cd_marketplace_groups.xml",
@@ -33,6 +36,7 @@ CD-M12-01 (P10) — Marketplace & Seller Ecosystem.
         "data/ir_config_parameter_data.xml",
         "data/ir_cron.xml",
         "data/ir_sequence_data.xml",
+        "data/fix_marketplace_consumers.xml",
         "views/cd_marketplace_views.xml",
     ],
     "installable": True,

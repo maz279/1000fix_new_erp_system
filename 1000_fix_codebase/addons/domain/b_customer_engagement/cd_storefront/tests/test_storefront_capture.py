@@ -17,6 +17,7 @@ from .test_a04_c2_c13_storefront import (
     _mk,
     _paid,
     _placed,
+    released_card,
     w,  # noqa: F401 - the shared storefront world
 )
 
@@ -47,6 +48,7 @@ def c(w):
             "categ_id": x.sub_category.id,
         }
     )
+    released_card(env, x.stocked, 1304.35)  # A04 ERP M38-F1: its M11 price
     x.warehouse = env["stock.warehouse"].search([("company_id", "=", env.company.id)], limit=1)
     return x
 
@@ -107,6 +109,7 @@ def test_collections_merchandise_only_sellable_items(c):
     other = env["product.template"].create(
         {"name": "M38C Case", "list_price": 300.0, "sale_ok": True}
     )
+    released_card(env, other, 260.87)  # A04 ERP M38-F1
     cross = Coll.with_user(c.merch).create(
         {
             "name": "Charger companions",
@@ -158,7 +161,7 @@ def test_the_workspace_grid_may_repost_the_servers_price(c):
     line = cart.line_ids
     line.with_user(w.clerk).write({"unit_price": line.unit_price, "quantity": 2})
     assert line.quantity == 2
-    with pytest.raises(UserError, match="catalogue"), w.env.cr.savepoint():
+    with pytest.raises(UserError, match="M11"), w.env.cr.savepoint():
         line.with_user(w.clerk).write({"unit_price": 1.0})
 
 
@@ -181,12 +184,15 @@ def test_a_refurbished_unit_needs_the_terms_accepted(c):
     with pytest.raises(UserError, match="terms"), env.cr.savepoint():
         cart.action_place_order(shipping_address="Road 7")
     cart.with_user(w.clerk).write({"terms_method": "otp"})
-    with pytest.raises(UserError, match="reference"), env.cr.savepoint():
+    # A04 ERP M38-F5: the capturing clerk never records the customer's terms
+    with pytest.raises(UserError, match="captured cart"), env.cr.savepoint():
         cart.with_user(w.clerk).action_record_terms()
+    with pytest.raises(UserError, match="reference"), env.cr.savepoint():
+        cart.with_user(w.operator).action_record_terms()
     cart.with_user(w.clerk).write({"terms_reference": "OTP-55121"})
     with pytest.raises(UserError, match="workflow"), env.cr.savepoint():
         cart.with_user(w.clerk).write({"terms_accepted_at": fields.Datetime.now()})
-    cart.with_user(w.clerk).action_record_terms()
+    cart.with_user(w.operator).action_record_terms()
     order = cart.action_place_order(shipping_address="Road 7")
     assert order and item.state == "reserved"
 
@@ -330,8 +336,30 @@ def test_a_slot_change_books_the_new_slot(c):
 
 # ============================================================ page 6: exposure
 def _stock(c, product, qty):
+    """A04 ERP M38-F11: online exposure reads the M15 ledger (fix.stock.onhand)."""
+    env = c.env
     variant = product.product_variant_id
-    c.env["stock.quant"].sudo()._update_available_quantity(variant, c.warehouse.lot_stock_id, qty)
+    part = env["fix.spare.part"].search([("product_id", "=", variant.id)], limit=1) or env[
+        "fix.spare.part"
+    ].create(
+        {
+            "name": product.name,
+            "part_number": "M38C-%s" % product.id,
+            "unit_cost": 100.0,
+            "product_id": variant.id,
+        }
+    )
+    loc = env["fix.stock.location"].search([("code", "=", "M38CST")], limit=1) or env[
+        "fix.stock.location"
+    ].create(
+        {
+            "name": "M38C store",
+            "code": "M38CST",
+            "location_type": "central",
+            "operating_unit_id": c.w.ou.id,
+        }
+    )
+    env["fix.stock.onhand"]._apply(part, loc, "owned", qty, 100.0)
 
 
 def _policy(c, author=None, **vals):
@@ -475,10 +503,11 @@ def test_a_corporate_order_needs_its_po_and_the_clients_approval(c, corp):
     cart.with_user(w.clerk).write(
         {"client_approver_id": corp.buyer.id, "client_approval_ref": "mail 12"}
     )
+    # A04 ERP M38-F5: an operator records it, never the capturing clerk
     with pytest.raises(UserError, match="own approvers"), env.cr.savepoint():
-        cart.with_user(w.clerk).action_record_client_approval()
+        cart.with_user(w.operator).action_record_client_approval()
     cart.with_user(w.clerk).write({"client_approver_id": corp.boss.id})
-    cart.with_user(w.clerk).action_record_client_approval()
+    cart.with_user(w.operator).action_record_client_approval()
     with pytest.raises(UserError, match="fixed"), env.cr.savepoint():
         cart.line_ids.with_user(w.clerk).write({"quantity": 5})
     with pytest.raises(UserError, match="cannot be changed"), env.cr.savepoint():
@@ -492,6 +521,7 @@ def test_a_corporate_order_stays_in_the_agreed_catalogue(c, corp):
     outside = env["product.template"].create(
         {"name": "M38C Sofa", "list_price": 100.0, "sale_ok": True}
     )
+    released_card(env, outside, 86.96)  # A04 ERP M38-F1
     cart = (
         env["fix.storefront.cart"]
         .with_user(w.clerk)
