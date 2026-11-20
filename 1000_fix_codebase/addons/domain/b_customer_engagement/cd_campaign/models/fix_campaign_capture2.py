@@ -1082,6 +1082,11 @@ class FixCampaignCreativeContent(models.Model):
         return super().action_request_approval(justification=justification)
 
     def action_approve(self):
+        # who may approve is decided before what is approved: pressed outside
+        # the approver's inbox, the routing refusal answers first (a content
+        # error told an unauthorised user what to fix to get it through)
+        for rec in self:
+            rec._approval_assert_routed()
         self._assert_publishable()
         res = super().action_approve()
         for rec in self:

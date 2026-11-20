@@ -90,6 +90,10 @@ def w(odoo_env):
     x.clerk_env = env(user=x.clerk.id)
     x.ops = _user(env, "m35p2_ops_director", OVERRIDE)
     x.ops_env = env(user=x.ops.id)
+    # a creative's approval is routed (M63): someone other than its author
+    # must hold the approving tier, or Request Approval rightly refuses to
+    # route it to nobody (as in test_a03_p2_campaign's approver fixture)
+    x.approver = _user(env, "m35p2_approver", "cd_entity_config.group_dofa_tier_2")
     Partner = env["res.partner"]
     x.p = [Partner.create({"name": "M35P2 Party %d" % i}) for i in range(1, 21)]
     n = next(_SEQ)

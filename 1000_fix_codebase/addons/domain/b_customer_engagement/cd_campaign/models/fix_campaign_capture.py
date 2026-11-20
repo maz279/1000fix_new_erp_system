@@ -408,11 +408,17 @@ class FixCampaignSpend(models.Model):
         if not self._fix_guard_open():
             # the P03 form posts every field it shows on save: an unchanged
             # value is not a change
+            # workflow-owned fields (state, the void stamps) are refused by the
+            # guard mixin with its own message, as on every guarded model; the
+            # spend's own rule covers the figures it was recorded with
+            guarded = self._fix_guarded_fields()
             changed = {
                 n
                 for n in vals
                 for rec in self
-                if n in rec._fields and rec._fix_guard_differs(n, vals[n], rec[n])
+                if n in rec._fields
+                and n not in guarded
+                and rec._fix_guard_differs(n, vals[n], rec[n])
             }
             if changed:
                 raise UserError(
