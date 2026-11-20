@@ -220,6 +220,7 @@ WRITABLE = {
             "tested_at",
         }
     ),
+    "fix.data.case.read.log": frozenset(),
     "fix.data.cleanroom.slot": frozenset(
         {
             "case_id",
@@ -335,11 +336,17 @@ WRITABLE = {
             "reason_type",
         }
     ),
+    "fix.data.sanitisation.rule": frozenset(),
     "fix.data.wipe.certificate": frozenset(
         {
+            "case_id",
+            "destruction_photo_attachment_id",
             "device_id",
             "duration_seconds",
+            "lab_storage_ref",
+            "media_kind",
             "method",
+            "purpose",
             "sector_count",
             "serial_number",
             "tool_name",
@@ -1090,10 +1097,12 @@ WRITABLE = {
             "high_value_device",
             "ipc_class_target",
             "ipc_visual_inspection_passed",
+            "maintenance_request_id",
             "order_id",
             "post_rework_photo_attachment_id",
             "pre_rework_photo_attachment_id",
             "priority",
+            "protocol_id",
             "reflow_profile_name",
             "repair_action_summary",
             "repair_level",

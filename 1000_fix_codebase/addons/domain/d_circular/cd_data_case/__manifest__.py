@@ -9,7 +9,7 @@ Built on the existing estate (the layered model: compose, never
 duplicate). AS-02 chatter + AS-03 company/OU on every transactional
 model; AS-10 Monetary on every money field; events registered (AS-08).
 """,
-    "version": "19.0.2.1.1",
+    "version": "19.0.2.1.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Services & Secure Data Handling",
@@ -25,8 +25,10 @@ model; AS-10 Monetary on every money field; events registered (AS-08).
         "security/cd_data_case_groups.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
+        "security/fix_data_case_a02r2_rules.xml",
         "data/ir_sequence_data.xml",
         "data/ir_cron.xml",
+        "data/fix_data_case_a02r2_data.xml",
         "views/cd_data_case_views.xml",
     ],
     "installable": True,

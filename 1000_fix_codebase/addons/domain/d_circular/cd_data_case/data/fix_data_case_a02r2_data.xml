@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP audit pass 2 (20 Nov 2026), M06 owner decisions D16 / D17. -->
+<odoo>
+    <data noupdate="1">
+        <!-- D17: automatic purge is on by default in code (30 days after the
+             hand-over, unless on legal hold; an existing
+             cd_data_case.retention_auto_purge=0 still turns it off). An
+             overdue case escalates to the lab managers after these days. -->
+        <record id="param_purge_escalate_after_days" model="ir.config_parameter">
+            <field name="key">cd_data_case.purge_escalate_after_days</field>
+            <field name="value">3</field>
+        </record>
+
+        <!-- D16: the sanitisation technique matrix (the Quality Manager amends
+             it). High-confidentiality or resale SSD / flash: Purge or crypto
+             erase only; HDD: Clear for internal reuse, Purge for resale.
+             Physical destruction is always allowed (witness + photo). -->
+        <record id="sanitisation_flash_high" model="fix.data.sanitisation.rule">
+            <field name="media_kind">flash</field>
+            <field name="confidentiality_level">high</field>
+            <field name="disposition">any</field>
+            <field name="allow_clear" eval="False"/>
+        </record>
+        <record id="sanitisation_flash_resale" model="fix.data.sanitisation.rule">
+            <field name="media_kind">flash</field>
+            <field name="confidentiality_level">any</field>
+            <field name="disposition">resale</field>
+            <field name="allow_clear" eval="False"/>
+        </record>
+        <record id="sanitisation_flash_other" model="fix.data.sanitisation.rule">
+            <field name="media_kind">flash</field>
+            <field name="confidentiality_level">any</field>
+            <field name="disposition">any</field>
+            <field name="allow_clear" eval="True"/>
+        </record>
+        <record id="sanitisation_hdd_internal" model="fix.data.sanitisation.rule">
+            <field name="media_kind">hdd</field>
+            <field name="confidentiality_level">any</field>
+            <field name="disposition">internal_reuse</field>
+            <field name="allow_clear" eval="True"/>
+        </record>
+        <record id="sanitisation_hdd_resale" model="fix.data.sanitisation.rule">
+            <field name="media_kind">hdd</field>
+            <field name="confidentiality_level">any</field>
+            <field name="disposition">resale</field>
+            <field name="allow_clear" eval="False"/>
+        </record>
+        <record id="sanitisation_hdd_high" model="fix.data.sanitisation.rule">
+            <field name="media_kind">hdd</field>
+            <field name="confidentiality_level">high</field>
+            <field name="disposition">any</field>
+            <field name="allow_clear" eval="False"/>
+        </record>
+        <record id="sanitisation_hdd_other" model="fix.data.sanitisation.rule">
+            <field name="media_kind">hdd</field>
+            <field name="confidentiality_level">any</field>
+            <field name="disposition">any</field>
+            <field name="allow_clear" eval="True"/>
+        </record>
+    </data>
+</odoo>

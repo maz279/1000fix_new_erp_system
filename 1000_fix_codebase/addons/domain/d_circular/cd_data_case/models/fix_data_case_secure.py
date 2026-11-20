@@ -52,6 +52,8 @@ _logger = logging.getLogger(__name__)
 RETENTION_DAYS_PARAM = "cd_data_case.retention_days"
 RETENTION_DAYS_DEFAULT = 30
 AUTO_PURGE_PARAM = "cd_data_case.retention_auto_purge"
+# A02 pass 2 M06-11 (D17): automatic purge is ON unless the parameter says off
+AUTO_PURGE_DEFAULT = True
 IMAGE_REQUIRED_PARAM = "cd_data_case.recovery_requires_verified_image"
 IMAGE_SECOND_PERSON_PARAM = "cd_data_case.image_verification_second_person"
 HANDOVER_TTL_MINUTES = 10
@@ -814,9 +816,12 @@ class FixDataRecoveryCaseSecure(models.Model):
                 "%s needs the reason (at least %d characters)." % (what, SETTLEMENT_REASON_MIN)
             )
         for rec in self:
-            if rec.state != "recovered":
+            # A02 pass 2 M06-06: an unrecoverable case can owe its donor fee
+            # (or the quoted fee without the guarantee) before its media goes back
+            if rec.state not in ("recovered", "unrecoverable"):
                 raise UserError(
-                    "%s is recorded before the handover of a recovered case (case %s is '%s')."
+                    "%s is recorded before the handover of a recovered case, or before the media "
+                    "of an unrecoverable case goes back (case %s is '%s')."
                     % (what, rec.name, rec.state)
                 )
             if rec.settlement_exception:
@@ -870,7 +875,7 @@ class FixDataRecoveryCaseSecure(models.Model):
         otherwise (or with no such certificate) flag the case once for its
         staff. Never purges without the certificate: action_purge keeps the
         P0 gate (verified, unchanged log, bound to this serial, one case)."""
-        auto = _param_on(self.env, AUTO_PURGE_PARAM, False)
+        auto = _param_on(self.env, AUTO_PURGE_PARAM, AUTO_PURGE_DEFAULT)
         today = fields.Date.context_today(self)
         # Cases handed over before the retention clock existed get one, from
         # their last change, so they are not retained forever.
@@ -901,7 +906,7 @@ class FixDataRecoveryCaseSecure(models.Model):
                     if auto:
                         try:
                             cert = case._purge_certificate(None)
-                            reason = cert._fix_certify_denial(case.media_serial_number)
+                            reason = case._m06_purge_denial(cert)
                         except UserError as exc:
                             cert, reason = None, str(exc)
                         if cert and not reason:

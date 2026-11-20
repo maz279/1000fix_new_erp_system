@@ -52,12 +52,17 @@ SURFACES = {
             "action_purge",
             "action_close",
             "action_access_recovered_data",
+            # A02 pass 2 M06-01 / M06-03: the lab manager's customer
+            # correction, and the receiver's confirmation of a hand-off
+            "action_correct_customer",
+            "action_confirm_custody",
         },
     },
     "fix.data.wipe.certificate": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_verify", "action_mark_failed"},
+        # A02 pass 2 M06-09: the second person witnesses a destruction
+        "actions": {"action_verify", "action_mark_failed", "action_witness_destruction"},
     },
     "fix.z4.access.audit": {
         "order": "access_time desc",
@@ -80,6 +85,8 @@ SURFACES = {
             "action_confirm_seal_break",
             "action_return",
             "action_destroy",
+            # A02 pass 2 M06-03: the receiver confirms a move or a return
+            "action_confirm_move",
         },
     },
     "fix.data.cleanroom.slot": {
@@ -112,6 +119,10 @@ SURFACES = {
     # M06 capture pass 2 (2026-11-18): the records five pages could not
     # capture (cd_data_case models/fix_data_capture.py), and the custody
     # ledger every move writes, which no screen listed.
+    # A02 pass 2: the sanitisation matrix (D16, the Quality Manager keeps it)
+    # and the case read log (M06-02, lab managers read it)
+    "fix.data.sanitisation.rule": {"order": "media_kind, id", "limit": 200, "actions": set()},
+    "fix.data.case.read.log": {"order": "read_at desc, id desc", "limit": 300, "actions": set()},
     "fix.data.custody.event": {
         "order": "event_at desc, id desc",
         "limit": 200,
@@ -186,10 +197,19 @@ def kpis(env):
     )
 
     # eval turnaround: average hours media-received → verdict
-    evals = Eval.search([*domain, ("evaluated_at", "!=", False)], limit=200)
+    evals = Eval.search([*domain, ("evaluated_at", "!=", False)])
     eval_turnaround = round(sum(e.eval_hours for e in evals) / len(evals), 1) if evals else None
 
     purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
+    # A02 pass 2 M06-11 (D17): handed-over cases past their retention date
+    purge_overdue = Case.search_count(
+        [
+            *domain,
+            ("state", "=", "handover"),
+            ("retention_until", "!=", False),
+            ("retention_until", "<", fields.Date.context_today(Case)),
+        ]
+    )
 
     return {
         "active_cases": active_cases,
@@ -198,6 +218,7 @@ def kpis(env):
         "destruction_certs_mtd": destruction_certs_mtd,
         "eval_turnaround": eval_turnaround,
         "purge_verifications": purge_verifications,
+        "purge_overdue": purge_overdue,
     }
 
 
@@ -254,9 +275,7 @@ def _require_data_operator(env, title):
 
 def _success_by_specialism(env, **params):
     Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
-    cases = Case.search(
-        [("company_id", "in", env.companies.ids), ("state", "in", DECIDED_STATES)], limit=400
-    )
+    cases = Case.search([("company_id", "in", env.companies.ids), ("state", "in", DECIDED_STATES)])
     buckets = {}
     labels = dict(type(Case).specialism.selection)
     for case in cases:
@@ -294,15 +313,23 @@ def _success_by_specialism(env, **params):
 
 
 def _case_cycle_time(env, **params):
+    # A02 pass 2 M06-08 / X5-07: the caller's companies, the data-lab role,
+    # every case (no cap), and the clock stops at the hand-over to the customer
+    _require_data_operator(env, "Case Cycle Time")
     Case = env["fix.data.recovery.case"].sudo()
-    cases = Case.search([("state", "in", ("purged", "closed", "unrecoverable"))], limit=300)
+    cases = Case.search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "in", ("purged", "closed", "unrecoverable")),
+        ]
+    )
     rows = []
     closed_total = purged_total = unrecoverable_total = 0
     n_closed = n_purged = n_unrecoverable = 0
     for case in cases:
         days = None
         if case.received_at:
-            end = case.write_date or case.received_at
+            end = case.handover_at or case.write_date or case.received_at
             days = round((end - case.received_at).total_seconds() / 86400.0, 1)
         if days is None:
             continue
@@ -337,7 +364,10 @@ def _case_cycle_time(env, **params):
         "cols": ["outcome", "cases", "avg_days"],
         "labels": {"outcome": "Outcome", "cases": "Cases", "avg_days": "Avg Days"},
         "rows": rows,
-        "notes": ["Media received → last write, per terminal state."],
+        "notes": [
+            "Media received → hand-over to the customer (the last change for a case never "
+            "handed over), per terminal state; this company's cases."
+        ],
     }
 
 
@@ -356,7 +386,7 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
         domain.append(("accepted_at", ">=", start))
     if end:
         domain.append(("accepted_at", "<=", end))
-    quotes = Quote.search(domain, limit=300)
+    quotes = Quote.search(domain)
     if not quotes:
         return {
             "title": "Data Service Revenue",
@@ -412,7 +442,8 @@ def _destruction_audit(env, **params):
     _require_data_operator(env, "Destruction & Purge Audit")
     Case = env["fix.data.recovery.case"].sudo()
     Cert = env["fix.data.wipe.certificate"].sudo()
-    purged = Case.search([("state", "=", "purged")], limit=200)
+    fence = [("company_id", "in", env.companies.ids)]
+    purged = Case.search([*fence, ("state", "=", "purged")])
     rows = [
         {
             "case": c.name,
@@ -424,7 +455,7 @@ def _destruction_audit(env, **params):
         }
         for c in purged
     ]
-    pending = Cert.search([("sanitization_status", "=", "pending_verification")], limit=100)
+    pending = Cert.search([*fence, ("sanitization_status", "=", "pending_verification")])
     return {
         "title": "Destruction & Purge Audit",
         "cols": ["case", "customer", "certificate", "method", "verification", "verified_at"],
@@ -445,8 +476,9 @@ def _destruction_audit(env, **params):
 
 
 def _backup_compliance(env, **params):
+    _require_data_operator(env, "Backup Compliance")
     Plan = env["fix.data.backup.plan"].sudo()
-    plans = Plan.search([], limit=300)
+    plans = Plan.search([("company_id", "in", env.companies.ids)])
     if not plans:
         return {
             "title": "Backup Restore-Test Compliance",
@@ -507,7 +539,12 @@ def _recovered_inventory(env, **params):
     Attachment = env["ir.attachment"].sudo()
     states = dict(type(Case).state.selection)
     types = dict(env["fix.data.recovered.inventory"]._fields["file_type"].selection)
-    cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
+    cases = Case.search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "in", ("recovering", "recovered", "handover")),
+        ]
+    )
     rows = []
     for case in cases:
         atts = Attachment.search(
