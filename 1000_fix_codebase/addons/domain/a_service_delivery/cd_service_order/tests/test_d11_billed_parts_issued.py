@@ -100,9 +100,11 @@ def _part_line(w, qty=1.0, product=None):
 LABOUR = {"line_type": "labour", "description": "bench labour", "quantity": 1, "unit_price": 500.0}
 
 
-def _delivered(w, lines):
+def _delivered(w, lines, during_repair=None):
     """Diagnosis -> estimate (with these lines) approved -> repair -> QC ->
-    ready -> paid at the counter -> handed over. Returns the order."""
+    ready -> paid at the counter -> handed over. Returns the order.
+    during_repair(o) runs while the order is in repair (A06 A09: a part is
+    returned to the store only while the job is still open)."""
     o = order(w, branch_id=w.store_branch.id)
     o.action_intake()
     o.action_start_diagnostic()
@@ -110,6 +112,8 @@ def _delivered(w, lines):
     est = _estimate(w, o, lines)
     assert o.state == "approved"
     o.action_start_repair()
+    if during_repair:
+        during_repair(o)
     o.action_submit_qc()
     qc = (
         w.env["fix.qc.checklist"]
@@ -174,13 +178,32 @@ def test_d11_a_partial_issue_is_refused_with_the_shortfall(d11):
 
 
 def test_d11_a_returned_issue_does_not_count(d11):
+    """A part issued and returned during the repair is not an issue of the
+    billed part. (A06 ERP audit A09: the return happens while the job is open;
+    a part is never returned from a delivered order - see below.)"""
     w = d11
-    o = _delivered(w, [_part_line(w)])
-    issue = _fit(w, o).m15_consumption_id
-    issue.sudo().action_return_part(reason="wrong_diagnosis")
+    seen = {}
+
+    def fit_and_return(o):
+        issue = _fit(w, o).m15_consumption_id
+        issue.sudo().action_return_part(reason="wrong_diagnosis")
+        seen["issue"] = issue
+
+    o = _delivered(w, [_part_line(w)], during_repair=fit_and_return)
+    issue = seen["issue"]
     assert issue.state == "returned" and _onhand(w) == 5.0
     msg = attempt(w, lambda: o.with_user(w.clerk).action_close()) or ""
     assert "issued 0" in msg and o.state == "delivered"
+
+
+def test_d11_a_part_is_not_returned_from_a_delivered_order(d11):
+    """A06 ERP audit A09: once the customer has the device, the issue stands;
+    a 'return' would put stock back and reverse the job cost after billing."""
+    w = d11
+    o = _delivered(w, [_part_line(w)])
+    issue = _fit(w, o).m15_consumption_id
+    msg = attempt(w, lambda: issue.sudo().action_return_part(reason="wrong_diagnosis")) or ""
+    assert msg and issue.state == "consumed" and _onhand(w) == 4.0
 
 
 def test_d11_another_orders_issue_does_not_count(d11):

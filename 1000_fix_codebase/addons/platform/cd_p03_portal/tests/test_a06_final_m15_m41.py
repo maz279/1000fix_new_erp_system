@@ -157,8 +157,22 @@ def test_a1_serial_control_cannot_flip_while_stock_is_held(s):
 
 # =========================================================== A2 stock location
 def test_a2_a_van_can_be_created_on_the_form_with_its_custodian(s):
+    # A06 ERP audit A36: naming a van's custodian is the Inventory Controller's
+    # (a storekeeper could otherwise hand stock to any technician)
     res = s.write(
         s.keeper,
+        "fix.stock.location",
+        {
+            "name": "A6FS Van K",
+            "code": "A6K-" + s.tag,
+            "location_type": "van",
+            "technician_id": s.tech.id,
+            "operating_unit_id": s.ou.id,
+        },
+    )
+    assert "error" in res, res
+    res = s.write(
+        s.controller,
         "fix.stock.location",
         {
             "name": "A6FS Van",

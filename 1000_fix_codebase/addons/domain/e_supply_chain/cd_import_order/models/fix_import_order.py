@@ -22,6 +22,7 @@ from .fix_import_common import (
     refuse_locked,
     require_group,
     schedule_alert,
+    stock_realtime,
     today,
 )
 
@@ -372,7 +373,16 @@ class FixImportOrder(models.Model):
             # M44-1: the goods value reaches the GL once, at receipt (Dr stock
             # valuation / Cr GRNI). Accounts are resolved before anything moves.
             company = rec.company_id
-            stock_account = import_account(rec.env, company, "inventory")
+            realtime = stock_realtime(rec.env, company)
+            Suspense = rec.env["fix.inventory.valuation.suspense"].sudo()
+            # A06 D1: in a real-time company each part's own stock account at
+            # the receiving location's branch (never the company's first OU)
+            stock_account = None if realtime else import_account(rec.env, company, "inventory")
+            receive_ou = (
+                Suspense._fix_location_ou(rec.location_id, company)
+                if realtime
+                else rec.operating_unit_id
+            )
             grni_account = import_account(rec.env, company, "grni")
             journal = import_journal(rec.env, company)
             su = rec.sudo()
@@ -466,7 +476,8 @@ class FixImportOrder(models.Model):
                 receipt = Receipt.create(dict(receipt_vals, line_ids=receipt_lines))
                 if receipt.state == "draft":
                     receipt.action_inspect()
-                receipt.action_post()
+                if not realtime:
+                    receipt.action_post()
             serial_receipt = Receipt.browse()
             if serial_lines:
                 serial_receipt = Receipt.create(
@@ -489,6 +500,28 @@ class FixImportOrder(models.Model):
                 2,
             )
             ref = "Import receipt %s (%s)" % (rec.name, receipt.name)
+            if realtime:
+                # one Dr line per part stock account (brand), same total
+                stock_lines = {}
+                for line in rec.line_ids:
+                    if line.id not in received_qty:
+                        continue
+                    acct = Suspense._fix_stock_account(line.part_id, company)
+                    stock_lines[acct] = stock_lines.get(acct, 0.0) + (
+                        line._goods_value_bdt() * received_qty[line.id] / line.quantity
+                    )
+                stock_lines = {a: round(v, 2) for a, v in stock_lines.items()}
+                if stock_lines:
+                    last = list(stock_lines)[-1]
+                    stock_lines[last] = round(
+                        stock_lines[last] + goods - sum(stock_lines.values()), 2
+                    )
+                goods_lines = [
+                    (acct, "Goods received %s" % rec.name, value)
+                    for acct, value in stock_lines.items()
+                ]
+            else:
+                goods_lines = [(stock_account, "Goods received %s" % rec.name, goods)]
             goods_move = post_import_move(
                 rec.env,
                 company,
@@ -496,13 +529,29 @@ class FixImportOrder(models.Model):
                 today(rec),
                 ref,
                 [
-                    (stock_account, "Goods received %s" % rec.name, goods),
+                    *goods_lines,
                     (grni_account, "GRNI %s" % (rec.purchase_order_id.name or rec.name), -goods),
                 ],
-                operating_unit=rec.operating_unit_id,
+                operating_unit=receive_ou,
             )
             if estimate:
-                estimate._landed_post_estimate_entry(receipt)
+                estimate._landed_post_estimate_entry(
+                    receipt,
+                    shares=(
+                        {
+                            ln.id: received_qty.get(ln.id, 0.0) / ln.quantity
+                            for ln in rec.line_ids
+                            if ln.quantity
+                        }
+                        if realtime
+                        else None
+                    ),
+                    operating_unit=receive_ou,
+                )
+            if realtime and receipt_lines:
+                # the import posted the journal itself: M15 links its
+                # valuation rows to it instead of posting them again
+                receipt.with_context(fix_stock_external_move_id=goods_move.id).action_post()
             rec._guarded().write(
                 {
                     "state": "received",
@@ -536,6 +585,17 @@ class FixImportOrder(models.Model):
                 },
             )
         return True
+
+    def _import_goods_move_for(self, receipt):
+        """A06 D1: the import's own goods entry a later-posted receipt of this
+        import (the serialised draft) belongs to, in a real-time company."""
+        order = self.sudo().search(
+            ["|", ("receipt_id", "=", receipt.id), ("serial_receipt_id", "=", receipt.id)],
+            limit=1,
+        )
+        if order and order.goods_move_id and stock_realtime(self.env, order.company_id):
+            return order.goods_move_id
+        return self.env["account.move"]
 
     def _import_receipts(self):
         """The M15 receipts of this import (plain and serialised)."""
@@ -866,3 +926,23 @@ class FixImportOrderLine(models.Model):
         if not self.env.su and self._line_locked():
             raise UserError(self._PINNED)
         return super().unlink()
+
+
+class FixStockReceiptImport(models.Model):
+    """A06 D1: a receipt of an import that is posted after the import's own
+    goods entry (the serialised draft, once the store captures each serial)
+    names that entry to M15's posting engine, so the goods value reaches the
+    GL once (the import already debited stock / credited GRNI at receipt)."""
+
+    _inherit = "fix.stock.receipt"
+
+    def action_post(self):
+        if self.env.context.get("fix_stock_external_move_id"):
+            return super().action_post()
+        Order = self.env["fix.import.order"]
+        result = True
+        for rec in self:
+            move = Order._import_goods_move_for(rec)
+            target = rec.with_context(fix_stock_external_move_id=move.id) if move else rec
+            result = super(FixStockReceiptImport, target).action_post()
+        return result

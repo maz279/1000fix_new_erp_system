@@ -44,6 +44,7 @@ from .fix_import_common import (
     require_group,
     require_other_person,
     schedule_alert,
+    stock_realtime,
     today,
 )
 
@@ -3226,6 +3227,34 @@ class FixImportLanded(models.Model):
             out.append((ln, total, basis))
         return out
 
+    def _landed_network_split(self, ln, to_stock, Onhand):
+        """A06 D1: the same proportional split as _landed_revalue_network,
+        without revaluing: [(bucket, amount)] so a real-time company can post
+        one stock line per bucket (each at its own branch) before M15 links
+        its revaluation rows to that entry."""
+        buckets = Onhand.search(
+            [
+                ("part_id", "=", ln.part_id.id),
+                ("company_id", "=", self.company_id.id),
+                ("ownership_class", "=", "owned"),
+                ("stock_status", "=", "unrestricted"),
+                ("qty", ">", 0),
+            ]
+        )
+        whole = sum(buckets.mapped("qty"))
+        if not buckets or whole <= 0:
+            return []
+        out, done = [], 0.0
+        for idx, bucket in enumerate(buckets):
+            if idx == len(buckets) - 1:
+                amount = round(to_stock - done, 2)
+            else:
+                amount = round(to_stock * bucket.qty / whole, 2)
+            done = round(done + amount, 2)
+            if amount:
+                out.append((bucket, amount))
+        return out
+
     def _landed_revalue_network(self, ln, to_stock, ref, Onhand):
         """M44-13: the share still in stock is revalued WHEREVER it now is:
         every owned, unrestricted bucket of the part in the company, in
@@ -3329,30 +3358,41 @@ class FixImportLanded(models.Model):
             rec._guarded().write({"state": "estimated", "posted_by_id": rec.env.user.id})
         return True
 
-    def _landed_post_estimate_entry(self, receipt):
+    def _landed_post_estimate_entry(self, receipt, shares=None, operating_unit=None):
         """At receipt: the estimate enters stock through the receipt's unit
-        cost; the GL takes Dr Inventory / Cr Landed-cost accrual."""
+        cost; the GL takes Dr Inventory / Cr Landed-cost accrual.
+
+        A06 D1 (real-time company, `shares` given: order line id -> received
+        share): each part's own stock account takes exactly the estimate the
+        receipt's unit cost carries (line estimate x received share), at the
+        receiving branch, so the GL equals the stock valuation."""
         self.ensure_one()
         company = self.company_id
+        accrual = import_account(self.env, company, "landed_accrual")
+        label = "Provisional landed cost %s" % self.order_id.name
+        if shares is not None:
+            Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+            by_account = {}
+            for al in self.line_ids:
+                share = shares.get(al.order_line_id.id, 0.0)
+                amount = round((al.amount or 0.0) * share, 2)
+                if not amount:
+                    continue
+                acct = Suspense._fix_stock_account(al.order_line_id.part_id, company)
+                by_account[acct] = round(by_account.get(acct, 0.0) + amount, 2)
+            total = round(sum(by_account.values()), 2)
+            lines = [(acct, label, value) for acct, value in by_account.items()]
+        else:
+            total = self.total_landed
+            lines = [(import_account(self.env, company, "inventory"), label, total)]
         move = post_import_move(
             self.env,
             company,
             import_journal(self.env, company),
             today(self),
             "Provisional landed cost %s (%s)" % (self.name, receipt.name),
-            [
-                (
-                    import_account(self.env, company, "inventory"),
-                    "Provisional landed cost %s" % self.order_id.name,
-                    self.total_landed,
-                ),
-                (
-                    import_account(self.env, company, "landed_accrual"),
-                    "Landed-cost accrual %s" % self.order_id.name,
-                    -self.total_landed,
-                ),
-            ],
-            operating_unit=self.operating_unit_id,
+            [*lines, (accrual, "Landed-cost accrual %s" % self.order_id.name, -total)],
+            operating_unit=operating_unit or self.operating_unit_id,
         )
         self.sudo()._guarded().write({"move_id": move.id or False})
 
@@ -3443,43 +3483,52 @@ class FixImportLanded(models.Model):
                 var_total += round(diff - to_stock, 2)
             stock_total, var_total = round(stock_total, 2), round(var_total, 2)
             company = rec.company_id
-            # every account this entry needs, before anything moves
-            acc = {}
-            for role, needed in (
-                ("inventory", stock_total),
-                ("variance", var_total),
-                ("duty_clearing", rec.duty),
-                ("landed_accrual", svc or est_total),
-            ):
-                if needed:
-                    acc[role] = import_account(rec.env, company, role)
-            journal = import_journal(rec.env, company)
             ref = "Final landed cost %s (%s)" % (rec.name, order.name)
-            revalued = 0.0
-            for ln, to_stock in plan:
-                if to_stock:
-                    revalued += rec._landed_revalue_network(ln, to_stock, ref, Onhand)
-            if abs(round(revalued, 2) - stock_total) > 0.01:
-                raise UserError(
-                    "The landed cost of %s could not be spread over the stock still on hand."
-                    % order.name
+            if stock_realtime(rec.env, company):
+                move = rec._landed_finalise_post_realtime(
+                    order, plan, stock_total, var_total, svc, est_total, ref, Onhand
                 )
-            lines = [
-                (acc.get("landed_accrual"), "Reverse provisional landed cost", est_total),
-                (acc.get("duty_clearing"), "CD + RD + SD capitalised", -rec.duty),
-                (acc.get("landed_accrual"), "Freight, insurance, clearing and bank charges", -svc),
-                (acc.get("inventory"), "Landed-cost revaluation of stock on hand", stock_total),
-                (acc.get("variance"), "Landed cost of stock already consumed", var_total),
-            ]
-            move = post_import_move(
-                rec.env,
-                company,
-                journal,
-                today(rec),
-                ref,
-                [line for line in lines if line[0] and line[2]],
-                operating_unit=rec.operating_unit_id,
-            )
+            else:
+                # every account this entry needs, before anything moves
+                acc = {}
+                for role, needed in (
+                    ("inventory", stock_total),
+                    ("variance", var_total),
+                    ("duty_clearing", rec.duty),
+                    ("landed_accrual", svc or est_total),
+                ):
+                    if needed:
+                        acc[role] = import_account(rec.env, company, role)
+                journal = import_journal(rec.env, company)
+                revalued = 0.0
+                for ln, to_stock in plan:
+                    if to_stock:
+                        revalued += rec._landed_revalue_network(ln, to_stock, ref, Onhand)
+                if abs(round(revalued, 2) - stock_total) > 0.01:
+                    raise UserError(
+                        "The landed cost of %s could not be spread over the stock still on hand."
+                        % order.name
+                    )
+                lines = [
+                    (acc.get("landed_accrual"), "Reverse provisional landed cost", est_total),
+                    (acc.get("duty_clearing"), "CD + RD + SD capitalised", -rec.duty),
+                    (
+                        acc.get("landed_accrual"),
+                        "Freight, insurance, clearing and bank charges",
+                        -svc,
+                    ),
+                    (acc.get("inventory"), "Landed-cost revaluation of stock on hand", stock_total),
+                    (acc.get("variance"), "Landed cost of stock already consumed", var_total),
+                ]
+                move = post_import_move(
+                    rec.env,
+                    company,
+                    journal,
+                    today(rec),
+                    ref,
+                    [line for line in lines if line[0] and line[2]],
+                    operating_unit=rec.operating_unit_id,
+                )
             rec._landed_write_lines(allocation)
             rec._guarded().write(
                 {
@@ -3514,6 +3563,64 @@ class FixImportLanded(models.Model):
                 },
             )
         return True
+
+    def _landed_finalise_post_realtime(
+        self, order, plan, stock_total, var_total, svc, est_total, ref, Onhand
+    ):
+        """A06 D1: the final landed-cost entry of a real-time company. Each
+        bucket's revaluation is one stock line on the part's own stock account
+        at the bucket's branch; the duty-clearing, accrual and variance legs
+        sit at the import's branch. The entry is posted first, then M15's
+        revaluation rows are linked to it (never posted twice)."""
+        self.ensure_one()
+        company = self.company_id
+        Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+        acc = {}
+        for role, needed in (
+            ("variance", var_total),
+            ("duty_clearing", self.duty),
+            ("landed_accrual", svc or est_total),
+        ):
+            if needed:
+                acc[role] = import_account(self.env, company, role)
+        split = []
+        for ln, to_stock in plan:
+            if to_stock:
+                split += [
+                    (ln, bucket, amt)
+                    for bucket, amt in self._landed_network_split(ln, to_stock, Onhand)
+                ]
+        if abs(round(sum(a for _ln, _b, a in split), 2) - stock_total) > 0.01:
+            raise UserError(
+                "The landed cost of %s could not be spread over the stock still on hand."
+                % order.name
+            )
+        home_ou = Suspense._fix_location_ou(order.location_id, company)
+        home = Suspense._fix_dims(home_ou, order.location_id)
+        gl_lines = []
+        for ln, bucket, amount in split:
+            loc = bucket.location_id
+            gl_lines.append(
+                (
+                    Suspense._fix_stock_account(ln.part_id, company),
+                    "Landed-cost revaluation %s %s" % (order.name, ln.part_id.sudo().part_number),
+                    amount,
+                    Suspense._fix_dims(Suspense._fix_location_ou(loc, company), loc),
+                )
+            )
+        for account, label, amount in (
+            (acc.get("landed_accrual"), "Reverse provisional landed cost", est_total),
+            (acc.get("duty_clearing"), "CD + RD + SD capitalised", -self.duty),
+            (acc.get("landed_accrual"), "Freight, insurance, clearing and bank charges", -svc),
+            (acc.get("variance"), "Landed cost of stock already consumed", var_total),
+        ):
+            if account and amount:
+                gl_lines.append((account, label, amount, home))
+        move = Suspense._fix_gl_post(company, today(self), ref, gl_lines, source_ref=order.name)
+        Linked = Onhand.with_context(fix_stock_external_move_id=move.id) if move else Onhand
+        for ln, bucket, amount in split:
+            Linked._fix_revalue(ln.part_id, bucket.location_id, "owned", amount, ref)
+        return move
 
 
 class FixImportLandedLine(models.Model):

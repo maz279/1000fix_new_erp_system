@@ -177,6 +177,16 @@ def stock_valuation_code(env):
     )
 
 
+def stock_realtime(env, company):
+    """A06 D1: True when the company posts every stock movement to the GL as it
+    happens (M15's posting engine, after its stock take-on). The import then
+    debits each part's own stock account at the receiving branch and names its
+    entry to M15, which links the valuation rows instead of posting them again.
+    A company still on the old cut-over keeps the valuation-suspense line."""
+    Suspense = env["fix.inventory.valuation.suspense"]
+    return bool(hasattr(Suspense, "_fix_realtime") and Suspense._fix_realtime(company))
+
+
 def import_account(env, company, role):
     """The company's GL account for an import role, refused when unconfigured.
 
