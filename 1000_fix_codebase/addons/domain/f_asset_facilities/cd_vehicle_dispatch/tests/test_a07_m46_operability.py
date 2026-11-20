@@ -75,13 +75,22 @@ def ui(w, monkeypatch):  # noqa: F811
 
 
 def dispatch(ui, w, rec, emp=None):  # noqa: F811
-    return ui.action(
+    """The workspace dispatches by saving a fix.dispatch.decision (M02 capture
+    audit 18 Nov: a bare action_dispatch skipped the engine's first choice and
+    the override reason, BRU-FSM-04). The decision runs action_dispatch, so the
+    M46 fleet gate is met here exactly as on the board."""
+    res = ui.write(
         w.ud,
-        model=rec._name,
-        ids=rec.ids,
-        method="action_dispatch",
-        kwargs={"technician_id": (emp or w.ea).id},
+        model="fix.dispatch.decision",
+        values={
+            "field_order_id": rec.id,
+            "technician_id": (emp or w.ea).id,
+            # kept only when the engine ranked someone else first
+            "override_reason": "other",
+            "override_notes": "M46 operability test",
+        },
     )
+    return dict(res, success="error" not in res)
 
 
 # =========================================================== 1: the gate on screen

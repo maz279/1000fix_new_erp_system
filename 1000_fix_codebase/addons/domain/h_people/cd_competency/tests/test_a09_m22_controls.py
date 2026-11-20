@@ -873,15 +873,21 @@ def test_workspace_write_cannot_assign_a_field_order_technician(c, call):
 
 def test_workspace_dispatch_action_refuses_an_uncertified_technician(c, call):
     fo = _field_order(c)
+    # the workspace dispatches by saving a fix.dispatch.decision (M02 capture
+    # audit 18 Nov); the decision runs action_dispatch and so the M22 gate
     out = call(
         c.env(user=c.disp.id),
-        "model_action",
-        model="fix.field.order",
-        ids=[fo.id],
-        method="action_dispatch",
-        kwargs={"technician_id": str(c.e_uncert.id)},
+        "model_write",
+        model="fix.dispatch.decision",
+        values={
+            "field_order_id": fo.id,
+            "technician_id": c.e_uncert.id,
+            "override_reason": "other",
+            "override_notes": "M22 control test",
+        },
     )
-    assert not out.get("success") and "M22 eligibility" in out.get("error", ""), out
+    assert "M22 eligibility" in out.get("error", ""), out
+    assert not fo.env["fix.dispatch.decision"].sudo().search([("field_order_id", "=", fo.id)])
     assert not fo.technician_id
 
 
