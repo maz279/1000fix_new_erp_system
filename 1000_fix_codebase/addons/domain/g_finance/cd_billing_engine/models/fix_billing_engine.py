@@ -1271,6 +1271,36 @@ class FixArInvoice(models.Model):
             self.env, lines, on_date=invoice_date, company=order.company_id
         )
 
+        billed = [
+            {
+                "line_type": line.line_type,
+                "product_id": line.product_id.id,
+                "description": line.description or line.product_id.name,
+                "uom_id": line.uom_id.id or False,
+                "serial_ref": line.serial_ref or False,
+                "quantity": float(qty),
+                "unit_price": float(price),
+                "gross_amount": float((qty * price).quantize(TWO_PLACES, ROUND_HALF_UP)),
+                "discount_amount": float(line_discount),
+            }
+            for line, qty, price, line_discount in billed_lines
+        ]
+        invoice = self._fix_issue_order_invoice(order, billed, determination, invoice_date, started)
+        # A02 ERP audit (19 Nov 2026): the order was PAID before it closed
+        # (no device leaves unpaid). That money is a confirmed M20 receipt
+        # sitting on the customer's AR as a credit; the invoice it paid for
+        # stayed open, aged, and dunned a customer who owed nothing.
+        invoice._fix_apply_order_settlement(order)
+        return invoice
+
+    def _fix_issue_order_invoice(self, order, billed, determination, invoice_date, started):
+        """Create, number and post the customer invoice of ``order``: its
+        lines (``billed`` line values paired by position with the M51
+        ``determination``), the Mushak 6.3 row, the invoice.created event and
+        the M19 posting, in ONE transaction (T08). Shared by the delivered-
+        order invoice and the declined-repair diagnostic fee (FR-SRM-029)."""
+        import time
+
         invoice = self.with_company(order.company_id).create(
             {
                 "company_id": order.company_id.id,
@@ -1289,27 +1319,17 @@ class FixArInvoice(models.Model):
         # order. Pair by POSITION: keying by product code collapsed two
         # estimate lines sharing a code (e.g. two "SVC" labour lines) onto
         # the last line's amounts and mis-stated the invoice.
-        for seq, ((line, qty, price, line_discount), det) in enumerate(
-            zip(billed_lines, determination.lines, strict=True), start=1
-        ):
+        for seq, (vals, det) in enumerate(zip(billed, determination.lines, strict=True), start=1):
             self.env["fix.ar.invoice.line"].sudo().create(
-                {
-                    "invoice_id": invoice.id,
-                    "sequence": seq * 10,
-                    "line_type": line.line_type,
-                    "product_id": line.product_id.id,
-                    "description": line.description or line.product_id.name,
-                    "uom_id": line.uom_id.id or False,
-                    "serial_ref": line.serial_ref or False,
-                    "quantity": float(qty),
-                    "unit_price": float(price),
-                    "gross_amount": float((qty * price).quantize(TWO_PLACES, ROUND_HALF_UP)),
-                    "discount_amount": float(line_discount),
-                    "taxable_amount": float(det.taxable_amount),
-                    "vat_amount": float(det.vat_amount),
-                    "vat_rate": float(det.rate),
-                    "line_total": float(det.line_total),
-                }
+                dict(
+                    vals,
+                    invoice_id=invoice.id,
+                    sequence=seq * 10,
+                    taxable_amount=float(det.taxable_amount),
+                    vat_amount=float(det.vat_amount),
+                    vat_rate=float(det.rate),
+                    line_total=float(det.line_total),
+                )
             )
 
         # C8: never a Mushak 6.3 dated inside a locked period
@@ -1378,11 +1398,108 @@ class FixArInvoice(models.Model):
         # the M19 posting the docstrings always claimed (skips with an
         # honest gl_note when the company's GL is unconfigured)
         invoice._post_issue_gl()
-        # A02 ERP audit (19 Nov 2026): the order was PAID before it closed
-        # (no device leaves unpaid). That money is a confirmed M20 receipt
-        # sitting on the customer's AR as a credit; the invoice it paid for
-        # stayed open, aged, and dunned a customer who owed nothing.
-        invoice._fix_apply_order_settlement(order)
+        return invoice
+
+    DIAGNOSTIC_FEE_CODE_PARAM = "cd_billing_engine.diagnostic_fee_product_code"
+
+    def from_declined_service_order(self, order) -> "FixArInvoice":
+        """FR-SRM-029 / SP-013 step 19: a declined repair is charged the agreed
+        diagnostic fee. The fee was paid at intake (or formally waived) and is
+        held as an ADVANCE receipt on the order; the customer is invoiced for
+        exactly that amount, VAT inside it (the fee is a customer price, like
+        the estimate's grand total), on one Diagnostic / Inspection line, and
+        the advance is applied to it. Returns the empty recordset when the
+        order holds no advance (fee waived, or not a walk-in)."""
+        import time
+
+        started = time.monotonic()
+        order.ensure_one()
+        if order.state != "cancelled" or order.cancel_reason_code not in (
+            "customer_declined",
+            "estimate_declined",
+        ):
+            raise UserError(
+                "%s: only a declined repair is invoiced its diagnostic fee (FR-SRM-029)."
+                % order.name
+            )
+        existing = self.search(
+            [("source_model", "=", "fix.service.order"), ("source_id", "=", order.id)]
+        )
+        if existing:
+            return existing  # idempotent on the source
+        advances = (
+            self.env["fix.ar.receipt"]
+            .sudo()
+            .search(
+                [
+                    ("source_order_id", "=", order.id),
+                    ("state", "=", "confirmed"),
+                    ("is_order_advance", "=", True),
+                ]
+            )
+        )
+        fee = Decimal(str(round(sum(advances.mapped("unapplied_amount")), 2)))
+        if fee <= 0:
+            return self
+        code = (
+            self.env["ir.config_parameter"].sudo().get_param(self.DIAGNOSTIC_FEE_CODE_PARAM)
+            or "CHG-DIAG"
+        )
+        product = self.env["product.product"].sudo().search([("default_code", "=", code)], limit=1)
+        if not product:
+            raise UserError(
+                "The diagnostic fee charge code %s is not in the catalogue: create it (or set "
+                "%s) and retry." % (code, self.DIAGNOSTIC_FEE_CODE_PARAM)
+            )
+        self._credit_hold_for(order.customer_id, order.company_id)
+        # the tax point is the decline: the diagnosis was supplied, nothing else
+        invoice_date = dhaka_date(fields.Datetime.now())
+
+        def determine(net):
+            line = tax_logic.TaxLine(
+                product_code=code, qty=Decimal("1"), unit_price=net, discount=Decimal("0")
+            )
+            return m51_determine(self.env, [line], on_date=invoice_date, company=order.company_id)
+
+        # the fee is what the customer paid: back the VAT out of it, then take
+        # the paisa the per-line rounding leaves onto the net price
+        rate = Decimal(str(determine(fee).lines[0].rate))
+        net = (fee * Decimal("100") / (Decimal("100") + rate)).quantize(TWO_PLACES, ROUND_HALF_UP)
+        determination = determine(net)
+        for _step in range(3):
+            gap = fee - Decimal(str(determination.lines[0].line_total))
+            if abs(gap) < Decimal("0.005"):
+                break
+            net += gap.quantize(TWO_PLACES, ROUND_HALF_UP)
+            determination = determine(net)
+        billed = [
+            {
+                "line_type": "diagnostic",
+                "product_id": product.id,
+                "description": "%s — %s (repair declined)" % (product.name, order.name),
+                "uom_id": product.uom_id.id or False,
+                "serial_ref": False,
+                "quantity": 1.0,
+                "unit_price": float(net),
+                "gross_amount": float(net),
+                "discount_amount": 0.0,
+            }
+        ]
+        invoice = self._fix_issue_order_invoice(order, billed, determination, invoice_date, started)
+        Allocation = self.env["fix.ar.allocation"].sudo()
+        made = Allocation
+        for receipt in advances:
+            invoice.invalidate_recordset(["amount_residual"])
+            receipt.invalidate_recordset(["unapplied_amount"])
+            amount = round(min(receipt.unapplied_amount, invoice.amount_residual), 2)
+            if amount > 0.005:
+                made |= Allocation.create(
+                    {"receipt_id": receipt.id, "invoice_id": invoice.id, "amount": amount}
+                )
+        invoice.message_post(
+            body="Diagnostic fee of declined repair %s: BDT %.2f applied from %s."
+            % (order.name, sum(made.mapped("amount")), ", ".join(made.mapped("receipt_id.name")))
+        )
         return invoice
 
     def _fix_apply_order_settlement(self, order):

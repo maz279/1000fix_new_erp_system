@@ -69,6 +69,9 @@ SURFACES = {
             # M03 bridge (defined in cd_consignment's extension): hand a
             # pick&drop order to logistics
             "action_create_consignment",
+            # FR-SRM-029: finance's retry of a declined repair's fee invoice
+            # (cd_billing_engine; finance managers only)
+            "action_invoice_diagnostic_fee",
         },
     },
     "fix.estimate": {

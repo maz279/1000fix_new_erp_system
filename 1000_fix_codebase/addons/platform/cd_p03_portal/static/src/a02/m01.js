@@ -180,6 +180,10 @@ const SO_ACTIONS = [
       { kwarg: 'consent', label: 'Did the customer explicitly consent to us holding it? (yes / no)' }] },
   { id: 'cancel', m: 'action_cancel', l: 'Cancel Order', states: SO_OPEN,
     asks: [{ kwarg: 'reason', label: 'Reason: customer_declined, estimate_declined, duplicate, unrepairable, customer_unreachable, abandoned, or other: <note>' }] },
+  /* FR-SRM-029: a declined repair is charged its diagnostic fee at the cancel;
+   * if that was refused (credit hold, no charge code) finance retries here */
+  { id: 'diagfee', m: 'action_invoice_diagnostic_fee', l: 'Invoice Diagnostic Fee (finance)',
+    states: ['cancelled'] },
   { id: 'comeback', m: 'action_reopen_comeback', l: 'Open Comeback (repair warranty)', states: ['delivered', 'closed'],
     asks: [{ kwarg: 'reason', label: 'The problem the customer came back with' }] }
 ];

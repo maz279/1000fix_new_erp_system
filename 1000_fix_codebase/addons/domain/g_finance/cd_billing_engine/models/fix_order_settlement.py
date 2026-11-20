@@ -18,7 +18,7 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 from .fix_billing_engine import TWO_PLACES, allocate_discount
 from .fix_finance_approval import GROUP_ADMINISTRATOR, has_role
@@ -234,6 +234,59 @@ class FixServiceOrderSettlementReceipts(models.Model):
         for order in self.filtered(lambda o: o.state == "delivered"):
             order._fix_invoice_at_delivery()
         return result
+
+    # ------------------------------------------------- declined repair (FR-SRM-029)
+    _DECLINE_REASONS = ("customer_declined", "estimate_declined")
+
+    def action_cancel(self, reason_code=None, note=None, reason=None):
+        result = super().action_cancel(reason_code=reason_code, note=note, reason=reason)
+        for order in self.filtered(
+            lambda o: o.state == "cancelled" and o.cancel_reason_code in self._DECLINE_REASONS
+        ):
+            order._fix_invoice_declined_fee()
+        return result
+
+    def _fix_invoice_declined_fee(self):
+        """Charge the declined repair its diagnostic fee (SP-013 step 19): the
+        paid fee stopped being the customer's credit and became the price of
+        the diagnosis. A refusal (credit hold, no charge code, unconfigured
+        GL) never undoes the cancellation: the order's chatter says why and
+        finance retries with Invoice Diagnostic Fee."""
+        self.ensure_one()
+        Invoice = self.env["fix.ar.invoice"].sudo().with_company(self.company_id)
+        try:
+            with self.env.cr.savepoint():
+                invoice = Invoice.from_declined_service_order(self)
+        except UserError as exc:
+            _logger.info("declined-repair fee invoice deferred for %s: %s", self.name, exc)
+            self.message_post(
+                body="Diagnostic fee not invoiced (%s); it stays as the customer's credit until "
+                "finance runs Invoice Diagnostic Fee." % (exc.args[0] if exc.args else exc)
+            )
+            return False
+        if invoice:
+            self.message_post(
+                body="Repair declined: diagnostic fee invoiced as %s (BDT %.2f), paid from the "
+                "fee taken at intake." % (invoice.name, invoice.total_payable)
+            )
+        return invoice
+
+    def action_invoice_diagnostic_fee(self):
+        """Finance's retry of a declined repair's diagnostic-fee invoice."""
+        if not self.env.user.has_group("account.group_account_manager"):
+            raise AccessError("Only a finance manager invoices a declined repair's fee.")
+        for order in self:
+            if order.state != "cancelled" or order.cancel_reason_code not in self._DECLINE_REASONS:
+                raise UserError("%s is not a declined repair." % order.name)
+            invoice = (
+                self.env["fix.ar.invoice"]
+                .sudo()
+                .with_company(order.company_id)
+                .from_declined_service_order(order)
+            )
+            if not invoice:
+                raise UserError("%s holds no diagnostic fee to invoice." % order.name)
+        return True
 
     def _fix_invoice_at_delivery(self):
         """Raise the order's tax invoice now; a refusal (zero-charge job,
