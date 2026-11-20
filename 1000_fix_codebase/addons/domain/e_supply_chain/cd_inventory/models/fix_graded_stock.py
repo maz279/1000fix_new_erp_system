@@ -22,6 +22,15 @@ STOCK_FROZEN = {
     "currency_id",
 }
 FROZEN_STATES = ("reserved", "sold", "scrapped")
+# A06 ERP X17 / A29 (20 Nov 2026): graded refurbished stock was outside the
+# ledger and any user could type its cost. The cost now comes from the unit's
+# source (the trade-in's payout and refurbishment cost), typed by no one, and
+# a unit of a company on real-time stock posting enters the stock valuation
+# subledger at intake (Dr graded stock / Cr trade-in intake clearing) and
+# leaves it when sold (Dr parts cost 600002) or scrapped (Dr 500905). The two
+# graded accounts are owner decisions: unset, the intake is refused.
+COST_FIELDS = {"acquisition_cost", "refurbishment_cost"}
+ON_SHELF = ("in_stock", "reserved")
 # A sale or reservation outside an order (walk-in, write-off of a hold) is an
 # Inventory Controller's call; the storefront reaches these as sudo() service.
 STOCK_CONTROLLER = "cd_wms_structure.group_inventory_controller"
@@ -138,8 +147,18 @@ class FixGradedStock(models.Model):
         tracking=True,
     )
 
+    ledger_entry_id = fields.Many2one(
+        "fix.inventory.valuation.suspense",
+        string="Stock Ledger Intake",
+        readonly=True,
+        copy=False,
+        help="The valuation entry that took this unit into the stock ledger (A06 ERP X17).",
+    )
+
     def _fix_guarded_fields(self) -> set:
-        guarded = super()._fix_guarded_fields() | STOCK_GUARDED
+        # X17 / A29: the cost comes from the unit's source, never a person
+        guarded = super()._fix_guarded_fields() | STOCK_GUARDED | COST_FIELDS
+        guarded |= {"ledger_entry_id"}
         if any(rec.state in FROZEN_STATES for rec in self):
             guarded |= STOCK_FROZEN
         return guarded
@@ -173,7 +192,131 @@ class FixGradedStock(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.graded.stock") or "STK/GRD/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for rec in records:
+            rec._fix_take_source_cost()
+            if rec.state in ON_SHELF:
+                rec._fix_graded_intake()
+        return records
+
+    def write(self, vals):
+        watched = {"state"} | COST_FIELDS
+        before = (
+            {rec.id: (rec.state, rec.inventory_valuation) for rec in self}
+            if watched & set(vals)
+            else {}
+        )
+        result = super().write(vals)
+        for rec in self.filtered(lambda r: r.id in before):
+            old_state, old_value = before[rec.id]
+            rec._fix_graded_follow(old_state, old_value)
+        return result
+
+    # ---- A06 ERP X17: the unit in the stock ledger ------------------------
+    def _fix_source(self):
+        """The trade-in the unit came from (cd_tradein is not a dependency)."""
+        self.ensure_one()
+        if not self.tradein_id or "fix.tradein.request" not in self.env:
+            return None
+        return self.env["fix.tradein.request"].sudo().browse(self.tradein_id).exists() or None
+
+    def _fix_take_source_cost(self):
+        """The cost is the source's: what the seller is paid (graded value,
+        else the offer) and the refurbishment cost recorded on the trade-in."""
+        self.ensure_one()
+        source = self._fix_source()
+        if source is None:
+            return
+        vals = {}
+        acquisition = source.graded_value or source.offered_value or 0.0
+        refurb = source.refurbishment_cost if "refurbishment_cost" in source._fields else None
+        if abs((self.acquisition_cost or 0.0) - acquisition) > 1e-6:
+            vals["acquisition_cost"] = acquisition
+        if refurb is not None and abs((self.refurbishment_cost or 0.0) - refurb) > 1e-6:
+            vals["refurbishment_cost"] = refurb
+        if vals:
+            super(FixGradedStock, self.sudo()._guarded()).write(vals)
+
+    def _fix_graded_ou(self):
+        """The unit's operating unit: its location's (or the location's
+        branch's), its own, its trade-in's; never the company's first OU."""
+        self.ensure_one()
+        rec = self.sudo()
+        if rec.location_id:
+            ou = rec.location_id.operating_unit_id or rec.location_id.branch_id.operating_unit_id
+            if ou:
+                return ou
+        if rec.operating_unit_id:
+            return rec.operating_unit_id
+        source = rec._fix_source()
+        if (
+            source is not None
+            and "operating_unit_id" in source._fields
+            and source.operating_unit_id
+        ):
+            return source.operating_unit_id
+        raise UserError(
+            "Graded unit %s has no location, operating unit or trade-in operating unit: its stock "
+            "value cannot be posted. Nothing was posted." % rec.name
+        )
+
+    def _fix_ledger(self):
+        return self.env["fix.inventory.valuation.suspense"].sudo()
+
+    def _fix_graded_row(self, entry_type, value, ref, counter_role=None):
+        self.ensure_one()
+        rec = self.sudo()
+        Ledger = self._fix_ledger()
+        if counter_role:
+            Ledger = Ledger.with_context(fix_stock_counter_role=counter_role)
+        qty = 1.0 if value >= 0 else -1.0
+        return Ledger.create(
+            {
+                "company_id": rec.company_id.id,
+                "operating_unit_id": rec._fix_graded_ou().id,
+                "location_id": rec.location_id.id or False,
+                "graded_stock_id": rec.id,
+                "quantity": qty,
+                "unit_cost": abs(value),
+                "total_valuation": round(value, 2),
+                "entry_type": entry_type,
+                "source_ref": ref,
+            }
+        )
+
+    def _fix_graded_intake(self):
+        """Take an on-shelf unit into the stock ledger at its source cost."""
+        self.ensure_one()
+        rec = self.sudo()
+        if rec.ledger_entry_id or not self._fix_ledger()._fix_realtime(rec.company_id):
+            return
+        entry = rec._fix_graded_row(
+            "graded_intake", rec.inventory_valuation or 0.0, rec.tradein_ref or rec.name
+        )
+        super(FixGradedStock, rec._guarded()).write({"ledger_entry_id": entry.id})
+
+    def _fix_graded_follow(self, old_state, old_value):
+        """Post what a state or cost change did to a unit in the ledger."""
+        self.ensure_one()
+        rec = self.sudo()
+        if not rec.ledger_entry_id:
+            if rec.state in ON_SHELF and old_state not in ON_SHELF:
+                rec._fix_graded_intake()
+            return
+        value = rec.inventory_valuation or 0.0
+        if old_state in ON_SHELF and rec.state == "sold":
+            rec._fix_graded_row("graded_issue", -value, "%s sold" % rec.name)
+        elif old_state in ON_SHELF and rec.state == "scrapped":
+            rec._fix_graded_row(
+                "graded_issue", -value, "%s scrapped" % rec.name, "stock_adjustment"
+            )
+        elif old_state == "sold" and rec.state in ON_SHELF:
+            rec._fix_graded_row("graded_issue", value, "%s returned" % rec.name)
+        elif rec.state in ON_SHELF and old_state in ON_SHELF:
+            diff = round(value - (old_value or 0.0), 2)
+            if abs(diff) > 0.005:
+                # the trade-in settled at another figure: the intake follows it
+                rec._fix_graded_row("graded_intake", diff, "%s cost change" % rec.name)
 
     def _fix_require_controller(self, what):
         if not (self.env.su or self.env.user.has_group(STOCK_CONTROLLER)):

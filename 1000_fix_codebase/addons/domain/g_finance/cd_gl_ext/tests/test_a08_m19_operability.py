@@ -295,6 +295,10 @@ def suspense_entry(c, valuation=1200.0):
             "unit_cost": valuation,
             "total_valuation": valuation,
             "suspense_account_code": "110999",
+            # A06 ERP X04/X05: a stock receipt (stock IN, cleared by a credit to
+            # the suspense) of the period the close measures
+            "entry_type": "receipt",
+            "posting_date": PE,
         }
     )
 

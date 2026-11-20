@@ -13,7 +13,7 @@ Features:
 - GV-005 suspense valuation ledger pending Wave-3 GL cutover
 - Transactional outbox events (stock.consumed, stock.returned, reorder.triggered, van.reconciled)
 """,
-    "version": "19.0.1.6.0",
+    "version": "19.0.1.6.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Logistics",
@@ -28,6 +28,8 @@ Features:
         "cd_event_outbox",
         "cd_requisition",
         "cd_workflow_engine",
+        # A06 ERP D1: every stock movement posts through M19 (post_with_dimensions)
+        "cd_gl_ext",
     ],
     "data": [
         "security/ir.model.access.csv",
@@ -35,6 +37,7 @@ Features:
         "security/fix_inventory_rules.xml",
         "security/fix_m15_capture_rules.xml",
         "security/fix_wms_spec_rules.xml",
+        "security/fix_stock_posting_rules.xml",
         "data/ir_sequence.xml",
         "data/ir_cron.xml",
         "data/ir_config_parameter.xml",

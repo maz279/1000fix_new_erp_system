@@ -768,11 +768,21 @@ class P03GlApiController(http.Controller):
         by_code = {}
         for entry in pending:
             by_code.setdefault(entry.suspense_account_code, []).append(entry)
+
+        def signed(entries):
+            # A06 ERP X06: the signed stock movement (an issue is stock OUT,
+            # cd_inventory STOCK_EFFECT) plus what the rows clear to other
+            # accounts - never the raw sum of the rows' values
+            rows = env["fix.inventory.valuation.suspense"].sudo().browse([e.id for e in entries])
+            value = rows._fix_stock_effect_total()
+            value += sum(rows._fix_cutover_clearings().values())
+            return round(value, 2)
+
         inventory = [
             {
                 "code": code,
                 "count": len(entries),
-                "valuation": round(sum(e.total_valuation for e in entries), 2),
+                "valuation": signed(entries),
             }
             for code, entries in sorted(by_code.items())
         ]
@@ -815,8 +825,13 @@ class P03GlApiController(http.Controller):
             )
         return {
             "inventory_pending": inventory,
-            "inventory_total": round(sum(p.total_valuation for p in pending), 2),
+            "inventory_total": signed(pending),
             "gl_suspense_accounts": accounts,
+            # A06 ERP D1: since its stock take-on the company posts every
+            # movement in real time; the pending rows above predate it
+            "realtime_since": str(company.sudo().fix_stock_realtime_from or "")
+            if "fix_stock_realtime_from" in company._fields
+            else "",
         }
 
     # ---------------------------------------------------------------- recon

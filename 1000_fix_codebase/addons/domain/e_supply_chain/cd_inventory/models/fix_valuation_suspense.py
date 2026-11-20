@@ -16,6 +16,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
@@ -38,6 +39,13 @@ def suspense_account_code(env):
     return code.strip() or DEFAULT_SUSPENSE_ACCOUNT_CODE
 
 
+def dhaka_today(moment=None):
+    """The Asia/Dhaka business date of `moment` (a naive UTC datetime, now
+    when omitted): the GL date of a stock movement and its period cut-off."""
+    moment = moment or datetime.utcnow()
+    return pytz.utc.localize(moment).astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
 # How each entry type moves the company's stock value. Consumption and return
 # predate this file and carry the VALUE CONSUMED (an issue +, its return -);
 # every later type carries the stock movement itself (+ in, - out).
@@ -55,7 +63,18 @@ STOCK_EFFECT = {
     # G1: a return to vendor's purchase-price variance moves no stock; the
     # cut-over clears it from the suspense account to its clearing account
     "price_variance": 0.0,
+    # A06 ERP (D1): an inter-OU transfer is two rows (- at the sender's OU,
+    # + at the receiver's), graded refurbished stock enters (+) and leaves (-)
+    "transfer": 1.0,
+    "graded_intake": 1.0,
+    "graded_issue": 1.0,
 }
+
+
+def stock_effect_value(entry) -> float:
+    """The signed stock-value movement of one row (+ into stock, - out)."""
+    return round((entry.total_valuation or 0.0) * STOCK_EFFECT.get(entry.entry_type, 1.0), 2)
+
 
 # G1 (owner decision 12 Nov 2026): the account a return to vendor's
 # purchase-price variance is cleared to by the period-close cut-over. Unset:
@@ -102,12 +121,34 @@ class FixInventoryValuationSuspense(models.Model):
         ondelete="set null",
     )
     source_ref = fields.Char(string="Source Document", index=True)
+    # A06 ERP X17: a graded refurbished unit is a device, not a part; its rows
+    # name the unit instead (one of the two is always set, see _check_subject)
     product_id = fields.Many2one(
         "fix.spare.part",
         string="Spare Part",
-        required=True,
         index=True,
     )
+    graded_stock_id = fields.Many2one(
+        "fix.graded.stock", string="Graded Refurb Unit", index=True, ondelete="restrict"
+    )
+    # A06 ERP D1 (owner decision 20 Nov 2026): every row posts its own
+    # balanced journal entry as the movement happens. The subledger keeps the
+    # movement; the GL entry, the accounts it used and the business (Dhaka)
+    # date are recorded on it.
+    location_id = fields.Many2one(
+        "fix.stock.location", string="Stock Location", index=True, ondelete="restrict"
+    )
+    posting_date = fields.Date(
+        string="Business Date",
+        index=True,
+        help="The Asia/Dhaka date of the movement: the GL date and the period cut-off.",
+    )
+    move_id = fields.Many2one(
+        "account.move", string="Journal Entry", index=True, readonly=True, copy=False
+    )
+    stock_account_code = fields.Char(string="Stock Account", readonly=True, copy=False)
+    counter_account_code = fields.Char(string="Counter Account", readonly=True, copy=False)
+    posted_at = fields.Datetime(string="Posted On", readonly=True, copy=False)
     quantity = fields.Float(
         string="Movement Quantity",
         required=True,
@@ -137,6 +178,9 @@ class FixInventoryValuationSuspense(models.Model):
             ("shipment", "Warehouse Shipment"),
             ("class_change", "Ownership-Class Change"),
             ("price_variance", "Purchase Price Variance (RTV)"),
+            ("transfer", "Inter-OU Transfer"),
+            ("graded_intake", "Graded Refurb Intake"),
+            ("graded_issue", "Graded Refurb Sale / Disposal"),
         ],
         string="Entry Type",
         required=True,
@@ -162,6 +206,7 @@ class FixInventoryValuationSuspense(models.Model):
     status = fields.Selection(
         [
             ("pending_gl_cutover", "Pending GL Cutover (M19 Suspense)"),
+            ("posted", "Posted to GL (real time)"),
             ("reconciled", "Reconciled to GL"),
             ("archived", "Archived"),
         ],
@@ -230,10 +275,23 @@ class FixInventoryValuationSuspense(models.Model):
         "archived_at",
         "archive_ref",
         "duplicate_of_id",
+        "graded_stock_id",
+        "location_id",
+        "posting_date",
+        "move_id",
+        "stock_account_code",
+        "counter_account_code",
+        "posted_at",
     )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | set(self._SYSTEM_FIELDS)
+
+    @api.constrains("product_id", "graded_stock_id")
+    def _check_subject(self):
+        for entry in self:
+            if not entry.product_id and not entry.graded_stock_id:
+                raise UserError("A valuation entry names the spare part or graded unit it values.")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -242,13 +300,25 @@ class FixInventoryValuationSuspense(models.Model):
                 "Valuation suspense entries are written by the stock movements "
                 "themselves; they cannot be created by hand."
             )
+        Consumption = self.env["fix.stock.consumption"].sudo()
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 seq = self.env["ir.sequence"].next_by_code("fix.inventory.valuation.suspense")
                 vals["name"] = seq or f"VAL-SUSP-{datetime.now().strftime('%Y%m%d%H%M%S')}"
             if "total_valuation" not in vals and "quantity" in vals and "unit_cost" in vals:
                 vals["total_valuation"] = vals["quantity"] * vals["unit_cost"]
-        return super().create(vals_list)
+            # A06 ERP D1: the business date and the location every row is
+            # posted from (a job issue writes its row directly, naming only
+            # its consumption)
+            vals.setdefault("posting_date", dhaka_today())
+            if not vals.get("location_id") and vals.get("consumption_id"):
+                vals["location_id"] = Consumption.browse(vals["consumption_id"]).location_id.id
+        records = super().create(vals_list)
+        # A06 ERP D1: each row posts its own journal entry now (a company on
+        # real-time posting; rows of a company not yet switched over by its
+        # stock take-on stay pending for the old cut-over)
+        records._fix_post_realtime()
+        return records
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -282,6 +352,7 @@ class FixInventoryValuationSuspense(models.Model):
             {
                 "company_id": company.id,
                 "operating_unit_id": operating_unit.id if operating_unit else False,
+                "location_id": location.id if location else False,
                 "product_id": part.id,
                 "quantity": quantity,
                 "unit_cost": unit_cost or 0.0,
@@ -313,6 +384,7 @@ class FixInventoryValuationSuspense(models.Model):
             {
                 "company_id": company.id,
                 "operating_unit_id": operating_unit.id if operating_unit else False,
+                "location_id": location.id if location else False,
                 "product_id": part.id,
                 "quantity": quantity,
                 "unit_cost": round(value / quantity, 4) if quantity else value,
@@ -444,7 +516,10 @@ class FixInventoryValuationSuspense(models.Model):
                     "company_id": company.id,
                     "company": company.name,
                     "pending_entries": len(pending),
-                    "pending_total": round(sum(pending.mapped("total_valuation")), 2),
+                    # A06 ERP X06: the signed stock movement (an issue is stock
+                    # OUT), not the raw sum of the rows' values
+                    "pending_total": pending._fix_stock_effect_total(),
+                    "pending_clearings": round(sum(pending._fix_cutover_clearings().values()), 2),
                     "baseline_entries": len(baseline),
                     "baseline_total": baseline_total,
                     "duplicate_groups": len(duplicate_groups),
