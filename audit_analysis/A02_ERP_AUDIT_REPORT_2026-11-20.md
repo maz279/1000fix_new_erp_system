@@ -54,7 +54,16 @@ Branch `fix/a02-erp-audit` (worktree `1000 fix/a02erp-wt`), base e6d7a9b1.
 
 Full per-finding status: `A02_ERP_AUDIT_LEDGER_2026-11-19.md` (≈105 findings).
 
-## Owner decisions (mechanism built, fail-closed; the figure or choice is the business's)
+## Owner decisions — status 20 Nov 2026 11:00
+Decided and applied: O1 damage-claim account = 500033 Courier Expense (fix_real); O2 invoice numbering
+reset to 1 (fix_real, 0 invoices); O3 warranty exclusion ON; O4 loyalty priority = urgent; O7 fenceless
+arrivals record GPS (strict by parameter); O9 own-fleet SLA = 24 h (both DBs); O13 M06 quotes VAT-exclusive;
+O14 MSP uplift now billed through M39 (a58b167d range); O15 five fix_real users already hold Finance Manager.
+The finance bridge is installed on fix_dev (owner approved). Still the business's to supply (fail-closed
+until then): O5 passcode reader roles (as built), O6 warranty days per category, O8 depot coordinates,
+O10 payroll-deduction account, O11 workshop labour rates, O12 products needing terms acceptance.
+
+## Owner decisions (original list)
 | # | Decision | Effect until decided |
 |---|---|---|
 | O1 | Damage-claim expense account: `cd_settlement_ext.account_code.damage_claim_expense` names 645000, which is not in the fix_real chart | payouts clear to 100102 Bank Suspense |
