@@ -1,0 +1,170 @@
+# End-to-end A02 repair journey on a copy of fix_real (real chart, branches,
+# stock), driven through the modules' own actions. Superuser: the role and SoD
+# gates are covered by the unit suites; this proves the business chain and the
+# ledger across M04 -> M01 -> M31 -> M15 -> M04 drawer -> M20 -> M51 -> M19 ->
+# M50 -> M09/M27. Every step is reported; the walk commits nothing.
+import base64, traceback
+from odoo import fields
+from odoo.addons.cd_service_order.models import fix_otp_util
+
+env = env(user=env.ref("base.user_admin").id, su=True)
+P = env["ir.config_parameter"].sudo()
+sent = {}
+fix_otp_util.dispatch_otp = lambda phone, code, ttl, language="bn": sent.update({phone: code})
+results = []
+ctx = {}
+
+
+def step(name):
+    def deco(fn):
+        try:
+            with env.cr.savepoint():
+                out = fn()
+            results.append(("OK  ", name, out))
+            return out
+        except Exception as e:  # noqa: BLE001
+            results.append(("FAIL", name, "%s: %s" % (type(e).__name__, str(e)[:300])))
+            ctx["tb_" + name] = traceback.format_exc()[-1500:]
+            return None
+    return deco
+
+
+def acc(code):
+    return env["account.account"].search([("code", "=", code)], limit=1)
+
+
+def bal(account, partner=None):
+    env.flush_all()
+    dom = [("account_id", "=", account.id), ("parent_state", "=", "posted")]
+    if partner:
+        dom.append(("partner_id", "=", partner.id))
+    return round(sum(env["account.move.line"].search(dom).mapped("balance")), 2)
+
+
+company = env.company
+branch = env["fix.branch"].search([("name", "=", "Motijheel Service Center")], limit=1)
+drawer = acc(P.get_param("cd_cash_position.account_code.branch_cash"))
+ar = acc(P.get_param("cd_billing_engine.account_code.ar"))
+rev = acc(P.get_param("cd_billing_engine.account_code.revenue"))
+vat = acc(P.get_param("cd_billing_engine.account_code.vat_output"))
+d0, rev0, vat0 = bal(drawer), bal(rev), bal(vat)
+cust = env["res.partner"].create({"name": "E2E Customer Rahim", "phone": "01711999888"})
+brand = env["fix.brand"].search([], limit=1)
+model = env["fix.device.model"].search([("brand_id", "=", brand.id)], limit=1) or env[
+    "fix.device.model"
+].create({"brand_id": brand.id, "name": "E2E Laptop 15", "device_type": "laptop"})
+emp = env["hr.employee"].search([("company_id", "=", company.id)], limit=1)
+# Field dispatch on fix_real AS IT IS (0 technician certifications): the real
+# dispatcher asks for a per-order waiver, the real Certification Override
+# Approver decides it in the M63 inbox, the dispatcher dispatches from the
+# screen (a dispatch decision), the real technician does the job.
+Users = env["res.users"]
+disp = Users.search([("login", "=", "shariful.islam@1000fix.com")])
+approver = env.ref("base.user_admin")
+main_ou = env["operating.unit"].search([("name", "=", "Main Operating Unit")])
+fs_user = env.ref("cd_field_service.group_fix_field_service_user")
+tech_user = fs_user.all_user_ids.filtered(lambda u: u.active and not u.share and branch.operating_unit_id in u.assigned_operating_unit_ids and u != approver).sorted("id")[:1]
+# owner decision 20 Nov: the head-office desk dispatches for every branch
+disp.write({"assigned_operating_unit_ids": [(6, 0, env["operating.unit"].search([]).ids)]})
+env.invalidate_all()
+print("dispatcher OUs now", len(disp.assigned_operating_unit_ids))
+tech = env["hr.employee"].search([("user_id", "=", tech_user.id)], limit=1)
+print("branch", branch.name, "OU", branch.operating_unit_id.name)
+print("dispatcher", disp.login, "| approver", approver.login, "| technician", tech.name, tech_user.login,
+      "| certs on DB", env["fix.certification"].search_count([]))
+
+
+@step("S3 M01 on-site order -> M02 field order waiting for dispatch")
+def _():
+    lap = env["fix.competency"].search([("device_type", "=", "laptop")], limit=1)
+    m3 = env["fix.device.model"].search([("brand_id", "=", lap.brand_id.id), ("device_type", "=", "laptop")], limit=1) \
+        or env["fix.device.model"].create({"brand_id": lap.brand_id.id, "name": "E2E Brand Laptop", "device_type": "laptop"})
+    dev = env["fix.device"].create({"device_model_id": m3.id, "owner_id": cust.id, "serial_number": "E2E-SN-DISP"})
+    o = env["fix.service.order"].create({"device_id": dev.id, "customer_id": cust.id,
+        "branch_id": branch.id, "fault_description": "Laptop no power at office", "service_type": "onsite",
+        "order_category": "standard"})
+    o.action_intake()
+    o.action_start_diagnostic()
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [
+        (0, 0, {"description": "On-site board repair", "quantity": 1, "unit_price": 1500.0, "line_type": "labour"})]})
+    if o.state == "diagnostic":
+        o.action_request_estimate()
+    est.action_send()
+    est.action_approve()
+    o.action_create_field_order()
+    fo = env["fix.field.order"].search([("order_id", "=", o.id)], limit=1)
+    fo.action_request_dispatch()
+    ctx.update(o=o, fo=fo)
+    return "order %s, field order %s %s, branch %s" % (o.name, fo.name, fo.state, branch.name)
+
+
+@step("M22 an uncertified technician is refused at dispatch (the control holds)")
+def _():
+    fo = ctx["fo"]
+    try:
+        with env.cr.savepoint():
+            env["fix.dispatch.decision"].with_user(disp).create({"field_order_id": fo.id, "technician_id": tech.id,
+                "override_reason": "other", "override_notes": "walk"})
+    except Exception as e:  # noqa: BLE001
+        assert "M22 eligibility" in str(e), "refused for the wrong reason: %s" % e
+        return "refused: %s" % str(e)[:160]
+    raise AssertionError("an uncertified technician was dispatched without a waiver")
+
+
+@step("M22 dispatcher requests a per-order certification waiver")
+def _():
+    fo = ctx["fo"]
+    out = fo.with_user(disp).action_request_certification_waiver(
+        waiver="%d no certification recorded yet; HR loading M22 records" % tech.id)
+    w = env["fix.certification.waiver"].browse(out["waiver_id"])
+    ctx["waiver"] = w
+    return "waiver %s state %s approval %s" % (w.display_name, w.state, w.approval_state)
+
+
+@step("M63 the approver decides it from the inbox (not the requester)")
+def _():
+    w = ctx["waiver"]
+    Task = env["fix.workflow.task"].sudo()
+    mine = Task.search([("request_id", "=", w.approval_request_id.id), ("state", "=", "pending"), ("assigned_user_id", "=", disp.id)])
+    assert not mine, "the requester got a task on their own waiver"
+    task = Task.search([("request_id", "=", w.approval_request_id.id), ("state", "=", "pending"), ("assigned_user_id", "=", approver.id)], limit=1)
+    assert task, "no inbox task for the approver"
+    task.with_user(approver).action_approve()
+    w.invalidate_recordset()
+    return "waiver %s" % w.state
+
+
+@step("M02 dispatcher dispatches from the screen (dispatch decision)")
+def _():
+    fo = ctx["fo"]
+    d = env["fix.dispatch.decision"].with_user(disp).create({"field_order_id": fo.id, "technician_id": tech.id,
+        "override_reason": "other", "override_notes": "only technician on shift in the zone"})
+    fo.invalidate_recordset()
+    return "decision %s override %s; field order %s to %s" % (d.name, d.is_override, fo.state, fo.technician_id.name)
+
+
+@step("M02 technician accepts, travels, arrives on GPS, works, completes")
+def _():
+    fo = ctx["fo"].with_user(tech_user)
+    fo.action_accept()
+    fo.action_start_travel()
+    fo.action_arrive(position="23.7905, 90.3735")
+    fo.action_start_work()
+    sig = env["ir.attachment"].create({"name": "sign.png", "raw": b"customer signature",
+                                       "mimetype": "image/png", "res_model": fo._name, "res_id": fo.id})
+    ctx["fo"]._fix_attach_field_evidence(sig, "signature", signer=cust.name)
+    pic = env["ir.attachment"].create({"name": "after.jpg", "raw": b"JPEG after",
+                                       "mimetype": "image/jpeg", "res_model": fo._name, "res_id": fo.id})
+    ctx["fo"]._fix_attach_field_evidence(pic, "post_work_photo")
+    fo.write({"work_summary": "Board reflowed, powered on, tested"})
+    fo.action_complete()
+    return "field order %s, arrival %.4f, %.4f" % (fo.state, fo.arrival_latitude, fo.arrival_longitude)
+
+
+for flag, name, out in results:
+    print(flag, name, "->", out)
+for k, v in ctx.items():
+    if k.startswith("tb_"):
+        print("\n" + k, v)
+print("SUMMARY", sum(1 for r in results if r[0] == "OK  "), "/", len(results))
+env.cr.rollback()

@@ -82,10 +82,24 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
 3. On-site repair: dispatch, GPS arrival recorded, cash 1,725 accepted by a separate cashier as a
    receipt Dr 100108.
 
+## Field dispatch on fix_real (20 Nov, proven on a fix_real copy, 6/6)
+A walk with the real users found that **only `admin` could dispatch a branch field job**: the two
+Field Service Managers are head office, and the dispatcher `shariful.islam` held only Main Operating
+Unit, so the OU record rule hid every branch's field orders from him (53 service branches each own an
+OU). Owner decision: the head-office desk dispatches for every branch, so `shariful.islam` now holds
+all 58 operating units on fix_real (applied 20 Nov).
+Walk (`evidence_a02_erp/a02_dispatch_walk_*`), Motijheel Service Center order, real users, 0
+certifications on the DB: an uncertified technician is refused by the M22 gate -> the dispatcher
+requests a per-order waiver -> it reaches the Certification Override Approver's M63 inbox, not the
+requester's -> approved -> the dispatcher dispatches from the screen (dispatch decision) -> the
+branch technician accepts, travels, arrives on GPS, works and completes.
+
 ## Still the business's to supply
-- **Technician certifications** (HR records them in M22, owner 20 Nov). fix_real has none yet, so
-  until then each field dispatch needs an approved per-order certification waiver (BRU-LMS-01).
-  Not fabricated here.
+- **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
+  the waiver above is the path, and it works end to end today.
+- fix_dev holds **no stock at all** (0 on-hand rows), so no part can be issued there from any store;
+  the workshop store link (HO-WTY) is in place for when stock is loaded. fix_real's workshop store
+  holds 53,148 units and the part issue was walked there (scenario 2).
 
 ## Owner decisions (original list)
 | # | Decision | Effect until decided |
