@@ -1272,8 +1272,47 @@ class FixWorkshopJob(models.Model):
                 self.name,
             )
 
+        self._m31_record_order_qc(passed, notes)
         self._emit_qc_completed(passed, notes)
         return passed
+
+    def _m31_record_order_qc(self, passed: bool, notes: str = "") -> None:
+        """The bench QC is the order's QC (A02 ERP audit, 20 Nov 2026).
+
+        M01 releases an order to Ready only on a QC checklist of the current
+        round (BRU-SRM-04), and the workshop's own inspection wrote none: a
+        depot repair that passed QC on the bench could not follow its job to
+        Ready, and every job would have been inspected twice. The outcome is
+        now recorded as the order's checklist for the round, by the same
+        inspector (whose independence _m31_assert_qc_inspector enforced), with
+        the bench test results as its items."""
+        self.ensure_one()
+        order = self.sudo().order_id
+        if not order or order.state != "qc_pending" or "fix.qc.checklist" not in self.env:
+            return
+        Checklist = self.env["fix.qc.checklist"].sudo()
+        items = []
+        results = self.sudo().test_result_ids if "test_result_ids" in self._fields else []
+        # the latest result of each test step (results are append-only)
+        latest = {}
+        for res in results.sorted("id"):
+            latest[res.step_id.id or res.id] = res
+        for res in latest.values():
+            label = res.test_name or "Bench test"
+            items.append((0, 0, {"name": label[:120], "passed": bool(res.passed)}))
+        items.append((0, 0, {"name": "Workshop QC of %s" % self.name, "passed": bool(passed)}))
+        checklist = Checklist.create(
+            {"order_id": order.id, "notes": notes or False, "item_ids": items}
+        )
+        checklist._guarded().write(
+            {
+                "state": "passed" if passed else "failed",
+                "checked_at": fields.Datetime.now(),
+                "inspected_by": self.env.user.id,
+                "inspector_id": self.env.user.sudo().employee_id.id or False,
+                "qc_round": order.qc_round,
+            }
+        )
 
     # --- The M01 hand-back (A02 audit M31-3) ---
     def _m31_check_order_cleared_for_repair(self, old_state: str) -> None:

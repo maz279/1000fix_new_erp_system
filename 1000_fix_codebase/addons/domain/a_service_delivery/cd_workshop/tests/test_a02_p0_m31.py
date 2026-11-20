@@ -93,7 +93,7 @@ def m31(odoo_env):
     tech, tech_emp = _user(env, "tech", [G_TECH])
     tech2, tech2_emp = _user(env, "tech2", [G_TECH])
     qc, qc_emp = _user(env, "qc", [G_QC])
-    supv, supv_emp = _user(env, "supv", [G_SUPV])
+    supv, _supv_emp = _user(env, "supv", [G_SUPV])
     plain, _plain_emp = _user(env, "plain", [])
     n = next(_SEQ)
     workshop = env["fix.workshop"].create(
@@ -590,7 +590,15 @@ def test_p31_08_the_order_sync_no_longer_swallows_a_refusal(m31):
     _to_repair(m31, job)
     job.action_submit_qc()
     _evidence(m31, job, "post_repair_photo", "test_log")
-    with refused(m31.env, UserError, "QC checklist"):
+    # the bench QC now records the order's checklist (A02 ERP audit); the
+    # property under test is that an order-side refusal still holds the job
+    from unittest import mock
+
+    Order = type(job.order_id)
+    with (
+        mock.patch.object(Order, "_check_qc_gate", side_effect=UserError("QC checklist refused")),
+        refused(m31.env, UserError, "QC checklist"),
+    ):
         _as(m31, m31.qc, job).action_pass_qc()
     assert (job.sudo().state, job.order_id.state) == ("qc_pending", "qc_pending")
 
@@ -844,3 +852,20 @@ def test_the_bridge_still_hands_an_order_to_the_workshop(m31):
     so = m31.order(state="intake")
     job = so.action_create_workshop_job()
     assert (job.state, job.order_id) == ("draft", so)
+
+
+# --- A02 ERP audit (20 Nov 2026): the bench QC is the order's QC ---------------
+def test_a_bench_qc_pass_carries_the_order_to_ready_without_a_second_qc(m31):
+    """The fix_real walk: a depot job passed QC on the bench but its order could
+    not follow it to Ready ('no QC checklist for this QC round'); the existing
+    tests had hidden it by creating the order's checklist by hand."""
+    job = m31.job()
+    _to_repair(m31, job)
+    job.action_submit_qc()
+    _evidence(m31, job, "post_repair_photo", "test_log")
+    _as(m31, m31.qc, job).action_pass_qc("All functions tested")
+    order = job.order_id.sudo()
+    assert job.sudo().state == "ready" and order.state == "ready"
+    (checklist,) = order.qc_checklist_ids.filtered(lambda c: c.qc_round == order.qc_round)
+    assert checklist.state == "passed" and checklist.inspected_by == m31.qc
+    assert checklist.inspector_id == m31.qc_emp

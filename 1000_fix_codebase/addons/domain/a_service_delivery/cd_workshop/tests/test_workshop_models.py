@@ -532,7 +532,16 @@ def test_job_ready_does_not_bypass_the_order_qc_checklist_gate(ws, so):
     _to_repair(ws, job)
     job.action_transition("qc_pending")
     _evidence(ws, job)
-    with _refused(ws.env, UserError, "QC checklist"):
+    # the bench QC records the order's checklist (A02 ERP audit); an order-side
+    # refusal of Ready must still hold the job (no direct state write)
+    from unittest import mock
+
+    with (
+        mock.patch.object(
+            type(so), "_check_qc_gate", side_effect=UserError("QC checklist refused")
+        ),
+        _refused(ws.env, UserError, "QC checklist"),
+    ):
         job.action_pass_qc()
     assert (job.state, so.state) == ("qc_pending", "qc_pending")
 
