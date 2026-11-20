@@ -5,10 +5,15 @@
 # is the consumption itself (no draft state), so creating it issues the part.
 # Same approach as the workshop bridge (cd_workshop/models/
 # fix_workshop_part_line_m15.py): only a product mapped to an M15 spare part is
-# issued, through M15's own issue, from the technician's van where there is one,
-# else from the job's branch store; not enough stock refuses the line. A product
+# issued, through M15's own issue; not enough stock refuses the line. A product
 # that is not an M15 part is unchanged unless cd_service_order.m15_issue_required
 # is on.
+#
+# A06 ERP audit (20 Nov 2026) A06/A08/X22, owner decision D3: the store is no
+# longer the first branch store found. M15 picks it by the job's branch and
+# warranty status (warranty jobs draw only from warranty stores, other jobs
+# never do), takes the job's own reservation first, and refuses when several
+# stores could be meant. The cost M15 issued the part at is the line's cost.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -53,33 +58,25 @@ class FixWorkOrderPartM15(models.Model):
             )
         )
 
-    def _a06_m15_location(self, technician):
-        """The technician's van where there is one, else the job's branch store."""
+    def _a06_m15_store(self, technician, part=None):
+        """(store, reservation) the part is issued from (D3, M15 decides)."""
         self.ensure_one()
-        Location = self.env["fix.stock.location"].sudo()
-        if technician:
-            van = Location.search(
-                [
-                    ("technician_id", "=", technician.id),
-                    ("location_type", "=", "van"),
-                    ("state", "=", "active"),
-                ],
-                limit=1,
-            )
-            if van:
-                return van
         order = self.work_order_id.sudo().order_id
-        if not order.branch_id:
-            return Location
-        return Location.search(
-            [
-                ("branch_id", "=", order.branch_id.id),
-                ("location_type", "=", "branch"),
-                ("state", "=", "active"),
-                ("company_id", "=", order.company_id.id),
-            ],
-            limit=1,
+        part = part or self._a06_m15_part()
+        return self.env["fix.stock.location"]._fix_job_store(
+            order.company_id,
+            order.branch_id,
+            order.order_category == "warranty",
+            part,
+            self.quantity or 0.0,
+            technician=technician,
+            job_ref=order.name,
         )
+
+    def _a06_m15_location(self, technician):
+        """The store the part is issued from (kept for callers of the A02
+        bridge: same name and arguments)."""
+        return self._a06_m15_store(technician)[0]
 
     def _a06_issue_from_m15(self):
         """Issue this line through M15, as the system (the caller already checked
@@ -103,26 +100,29 @@ class FixWorkOrderPartM15(models.Model):
                 "Work order %s has no technician to record the issue of %s against."
                 % (work_order.name, part.part_number)
             )
-        location = self._a06_m15_location(technician)
+        location, reservation = self._a06_m15_store(technician, part)
         if not location:
             raise UserError(
                 "Work order %s has no van or branch store to issue %s from."
                 % (work_order.name, part.part_number)
             )
-        issue = Issue.create(
-            {
-                "company_id": work_order.order_id.company_id.id,
-                "operating_unit_id": work_order.order_id.operating_unit_id.id,
-                "service_order_ref": work_order.order_id.name,
-                "work_order_ref": work_order.name,
-                "product_id": part.id,
-                "location_id": location.id,
-                "technician_id": technician.id,
-                "quantity": self.quantity,
-                "serial_number": self.fitted_serial_number or False,
-                "scanned_code": self.fitted_serial_number or part.part_number,
-            }
-        )
+        vals = {
+            "company_id": work_order.order_id.company_id.id,
+            "operating_unit_id": work_order.order_id.operating_unit_id.id,
+            "service_order_ref": work_order.order_id.name,
+            "work_order_ref": work_order.name,
+            "product_id": part.id,
+            "location_id": location.id,
+            "technician_id": technician.id,
+            "quantity": self.quantity,
+            "serial_number": self.fitted_serial_number or False,
+            "scanned_code": self.fitted_serial_number or part.part_number,
+        }
+        if reservation:
+            vals["reservation_id"] = reservation.id
+            if reservation.booked_class not in ("owned", "van"):
+                vals["issue_class"] = reservation.booked_class
+        issue = Issue.create(vals)
         issue.action_scan_and_consume()
         return issue
 
@@ -149,7 +149,12 @@ class FixWorkOrderPartM15(models.Model):
         for line in lines:
             issue = line._a06_issue_from_m15()
             if issue:
-                line._guarded().sudo().write({"m15_consumption_id": issue.id})
+                vals = {"m15_consumption_id": issue.id}
+                # A06 ERP audit X22: the job carries the cost M15 issued at
+                issued_at = issue.sudo().unit_cost
+                if abs((issued_at or 0.0) - (line.unit_cost or 0.0)) > 1e-6:
+                    vals["unit_cost"] = issued_at
+                line._guarded().sudo().write(vals)
         return lines
 
     def unlink(self):

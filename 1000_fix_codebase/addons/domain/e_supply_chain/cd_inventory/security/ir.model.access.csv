@@ -113,3 +113,7 @@ access_fix_wms_rf_journal_admin,fix.wms.rf.journal admin,model_fix_wms_rf_journa
 access_fix_stock_uncosted_release_user,fix.stock.uncosted.release user,model_fix_stock_uncosted_release,base.group_user,1,0,0,0
 access_fix_stock_uncosted_release_keeper,fix.stock.uncosted.release storekeeper,model_fix_stock_uncosted_release,cd_wms_structure.group_storekeeper,1,1,1,0
 access_fix_stock_uncosted_release_controller,fix.stock.uncosted.release controller,model_fix_stock_uncosted_release,cd_wms_structure.group_inventory_controller,1,1,1,0
+access_fix_stock_move_log_user,fix.stock.move.log user,model_fix_stock_move_log,base.group_user,1,0,0,0
+access_fix_stock_van_recon_line_user,fix.stock.van.recon.line user,model_fix_stock_van_recon_line,base.group_user,1,0,0,0
+access_fix_stock_van_recon_line_storekeeper,fix.stock.van.recon.line storekeeper,model_fix_stock_van_recon_line,cd_wms_structure.group_storekeeper,1,1,1,1
+access_fix_stock_van_recon_line_technician,fix.stock.van.recon.line technician,model_fix_stock_van_recon_line,cd_wms_structure.group_van_technician,1,1,1,1

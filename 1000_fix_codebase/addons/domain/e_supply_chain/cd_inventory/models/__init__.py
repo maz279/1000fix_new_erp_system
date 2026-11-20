@@ -6,11 +6,13 @@ from . import (
     fix_inventory_approval,
     fix_inventory_ops,
     fix_m15_capture,
+    fix_m15_erp_audit,
     fix_reorder_rule,
     fix_spare_part,
     fix_stock_bridges,
     fix_stock_consumption,
     fix_stock_location,
+    fix_stock_move_log,
     # A06 ERP D1/D4: the posting engine and the take-on extend the suspense
     fix_stock_posting,
     fix_stock_takeon,

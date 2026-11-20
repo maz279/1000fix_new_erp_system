@@ -18,17 +18,21 @@ import logging
 from datetime import datetime
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from libs.py.fix_events import publish
 
 from .fix_inventory_approval import (
     CONTROLLER_GROUP,
     COST_GROUP,
+    STOREKEEPER_GROUP,
     VALUED_CLASSES,
     check_location_usable,
     check_quantity,
     location_class,
     part_codes,
 )
+from .fix_stock_move_log import move_ctx
 from .fix_valuation_suspense import suspense_account_code
 
 _logger = logging.getLogger(__name__)
@@ -44,6 +48,27 @@ RETURN_REASONS = [
     ("customer_refusal", "Customer declined estimate"),
     ("excess_draw", "Excess van stock drawn and returned"),
 ]
+
+# A06 ERP audit A28: the job states a part is issued in (the A02 bridges'
+# gate, now on every issue): an approved service order in repair (or back
+# from QC), a workshop job on the bench, a field job on site.
+ISSUE_JOB_STATES = {
+    "fix.service.order": ("approved", "in_repair", "qc_failed"),
+    "fix.workshop.job": ("in_repair",),
+    "fix.field.order": ("arrived", "in_progress"),
+}
+# A06 ERP audit A09: a part does not come back from a job that is finished:
+# handed over, closed or completed (a job being cancelled still returns its
+# parts, before it is closed).
+RETURN_CLOSED_JOB_STATES = {
+    "fix.service.order": ("delivered", "closed"),
+    "fix.workshop.job": ("delivered",),
+    "fix.field.order": ("completed",),
+}
+# Service-order settlement states that mean the job was invoiced and paid.
+SETTLED_STATES = ("settled", "credit_approved")
+# D3 (owner decision 20 Nov 2026): the stock type of a warranty store.
+WARRANTY_STOCK_TYPE = "warranty"
 
 # A06 final pass B4: which class of stock an issue draws (BRU-INV-01/03/04).
 ISSUE_CLASSES = [
@@ -157,6 +182,14 @@ class FixStockConsumption(models.Model):
     return_reason = fields.Selection(RETURN_REASONS, string="Return Reason")
     return_notes = fields.Text(string="Return Notes")
     returned_at = fields.Datetime(string="Return Timestamp")
+    # A06 ERP audit X19 / D4: stock that carries no cost leaves only on an
+    # Inventory Controller's approval (its value is unknown, not nil)
+    zero_cost_approved_by_id = fields.Many2one(
+        "res.users", string="Uncosted Issue Approved By", readonly=True, copy=False
+    )
+    zero_cost_approved_at = fields.Datetime(
+        string="Uncosted Issue Approved On", readonly=True, copy=False
+    )
 
     # what an issue fixes: the job, the part, the place and the quantity
     _ISSUE_FIELDS = (
@@ -185,6 +218,8 @@ class FixStockConsumption(models.Model):
             "job_model",
             "job_res_id",
             "work_order_res_id",
+            "zero_cost_approved_by_id",
+            "zero_cost_approved_at",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -275,9 +310,17 @@ class FixStockConsumption(models.Model):
         category = order.order_category if order else False
         customer = self.env["res.partner"]
         if cls == "consignment":
-            brand = (order.device_id.sudo().brand_id.name or "").strip().lower() if order else ""
-            own = (part.device_brand or "").strip().lower()
-            if category != "warranty" or not own or own != brand:
+            device_brand = order.device_id.sudo().brand_id if order else False
+            master = part.sudo()
+            if master.brand_id and device_brand:
+                # A06 ERP audit A30: the governed brand master decides; the
+                # legacy brand text only where the part has no governed brand
+                same = master.brand_id == device_brand
+            else:
+                brand = (device_brand.name or "").strip().lower() if device_brand else ""
+                own = (master.device_brand or "").strip().lower()
+                same = bool(own) and own == brand
+            if category != "warranty" or not same:
                 raise UserError(
                     "Brand consignment stock of %s goes only on a warranty job for %s's own "
                     "product (BRU-INV-01). No authority can override this."
@@ -439,6 +482,74 @@ class FixStockConsumption(models.Model):
             return lot
         return self.env["fix.stock.lot"]
 
+    def _check_job_state(self, job_model, job_id):
+        """A06 ERP audit A28: a part is issued only to a job that is live
+        work (the gate the A02 bridges applied, now on the direct issue too)."""
+        self.ensure_one()
+        states = ISSUE_JOB_STATES.get(job_model)
+        if not states or self.env.su:
+            # trusted service code (the A02 bridges) applies its own job gate
+            return
+        job = self.env[job_model].sudo().browse(job_id)
+        if job.state not in states:
+            raise UserError(
+                "Parts are issued to %s only while it is %s; it is %s."
+                % (job.display_name, " / ".join(states), job.state)
+            )
+
+    @api.model
+    def _job_is_warranty(self, order) -> bool:
+        """D3: a warranty job is a service order of the warranty category."""
+        return bool(order) and order.order_category == "warranty"
+
+    @api.model
+    def _store_is_warranty(self, location) -> bool:
+        return (location.sudo().stock_type or False) == WARRANTY_STOCK_TYPE
+
+    def _check_warranty_store(self, job_model, job_id):
+        """D3 (owner decision 20 Nov 2026) / A19: brand warranty parts are
+        company-owned stock kept in warranty stores. A warranty job draws only
+        from a warranty store, any other job never does."""
+        self.ensure_one()
+        if not job_model:
+            return
+        order = self._job_service_order(job_model, job_id)
+        warranty_job = self._job_is_warranty(order)
+        warranty_store = self._store_is_warranty(self.location_id)
+        if warranty_job and not warranty_store:
+            raise UserError(
+                "%s is a warranty job: its parts come only from a warranty store, and %s is "
+                "not one (D3)." % (order.name, self.location_id.code)
+            )
+        if warranty_store and not warranty_job:
+            raise UserError(
+                "%s is a warranty store: its parts go only on warranty jobs, and %s is not "
+                "one (D3)." % (self.location_id.code, order.name or self.service_order_ref)
+            )
+
+    def action_approve_zero_cost(self, note=None):
+        """X19 / D4: an Inventory Controller (not the technician who issues
+        it) lets an issue of uncosted stock go ahead."""
+        if not self.env.su and not self.env.user.has_group(CONTROLLER_GROUP):
+            raise AccessError("Only an Inventory Controller approves the issue of uncosted stock.")
+        for rec in self:
+            if rec.state != "draft":
+                raise UserError("%s is no longer a draft issue." % rec.name)
+            if not self.env.su and self.env.user in (rec.create_uid | rec.technician_id.user_id):
+                raise UserError(
+                    "Segregation of duties: you raised or issue %s, so another Inventory "
+                    "Controller approves it." % rec.name
+                )
+            rec.sudo()._guarded().write(
+                {
+                    "zero_cost_approved_by_id": self.env.user.id,
+                    "zero_cost_approved_at": fields.Datetime.now(),
+                }
+            )
+            if note:
+                rec.sudo().message_post(body="Uncosted issue approved: %s" % note)
+        return True
+
     def action_scan_and_consume(self) -> dict:
         """Atomic scan-to-consume: deducts the location bucket, values the
         issue at the bucket's average cost, books the suspense entry and
@@ -448,10 +559,12 @@ class FixStockConsumption(models.Model):
             raise UserError("Only draft scans can be confirmed for consumption.")
         lot = self._check_issue()
         job_model, job_id, work_order_id = self._resolve_job()
+        self._check_job_state(job_model, job_id)
+        self._check_warranty_store(job_model, job_id)
         part = self.product_id
         cls = location_class(self.location_id, self.issue_class or "owned")
         customer = self._check_class_rules(cls, job_model, job_id, lot)
-        Onhand = self.env["fix.stock.onhand"]
+        Onhand = self.env["fix.stock.onhand"].with_context(**move_ctx(self))
         bucket = Onhand._bucket(part, self.location_id, cls)
         available = (bucket.qty - bucket.reserved) if bucket else 0.0
         if available + 1e-9 < self.quantity:
@@ -460,6 +573,12 @@ class FixStockConsumption(models.Model):
                 f"{round(available, 4)} available, {self.quantity} requested."
             )
         cost = bucket.unit_cost or 0.0
+        if cls in VALUED_CLASSES and cost <= 1e-9 and not self.zero_cost_approved_by_id:
+            raise UserError(
+                "%s at %s carries no cost: its value is unknown, so an Inventory Controller "
+                "approves the issue first (D4) - or Finance prices the stock."
+                % (part.part_number, self.location_id.code)
+            )
         Onhand._fix_check_bins(part, self.location_id, self.quantity)
         Onhand._apply(part, self.location_id, cls, -self.quantity)
         if lot:
@@ -521,12 +640,9 @@ class FixStockConsumption(models.Model):
             "suspense_entry_id": suspense_entry.id or None,
         }
 
-        try:
-            from libs.py.fix_events import publish
-
-            publish(self.env, "stock.consumed", "fix.stock.consumption", self.id, event_payload)
-        except Exception:
-            _logger.exception("stock.consumed event publish failed for %s", self.id)
+        # A06 ERP audit A33: the event the ledger promises is published inside
+        # the issue's transaction; a failed publish fails the issue
+        publish(self.env, "stock.consumed", "fix.stock.consumption", self.id, event_payload)
 
         return {
             "status": "consumed",
@@ -534,6 +650,41 @@ class FixStockConsumption(models.Model):
             "remaining_qty": part.qty_available,
             "valuation_entry": suspense_entry.name or None,
         }
+
+    def _check_return_allowed(self):
+        """A06 ERP audit A09: a part comes back only from a job that is not
+        finished (handed over, closed, completed, or settled), and only into
+        the store's hands: a storekeeper or Inventory Controller of the
+        issuing location, or the van's own custodian. A job being cancelled
+        returns its parts (trusted service code is exempt from the role)."""
+        self.ensure_one()
+        job_model, job_id = self.job_model, self.job_res_id
+        if job_model and job_model in self.env and job_id:
+            job = self.env[job_model].sudo().browse(job_id).exists()
+            closed = RETURN_CLOSED_JOB_STATES.get(job_model, ())
+            order = self._job_service_order(job_model, job_id) if job else None
+            settled = bool(
+                order
+                and "payment_settlement_state" in order._fields
+                and order.payment_settlement_state in SETTLED_STATES
+                and order.state in ("ready", "delivered", "closed")
+            )
+            if job and (job.state in closed or settled):
+                raise UserError(
+                    "%s is %s: a part does not come back from a finished job (its cost is on "
+                    "the customer's bill). Book it as a new receipt or a count, with a reason."
+                    % (job.display_name, "settled" if settled else job.state)
+                )
+        if self.env.su:
+            return
+        user = self.env.user
+        location = self.location_id
+        custodian = location.location_type == "van" and location.technician_id.user_id == user
+        if not (custodian or user.has_group(STOREKEEPER_GROUP) or user.has_group(CONTROLLER_GROUP)):
+            raise AccessError(
+                "A part is returned into %s by its store (a storekeeper or Inventory "
+                "Controller) or, at a van, by its custodian." % location.code
+            )
 
     def action_return_part(self, reason: str | None = None, notes: str = "") -> dict:
         """Atomic part return at the cost it was issued at. A part returned
@@ -545,12 +696,13 @@ class FixStockConsumption(models.Model):
             raise UserError(
                 "Give the return reason: %s." % ", ".join(k for k, _l in RETURN_REASONS)
             )
+        self._check_return_allowed()
         part = self.product_id
         check_location_usable(self.location_id, self.env)
         cls = self.ownership_class or location_class(self.location_id)
         defective = reason == "defective_new"
         cost = self.sudo().unit_cost
-        Onhand = self.env["fix.stock.onhand"]
+        Onhand = self.env["fix.stock.onhand"].with_context(**move_ctx(self))
         Onhand._apply(
             part,
             self.location_id,
@@ -629,12 +781,7 @@ class FixStockConsumption(models.Model):
             "suspense_entry_id": suspense_entry.id or None,
         }
 
-        try:
-            from libs.py.fix_events import publish
-
-            publish(self.env, "stock.returned", "fix.stock.consumption", self.id, event_payload)
-        except Exception:
-            _logger.exception("stock.returned event publish failed for %s", self.id)
+        publish(self.env, "stock.returned", "fix.stock.consumption", self.id, event_payload)
 
         return {
             "status": "returned",

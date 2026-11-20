@@ -212,8 +212,10 @@ def test_m15_12_draft_receipt_cannot_post(inv):
 
 
 def test_m15_13_inspection_needs_accepted_qty(inv):
-    rec = inv.receipt(inv.keeper, acc=0.0)
-    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "accepted quantity")
+    # A06 ERP audit A12 (20 Nov 2026): a line rejected whole is recorded (it
+    # goes to quarantine); a line must still have received something
+    rec = inv.receipt(inv.keeper, rec=0.0, acc=0.0)
+    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "received quantity")
 
 
 def test_m15_14_inspection_not_skipped_by_state_write(inv):
@@ -459,8 +461,10 @@ def test_m15_36_van_discrepancy_holds_the_next_issue(inv):
     refused(inv, lambda: rec.with_user(inv.techuser).action_scan_and_consume(), "discrepancy")
     refused(inv, lambda: recon.with_user(inv.techuser).action_resolve("found it"))
     recon.with_user(inv.controller).action_resolve("two units used on SO-1, count booked")
+    # A06 ERP audit A11: the approval corrects the van to the 1 counted
+    assert inv.qty(inv.part, inv.van, "van") == 1.0
     rec.with_user(inv.techuser).action_scan_and_consume()
-    assert inv.qty(inv.part, inv.van, "van") == 2.0
+    assert inv.qty(inv.part, inv.van, "van") == 0.0
 
 
 def test_m15_37_fractional_pieces_refused(inv):
@@ -836,7 +840,8 @@ def test_m15_63_scrapped_cannot_be_released(inv):
 
 def test_m15_63b_release_returns_stock(inv):
     q = inv.quarantine(inv.keeper, qty=3.0)
-    q.with_user(inv.keeper).action_release()
+    # A06 ERP audit A10: the Quality Manager or an Inventory Controller releases
+    q.with_user(inv.controller).action_release()
     assert inv.qty(inv.part, inv.central) == 10.0 and q.state == "released"
 
 
@@ -872,7 +877,8 @@ def test_m15_67_rtv_closes_on_credit(inv):
     r.with_user(inv.controller).action_approve()
     r.with_user(inv.keeper).action_ship()
     refused(inv, lambda: r.with_user(inv.keeper).action_mark_credited(""), "credit")
-    r.with_user(inv.keeper).action_mark_credited("CN-2026-0042")
+    # A06 ERP audit A34: the credit is recorded by a controller / finance approver
+    r.with_user(inv.controller).action_mark_credited("CN-2026-0042")
     assert (r.state, r.credit_ref) == ("credited", "CN-2026-0042")
 
 
@@ -1042,7 +1048,8 @@ def test_m15_77_one_alert_per_shortage(inv):
 
 
 def test_m15_78_alert_drafts_a_requisition(inv):
-    rule = _rule(inv, location=inv.hub, requester_id=inv.tech1.id)
+    # D7 (20 Nov 2026): only a warehouse buys
+    rule = _rule(inv, location=inv.central, mn=12.0, requester_id=inv.tech1.id)
     rule.with_user(inv.keeper).action_trigger_reorder()
     assert rule.state == "ordered" and rule.requisition_id
     assert rule.requisition_id.state == "draft"

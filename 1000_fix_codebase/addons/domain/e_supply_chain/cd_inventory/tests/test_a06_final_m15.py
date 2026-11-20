@@ -121,76 +121,21 @@ def test_b3_a_user_cannot_claim_a_system_handoff_to_skip_the_rule(inv):
     )
 
 
-def test_b3_po_receipt_cannot_exceed_the_open_quantity(inv):
-    order, vendor = _po(inv, qty=5.0)
-    rec = inv.receipt(
-        inv.keeper,
-        rec=6.0,
-        acc=6.0,
-        purchase_order_id=order.id,
-        partner_id=vendor.id,
-        direct_reason=False,
-    )
-    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "open")
-    first = inv.receipt(
-        inv.keeper,
-        rec=3.0,
-        acc=3.0,
-        purchase_order_id=order.id,
-        partner_id=vendor.id,
-        direct_reason=False,
-    )
-    first.with_user(inv.keeper).action_inspect()
-    first.with_user(inv.keeper).action_post()  # a storekeeper posts a PO receipt
-    second = inv.receipt(
-        inv.keeper,
-        rec=3.0,
-        acc=3.0,
-        purchase_order_id=order.id,
-        partner_id=vendor.id,
-        direct_reason=False,
-    )
-    refused(inv, lambda: second.with_user(inv.keeper).action_inspect(), "open")
-    assert inv.qty(inv.part, inv.hub) == 3.0
-
-
-def test_b3_po_receipt_takes_the_po_price_not_a_typed_cost(inv):
+def test_b3_po_goods_are_received_only_through_m16(inv):
+    """A06 ERP audit A01 (20 Nov 2026): a manual M15 receipt naming a PO is
+    refused whatever its quantity, price, part or PO state - the M16 goods
+    receipt receives PO goods (its own checks are M16's suite)."""
     order, vendor = _po(inv, qty=5.0, price=200.0)
     rec = inv.receipt(
-        inv.controller,
-        cost=999.0,
-        purchase_order_id=order.id,
-        partner_id=vendor.id,
-        direct_reason=False,
-    )
-    rec.with_user(inv.controller).action_inspect()
-    rec.with_user(inv.controller).action_post()
-    assert inv.bucket(inv.part, inv.hub).unit_cost == 200.0
-    assert rec.line_ids.sudo().unit_cost == 200.0
-
-
-def test_b3_po_receipt_refuses_a_part_the_order_does_not_buy(inv):
-    order, vendor = _po(inv)
-    rec = inv.receipt(
         inv.keeper,
-        part=inv.spart,
-        rec=1.0,
-        acc=1.0,
-        serial="A6F-SN",
+        rec=3.0,
+        acc=3.0,
         purchase_order_id=order.id,
         partner_id=vendor.id,
         direct_reason=False,
     )
-    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "does not order")
-
-
-def test_b3_draft_po_cannot_be_received_against(inv):
-    order, vendor = _po(inv)
-    order.write({"state": "draft"})
-    rec = inv.receipt(
-        inv.keeper, purchase_order_id=order.id, partner_id=vendor.id, direct_reason=False
-    )
-    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "issued order")
+    refused(inv, lambda: rec.with_user(inv.keeper).action_inspect(), "M16 goods receipt")
+    assert inv.qty(inv.part, inv.hub) == 0.0
 
 
 # ======================================================== B4 issue class rules
@@ -203,6 +148,8 @@ def _warranty_job(inv, brand_name):
     )
     so.invalidate_recordset(["order_category"])
     so.device_id.device_model_id.brand_id.sudo().write({"name": brand_name})
+    # D3 (20 Nov 2026): a warranty job draws only from a warranty store
+    inv.central.sudo().write({"stock_type": "warranty"})
     return so
 
 
@@ -669,10 +616,12 @@ def test_b17_the_requisition_can_be_converted(inv):
     rule = inv.env["fix.reorder.rule"].create(
         {
             "spare_part_id": inv.part.id,
-            "location_id": inv.hub.id,
+            # D7 (20 Nov 2026): only a warehouse buys
+            "location_id": inv.central.id,
             "branch_id": inv.branch().id,
             "operating_unit_id": inv.ou.id,
             "requester_id": inv.tech1.id,
+            "min_qty": 12.0,
             "max_qty": 20.0,
         }
     )
@@ -680,7 +629,7 @@ def test_b17_the_requisition_can_be_converted(inv):
     requisition = rule.requisition_id
     assert requisition, "the sweep drafts a requisition"
     assert requisition.product_id == product
-    assert requisition.qty == 20.0
+    assert requisition.qty == 10.0  # max 20 less the 10 on hand
 
 
 # ======================================================== B18 cost is restricted
@@ -733,7 +682,8 @@ def test_b18_reports_leave_cost_out_for_a_storekeeper(inv):
     assert m15.kpis(boss_env)["stock_value"] > 0
     pack = m15.availability(keeper_env)
     assert "unit_cost" not in pack["cols"] and all("unit_cost" not in r for r in pack["rows"])
-    assert "unit_cost" in m15.availability(boss_env)["cols"]
+    # A06 ERP audit A24: the network search shows quantities only, to anyone
+    assert "unit_cost" not in m15.availability(boss_env)["cols"]
     assert "value" not in m15.ownership_classes(keeper_env)["cols"]
     assert m15.valuation_by_class(keeper_env)["rows"] == []
     assert m15.valuation_by_class(boss_env)["rows"]

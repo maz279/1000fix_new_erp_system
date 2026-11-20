@@ -22,6 +22,7 @@
 # Every record below moves stock only through the ledger's own primitives
 # (fix.stock.onhand._fix_reserve / _fix_unreserve, fix.stock.quarantine), so
 # the movement controls (BRU-INV-07/08, bins, operating units) still apply.
+import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
@@ -39,6 +40,8 @@ from .fix_inventory_approval import (
 )
 from .fix_inventory_ops import EPS, OWNERSHIP_CLASSES
 from .fix_stock_consumption import ISSUE_CLASSES
+
+_logger = logging.getLogger(__name__)
 
 # BRU-INV-17: warranty/SLA-bound > paid customer work > internal demand. The
 # key sorts: a smaller key is the higher priority.
@@ -78,6 +81,8 @@ def _job_context(env, part, location, ref, cls, qty):
     if (ref or "").strip():
         job_model, job_id, _wo = probe._resolve_job()
     probe._check_class_rules(cls, job_model, job_id, env["fix.stock.lot"])
+    # D3: a warranty job's stock is held in a warranty store, and only there
+    probe._check_warranty_store(job_model, job_id)
     if not job_model:
         return False, 0, "3_internal"
     order = probe._job_service_order(job_model, job_id)
@@ -259,9 +264,21 @@ class FixStockReservation(models.Model):
                 raise UserError("%s is not held: nothing to release." % rec.name)
             open_qty = round(rec.qty - rec.qty_consumed, 4)
             if open_qty > EPS:
-                Onhand._fix_unreserve(
-                    rec.part_id, rec.location_id, rec.booked_class, open_qty, rec.name
-                )
+                # A06 ERP audit A05: a reservation whose stock already left the
+                # ledger (a loss posted before the count rule) is closed on the
+                # record with what the ledger still held, never left stuck
+                row = Onhand._bucket(rec.part_id, rec.location_id, rec.booked_class)
+                held = min(open_qty, row.reserved if row else 0.0)
+                if held > EPS:
+                    Onhand._fix_unreserve(
+                        rec.part_id, rec.location_id, rec.booked_class, held, rec.name
+                    )
+                if held + EPS < open_qty:
+                    reason = "%s (only %s of %s was still held on the ledger)" % (
+                        reason,
+                        round(held, 4),
+                        open_qty,
+                    )
             vals = {
                 "state": state,
                 "release_reason": reason,
@@ -442,13 +459,21 @@ class FixStockReservation(models.Model):
         """BRU-INV-18 / FR-INV-021: a hold not issued in time returns to stock
         and the requester is told."""
         due = self.search([("state", "=", "active"), ("expires_at", "<", fields.Datetime.now())])
+        done = 0
         for rec in due:
-            rec._release_open("expired", "Not issued before %s" % rec.expires_at)
-            rec._notify(
-                "Reservation %s of %s at %s expired unissued and went back to stock "
-                "(BRU-INV-18)." % (rec.name, rec.part_id.part_number, rec.location_id.code)
-            )
-        return len(due)
+            # A06 ERP audit A05: one reservation that cannot be released never
+            # stops the sweep for the others
+            try:
+                with self.env.cr.savepoint():
+                    rec._release_open("expired", "Not issued before %s" % rec.expires_at)
+                    rec._notify(
+                        "Reservation %s of %s at %s expired unissued and went back to stock "
+                        "(BRU-INV-18)." % (rec.name, rec.part_id.part_number, rec.location_id.code)
+                    )
+                done += 1
+            except Exception:
+                _logger.exception("reservation %s could not be expired", rec.name)
+        return done
 
     def _fix_consume(self, qty, consumption):
         """An issue draws its own reservation: unreserve exactly what it takes

@@ -203,7 +203,7 @@ def test_e3_09_10_13_credit_note_at_billed_price_with_vat_and_tds(p2p):
     assert abs(r.sudo().unit_cost - avg) < 0.01
     susp = p2p.suspense(source_ref=r.name, entry_type="rtv")
     assert abs(sum(susp.mapped("total_valuation")) - (-5.0 * avg)) < 0.05
-    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67-" + p2p.tag)
+    r.with_user(p2p.controller).action_mark_credited("MUSHAK-67-" + p2p.tag)
     note = p2p.env["fix.vendor.note"].browse(r.vendor_note_res_id)
     assert note.invoice_id == bill
     assert note.amount == 7400.0  # 5 x the billed 1,480.00
@@ -218,7 +218,7 @@ def test_e3_11_an_rtv_without_a_grn_raises_no_guessed_note(p2p):
     r = _rtv(p2p, 1.0, rtv_ref="RMA-E3C-" + p2p.tag, no_receipt_reason="Stock taken on")
     r.with_user(p2p.controller).action_approve()
     r.with_user(p2p.keeper).action_ship()
-    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67C-" + p2p.tag)
+    r.with_user(p2p.controller).action_mark_credited("MUSHAK-67C-" + p2p.tag)
     assert r.state == "credited" and not r.vendor_note_res_id
     assert "goods receipt" in r.vendor_note_status
 
@@ -281,7 +281,7 @@ def test_g5_a_return_netted_in_the_match_is_not_credited_again(p2p):
     net._guarded().write({"approval_state": "approved"})
     net._post_approved_bill()
     # the vendor's credit for the 5 arrives: the net bill already left them out
-    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67G5-" + p2p.tag)
+    r.with_user(p2p.controller).action_mark_credited("MUSHAK-67G5-" + p2p.tag)
     assert r.state == "credited" and not r.vendor_note_res_id
     assert "netted" in (r.vendor_note_status or "")
     assert not net.note_ids
@@ -293,7 +293,7 @@ def test_g5_a_return_after_billing_is_credited_not_netted(p2p):
     r = _shipped_rtv_on_bill(p2p, bill, 5.0)
     bill._check_match_gate("paid")  # a fresh match: not blocked by the return
     assert bill.match_state == "matched", bill.match_detail
-    r.with_user(p2p.keeper).action_mark_credited("MUSHAK-67G5C-" + p2p.tag)
+    r.with_user(p2p.controller).action_mark_credited("MUSHAK-67G5C-" + p2p.tag)
     note = p2p.env["fix.vendor.note"].browse(r.vendor_note_res_id)
     assert note.invoice_id == bill and note.return_qty == 5.0
 

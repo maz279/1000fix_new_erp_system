@@ -29,7 +29,7 @@ def make_service_order(env, branch, tag):
     device = env["fix.device"].create(
         {"device_model_id": model.id, "owner_id": customer.id, "serial_number": "A06SN-%s" % tag}
     )
-    return env["fix.service.order"].create(
+    order = env["fix.service.order"].create(
         {
             "device_id": device.id,
             "customer_id": customer.id,
@@ -37,6 +37,12 @@ def make_service_order(env, branch, tag):
             "fault_description": "A06 inventory test job",
         }
     )
+    # A06 ERP audit A28: a part is issued only to a job in repair. Trusted
+    # set-up: the order's own workflow is its module's suite.
+    env.flush_all()
+    env.cr.execute("UPDATE fix_service_order SET state = 'in_repair' WHERE id = %s", [order.id])
+    order.invalidate_recordset(["state"])
+    return order
 
 
 class Inv(types.SimpleNamespace):

@@ -28,9 +28,17 @@ export const MODULE = {
     { l: 'Stock Value', m: 'stock_value', prefix: '৳ ' },
     { l: 'Stocked SKUs', m: 'stocked_skus' },
     { l: 'Stock-Out SKUs', m: 'stockout_skus' },
+    { l: 'Below Minimum', m: 'below_min_lines' },
     { l: 'Pending Counts', m: 'pending_counts' },
     { l: 'Open Transfers', m: 'open_transfers' },
-    { l: 'Van Variance', m: 'van_variance_pcs', suffix: ' pcs' }
+    { l: 'Van Variance', m: 'van_variance_pcs', suffix: ' pcs' },
+    /* A06 ERP audit A23: the spec's KPI-042..047 (section 15), month to date */
+    { l: 'KPI-042 Inventory Accuracy', m: 'kpi_042_accuracy_pct', suffix: ' %' },
+    { l: 'KPI-043 Available at First Request', m: 'kpi_043_first_request_pct', suffix: ' %' },
+    { l: 'KPI-044 Stockout Job Delays', m: 'kpi_044_stockout_delay_pct', suffix: ' %' },
+    { l: 'KPI-045 Inventory Turns', m: 'kpi_045_turns', suffix: ' /yr' },
+    { l: 'KPI-046 Dead Stock (value)', m: 'kpi_046_dead_stock_pct', suffix: ' %' },
+    { l: 'KPI-047 Van Stock Variance', m: 'kpi_047_van_variance_pct', suffix: ' %' }
   ],
   groups: [
     { en: 'Item Master', screens: [
@@ -69,15 +77,25 @@ export const MODULE = {
       { id: 'M15-ageing', en: 'Ageing & Obsolescence', bn: 'এজিং', t: 'r' },
       { id: 'M15-abc', en: 'ABC / XYZ / Criticality', bn: 'এবিসি শ্রেণিবিন্যাস', t: 'r' },
       { id: 'M15-suspense', en: 'Valuation Suspense Integrity', bn: 'মূল্যায়ন সাসপেন্স যাচাই', t: 'r' }
+    ]},
+    /* A06 ERP audit A22: the spec's section 14 registers */
+    { en: 'Registers', screens: [
+      { id: 'M15-position', en: 'Branch Stock Position', bn: 'শাখা স্টক অবস্থান', t: 'r' },
+      { id: 'M15-adjustments', en: 'Adjustment & Write-off Register', bn: 'সমন্বয় ও রাইট-অফ রেজিস্টার', t: 'r' },
+      { id: 'M15-qregister', en: 'Quarantine & Counterfeit Register', bn: 'কোয়ারেন্টিন রেজিস্টার', t: 'r' },
+      { id: 'M15-rtvreg', en: 'RTV & Credit Recovery', bn: 'ভেন্ডর ফেরত ও ক্রেডিট', t: 'r' },
+      { id: 'M15-stockouts', en: 'Stockout & Unmet Demand', bn: 'স্টকআউট ও অপূর্ণ চাহিদা', t: 'r' },
+      { id: 'M15-movers', en: 'Slow & Fast Movers', bn: 'ধীর ও দ্রুত চলমান', t: 'r' }
     ]}
   ],
-  reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock', 'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation'],
+  reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock', 'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation',
+    'Adjustment & Write-off Register', 'Quarantine & Counterfeit Register', 'RTV & Credit Recovery', 'Stockout & Unmet Demand', 'Branch Stock Position', 'Slow & Fast Movers'],
   forms: ['Goods Receipt (inspection gate)', 'Stock Issue', 'Transfer Request', 'Cycle Count', 'Scrap Order', 'Item Master (7 tabs)',
     'Stock Location', 'Ownership-Class Change', 'Reorder Rule', 'Return to Vendor',
     'Stock Reservation', 'Backorder', 'Stock Recall', 'Consignment Statement'],
   cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock', 'M31 bench stock'],
   freg: { src: 107, sub: [
-    ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network'], reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit'], forms: [] }],
+    ['1', 'On-Hand & Classes', 12, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'ownership_class', 'qty', 'available_qty'], screens: ['M15-onhand', 'M15-network', 'M15-position'], reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Branch Stock Position'], forms: [] }],
     /* a location (van, store, quarantine...) is mastered on M41's form */
     ['2', 'Location Hierarchy', 8, { model: 'fix.stock.location', cols: ['name', 'code', 'location_type', 'parent_id', 'branch_id'], screens: ['M15-locations', 'M15-network', 'M15-onhand'], reports: [], forms: ['Stock Location'], create: 'M41-form-stock-location' }],
     /* stock changes class only by the approved document (BRU-INV-06) */
@@ -85,16 +103,16 @@ export const MODULE = {
     ['3', 'Ownership Segregation', 9, { model: 'fix.stock.onhand', cols: ['ownership_class', 'part_id', 'location_id', 'qty', 'unit_cost'], screens: ['M15-ownership', 'M15-classchange', 'M15-consignment'], reports: ['Stock Valuation by Class'], forms: ['Ownership-Class Change', 'Consignment Statement'], create: 'M15-form-classchange' }],
     /* a reservation is a record held for a job (FR-INV-019..021, 027) */
     ['4', 'Reservations', 7, { model: 'fix.stock.reservation', cols: ['name', 'part_id', 'location_id', 'qty_open', 'priority', 'service_order_ref', 'expires_at', 'state'], screens: ['M15-reservations', 'M15-onhand'], reports: [], forms: ['Stock Reservation'], create: 'M15-form-reservation' }],
-    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-backorders', 'M15-genealogy'], reports: [], forms: ['Stock Issue', 'Backorder'] }],
+    ['5', 'Issue / Return / Consumption', 10, { model: 'fix.stock.consumption', cols: ['name', 'product_id', 'technician_id', 'quantity', 'state'], screens: ['M15-movements', 'M15-backorders', 'M15-genealogy', 'M15-stockouts'], reports: ['Stockout & Unmet Demand'], forms: ['Stock Issue', 'Backorder'] }],
     /* van-to-van (FR-INV-033) is a transfer request between two vans */
     ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: ['Reorder Rule', 'Transfer Request'] }],
     /* serials come from receipts; what a person records here is a recall (FR-INV-040) */
     ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-recalls', 'M15-genealogy'], reports: [], forms: ['Stock Recall'], create: 'M15-form-recall' }],
     ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation', 'M15-suspense'], reports: ['Stock Valuation by Class'], forms: [] }],
     ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'], reports: [], forms: ['Goods Receipt (inspection gate)'] }],
-    ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts'], reports: ['Inventory Accuracy Audit'], forms: ['Cycle Count'] }],
-    ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc'], reports: ['Ageing & Dead Stock', 'ABC Segmentation'], forms: [] }],
-    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine'], reports: ['Transfer Performance'], forms: ['Transfer Request', 'Scrap Order', 'Return to Vendor'] }],
+    ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts', 'M15-adjustments'], reports: ['Inventory Accuracy Audit', 'Adjustment & Write-off Register'], forms: ['Cycle Count'] }],
+    ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc', 'M15-movers'], reports: ['Ageing & Dead Stock', 'ABC Segmentation', 'Slow & Fast Movers'], forms: [] }],
+    ['12', 'Transfers & RTV', 8, { model: 'fix.stock.transfer', cols: ['name', 'from_location_id', 'to_location_id', 'dispatched_on', 'state'], screens: ['M15-transfers', 'M15-rtv', 'M15-quarantine', 'M15-qregister', 'M15-rtvreg'], reports: ['Transfer Performance', 'Quarantine & Counterfeit Register', 'RTV & Credit Recovery'], forms: ['Transfer Request', 'Scrap Order', 'Return to Vendor'] }],
     ['13', 'Item Master (real inventory)', 12, { model: 'fix.spare.part', cols: ['part_number', 'name', 'brand_id', 'category_id', 'qty_available', 'unit_cost', 'state'], screens: ['M15-parts'], reports: ['ABC Segmentation'], forms: ['Item Master (7 tabs)'] }]
   ] }
 };
@@ -124,7 +142,8 @@ export const SCREENS = {
     cols: ['name', 'product_id', 'location_id', 'technician_id', 'quantity', 'ownership_class', 'state', 'consumed_at'],
     actions: [
       { m: 'action_scan_and_consume', l: 'Scan & Consume' },
-      { m: 'action_return_part', l: 'Return Part', ask: 'Return reason: wrong_diagnosis, defective_new (goes to quarantine), customer_refusal or excess_draw', kwarg: 'reason' }
+      { m: 'action_return_part', l: 'Return Part', ask: 'Return reason: wrong_diagnosis, defective_new (goes to quarantine), customer_refusal or excess_draw', kwarg: 'reason' },
+      { m: 'action_approve_zero_cost', l: 'Approve Uncosted Issue (controller)', ask: 'Why the uncosted stock may be issued', kwarg: 'note' }
     ] },
   'M15-network': { kind: 'table_report', module: 'M15', report: 'availability', title: 'Network Availability Search', period: false },
   /* serials are created by goods receipts and moved by the ledger: the lot's
@@ -132,7 +151,7 @@ export const SCREENS = {
   'M15-serials': { kind: 'model_list', model: 'fix.stock.lot', stateField: 'status', create: false,
     cols: ['name', 'part_id', 'location_id', 'qty', 'status', 'received_on'],
     empty: 'No serial or lot yet. A serial is recorded when a goods receipt of a serialized part is posted, and then follows every issue, transfer, quarantine and return.' },
-  'M15-genealogy': { kind: 'table_report', module: 'M15', report: 'genealogy', title: 'Consumption Genealogy', period: false },
+  'M15-genealogy': { kind: 'table_report', module: 'M15', report: 'genealogy', title: 'Consumption Genealogy', period: true },
   'M15-van': { kind: 'table_report', module: 'M15', report: 'van_stock', title: 'Van Stock by Technician', period: false },
   'M15-replen': { kind: 'model_list', model: 'fix.reorder.rule', stateField: 'state',
     cols: ['name', 'spare_part_id', 'location_id', 'min_qty', 'max_qty', 'current_stock', 'suggested_order_qty', 'state'],
@@ -152,10 +171,11 @@ export const SCREENS = {
     actions: [
       { m: 'action_submit', l: 'Submit Count' },
       { m: 'action_approve', l: 'Approve Variance (controller)' },
-      { m: 'action_reject', l: 'Reject Variance (controller)', ask: 'Why the variance is rejected', kwarg: 'note' }
+      { m: 'action_reject', l: 'Reject Variance (controller)', ask: 'Why the variance is rejected', kwarg: 'note' },
+      { m: 'action_cancel', l: 'Cancel Count', ask: 'Why the count is cancelled', kwarg: 'note' }
     ] },
   'M15-transfers': { kind: 'model_list', model: 'fix.stock.transfer', stateField: 'state',
-    cols: ['name', 'from_location_id', 'to_location_id', 'requested_on', 'dispatched_on', 'state'],
+    cols: ['name', 'from_location_id', 'to_location_id', 'ownership_class', 'requested_on', 'dispatched_on', 'state'],
     actions: [
       { m: 'action_submit', l: 'Submit for Approval' },
       { m: 'action_approve', l: 'Approve (controller)' },
@@ -224,7 +244,7 @@ export const SCREENS = {
     ] },
   'M15-suspense': { kind: 'table_report', module: 'M15', report: 'suspense_integrity', title: 'Valuation Suspense Integrity', period: false },
   'M15-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Valuation (WAC)', period: false },
-  'M15-ageing': { kind: 'table_report', module: 'M15', report: 'ageeing', title: 'Ageing & Obsolescence', period: false },
+  'M15-ageing': { kind: 'table_report', module: 'M15', report: 'ageing', title: 'Ageing & Obsolescence', period: false },
   'M15-abc': { kind: 'table_report', module: 'M15', report: 'abc_segmentation', title: 'ABC / XYZ / Criticality', period: false },
 
   /* Extra worklist (declared): the registry ships the Goods Receipt form but
@@ -238,11 +258,18 @@ export const SCREENS = {
 
   /* Report chips -> their own computed pack */
   'M15-rpt-valuation': { kind: 'table_report', module: 'M15', report: 'valuation_by_class', title: 'Stock Valuation by Class', period: false },
-  'M15-rpt-accuracy': { kind: 'table_report', module: 'M15', report: 'accuracy_audit', title: 'Inventory Accuracy Audit', period: false },
-  'M15-rpt-ageing': { kind: 'table_report', module: 'M15', report: 'ageeing', title: 'Ageing & Dead Stock', period: false },
-  'M15-rpt-van': { kind: 'table_report', module: 'M15', report: 'van_variance', title: 'Van Stock Variance', period: false },
-  'M15-rpt-transfer': { kind: 'table_report', module: 'M15', report: 'transfer_performance', title: 'Transfer Performance', period: false },
+  'M15-rpt-accuracy': { kind: 'table_report', module: 'M15', report: 'accuracy_audit', title: 'Inventory Accuracy Audit', period: true },
+  'M15-rpt-ageing': { kind: 'table_report', module: 'M15', report: 'ageing', title: 'Ageing & Dead Stock', period: false },
+  'M15-rpt-van': { kind: 'table_report', module: 'M15', report: 'van_variance', title: 'Van Stock Variance', period: true },
+  'M15-rpt-transfer': { kind: 'table_report', module: 'M15', report: 'transfer_performance', title: 'Transfer Performance', period: true },
   'M15-rpt-abc': { kind: 'table_report', module: 'M15', report: 'abc_segmentation', title: 'ABC Segmentation', period: false },
+  /* A06 ERP audit A22: section 14 registers (every one keeps the export bar) */
+  'M15-position': { kind: 'table_report', module: 'M15', report: 'branch_position', title: 'Branch Stock Position', period: false },
+  'M15-adjustments': { kind: 'table_report', module: 'M15', report: 'adjustment_register', title: 'Adjustment & Write-off Register', period: true },
+  'M15-qregister': { kind: 'table_report', module: 'M15', report: 'quarantine_register', title: 'Quarantine & Counterfeit Register', period: true },
+  'M15-rtvreg': { kind: 'table_report', module: 'M15', report: 'rtv_register', title: 'RTV & Credit Recovery', period: true },
+  'M15-stockouts': { kind: 'table_report', module: 'M15', report: 'stockout_register', title: 'Stockout & Unmet Demand', period: true },
+  'M15-movers': { kind: 'table_report', module: 'M15', report: 'movers', title: 'Slow & Fast Movers', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   /* 7-tab item master (fit-gap report R4): the multi-tab data-capture surface
@@ -421,6 +448,7 @@ export const SCREENS = {
         fields: [
           { name: 'from_location_id', required: true, label: 'From' },
           { name: 'to_location_id', required: true, label: 'To' },
+          { name: 'ownership_class', required: true, label: 'Stock Class (consignment, warranty reserve and customer property keep theirs)' },
           { name: 'requested_on', required: true, label: 'Requested On' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'transfer_value', label: 'Transfer Value (BDT)', readonly: true },
@@ -474,6 +502,7 @@ export const SCREENS = {
       note: 'Enter what is physically there. The recount column is used only when the count asks for a recount. The approver sees the expected quantity and the variance; the counter does not until the count is posted.',
       fields: [
         { name: 'part_id', required: true, label: 'Spare Part' },
+        { name: 'ownership_class', label: 'Class (empty: the location\'s own)' },
         { name: 'counted_qty', required: true, label: 'Counted' },
         { name: 'recount_qty', label: 'Recount' },
         { name: 'expected_qty', label: 'Expected', readonly: true },
@@ -562,10 +591,27 @@ export const SCREENS = {
           { name: 'technician_id', label: 'Technician (the van custodian)' },
           { name: 'recon_date', required: true, label: 'Date' },
           { name: 'expected_qty', label: 'Expected (pcs)', readonly: true },
-          { name: 'counted_qty', label: 'Counted (pcs)' },
+          { name: 'counted_qty', label: 'Counted (pcs, from the lines)', readonly: true },
+          { name: 'variance_value', label: 'Variance Value (BDT)', readonly: true },
+          { name: 'ledger_corrected', label: 'Ledger Corrected', readonly: true },
           { name: 'notes', label: 'Notes' }
         ] }
-    ]
+    ],
+    /* A06 ERP audit A11: the van is counted part by part; a part on the ledger
+     * that is not listed counts as none. An approved discrepancy corrects the
+     * ledger from these lines at the van's average cost. */
+    lines: {
+      field: 'line_ids',
+      title: 'Parts Counted',
+      note: 'One line per part found on the van. The expected quantity and the variance are shown to approvers only.',
+      fields: [
+        { name: 'part_id', required: true, label: 'Spare Part' },
+        { name: 'counted_qty', required: true, label: 'Counted' },
+        { name: 'expected_qty', label: 'Expected', readonly: true },
+        { name: 'variance', label: 'Variance', readonly: true },
+        { name: 'variance_value', label: 'Variance Value (BDT)', readonly: true }
+      ]
+    }
   },
 
   'M15-form-rtv': {
@@ -578,7 +624,7 @@ export const SCREENS = {
       credited: 'Credited / Closed', cancelled: 'Cancelled' } },
     // 16 fields: tabbed, not one long scroll (forms over 15 fields, AGENTS.md)
     tabs: [
-      { id: 'rtv', label: '1. Return', bn: '১. ফেরত', icon: '↩', badge: '11' },
+      { id: 'rtv', label: '1. Return', bn: '১. ফেরত', icon: '↩', badge: '12' },
       { id: 'grn', label: '2. GRN, PO & Bill', bn: '২. জিআরএন, পিও ও বিল', icon: '🧾', badge: '5' }
     ],
     sections: [
@@ -588,6 +634,7 @@ export const SCREENS = {
           { name: 'part_id', required: true, label: 'Spare Part' },
           { name: 'location_id', required: true, label: 'From Location' },
           { name: 'quarantine_id', label: 'From Quarantine' },
+          { name: 'ownership_class', required: true, label: 'Stock Class (unused brand consignment goes back as consignment)' },
           { name: 'lot_id', label: 'Serial (serialized part, not from quarantine)', domain: [['status', '=', 'in_stock']] },
           { name: 'qty', required: true, label: 'Quantity' },
           { name: 'reason', required: true, label: 'Reason' },
@@ -803,7 +850,13 @@ export const REPORT_ROUTES = {
   'M15:Ageing & Dead Stock': 'M15-rpt-ageing',
   'M15:Van Stock Variance': 'M15-rpt-van',
   'M15:Transfer Performance': 'M15-rpt-transfer',
-  'M15:ABC Segmentation': 'M15-rpt-abc'
+  'M15:ABC Segmentation': 'M15-rpt-abc',
+  'M15:Adjustment & Write-off Register': 'M15-adjustments',
+  'M15:Quarantine & Counterfeit Register': 'M15-qregister',
+  'M15:RTV & Credit Recovery': 'M15-rtvreg',
+  'M15:Stockout & Unmet Demand': 'M15-stockouts',
+  'M15:Branch Stock Position': 'M15-position',
+  'M15:Slow & Fast Movers': 'M15-movers'
 };
 
 export const FORM_MODELS = {

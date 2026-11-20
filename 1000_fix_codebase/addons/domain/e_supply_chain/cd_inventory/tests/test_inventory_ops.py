@@ -113,9 +113,11 @@ def test_receipt_inspection_gate_and_post(ctx):
 
 
 def test_receipt_refuses_zero_accepted_line(ctx):
+    # A06 ERP audit A12: a line rejected whole is recorded; a line that
+    # received nothing is refused
     env = ctx["env"]
-    receipt = _receipt(ctx, accepted=0.0)
-    with pytest.raises(UserError, match="accepted quantity"), env.cr.savepoint():
+    receipt = _receipt(ctx, accepted=0.0, received=0.0)
+    with pytest.raises(UserError, match="received quantity"), env.cr.savepoint():
         receipt.action_inspect()
 
 
