@@ -329,7 +329,7 @@
                     <div class="page cds-doc">
 
                         <div class="cds-title-band">
-                            <h1>DELIVERY CHALLAN</h1>
+                            <h1>DELIVERY CHALLAN / GATE PASS</h1>
                             <div class="cds-title-sub">
                                 Challan No. <b t-esc="doc.name"/> ·
                                 Handover date <b><span t-if="doc.delivered_at" t-field="doc.delivered_at"/><t t-else="" t-esc="'(pending)'"/></b>
@@ -391,6 +391,115 @@
                             <tr>
                                 <td class="cds-sign-pad">Received with good condition by<br/>(Signature, NID/Phone &amp; Date)</td>
                                 <td class="cds-sign-pad">Authorized Signature &amp; Company Stamp<br/>1000FiX Services Ltd.</td>
+                            </tr>
+                        </table>
+
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+
+    <!-- ========================= SERVICE REPORT ========================= -->
+    <!-- A02 pass 2 (M01-11): what was found and done on the device, the
+         quality check and the repair warranty - the report the customer signs
+         at handover. No prices, no VAT: the tax invoice is the Mushak 6.3. -->
+    <record id="action_report_service_report" model="ir.actions.report">
+        <field name="name">Service Report</field>
+        <field name="model">fix.service.order</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_doc_suite.report_service_report</field>
+        <field name="report_file">cd_doc_suite.report_service_report</field>
+        <field name="print_report_name">'Service Report %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_1000fix_a4"/>
+        <field name="binding_model_id" ref="cd_service_order.model_fix_service_order"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_service_report">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc">
+                        <t t-set="est" t-value="doc._fix_governing_estimate()"/>
+                        <t t-set="qc" t-value="doc._fix_release_checklist()"/>
+
+                        <div class="cds-title-band">
+                            <h1>SERVICE REPORT</h1>
+                            <div class="cds-title-sub">
+                                Order No. <b t-esc="doc.name"/>
+                                <t t-if="doc.branch_id"> · Branch <b t-esc="doc.branch_id.name"/></t>
+                                <t t-if="doc.sla_resolution_at"> · Repaired <b t-field="doc.sla_resolution_at"/></t>
+                            </div>
+                        </div>
+
+                        <table class="cds-parties">
+                            <tr>
+                                <td>
+                                    <div class="cds-party-label">Customer</div>
+                                    <div class="cds-party-name" t-esc="doc.customer_id.name or ''"/>
+                                    <div t-if="doc.customer_phone">Contact: <b t-esc="doc.customer_phone"/></div>
+                                </td>
+                                <td>
+                                    <div class="cds-party-label">Device</div>
+                                    <div class="cds-party-name" t-esc="doc.device_id.display_name or ''"/>
+                                    <div t-if="doc.device_serial">Serial / IMEI: <b t-esc="doc.device_serial"/></div>
+                                    <div t-if="doc.technician_id">Engineer: <b t-esc="doc.technician_id.name"/></div>
+                                </td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-table">
+                            <thead><tr><th>Reported Fault</th><th>Findings</th></tr></thead>
+                            <tbody>
+                                <tr>
+                                    <td t-esc="doc.fault_description or ''"/>
+                                    <td t-esc="doc.diagnostic_notes or ''"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="doc.fault_line_ids">
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Fault Code</th><th>Description</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="doc.fault_line_ids" t-as="fl">
+                                    <td class="cds-ctr" t-esc="fl_index + 1"/>
+                                    <td t-esc="fl.fault_code or ''"/>
+                                    <td t-esc="fl.description or ''"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-table" t-if="est">
+                            <thead><tr><th class="cds-ctr" style="width: 6%;">SL</th><th>Work Done / Parts Fitted</th><th class="cds-ctr" style="width: 14%;">Qty</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="est.line_ids" t-as="ln">
+                                    <td class="cds-ctr" t-esc="ln_index + 1"/>
+                                    <td t-esc="ln.description or ''"/>
+                                    <td class="cds-ctr" t-esc="ln.quantity"/>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <table class="cds-meta">
+                            <tr t-if="qc">
+                                <td class="cds-meta-label">Quality Check</td>
+                                <td><t t-esc="qc.state.upper()"/><t t-if="qc.checked_at"> on <span t-field="qc.checked_at"/></t></td>
+                            </tr>
+                            <tr t-if="doc.service_warranty_days">
+                                <td class="cds-meta-label">Repair Warranty</td>
+                                <td><t t-esc="doc.service_warranty_days"/> days <t t-if="doc.service_warranty_until">(until <span t-field="doc.service_warranty_until"/>)</t></td>
+                            </tr>
+                            <tr t-if="doc.delivered_at">
+                                <td class="cds-meta-label">Handed Over</td><td><span t-field="doc.delivered_at"/></td>
+                            </tr>
+                        </table>
+
+                        <table class="cds-sign">
+                            <tr>
+                                <td class="cds-sign-pad">Received the device in working order<br/>(Customer signature &amp; date)</td>
+                                <td class="cds-sign-pad">For 1000FiX Services Ltd.<br/>Engineer / QC signature</td>
                             </tr>
                         </table>
 

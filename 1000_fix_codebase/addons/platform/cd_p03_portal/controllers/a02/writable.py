@@ -803,6 +803,7 @@ WRITABLE = {
     "fix.service.order": frozenset(
         {
             "accessory_bag_barcode",
+            "after_repair_photo_attachment_id",
             "ber_photo_attachment_id",
             "branch_id",
             "catalog_item_id",
@@ -831,7 +832,6 @@ WRITABLE = {
             "recipient_nid_phone",
             "service_report_attachment_id",
             "service_type",
-            "service_warranty_days",
             "sim_memory_removed",
             "symptom_reproducibility",
             "technician_id",

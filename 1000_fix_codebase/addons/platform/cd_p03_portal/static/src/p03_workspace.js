@@ -293,7 +293,6 @@ export class P03Workspace extends Component {
             tellMeOpen: false,
             tellMeQuery: "",
             tellMeLiveRecords: [],
-            jobCardModalOpen: false,
             dispatchModalOpen: false,
             inventoryModalOpen: false,
             theme: "light",
@@ -856,10 +855,6 @@ export class P03Workspace extends Component {
     fmtNum(v) { return fmtNum(v); }
     stateLabel(s) { return this.tState(s) !== s ? this.tState(s) : (STATE_LABELS[s] || s || "—"); }
     serviceTypeLabel(s) { return SERVICE_TYPE_LABELS[s] || s || "—"; }
-    get jobCardDate() {
-        return new Date().toLocaleDateString("en-GB",
-            { day: "2-digit", month: "short", year: "numeric" }).toUpperCase();
-    }
 
     /* Module KPI labels. */
     get kpiLabels() {
@@ -1770,6 +1765,12 @@ export class P03Workspace extends Component {
         // typed as a code into a browser prompt, and its resume date not at all)
         if (cfg.form && P03_DATA_SCREENS[cfg.form]) {
             this.soOpenForm(cfg.form, row.id);
+            return;
+        }
+        // `print`: the order's server document (A02 pass 2, M01-11): job
+        // sheet, job card, delivery challan / gate pass or service report
+        if (cfg.print) {
+            await this.docPrint("fix.service.order", row.id, cfg.print);
             return;
         }
         const kwargs = Object.assign({}, cfg.kw || {});
@@ -6094,23 +6095,17 @@ export class P03Workspace extends Component {
         }).filter(a => a.mods.length > 0);
     }
 
-    // --- Job Card & Tax Invoice Modal ---
-    openJobCardModal() {
-        if (!this.state.activeRecord) {
+    // --- Job Card (A02 pass 2, M01-01) ---
+    // The server's job card report (cd_service_order.report_jobcard): no VAT,
+    // no Mushak wording. The client-side card computed a flat 15% VAT and
+    // printed it as a "GOVT. NBR MUSHAK 6.3".
+    async openJobCardModal() {
+        const rec = this.state.activeRecord;
+        if (!rec || !rec.order_id) {
             this.showToast(this.t('Open a service order first — the Job Card prints the live record.'));
             return;
         }
-        this.state.jobCardModalOpen = true;
-    }
-
-    closeJobCardModal() {
-        this.state.jobCardModalOpen = false;
-    }
-
-    printJobCardWindow() {
-        if (typeof window !== "undefined") {
-            window.print();
-        }
+        await this.docPrint("fix.service.order", rec.order_id, "jobcard");
     }
 
     // --- Field Dispatch Modal ---
@@ -6228,7 +6223,7 @@ export class P03Workspace extends Component {
             { id: "act-branch", title: "🏢 Open Branch Operations Console", icon: "🏢", group: "Actions", fn: () => { this.closeTellMe(); this.openBranchConsole(); } },
             { id: "act-workshop", title: "🔧 Open Workshop Bench Console", icon: "🔧", group: "Actions", fn: () => { this.closeTellMe(); this.openWorkshopConsole(); } },
             { id: "act-tech", title: "⚡ Assign Field Technician", icon: "⚡", group: "Actions", fn: () => { this.closeTellMe(); this.openDispatchModal(); } },
-            { id: "act-print", title: "🖨 Print Job Card & Mushak 6.3", icon: "🖨", group: "Actions", fn: () => { this.closeTellMe(); this.openJobCardModal(); } },
+            { id: "act-print", title: "🖨 Print Job Card", icon: "🖨", group: "Actions", fn: () => { this.closeTellMe(); this.openJobCardModal(); } },
             { id: "act-inv", title: "📦 Reserve Parts from Inventory (M15)", icon: "📦", group: "Actions", fn: () => { this.closeTellMe(); this.openInventoryModal(); } },
             { id: "act-exp", title: "⤓ Export Active Data Grid to CSV", icon: "⤓", group: "Actions", fn: () => { this.closeTellMe(); this.exportGridCsv(); } }
         ];

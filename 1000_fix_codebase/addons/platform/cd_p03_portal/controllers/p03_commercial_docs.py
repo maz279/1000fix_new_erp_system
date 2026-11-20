@@ -29,6 +29,17 @@ from .p03_service_order_api import _require_internal, _user_error
 
 SEARCH_LIMIT = 40
 
+# A02 pass 2 (M01-01/M01-11): a service order's printable documents, by the
+# variant the workspace asks for. "a4" (the default) is the job sheet.
+SERVICE_ORDER_DOCUMENTS = {
+    "a4": "cd_doc_suite.report_service_order",
+    "jobsheet": "cd_doc_suite.report_service_order",
+    "jobcard": "cd_service_order.report_jobcard",
+    "challan": "cd_doc_suite.report_delivery_challan",
+    "gatepass": "cd_doc_suite.report_delivery_challan",
+    "service_report": "cd_doc_suite.report_service_report",
+}
+
 
 def _money(value):
     return round(float(value or 0.0), 2)
@@ -286,6 +297,12 @@ class P03CommercialDocs(http.Controller):
             "fix.counter.sale": "cd_p03_portal.report_a02_counter_receipt_80",
         }
         name = (receipts if variant == "receipt" else reports).get(model or "")
+        if model == "fix.service.order":
+            # A02 pass 2 (M01-01/M01-11): the order's server documents. The
+            # job card is cd_service_order's (no VAT, no Mushak wording: the
+            # tax invoice is M20's Mushak 6.3); the job sheet is the customer
+            # copy, the challan doubles as the gate pass.
+            name = SERVICE_ORDER_DOCUMENTS.get(variant or "a4")
         if not name or not record_id:
             return {"url": ""}
         if model not in request.env:

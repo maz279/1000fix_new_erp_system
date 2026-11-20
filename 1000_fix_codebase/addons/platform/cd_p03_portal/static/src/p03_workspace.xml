@@ -1655,7 +1655,7 @@
                                     <span style="margin-right: 8px;">🖹</span>
                                     <t t-esc='t("Service Order:")'/> <t t-esc="state.activeRecord.name"/>
                                 </h1>
-                                <p class="pg-sub"><t t-esc='t("Customer:")'/> <t t-esc="state.activeRecord.customer_name"/> <t t-esc='t("· Branch:")'/> <t t-esc="state.activeRecord.branch_name"/> · Statutory NBR Mushak 6.3 15% VAT Compliant</p>
+                                <p class="pg-sub"><t t-esc='t("Customer:")'/> <t t-esc="state.activeRecord.customer_name"/> <t t-esc='t("· Branch:")'/> <t t-esc="state.activeRecord.branch_name"/> </p>
                             </div>
                             <div class="pg-actions">
                                 <button class="btn btn-primary" t-on-click="() => this.openRecord(state.activeRecord.order_id)"><t t-esc='t("↻ Refresh")'/></button>
@@ -4901,159 +4901,10 @@
             </div>
         </t>
 
-        <!-- ========================================================
-             PRINTABLE JOB CARD & MUSHAK 6.3 INVOICE MODAL
-             ======================================================== -->
-        <t t-if="state.jobCardModalOpen">
-            <div class="modal-scrim" t-on-click.self="closeJobCardModal" role="dialog" aria-modal="true" aria-labelledby="jobCardModalTitle">
-                <div class="modal-dialog jobcard-dialog" style="max-width: 820px; max-height: 92vh;">
-                    <div class="modal-head">
-                        <div style="display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 20px;">🖶</span>
-                            <h2 id="jobCardModalTitle" style="font-size: 16px; margin: 0;">Official Job Card &amp; NBR Mushak 6.3 Invoice</h2>
-                            <span class="chip ok">ISO 9001:2015</span>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button class="btn btn-primary btn-sm" t-on-click="printJobCardWindow">🖶 Print Document</button>
-                            <button class="btn btn-ghost btn-sm" t-on-click="closeJobCardModal" t-att-aria-label='t("Close modal")'>✕</button>
-                        </div>
-                    </div>
-                    
-                    <div class="modal-body jobcard-print-body" style="background: var(--fix-color-grey-99, #FFFFFF); color: var(--fix-color-grey-12, #111111); overflow-y: auto;">
-                        <!-- Official Letterhead -->
-                        <div class="jc-header-sheet">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; border-bottom: 2px solid var(--fix-color-brand-600, #0E7A6E); padding-bottom: 12px; margin-bottom: 14px;">
-                                <div>
-                                    <div style="font-size: 22px; font-weight: 800; color: var(--fix-color-brand-600, #0E7A6E); letter-spacing: -0.5px;"><t t-esc="state.activeRecord.company.name"/></div>
-                                    <div style="font-size: 11px; color: var(--fix-color-grey-38, #444); margin-top: 2px;">ISO 9001:2015 Certified After-Sales Service Network</div>
-                                    <div style="font-size: 10px; color: var(--fix-color-grey-50, #666); margin-top: 2px;"><t t-esc='t("Hotline: 16743")'/></div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="display: inline-block; padding: 4px 8px; background: var(--fix-color-brand-150, #EBF8F6); border: 1px solid var(--fix-color-brand-600, #0E7A6E); font-size: 11px; font-weight: 700; color: var(--fix-color-brand-600, #0E7A6E); border-radius: 4px;">
-                                        <t t-esc='t("GOVT. NBR MUSHAK 6.3")'/>
-                                    </div>
-                                    <div style="font-size: 10px; color: var(--fix-color-grey-38, #444); margin-top: 4px;"><t t-esc='t("BIN:")'/> <b><t t-esc="state.activeRecord.company.vat || 'not set on company'"/></b></div>
-                                    <div style="font-size: 10px; color: var(--fix-color-grey-38, #444);"><t t-esc='t("Issue Date:")'/> <b><t t-esc="jobCardDate"/></b></div>
-                                </div>
-                            </div>
-
-                            <!-- Barcode Simulation -->
-                            <div style="display: flex; justify-content: space-between; align-items: center; background: var(--fix-color-grey-98, #F8F9FA); padding: 10px 14px; border: 1px dashed var(--fix-color-grey-82, #CCC); border-radius: 4px; margin-bottom: 14px;">
-                                <div>
-                                    <div style="font-size: 10px; text-transform: uppercase; color: var(--fix-color-grey-50, #666); font-weight: 600;"><t t-esc='t("Job Card Number")'/></div>
-                                    <div style="font-size: 18px; font-weight: 800; font-family: monospace; color: #111;"><t t-esc="state.activeRecord.name"/></div>
-                                </div>
-                                <div style="text-align: center;">
-                                    <div class="barcode-svg" style="letter-spacing: 3px; font-family: monospace; font-size: 18px; font-weight: 900; color: #111;">
-                                        ||| | |||| | || |||| | ||||| | ||
-                                    </div>
-                                    <div style="font-size: 9px; font-family: monospace; color: var(--fix-color-grey-50, #666);">*<t t-esc="state.activeRecord.name"/>*</div>
-                                </div>
-                                <div style="text-align: right;">
-                                    <div style="font-size: 10px; text-transform: uppercase; color: var(--fix-color-grey-50, #666); font-weight: 600;"><t t-esc='t("Custody Branch")'/></div>
-                                    <div style="font-size: 12px; font-weight: 700;"><t t-esc="state.activeRecord.branch_name"/></div>
-                                </div>
-                            </div>
-
-                            <!-- Customer & Device Information Grid -->
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; font-size: 12px; margin-bottom: 14px;">
-                                <div style="border: 1px solid var(--fix-color-grey-92, #E5E7EB); border-radius: 4px; padding: 10px;">
-                                    <div style="font-weight: 700; color: var(--fix-color-brand-600, #0E7A6E); margin-bottom: 6px; text-transform: uppercase; font-size: 11px;">Customer Information</div>
-                                    <div><b><t t-esc='t("Name:")'/></b> <t t-esc="state.activeRecord.customer_name"/></div>
-                                    <div><b><t t-esc='t("Contact Phone:")'/></b> <span class="mono"><t t-esc="state.activeRecord.customer_phone"/></span></div>
-                                    <div><b><t t-esc='t("Intake Channel:")'/></b> <t t-esc="serviceTypeLabel(state.activeRecord.service_type)"/></div>
-                                </div>
-                                <div style="border: 1px solid var(--fix-color-grey-92, #E5E7EB); border-radius: 4px; padding: 10px;">
-                                    <div style="font-weight: 700; color: var(--fix-color-brand-600, #0E7A6E); margin-bottom: 6px; text-transform: uppercase; font-size: 11px;">Equipment &amp; Diagnostic Details</div>
-                                    <div><b><t t-esc='t("Device / Model:")'/></b> <t t-esc="state.activeRecord.device_name"/></div>
-                                    <div><b><t t-esc='t("Serial / IMEI:")'/></b> <span class="mono"><t t-esc="state.activeRecord.serial_number"/></span></div>
-                                    <div><b><t t-esc='t("Assigned Engineer:")'/></b> <t t-esc="state.activeRecord.technician"/></div>
-                                    <div><b><t t-esc='t("Primary Fault:")'/></b> <t t-esc="state.activeRecord.fault_description"/></div>
-                                </div>
-                            </div>
-
-                            <!-- Parts & Service Labor Itemized Table -->
-                            <table style="width: 100%; border-collapse: collapse; font-size: 12px; margin-bottom: 14px;">
-                                <thead>
-                                    <tr style="background: var(--fix-color-brand-600, #0E7A6E); color: var(--fix-color-grey-99, #FFFFFF);">
-                                        <th style="padding: 6px 10px; text-align: left;"><t t-esc='t("SL")'/></th>
-                                        <th style="padding: 6px 10px; text-align: left;"><t t-esc='t("Description of Service / Part")'/></th>
-                                        <th style="padding: 6px 10px; text-align: center;"><t t-esc='t("Type")'/></th>
-                                        <th style="padding: 6px 10px; text-align: right;"><t t-esc='t("Qty")'/></th>
-                                        <th style="padding: 6px 10px; text-align: right;"><t t-esc='t("Rate (BDT)")'/></th>
-                                        <th style="padding: 6px 10px; text-align: right;"><t t-esc='t("Taxable Value")'/></th>
-                                        <th style="padding: 6px 10px; text-align: right;"><t t-esc='t("15% VAT")'/></th>
-                                        <th style="padding: 6px 10px; text-align: right;"><t t-esc='t("Total Amount")'/></th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    <t t-foreach="state.recordLines" t-as="ln" t-key="ln.id">
-                                        <tr style="border-bottom: 1px solid var(--fix-color-grey-92, #E5E7EB);">
-                                            <td style="padding: 6px 10px;"><t t-esc="ln_index + 1"/></td>
-                                            <td style="padding: 6px 10px;"><b><t t-esc="ln.desc"/></b></td>
-                                            <td style="padding: 6px 10px; text-align: center;"><t t-esc="ln.type"/></td>
-                                            <td style="padding: 6px 10px; text-align: right;"><t t-esc="ln.qty"/></td>
-                                            <td style="padding: 6px 10px; text-align: right;"><t t-esc="fmtBDT(ln.price)"/></td>
-                                            <td style="padding: 6px 10px; text-align: right;"><t t-esc="fmtBDT((ln.price || 0) * (ln.qty || 1))"/></td>
-                                            <td style="padding: 6px 10px; text-align: right;"><t t-esc="fmtBDT(Math.round((ln.price || 0) * (ln.qty || 1) * 0.15))"/></td>
-                                            <td style="padding: 6px 10px; text-align: right;"><b><t t-esc="fmtBDT(Math.round((ln.price || 0) * (ln.qty || 1) * 1.15))"/></b></td>
-                                        </tr>
-                                    </t>
-                                    <tr t-if="!state.recordLines.length">
-                                        <td colspan="8" style="padding: 14px; text-align: center; color: var(--ink-500);">
-                                            <t t-esc='t("No line items registered on this order estimate yet.")'/>
-                                        </td>
-                                    </tr>
-                                </tbody>
-                            </table>
-
-                            <!-- Calculation Totals Box -->
-                            <div style="display: flex; justify-content: flex-end; margin-bottom: 16px;">
-                                <div style="width: 320px; font-size: 12px; border: 1px solid var(--fix-color-grey-92, #E5E7EB); border-radius: 4px; padding: 10px;">
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                        <span><t t-esc='t("Total Net Taxable Value:")'/></span>
-                                        <b><t t-esc="fmtBDT(state.activeRecord.taxable_amount)"/></b>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
-                                        <span><t t-esc='t("Statutory 15% VAT (NBR):")'/></span>
-                                        <span><t t-esc="fmtBDT(state.activeRecord.vat_amount)"/></span>
-                                    </div>
-                                    <div style="display: flex; justify-content: space-between; padding-top: 6px; border-top: 2px solid var(--fix-color-brand-600, #0E7A6E); font-size: 14px;">
-                                        <b><t t-esc='t("Grand Total Payable:")'/></b>
-                                        <b style="color: var(--fix-color-brand-600, #0E7A6E);"><t t-esc="fmtBDT(state.activeRecord.total_amount)"/></b>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <!-- Customer Custody Terms & Conditions -->
-                            <div style="background: var(--fix-color-grey-98, #F9FAFB); padding: 10px; border: 1px solid var(--fix-color-grey-92, #E5E7EB); border-radius: 4px; font-size: 10px; color: var(--fix-color-grey-38, #555); margin-bottom: 24px; line-height: 1.4;">
-                                <b>TERMS &amp; CONDITIONS (ISO 9001:2015 COMPLIANT):</b>
-                                1. Please preserve this original Job Card receipt for device handover.
-                                2. Repaired hardware components carry a 90-day replacement warranty. Software issues are not covered.
-                                3. Uncollected equipment after 30 days of readiness notification may incur nominal storage fees as per 1000 FiX policy.
-                                4. For emergency inquiries or status tracking, please dial hotline <b>16743</b> <t t-esc='t("or visit https://1000fix.com.")'/>
-                            </div>
-
-                            <!-- Official Signatures -->
-                            <div style="display: flex; justify-content: space-between; padding: 30px 20px 10px 20px; font-size: 11px;">
-                                <div style="text-align: center; border-top: 1px solid var(--fix-color-grey-50, #666); width: 180px; padding-top: 6px;">
-                                    Customer Signature &amp; Date
-                                </div>
-                                <div style="text-align: center; border-top: 1px solid var(--fix-color-grey-50, #666); width: 220px; padding-top: 6px;">
-                                    <t t-esc='t("Authorized Officer / Inspector")'/><br/>
-                                    <b><t t-esc='t("1000 FiX Services Ltd.")'/></b>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="modal-footer">
-                        <button class="btn btn-ghost" t-on-click="closeJobCardModal"><t t-esc='t("Close")'/></button>
-                        <button class="btn btn-primary" t-on-click="printJobCardWindow"><t t-esc='t("🖶 Print Job Card")'/></button>
-                    </div>
-                </div>
-            </div>
-        </t>
+        <!-- A02 pass 2 (M01-01): the job card is the server's report (cd_service_order
+             report_jobcard, via /p03/doc/print_url): the client-side card printed a
+             'GOVT. NBR MUSHAK 6.3' with a flat 15% VAT computed in the browser. A job
+             card carries no VAT and no Mushak wording; the tax invoice is M20's. -->
 
         <!-- ========================================================
              AI AUTO-DISPATCH & TECHNICIAN ALLOCATION MODAL (M02)
