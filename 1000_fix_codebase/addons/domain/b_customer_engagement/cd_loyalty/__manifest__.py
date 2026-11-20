@@ -25,6 +25,7 @@ CD-M10-01 (P05-M08-T01..T03):
         "cd_entity_config",
         "cd_party_master",
         "cd_service_order",
+        "cd_campaign",
         "cd_event_outbox",
     ],
     "data": [
