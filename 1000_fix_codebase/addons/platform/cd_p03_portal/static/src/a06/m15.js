@@ -76,6 +76,8 @@ export const MODULE = {
       { id: 'M15-valuation', en: 'Valuation (WAC)', bn: 'ভ্যালুয়েশন', t: 'r' },
       { id: 'M15-ageing', en: 'Ageing & Obsolescence', bn: 'এজিং', t: 'r' },
       { id: 'M15-abc', en: 'ABC / XYZ / Criticality', bn: 'এবিসি শ্রেণিবিন্যাস', t: 'r' },
+      { id: 'M15-stock-ledger', en: 'Stock Valuation Ledger', bn: 'স্টক মূল্যায়ন খতিয়ান', t: 'g' },
+      { id: 'M15-stock-gl-tieout', en: 'Stock to GL Tie-out', bn: 'স্টক বনাম জিএল মিলকরণ', t: 'r' },
       { id: 'M15-suspense', en: 'Valuation Suspense Integrity', bn: 'মূল্যায়ন সাসপেন্স যাচাই', t: 'r' }
     ]},
     /* A06 ERP audit A22: the spec's section 14 registers */
@@ -108,7 +110,7 @@ export const MODULE = {
     ['6', 'Van Stock', 11, { model: 'fix.stock.van.recon', cols: ['name', 'location_id', 'technician_id', 'recon_date', 'variance'], screens: ['M15-van', 'M15-recon', 'M15-replen'], reports: ['Van Stock Variance'], forms: ['Reorder Rule', 'Transfer Request'] }],
     /* serials come from receipts; what a person records here is a recall (FR-INV-040) */
     ['7', 'Serial & Lot Trace', 10, { model: 'fix.stock.lot', cols: ['name', 'part_id', 'location_id', 'status', 'warranty_until'], screens: ['M15-serials', 'M15-recalls', 'M15-genealogy'], reports: [], forms: ['Stock Recall'], create: 'M15-form-recall' }],
-    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation', 'M15-suspense'], reports: ['Stock Valuation by Class'], forms: [] }],
+    ['8', 'Valuation', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'unit_cost', 'valuation_method'], screens: ['M15-valuation', 'M15-stock-ledger', 'M15-stock-gl-tieout', 'M15-suspense'], reports: ['Stock Valuation by Class', 'Stock to GL Tie-out'], forms: [] }],
     ['9', 'Goods Receipt', 7, { model: 'fix.stock.receipt', cols: ['name', 'partner_id', 'location_id', 'received_on', 'state'], screens: ['M15-receipts'], reports: [], forms: ['Goods Receipt (inspection gate)'] }],
     ['10', 'Counting', 9, { model: 'fix.stock.count', cols: ['name', 'location_id', 'count_type', 'counted_on', 'state'], screens: ['M15-counts', 'M15-adjustments'], reports: ['Inventory Accuracy Audit', 'Adjustment & Write-off Register'], forms: ['Cycle Count'] }],
     ['11', 'Ageing & Analysis', 8, { model: 'fix.stock.onhand', cols: ['part_id', 'location_id', 'qty', 'last_move_date', 'unit_cost'], screens: ['M15-ageing', 'M15-abc', 'M15-movers'], reports: ['Ageing & Dead Stock', 'ABC Segmentation', 'Slow & Fast Movers'], forms: [] }],
@@ -122,7 +124,20 @@ export const SCREENS = {
    * inventory statement, exportable to branded XLSX/PDF/CSV + email via the
    * standard chips. Row click opens the 7-tab master form. */
   'M15-parts': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
-    cols: ['part_number', 'name', 'brand_id', 'category_id', 'product_id', 'qty_available', 'qty_reserved', 'unit_cost', 'state'] },
+    cols: ['part_number', 'name', 'brand_id', 'category_id', 'product_id', 'qty_available', 'qty_reserved', 'unit_cost', 'state'],
+    /* A06 ERP audit: the standard cost is set here by an Inventory Controller
+     * (it left M41: no cost in the warehouse workspace) */
+    actions: [
+      { m: 'action_set_standard_cost', l: 'Set Standard Cost (controller)', asks: [
+        { label: 'New standard cost (BDT)', kwarg: 'cost', number: true }
+      ] }
+    ] },
+  /* A06 ERP D1: the stock valuation ledger - one row per movement with the
+   * journal entry it posted; written by the movements, never typed in */
+  'M15-stock-ledger': { kind: 'model_list', model: 'fix.inventory.valuation.suspense', create: false,
+    cols: ['posting_date', 'entry_type', 'product_id', 'location_id', 'quantity', 'unit_cost', 'total_valuation', 'stock_account_code', 'counter_account_code', 'move_id', 'status'],
+    empty: 'No stock valuation entry yet. Every receipt, issue, transfer, count difference, write-off and return posts one row here with its journal entry.' },
+  'M15-stock-gl-tieout': { kind: 'table_report', module: 'M15', report: 'stock_gl_tieout', title: 'Stock to GL Tie-out', period: true },
 
   /* the stock ledger's position: it moves only by receipts, issues, transfers,
    * approved counts, quarantine, scrap and RTV - never typed in (2026-11-12) */

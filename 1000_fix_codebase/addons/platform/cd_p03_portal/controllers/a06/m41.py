@@ -95,11 +95,6 @@ SURFACES = {
     },
     # F32 (A06 ERP audit): no cost in M41 (spec section 13): the valuation
     # suspense list and the standard-cost action are M15's, not this surface's
-    "fix.spare.part": {
-        "order": "id desc",
-        "limit": 400,
-        "actions": {"action_discontinue", "action_mark_obsolete", "action_reactivate"},
-    },
     "fix.warehouse": {"order": "id desc", "limit": 400, "actions": {"action_propose_slotting"}},
     # capture audit 2026-11-14: internal moves, RF devices, operatives, equipment
     "fix.wms.move": {

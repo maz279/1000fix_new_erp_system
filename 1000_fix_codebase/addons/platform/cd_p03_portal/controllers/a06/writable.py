@@ -130,6 +130,7 @@ WRITABLE = {
             "provisional_reason",
             "review_period_days",
             "service_level_pct",
+            "vendor_id",
         }
     ),
     "fix.demand.rebalance": frozenset(
@@ -227,7 +228,14 @@ WRITABLE = {
             "boe_date",
             "boe_no",
             "cnf_agent_id",
+            "customs_ait",
             "customs_assessed_total",
+            "customs_at",
+            "customs_cd",
+            "customs_fx_rate",
+            "customs_rd",
+            "customs_sd",
+            "customs_vat",
             "line_ids",
             "order_id",
             "payment_ref",
@@ -246,6 +254,7 @@ WRITABLE = {
     "fix.import.cost": frozenset(
         {
             "amount",
+            "bill_id",
             "billed_by_id",
             "category",
             "cnf_agent_id",
@@ -257,6 +266,7 @@ WRITABLE = {
             "incurred_on",
             "lc_id",
             "order_id",
+            "order_line_id",
             "rate",
             "rate_source",
             "variance_cause",
@@ -805,6 +815,7 @@ WRITABLE = {
             "lot_id",
             "no_receipt_reason",
             "notes",
+            "ownership_class",
             "part_id",
             "partner_id",
             "qty",
@@ -820,6 +831,7 @@ WRITABLE = {
             "from_location_id",
             "line_ids",
             "operating_unit_id",
+            "ownership_class",
             "requested_on",
             "to_location_id",
         }
@@ -827,7 +839,7 @@ WRITABLE = {
     "fix.stock.transfer.line": frozenset(),
     "fix.stock.van.recon": frozenset(
         {
-            "counted_qty",
+            "line_ids",
             "location_id",
             "notes",
             "recon_date",
@@ -1078,6 +1090,7 @@ WRITABLE = {
     ),
     "fix.wms.crossdock": frozenset(
         {
+            "demand_id",
             "qty",
             "receipt_line_id",
             "stage_lane",
@@ -1175,11 +1188,13 @@ WRITABLE = {
         {
             "cutoff_at",
             "dest_location_id",
+            "ownership_class",
             "part_id",
             "priority",
             "qty",
             "source_ref",
             "source_type",
+            "technician_id",
             "template_id",
             "warehouse_id",
         }
@@ -1211,6 +1226,7 @@ WRITABLE = {
             "qty",
             "receipt_line_id",
             "to_bin_id",
+            "transfer_line_id",
         }
     ),
     "fix.wms.putaway.exception": frozenset(),
@@ -1239,6 +1255,15 @@ WRITABLE = {
             "part_id",
             "slot_type",
             "velocity",
+        }
+    ),
+    "fix.wms.slot.load": frozenset(
+        {
+            "bin_id",
+            "part_id",
+            "qty",
+            "reason",
+            "warehouse_id",
         }
     ),
     "fix.wms.slot.proposal": frozenset(),

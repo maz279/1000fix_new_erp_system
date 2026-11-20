@@ -278,6 +278,13 @@ class World:
                 "company_id": self.company.id,
             }
         )
+        # A06 ERP audit A28 (M15 stream): parts are issued only to a job in
+        # repair; this fixture is about the GL, not the job's workflow, so the
+        # job is placed in repair directly (as the shared conftest does)
+        cenv.cr.execute(
+            "UPDATE fix_service_order SET state = 'in_repair' WHERE id = %s", [self._job.id]
+        )
+        self._job.invalidate_recordset(["state"])
         return self._job
 
     def issue(self, part=None, location=None, qty=1.0, user=None):

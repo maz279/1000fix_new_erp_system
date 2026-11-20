@@ -24,6 +24,26 @@ VAN_VARIANCE_GROUPS = (
 )
 
 SURFACES = {
+    # A06 ERP audit integration: the item master belongs to M15 (it was served
+    # from M41's surface); setting the standard cost is an Inventory
+    # Controller's action here, never on M41 (spec section 13: no cost in M41)
+    "fix.spare.part": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": {
+            "action_discontinue",
+            "action_mark_obsolete",
+            "action_reactivate",
+            "action_set_standard_cost",
+        },
+    },
+    # D1: the stock valuation ledger, one row per movement and its journal
+    # entry - written by the movements, never typed in (read-only)
+    "fix.inventory.valuation.suspense": {
+        "order": "id desc",
+        "limit": 400,
+        "actions": set(),
+    },
     "fix.stock.onhand": {"order": "part_id, location_id", "limit": 400, "actions": set()},
     "fix.stock.lot": {"order": "received_on desc, id desc", "limit": 400, "actions": set()},
     "fix.stock.consumption": {
@@ -1294,8 +1314,77 @@ def suspense_integrity(env, date_from=None, date_to=None, **params):
     )
 
 
+def stock_gl_tieout(env, date_from=None, date_to=None, **params):
+    """D1 (A06 ERP audit): stock valuation subledger vs on-hand (qty x unit
+    cost) vs the general ledger, per stock account and operating unit, as at
+    date_to (default: today in Dhaka). Finance and cost viewers only."""
+    if not _sees_cost(env):
+        return _restricted("Stock to GL Tie-out")
+    rows, notes = [], []
+    for company in env.companies:
+        data = env["fix.inventory.valuation.suspense"].get_stock_gl_tieout(
+            company.id, date_to or None
+        )
+        for r in data["rows"]:
+            ok = abs(r["gl_minus_subledger"]) < 0.005 and abs(r["subledger_minus_onhand"]) <= r.get(
+                "rounding_allowance", 0.0
+            )
+            rows.append(
+                {
+                    "company": data["company"],
+                    "account_code": r["account_code"],
+                    "operating_unit": r["operating_unit"],
+                    "subledger_value": r["subledger_value"],
+                    "onhand_value": r["onhand_value"],
+                    "gl_balance": r["gl_balance"],
+                    "gl_minus_subledger": r["gl_minus_subledger"],
+                    "subledger_minus_onhand": r["subledger_minus_onhand"],
+                    "status": "Ties out" if ok else "Break",
+                }
+            )
+        if not data.get("realtime_since"):
+            notes.append(
+                "%s has not taken its stock on to the GL yet (posting is real time "
+                "from the take-on)." % data["company"]
+            )
+    notes += [
+        "GL and subledger agree to the paisa; subledger and qty x unit cost may "
+        "differ by the 4-decimal unit-cost rounding only.",
+        "A break is investigated before the period is closed.",
+    ]
+    return _pack(
+        "Stock to GL Tie-out — subledger, on-hand and general ledger by account and branch",
+        [
+            "company",
+            "account_code",
+            "operating_unit",
+            "subledger_value",
+            "onhand_value",
+            "gl_balance",
+            "gl_minus_subledger",
+            "subledger_minus_onhand",
+            "status",
+        ],
+        {
+            "company": "Company",
+            "account_code": "Stock Account",
+            "operating_unit": "Operating Unit",
+            "subledger_value": "Subledger",
+            "onhand_value": "On-hand (qty x cost)",
+            "gl_balance": "GL Balance",
+            "gl_minus_subledger": "GL − Subledger",
+            "subledger_minus_onhand": "Subledger − On-hand",
+            "status": "Status",
+        },
+        rows,
+        notes,
+        empty="No stock account balance or stock on hand.",
+    )
+
+
 REPORTS = {
     "suspense_integrity": suspense_integrity,
+    "stock_gl_tieout": stock_gl_tieout,
     "ownership_classes": ownership_classes,
     "availability": availability,
     "genealogy": genealogy,

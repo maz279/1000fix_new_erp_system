@@ -144,13 +144,18 @@ def test_a1_part_status_buttons_are_the_controllers(s):
 
 
 def test_a1_standard_cost_is_the_controllers_and_not_on_the_m41_surface(s):
-    # A06 ERP audit F32: no cost on M41 (spec section 13): the action left the
-    # M41 surface; the control itself still holds on the model
-    res = s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)
-    assert not res["success"]
+    # A06 ERP audit F32: no cost on M41 (spec section 13). The item master and
+    # its standard-cost action are served from M15's surface; the control
+    # (Inventory Controller only) holds through the workspace and the model.
+    from odoo.addons.cd_p03_portal.controllers.a06 import m15, m41
+
+    assert "fix.spare.part" not in m41.SURFACES
+    assert "action_set_standard_cost" in m15.SURFACES["fix.spare.part"]["actions"]
+    assert not s.act(s.keeper, s.part, "action_set_standard_cost", cost=1.0)["success"]
     with pytest.raises((AccessError, UserError)), s.env.cr.savepoint():
         s.part.with_user(s.keeper).action_set_standard_cost(cost=1.0)
-    s.part.with_user(s.controller).action_set_standard_cost(cost=450.0)
+    res = s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)
+    assert res["success"], res
     assert s.part.unit_cost == 450.0
 
 
