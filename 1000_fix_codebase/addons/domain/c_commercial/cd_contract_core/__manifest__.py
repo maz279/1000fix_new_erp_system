@@ -19,7 +19,7 @@ CD-M08-01..04: the contract engine.
 - Events: contract.activated, contract.renewed, contract.expiring,
   entitlement.consumed (AS-08)
 """,
-    "version": "19.0.1.3.0",
+    "version": "19.0.1.3.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Contracts",
@@ -48,6 +48,8 @@ CD-M08-01..04: the contract engine.
         "data/fix_contract_template_data.xml",
         "data/fix_contract_template_terms.xml",
         "views/fix_contract_views.xml",
+        # A04 ERP audit M08-F20: the contract printout
+        "report/fix_contract_report.xml",
     ],
     "installable": True,
     "application": False,

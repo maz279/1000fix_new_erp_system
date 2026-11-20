@@ -50,6 +50,9 @@ SURFACES = {
             "action_send_approval_link",
         },
     },
+    # A04 ERP audit M36-F10 (20 Nov 2026): the entitlements a contract
+    # quotation proposes; copied onto the contract on conversion.
+    "fix.quotation.entitlement": {"order": "quotation_id, id", "limit": 300, "actions": set()},
     # Commercial document standard (17 Nov 2026): the customer's local proforma.
     "fix.sales.proforma": {
         "order": "date desc, id desc",
@@ -197,15 +200,34 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _quotes(env):
-    return env["fix.quotation"].sudo().search([])
+def _quotes(env, date_from=None, date_to=None, date_field="sent_at"):
+    """The caller's companies' quotations; with a period, those issued in it
+    (A04 ERP audit M36-F11 / X1-X2)."""
+    from ._scope import scoped
+
+    if not (date_from or date_to):
+        date_field = None
+    return scoped(env, "fix.quotation", [], date_field, date_from, date_to)
+
+
+def _approval_hours(quote):
+    """Submit-to-decision hours of a quotation's internal approval: from the
+    approval request to the approval stamp (M36-F11: the old figure was the
+    gap between the first and last review rows, 0 for every single review)."""
+    request_ = quote.sudo().approval_request_id
+    start = request_.create_date if request_ else False
+    if not (start and quote.approved_at):
+        return None
+    return round((quote.approved_at - start).total_seconds() / 3600.0, 1)
 
 
 def quote_conversion(env, date_from=None, date_to=None, **params):
     """FR-QTE-033/039: conversion by the channel each quotation first reached
     the customer on (its first recorded delivery). Superseded versions are
     left out: the version that replaced one carries the decision."""
-    quotes = _quotes(env).filtered(lambda q: q.state in ("sent", "accepted", "declined", "expired"))
+    quotes = _quotes(env, date_from, date_to).filtered(
+        lambda q: q.state in ("sent", "accepted", "declined", "expired")
+    )
     labels = dict(env["fix.quotation.delivery"]._fields["channel"].selection)
     buckets = {}
     for quote in quotes:
@@ -286,59 +308,50 @@ def quote_conversion(env, date_from=None, date_to=None, **params):
 
 
 def approval_cycle(env, date_from=None, date_to=None, **params):
-    reviews = env["fix.quote.review"].sudo().search([])
-    by_quote = {}
-    for review in reviews:
-        row = by_quote.setdefault(
-            review.quotation_id.id,
-            {
-                "quotation": review.quotation_id.name,
-                "reviews": 0,
-                "decisions": [],
-                "first": review.reviewed_at,
-                "last": review.reviewed_at,
-            },
-        )
-        row["reviews"] += 1
-        row["decisions"].append(review.decision or "")
-        if review.reviewed_at and (not row["first"] or review.reviewed_at < row["first"]):
-            row["first"] = review.reviewed_at
-        if review.reviewed_at and (not row["last"] or review.reviewed_at > row["last"]):
-            row["last"] = review.reviewed_at
+    """Submit-to-decision time of each approved quotation in the period."""
+    quotes = _quotes(env, date_from, date_to, date_field="approved_at").filtered("approved_at")
     rows = []
-    for row in by_quote.values():
-        hours = None
-        if row["first"] and row["last"]:
-            hours = round((row["last"] - row["first"]).total_seconds() / 3600.0, 1)
+    for quote in quotes:
+        hours = _approval_hours(quote)
+        if hours is None:
+            continue
         rows.append(
             {
-                "quotation": row["quotation"],
-                "reviews": row["reviews"],
-                "decision": row["decisions"][-1] if row["decisions"] else "",
-                "cycle_hours": hours if hours is not None else 0.0,
+                "quotation": "%s v%d" % (quote.name, quote.version),
+                "tier": quote.dofa_approved_tier or "",
+                "value": round(quote.value or 0.0, 2),
+                "cycle_hours": hours,
             }
         )
     rows.sort(key=lambda r: -r["cycle_hours"])
     return _pack(
         "Approval Cycle Time",
-        ["quotation", "reviews", "decision", "cycle_hours"],
+        ["quotation", "tier", "value", "cycle_hours"],
         {
             "quotation": "Quotation",
-            "reviews": "Reviews",
-            "decision": "Last Decision",
-            "cycle_hours": "Cycle (hours)",
+            "tier": "Approved At Tier",
+            "value": "Value (excl. VAT)",
+            "cycle_hours": "Submit to Approval (hours)",
         },
         rows,
         [
-            "Cycle = last minus first review timestamp. A single review has a zero "
-            "cycle by definition."
+            "Cycle = from the approval request (submit) to the approval stamp, per "
+            "approved quotation version."
         ],
-        empty="No quotation reviews recorded yet.",
+        totals={
+            "quotation": "Average",
+            "cycle_hours": round(sum(r["cycle_hours"] for r in rows) / len(rows), 1),
+        }
+        if rows
+        else None,
+        empty="No quotation approved in this period.",
     )
 
 
 def decline_pareto(env, date_from=None, date_to=None, **params):
-    quotes = _quotes(env).filtered(lambda q: q.state == "declined")
+    quotes = _quotes(env, date_from, date_to, date_field="declined_at").filtered(
+        lambda q: q.state == "declined"
+    )
     reasons = {}
     for quote in quotes:
         key = (quote.decline_reason or "unspecified").strip() or "unspecified"
@@ -373,7 +386,9 @@ def decline_pareto(env, date_from=None, date_to=None, **params):
 
 
 def tender_winloss(env, date_from=None, date_to=None, **params):
-    tenders = env["fix.tender"].sudo().search([])
+    from ._scope import scoped
+
+    tenders = scoped(env, "fix.tender", [], "due_date", date_from, date_to)
     states = ["draft", "no_bid", "submitted", "won", "lost", "cancelled"]
     rows = []
     for state in states:
@@ -425,7 +440,9 @@ def tender_winloss(env, date_from=None, date_to=None, **params):
 
 
 def margin_approved(env, date_from=None, date_to=None, **params):
-    quotes = _quotes(env).filtered(lambda q: q.state == "accepted")
+    quotes = _quotes(env, date_from, date_to, date_field="accepted_at").filtered(
+        lambda q: q.state == "accepted"
+    )
     rows = []
     for quote in quotes:
         rows.append(
@@ -465,7 +482,7 @@ def margin_approved(env, date_from=None, date_to=None, **params):
 
 
 def esign_status(env, date_from=None, date_to=None, **params):
-    quotes = _quotes(env)
+    quotes = _quotes(env, date_from, date_to)
     rows = []
     for quote in quotes:
         rows.append(
@@ -497,8 +514,12 @@ def esign_status(env, date_from=None, date_to=None, **params):
 
 
 def tender_compliance(env, date_from=None, date_to=None, **params):
-    tenders = env["fix.tender"].sudo().search([])
-    bonds = env["fix.tender.bond"].sudo().search([])
+    from ._scope import scoped
+
+    tenders = scoped(env, "fix.tender", [], "due_date", date_from, date_to)
+    bonds = scoped(
+        env, "fix.tender.bond", [("tender_id", "in", tenders.ids)], company_field="__none__"
+    )
     rows = []
     for tender in tenders:
         mine = bonds.filtered(lambda b, tid=tender.id: b.tender_id.id == tid)
@@ -547,26 +568,50 @@ REPORTS = {
 
 
 def kpis(env):
-    quotes = _quotes(env)
-    tenders = env["fix.tender"].sudo().search([])
-    reviews = env["fix.quote.review"].sudo().search([])
+    """A04 ERP audit M36-F11: read through the caller's companies; the
+    conversion is accepted / decided (never over drafts and open quotes); the
+    turnaround is submit-to-approval."""
+    from ._scope import scoped
+
+    quotes = _quotes(env).filtered(lambda q: q.state != "superseded")
+    tenders = scoped(env, "fix.tender", [])
     accepted = len(quotes.filtered(lambda q: q.state == "accepted"))
-    by_quote = {}
-    for review in reviews:
-        row = by_quote.setdefault(review.quotation_id.id, [])
-        row.append(review.reviewed_at)
-    cycles = []
-    for stamps in by_quote.values():
-        stamps = [s for s in stamps if s]
-        if len(stamps) >= 2:
-            cycles.append((max(stamps) - min(stamps)).total_seconds() / 3600.0)
+    decided = len(quotes.filtered(lambda q: q.state in ("accepted", "declined", "expired")))
+    cycles = [
+        h for h in (_approval_hours(q) for q in quotes.filtered("approved_at")) if h is not None
+    ]
+    service_declined = quotes.filtered(
+        lambda q: q.state == "declined" and q.quote_type == "service"
+    )
+    fee_charged = 0
+    try:
+        for quote in service_declined:
+            order = quote.estimate_id.sudo().order_id
+            if (
+                order
+                and order.state == "cancelled"
+                and order.cancel_reason_code
+                in (
+                    "customer_declined",
+                    "estimate_declined",
+                )
+            ):
+                fee_charged += 1
+    except Exception:  # one broken KPI must not blank the strip
+        import logging
+
+        logging.getLogger(__name__).exception("M36 KPI declined_conversion failed")
+        fee_charged = None
     return {
         "quotes_open": len(quotes.filtered(lambda q: q.state in ("draft", "approved", "sent"))),
-        "conversion": round(accepted / len(quotes) * 100.0, 1) if quotes else None,
+        "conversion": round(accepted / decided * 100.0, 1) if decided else None,
         "awaiting_customer": len(quotes.filtered(lambda q: q.state == "sent")),
         "avg_turnaround": round(sum(cycles) / len(cycles), 1) if cycles else None,
         "tenders_live": len(tenders.filtered(lambda t: t.state in ("draft", "submitted"))),
-        "declined_conversion": None,  # the diagnostic-fee conversion is not modelled
+        # declined repairs closed with their diagnostic fee charged (M01)
+        "declined_conversion": round(fee_charged / len(service_declined) * 100.0, 1)
+        if service_declined and fee_charged is not None
+        else None,
     }
 
 

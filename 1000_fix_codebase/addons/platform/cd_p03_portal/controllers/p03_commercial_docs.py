@@ -277,6 +277,8 @@ class P03CommercialDocs(http.Controller):
             "fix.field.order": "cd_p03_portal.report_a02_field_service",
             "fix.consignment": "cd_p03_portal.report_a02_consignment_note",
             "fix.workshop.job": "cd_p03_portal.report_a02_workshop_job",
+            # A04 ERP audit M08-F20: the contract printout (cd_contract_core)
+            "fix.contract": "cd_contract_core.report_contract_document",
         }
         receipts = {
             "fix.ar.invoice": "cd_doc_suite.report_invoice_receipt",

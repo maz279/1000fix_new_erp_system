@@ -130,6 +130,8 @@ QUOTE_STAMPS = frozenset(
 )
 
 FINAL_STATES = ("accepted", "declined", "expired", "cancelled", "superseded")
+# A04 ERP audit M36-F17: how many rounds of codes one quotation version gets.
+OTP_RESEND_ROUNDS = 3
 
 # The e-signature provider signs its completion callback with this shared
 # secret (HMAC-SHA256). Unset = no provider configured: an e-signature
@@ -226,7 +228,9 @@ class FixQuotation(models.Model):
     cost_amount = fields.Monetary(
         string="Estimated Direct Cost", currency_field="currency_id", default=0.0
     )
-    vat_rate = fields.Float(string="VAT Rate (%)", default=15.0)
+    # A04 ERP audit M36-F2: no hard-coded rate - fix_a04_quote_money computes it
+    # from M51's determination of the quoted lines (read-only, guarded).
+    vat_rate = fields.Float(string="VAT Rate (%)")
     vat_amount = fields.Monetary(
         string="Mushak VAT Amount",
         currency_field="currency_id",
@@ -453,7 +457,6 @@ class FixQuotation(models.Model):
             if estimate:
                 # A04 audit M36-11 (q_07): the value is the estimate's.
                 vals.setdefault("value", estimate_untaxed(estimate))
-                vals.setdefault("vat_rate", estimate.vat_rate)
                 vals.setdefault("currency_id", estimate.currency_id.id)
                 if estimate.order_id.customer_id:
                     vals.setdefault("customer_id", estimate.order_id.customer_id.id)
@@ -817,6 +820,15 @@ class FixQuotation(models.Model):
                 raise UserError(
                     "The customer has no valid Bangladesh mobile number for an acceptance code."
                 )
+            # A04 ERP audit M36-F17: a resend no longer resets the failed
+            # attempts (a fresh code bought three fresh guesses, for ever):
+            # the count runs over the version, and past the cap no new code
+            # is sent - the acceptance is recorded another way.
+            if rec.acceptance_otp_attempts >= fix_otp_util.OTP_MAX_ATTEMPTS * OTP_RESEND_ROUNDS:
+                raise UserError(
+                    "Too many wrong acceptance codes on quotation %s: record the customer's "
+                    "signed acceptance instead, or revise the quotation." % rec.name
+                )
             code = fix_otp_util.issue_code()
             fix_otp_util.dispatch_otp(phone, code, fix_otp_util.OTP_TTL_SECONDS)
             rec.sudo()._guarded().write(
@@ -826,7 +838,6 @@ class FixQuotation(models.Model):
                     ),
                     "acceptance_otp_expires_at": fields.Datetime.now()
                     + timedelta(seconds=fix_otp_util.OTP_TTL_SECONDS),
-                    "acceptance_otp_attempts": 0,
                 }
             )
             rec.message_post(
@@ -847,7 +858,7 @@ class FixQuotation(models.Model):
                 raise UserError("The acceptance code has expired. Send a new one.")
             if not fix_otp_util.matches(self.env, "quotation_acceptance", rec.id, code, stored):
                 attempts = rec.acceptance_otp_attempts + 1
-                burnt = attempts >= fix_otp_util.OTP_MAX_ATTEMPTS
+                burnt = attempts % fix_otp_util.OTP_MAX_ATTEMPTS == 0
                 rec.sudo()._guarded().write(
                     {
                         "acceptance_otp_attempts": attempts,
@@ -1048,6 +1059,11 @@ class FixQuotation(models.Model):
                         "date_end": start + relativedelta(months=months) - timedelta(days=1),
                         # The quotation value is the whole term's price.
                         "annual_value": round((self.value or 0.0) * 12.0 / months, 2),
+                        # A04 ERP audit M36-F3 / M36-F2: the contract carries the
+                        # term's price and the accepted total, so its calendar-
+                        # month billing totals exactly what was accepted.
+                        "term_value": round(self.accepted_value or self.value or 0.0, 2),
+                        "accepted_total": round(self.accepted_total or self.amount_total or 0.0, 2),
                     }
                 )
             )

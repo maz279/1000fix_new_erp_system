@@ -128,7 +128,8 @@ def test_renewal_escalates_and_announces_on_activation(ctx):
 
 def test_margin_is_value_less_delivered_cost(ctx):
     k = _live(ctx)
-    assert k.total_delivery_cost == 0.0 and k.contract_margin_bdt == k.annual_value
+    # A04 ERP audit M08-F13: the margin is on the whole term's value
+    assert k.total_delivery_cost == 0.0 and k.contract_margin_bdt == k.term_value
 
 
 def test_contract_sla_uses_the_m01_policy_model(ctx):

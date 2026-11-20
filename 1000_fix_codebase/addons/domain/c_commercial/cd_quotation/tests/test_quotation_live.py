@@ -137,10 +137,12 @@ def test_accept_from_quoted_or_negotiating(ctx, from_state):
     estimate = _estimate(
         ctx, state="approved", quotation_state=from_state, sent_at=fields.Datetime.now()
     )
-    estimate.action_accept()
+    estimate.action_accept(evidence="signed slip 1")
     assert estimate.quotation_state == "accepted"
     assert estimate.accepted_at
-    assert _events(ctx.env, "quotation.accepted", "fix.estimate", estimate.id) == [
+    assert estimate.quotation_acceptance_ref == "signed slip 1"
+    # A04 ERP audit M36-F12: an estimate acceptance is its own event
+    assert _events(ctx.env, "estimate.quotation_accepted", "fix.estimate", estimate.id) == [
         {"version": estimate.version, "grand_total": estimate.grand_total}
     ]
 
@@ -151,7 +153,7 @@ def test_accept_requires_a_live_quote(ctx, from_state):
         pytest.raises(UserError, match="Only a quoted quotation can be accepted"),
         ctx.env.cr.savepoint(),
     ):
-        _estimate(ctx, quotation_state=from_state).action_accept()
+        _estimate(ctx, quotation_state=from_state).action_accept(evidence="slip")
 
 
 def test_decline(ctx):

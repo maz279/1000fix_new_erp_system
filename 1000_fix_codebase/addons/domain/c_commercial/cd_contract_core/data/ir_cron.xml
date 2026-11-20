@@ -53,5 +53,25 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A04 ERP audit (20 Nov 2026): PM visits dispatched on their date
+             (M08-F16) and periodic entitlements renewed (M08-F15). -->
+        <record id="ir_cron_contract_pm_dispatch" model="ir.cron">
+            <field name="name">M08: dispatch preventive visits on their dispatch date</field>
+            <field name="model_id" ref="model_fix_contract_pm_visit"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dispatch_due_pm_visits()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_contract_entitlement_reset" model="ir.cron">
+            <field name="name">M08: renew periodic entitlements (monthly / annual)</field>
+            <field name="model_id" ref="model_fix_contract_entitlement"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_reset_entitlements()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

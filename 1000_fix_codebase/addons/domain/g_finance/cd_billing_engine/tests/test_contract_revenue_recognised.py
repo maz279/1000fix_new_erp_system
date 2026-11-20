@@ -19,12 +19,15 @@ from odoo.addons.cd_billing_engine.tests.test_a04_c10_contract_walker import (  
 pytestmark = [pytest.mark.financial]
 
 
-def _issued_period_invoice(k):
+def _issued_period_invoice(k, timing="advance"):
+    """A04 ERP audit M08-F5: only a period billed IN ADVANCE is a contract
+    liability recognised over the period; a period billed in arrears is
+    already earned when it is invoiced (it credits revenue, no schedule)."""
     if "fix.revenue.schedule" not in k.env:
         pytest.skip("cd_subscription (M53 recognition) not installed")
     _on(k)
-    contract = _active(k)
-    assert _walk(k) == 2
+    contract = _active(k, billing_timing=timing)
+    assert _walk(k) == (3 if timing == "advance" else 2)
     invoice = _invoices(k, contract)[0]
     invoice.sudo().action_issue()
     assert invoice.state != "draft"
@@ -66,6 +69,16 @@ def test_an_ended_period_is_recognised_in_full_by_the_daily_run(k):
         line.move_id.line_ids.filtered(lambda ml: ml.credit > 0).account_id
         != line.move_id.line_ids.filtered(lambda ml: ml.debit > 0).account_id
     )
+
+
+def test_an_arrears_period_is_earned_at_issue_and_never_deferred(k):
+    """M08-F5: the walker bills arrears periods once served, so their issue
+    credits the family's revenue account and M53 schedules no deferral."""
+    _contract, invoice = _issued_period_invoice(k, timing="arrears")
+    assert invoice._revenue_role() == "revenue" and invoice.revenue_account_id
+    assert not _schedule(k, invoice)
+    credit = invoice.posted_move_id.line_ids.filtered(lambda ml: ml.credit > 0)
+    assert invoice.revenue_account_id in credit.mapped("account_id")
 
 
 def test_the_schedule_is_created_once(k):

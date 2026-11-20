@@ -188,7 +188,11 @@ def test_due_periods_raise_draft_invoices_and_advance_billed_through(k):
         # entry and the Mushak 6.3 of an invoice issued on 11 Nov into October.
         assert invoice.invoice_date == period.period_end
         assert contract.code in (invoice.manual_reason or "")
-        assert invoice._revenue_role() == "deferred_revenue"  # IFRS 15 contract liability
+        # A04 ERP audit M08-F5: billed in arrears, the period is earned when it
+        # is invoiced: it credits the family's revenue account, not the
+        # contract liability (advance billing stays deferred).
+        assert invoice.revenue_account_id
+        assert invoice._revenue_role() == "revenue"
         expected = _determined(period, invoice.invoice_date)
         (line,) = invoice.line_ids
         assert (
@@ -229,11 +233,16 @@ def test_a_rerun_raises_nothing(k):
 def test_a_walked_period_freezes_amendments(k):
     """End-to-end C2-C13 tie-in: the walker advances the billed-through
     date, so an amendment cannot take effect inside a billed period. The
-    fixture backdates the term 59 days so the second period ends exactly
+    fixture backdates the term so the second calendar-month period ends exactly
     today - today itself is then billed, and an amendment effective today
     (the earliest the backdate guard allows) is refused."""
     _on(k)
-    contract = _active(k, start_days_ago=59)
+    # A04 ERP audit M08-F6: calendar-month periods - the second one ends today
+    # when the term started two months ago tomorrow
+    from dateutil.relativedelta import relativedelta
+
+    start = k.today - relativedelta(months=2) + timedelta(days=1)
+    contract = _active(k, start_days_ago=(k.today - start).days)
     assert _walk(k) == 2
     assert contract.billed_through_date == k.today
     amendment = (

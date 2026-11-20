@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP audit (20 Nov 2026, stream B2): M36 events someone must act on.
+     - quotation.declined: the decline is closed out (M01 estimate declined and
+       the device's return scheduled; a close-out to-do otherwise) (M36-F5);
+     - tender.variation_approved: the approved variation amends the tender's
+       contract (M36-F7). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a04_quotation_declined" model="fix.event.consumer">
+            <field name="name">M36: a declined quotation is closed out (device return / close-out task)</field>
+            <field name="event_type">quotation.declined</field>
+            <field name="model">fix.a04.quotation.consumers</field>
+            <field name="method">consume_quotation_declined</field>
+            <field name="module">cd_quotation</field>
+        </record>
+
+        <record id="consumer_a04_tender_variation_approved" model="fix.event.consumer">
+            <field name="name">M36/M08: an approved tender variation amends the contract</field>
+            <field name="event_type">tender.variation_approved</field>
+            <field name="model">fix.a04.quotation.consumers</field>
+            <field name="method">consume_tender_variation_approved</field>
+            <field name="module">cd_quotation</field>
+        </record>
+
+    </data>
+</odoo>

@@ -72,3 +72,5 @@ access_fix_tender_document,fix.tender.document,model_fix_tender_document,base.gr
 access_fix_tender_document_bid,fix.tender.document bid,model_fix_tender_document,group_bid_coordinator,1,1,1,1
 access_fix_tender_outcome,fix.tender.outcome,model_fix_tender_outcome,base.group_user,1,0,0,0
 access_fix_tender_outcome_bid,fix.tender.outcome bid,model_fix_tender_outcome,group_bid_coordinator,1,0,1,0
+access_fix_quotation_entitlement,fix.quotation.entitlement,model_fix_quotation_entitlement,base.group_user,1,0,0,0
+access_fix_quotation_entitlement_author,fix.quotation.entitlement author,model_fix_quotation_entitlement,group_quotation_user,1,1,1,1

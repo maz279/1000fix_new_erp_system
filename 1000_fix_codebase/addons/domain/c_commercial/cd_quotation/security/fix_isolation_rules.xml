@@ -215,4 +215,10 @@
         <field name="model_id" ref="model_fix_tender_variation"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- A04 ERP audit M36-F10 (20 Nov 2026): proposed contract entitlements -->
+    <record id="rule_fix_quotation_entitlement_company" model="ir.rule">
+        <field name="name">fix.quotation.entitlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_quotation_entitlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

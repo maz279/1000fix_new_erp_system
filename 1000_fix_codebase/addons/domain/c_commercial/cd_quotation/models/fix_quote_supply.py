@@ -891,6 +891,7 @@ class FixContractScope(models.Model):
     _inherit = "fix.contract"
 
     quotation_id = fields.Many2one("fix.quotation", string="From Quotation", readonly=True)
+    tender_id = fields.Many2one("fix.tender", string="From Tender", readonly=True, index=True)
     payment_term_id = fields.Many2one("account.payment.term", string="Payment Terms")
     scope_line_ids = fields.One2many(
         "fix.contract.scope.line", "contract_id", string="Contracted Scope"

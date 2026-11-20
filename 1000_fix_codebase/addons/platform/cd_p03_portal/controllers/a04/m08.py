@@ -3,11 +3,22 @@
 # and termination models. Contract P&L uses the contract value against real
 # SLA credits; costs are not invented.
 import datetime
+import logging
 
+import pytz
 from odoo import http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from ._scope import scoped, scoped_count
+
+_logger = logging.getLogger(__name__)
+
+
+def _today():
+    """The Asia/Dhaka business day (A04 ERP audit: never the server's UTC date)."""
+    return datetime.datetime.now(pytz.timezone("Asia/Dhaka")).date()
+
 
 SURFACES = {
     # The Stamp Act 1899 Schedule I rate table. It had no surface at all, so
@@ -38,8 +49,13 @@ SURFACES = {
             # (Reinstatement form); a second officer verifies an ink signature
             "action_resume",
             "action_verify_wet_signature",
+            # A04 ERP audit M08-F20: the professional contract printout
+            "action_print_contract",
         },
     },
+    # A04 ERP audit M08-F1 (20 Nov 2026): the suspension windows (written by
+    # the engine; read-only here).
+    "fix.contract.suspension": {"order": "contract_id, date_from", "limit": 300, "actions": set()},
     "fix.contract.entitlement": {
         "order": "contract_id, id",
         "limit": 300,
@@ -53,7 +69,13 @@ SURFACES = {
     "fix.contract.amendment": {
         "order": "effective_from desc, id desc",
         "limit": 200,
-        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_cancel",
+            # A04 ERP audit M08-F12: an amendment crossing the Legal threshold
+            "action_legal_review",
+        },
     },
     "fix.contract.renewal": {
         "order": "proposed_start, id",
@@ -128,13 +150,26 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _contracts(env):
-    return env["fix.contract"].sudo().search([])
+def _contracts(env, date_from=None, date_to=None, date_field=None):
+    """The caller's companies' contracts; with a period, those whose basis
+    date falls in it (A04 ERP audit M08-F19 / X1-X2)."""
+    return scoped(env, "fix.contract", [], date_field, date_from, date_to)
+
+
+def _cdom(env):
+    """Rows of a contract of the caller's companies (models with no company)."""
+    return [("contract_id.company_id", "in", env.companies.ids)]
+
+
+def _families(env):
+    """The families the contract engine actually carries (M08-F8): the
+    registry, never a promised count."""
+    return env["fix.contract"]._fields["family"].selection
 
 
 def contract_base_movement(env, date_from=None, date_to=None, **params):
     contracts = _contracts(env)
-    today = datetime.date.today()
+    today = _today()
     month_start = today.replace(day=1)
     rows = []
     for state in (
@@ -154,14 +189,14 @@ def contract_base_movement(env, date_from=None, date_to=None, **params):
                 "state": state,
                 "contracts": len(mine),
                 "new_mtd": len(new),
-                "value": round(sum(mine.mapped("annual_value")), 2),
+                "value": round(sum(mine.mapped("term_value")), 2),
             }
         )
     active = len(contracts.filtered(lambda c: c.state == "active"))
     return _pack(
         "Contract Base Movement",
         ["state", "contracts", "new_mtd", "value"],
-        {"state": "State", "contracts": "Contracts", "new_mtd": "New MTD", "value": "Annual Value"},
+        {"state": "State", "contracts": "Contracts", "new_mtd": "New MTD", "value": "Term Value"},
         rows,
         [
             "Movement is the live contract base per state; 'new MTD' counts contracts "
@@ -170,7 +205,7 @@ def contract_base_movement(env, date_from=None, date_to=None, **params):
         totals={
             "state": "Total",
             "contracts": len(contracts),
-            "value": round(sum(contracts.mapped("annual_value")), 2),
+            "value": round(sum(contracts.mapped("term_value")), 2),
         }
         if rows
         else None,
@@ -179,7 +214,7 @@ def contract_base_movement(env, date_from=None, date_to=None, **params):
 
 
 def entitlement_consumption(env, date_from=None, date_to=None, **params):
-    entitlements = env["fix.contract.entitlement"].sudo().search([])
+    entitlements = scoped(env, "fix.contract.entitlement", _cdom(env), company_field="__none__")
     by_contract = {}
     for ent in entitlements:
         row = by_contract.setdefault(
@@ -223,7 +258,7 @@ def entitlement_consumption(env, date_from=None, date_to=None, **params):
 
 
 def sla_credit_register(env, date_from=None, date_to=None, **params):
-    credits = env["fix.msp.sla.credit"].sudo().search([])
+    credits = scoped(env, "fix.msp.sla.credit", [])
     rows = []
     for credit in credits:
         # M08 capture audit 2026-11-13: a credit hangs off its MSP contract
@@ -261,8 +296,16 @@ def sla_credit_register(env, date_from=None, date_to=None, **params):
 
 
 def pm_compliance(env, date_from=None, date_to=None, **params):
-    visits = env["fix.contract.pm.visit"].sudo().search([])
-    today = datetime.date.today()
+    visits = scoped(
+        env,
+        "fix.contract.pm.visit",
+        _cdom(env),
+        "scheduled_date",
+        date_from,
+        date_to,
+        company_field="__none__",
+    )
+    today = _today()
     rows = []
     for visit in visits:
         overdue = (
@@ -300,7 +343,15 @@ def pm_compliance(env, date_from=None, date_to=None, **params):
 
 
 def renewal_pipeline(env, date_from=None, date_to=None, **params):
-    renewals = env["fix.contract.renewal"].sudo().search([])
+    renewals = scoped(
+        env,
+        "fix.contract.renewal",
+        _cdom(env),
+        "proposed_start",
+        date_from,
+        date_to,
+        company_field="__none__",
+    )
     rows = []
     for renewal in renewals:
         rows.append(
@@ -314,19 +365,18 @@ def renewal_pipeline(env, date_from=None, date_to=None, **params):
             }
         )
     contracts = _contracts(env)
+    today = _today()
     expiring = contracts.filtered(
-        lambda c: c.state == "active"
+        lambda c: c.state in ("active", "expiring")
         and c.date_end
-        and datetime.date.today()
-        <= c.date_end
-        <= datetime.date.today() + datetime.timedelta(days=90)
+        and today <= c.date_end <= today + datetime.timedelta(days=90)
     )
     rows = rows + [
         {
             "contract": contract.name,
             "proposed_start": str(contract.date_end),
             "proposed_end": "—",
-            "value": round(contract.annual_value, 2),
+            "value": round(contract.term_value or contract.annual_value, 2),
             "risk": "auto-renew" if contract.auto_renew else "manual",
             "state": "expiring ≤90d",
         }
@@ -352,40 +402,60 @@ def renewal_pipeline(env, date_from=None, date_to=None, **params):
     )
 
 
+def _service_credits(env, contracts):
+    """{contract id: BDT} of SLA credits: M05's MSP credits plus the M08
+    service-credit notes raised on the contract's invoices (M08-F11)."""
+    out = {}
+    for credit in scoped(env, "fix.msp.sla.credit", []):
+        amc = credit.msp_contract_id.contract_id
+        if amc:
+            out[amc.id] = out.get(amc.id, 0.0) + (credit.credit_amount or 0.0)
+    if "service_credit_note_id" in env["fix.contract.billing.period"]._fields:
+        periods = scoped(
+            env,
+            "fix.contract.billing.period",
+            [("contract_id", "in", contracts.ids), ("service_credit_note_id", "!=", False)],
+        )
+        for period in periods:
+            note = period.service_credit_note_id
+            if note.state != "rejected":
+                out[period.contract_id.id] = out.get(period.contract_id.id, 0.0) + (
+                    note.amount or 0.0
+                )
+    return out
+
+
 def contract_pnl(env, date_from=None, date_to=None, **params):
-    contracts = _contracts(env).filtered(lambda c: c.state == "active")
-    credits = env["fix.msp.sla.credit"].sudo().search([])
-    by_contract = {}
-    for credit in credits:
-        key = credit.msp_contract_id.contract_id.id  # the AMC behind the MSP contract
-        by_contract[key] = by_contract.get(key, 0.0) + (credit.credit_amount or 0.0)
+    """A04 ERP audit M08-F13: the revenue is the whole term's value, set
+    against the cost of every order of the contract's life (parts at cost,
+    labour at the configured rate)."""
+    contracts = _contracts(env).filtered(lambda c: c.state in ("active", "expiring"))
+    credits = _service_credits(env, contracts)
     rows = []
     for contract in contracts:
-        credit = by_contract.get(contract.id, 0.0)
-        net = round(contract.annual_value - credit, 2)
-        delivery_cost = round(getattr(contract, "total_delivery_cost", 0.0) or 0.0, 2)
-        gross_margin = round(net - delivery_cost, 2)
-        margin_pct = round(
-            (gross_margin / contract.annual_value * 100.0) if contract.annual_value else 0.0, 1
-        )
+        value = round(contract.term_value or contract.annual_value or 0.0, 2)
+        credit = round(credits.get(contract.id, 0.0), 2)
+        delivery_cost = round(contract.total_delivery_cost or 0.0, 2)
+        gross_margin = round(value - credit - delivery_cost, 2)
         rows.append(
             {
                 "contract": contract.name,
                 "client": contract.customer_id.name or "-",
-                "annual_value": round(contract.annual_value, 2),
-                "sla_credits": round(credit, 2),
+                "term_value": value,
+                "sla_credits": credit,
                 "delivery_cost": delivery_cost,
                 "gross_margin": gross_margin,
-                "margin_pct": margin_pct,
+                "margin_pct": round(gross_margin / value * 100.0, 1) if value else 0.0,
             }
         )
     rows.sort(key=lambda r: -r["gross_margin"])
+    total_value = sum(r["term_value"] for r in rows)
     return _pack(
         "Contract P&L",
         [
             "contract",
             "client",
-            "annual_value",
+            "term_value",
             "sla_credits",
             "delivery_cost",
             "gross_margin",
@@ -394,30 +464,31 @@ def contract_pnl(env, date_from=None, date_to=None, **params):
         {
             "contract": "Contract",
             "client": "Client",
-            "annual_value": "Annual Value (BDT)",
+            "term_value": "Term Value (BDT)",
             "sla_credits": "SLA Credits (BDT)",
-            "delivery_cost": "Delivery Cost (BDT)",
+            "delivery_cost": "Cost to Serve (BDT)",
             "gross_margin": "Gross Margin (BDT)",
             "margin_pct": "Margin %",
         },
         rows,
-        ["Full Contract P&L with direct service delivery cost allocations and true gross margins."],
+        [
+            "Revenue is the term value (excl. VAT); cost is every order of the term at "
+            "cost (parts at their recorded or M15 average cost, labour hours at "
+            "cd_contract_core.labour_cost_per_hour - unset means labour is not costed)."
+        ],
         totals={
             "contract": "Total",
-            "annual_value": round(sum(r["annual_value"] for r in rows), 2),
+            "term_value": round(total_value, 2),
             "sla_credits": round(sum(r["sla_credits"] for r in rows), 2),
             "delivery_cost": round(sum(r["delivery_cost"] for r in rows), 2),
             "gross_margin": round(sum(r["gross_margin"] for r in rows), 2),
-            "margin_pct": round(
-                sum(r["gross_margin"] for r in rows) / sum(r["annual_value"] for r in rows) * 100.0,
-                1,
-            )
-            if rows and sum(r["annual_value"] for r in rows)
+            "margin_pct": round(sum(r["gross_margin"] for r in rows) / total_value * 100.0, 1)
+            if total_value
             else 0.0,
         }
         if rows
         else None,
-        empty="No active contracts yet.",
+        empty="No contract in force yet.",
     )
 
 
@@ -437,7 +508,7 @@ def contract_families(env, date_from=None, date_to=None, **params):
         row["contracts"] += 1
         if contract.state == "active":
             row["active"] += 1
-        row["value"] += contract.annual_value or 0.0
+        row["value"] += contract.term_value or contract.annual_value or 0.0
     rows = []
     for row in families.values():
         row["value"] = round(row["value"], 2)
@@ -450,13 +521,14 @@ def contract_families(env, date_from=None, date_to=None, **params):
             "family": "Product Family",
             "contracts": "Contracts",
             "active": "Active",
-            "value": "Annual Value",
+            "value": "Term Value",
         },
         rows,
         [
-            "The registry promises 14 product families; only the families actually "
-            "present in the contract base appear — an empty family is visible by "
-            "its absence, not padded."
+            "The engine carries %d product families (%s); a new family is added to the "
+            "contract family registry before it can be contracted. Only families present "
+            "in the contract base appear here: an empty family is visible by its absence."
+            % (len(_families(env)), ", ".join(label for _key, label in _families(env)))
         ],
         empty="No contracts yet.",
     )
@@ -464,7 +536,12 @@ def contract_families(env, date_from=None, date_to=None, **params):
 
 def scope_coverage(env, date_from=None, date_to=None, **params):
     contracts = _contracts(env)
-    entitlements = env["fix.contract.entitlement"].sudo().search([])
+    entitlements = scoped(
+        env,
+        "fix.contract.entitlement",
+        [("contract_id", "in", contracts.ids)],
+        company_field="__none__",
+    )
     rows = []
     for contract in contracts:
         mine = entitlements.filtered(lambda e, cid=contract.id: e.contract_id.id == cid)
@@ -500,7 +577,7 @@ def scope_coverage(env, date_from=None, date_to=None, **params):
 
 
 def entitlement_balance(env, date_from=None, date_to=None, **params):
-    entitlements = env["fix.contract.entitlement"].sudo().search([])
+    entitlements = scoped(env, "fix.contract.entitlement", _cdom(env), company_field="__none__")
     rows = []
     for ent in entitlements:
         rows.append(
@@ -535,7 +612,15 @@ def entitlement_balance(env, date_from=None, date_to=None, **params):
 
 
 def contract_driven_work(env, date_from=None, date_to=None, **params):
-    visits = env["fix.contract.pm.visit"].sudo().search([])
+    visits = scoped(
+        env,
+        "fix.contract.pm.visit",
+        _cdom(env),
+        "scheduled_date",
+        date_from,
+        date_to,
+        company_field="__none__",
+    )
     rows = []
     for visit in visits:
         rows.append(
@@ -568,10 +653,10 @@ def contract_driven_work(env, date_from=None, date_to=None, **params):
 
 def churn_risk(env, date_from=None, date_to=None, **params):
     contracts = _contracts(env)
-    today = datetime.date.today()
+    today = _today()
     rows = []
     for contract in contracts:
-        if contract.state != "active" or not contract.date_end:
+        if contract.state not in ("active", "expiring") or not contract.date_end:
             continue
         days = (contract.date_end - today).days
         renewals = (
@@ -664,44 +749,51 @@ REPORTS = {
 
 
 def kpis(env):
+    """A04 ERP audit M08-F19: read through the caller's companies, on the
+    Dhaka business day, and the expiring contracts are counted."""
     contracts = _contracts(env)
-    today = datetime.date.today()
-    active = contracts.filtered(lambda c: c.state == "active")
-    credits = env["fix.msp.sla.credit"].sudo().search([])
-    entitlements = env["fix.contract.entitlement"].sudo().search([])
-    included = sum(e.quantity_included or 0.0 for e in entitlements)
-    consumed = sum(e.quantity_consumed or 0.0 for e in entitlements)
-    week_end = today + datetime.timedelta(days=7)
-    visits_due = (
-        env["fix.contract.pm.visit"]
-        .sudo()
-        .search_count(
-            [
-                ("scheduled_date", ">=", today),
-                ("scheduled_date", "<=", week_end),
-                ("state", "not in", ("done", "completed")),
-            ]
-        )
+    today = _today()
+    in_force = contracts.filtered(lambda c: c.state in ("active", "expiring"))
+    entitlements = scoped(env, "fix.contract.entitlement", _cdom(env), company_field="__none__")
+    counted = entitlements.filtered(lambda e: (e.quantity_included or 0.0) > 0)
+    included = sum(counted.mapped("quantity_included"))
+    consumed = sum(counted.mapped("quantity_consumed"))
+    visits_due = scoped_count(
+        env,
+        "fix.contract.pm.visit",
+        [
+            *_cdom(env),
+            ("scheduled_date", ">=", today),
+            ("scheduled_date", "<=", today + datetime.timedelta(days=7)),
+            ("state", "=", "scheduled"),
+        ],
+        company_field="__none__",
     )
-    renewals = env["fix.contract.renewal"].sudo().search([])
+    renewals = scoped(env, "fix.contract.renewal", _cdom(env), company_field="__none__")
     won = len(renewals.filtered(lambda r: r.state == "won"))
     decided = len(renewals.filtered(lambda r: r.state in ("won", "lost")))
-    credit_by_contract = {}
-    for credit in credits:
-        # M08 sweep audit 2026-11-06: SLA credits hang off the MSP contract
-        # (credit.msp_contract_id); its contract_id is the AMC link. The old
-        # credit.contract_id read crashed the whole KPI route.
-        amc = credit.msp_contract_id.contract_id
-        if amc:
-            credit_by_contract[amc.id] = credit_by_contract.get(amc.id, 0.0) + (
-                credit.credit_amount or 0.0
+    negative = 0
+    try:
+        credits = _service_credits(env, in_force)
+        negative = len(
+            in_force.filtered(
+                lambda c: (c.term_value or 0.0)
+                - credits.get(c.id, 0.0)
+                - (c.total_delivery_cost or 0.0)
+                < 0
             )
-    negative = len(
-        active.filtered(lambda c: (c.annual_value or 0.0) - credit_by_contract.get(c.id, 0.0) < 0)
+        )
+    except Exception:  # one broken KPI must not blank the strip
+        _logger.exception("M08 KPI neg_margin_contracts failed")
+        negative = None
+    expiring_90 = in_force.filtered(
+        lambda c: c.date_end and today <= c.date_end <= today + datetime.timedelta(days=90)
     )
     return {
-        "active_contracts": len(active),
-        "contract_base_value": round(sum(active.mapped("annual_value")), 2),
+        "active_contracts": len(in_force),
+        "contract_base_value": round(sum(in_force.mapped("term_value")), 2),
+        "expiring_90d": len(expiring_90),
+        "expiring_90d_value": round(sum(expiring_90.mapped("term_value")), 2),
         "renewal_rate": round(won / decided * 100.0, 1) if decided else None,
         "neg_margin_contracts": negative,
         "entitlement_utilisation": round(consumed / included * 100.0, 1) if included else None,
