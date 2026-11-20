@@ -548,6 +548,15 @@ class FixValuationSuspensePosting(models.Model):
             approved = self._fix_doc_approved("fix.stock.count")
         elif self.entry_type == "write_off":
             approved = self._fix_doc_approved("fix.stock.quarantine")
+        elif (
+            "consumption_id" in self._fields
+            and self.consumption_id
+            and "zero_cost_approved_by_id" in self.consumption_id._fields
+            and self.consumption_id.sudo().zero_cost_approved_by_id
+        ):
+            # A06 integration: an Inventory Controller approved this very issue
+            # (M15 action_approve_zero_cost) - the same control, one approval
+            approved = True
         else:
             approved = self.env["fix.stock.uncosted.release"]._fix_consume(
                 self.product_id, self.location_id, abs(self.quantity), self.source_ref or self.name

@@ -648,6 +648,33 @@ def test_x19_zero_cost_issue_needs_an_approved_release(live):
     refused(w.env, lambda: w.issue(part=w.free, qty=1.0), "carries no cost")
 
 
+def test_x19_a_controllers_approval_of_the_issue_itself_also_releases_it(live):
+    """A06 integration: the M15 route (an Inventory Controller approves the
+    issue itself) and the ledger route (an approved release) are one control:
+    either lets the issue post, and nothing else does."""
+    w = live
+    rec = w.as_(w.keeper, "fix.stock.consumption").create(
+        {
+            "service_order_ref": w.job().name,
+            "product_id": w.free.id,
+            "location_id": w.north.id,
+            "technician_id": w.tech.id,
+            "quantity": 1.0,
+            "scanned_code": w.free.part_number,
+            "operating_unit_id": w.ou1.id,
+            "company_id": w.company.id,
+        }
+    )
+    refused(w.env, lambda: rec.action_scan_and_consume(), "carries no cost")
+    rec.with_user(w.controller).action_approve_zero_cost(note="urgent job")
+    rec.action_scan_and_consume()
+    assert rec.state == "consumed"
+    row = w.rows(kind="consumption").filtered(lambda r: r.consumption_id == rec)
+    # zero value: the row is posted, and a zero-value movement has no journal
+    assert row.status == "posted" and not row.total_valuation and not row.move_id
+    assert w.bucket(w.free, w.north).qty == 5.0
+
+
 def test_x19_zero_cost_count_variance_goes_to_approval(live):
     w = live
     count = w.as_(w.keeper, "fix.stock.count").create(

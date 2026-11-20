@@ -382,6 +382,28 @@ class FixStockConsumption(models.Model):
                 )
         return customer
 
+    def _fix_uncosted_release_covers(self, part):
+        """A06 integration (X19 / D4): an approved Uncosted Stock Release of
+        this part at this location (the LEDGER control) also authorises the
+        issue; the ledger then draws the release when the issue posts. Read
+        only: nothing is drawn here."""
+        self.ensure_one()
+        if "fix.stock.uncosted.release" not in self.env:
+            return False
+        releases = (
+            self.env["fix.stock.uncosted.release"]
+            .sudo()
+            .search(
+                [
+                    ("part_id", "=", part.id),
+                    ("location_id", "=", self.location_id.id),
+                    ("state", "=", "approved"),
+                ]
+            )
+        )
+        free = sum(max((r.qty or 0.0) - (r.qty_used or 0.0), 0.0) for r in releases)
+        return free + 1e-9 >= (self.quantity or 0.0)
+
     def _check_issue(self):
         """Every rule an issue must satisfy before stock moves."""
         self.ensure_one()
@@ -573,7 +595,12 @@ class FixStockConsumption(models.Model):
                 f"{round(available, 4)} available, {self.quantity} requested."
             )
         cost = bucket.unit_cost or 0.0
-        if cls in VALUED_CLASSES and cost <= 1e-9 and not self.zero_cost_approved_by_id:
+        if (
+            cls in VALUED_CLASSES
+            and cost <= 1e-9
+            and not self.zero_cost_approved_by_id
+            and not self._fix_uncosted_release_covers(part)
+        ):
             raise UserError(
                 "%s at %s carries no cost: its value is unknown, so an Inventory Controller "
                 "approves the issue first (D4) - or Finance prices the stock."
