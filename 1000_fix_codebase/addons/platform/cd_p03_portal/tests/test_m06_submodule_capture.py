@@ -325,9 +325,20 @@ def test_media_moves_and_a_witnessed_seal_break(reg, m6):  # noqa: F811 - the im
             {"case_id": case.id, "seal_number": "SEAL-M06-%d" % m6.n, "media_label": "WD10EZEX"}
         )
     )
-    out = _run(m6, reg, "M06-form-media-move", m6.tech, unit, {"location": "z4_lab"})
+    # A02 pass 2 M06-03: the move names its receiver, who confirms it
+    out = _run(
+        m6,
+        reg,
+        "M06-form-media-move",
+        m6.tech,
+        unit,
+        {"location": "z4_lab", "pending_receiver_id": m6.custodian.id},
+    )
     assert out["success"], out
-    assert unit.location == "z4_lab" and unit.holder == m6.tech.name
+    unit.invalidate_recordset()
+    assert unit.pending_location == "z4_lab" and unit.location == "reception"
+    unit.with_user(m6.custodian).action_confirm_move()
+    assert unit.location == "z4_lab" and m6.custodian.name in unit.holder
     out = _run(m6, reg, "M06-form-seal-break", m6.tech, unit, {"witness_user_id": m6.tech.id})
     assert not out["success"] and unit.seal_state == "sealed"
     out = _run(m6, reg, "M06-form-seal-break", m6.tech, unit, {"witness_user_id": m6.tech2.id})
@@ -345,7 +356,8 @@ def test_media_moves_and_a_witnessed_seal_break(reg, m6):  # noqa: F811 - the im
 
 def test_a_purge_on_the_picked_certificate(reg, m6):  # noqa: F811 - the imported fixture
     case = m6.handed_over(m6.new_case(serial="WD-PURGE-%d" % m6.n), target="T-PURGE")
-    cert = _cert(m6, case.media_serial_number)
+    # A02 pass 2 M06-04 (D15): the lab's purge certificate of the case
+    cert = m6.purge_cert(case)
     out = _run(m6, reg, "M06-form-purge", m6.tech, case, {"purge_certificate_id": cert.id})
     assert out["success"], out
     assert case.state == "purged" and case.purge_certificate_id == cert

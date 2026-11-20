@@ -25,7 +25,9 @@ export const MODULE = {
     { l: 'Cleanroom Slots', m: 'cleanroom_slots' },
     { l: 'Destruction Certs MTD', m: 'destruction_certs_mtd' },
     { l: 'Eval Turnaround', m: 'eval_turnaround', suffix: 'h' },
-    { l: 'Purge Verifications', m: 'purge_verifications' }
+    { l: 'Purge Verifications', m: 'purge_verifications' },
+    /* A02 pass 2 M06-11 (D17): handed-over cases past their retention */
+    { l: 'Purges Overdue', m: 'purge_overdue' }
   ],
   groups: [
     { en: 'Recovery Cases', screens: [
@@ -889,7 +891,8 @@ Object.assign(SCREENS, {
     },
     sections: [
       { title: 'Step 2 of 2: Verified Wipe Certificate (FR-DTS-008)',
-        note: 'Recovered data is purged only on a verified wipe certificate for this case’s own media serial, unchanged since it was verified, and used for no other case. Leave the certificate blank to use the single verified certificate for the media serial.',
+        /* A02 pass 2 M06-04 (D15): the lab's purge certificate of THIS case */
+        note: 'Recovered data is purged only on the lab’s verified purge certificate of this case (its working copy and key destroyed), recorded after the hand-over and unchanged since it was verified. A certificate of the customer’s drive never proves a purge. Leave it blank to use the case’s single verified purge certificate.',
         fields: [
           { name: 'name', label: 'Case Reference', readonly: true },
           { name: 'customer_id', label: 'Customer', readonly: true },
@@ -897,8 +900,8 @@ Object.assign(SCREENS, {
           { name: 'handover_at', label: 'Handed Over At', readonly: true },
           { name: 'retention_until', label: 'Retain Until', readonly: true },
           { name: 'purge_certificate_id', label: 'Verified Wipe Certificate', readonly: true,
-            domain: [['sanitization_status', '=', 'verified']],
-            emptyNote: 'No wipe certificate is verified yet. Record the wipe on + New Destruction Request (dual control); a second person verifies it on Secure Destruction.' }
+            domain: [['sanitization_status', '=', 'verified'], ['purpose', '=', 'case_purge']],
+            emptyNote: 'No purge certificate is verified yet. Record the wipe on + New Destruction Request (dual control); a second person verifies it on Secure Destruction.' }
         ] }
     ]
   },
