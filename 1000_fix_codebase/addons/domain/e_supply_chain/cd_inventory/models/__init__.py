@@ -15,6 +15,7 @@ from . import (
     fix_stock_move_log,
     # A06 ERP D1/D4: the posting engine and the take-on extend the suspense
     fix_stock_posting,
+    fix_stock_provisional,
     fix_stock_takeon,
     fix_valuation_suspense,
     fix_wms_ops,

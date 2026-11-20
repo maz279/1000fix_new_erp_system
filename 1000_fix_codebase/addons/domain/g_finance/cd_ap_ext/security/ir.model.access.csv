@@ -92,3 +92,7 @@ access_fix_expense_card_account_manager,fix.expense.card.account.manager,model_f
 access_fix_expense_card_transaction_account_readonly,fix.expense.card.transaction.account.readonly,model_fix_expense_card_transaction,account.group_account_readonly,1,0,0,0
 access_fix_expense_card_transaction_account_user,fix.expense.card.transaction.account.user,model_fix_expense_card_transaction,account.group_account_user,1,1,1,0
 access_fix_expense_card_transaction_account_manager,fix.expense.card.transaction.account.manager,model_fix_expense_card_transaction,account.group_account_manager,1,1,1,0
+access_fix_ap_lc_settlement_readonly,fix.ap.lc.settlement.readonly,model_fix_ap_lc_settlement,account.group_account_readonly,1,0,0,0
+access_fix_ap_lc_settlement_user,fix.ap.lc.settlement.user,model_fix_ap_lc_settlement,account.group_account_user,1,0,0,0
+access_fix_ap_lc_advance_application_readonly,fix.ap.lc.advance.application.readonly,model_fix_ap_lc_advance_application,account.group_account_readonly,1,0,0,0
+access_fix_ap_lc_advance_application_user,fix.ap.lc.advance.application.user,model_fix_ap_lc_advance_application,account.group_account_user,1,0,0,0

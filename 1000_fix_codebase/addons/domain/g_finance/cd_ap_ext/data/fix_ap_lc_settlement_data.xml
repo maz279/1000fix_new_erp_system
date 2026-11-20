@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A06 ERP audit D6: the supplier advance account defaults to 10255 Advance for
+  Purchase (legacy chart). Set only when no account is configured; a value
+  finance has set is never overwritten.
+-->
+<odoo>
+    <function model="fix.ap.lc.settlement" name="_fix_default_params"/>
+</odoo>

@@ -99,6 +99,36 @@ SURFACES = {
 }
 
 
+def _dhaka_today():
+    from odoo.addons.cd_demand_plan.models.fix_demand_common import dhaka_today
+
+    return dhaka_today()
+
+
+def _in_range(period, date_from=None, date_to=None):
+    """A06 ERP audit: the packs honour the date range (by forecast month)."""
+    if date_from and period < str(date_from)[:7]:
+        return False
+    return not (date_to and period > str(date_to)[:7])
+
+
+def accuracy_measures(forecasts):
+    """M43-12: WAPE (sum |error| / sum actual: the months weighed by volume,
+    and a zero-actual month counts), bias (sum (forecast - actual) / sum
+    actual: positive = over-forecast) and the tracking signal (cumulative
+    error / mean absolute deviation; beyond +/-4 the forecast is biased)."""
+    actual = sum(f.actual_qty for f in forecasts)
+    errors = [f.forecast_qty - f.actual_qty for f in forecasts]
+    abs_sum = sum(abs(e) for e in errors)
+    mad = abs_sum / len(errors) if errors else 0.0
+    return {
+        "wape_pct": round(abs_sum / actual * 100.0, 1) if actual else None,
+        "bias_pct": round(sum(errors) / actual * 100.0, 1) if actual else None,
+        "tracking_signal": round(sum(errors) / mad, 2) if mad else 0.0,
+        "periods": len(errors),
+    }
+
+
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     return {
         "title": title,
@@ -197,35 +227,56 @@ def history_assembly(env, date_from=None, date_to=None, **params):
 
 
 def accuracy_bias(env, date_from=None, date_to=None, **params):
+    measured = _measured(env).filtered(lambda f: _in_range(f.period, date_from, date_to))
     rows = []
-    for rec in _measured(env):
-        rows.append(
-            {
-                "product": rec.product_id.display_name,
-                "period": rec.period,
-                "forecast": round(rec.forecast_qty, 3),
-                "actual": round(rec.actual_qty, 3),
-                "bias": round(rec.variance, 3),
-                "abs_error_pct": rec.abs_error_pct,
-            }
-        )
-    rows.sort(key=lambda r: -r["abs_error_pct"])
-    mape = round(sum(r["abs_error_pct"] for r in rows) / len(rows), 1) if rows else 0.0
+    by_product = {}
+    for rec in measured:
+        by_product.setdefault(rec.product_id, rec.browse())
+        by_product[rec.product_id] |= rec
+    for product, recs in by_product.items():
+        m = accuracy_measures(recs)
+        for rec in recs:
+            rows.append(
+                {
+                    "product": product.display_name,
+                    "period": rec.period,
+                    "forecast": round(rec.forecast_qty, 3),
+                    "actual": round(rec.actual_qty, 3),
+                    "bias": round(rec.variance, 3),
+                    "abs_error_pct": rec.abs_error_pct,
+                    "tracking_signal": m["tracking_signal"],
+                }
+            )
+    rows.sort(key=lambda r: (r["product"], r["period"]))
+    total = accuracy_measures(measured)
+    flagged = sorted(
+        p.display_name
+        for p, recs in by_product.items()
+        if abs(accuracy_measures(recs)["tracking_signal"]) > 4
+    )
     return _pack(
-        "Accuracy & Bias (MAPE) — forecast against M15 consumption",
-        ["product", "period", "forecast", "actual", "bias", "abs_error_pct"],
+        "Accuracy & Bias (WAPE) — forecast against M15 consumption",
+        ["product", "period", "forecast", "actual", "bias", "abs_error_pct", "tracking_signal"],
         {
             "product": "Product",
             "period": "Period",
             "forecast": "Forecast",
             "actual": "Actual (M15)",
-            "bias": "Bias (actual−forecast)",
-            "abs_error_pct": "Abs Error %",
+            "bias": "Error (actual−forecast)",
+            "abs_error_pct": "Abs Error % of Actual",
+            "tracking_signal": "Tracking Signal (product)",
         },
         rows,
         [
-            "MAPE %.1f%% across %d closed month(s). Actuals are M15 consumption and cannot "
-            "be typed." % (mape, len(rows))
+            "WAPE %s, bias %s across %d closed month(s) (M43-12: weighted by actual volume; a "
+            "month with no consumption has no percent error of its own but its error counts in "
+            "the WAPE). Actuals are M15 consumption and cannot be typed."
+            % (
+                "%.1f%%" % total["wape_pct"] if total["wape_pct"] is not None else "n/a",
+                "%+.1f%%" % total["bias_pct"] if total["bias_pct"] is not None else "n/a",
+                total["periods"],
+            ),
+            "Tracking signal beyond ±4 (biased forecast): %s." % (", ".join(flagged) or "none"),
         ],
         empty="Nothing to measure yet. This reads approved or published forecasts that name an "
         "M15 spare part, for a month that has ended; a forecast without a part has no actuals.",
@@ -342,29 +393,38 @@ def van_par(env, date_from=None, date_to=None, **params):
 
 def accuracy_by_class(env, date_from=None, date_to=None, **params):
     segments = env["fix.demand.segment"].search(_company_domain(env))
-    forecasts = _measured(env)
+    forecasts = _measured(env).filtered(lambda f: _in_range(f.period, date_from, date_to))
     buckets = {}
     for segment in segments:
         key = segment.abc_class.upper() if segment.classified_on else "Unclassified"
         recs = forecasts.filtered(lambda f, p=segment.product_id: f.product_id.id == p.id)
-        row = buckets.setdefault(key, {"abc": key, "products": 0, "periods": 0, "errors": []})
+        row = buckets.setdefault(
+            key, {"abc": key, "products": 0, "periods": 0, "recs": forecasts.browse()}
+        )
         row["products"] += 1
         row["periods"] += len(recs)
-        row["errors"].extend(recs.mapped("abs_error_pct"))
+        row["recs"] |= recs
     rows = []
     for row in buckets.values():
-        errors = row.pop("errors")
-        row["mape_pct"] = round(sum(errors) / len(errors), 1) if errors else 0.0
+        m = accuracy_measures(row.pop("recs"))
+        row["mape_pct"] = m["wape_pct"] if m["wape_pct"] is not None else 0.0
+        row["bias_pct"] = m["bias_pct"] if m["bias_pct"] is not None else 0.0
         rows.append(row)
     rows.sort(key=lambda r: r["abc"])
     return _pack(
-        "Forecast Accuracy by Class — MAPE per ABC class",
-        ["abc", "products", "periods", "mape_pct"],
-        {"abc": "ABC Class", "products": "Products", "periods": "Periods", "mape_pct": "MAPE %"},
+        "Forecast Accuracy by Class — WAPE and bias per ABC class",
+        ["abc", "products", "periods", "mape_pct", "bias_pct"],
+        {
+            "abc": "ABC Class",
+            "products": "Products",
+            "periods": "Periods",
+            "mape_pct": "WAPE %",
+            "bias_pct": "Bias %",
+        },
         rows,
         [
             "Classes are computed from M15 consumption value; only approved forecasts of "
-            "closed months enter the MAPE."
+            "closed months enter the WAPE (weighted absolute error over actual volume)."
         ],
         empty="No segmentation/actuals yet.",
     )
@@ -668,13 +728,79 @@ def kpis(env):
     rebalances = env["fix.demand.rebalance"].search(
         [*_company_domain(env), ("state", "=", "approved")]
     )
-    mape = round(sum(measured.mapped("abs_error_pct")) / len(measured), 1) if measured else 0.0
-    levels = [int(p.service_level_pct or 95) for p in active]
+    wape = accuracy_measures(measured)["wape_pct"]
     return {
         "forecasts_pending": len(forecasts.filtered(lambda f: f.state == "draft")),
-        "mape_pct": mape,
+        # M43-12: the headline error is the WAPE (key kept for the screen)
+        "mape_pct": wape if wape is not None else 0.0,
         "policies_active": len(active),
         "planned_orders": len(plans.filtered(lambda p: p.state == "approved")),
         "rebalance_value_moved": round(sum(rebalances.mapped("stock_value")), 2),
-        "service_level_avg": round(sum(levels) / len(levels), 1) if levels else 0.0,
+        # M43-13: the ACHIEVED fill rate, not the average of the targets
+        "service_level_avg": achieved_fill_rate(env, active)["fill_rate_pct"],
+    }
+
+
+def achieved_fill_rate(env, policies, days=90):
+    """M43-13: the share of demand for policy-managed parts that M15 served
+    from stock over the last `days` Dhaka days: consumed / (consumed +
+    backordered + censored unmet demand recorded by the planner)."""
+    from datetime import timedelta
+
+    from odoo.addons.cd_demand_plan.models.fix_demand_common import _dt, period_of
+
+    if not policies:
+        return {"fill_rate_pct": 0.0, "served": 0.0, "unserved": 0.0}
+    today = _dhaka_today()
+    start = _dt(today - timedelta(days=days))
+    parts = policies.mapped("part_id")
+    companies = policies.mapped("company_id")
+    served = sum(
+        env["fix.stock.consumption"]
+        .sudo()
+        .search(
+            [
+                ("company_id", "in", companies.ids),
+                ("product_id", "in", parts.ids),
+                ("state", "=", "consumed"),
+                ("consumed_at", ">=", start),
+            ]
+        )
+        .mapped("quantity")
+    )
+    unserved = 0.0
+    if "fix.stock.backorder" in env:
+        unserved += sum(
+            env["fix.stock.backorder"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "in", companies.ids),
+                    ("part_id", "in", parts.ids),
+                    ("state", "!=", "cancelled"),
+                    ("create_date", ">=", start),
+                ]
+            )
+            .mapped("qty")
+        )
+    first = period_of(today - timedelta(days=days))
+    for adj in (
+        env["fix.demand.adjustment"]
+        .sudo()
+        .search(
+            [
+                ("company_id", "in", companies.ids),
+                ("part_id", "in", parts.ids),
+                ("adjustment_type", "=", "censored"),
+                ("state", "=", "applied"),
+                ("period", ">=", first),
+            ]
+        )
+    ):
+        unserved += max((adj.adjusted_qty or 0.0) - (adj.original_qty or 0.0), 0.0)
+    demand = served + unserved
+    return {
+        "fill_rate_pct": round(served / demand * 100.0, 1) if demand else 0.0,
+        "served": round(served, 3),
+        "unserved": round(unserved, 3),
     }

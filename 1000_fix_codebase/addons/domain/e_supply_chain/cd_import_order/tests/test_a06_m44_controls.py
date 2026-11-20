@@ -54,6 +54,7 @@ ROLES = (
     "grni",
     "lc_clearing",
     "fx_difference",
+    "lc_margin",
 )
 FX = 117.5
 
@@ -143,6 +144,7 @@ def c(odoo_env):
         "grni": "liability_current",
         "lc_clearing": "asset_current",
         "fx_difference": "expense",
+        "lc_margin": "asset_current",
     }
     for i, role in enumerate(ROLES):
         code = "M44%s%d" % (tag[:3], i)
@@ -183,6 +185,17 @@ def c(odoo_env):
         }
     )
     icp.set_param("cd_import_order.payment_journal_code", x.bank.code)
+    # A06 ERP D6: an LC remittance settles the supplier in AP (advance before
+    # the bill); the advances account is a test account
+    x.advance_acc = env["account.account"].create(
+        {
+            "code": "M44%sV" % tag[:3],
+            "name": "M44T advances to suppliers",
+            "account_type": "asset_current",
+            "company_ids": [(6, 0, x.co.ids)],
+        }
+    )
+    icp.set_param("cd_ap_ext.account_code.supplier_advance", x.advance_acc.code)
     icp.set_param("cd_import_order.landing_charge_pct", "1.0")
     # ---- the bank's LC facility (M50), sanctioned limit BDT 5,000,000 ----
     x.facility_liability = env["account.account"].create(
@@ -485,6 +498,8 @@ def boe(c, user=None, lines=None, **kw):
         "boe_no": "BE-%s" % c.tag,
         "line_ids": lines,
         "cnf_agent_id": c.agent.id,
+        # M44-07: the customs rate of the BoE date (here equal to the commitment)
+        "customs_fx_rate": FX,
     }
     vals.update(kw)
     return c.env["fix.import.boe"].with_user(user or c.officer).create(vals)
@@ -692,6 +707,11 @@ def test_m44_l08b_amendment_record_reapproved_at_new_band(c):
     _refused(am.with_user(c.officer).action_apply_amendment, match="not approved")
     approve_via_inbox(am, c.approver, requester=c.officer, justification="Price revision")
     assert am.dofa_approved_amount == pytest.approx(1300000.0)
+    # M44-23: the raise needs LCA cover first; a supplementary LCA for the increase
+    _refused(am.with_user(c.officer).action_apply_amendment, match="LCA")
+    lca(c, letter, amount=125000.0, lca_no="LCA-UP-%s" % c.tag).with_user(
+        c.approver
+    ).action_approve()
     am.with_user(c.officer).action_apply_amendment()
     assert letter.amount == 1300000.0 and am.old_amount == 1175000.0 and am.state == "applied"
     _refused(am.with_user(c.officer).write, {"new_amount": 9_000_000.0}, match="applied")
@@ -1400,11 +1420,14 @@ def test_m44_c04_allocation_lines(c):
     stage_received(c)
     sheet = landed(c, allocation_method="qty")
     sheet.with_user(c.approver).action_finalise()
-    by_part = {ln.part_id: ln.amount for ln in sheet.line_ids}
-    assert by_part[c.part2] == pytest.approx(2 * by_part[c.part], abs=0.02)  # 20 vs 10 units
-    # import lines carry no weight: the option that was always refused is gone
-    with pytest.raises(ValueError), c.env.cr.savepoint():
-        landed(c, allocation_method="weight")
+    # A06 ERP M44-08: each line carries its OWN HS duty from the Bill of Entry;
+    # only the shared charges follow the basis (20 vs 10 units)
+    duty = {}
+    for bl in c.order.boe_ids.line_ids:
+        part = bl.order_line_id.part_id
+        duty[part] = duty.get(part, 0.0) + bl.cd_amount + bl.rd_amount + bl.sd_amount
+    charges = {ln.part_id: ln.amount - duty.get(ln.part_id, 0.0) for ln in sheet.line_ids}
+    assert charges[c.part2] == pytest.approx(2 * charges[c.part], abs=0.05)
 
 
 def test_m44_c05_one_final_sheet_per_order(c):

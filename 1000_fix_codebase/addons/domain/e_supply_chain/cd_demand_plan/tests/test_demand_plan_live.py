@@ -11,13 +11,16 @@ import pytest
 from odoo.exceptions import UserError
 
 
+# A06 ERP audit M43-06: the INVENTORY POSITION (stock + on order) is compared
+# with the ROP, which already holds the lead-time demand; the period forecast
+# is no longer subtracted a second time (that ordered ~1 extra period).
 @pytest.mark.parametrize(
     ("forecast", "stock", "avg", "lead", "expected"),
     [
-        (10.0, 5.0, 2.0, 10, 85.0),  # ROP 20, target 80, projected -5
-        (100.0, 0.0, 5.0, 10, 300.0),  # ROP 50, target 200, projected -100
-        (40.0, 30.0, 2.0, 10, 90.0),  # projected -10 <= ROP 20 (old formula: 0)
-        (10.0, 100.0, 2.0, 10, 0.0),  # projected 90 > ROP 20
+        (10.0, 5.0, 2.0, 10, 75.0),  # ROP 20, target 80, position 5
+        (100.0, 0.0, 5.0, 10, 200.0),  # ROP 50, target 200, position 0
+        (40.0, 30.0, 2.0, 10, 0.0),  # position 30 > ROP 20 (forecast not subtracted)
+        (10.0, 100.0, 2.0, 10, 0.0),  # position 100 > ROP 20
     ],
 )
 def test_recommended_order(m43, forecast, stock, avg, lead, expected):
@@ -25,7 +28,7 @@ def test_recommended_order(m43, forecast, stock, avg, lead, expected):
     assert plan.recommended_order == pytest.approx(expected)
 
 
-def test_recommendation_follows_a_new_forecast(m43):
+def test_recommendation_follows_the_inventory_position(m43):
     plan = m43.ready_plan(forecast=10.0, stock=100.0)
     assert plan.recommended_order == 0.0
     forecast = m43.env["fix.demand.forecast"].search(
@@ -33,7 +36,12 @@ def test_recommendation_follows_a_new_forecast(m43):
     )
     forecast.sudo().write({"override_qty": 90.0})  # a re-forecast (superuser maintenance)
     plan.invalidate_recordset()
-    # projected 100 - 90 = 10 <= ROP 20 -> up to 80
+    # the forecast is shown, not ordered on: position 100 still above ROP 20
+    assert plan.projected_stock == pytest.approx(10.0)
+    assert plan.recommended_order == 0.0
+    m43.env["fix.stock.onhand"].search([("part_id", "=", m43.part.id)]).sudo().write({"qty": 10})
+    plan.invalidate_recordset()
+    # position 10 <= ROP 20 -> up to 80
     assert plan.recommended_order == pytest.approx(70.0)
 
 
@@ -44,7 +52,7 @@ def test_approval_publishes_the_replenishment(m43):
     rows = m43.env["fix.event.outbox"].search(
         [("event_type", "=", "demand_plan.approved"), ("aggregate_id", "=", plan.id)]
     )
-    assert [json.loads(r.payload) for r in rows] == [{"product": m43.tmpl.name, "quantity": 85.0}]
+    assert [json.loads(r.payload) for r in rows] == [{"product": m43.tmpl.name, "quantity": 75.0}]
 
 
 def test_nothing_to_replenish_is_refused(m43):

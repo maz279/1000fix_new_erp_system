@@ -183,9 +183,9 @@ def test_a3_order_line_names_its_order_and_other_orders_line_refused_at_save(c):
 
 
 # ================================================================ A4 allocation
-def test_a4_weight_is_gone_and_the_allocation_is_on_the_form(c):
-    with pytest.raises(ValueError), c.env.cr.savepoint():
-        landed(c, allocation_method="weight")
+def test_a4_every_basis_is_offered_and_the_allocation_is_on_the_form(c):
+    # A06 ERP M44-09 restored the weight basis (with real weights per line):
+    # it is a valid choice again, refused at finalise only without weights
     stage_received(c)
     sheet = landed(c)
     sheet.with_user(c.approver).action_finalise()
@@ -202,7 +202,7 @@ def test_a4_weight_is_gone_and_the_allocation_is_on_the_form(c):
     choices = [
         ch["key"] for f in out["fields"] if f["name"] == "allocation_method" for ch in f["choices"]
     ]
-    assert "weight" not in choices
+    assert {"value", "qty", "weight"} <= set(choices)
 
 
 # ================================================================ B1 variance
@@ -226,7 +226,8 @@ def test_b1_assessor_or_typist_cannot_accept(c):
     stage_shipped(c)
     bill = boe(c)
     bill.with_user(both).action_assess()
-    bill.with_user(c.officer).write({"customs_assessed_total": bill.total_tax + 10})
+    # beyond the BDT 10 rounding tolerance (M44-03), so there is a variance to accept
+    bill.with_user(c.officer).write({"customs_assessed_total": bill.total_tax + 500})
     _refused(bill.with_user(both).action_accept_variance, "assessor", match="Segregation")
     # a person who typed customs' figure cannot wave it through either
     other = _user(
@@ -236,7 +237,7 @@ def test_b1_assessor_or_typist_cannot_accept(c):
         "cd_import_order.group_fix_import_officer",
         "cd_import_order.group_fix_import_approver",
     )
-    bill.with_user(other).write({"customs_assessed_total": bill.total_tax + 20})
+    bill.with_user(other).write({"customs_assessed_total": bill.total_tax + 600})
     _refused(bill.with_user(other).action_accept_variance, "typist", match="Segregation")
 
 
@@ -253,19 +254,43 @@ def test_b1_accepted_variance_is_recorded_pinned_and_payable_at_customs_figure(c
         {"customs_assessed_total": bill.total_tax + 900},
         match="cannot be changed",
     )
+    # A06 ERP M44-05: a real variance is booked per levy from customs' notice
+    _refused(bill.with_user(c.finance).action_pay, match="each levy")
+    _customs_levies(bill, cd=500.0)
     bill.with_user(c.finance).action_pay()
     assert bill.state == "paid"
     move = bill.move_id
+    duty = bill.cd_amount + bill.rd_amount + bill.sd_amount
     assert _net(move, c.bank.default_account_id) == pytest.approx(-bill.customs_assessed_total)
-    assert _net(move, c.acc["variance"]) == pytest.approx(500.0)
+    assert _net(move, c.acc["duty_clearing"]) == pytest.approx(duty + 500.0)
+    assert _net(move, c.acc["variance"]) == 0.0
     assert sum(move.line_ids.mapped("debit")) == pytest.approx(sum(move.line_ids.mapped("credit")))
+
+
+def _customs_levies(bill, cd=0.0, vat=0.0):
+    """Customs' per-levy figures: the computed levies with the variance on CD
+    (and/or VAT), adding up to the assessed total."""
+    bill.sudo().write(
+        {
+            "customs_cd": bill.cd_amount + cd,
+            "customs_rd": bill.rd_amount,
+            "customs_sd": bill.sd_amount,
+            "customs_vat": bill.vat_amount + vat,
+            "customs_at": bill.at_amount,
+            "customs_ait": bill.ait_amount,
+        }
+    )
 
 
 def test_b1_a_negative_variance_posts_a_credit(c):
     bill = _assessed_with_variance(c, extra=-300.0)
     bill.with_user(c.approver).action_accept_variance("Customs allowed a rebate")
+    _customs_levies(bill, cd=-300.0)
     bill.with_user(c.finance).action_pay()
-    assert _net(bill.move_id, c.acc["variance"]) == pytest.approx(-300.0)
+    duty = bill.cd_amount + bill.rd_amount + bill.sd_amount
+    # the rebate lowers the capitalised duty (it reaches stock cost), not a P&L line
+    assert _net(bill.move_id, c.acc["duty_clearing"]) == pytest.approx(duty - 300.0)
+    assert _net(bill.move_id, c.acc["variance"]) == 0.0
     assert _net(bill.move_id, c.bank.default_account_id) == pytest.approx(
         -bill.customs_assessed_total
     )
@@ -718,9 +743,14 @@ def test_b7_usd_payment_needs_settlement_rate_and_posts_the_difference(c):
     assert pay.fx_difference == pytest.approx(100.0 * (120.0 - FX))
     move = pay.move_id
     assert move.state == "posted"
-    assert _net(move, c.acc["lc_clearing"]) == pytest.approx(100.0 * FX)
+    # A06 ERP D6: no bill yet, so the payment is a supplier advance at the
+    # commitment rate (not an LC clearing account nothing credits); the bank
+    # pays the settlement value less the share of the LC margin it draws
+    drawn = round(letter.margin_amount_bdt * 100.0 / letter.amount, 2)
+    assert _net(move, c.advance_acc) == pytest.approx(100.0 * FX)
+    assert _net(move, c.acc["lc_clearing"]) == 0.0
     assert _net(move, c.acc["fx_difference"]) == pytest.approx(100.0 * (120.0 - FX))
-    assert _net(move, c.bank.default_account_id) == pytest.approx(-12000.0)
+    assert _net(move, c.bank.default_account_id) == pytest.approx(-(12000.0 - drawn))
     # a gain credits the difference account
     gain = Pay.create(
         dict(base, reference="TT2", settlement_rate=110.0, settlement_rate_source="AD bank")
@@ -751,12 +781,15 @@ def test_b7_fx_figures_cannot_be_typed(c):
 
 def test_b7_payment_refused_with_nothing_posted_when_an_account_is_unset(c):
     letter = stage_lc_open(c)
-    c.env["ir.config_parameter"].sudo().set_param("cd_import_order.account_code.lc_clearing", "")
+    # D6: the payment debits the supplier advance account; one not in the chart
+    c.env["ir.config_parameter"].sudo().set_param(
+        "cd_ap_ext.account_code.supplier_advance", "NOT-IN-CHART"
+    )
     _refused(
         lambda: c.env["fix.import.lc.payment"]
         .with_user(c.finance)
         .create({"lc_id": letter.id, "amount": 10.0, "reference": "TT"}),
-        match="cd_import_order.account_code.lc_clearing",
+        match="cd_ap_ext.account_code.supplier_advance",
     )
     assert not letter.payment_ids
 
@@ -769,8 +802,10 @@ def test_b7_bdt_lc_payment_posts_with_no_difference(c):
         .create({"lc_id": letter.id, "amount": 1000.0, "reference": "TT"})
     )
     assert pay.fx_difference == 0.0 and pay.amount_bdt == pytest.approx(1000.0)
-    assert _net(pay.move_id, c.acc["lc_clearing"]) == pytest.approx(1000.0)
-    assert _net(pay.move_id, c.bank.default_account_id) == pytest.approx(-1000.0)
+    drawn = round(letter.margin_amount_bdt * 1000.0 / letter.amount, 2)
+    assert _net(pay.move_id, c.advance_acc) == pytest.approx(1000.0)
+    assert _net(pay.move_id, c.acc["fx_difference"]) == 0.0
+    assert _net(pay.move_id, c.bank.default_account_id) == pytest.approx(-(1000.0 - drawn))
 
 
 # ================================================================ B8 advance

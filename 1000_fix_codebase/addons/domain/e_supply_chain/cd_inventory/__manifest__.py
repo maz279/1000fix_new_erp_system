@@ -41,6 +41,8 @@ Features:
         "security/fix_a06erp_m15_rules.xml",
         "data/ir_sequence.xml",
         "data/ir_cron.xml",
+        # A06 ERP audit M44-17: provisional imported cost escalation (M43/M44 stream)
+        "data/fix_stock_provisional_cron.xml",
         "data/ir_config_parameter.xml",
         "data/fix_event_consumers.xml",
         "data/fix_m15_capture_data.xml",
