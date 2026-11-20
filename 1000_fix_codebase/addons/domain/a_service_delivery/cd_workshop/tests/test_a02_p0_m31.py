@@ -422,6 +422,7 @@ def test_a_supervisor_may_also_inspect(m31):
 def test_p31_13_release_needs_the_evidence_pack(m31):
     job = m31.job()
     _to_repair(m31, job)
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: QC judges the protocol
     job.action_submit_qc()
     _passed_checklist(m31, job.order_id)
     with refused(m31.env, UserError, "evidence pack"):
@@ -439,6 +440,7 @@ def test_another_jobs_photo_does_not_release_this_job(m31):
     _evidence(m31, other, "post_repair_photo", "test_log")
     job = m31.job()
     _to_repair(m31, job)
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: QC judges the protocol
     job.action_submit_qc()
     _passed_checklist(m31, job.order_id)
     Ev = m31.env["fix.workshop.evidence"].with_user(m31.tech)
@@ -619,6 +621,7 @@ def test_p31_08_the_order_sync_no_longer_swallows_a_refusal(m31):
     the job is not released while its order cannot follow."""
     job = m31.job()
     _to_repair(m31, job)
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: QC judges the protocol
     job.action_submit_qc()
     _evidence(m31, job, "post_repair_photo", "test_log")
     # the bench QC now records the order's checklist (A02 ERP audit); the
@@ -763,6 +766,7 @@ def test_p31_10_a_delivered_job_is_frozen(m31):
     )  # fmt: skip
     job = _to_repair(m31, m31.job(so=so))
     line = _line(m31, job)
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: QC judges the protocol
     job.action_submit_qc()
     _evidence(m31, job, "post_repair_photo", "test_log")
     _passed_checklist(m31, job.order_id)
@@ -903,6 +907,7 @@ def test_a_bench_qc_pass_carries_the_order_to_ready_without_a_second_qc(m31):
     tests had hidden it by creating the order's checklist by hand."""
     job = m31.job()
     _to_repair(m31, job)
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: QC judges the protocol
     job.action_submit_qc()
     _evidence(m31, job, "post_repair_photo", "test_log")
     _as(m31, m31.qc, job).action_pass_qc("All functions tested")
