@@ -648,10 +648,13 @@ class FixArInvoice(models.Model):
             (acc.id, label, 0.0, amount, partner or False)
             for role, acc, amount, partner in credit_lines
         ]
+        # X5-10: the Dhaka business day (UTC "today" put a 00:00-06:00 Dhaka
+        # cancellation or write-off into the previous day, and at a month end
+        # into the previous period)
         move, note = _post_ar_move(
             self.env,
             self.company_id,
-            fields.Date.today(),
+            dhaka_date(fields.Datetime.now()),
             label,
             lines,
             dims,
@@ -1175,13 +1178,29 @@ class FixArInvoice(models.Model):
         in state 'closed'. Determination runs synchronously (M20 -> M51);
         the invoice, its lines, the account.move, the Mushak register row and
         the invoice.created event all commit in ONE transaction (T08)."""
-        import time
-
-        started = time.monotonic()
         # BRU-SRM-05: Delivered or Closed. The supply (tax point) is the
         # delivery; the close drain is the safety net (A02 ERP audit X-03).
         if order.state not in ("delivered", "closed"):
             raise UserError("Auto-invoicing runs on delivered or closed jobs only (BRU-SRM-05)")
+        return self._fix_invoice_service_order(order, closed_event_at)
+
+    @api.model
+    def from_refused_service_order(self, order) -> "FixArInvoice":
+        """D6 (A02 pass 2, M01-03): a repair the customer refuses after it is
+        done (QC / Ready) is billed its approved estimate, exactly as a
+        delivered one would be; the tax point is the refusal."""
+        if order.state not in ("qc_pending", "qc_failed", "ready"):
+            raise UserError(
+                "%s is %s: only a repaired order the customer refuses is billed this way."
+                % (order.name, order.state)
+            )
+        return self._fix_invoice_service_order(order, fields.Datetime.now())
+
+    @api.model
+    def _fix_invoice_service_order(self, order, closed_event_at) -> "FixArInvoice":
+        import time
+
+        started = time.monotonic()
         existing = self.search(
             [("source_model", "=", "fix.service.order"), ("source_id", "=", order.id)]
         )
@@ -2672,8 +2691,10 @@ class FixCreditNote(models.Model):
             note._guarded().write(
                 {"state": "issued", "issued_at": fields.Datetime.now(), "refund_amount": refund}
             )
-            note._post_credit_gl()
-            note._register_mushak_note()
+            # X5-10: the GL entry and the Mushak 6.7 carry the same Dhaka day
+            on_date = dhaka_date(fields.Datetime.now())
+            note._post_credit_gl(on_date)
+            note._register_mushak_note(on_date)
             note._fix_request_refund()
             # partial application: only fully-credited invoices flip state
             if invoice.state == "issued" and invoice.amount_residual <= 0.005:
@@ -2699,8 +2720,9 @@ class FixCreditNote(models.Model):
         vat_part = self.amount * ratio
         return self.amount - vat_part, vat_part
 
-    def _register_mushak_note(self):
+    def _register_mushak_note(self, on_date=None):
         """The Mushak 6.7 against the invoice's 6.3 (M51's correction service)."""
+        on_date = on_date or dhaka_date(fields.Datetime.now())
         Register = self.env["fix.mushak.register"]
         for note in self:
             original = note.invoice_id.mushak_id
@@ -2714,13 +2736,16 @@ class FixCreditNote(models.Model):
                 round(vat, 2),
                 "Credit note #%s (%s)" % (note.id, note.reason_code),
                 ref="CN/%s" % note.id,
+                on_date=on_date,
             )
             note._guarded().write({"mushak_note_id": row.id})
 
-    def _post_credit_gl(self):
+    def _post_credit_gl(self, on_date=None):
         """The statutory mirror posting (FR-ARB-039): Dr Revenue + Dr VAT
         pro-rata / Cr AR — only when the invoice itself posted to GL."""
         from .fix_ar_engine import _ar_account, _ar_invoice_journal, _post_ar_move
+
+        on_date = on_date or dhaka_date(fields.Datetime.now())
 
         for note in self:
             invoice = note.invoice_id
@@ -2744,7 +2769,7 @@ class FixCreditNote(models.Model):
             move, gl_note = _post_ar_move(
                 note.env,
                 company,
-                fields.Date.today(),
+                on_date,
                 "CREDIT NOTE INV %s — %s (%s)" % (invoice.name, note.amount, note.reason_code),
                 [
                     (revenue.id, "Credit — service revenue", revenue_part, 0.0, False),

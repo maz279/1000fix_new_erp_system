@@ -223,6 +223,13 @@ def _ar_invoice_journal(env, company):
     return sales or _ar_journal(env, company)
 
 
+def _dhaka_today():
+    """The Asia/Dhaka business day (X5-10: GL dates are Dhaka days)."""
+    import pytz
+
+    return pytz.utc.localize(fields.Datetime.now()).astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
 def _post_ar_move(env, company, entry_date, ref, lines, dimension_by_line, source, journal=None):
     """Post through M19's hardened engine; returns (move|None, note).
 
@@ -788,7 +795,8 @@ class FixArReceipt(models.Model):
                     _mirror, note = _post_ar_move(
                         rec.env,
                         rec.company_id,
-                        fields.Date.today(),
+                        # X5-10: the Dhaka business day, not UTC "today"
+                        _dhaka_today(),
                         "REVERSAL: RCT %s — %s" % (rec.name, reason),
                         [
                             (

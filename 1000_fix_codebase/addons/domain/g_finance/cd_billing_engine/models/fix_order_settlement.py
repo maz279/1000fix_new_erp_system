@@ -18,9 +18,10 @@ import logging
 from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.addons.cd_tax_engine_bd.models import tax_logic
+from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .fix_billing_engine import TWO_PLACES, allocate_discount
+from .fix_billing_engine import TWO_PLACES, allocate_discount, dhaka_date, m51_determine
 from .fix_finance_approval import GROUP_ADMINISTRATOR, has_role
 
 _logger = logging.getLogger(__name__)
@@ -58,9 +59,22 @@ class FixServiceOrderSettlementReceipts(models.Model):
         "res.users", string="Released on Credit By", readonly=True, copy=False
     )
     credit_released_at = fields.Datetime(string="Released on Credit At", readonly=True, copy=False)
+    # A02 pass 2 (M01-04): the amount the release covers. The gates and the
+    # customer's exposure honour the credit only up to it; a higher amount
+    # due voids the release (released again on the new amount).
+    credit_released_amount = fields.Monetary(
+        string="Released on Credit (BDT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"credit_released_by", "credit_released_at"}
+        return super()._fix_guarded_fields() | {
+            "credit_released_by",
+            "credit_released_at",
+            "credit_released_amount",
+        }
 
     # ------------------------------------------------- B2B credit (X-08 / M01-F6)
     def action_release_on_credit(self):
@@ -116,6 +130,7 @@ class FixServiceOrderSettlementReceipts(models.Model):
                     "payment_settlement_state": "credit_approved",
                     "credit_released_by": self.env.user.id,
                     "credit_released_at": fields.Datetime.now(),
+                    "credit_released_amount": due,
                 }
             )
             order.message_post(
@@ -165,8 +180,40 @@ class FixServiceOrderSettlementReceipts(models.Model):
                     ]
                 ).mapped("source_id")
             )
-            exposure += sum(o._fix_amount_due() for o in others if o.id not in invoiced)
+            # M01-04: an order released on credit commits what was released
+            # (or more, if its price has since risen and the release is void)
+            exposure += sum(
+                max(o._fix_amount_due(), o.credit_released_amount or 0.0)
+                for o in others
+                if o.id not in invoiced
+            )
         return round(exposure, 2)
+
+    def _fix_check_credit_release(self) -> None:
+        """M01-04: a release covers the amount it was given for. When the
+        amount due rises above it (a revised estimate approved), the release
+        is void and the order is unpaid again until a Finance Manager
+        releases it on the new amount, or it is paid."""
+        for order in self.sudo().filtered(
+            lambda o: o.payment_settlement_state == "credit_approved"
+            and o.state not in ("delivered", "closed", "cancelled")
+        ):
+            due = order._fix_amount_due()
+            if due <= (order.credit_released_amount or 0.0) + 0.005:
+                continue
+            released = order.credit_released_amount or 0.0
+            order._guarded().write(
+                {
+                    "payment_settlement_state": "unpaid",
+                    "credit_released_by": False,
+                    "credit_released_at": False,
+                    "credit_released_amount": 0.0,
+                }
+            )
+            order.message_post(
+                body="Credit release of BDT %.2f voided: BDT %.2f is due now. Release it on "
+                "credit again for the new amount, or take the payment." % (released, due)
+            )
 
     def _fix_settlement_receipts(self):
         """Confirmed fix.ar.receipt records that paid this order: those that
@@ -234,6 +281,33 @@ class FixServiceOrderSettlementReceipts(models.Model):
         for order in self.filtered(lambda o: o.state == "delivered"):
             order._fix_invoice_at_delivery()
         return result
+
+    def action_complete_onsite(self, field_order):
+        """D4: an on-site job is delivered at field completion, so its tax
+        invoice is raised there and the field receipt is applied to it."""
+        result = super().action_complete_onsite(field_order)
+        if self.state == "delivered":
+            self._fix_invoice_at_delivery()
+        return result
+
+    def action_bill_refused_repair(self):
+        """D6 (M01-03): the customer refuses a repair that is done (QC /
+        Ready). The customer owes the approved estimate: a Service Supervisor
+        raises its tax invoice now (the money already taken is applied to
+        it); the order can then be cancelled as declined without a refund.
+        A waiver is the goodwill approval, not this action."""
+        from odoo.addons.cd_service_order.models.fix_service_order import GROUP_SUPERVISOR
+
+        if not (self.env.su or self.env.user.has_group(GROUP_SUPERVISOR)):
+            raise UserError("Only a Service Supervisor bills a refused repair.")
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        for order in self:
+            invoice = Invoice.with_company(order.company_id).from_refused_service_order(order)
+            order.message_post(
+                body="Refused repair billed by %s: invoice %s (BDT %.2f) for the approved "
+                "estimate." % (self.env.user.name, invoice.name, invoice.total_payable)
+            )
+        return True
 
     # ------------------------------------------------- declined repair (FR-SRM-029)
     _DECLINE_REASONS = ("customer_declined", "estimate_declined")
@@ -323,34 +397,113 @@ class FixEstimateInvoiceVat(models.Model):
 
     _inherit = "fix.estimate"
 
+    def _fix_m51_lines(self):
+        """The estimate's lines as the invoice will bill them: gross, the
+        header discount allocated pro rata (allocate_discount), product code."""
+        self.ensure_one()
+        lines = list(self.line_ids)
+        grosses = [
+            (Decimal(str(line.quantity or 1)) * Decimal(str(line.unit_price or 0.0))).quantize(
+                TWO_PLACES, ROUND_HALF_UP
+            )
+            for line in lines
+        ]
+        total = sum(grosses, Decimal("0"))
+        discount = Decimal(str(self.discount or 0.0))
+        if total <= 0 or discount > total:
+            return lines, grosses, None  # the estimate's own constraint refuses it
+        shares = allocate_discount(grosses, discount)
+        tax_lines = [
+            tax_logic.TaxLine(
+                product_code=line.product_id.default_code or "SVC",
+                qty=Decimal(str(line.quantity or 1)),
+                unit_price=Decimal(str(line.unit_price or 0.0)),
+                discount=share,
+            )
+            for line, share in zip(lines, shares, strict=True)
+        ]
+        return lines, grosses, tax_lines
+
+    def _fix_m51_determination(self):
+        """X5-03 (D23): M51's determination of this estimate's lines on the
+        Dhaka day, for the order's company - the one the invoice makes at
+        delivery. None where M51 cannot answer (the header rate stands in,
+        and the invoice will say why)."""
+        self.ensure_one()
+        lines, _grosses, tax_lines = self._fix_m51_lines()
+        if not tax_lines:
+            return lines, None
+        company = self.order_id.company_id or self.company_id or self.env.company
+        try:
+            det = m51_determine(
+                self.env, tax_lines, on_date=dhaka_date(fields.Datetime.now()), company=company
+            )
+        except (UserError, ValidationError) as exc:
+            _logger.info("M51 refused the VAT of estimate %s: %s", self.id, exc)
+            return lines, None
+        if len(det.lines) != len(lines):
+            return lines, None
+        return lines, det
+
+    def _fix_line_vat_rates(self) -> dict:
+        self.ensure_one()
+        lines, det = self._fix_m51_determination()
+        if det is None:
+            return super()._fix_line_vat_rates()
+        return {line.id: float(d.rate) for line, d in zip(lines, det.lines, strict=True)}
+
     @api.depends(
         "line_ids.line_total",
         "line_ids.line_type",
         "line_ids.quantity",
         "line_ids.unit_price",
+        "line_ids.product_id",
         "discount",
         "vat_rate",
     )
     def _compute_totals(self):
+        """X5-03 (owner decision D23): ONE VAT source. The estimate's VAT is
+        M51's per-line determination, the same the Mushak 6.3 makes from it
+        (from_closed_service_order), so the estimate's grand total is the
+        invoice's total: a zero-rated or reduced item is charged as M51 says,
+        never by a header rate typed on the estimate."""
         super()._compute_totals()
         for est in self:
             if not est.line_ids:
                 continue
-            grosses = [
-                (Decimal(str(line.quantity or 1)) * Decimal(str(line.unit_price or 0.0))).quantize(
-                    TWO_PLACES, ROUND_HALF_UP
-                )
-                for line in est.line_ids
-            ]
+            lines, grosses, tax_lines = est._fix_m51_lines()
+            if not tax_lines:
+                continue
             total = sum(grosses, Decimal("0"))
-            discount = Decimal(str(est.discount or 0.0))
-            if total <= 0 or discount > total:
-                continue  # the estimate's own constraint refuses it
-            rate = Decimal(str(est.vat_rate or 0.0))
-            vat = Decimal("0")
-            for gross, share in zip(grosses, allocate_discount(grosses, discount), strict=True):
-                taxable = (gross - share).quantize(TWO_PLACES, ROUND_HALF_UP)
-                vat += (taxable * rate / Decimal("100")).quantize(TWO_PLACES, ROUND_HALF_UP)
-            subtotal = total - discount.quantize(TWO_PLACES, ROUND_HALF_UP)
+            subtotal = total - Decimal(str(est.discount or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
+            _lines, det = est._fix_m51_determination()
+            if det is not None:
+                vat = sum((Decimal(str(d.vat_amount)) for d in det.lines), Decimal("0"))
+            else:
+                # M51 cannot answer: the standard rate, rounded per line as
+                # the invoice would (the invoice itself refuses until M51 can)
+                rate = Decimal(str(est.vat_rate or 0.0))
+                vat = sum(
+                    (
+                        (
+                            (tl.unit_price * tl.qty).quantize(TWO_PLACES, ROUND_HALF_UP)
+                            - tl.discount
+                        ).quantize(TWO_PLACES, ROUND_HALF_UP)
+                        * rate
+                        / Decimal("100")
+                    ).quantize(TWO_PLACES, ROUND_HALF_UP)
+                    for tl in tax_lines
+                )
             est.vat_amount = float(vat)
             est.grand_total = float(subtotal + vat)
+
+    def write(self, vals):
+        result = super().write(vals)
+        # M01-04: a raised price voids a credit release given on the old one
+        self.mapped("order_id")._fix_check_credit_release()
+        return result
+
+    def action_approve(self):
+        result = super().action_approve()
+        self.mapped("order_id")._fix_check_credit_release()
+        return result
