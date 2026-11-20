@@ -135,10 +135,11 @@ All runs used the private clone `fix_test_m41c2` (a copy of fix_real), upgraded 
 
 ## 4. Open — not built, owner or other-module work
 
-- **The RF handheld app itself and its offline replay** (CD-M41-04, T-06/T-07, `/api/v1/wh/*`). This is a mobile build; the workspace forms are the desk equivalent.
-- **Scan-level event log** `fix.wh.task.event` (§10.1). Accepted scans are stored on each record as evidence. *Rejected* scans are not logged, because a refused scan rolls back its transaction. Logging them needs a separate cursor, so the "ownership-class segregation" report (§14) still cannot count attempted violations.
-- **Automatic feeds into the demand queue.** M15 transfers, van replenishment, RTV and refurbishment do not yet write `fix.wms.outbound.demand` themselves (AUT-WMS-07); demand is queued from the page. Wave **auto-release** at the cut-off is not scheduled; a supervisor releases.
-- **Cartonisation proposal** from part dimensions (FR-WMS-025) and **substitution** at pick (FR-WMS-023). Consolidation and re-slot *proposals* (FR-WMS-006/030): the move types exist, but nothing proposes them. Layout map (FR-WMS-007). Task interleaving (FR-WMS-037). Congestion rebalancing (FR-WMS-041).
+Part 2 (section 6) closed the scan log, the demand feed for transfers / van replenishment / RTV with auto-release, substitution, the slotting proposals and the RF API. Still open:
+
+- **The RF handheld app itself** (CD-M41-04 mobile build). Its server side, `/api/v1/wh/*`, now exists.
+- **Refurbishment and job issues into the demand queue.** These are M14/M31 consumptions with their own scan-to-consume flow. Routing them through a wave needs an M14/M31 hand-off design, so they are still queued from the page.
+- **Cartonisation proposal** from part dimensions (FR-WMS-025): it depends on M37 recording part dimensions first. Also not built: the layout map (FR-WMS-007), task interleaving (FR-WMS-037) and congestion rebalancing (FR-WMS-041).
 - **Part weight and volume** come from the purchased-as product (`product_id.weight` / `.volume`). Most spare parts on fix_real have none, so weight and volume limits only bite once M37 records them.
 - **Data on fix_real:** no warehouse has execution enabled and there are 0 zones, bins, slots, doors or standards. The pages open on empty lists until the owner (a) enables the central warehouse(s), and (b) lays out zones and bins (§16.4). The upgrade migration enables only warehouses that already have zones, so none on fix_real.
 - **Who can act on fix_real:** the Warehouse Supervisor and Operator grants have 1 holder each. Enabling a warehouse, setting time standards, approving overrides and measuring productivity all need a supervisor.
@@ -156,3 +157,38 @@ All runs used the private clone `fix_test_m41c2` (a copy of fix_real), upgraded 
 - One restart: each server was stopped by its listening port, and its relaunch loop brought it back. New PIDs: 8069 = 9816, 8090 = 11212. `/web/login` returns 200 on both.
 - Read-only walk of both estates (`walk_m41.mjs`, `READONLY=1`): 9/9 pages, every capture chip opens its form, 36/36 screens render, 0 console errors. The new lists read their columns; they are empty on both estates, which is expected.
 - Private test assets: DB `fix_test_m41c2`, launch entry `odoo-m41-cap2` (port 8191) and comparison DB `fix_test_m41base`.
+
+## 6. Part 2 (2026-11-20): the items the owner chose to build
+
+After pass 2 went live, the owner was asked item by item about the open spec work and chose five items. All are built in `cd_inventory` 19.0.1.6.0 (`models/fix_wms_ops_spec_flow.py`, `controllers/wms_rf_api.py`).
+
+| # | Item | What it does | Rules enforced |
+|---|---|---|---|
+| 1 | **Demand feed and hand-off** (FR-WMS-018/027, AUT-WMS-07) | An approved M15 transfer, van replenishment or RTV out of a warehouse that runs execution queues its lines as outbound demand by itself. The wave that picks them performs the document's **own** dispatch when it ships: a transfer moves staged → in transit (the sender keeps it, BRU-INV-16) and is marked dispatched by the shipper; an RTV posts its own ledger exit. | The wave never ships that stock a second time. A direct M15 dispatch of a waved document is refused; of a merely queued one, it takes the demand off the queue. A transfer or RTV ships whole, so a short line must be re-sourced or cancelled first. A cancelled wave puts its demand back in the queue, and a waved transfer can't be cancelled until its wave is. |
+| 1 | **Auto-release** | A template with release rule "at the cut-off" builds and releases its wave once per cut-off (cron every 15 min); "immediate" releases on arrival. Demand is assigned to the warehouse's template by purpose and destination. | Demand the bins cannot cover stays queued with the reason ("Waiting Because"), never half-waved. |
+| 2 | **Scan log** `fix.wms.scan.event` (§10.1 `fix.wh.task.event`) + **Attempted Violations** report (§14) | Every put-away, pick, short pick, move, cross-dock, handling-unit store and task completion records who scanned what, on which device, and whether it was accepted. | A **refused** attempt is written in its own transaction, so it survives the rollback, with the rule that refused it (BRU-WMS-03 ownership class, -05 wrong bin/item, -11 hazard, -12 blocked). The log is append-only. |
+| 3 | **Substitute pick** `fix.wms.substitution` (FR-WMS-023) | A short line can be filled with a part that M37 (`fix.part.crossref`) lists as an approved alternate (one way from the asked part, or two way), from a bin that holds it free. On approval it becomes a new pick line with its own task. | Approved by a supervisor who did not request it. Never for a transfer or RTV line, which moves one named part. Never with an alternate restricted to certain device models. |
+| 4 | **Slotting proposals** `fix.wms.slot.proposal` (FR-WMS-006/030, AUT-WMS-15) | Nightly, and on demand from the warehouse list ("Propose Re-slotting Now"): slot velocity is recomputed from 90 days of picks (thresholds `cd_inventory.wms_fast_picks_90d` = 20 and `_medium_` = 5). A fast mover outside a pick face gets a re-slot proposal; a part split across bins of one class gets a consolidation proposal. | A supervisor accepts (it becomes an open move with its task, confirmed by scan) or rejects. Never proposed twice; proposals are never typed. |
+| 5 | **RF API** `/api/v1/wh/tasks/next`, `/claim`, `/confirm`, `/exception`, `/sync`, `/handling-units/<code>` + journal `fix.wms.rf.journal` (T-04/06/07/15) | The operative's own API key (bearer) plus the enrolled device code. Returns the current task and the next three; Bengali part names; no cost fields. | Every confirmation carries an idempotency key; a replay returns the stored outcome and never runs twice. An unknown or deactivated device, or one issued to someone else, is refused. Actions run as the operative, under the same rules as the forms. |
+
+**Workspace:**
+- Substitutions list and "Request a Substitute Part" form (page 5).
+- Slotting Proposals (page 2).
+- Scan Log, RF Confirmations and the Attempted Violations report (page 8).
+- Demand form shows its transfer / RTV and why it waits; templates show their last auto-release.
+- Form status labels cover the new states.
+
+**Evidence** (private clone `fix_test_m41c3` of fix_real, upgraded 0 errors):
+- **Guard:** the pass-2 guard now has 42 checks; 7 part-2 checks fail on the live code `d338215a` and all pass now. Pass-1 + pass-2 static: 79 pass.
+- **Live ORM:** `test_m41_capture_pass2b_live.py`, 16 tests as non-admin roles, all pass. The refused scan is read back from its own committed transaction.
+- **Mutation check:** 24 mutants against part 2, **23 red**. The one survivor ("an operator accepts a proposal") is refused by the ACL with the same message, so the code check is a second guard. "RF runs as superuser" survived at first, because `sudo()` keeps the user id; the test now also requires the scan to be logged under the device, and that mutant goes red.
+- **Regression:** 1,888 tests. 3 environmental fails, the same as before. A form-status gap (`shipped` / `handed` labels) was found and fixed, and a seed-time serialization blip passed on re-run.
+- **HTTP probe** of the RF API on private server 8193, with a test operative's API key:
+  - no key → 401;
+  - `next` returns the task;
+  - claim and confirm succeed;
+  - the same key replayed returns `replayed: true`;
+  - sync replays idempotently;
+  - an unknown device → forbidden.
+- **Feed on real data:** approving a transfer on the clone queued its demand, and the wave was built and released from it.
+- **Walk:** 9/9 pages, all chips including the substitute form, 42/42 screens, 0 console errors.

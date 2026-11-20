@@ -54,5 +54,45 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <record id="seq_fix_wms_substitution" model="ir.sequence">
+            <field name="name">Pick Substitution</field>
+            <field name="code">fix.wms.substitution</field>
+            <field name="prefix">SUB/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_wms_slot_proposal" model="ir.sequence">
+            <field name="name">Slotting Proposal</field>
+            <field name="code">fix.wms.slot.proposal</field>
+            <field name="prefix">PROP/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="ir_cron_wms_auto_release" model="ir.cron">
+            <field name="name">M41: wave auto-release at the template cut-off (AUT-WMS-07)</field>
+            <field name="model_id" ref="model_fix_wms_wave_template"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_auto_release()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_wms_slot_proposals" model="ir.cron">
+            <field name="name">M41: nightly slot velocity and re-slot / consolidation proposals (AUT-WMS-15)</field>
+            <field name="model_id" ref="model_fix_wms_slot_proposal"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_propose()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="param_wms_fast_picks_90d" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_fast_picks_90d</field>
+            <field name="value">20</field>
+        </record>
+        <record id="param_wms_medium_picks_90d" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_medium_picks_90d</field>
+            <field name="value">5</field>
+        </record>
     </data>
 </odoo>

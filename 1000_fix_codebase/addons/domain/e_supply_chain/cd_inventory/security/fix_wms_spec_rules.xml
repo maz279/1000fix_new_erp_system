@@ -61,4 +61,24 @@
         <field name="model_id" ref="model_fix_wms_productivity"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_wms_scan_event_company" model="ir.rule">
+        <field name="name">fix.wms.scan.event: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_scan_event"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_substitution_company" model="ir.rule">
+        <field name="name">fix.wms.substitution: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_substitution"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_slot_proposal_company" model="ir.rule">
+        <field name="name">fix.wms.slot.proposal: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_slot_proposal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_rf_journal_company" model="ir.rule">
+        <field name="name">fix.wms.rf.journal: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_rf_journal"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

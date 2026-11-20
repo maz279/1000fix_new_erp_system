@@ -103,3 +103,10 @@ access_fix_wms_time_standard_admin,fix.wms.time.standard admin,model_fix_wms_tim
 access_fix_wms_productivity_run_user,fix.wms.productivity.run user,model_fix_wms_productivity_run,base.group_user,1,0,0,0
 access_fix_wms_productivity_run_supervisor,fix.wms.productivity.run supervisor,model_fix_wms_productivity_run,cd_wms_structure.group_warehouse_supervisor,1,1,1,0
 access_fix_wms_productivity_user,fix.wms.productivity user,model_fix_wms_productivity,base.group_user,1,0,0,0
+access_fix_wms_scan_event_user,fix.wms.scan.event user,model_fix_wms_scan_event,base.group_user,1,0,0,0
+access_fix_wms_substitution_user,fix.wms.substitution user,model_fix_wms_substitution,base.group_user,1,0,0,0
+access_fix_wms_substitution_operator,fix.wms.substitution operator,model_fix_wms_substitution,cd_wms_structure.group_warehouse_operator,1,1,1,0
+access_fix_wms_slot_proposal_user,fix.wms.slot.proposal user,model_fix_wms_slot_proposal,base.group_user,1,0,0,0
+access_fix_wms_slot_proposal_supervisor,fix.wms.slot.proposal supervisor,model_fix_wms_slot_proposal,cd_wms_structure.group_warehouse_supervisor,1,1,0,0
+access_fix_wms_rf_journal_supervisor,fix.wms.rf.journal supervisor,model_fix_wms_rf_journal,cd_wms_structure.group_warehouse_supervisor,1,0,0,0
+access_fix_wms_rf_journal_admin,fix.wms.rf.journal admin,model_fix_wms_rf_journal,base.group_system,1,0,0,0

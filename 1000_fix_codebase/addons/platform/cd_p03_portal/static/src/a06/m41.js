@@ -28,7 +28,13 @@
  * release rule (FR-WMS-019), cluster / pick-and-pass (FR-WMS-021), the pick
  * walk order (FR-WMS-022), short-pick re-sourcing (FR-WMS-024), count plans by
  * zone, bin or ABC class (FR-WMS-031), time standards and productivity runs
- * (FR-WMS-040, AUT-WMS-15). */
+ * (FR-WMS-040, AUT-WMS-15).
+ *
+ * Part 2 (2026-11-20, owner's choice): the demand feed from M15 transfers, van
+ * replenishment and RTVs with the wave shipment dispatching them, auto-release
+ * at the cut-off (FR-WMS-018/027, AUT-WMS-07), the scan log and Attempted
+ * Violations report (§10.1, §14), substitute pick (FR-WMS-023), slotting
+ * proposals (FR-WMS-006/030) and the RF journal behind /api/v1/wh (T-06/07). */
 
 export const MODULE = {
   area: 'A06', code: 'M41', en: 'Warehouse Management', title: 'M41 · Warehouse Management',
@@ -53,7 +59,8 @@ export const MODULE = {
       { id: 'M41-wh-zones', en: 'Warehouse Zones', bn: 'ওয়্যারহাউস জোন', t: 'g' },
       { id: 'M41-zones', en: 'Zones, Aisles & Bins', bn: 'জোন ও বিন', t: 'g' },
       { id: 'M41-slotting', en: 'Slotting & Re-Slotting', bn: 'স্লটিং', t: 'g' },
-      { id: 'M41-block-log', en: 'Bin Block History', bn: 'বিন ব্লক ইতিহাস', t: 'g' }
+      { id: 'M41-block-log', en: 'Bin Block History', bn: 'বিন ব্লক ইতিহাস', t: 'g' },
+      { id: 'M41-proposals', en: 'Slotting Proposals', bn: 'স্লটিং প্রস্তাব', t: 'g' }
     ]},
     { en: 'Inbound', screens: [
       { id: 'M41-docks', en: 'Dock Appointments', bn: 'ডক অ্যাপয়েন্টমেন্ট', t: 'g' },
@@ -70,6 +77,7 @@ export const MODULE = {
       { id: 'M41-demand', en: 'Outbound Demand Queue', bn: 'আউটবাউন্ড চাহিদা', t: 'g' },
       { id: 'M41-waves', en: 'Wave Planning', bn: 'ওয়েভ প্ল্যানিং', t: 'g' },
       { id: 'M41-pick-lines', en: 'Pick Lines', bn: 'পিক লাইন', t: 'g' },
+      { id: 'M41-substitutions', en: 'Substitutions', bn: 'বিকল্প যন্ত্রাংশ', t: 'g' },
       { id: 'M41-picking', en: 'Pick Strategies', bn: 'পিক কৌশল', t: 'r' },
       { id: 'M41-packing', en: 'Packing & Cartons', bn: 'প্যাকিং', t: 'g' },
       { id: 'M41-staging', en: 'Staging & Load', bn: 'স্টেজিং ও লোড', t: 'g' },
@@ -82,6 +90,8 @@ export const MODULE = {
       { id: 'M41-counting', en: 'Floor Counts', bn: 'ফ্লোর কাউন্ট', t: 'g' },
       { id: 'M41-moves', en: 'Internal Moves & Replenishment', bn: 'অভ্যন্তরীণ স্থানান্তর ও রিপ্লেনিশমেন্ট', t: 'g' },
       { id: 'M41-devices', en: 'RF Devices', bn: 'আরএফ ডিভাইস', t: 'g' },
+      { id: 'M41-scan-log', en: 'Scan Log', bn: 'স্ক্যান লগ', t: 'g' },
+      { id: 'M41-rf-journal', en: 'RF Confirmations', bn: 'আরএফ নিশ্চিতকরণ', t: 'g' },
       { id: 'M41-operatives', en: 'Operative Profiles', bn: 'অপারেটিভ প্রোফাইল', t: 'g' },
       { id: 'M41-equipment', en: 'Handling Equipment', bn: 'হ্যান্ডলিং সরঞ্জাম', t: 'g' },
       { id: 'M41-count-plans', en: 'Count Plans', bn: 'গণনা পরিকল্পনা', t: 'g' },
@@ -90,7 +100,7 @@ export const MODULE = {
       { id: 'M41-productivity', en: 'Labour Productivity', bn: 'শ্রম উৎপাদনশীলতা', t: 'g' }
     ]}
   ],
-  reports: ['Throughput by Shift', 'Pick Accuracy Trend', 'Wave Cycle Time', 'Labour Productivity', 'Bin Utilisation Heatmap'],
+  reports: ['Throughput by Shift', 'Pick Accuracy Trend', 'Wave Cycle Time', 'Labour Productivity', 'Bin Utilisation Heatmap', 'Attempted Violations'],
   forms: ['Bin', 'Wave Template', 'Dock Appointment', 'Packing Station Config',
     'Warehouse', 'Warehouse Zone', 'Slot Assignment', 'Directed Put-Away', 'Goods Receipt (scan receiving)',
     'Pick Wave', 'Scan a Pick', 'Report a Short Pick', 'Carton', 'Staging Record',
@@ -98,23 +108,24 @@ export const MODULE = {
     'Complete a Task by Scan', 'Claim a Task', 'Warehouse Task', 'RF Device',
     'Operative Profile', 'Handling Equipment', 'Floor Count',
     'Report a Put-Away Exception', 'Dock Door', 'Handling Unit', 'Cross-Dock', 'Return Receiving',
-    'Inspection Outcome (M16)', 'Outbound Demand', 'Count Plan', 'Time Standard', 'Labour Productivity Run'],
+    'Inspection Outcome (M16)', 'Outbound Demand', 'Count Plan', 'Time Standard', 'Labour Productivity Run',
+    'Request a Substitute Part'],
   cross: ['M15 stock ledger', 'M16 goods receipt', 'M03 outbound staging', 'M44 import receiving'],
   freg: { src: 78, sub: [
     /* FR-WMS-001..004: warehouse -> zones -> bins */
     ['1', 'Physical Structure', 8, { model: 'fix.warehouse.bin', cols: ['name', 'zone_id', 'barcode', 'capacity_qty'], screens: ['M41-zones', 'M41-wh-zones', 'M41-warehouse', 'M41-block-log', 'M41-stock-location'], reports: ['Bin Utilisation Heatmap'], forms: ['Bin', 'Warehouse Zone', 'Warehouse'] }],
     /* FR-WMS-005/028: a part's home bin, velocity and pick-face minimum */
-    ['2', 'Slotting', 7, { model: 'fix.wms.slot', cols: ['part_id', 'bin_id', 'velocity', 'slot_type', 'state'], screens: ['M41-slotting'], reports: ['Bin Utilisation Heatmap'], forms: ['Slot Assignment'] }],
+    ['2', 'Slotting', 7, { model: 'fix.wms.slot', cols: ['part_id', 'bin_id', 'velocity', 'slot_type', 'state'], screens: ['M41-slotting', 'M41-proposals'], reports: ['Bin Utilisation Heatmap'], forms: ['Slot Assignment'] }],
     /* FR-WMS-008/009/011/013: dock, scan receipt with its inspection gate, directed put-away */
     ['3', 'Inbound & Put-Away', 12, { model: 'fix.wms.putaway', cols: ['name', 'part_id', 'qty', 'to_bin_id', 'state'], screens: ['M41-putaway', 'M41-putaway-exceptions', 'M41-docks', 'M41-dock-doors', 'M41-receiving', 'M41-inspection', 'M41-handling-units', 'M41-crossdocks', 'M41-returns'], reports: ['Throughput by Shift'], forms: ['Directed Put-Away', 'Report a Put-Away Exception', 'Dock Appointment', 'Dock Door', 'Goods Receipt (scan receiving)', 'Inspection Outcome (M16)', 'Handling Unit', 'Cross-Dock', 'Return Receiving'] }],
     ['4', 'Wave Planning', 9, { model: 'fix.wms.wave', cols: ['name', 'wave_date', 'strategy', 'released_at', 'state'], screens: ['M41-waves', 'M41-demand', 'M41-wave-templates'], reports: ['Wave Cycle Time'], forms: ['Pick Wave', 'Outbound Demand', 'Wave Template'] }],
     /* FR-WMS-023/024, BRU-WMS-05/07: a pick is a scan of bin and item; a short pick says what was found and raises the count-back */
-    ['5', 'Picking', 11, { model: 'fix.wms.wave.line', cols: ['wave_id', 'part_id', 'bin_id', 'qty', 'picked_qty', 'state'], screens: ['M41-pick-lines', 'M41-picking', 'M41-tasks'], reports: ['Pick Accuracy Trend'], forms: ['Scan a Pick', 'Report a Short Pick'], create: 'M41-form-scan-pick' }],
+    ['5', 'Picking', 11, { model: 'fix.wms.wave.line', cols: ['wave_id', 'part_id', 'bin_id', 'qty', 'picked_qty', 'state'], screens: ['M41-pick-lines', 'M41-substitutions', 'M41-picking', 'M41-tasks'], reports: ['Pick Accuracy Trend'], forms: ['Scan a Pick', 'Report a Short Pick', 'Request a Substitute Part'], create: 'M41-form-scan-pick' }],
     ['6', 'Packing & Staging', 8, { model: 'fix.wms.carton', cols: ['name', 'wave_id', 'carton_size', 'weight_kg', 'state'], screens: ['M41-packing', 'M41-staging', 'M41-handling-units', 'M41-packing-stations'], reports: ['Throughput by Shift'], forms: ['Carton', 'Staging Record', 'Handling Unit', 'Packing Station Config'] }],
     /* FR-WMS-028/029/030: bulk -> pick-face replenishment and ad-hoc bin moves, confirmed by scan */
     ['7', 'Replenishment', 6, { model: 'fix.wms.move', cols: ['name', 'move_type', 'part_id', 'from_bin_id', 'to_bin_id', 'qty', 'state'], screens: ['M41-moves', 'M41-slotting', 'M41-spare-part', 'M41-tasks'], reports: [], forms: ['Internal Move / Replenishment', 'Confirm a Move by Scan'], create: 'M41-form-move' }],
     /* FR-WMS-036/038, T-04/T-15: claim the next task, complete it by scan, enrol the handheld */
-    ['8', 'RF Execution', 8, { model: 'fix.wms.task', cols: ['name', 'task_type', 'bin_id', 'assignee_id', 'state'], screens: ['M41-rf', 'M41-tasks', 'M41-devices'], reports: ['Pick Accuracy Trend'], forms: ['Complete a Task by Scan', 'Claim a Task', 'Warehouse Task', 'RF Device'], create: 'M41-form-task-scan' }],
+    ['8', 'RF Execution', 8, { model: 'fix.wms.task', cols: ['name', 'task_type', 'bin_id', 'assignee_id', 'state'], screens: ['M41-rf', 'M41-tasks', 'M41-devices', 'M41-scan-log', 'M41-rf-journal'], reports: ['Pick Accuracy Trend', 'Attempted Violations'], forms: ['Complete a Task by Scan', 'Claim a Task', 'Warehouse Task', 'RF Device'], create: 'M41-form-task-scan' }],
     /* FR-WMS-031/039/040, BRU-WMS-18: who works where with what equipment; floor counts */
     ['9', 'Labour & Analytics', 9, { model: 'fix.wms.operative', cols: ['employee_id', 'warehouse_id', 'shift', 'active'], screens: ['M41-operatives', 'M41-equipment', 'M41-count-plans', 'M41-counting', 'M41-time-standards', 'M41-productivity-runs', 'M41-productivity', 'M41-tasks', 'M41-inventory-valuation-suspense'], reports: ['Labour Productivity', 'Throughput by Shift'], forms: ['Operative Profile', 'Handling Equipment', 'Count Plan', 'Floor Count', 'Time Standard', 'Labour Productivity Run'], create: 'M41-form-operative' }]
   ] }
@@ -170,7 +181,7 @@ export const SCREENS = {
     ] },
   'M41-pick-lines': { kind: 'model_list', model: 'fix.wms.wave.line', stateField: 'state', create: false,
     empty: 'No pick line yet. Lines are generated from the reserved stock when a wave is released.',
-    cols: ['wave_id', 'pick_sequence', 'part_id', 'bin_id', 'qty', 'reserved_qty', 'picked_qty', 'dest_location_id', 'priority', 'resourced_from_id', 'scanned_bin', 'state'],
+    cols: ['wave_id', 'pick_sequence', 'part_id', 'bin_id', 'qty', 'reserved_qty', 'picked_qty', 'dest_location_id', 'priority', 'resourced_from_id', 'substitute_of_id', 'scanned_bin', 'state'],
     actions: [
       { m: 'action_scan_pick', l: 'Scan Pick', asks: [
         { label: 'Scan the bin', kwarg: 'bin_code' },
@@ -206,7 +217,7 @@ export const SCREENS = {
     cols: ['name', 'plan_id', 'count_type', 'bin_id', 'part_id', 'counted_qty', 'counted_on', 'stock_count_id', 'state'],
     actions: [{ m: 'action_post', l: 'Post Count' }] },
   'M41-wave-templates': { kind: 'model_list', model: 'fix.wms.wave.template',
-    cols: ['name', 'purpose', 'warehouse_id', 'strategy', 'release_rule', 'priority', 'cutoff', 'active'] },
+    cols: ['name', 'purpose', 'warehouse_id', 'strategy', 'release_rule', 'priority', 'cutoff', 'last_released_at', 'active'] },
   'M41-packing-stations': { kind: 'model_list', model: 'fix.wms.packing.station',
     cols: ['name', 'lane', 'printer', 'active'] },
   'M41-moves': { kind: 'model_list', model: 'fix.wms.move', stateField: 'state',
@@ -261,7 +272,7 @@ export const SCREENS = {
     cols: ['name', 'warehouse_id', 'source_type', 'source_ref', 'part_id', 'qty', 'condition', 'returns_bin_id', 'disposition', 'state'],
     actions: [{ m: 'action_dispose', l: 'Decide Disposition (supervisor / controller)' }] },
   'M41-demand': { kind: 'model_list', model: 'fix.wms.outbound.demand', stateField: 'state',
-    cols: ['name', 'warehouse_id', 'source_type', 'source_ref', 'part_id', 'qty', 'dest_location_id', 'priority', 'cutoff_at', 'template_id', 'wave_id', 'state'],
+    cols: ['name', 'warehouse_id', 'source_type', 'source_ref', 'part_id', 'qty', 'dest_location_id', 'priority', 'cutoff_at', 'template_id', 'wave_id', 'short_note', 'state'],
     actions: [
       { m: 'action_build_wave', l: 'Build Wave from Selected Demand' },
       { m: 'action_cancel', l: 'Cancel Demand' }
@@ -281,6 +292,48 @@ export const SCREENS = {
   'M41-productivity': { kind: 'model_list', model: 'fix.wms.productivity', create: false,
     cols: ['date', 'operative_id', 'warehouse_id', 'task_type', 'tasks_completed', 'units', 'actual_seconds', 'standard_seconds', 'efficiency_pct', 'accuracy_pct'],
     empty: 'Nothing measured yet. A productivity run (nightly, or Measure) writes these rows.' },
+
+  /* ===== part 2 (2026-11-20) ===== */
+  'M41-substitutions': { kind: 'model_list', model: 'fix.wms.substitution', stateField: 'state',
+    cols: ['name', 'wave_id', 'part_id', 'substitute_part_id', 'bin_id', 'qty', 'crossref_id', 'requested_by_id', 'decided_by_id', 'state'],
+    actions: [
+      { m: 'action_approve', l: 'Approve (another supervisor)' },
+      { m: 'action_reject', l: 'Reject (supervisor)' }
+    ] },
+  'M41-proposals': { kind: 'model_list', model: 'fix.wms.slot.proposal', stateField: 'state', create: false,
+    cols: ['name', 'warehouse_id', 'kind', 'part_id', 'from_bin_id', 'to_bin_id', 'qty', 'picks_90d', 'reason', 'decided_by_id', 'move_id', 'state'],
+    empty: 'No proposal. The nightly slotting run (or Propose Re-slotting Now on the warehouse) proposes moves here.',
+    actions: [
+      { m: 'action_accept', l: 'Accept (raises the move)' },
+      { m: 'action_reject', l: 'Reject' }
+    ] },
+  'M41-scan-log': { kind: 'model_list', model: 'fix.wms.scan.event', create: false,
+    cols: ['occurred_at', 'user_name', 'device_code', 'action', 'record_name', 'scans', 'accepted', 'rule', 'message', 'offline'],
+    empty: 'No scan yet. Every put-away, pick, move, cross-dock and task scan is logged here, refused ones included.' },
+  'M41-rf-journal': { kind: 'model_list', model: 'fix.wms.rf.journal', create: false,
+    cols: ['processed_at', 'device_id', 'user_id', 'op', 'task_id', 'key', 'ok', 'offline', 'result'],
+    empty: 'No RF confirmation yet. The handheld API (/api/v1/wh) records each one once per idempotency key.' },
+  'M41-rpt-violations': { kind: 'table_report', module: 'M41', report: 'scan_violations', title: 'Attempted Violations', period: false },
+
+  'M41-form-substitution': {
+    kind: 'model_form', model: 'fix.wms.substitution',
+    title: 'Request a Substitute Part', newLabel: 'Request a Substitute Part', back: 'M41-substitutions',
+    status: { field: 'state', labels: { requested: 'Requested', approved: 'Approved', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Substitute', note: 'FR-WMS-023: a short line may be filled with a part M37 lists as an approved alternate (one way from the asked part, or two way), from a bin of this warehouse that holds it free. A supervisor other than you approves it; it then becomes a new pick line with its task. A transfer or return to vendor moves one named part and is never substituted.',
+        fields: [
+          { name: 'wave_line_id', required: true, label: 'Short Pick Line', domain: [['state', '=', 'short'], ['wave_id.state', '=', 'picking']] },
+          { name: 'substitute_part_id', required: true, label: 'Substitute Part' },
+          { name: 'bin_id', required: true, label: 'Pick the Substitute From', domain: [['blocked', '=', false]] },
+          { name: 'reason', label: 'Why' },
+          { name: 'qty', label: 'Quantity (the shortfall)', readonly: true },
+          { name: 'crossref_id', label: 'M37 Approval', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'decided_by_id', label: 'Decided By', readonly: true },
+          { name: 'new_line_id', label: 'Substitute Pick Line', readonly: true }
+        ] }
+    ]
+  },
 
   /* Report chips -> their own computed pack */
   'M41-rpt-throughput': { kind: 'table_report', module: 'M41', report: 'throughput_by_shift', title: 'Throughput by Shift', period: false },
@@ -612,9 +665,9 @@ export const SCREENS = {
   'M41-form-demand': {
     kind: 'model_form', model: 'fix.wms.outbound.demand',
     title: 'Outbound Demand', newLabel: 'Queue Outbound Demand', back: 'M41-demand',
-    status: { field: 'state', labels: { queued: 'Queued', waved: 'Waved', cancelled: 'Cancelled' } },
+    status: { field: 'state', labels: { queued: 'Queued', waved: 'Waved', shipped: 'Shipped', cancelled: 'Cancelled' } },
     sections: [
-      { title: 'Demand', note: 'FR-WMS-018: a transfer, van replenishment, RTV, refurbishment or job demand queues with its priority and cut-off. "Build Wave" (Outbound Demand Queue) groups the chosen demand into a draft wave per warehouse and template, picking from free bin stock (pick faces first); a supervisor releases it.',
+      { title: 'Demand', note: 'FR-WMS-018: an approved M15 transfer, van replenishment or RTV out of this warehouse queues here by itself, and the wave that picks it dispatches it when it ships; refurbishment, job and manual demand is typed here. It queues with its priority and cut-off. "Build Wave" (Outbound Demand Queue) groups the chosen demand into a draft wave per warehouse and template, picking from free bin stock (pick faces first); a supervisor releases it.',
         fields: [
           { name: 'warehouse_id', required: true, label: 'Warehouse', domain: [['wms_enabled', '=', true]] },
           { name: 'source_type', required: true, label: 'Source' },
@@ -624,8 +677,11 @@ export const SCREENS = {
           { name: 'dest_location_id', required: true, label: 'Destination' },
           { name: 'priority', required: true, label: 'Priority' },
           { name: 'cutoff_at', label: 'Needed By (cut-off)' },
-          { name: 'template_id', label: 'Wave Template' },
-          { name: 'wave_id', label: 'Wave', readonly: true }
+          { name: 'template_id', label: 'Wave Template (filled from the warehouse template)' },
+          { name: 'wave_id', label: 'Wave', readonly: true },
+          { name: 'transfer_id', label: 'From Transfer (M15)', readonly: true },
+          { name: 'rtv_id', label: 'From Return to Vendor (M15)', readonly: true },
+          { name: 'short_note', label: 'Waiting Because', readonly: true }
         ] }
     ]
   },
@@ -637,7 +693,7 @@ export const SCREENS = {
     back: 'M41-pick-lines',
     create: false, pick: 'Pick lines are generated when a wave is released: open one from Pick Lines.',
     status: { field: 'state', labels: {
-      pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled' } },
+      pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled', handed: 'Shipped by its Document' } },
     sections: [
       { title: 'Pick Line', note: 'Read-only: a line is picked by the Scan Pick action, which checks the bin, the item and any serial. The wave holds the line.',
         fields: [
@@ -757,7 +813,8 @@ export const SCREENS = {
           { name: 'zone_id', label: 'Zone' },
           { name: 'cutoff', label: 'Cut-off (HH:MM)' },
           { name: 'dest_location_ids', label: 'Destinations (empty: any)' },
-          { name: 'active', label: 'Active' }
+          { name: 'active', label: 'Active' },
+          { name: 'last_released_at', label: 'Last Auto-Release', readonly: true }
         ] }
     ]
   },
@@ -803,7 +860,8 @@ export const SCREENS = {
       ] }
     ] },
   'M41-warehouse': { kind: 'model_list', model: 'fix.warehouse',
-    cols: ['name', 'code', 'wms_enabled', 'wave_cutoffs', 'shift_pattern', 'active', 'company_id', 'operating_unit_id', 'branch_id'] },
+    cols: ['name', 'code', 'wms_enabled', 'wave_cutoffs', 'shift_pattern', 'active', 'company_id', 'operating_unit_id', 'branch_id'],
+    actions: [{ m: 'action_propose_slotting', l: 'Propose Re-slotting Now (supervisor)' }] },
 
   'M41-form-stock-location': {
     kind: 'model_form',
@@ -901,7 +959,7 @@ export const SCREENS = {
   'M41-form-scan-pick': {
     kind: 'model_form', model: 'fix.wms.wave.line',
     title: 'Scan a Pick', newLabel: 'Scan a Pick', back: 'M41-pick-lines',
-    status: { field: 'state', labels: { pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled' } },
+    status: { field: 'state', labels: { pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled', handed: 'Shipped by its Document' } },
     pickRecord: {
       label: 'Step 1 of 2: choose the pick line of a released wave',
       search: 'Search pick line', choose: 'Pick this line',
@@ -927,7 +985,7 @@ export const SCREENS = {
   'M41-form-short-pick': {
     kind: 'model_form', model: 'fix.wms.wave.line',
     title: 'Report a Short Pick', newLabel: 'Report a Short Pick', back: 'M41-pick-lines',
-    status: { field: 'state', labels: { pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled' } },
+    status: { field: 'state', labels: { pending: 'Pending', picked: 'Picked', short: 'Short', cancelled: 'Cancelled', handed: 'Shipped by its Document' } },
     pickRecord: {
       label: 'Step 1 of 2: choose the pick line the bin cannot fill',
       search: 'Search pick line', choose: 'Report this line short',
@@ -1171,7 +1229,8 @@ export const REPORT_ROUTES = {
   'M41:Pick Accuracy Trend': 'M41-rpt-accuracy',
   'M41:Wave Cycle Time': 'M41-rpt-cycle',
   'M41:Labour Productivity': 'M41-rpt-labour',
-  'M41:Bin Utilisation Heatmap': 'M41-rpt-bins'
+  'M41:Bin Utilisation Heatmap': 'M41-rpt-bins',
+  'M41:Attempted Violations': 'M41-rpt-violations'
 };
 
 export const FORM_MODELS = {
@@ -1190,7 +1249,8 @@ export const FORM_MODELS = {
   'M41:Outbound Demand': 'fix.wms.outbound.demand',
   'M41:Count Plan': 'fix.wms.count.plan',
   'M41:Time Standard': 'fix.wms.time.standard',
-  'M41:Labour Productivity Run': 'fix.wms.productivity.run'
+  'M41:Labour Productivity Run': 'fix.wms.productivity.run',
+  'M41:Request a Substitute Part': 'fix.wms.substitution'
 };
 
 export const FORM_CHIPS = {
@@ -1229,6 +1289,7 @@ export const FORM_CHIPS = {
   'M41:Count Plan': 'M41-form-count-plan',
   'M41:Time Standard': 'M41-form-time-standard',
   'M41:Labour Productivity Run': 'M41-form-productivity-run',
+  'M41:Request a Substitute Part': 'M41-form-substitution',
   'M41:__by_model__': {
     'fix.stock.location': 'M41-form-stock-location',
     'fix.inventory.valuation.suspense': 'M41-form-inventory-valuation-suspense',
@@ -1262,7 +1323,8 @@ export const FORM_CHIPS = {
     'fix.wms.outbound.demand': 'M41-form-demand',
     'fix.wms.count.plan': 'M41-form-count-plan',
     'fix.wms.time.standard': 'M41-form-time-standard',
-    'fix.wms.productivity.run': 'M41-form-productivity-run'
+    'fix.wms.productivity.run': 'M41-form-productivity-run',
+    'fix.wms.substitution': 'M41-form-substitution'
   },
   'M41:__by_screen__': {
     'M41-stock-location': 'M41-form-stock-location',
@@ -1295,7 +1357,8 @@ export const FORM_CHIPS = {
     'M41-demand': 'M41-form-demand',
     'M41-count-plans': 'M41-form-count-plan',
     'M41-time-standards': 'M41-form-time-standard',
-    'M41-productivity-runs': 'M41-form-productivity-run'
+    'M41-productivity-runs': 'M41-form-productivity-run',
+    'M41-substitutions': 'M41-form-substitution'
   }
 };
 
