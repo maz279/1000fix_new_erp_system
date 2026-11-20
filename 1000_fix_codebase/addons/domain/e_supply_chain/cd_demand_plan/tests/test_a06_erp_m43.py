@@ -82,7 +82,17 @@ def test_erp_m43_14_policy_uses_the_supplier_lead_time_model(m43):
 # ------------------------------------------------------------- M43-07
 def test_erp_m43_07_position_counts_unrestricted_stock_only(m43):
     m43.stock(5.0)
-    m43.stock(40.0, ownership="owned").sudo().write({"stock_status": "quarantine"})
+    # one row per part/location/class/status: the held stock is its own row
+    m43.env["fix.stock.onhand"].create(
+        {
+            "part_id": m43.part.id,
+            "location_id": m43.loc.id,
+            "ownership_class": "owned",
+            "stock_status": "quarantine",
+            "qty": 40.0,
+            "unit_cost": 1000.0,
+        }
+    )
     assert common.on_hand(m43.env, m43.company, m43.part, m43.loc) == pytest.approx(5.0)
 
 
@@ -163,6 +173,8 @@ def test_erp_m43_02_release_publishes_min_max_and_m15_raises_the_document(m43):
     publishes the approved ROP/target to the M15 rule and M15's sweep raises
     the (single) requisition, linked back to the plan."""
     plan = m43.ready_plan(forecast=10.0, stock=5.0, avg=2.0, lead=10)
+    # the part is purchased as the plan's product (M15-12 mapping)
+    m43.part.sudo().write({"product_id": m43.prod.id})
     _approve(m43, plan)
     before = m43.env["fix.requisition"].sudo().search_count([("product_id", "=", m43.prod.id)])
     plan.with_user(m43.planner).action_generate_pr()

@@ -322,7 +322,9 @@ def test_m43_15_requester_is_m15s_replenishment_requester(m43):
         .sudo()
         .search([("spare_part_id", "=", m43.part.id), ("location_id", "=", m43.loc.id)])
     )
-    assert req.requested_by == rule._replenishment_requester()
+    # the sweep ran as the releasing planner (the acting-user fallback)
+    assert req.requested_by == rule.with_user(m43.planner)._replenishment_requester()
+    assert req.requested_by
     assert req.requested_by.name != "AAAA Unrelated Storekeeper"
 
 
@@ -585,7 +587,7 @@ def test_m43_32_policy_computes_not_writable(m43):
     with pytest.raises(REFUSED), m43.env.cr.savepoint():
         pol.with_user(m43.planner).write({"safety_stock": 5000, "reorder_point": 9000})
     pol.invalidate_recordset()
-    assert pol.safety_stock == pytest.approx(9.9)
+    assert pol.safety_stock == pytest.approx(9.87)  # z(95%) = 1.6449 (M43-08)
 
 
 def test_m43_33_policy_safety_stock_p03_refused(m43, p03):
@@ -593,7 +595,7 @@ def test_m43_33_policy_safety_stock_p03_refused(m43, p03):
     p03.as_user(m43.planner)
     out = p03.write(model="fix.demand.policy", record_id=pol.id, values={"safety_stock": 5000})
     pol.invalidate_recordset()
-    assert "error" in out and pol.safety_stock == pytest.approx(9.9)
+    assert "error" in out and pol.safety_stock == pytest.approx(9.87)
 
 
 def test_m43_34_a_class_parameter_change_needs_approval_and_versions(m43, monkeypatch):
@@ -785,7 +787,7 @@ def test_m43_44_scenario_applies_lead_time_delta(m43):
         .create({"policy_id": pol.id, "demand_adjust_pct": 0, "lead_time_delta_days": 30})
     )
     assert s.product_id == m43.prod
-    assert s.base_reorder_point == pytest.approx(45.9)
+    assert s.base_reorder_point == pytest.approx(45.87)  # 4 x 9 + 9.87
     assert s.projected_lead_time == 39
     z = NormalDist().inv_cdf(0.95)
     assert s.projected_safety_stock == pytest.approx(round(z * 2 * 39**0.5, 2))
@@ -799,7 +801,7 @@ def test_m43_45_scenario_base_rop_from_policy(m43):
             {"product_id": m43.prod.id, "policy_id": pol.id, "base_reorder_point": 1}
         )
     s = m43.env["fix.demand.scenario"].with_user(m43.planner).create({"policy_id": pol.id})
-    assert s.base_reorder_point == pytest.approx(45.9)
+    assert s.base_reorder_point == pytest.approx(45.87)
 
 
 def test_m43_46_scenario_writes_no_parameters(m43):
@@ -812,7 +814,7 @@ def test_m43_46_scenario_writes_no_parameters(m43):
     )
     s.with_user(m43.planner).action_run()
     assert s.state == "run"
-    assert pol.reorder_point == pytest.approx(45.9)
+    assert pol.reorder_point == pytest.approx(45.87)
     assert m43.env["fix.demand.plan"].search_count([]) == n_plans
     with pytest.raises(REFUSED), m43.env.cr.savepoint():
         s.with_user(m43.planner).write({"demand_adjust_pct": 0})
@@ -1026,14 +1028,15 @@ def test_m43_04c_moq_and_pack_size_applied(m43):
     m43.forecast(10)
     m43.stock(5)
     plan = m43.plan()
-    assert plan.raw_order_qty == pytest.approx(85.0)
+    # M43-06: position 5 <= ROP 20 -> up to target 80 (forecast not subtracted)
+    assert plan.raw_order_qty == pytest.approx(75.0)
     assert plan.recommended_order == pytest.approx(108.0)  # MOQ 100 -> 9 packs of 12
     other = m43.location("C")
     m43.policy(2, 0, 10, pack_size=20, loc=other)
     m43.forecast(10, loc=other)
     m43.stock(5, loc=other)
     plan2 = m43.plan(name="pack only", location_id=other.id)
-    assert plan2.recommended_order == pytest.approx(100.0)  # 85 -> 5 packs of 20
+    assert plan2.recommended_order == pytest.approx(80.0)  # 75 -> 4 packs of 20
     plan.with_user(m43.approver).action_approve()
     assert plan.approved_order_qty == pytest.approx(108.0)
     with pytest.raises(ValidationError), m43.env.cr.savepoint():
