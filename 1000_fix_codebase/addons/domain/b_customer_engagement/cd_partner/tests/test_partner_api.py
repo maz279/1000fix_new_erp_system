@@ -23,11 +23,13 @@ class TestPartnerScoping(unittest.TestCase):
 
 
 class TestReferralFlow(unittest.TestCase):
-    def test_submission_requires_referred_party(self):
-        self.assertIn("missing_referred", API)
+    # A04 ERP audit M40-F8/F10: the portal submits a consented LEAD and never
+    # takes a party id (behaviour: test_a04erp_b5_m40.py).
+    def test_submission_requires_consent(self):
+        self.assertIn("missing_consent", API)
 
-    def test_submission_via_model_create(self):
-        self.assertIn('"fix.referral"', API)
+    def test_submission_creates_a_lead(self):
+        self.assertIn('"fix.partner.lead"', API)
 
     def test_commission_statement_from_referral_ledger(self):
         self.assertIn("commissions", API)

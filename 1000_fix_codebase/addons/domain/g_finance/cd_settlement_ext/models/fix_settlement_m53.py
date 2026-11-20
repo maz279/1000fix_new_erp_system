@@ -25,14 +25,23 @@ from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
     GROUP_ACCOUNTANT,
+    float_param,
     require_role,
 )
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+from odoo.addons.cd_partner.models.fix_partner import EARNING_STATES
+from odoo.addons.cd_partner.models.fix_partner_capture import attribution_days
+from odoo.addons.cd_partner.models.fix_partner_ops import payout_account
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .fix_settlement_ext import _configured_account, _configured_journal
+from .fix_settlement_ext import (
+    DEFAULT_NON_FILER_UPLIFT,
+    PARAM_NON_FILER_UPLIFT,
+    _configured_account,
+    _configured_journal,
+)
 
 PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 OPEN_DISPUTE_STATES = ("raised", "investigating", "arbitration", "escalated")
@@ -288,6 +297,32 @@ class FixReferral(models.Model):
                 "Invoice %s is %s: a referral converts on the referred customer's PAID invoice."
                 % (invoice.name, invoice.state)
             )
+        # A04 ERP audit M40-F7 (FR-PCM-024, BRU-PCM-05): only revenue raised
+        # from the referral date, inside the attribution window, is the
+        # referral's. An invoice of 1 Mar 2025 paid a referral of 20 Nov 2026.
+        # The window opens on the referral's business day. M20 dates an
+        # invoice by the UTC calendar (fields.Date.today) while the referral
+        # day is Asia/Dhaka, so an invoice raised minutes after a referral
+        # made between 00:00 and 06:00 Dhaka carries the previous date; the
+        # referral's own UTC day is accepted as its start too.
+        created = fields.Date.to_date(self.create_date) if self.create_date else None
+        start = min(d for d in (self.referred_on, created) if d)
+        days = attribution_days(self.env)
+        if not invoice.invoice_date or not (
+            start <= invoice.invoice_date <= start + timedelta(days=days)
+        ):
+            raise UserError(
+                "Invoice %s is dated %s, outside referral %s's attribution window (%s to %s, "
+                "%d days): it is not the referral's revenue (BRU-PCM-05)."
+                % (
+                    invoice.name,
+                    invoice.invoice_date,
+                    self.name,
+                    start,
+                    start + timedelta(days=days),
+                    days,
+                )
+            )
         return {
             "base_amount": invoice.taxable_amount,
             "invoice_id": invoice.id,
@@ -322,7 +357,18 @@ class FixReferral(models.Model):
                         % (ref.name, ref.base_amount, ref.invoice_id.sudo().taxable_amount)
                     )
             partner = ref.partner_id
-            rate = partner.commission_rate
+            # A04 ERP audit M40-F9: nothing accrues to a partner out of good
+            # standing (a suspended partner's referral waits for reinstatement).
+            if partner.state not in EARNING_STATES:
+                raise UserError(
+                    "Partner %s is %s: no commission accrues (BRU-PCM-01)."
+                    % (partner.name, partner.state)
+                )
+            # A04 ERP audit M40-F6: ONE rate - the one the commission was
+            # earned at (frozen on the referral). A scheme's rate no longer
+            # overrides it (the GL posted 3% of a referral earned at 50%); the
+            # scheme supplies the TDS.
+            rate = ref.commission_rate or partner.commission_rate
             if not 0 < rate <= 1:
                 raise UserError(
                     "Partner %s has no valid agreed commission rate (%s)" % (partner.name, rate)
@@ -336,8 +382,6 @@ class FixReferral(models.Model):
                     "configure M53 Commission Schemes (TDS rate) first"
                     % (today, partner.partner_type)
                 )
-            if scheme.commission_rate:
-                rate = scheme.commission_rate
             if existing:
                 existing.sudo()._guarded().write(
                     {
@@ -365,6 +409,210 @@ class FixReferral(models.Model):
                 )
             ref.sudo()._guarded().write({"commission_ledger_id": ledger.id})
             ledger.with_env(self.env).action_post_to_gl()
+
+
+class FixCommissionLedgerReferralRate(models.Model):
+    """A04 ERP audit M40-F6: a partner referral row carries the rate its
+    referral was earned at. The ledger's scheme step replaced it with the
+    scheme's rate (fix_settlement_ext._fix_scheme_rate / _fix_ensure_scheme),
+    so the GL accrued a different commission from the one the partner was
+    told it earned. For referral rows the scheme now supplies the TDS only."""
+
+    _inherit = "fix.commission.ledger"
+
+    @api.model
+    def _fix_scheme_rate(self, vals):
+        if vals.get("source_type") == "partner_referral" and vals.get("referral_id"):
+            rate = self.env["fix.referral"].sudo().browse(vals["referral_id"]).commission_rate
+            if rate:
+                vals["commission_rate"] = rate
+                return vals
+        return super()._fix_scheme_rate(vals)
+
+    def _fix_ensure_scheme(self):
+        earned = {
+            rec.id: rec.referral_id.commission_rate
+            for rec in self
+            if rec.source_type == "partner_referral" and rec.referral_id.commission_rate
+        }
+        result = super()._fix_ensure_scheme()
+        for rec in self.filtered(lambda r: r.id in earned):
+            if abs(rec.commission_rate - earned[rec.id]) > 1e-9:
+                rec._guarded().write({"commission_rate": earned[rec.id]})
+        return result
+
+
+class FixPartnerPayoutConsumers(models.AbstractModel):
+    """A04 ERP audit M40-F3/F13: an approved rebate or MDF claim is ACCRUED
+    (Dr expense / Cr partner payable / Cr TDS withheld) and its NET is raised
+    as a pending M50 instruction that clears the partner payable. The rebate
+    hand-off raised the instruction with no debit account, no accrual and no
+    TDS; an MDF claim was "paid" by a typed reference. Every account is
+    configured (cd_settlement_ext.account_code.<role>) - unset, the hand-off
+    is refused and dead-letters visibly (and the approval itself refuses)."""
+
+    _inherit = "fix.a04.finance.consumers"
+
+    def _partner_tds(self, partner, company, amount):
+        """The partner scheme's TDS on the payout, uplifted for a non-filer."""
+        scheme = self.env["fix.commission.scheme"]._find(
+            "partner",
+            fields.Date.context_today(self),
+            company,
+            partner_type=partner.partner_type,
+        )
+        if not scheme:
+            raise UserError(
+                "No partner commission scheme is in force for %s partners in %s: its TDS rate "
+                "decides the withholding - configure M53 Commission Schemes first."
+                % (partner.partner_type, company.name)
+            )
+        tds = scheme.tds_on(amount, amount)
+        filer = False
+        if "fix.vendor.tax.profile" in self.env:
+            profile = self.env["fix.vendor.tax.profile"].for_partner(partner.partner_id, company)
+            filer = bool(profile and profile.is_filer_on(fields.Date.context_today(self)))
+        if tds and not filer:
+            uplift = float_param(self.env, PARAM_NON_FILER_UPLIFT, DEFAULT_NON_FILER_UPLIFT)
+            tds = round(tds * (1.0 + uplift), 2)
+        return round(tds, 2), scheme
+
+    def _partner_payout(self, source, partner, amount, expense_role, label):
+        Execution = self.env["fix.payment.execution"].sudo()
+        existing = Execution.search(
+            [("source_model", "=", source._name), ("source_id", "=", source.id)], limit=1
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        company = partner.company_id
+        party = partner.partner_id
+        expense = payout_account(self.env, company, expense_role)
+        payable = payout_account(self.env, company, "partner_payable")
+        tds_account = payout_account(self.env, company, "tds_payable")
+        tds, scheme = self._partner_tds(partner, company, amount)
+        net = round(amount - tds, 2)
+        if net <= 0.005:
+            raise UserError("%s refused: nothing is left to pay after TDS." % label)
+        ou = self.env["fix.finance.handback"]._handback_ou(company, partner.operating_unit_id)
+        dims = {"operating_unit_id": ou.id, "cost_centre": "CC-PAY"}
+        lines = [
+            (
+                0,
+                0,
+                {
+                    "account_id": expense.id,
+                    "name": "%s: %s" % (label, source.display_name),
+                    "debit": amount,
+                    "credit": 0.0,
+                },
+            ),
+            (
+                0,
+                0,
+                {
+                    "account_id": payable.id,
+                    "name": "%s payable: %s" % (label, source.display_name),
+                    "partner_id": party.id,
+                    "debit": 0.0,
+                    "credit": net,
+                },
+            ),
+        ]
+        if tds > 0.005:
+            lines.append(
+                (
+                    0,
+                    0,
+                    {
+                        "account_id": tds_account.id,
+                        "name": "TDS withheld (%s, %.2f%%): %s"
+                        % (
+                            scheme.tds_reference or scheme.name,
+                            scheme.tds_rate * 100,
+                            source.display_name,
+                        ),
+                        "partner_id": party.id,
+                        "debit": 0.0,
+                        "credit": tds,
+                    },
+                )
+            )
+        move, _dims = post_with_dimensions(
+            self.env,
+            {
+                "journal_id": _configured_journal(self.env, company).id,
+                "company_id": company.id,
+                "date": fields.Date.context_today(self),
+                "ref": "%s %s" % (label, source.display_name),
+                "line_ids": lines,
+            },
+            dict.fromkeys(range(len(lines)), dims),
+            source="settlement",
+        )
+        pay = Execution.create(
+            {
+                "company_id": company.id,
+                "operating_unit_id": ou.id,
+                "payee": party.name,
+                "partner_id": party.id,
+                "amount": net,
+                "method": "bank_transfer",
+                "source_model": source._name,
+                "source_id": source.id,
+                "debit_account_id": payable.id,
+            }
+        )
+        pay.message_post(
+            body="Raised by the %s hand-off of %s: BDT %.2f accrued (%s), TDS %.2f withheld, "
+            "net %.2f payable to %s. Nothing is paid until treasury releases it and the bank "
+            "confirms it." % (label, source.display_name, amount, move.name, tds, net, party.name)
+        )
+        self.env["fix.finance.handback"]._handback_note(
+            source,
+            "Finance hand-back (%s):" % label,
+            "accrued in %s (BDT %.2f, TDS %.2f); pending treasury payout %s of BDT %.2f."
+            % (move.name, amount, tds, pay.name, net),
+        )
+        return {"model": pay._name, "id": pay.id, "created": True, "move_id": move.id}
+
+    @api.model
+    def consume_partner_rebate_approved(self, event: dict) -> dict:
+        """partner.rebate_approved -> accrual + a PENDING M50 payout of the net."""
+        self._a04_assert_relay()
+        label = "Rebate hand-off"
+        rebate, payload = self._a04_source(event, "fix.partner.rebate", label)
+        if rebate.state != "approved":
+            raise UserError(
+                "%s refused: rebate %s is %s, not approved." % (label, rebate.name, rebate.state)
+            )
+        amount = rebate.amount or 0.0
+        self.env["fix.finance.handback"]._handback_check_amount(label, payload, "amount", amount)
+        if amount <= 0.005:
+            raise UserError("%s refused: rebate %s has no amount." % (label, rebate.name))
+        partner = rebate.partner_id
+        if not partner or not partner.partner_id:
+            raise UserError(
+                "%s refused: rebate %s has no channel partner to pay." % (label, rebate.name)
+            )
+        role = "partner_mdf_expense" if rebate.kind == "mdf" else "partner_rebate_payout"
+        return self._partner_payout(rebate, partner, amount, role, "Partner rebate")
+
+    @api.model
+    def consume_partner_mdf_claim_approved(self, event: dict) -> dict:
+        """partner.mdf_claim_approved -> accrual + a PENDING M50 payout of the net."""
+        self._a04_assert_relay()
+        label = "MDF hand-off"
+        claim, payload = self._a04_source(event, "fix.mdf.claim", label)
+        if claim.state != "approved":
+            raise UserError(
+                "%s refused: claim %s is %s, not approved." % (label, claim.name, claim.state)
+            )
+        amount = claim.amount or 0.0
+        self.env["fix.finance.handback"]._handback_check_amount(label, payload, "amount", amount)
+        if amount <= 0.005:
+            raise UserError("%s refused: claim %s has no amount." % (label, claim.name))
+        partner = claim.fund_id.partner_id
+        return self._partner_payout(claim, partner, amount, "partner_mdf_expense", "Partner MDF")
 
 
 # ---------------------------------------------------------------------------

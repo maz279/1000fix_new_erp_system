@@ -19,6 +19,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_partner.tests.m40_fixtures import CONSENT, approved_rate, make_onboardable
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -118,10 +119,13 @@ def c(odoo_env):
             "name": x.payee.name,
             "partner_id": x.payee.id,
             "partner_type": "referral",
-            "commission_rate": 0.05,
             "company_id": company.id,
         }
     )
+    # A04 ERP audit M40-F5/F9/F11 set-up: an onboarded partner, approved rate
+    make_onboardable(env, x.fpartner)
+    x.fpartner.action_onboard()
+    approved_rate(x.fpartner, 0.05)
     x.pscheme = env["fix.commission.scheme"].create(
         {
             "name": "Partner TDS 10%",
@@ -234,13 +238,16 @@ def paid_invoice(c, taxable=20000.0, customer=None):
 
 
 def referral(c, user=None):
-    return as_(c, user or c.acct)["fix.referral"].create(
+    # A04 ERP audit M40-F4/F10: the referral manager (R21) records it, on the
+    # customer's consent; a plain accountant reads referrals only
+    return as_(c, user or c.sales)["fix.referral"].create(
         {
             "name": "REF-%s" % uuid.uuid4().hex[:6],
             "partner_id": c.fpartner.id,
             "referred_partner_id": c.customer.id,
             "company_id": c.company.id,
             "operating_unit_id": c.ou.id,
+            **CONSENT,
         }
     )
 
@@ -794,7 +801,9 @@ def test_m53_28_plain_user_cannot_write_refund_fields(c):
         as_(c, c.plain)["fix.subscription"].browse(s.id).write(
             {"last_refund_amount": 99999.0, "state": "cancelled"}
         )
-    with pytest.raises(AccessError):
+    # A04 ERP M39-F9: the billing terms are locked once the subscription
+    # exists (the term lock refuses before the ACL is consulted)
+    with pytest.raises(REFUSED):
         as_(c, c.plain)["fix.subscription"].browse(s.id).write({"grace_period_days": 1})
     with pytest.raises(UserError):
         s.with_user(c.acct).write({"last_refund_amount": 99999.0})
@@ -808,7 +817,9 @@ def test_m53_29_refund_credit_note_needs_another_approver(c):
         next_invoice_date=date.today() - timedelta(days=10),
         start_date=date.today() - timedelta(days=10),
     )
-    s.with_user(c.acct).action_generate_charge()
+    # A04 ERP M39-F9: a cycle is billed only by a reviewed billing run, whose
+    # commit carries the guard token; this test's subject is what follows
+    s.with_user(c.acct)._guarded().action_generate_charge()
     invoice = s.charge_ids.invoice_id
     invoice.with_user(c.acct2).action_issue()
     s.with_user(c.acct).action_request_refund(cancellation_date=fields.Date.context_today(s))
@@ -827,7 +838,9 @@ def test_m53_29_refund_credit_note_needs_another_approver(c):
 def test_m53_30_reinstate_needs_finance_and_settled_invoices(c):
     start = date.today() - timedelta(days=20)  # inside the 31-day backdate floor
     s = sub(c, c.acct, start_date=start, next_invoice_date=start)
-    s.with_user(c.acct).action_generate_charge()
+    # A04 ERP M39-F9: a cycle is billed only by a reviewed billing run, whose
+    # commit carries the guard token; this test's subject is what follows
+    s.with_user(c.acct)._guarded().action_generate_charge()
     # trusted staging: the cycle invoice issued 45 days ago — past the
     # default 30-day terms, so the overdue-unpaid basis sees it owed
     s.charge_ids.invoice_id.sudo().write(
@@ -849,7 +862,7 @@ def test_m53_31_plain_user_cannot_raise_charge(c):
 
 # ============================================================ referral (F6)
 def test_m53_32_conversion_by_r21_from_the_paid_invoice(c):
-    r = referral(c, c.plain)
+    r = referral(c)  # M40-F4/F18: a plain user only reads referrals
     with pytest.raises(AccessError):
         r.with_user(c.plain).action_convert(base_amount=5000000.0)
     with pytest.raises(UserError):
@@ -867,7 +880,7 @@ def test_m53_32_conversion_by_r21_from_the_paid_invoice(c):
 
 
 def test_m53_33_referral_state_cannot_be_written(c):
-    r = referral(c, c.plain)
+    r = referral(c)  # M40-F4/F18: a plain user only reads referrals
     with pytest.raises(REFUSED):
         r.with_user(c.plain).write({"state": "commissioned", "base_amount": 750000.0})
     with pytest.raises(UserError):
@@ -876,7 +889,7 @@ def test_m53_33_referral_state_cannot_be_written(c):
 
 def test_m53_34_plain_user_cannot_accrue(c):
     inv = paid_invoice(c, 1000.0)
-    r = referral(c, c.plain)
+    r = referral(c)  # M40-F4/F18: a plain user only reads referrals
     r.with_user(c.sales).action_convert(invoice=inv)
     r.with_user(c.sales).action_earn_commission()
     with pytest.raises(AccessError):
@@ -972,7 +985,7 @@ def test_m53_39_p03_cannot_approve_a_payout(c, p03):
 
 
 def test_m53_40_p03_plain_user_cannot_commission_a_referral(c, p03):
-    r = referral(c, c.plain)
+    r = referral(c)  # M40-F4/F18: a plain user only reads referrals
     out = p03.write(
         c.plain,
         model="fix.referral",
@@ -1155,12 +1168,13 @@ def test_a04_m40_no_self_or_duplicate_referral(c):
     with pytest.raises(REFUSED, match="already has an open referral"):
         referral(c)
     with pytest.raises(REFUSED, match="cannot refer themselves"):
-        as_(c, c.acct)["fix.referral"].create(
+        as_(c, c.sales)["fix.referral"].create(
             {
                 "name": "REF-SELF-%s" % c.tag,
                 "partner_id": c.fpartner.id,
                 "referred_partner_id": c.payee.id,
                 "company_id": c.company.id,
+                **CONSENT,
             }
         )
 

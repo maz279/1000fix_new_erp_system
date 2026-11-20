@@ -8,4 +8,6 @@ from . import (
     fix_partner_ops,
     fix_party_merge_consumer,
     fix_partner_capture,
+    # A04 ERP audit (20 Nov 2026), stream B5: standing, rate governance, brand link
+    fix_partner_a04erp,
 )

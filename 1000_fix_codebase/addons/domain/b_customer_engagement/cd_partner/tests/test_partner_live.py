@@ -13,6 +13,7 @@ import pytest
 from odoo import Command
 from odoo.addons.cd_partner.controllers import partner_api
 from odoo.addons.cd_partner.controllers.partner_api import PartnerApiController
+from odoo.addons.cd_partner.tests.m40_fixtures import make_onboardable
 from odoo.exceptions import UserError, ValidationError
 
 
@@ -46,8 +47,20 @@ def world(odoo_env):
         {"name": "Rafi Electronics", "partner_id": rafi.partner_id.id, "territory": "Mirpur"}
     )
     nadia_profile = profiles.create(
-        {"name": "Nadia Mobiles", "partner_id": nadia.partner_id.id, "partner_type": "reseller"}
+        {
+            "name": "Nadia Mobiles",
+            "partner_id": nadia.partner_id.id,
+            "partner_type": "reseller",
+            # a reseller onboards on its statutory identifiers (FLAW-33.1)
+            "tin_number": "123456789012",
+            "trade_license_no": "TL-NADIA",
+        }
     )
+    # A04 ERP audit M40-F9/F11: only an onboarded partner refers; onboarding
+    # needs programme, agreement and checklist (set-up here, as the system)
+    for profile in (rafi_profile, nadia_profile):
+        make_onboardable(env, profile)
+        profile.action_onboard()
     customer = env["res.partner"].create({"name": "Referred Customer One"})
     return SimpleNamespace(
         env=env,
@@ -96,7 +109,6 @@ def test_amounts_are_south_asian_grouped(amount, expected):
 
 def test_partner_onboarding_and_referral_commission_lifecycle(world):
     env = world.env
-    world.rafi_profile.action_onboard()
     referral = _referral(world, world.rafi_profile, "REF-LIFE-1")
     with pytest.raises(UserError, match="Convert before commissioning"), world.env.cr.savepoint():
         referral.action_earn_commission()
@@ -156,8 +168,9 @@ def test_profile_is_the_callers_own(world):
         "name": "Rafi Electronics",
         "partner_type": "referral",
         "territory": "Mirpur",
-        "commission_rate": 0.05,
-        "state": "prospective",
+        # A04 ERP audit M40-F5/F11: no rate until approved; onboarded in set-up
+        "commission_rate": 0.0,
+        "state": "onboarded",
     }
     assert explicit_own["partner"]["id"] == world.rafi_profile.id
     for res in (foreign, junk, nobody):
@@ -265,61 +278,72 @@ def test_repointing_an_existing_referral_reruns_the_gate(world):
         ref.write({"referred_partner_id": world.rafi.partner_id.id})
 
 
+CONSENTED = {"consent_given": True, "consent_method": "digital"}
+
+
 def test_the_portal_submits_through_the_gate(world):
-    """The P12 partner's own submission path meets the same server-side gate
-    (partner_api AS-09)."""
+    """A04 ERP audit M40-F8: the P12 partner submits a consented LEAD. It no
+    longer names (and so reserves) an existing customer: a party id is
+    refused, and two partners naming the same person both reach the company,
+    which links the customer and attributes at conversion."""
     with _as(world.env, world.rafi) as ctrl:
-        first = ctrl.referrals(referred_name="REF-P1", referred_partner_id=world.customer.id)
-        assert first["referral"]["state"] == "submitted"
+        squat = ctrl.referrals(referred_name="REF-P1", referred_partner_id=world.customer.id)
+        first = ctrl.referrals(referred_name="Karim", referred_phone="01711000001", **CONSENTED)
+    assert squat["error"]["code"] == "referred_party_not_accepted"
+    assert "Referred Customer One" not in str(squat)
+    assert first["lead"]["state"] == "submitted"
     with _as(world.env, world.nadia) as ctrl:
-        dup = ctrl.referrals(referred_name="REF-P2", referred_partner_id=world.customer.id)
-    assert dup["error"]["code"] == "referral_rejected"
-    assert "open referral" in dup["error"]["message"]
+        second = ctrl.referrals(referred_name="Karim", referred_phone="01711000001", **CONSENTED)
+    assert second["lead"]["state"] == "submitted"
 
 
 def test_referral_tracking_shows_the_referred_party_to_the_portal_partner(world):
-    """Regression: the referred customer's name was read under the portal
-    partner rule, which hides other customers' partner rows - AccessError.
-    (Nadia's referral names a different customer: one open referral per
-    customer, ref_02.)"""
+    """Regression: the referral listing read the referred party under the
+    portal partner rule (AccessError). A04 ERP audit M40-F8: it now shows what
+    the partner itself typed on its lead, never the party master's name."""
     _referral(world, world.rafi_profile, "REF-TRACK-1", referred=world.customer)
     _referral(world, world.nadia_profile, "REF-NADIA-1")
     with _as(world.env, world.rafi) as ctrl:
+        ctrl.referrals(referred_name="Karim", referred_phone="01711000002", **CONSENTED)
         res = ctrl.referrals()
     assert [(r["name"], r["referred"], r["state"]) for r in res["referrals"]] == [
-        ("REF-TRACK-1", "Referred Customer One", "submitted")
+        ("REF-TRACK-1", "", "submitted")
     ]
+    assert [(lead["referred"], lead["state"]) for lead in res["leads"]] == [("Karim", "submitted")]
+    assert "Referred Customer One" not in str(res)
 
 
 def test_referral_submission(world):
     with _as(world.env, world.rafi) as ctrl:
-        missing = ctrl.referrals(referred_name="Walk-in friend")
-        unknown = ctrl.referrals(referred_name="Ghost", referred_partner_id=999999999)
-        junk = ctrl.referrals(referred_name="Ghost", referred_partner_id="abc")
-        created = ctrl.referrals(referred_name="REF-NEW-1", referred_partner_id=world.customer.id)
-    assert missing["error"]["code"] == "missing_referred"
-    assert unknown["error"]["code"] == "no_referred_party"
-    assert junk["error"]["code"] == "no_referred_party"
-    referral = world.env["fix.referral"].browse(created["referral"]["id"])
-    assert created["referral"]["state"] == "submitted"
-    assert (referral.partner_id, referral.referred_partner_id) == (
+        no_phone = ctrl.referrals(referred_name="Walk-in friend", **CONSENTED)
+        no_consent = ctrl.referrals(referred_name="Walk-in friend", referred_phone="0171")
+        party = ctrl.referrals(referred_name="Ghost", referred_partner_id=999999999)
+        created = ctrl.referrals(
+            referred_name="Walk-in friend", referred_phone="01711000003", **CONSENTED
+        )
+    assert no_phone["error"]["code"] == "missing_phone"
+    assert no_consent["error"]["code"] == "missing_consent"
+    assert party["error"]["code"] == "referred_party_not_accepted"
+    lead = world.env["fix.partner.lead"].search([("name", "=", created["lead"]["name"])])
+    assert (lead.partner_id, lead.customer_name, lead.consent_method) == (
         world.rafi_profile,
-        world.customer,
+        "Walk-in friend",
+        "digital",
     )
 
 
 def test_a_refused_referral_leaves_no_row(world):
-    referrals = type(world.env["fix.referral"])
-    original_create = referrals.create
+    leads = type(world.env["fix.partner.lead"])
+    original_create = leads.create
 
     def create_then_refuse(self, vals_list):
         original_create(self, vals_list)
         raise ValidationError("duplicate referral")
 
-    with patch.object(referrals, "create", create_then_refuse), _as(world.env, world.rafi) as ctrl:
-        res = ctrl.referrals(referred_name="REF-DUP", referred_partner_id=world.customer.id)
+    with patch.object(leads, "create", create_then_refuse), _as(world.env, world.rafi) as ctrl:
+        res = ctrl.referrals(referred_name="REF-DUP", referred_phone="0171", **CONSENTED)
     assert res["error"] == {"code": "referral_rejected", "message": "duplicate referral"}
-    assert not world.env["fix.referral"].search([("name", "=", "REF-DUP")])
+    assert not world.env["fix.partner.lead"].search([("customer_name", "=", "REF-DUP")])
 
 
 def test_commission_statement(world):
@@ -339,7 +363,8 @@ def test_commission_statement(world):
         res = ctrl.commissions()["commissions"]
     assert [line["referral"] for line in res["lines"]] == ["REF-C-2", "REF-C-1"]
     assert res["lines"][0]["commission_bdt"] == "1,250.50"
-    assert res["lines"][0]["referred"] == "Referred Customer One"
+    # A04 ERP audit M40-F8: the party master's name is never echoed
+    assert "Referred Customer One" not in str(res)
     assert res["earned_total_bdt"] == "1,750.50"
 
 
