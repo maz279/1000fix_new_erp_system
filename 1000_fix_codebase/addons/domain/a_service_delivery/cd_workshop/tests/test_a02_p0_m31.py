@@ -230,6 +230,16 @@ def _handover_ready(m, order):
     )
 
 
+def _m01_delivered(m, order):
+    """A02 pass 2 M31-02: the relay delivers M01's service_order.delivered
+    to the workshop consumer, which closes the released job."""
+    return (
+        m.env["fix.workshop.job"]
+        .sudo()
+        .consume_service_order_delivered({"payload": {"order_id": order.id}})
+    )
+
+
 def _to_repair(m, job, bench=None):
     job.action_intake()
     job.action_diagnostic()
@@ -242,9 +252,30 @@ def _as(m, user, job):
     return job.with_user(user)
 
 
+def _protocol_passed(m, job, burn_in_minutes=0):
+    """A02 pass 2 M31-04: QC is judged on the job's test protocol. Test setup:
+    a one-step functional protocol on the job and a passing result recorded by
+    the repairing technician."""
+    proto = m.env["fix.workshop.test.protocol"].create(
+        {
+            "code": "A02R2-%d-%d" % (job.id, next(_SEQ)),
+            "name": "A02 functional check",
+            "burn_in_minutes": burn_in_minutes,
+            "step_ids": [(0, 0, {"name": "Boots and charges", "has_limits": False})],
+        }
+    )
+    job.sudo().write({"protocol_id": proto.id})
+    m.env["fix.workshop.test.result"].with_user(m.tech).create(
+        {"job_id": job.id, "step_id": proto.step_ids.id, "observed_pass": True}
+    )
+    return proto
+
+
 def _qc_ready(m, job):
     """An L1 job in qc_pending with its evidence pack and its order's QC checklist."""
     _to_repair(m, job)
+    if not job.protocol_id:
+        _protocol_passed(m, job)
     job.action_submit_qc()
     _evidence(m, job, "post_repair_photo", "test_log")
     if job.order_id:
@@ -616,9 +647,12 @@ def test_p31_08_delivery_needs_the_order_to_be_settled(m31):
     job = _qc_ready(m31, m31.job(so=so))
     _as(m31, m31.qc, job).action_pass_qc()
     _handover_ready(m31, so)
-    with refused(m31.env, UserError, "Settlement"):
+    # A02 pass 2 M31-02: the bench releases; the customer hand-over is M01's,
+    # and M01's own settlement gate holds the device
+    with refused(m31.env, UserError, "front desk"):
         job.action_deliver()
-    assert (job.sudo().state, so.state) == ("ready", "ready")
+    job.action_release()
+    assert (job.sudo().state, so.state) == ("released", "ready")
     so.write(
         {
             "payment_settlement_state": "settled",
@@ -626,8 +660,9 @@ def test_p31_08_delivery_needs_the_order_to_be_settled(m31):
             "settlement_verified": True,
         }
     )
-    job.action_deliver()
-    assert (job.state, so.state) == ("delivered", "delivered")
+    so.action_deliver()
+    _m01_delivered(m31, so)
+    assert (job.sudo().state, so.state) == ("delivered", "delivered")
 
 
 def test_the_rework_loop_still_runs_against_the_order(m31):
@@ -733,7 +768,9 @@ def test_p31_10_a_delivered_job_is_frozen(m31):
     _passed_checklist(m31, job.order_id)
     _as(m31, m31.qc, job).action_pass_qc()
     _handover_ready(m31, job.order_id)
-    job.action_deliver()
+    job.action_release()
+    job.order_id.sudo().action_deliver()
+    _m01_delivered(m31, job.order_id)
     before = job.sudo().total_repair_cost
     with refused(m31.env, UserError, "consumed quantity and cost"):
         line.write({"unit_cost": 90000.0})

@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP audit pass 2 (20 Nov 2026), M31. -->
+<odoo>
+    <data noupdate="1">
+
+        <!-- M31-02: the job closes when M01 hands the device to the customer
+             (the bench releases it to the front desk; it never delivers). -->
+        <record id="consumer_service_order_delivered_workshop_job" model="fix.event.consumer">
+            <field name="name">M31: a delivered service order closes its released workshop job</field>
+            <field name="event_type">service_order.delivered</field>
+            <field name="model">fix.workshop.job</field>
+            <field name="method">consume_service_order_delivered</field>
+            <field name="module">cd_workshop</field>
+        </record>
+
+        <!-- M31-09: a BER is declared when the repair costs at least this
+             share (%) of the device's value. -->
+        <record id="param_ber_cost_to_value_pct" model="ir.config_parameter">
+            <field name="key">cd_workshop.ber_cost_to_value_pct</field>
+            <field name="value">100</field>
+        </record>
+
+    </data>
+</odoo>

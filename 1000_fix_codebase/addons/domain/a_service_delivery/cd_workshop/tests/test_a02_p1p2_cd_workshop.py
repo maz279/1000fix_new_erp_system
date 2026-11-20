@@ -359,7 +359,8 @@ def test_delivery_publishes_the_m01_hand_back(m31):
         {"payment_settlement_state": "settled", "amount_settled_bdt": est.grand_total,
          "settlement_verified": True}
     )  # fmt: skip
-    job.action_deliver()
+    # A02 pass 2 M31-02: the hand-back is published by the release
+    job.action_release()
     payloads = _events(m31.env, job, "workshop.job.delivered")
     assert len(payloads) == 1
     assert (payloads[0]["service_order_id"], payloads[0]["workshop_job_id"]) == (so.id, job.id)
