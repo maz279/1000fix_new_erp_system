@@ -64,6 +64,8 @@ Accounting Administrator.
         # A04 report C7: consumers of the storefront refund and bond
         # encashment hand-offs.
         "data/fix_a04_consumers.xml",
+        # A02 ERP pass 2 X5-14: shift.closed -> Finance Manager escalation
+        "data/fix_a02r2_shift_consumer.xml",
         # A05 report cross-area follow-up: the e-waste settlement money leg.
         "data/fix_a05_consumers.xml",
         # A09 Update 3/4: payroll payments reach treasury (M50).
