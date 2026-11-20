@@ -35,6 +35,12 @@ SETTLEMENT_SOURCES = [
     ("m20_receipt", "M20 Receipt"),
     ("field_collection", "Field Collection (M02)"),
     ("counter", "Branch Counter (Cashier)"),
+    # A02 pass 2 (D1): cash on delivery - the rider / courier collects the
+    # amount due at the doorstep. Recorded UNVERIFIED at proof of delivery;
+    # the rider settlement or the courier remittance (an M20 receipt with its
+    # reference) verifies it. It opens the delivery gate (the device and the
+    # cash change hands together), never the close gate.
+    ("cod", "Cash on Delivery (Rider / Courier)"),
 ]
 _SETTLEMENT_SOURCE_KEYS = {key for key, _label in SETTLEMENT_SOURCES}
 
@@ -73,6 +79,20 @@ DEFAULT_SLA_POLICY = "cd_service_order.sla_policy_m01_default"
 # device is flagged abandoned. "0" (the default) switches it off - how long a
 # branch keeps a device is a business decision.
 ABANDON_AFTER_DAYS_PARAM = "cd_service_order.abandon_after_days"
+# A02 pass 2 (D13, M01-13): the uncollected-device schedule. Reminders on these
+# days after Ready (the last one is the formal notice); disposal only after
+# ABANDON_AFTER_DAYS_PARAM days (data: 90) with a manager's approval. The ONE
+# source every screen reads (fix.service.order._fix_uncollected_policy()).
+UNCOLLECTED_REMINDER_DAYS_PARAM = "cd_service_order.uncollected_reminder_days"
+UNCOLLECTED_REMINDER_DAYS_DEFAULT = "3,7,15,30"
+ABANDON_AFTER_DAYS_DEFAULT = "90"
+# A02 pass 2 (M01-12, owner decision O6): the repair warranty every order
+# carries, in days. The order's period is derived from it, never typed.
+REPAIR_WARRANTY_DAYS_PARAM = "cd_service_order.repair_warranty_days"
+REPAIR_WARRANTY_DAYS_DEFAULT = 90
+# A02 pass 2 (M01-13): a device left uncollected is disposed of with a
+# branch manager's approval (DOFA Tier 2).
+GROUP_BRANCH_MANAGER = "cd_entity_config.group_dofa_tier_2"
 # States where the resolution clock has already finished: no hold applies.
 _SLA_FINISHED_STATES = ("ready", "delivered", "closed", "cancelled")
 
@@ -143,11 +163,33 @@ _FROZEN_WHEN_DONE = frozenset(
         "recipient_name",
         "recipient_nid_phone",
         "service_report_attachment_id",
+        "intake_photo_attachment_id",
+        "after_repair_photo_attachment_id",
     }
 )
 # Fields set at intake and changed afterwards only through their action
 # (M01-1 re-classification to warranty; FR-SRM-080 priority override).
 _SET_AT_INTAKE = frozenset({"order_category", "priority"})
+# Evidence files uploaded for the order (bound to it, _fix_bind_evidence).
+_ORDER_EVIDENCE_FIELDS = frozenset(
+    {
+        "service_report_attachment_id",
+        "intake_photo_attachment_id",
+        "after_repair_photo_attachment_id",
+    }
+)
+# A02 pass 2 (M01-02/07/15): who the job is for, which device it is, its
+# liquid-damage finding and its branch are fixed once the order leaves Draft.
+# The customer's OTPs, the collector check and the estimate approvals are
+# bound to them; each changes only through its supervisor correction action
+# (Correct Customer / Device, Correct LCI Finding, Transfer Branch).
+_FROZEN_AFTER_INTAKE = frozenset({"customer_id", "device_id", "lci_tripped", "branch_id"})
+_FROZEN_AFTER_INTAKE_ACTION = {
+    "customer_id": "Correct Customer / Device",
+    "device_id": "Correct Customer / Device",
+    "lci_tripped": "Correct LCI Finding",
+    "branch_id": "Transfer Branch",
+}
 
 
 _DHAKA = pytz.timezone("Asia/Dhaka")
@@ -291,6 +333,16 @@ class FixServiceOrder(models.Model):
             "passcode_consent_at",
             "passcode_consent_by",
             "passcode_purged_at",
+            # A02 pass 2: the repair warranty period comes from the policy
+            # (M01-12); the uncollected-device reminders the cron sent
+            # (M01-13); the part payments and what of them is verified (D3);
+            # the on-site completion that stood as QC and delivery (D4).
+            "service_warranty_days",
+            "uncollected_reminder_stage",
+            "uncollected_notice_at",
+            "amount_verified_bdt",
+            "onsite_completed_at",
+            "onsite_field_order_ref",
         }
     )
 
@@ -307,6 +359,8 @@ class FixServiceOrder(models.Model):
             # An existing order: category and priority change only through
             # their actions; a handed-over order is frozen.
             locked |= _SET_AT_INTAKE
+            if any(o.state != "draft" for o in self):
+                locked |= _FROZEN_AFTER_INTAKE
             if any(o.state in ("delivered", "closed", "cancelled") for o in self):
                 locked |= _FROZEN_WHEN_DONE
         return locked
@@ -335,18 +389,30 @@ class FixServiceOrder(models.Model):
 
     # The device (M17 registry)
     device_id = fields.Many2one(
-        "fix.device", string="Device", required=True, ondelete="restrict", index=True
+        "fix.device",
+        string="Device",
+        required=True,
+        ondelete="restrict",
+        index=True,
+        tracking=True,
     )
     device_serial = fields.Char(related="device_id.serial_number", store=True, string="S/N")
 
     # The customer (M33 party kernel)
     customer_id = fields.Many2one(
-        "res.partner", string="Customer", required=True, ondelete="restrict", index=True
+        "res.partner",
+        string="Customer",
+        required=True,
+        ondelete="restrict",
+        index=True,
+        tracking=True,
     )
     customer_phone = fields.Char(related="customer_id.phone", string="Phone")
 
     # Branch and assignment
-    branch_id = fields.Many2one("fix.branch", string="Branch", required=True, ondelete="restrict")
+    branch_id = fields.Many2one(
+        "fix.branch", string="Branch", required=True, ondelete="restrict", tracking=True
+    )
     technician_id = fields.Many2one("hr.employee", string="Assigned Technician")
 
     # State machine (AS-06/DP-01: the declared transitions above are the authority)
@@ -535,12 +601,16 @@ class FixServiceOrder(models.Model):
     # issues on completed repairs. Complements the device entitlement in
     # cd_device_registry — that warranty is the BRAND's contract; this one
     # is ours.
-    # Owner decision (20 Nov 2026): 90 days on every repair, all categories
+    # Owner decision (20 Nov 2026): 90 days on every repair, all categories.
+    # A02 pass 2 (M01-12): derived from REPAIR_WARRANTY_DAYS_PARAM, never typed
+    # (any clerk wrote 365 days, or 0 to issue none).
     service_warranty_days = fields.Integer(
         string="Repair Warranty (Days)",
-        default=90,
+        default=lambda self: self._fix_policy_warranty_days(),
+        readonly=True,
         tracking=True,
-        help="Service guarantee period issued on this repair.",
+        help="Service guarantee period issued on this repair (the company's repair warranty "
+        "policy, cd_service_order.repair_warranty_days).",
     )
     service_warranty_until = fields.Date(
         string="Repair Warranty Valid Until", readonly=True, copy=False
@@ -714,6 +784,9 @@ class FixServiceOrder(models.Model):
         string="Liquid Contact Indicator (LCI) Tripped",
         default=False,
         tracking=True,
+        # A02 pass 2 (M01-07): recorded at intake; afterwards only Correct LCI
+        # Finding (a supervisor, with photo evidence) changes it - it decides
+        # whether the warranty covers the job (M01-F14).
         help="True if internal or SIM-tray liquid contact indicator is red/tripped.",
     )
     accessory_bag_barcode = fields.Char(
@@ -729,7 +802,32 @@ class FixServiceOrder(models.Model):
     intake_photo_attachment_id = fields.Many2one(
         "ir.attachment",
         string="4-Angle Intake Photo Evidence",
-        help="Uploaded composite or primary photo evidence of pre-existing cosmetic state.",
+        tracking=True,
+        help="Uploaded composite or primary photo evidence of pre-existing cosmetic state. "
+        "A walk-in intake's photo is copied onto the order (BRU-SRM-17).",
+    )
+    # A02 pass 2 (M01-06, BRU-SRM-17): the device after the repair. A warranty
+    # order does not close without both photos, uploaded on the order itself.
+    after_repair_photo_attachment_id = fields.Many2one(
+        "ir.attachment",
+        string="After-Repair Photo Evidence",
+        copy=False,
+        tracking=True,
+        help="Photo of the device after the repair (BRU-SRM-17).",
+    )
+    # A02 pass 2 (M01-13, D13): the uncollected-device reminders sent (the
+    # largest reminder day reached) and the formal notice.
+    uncollected_reminder_stage = fields.Integer(
+        string="Uncollected Reminder Sent (Day)", readonly=True, copy=False
+    )
+    uncollected_notice_at = fields.Datetime(
+        string="Formal Uncollected Notice Issued", readonly=True, copy=False
+    )
+    # A02 pass 2 (D4): an on-site job completed in the field stands as QC and
+    # delivery: the field order whose sign-off and post-work photo did.
+    onsite_completed_at = fields.Datetime(string="Completed On Site At", readonly=True, copy=False)
+    onsite_field_order_ref = fields.Char(
+        string="On-Site Completion (Field Order)", readonly=True, copy=False
     )
 
     # Tab 3: Diagnosis, Faults & Triage Routing
@@ -799,6 +897,9 @@ class FixServiceOrder(models.Model):
             # M01-12: a settled order that is cancelled owes the customer
             # money; the refund/credit hand-off event carries it to M20.
             ("refund_due", "Refund / Credit Due"),
+            # A02 pass 2 (D3): part of the amount due received (an on-site
+            # part payment); the rest stays due.
+            ("partial", "Part Paid (balance due)"),
         ],
         string="Financial Settlement Status",
         default="unpaid",
@@ -839,6 +940,15 @@ class FixServiceOrder(models.Model):
         "res.users", string="Settlement Verified By", readonly=True, copy=False
     )
     settlement_verified_at = fields.Datetime(readonly=True, copy=False)
+    # A02 pass 2 (D3): of amount_settled_bdt, what a cashier (or an M20
+    # receipt) has verified. A part payment taken on top of a verified one is
+    # unverified until it is checked; voiding it keeps the verified part.
+    amount_verified_bdt = fields.Monetary(
+        string="Amount Verified (BDT)",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
     # A5 / M01-10: set only by Verify Delivery OTP, when the code the
     # notification service sent to the customer's phone is read back.
     delivery_otp_verified = fields.Boolean(
@@ -957,10 +1067,13 @@ class FixServiceOrder(models.Model):
         An inspection started after the newest one (pending / in progress) is
         the newest one, so Ready waits for it."""
         self.ensure_one()
-        # an inspection completed in an EARLIER round is history; one never
-        # stamped (legacy rows, trusted data loads) still counts by recency
+        # an inspection completed in an EARLIER round is history. One never
+        # stamped (round 0) counts by recency only on a legacy order that has
+        # never entered a QC round (A02 pass 2, M01-09: a checklist completed
+        # before round 1 opened Ready); a pending one always counts.
         checklists = self.qc_checklist_ids.filtered(
             lambda c: not (c.qc_round and c.qc_round < self.qc_round)
+            and not (not c.qc_round and self.qc_round and c.state in ("passed", "failed"))
         )
         return checklists.sorted(lambda c: c.id)[-1:] if checklists else checklists
 
@@ -1113,7 +1226,7 @@ class FixServiceOrder(models.Model):
         # already received (the walk-in diagnostic fee) can cover it in full
         if (
             approved_estimates
-            and self.payment_settlement_state == "unpaid"
+            and self.payment_settlement_state in ("unpaid", "partial")
             and self._fix_amount_due() > 0.005
         ):
             total_due = self._fix_amount_due()
@@ -1125,8 +1238,16 @@ class FixServiceOrder(models.Model):
         if self.env.su:
             return
         due = self._fix_amount_due()
-        if due <= 0 or self.payment_settlement_state == "credit_approved":
+        if due <= 0 or self._fix_credit_covers(due):
             return
+        if self.payment_settlement_state == "credit_approved":
+            raise UserError(
+                f"Order {self.name} was released on credit for BDT "
+                f"{self._fix_credit_released_amount():.2f}; BDT {due:.2f} is due now. A Finance "
+                "Manager releases it on credit again for the new amount, or it is paid."
+            )
+        if self._fix_cod_covers(due):
+            return  # D1: the rider hands the device over as the cash is taken
         if not self._fix_settlement_covers(due):
             raise UserError(
                 f"FLAW-01.1 Financial Settlement Gate: Order {self.name} owes BDT {due:.2f}. "
@@ -1134,6 +1255,61 @@ class FixServiceOrder(models.Model):
                 f"(recorded: BDT {self.amount_settled_bdt or 0.0:.2f}, "
                 f"{'verified' if self.settlement_verified else 'not verified'})."
             )
+
+    def _fix_credit_released_amount(self) -> float:
+        """What a credit release covers (cd_billing_engine pins it)."""
+        self.ensure_one()
+        if "credit_released_amount" not in self._fields:
+            return 0.0
+        return self.credit_released_amount or 0.0
+
+    def _fix_credit_covers(self, due: float) -> bool:
+        """A02 pass 2 (M01-04): an order released on credit is honoured up to
+        the amount the Finance Manager released; a higher amount due is not
+        covered (the release was for the price at the time)."""
+        self.ensure_one()
+        if self.payment_settlement_state != "credit_approved":
+            return False
+        if "credit_released_amount" not in self._fields:
+            return True  # no billing engine: nothing pins a release
+        return due <= self._fix_credit_released_amount() + 0.005
+
+    def _fix_cod_covers(self, due: float) -> bool:
+        """D1: a cash-on-delivery collection recorded at the doorstep that
+        covers the amount due (unverified until the rider settles it)."""
+        self.ensure_one()
+        return (
+            self.payment_settlement_state == "settled"
+            and self.settlement_source == "cod"
+            and (self.amount_settled_bdt or 0.0) + 0.005 >= due
+        )
+
+    def _fix_delivery_leg_allowed(self):
+        """D1 contract with M03 (stream S3): may the device go out on a
+        delivery leg now? ``(ok, reason)``. Only a Ready order, and only one
+        that owes nothing, or whose credit release or VERIFIED settlement
+        covers what it owes. When this refuses for money, the leg may still go
+        as a cash-on-delivery leg (the rider collects the amount due)."""
+        self.ensure_one()
+        order = self.sudo()
+        if order.state != "ready":
+            return False, "Order %s is %s: only a Ready order goes out for delivery." % (
+                order.name,
+                order.state,
+            )
+        if order._fix_zero_charge_basis():
+            return True, ""
+        due = order._fix_amount_due()
+        if due <= 0.005:
+            return True, ""
+        if order._fix_credit_covers(due):
+            return True, ""
+        if order._fix_settlement_covers(due):
+            return True, ""
+        return False, (
+            "Order %s owes BDT %.2f and has no verified payment or credit release that covers "
+            "it: send it as a cash-on-delivery leg, or take the payment first." % (order.name, due)
+        )
 
     def _check_delivery_evidence(self) -> None:
         """A5 / M01-10: 0 of 47 delivered orders had an OTP, a recipient or a
@@ -1148,12 +1324,26 @@ class FixServiceOrder(models.Model):
             missing.append("the collecting recipient's name")
         if not self.service_report_attachment_id:
             missing.append("the signed service delivery report")
+        elif not self._fix_own_attachment(self.service_report_attachment_id):
+            # A02 pass 2 (M01-12): any attachment (another order's report)
+            # passed as this handover's signed report
+            missing.append("the signed service delivery report uploaded on this order itself")
         if missing:
             raise UserError(
                 "Order %s cannot be delivered without %s." % (self.name, "; ".join(missing))
             )
 
     def _check_close_gate(self) -> None:
+        """The close gate (see _fix_close_problem); trusted code decides
+        itself."""
+        self.ensure_one()
+        if self.env.su:
+            return
+        problem = self._fix_close_problem()
+        if problem:
+            raise UserError(problem)
+
+    def _fix_close_problem(self) -> str:
         """M01-11: settled (verified, covering the amount due), a paid M20
         invoice, or credit approved; or a zero-charge entitlement.
 
@@ -1161,10 +1351,30 @@ class FixServiceOrder(models.Model):
         close (AUT-018 consumed service_order.closed), so a job could close
         with no claim ever raised. action_close now raises it first
         (_fix_raise_warranty_claim) and the gate refuses a warranty job with
-        no claim while cd_warranty_claims is installed."""
+        no claim while cd_warranty_claims is installed.
+
+        A02 pass 2: the reason the order cannot close, or '' - evaluated the
+        same way for a person and for the close cron (M01-05), which runs as
+        the system and must not skip it. A warranty order needs its before
+        and after photos on the order (M01-06, BRU-SRM-17); credit counts only
+        up to the amount released (M01-04)."""
         self.ensure_one()
-        if self.env.su:
-            return
+        if self.order_category == "warranty":
+            self._fix_adopt_intake_photo()
+            missing = [
+                label
+                for label, att in (
+                    ("the intake photo", self.intake_photo_attachment_id),
+                    ("the after-repair photo", self.after_repair_photo_attachment_id),
+                )
+                if not self._fix_own_attachment(att, image=True)
+            ]
+            if missing:
+                return (
+                    "Warranty order %s cannot be closed without %s uploaded on the order "
+                    "(BRU-SRM-17: the OEM claim needs the device before and after)."
+                    % (self.name, " and ".join(missing))
+                )
         basis = self._fix_zero_charge_basis()
         if basis:
             Claim = self.env.get("fix.warranty.claim")
@@ -1173,19 +1383,43 @@ class FixServiceOrder(models.Model):
                 and Claim is not None
                 and not Claim.sudo().search_count([("service_order_id", "=", self.id)])
             ):
-                raise UserError(
+                return (
                     "Warranty order %s cannot be closed before its OEM warranty claim is "
                     "raised (the claim could not be created: check the device's brand and "
                     "the order's branch)." % self.name
                 )
-            return
+            return ""
         due = self._fix_amount_due()
-        if due <= 0 or self.payment_settlement_state == "credit_approved":
-            return
+        if due <= 0 or self._fix_credit_covers(due):
+            return ""
         if not (self._fix_settlement_covers(due) or self._fix_paid_invoice(due)):
-            raise UserError(
+            return (
                 "Order %s cannot be closed: BDT %.2f is due and no verified settlement, "
                 "paid invoice or approved credit covers it." % (self.name, due)
+            )
+        return ""
+
+    def _fix_adopt_intake_photo(self) -> None:
+        """A02 pass 2 (M01-06): the walk-in intake (M04) takes the 4-angle
+        photo, and the order never had it. The intake's photo is copied onto
+        the order (read through the registry: M01 does not depend on M04)."""
+        Intake = self.env.get("fix.walkin.intake")
+        if Intake is None:
+            return
+        for order in self.filtered(lambda o: not o.intake_photo_attachment_id):
+            intake = Intake.sudo().search(
+                [("service_order_id", "=", order.id), ("intake_photo_attachment_id", "!=", False)],
+                order="id desc",
+                limit=1,
+            )
+            if not intake:
+                continue
+            photo = intake.intake_photo_attachment_id.sudo().copy(
+                {"res_model": order._name, "res_id": order.id}
+            )
+            order.sudo().write({"intake_photo_attachment_id": photo.id})
+            order.message_post(
+                body="Intake photo %s copied from walk-in intake %s." % (photo.name, intake.name)
             )
 
     def _fix_paid_invoice(self, due: float) -> bool:
@@ -1233,6 +1467,9 @@ class FixServiceOrder(models.Model):
                 rec._validate_transition(vals["state"])
                 old_states[rec.id] = rec.state
         result = super().write(vals)
+        evidence = _ORDER_EVIDENCE_FIELDS & set(vals)
+        if evidence:
+            self._fix_bind_evidence(evidence)
         if "state" in vals:
             for rec in self:
                 rec._on_state_change(vals["state"], old_states[rec.id])
@@ -1273,6 +1510,21 @@ class FixServiceOrder(models.Model):
                         "The BER of order %s is proposed: its photo evidence is frozen." % rec.name
                     )
         for rec in self:
+            if rec.state == "draft":
+                continue
+            for name in set(vals) & _FROZEN_AFTER_INTAKE:
+                if rec._fix_guard_differs(name, vals[name], rec[name]):
+                    raise UserError(
+                        "%s of order %s is fixed once the order is taken in: the customer's "
+                        "codes and approvals are bound to it. A Service Supervisor changes it "
+                        "with %s, which records the reason."
+                        % (
+                            self._fields[name].string or name,
+                            rec.name,
+                            _FROZEN_AFTER_INTAKE_ACTION[name],
+                        )
+                    )
+        for rec in self:
             frozen = rec.state in ("delivered", "closed", "cancelled")
             names = set(vals) & (_SET_AT_INTAKE | (_FROZEN_WHEN_DONE if frozen else set()))
             for name in names:
@@ -1289,6 +1541,26 @@ class FixServiceOrder(models.Model):
                     "%s of order %s is set at intake. Change it with %s, which records "
                     "the reason and who changed it." % (label, rec.name, action)
                 )
+
+    def _fix_bind_evidence(self, names) -> None:
+        """A02 pass 2 (M01-06/12): an evidence file uploaded for the order and
+        attached to no record yet is bound to the order; one that belongs to
+        another record stays where it is (the gates then refuse it: the
+        evidence is uploaded on the order itself)."""
+        for order in self:
+            for name in names:
+                attachment = order[name].sudo()
+                if attachment and not attachment.res_model:
+                    attachment.write({"res_model": order._name, "res_id": order.id})
+
+    def _fix_own_attachment(self, attachment, image=False) -> bool:
+        """``attachment`` is a file uploaded on this order (an image when
+        ``image``)."""
+        self.ensure_one()
+        att = attachment.sudo() if attachment else attachment
+        if not att or att.res_model != self._name or att.res_id != self.id:
+            return False
+        return not image or (att.mimetype or "").startswith("image/")
 
     def _on_state_change(self, new_state: str, old_state: str) -> None:
         """Hook for side effects on state changes. ``old_state`` is captured
@@ -1958,6 +2230,7 @@ class FixServiceOrder(models.Model):
             "settlement_verified": verified,
             "settlement_verified_by": self.env.user.id if verified else False,
             "settlement_verified_at": now if verified else False,
+            "amount_verified_bdt": amount if verified else 0.0,
         }
         self._guarded().write(vals)
         self.message_post(
@@ -2028,7 +2301,8 @@ class FixServiceOrder(models.Model):
         self.ensure_one()
         if self.settlement_verified or not self.invoice_ref:
             return bool(self.settlement_verified)
-        receipt = self._fix_find_m20_receipt(self.invoice_ref, self.amount_settled_bdt or 0.0)
+        unverified = (self.amount_settled_bdt or 0.0) - (self.amount_verified_bdt or 0.0)
+        receipt = self._fix_find_m20_receipt(self.invoice_ref, max(unverified, 0.0))
         if not receipt:
             return False
         self._guarded().write(
@@ -2036,6 +2310,7 @@ class FixServiceOrder(models.Model):
                 "settlement_verified": True,
                 "settlement_verified_by": self.env.user.id,
                 "settlement_verified_at": fields.Datetime.now(),
+                "amount_verified_bdt": self.amount_settled_bdt,
             }
         )
         self.message_post(body="Settlement verified against M20 receipt %s." % receipt.name)
@@ -2046,7 +2321,8 @@ class FixServiceOrder(models.Model):
         or the MFS TrxID shows in the merchant statement. Never the person
         who recorded it, never the order's technician."""
         for order in self:
-            if order.payment_settlement_state != "settled":
+            # A02 pass 2 (D3): a part payment taken on site is verified too
+            if order.payment_settlement_state not in ("settled", "partial"):
                 raise UserError("Order %s has no settlement to verify." % order.name)
             if order.settlement_verified:
                 continue
@@ -2067,6 +2343,7 @@ class FixServiceOrder(models.Model):
                     "settlement_verified": True,
                     "settlement_verified_by": user.id,
                     "settlement_verified_at": fields.Datetime.now(),
+                    "amount_verified_bdt": order.amount_settled_bdt,
                 }
             )
             order.message_post(
@@ -2135,8 +2412,14 @@ class FixServiceOrder(models.Model):
                     "The repair warranty of order %s ended on %s; the comeback is a new, "
                     "chargeable order." % (order.name, order.service_warranty_until)
                 )
-            live = self.search(
-                [("rework_of_id", "=", order.id), ("state", "not in", ("closed", "cancelled"))],
+            # A02 pass 2 (M01-10): the user's record rules hid a comeback opened
+            # at another branch; the search is the system's, fenced to the company
+            live = self.sudo().search(
+                [
+                    ("rework_of_id", "=", order.id),
+                    ("state", "not in", ("closed", "cancelled")),
+                    ("company_id", "=", order.company_id.id),
+                ],
                 limit=1,
             )
             if live:
@@ -2156,6 +2439,7 @@ class FixServiceOrder(models.Model):
                 }
             )
             rework._guarded().write({"is_rework": True, "rework_of_id": order.id})
+            rework._fix_publish_rework(order, "comeback")
             rework.message_post(
                 body="Comeback within the repair warranty of %s (valid until %s): %s"
                 % (order.name, order.service_warranty_until, reason.strip())
@@ -2192,8 +2476,15 @@ class FixServiceOrder(models.Model):
                         "technician's confirmation (BRU-SRM-12). Use Mark Unrepairable."
                         % order.name
                     )
+        self._fix_check_post_repair_cancel(reason_code)
         for order in self:
-            refund = order.payment_settlement_state == "settled" and order.amount_settled_bdt > 0
+            refund = (
+                order.payment_settlement_state in ("settled", "partial")
+                and order.amount_settled_bdt > 0
+                # D6: a repaired device the customer refuses still owes the
+                # approved estimate; the money taken pays its invoice
+                and not order._fix_refusal_billed()
+            )
             order._fix_cancel_downstream(reason_code, note)
             extra = {
                 "cancel_reason_code": reason_code,
@@ -2230,6 +2521,117 @@ class FixServiceOrder(models.Model):
                 )
             )
         return True
+
+    # D6: the states where the repair is done (or being inspected)
+    _POST_REPAIR_STATES = ("qc_pending", "qc_failed", "ready")
+    _DECLINE_REASON_CODES = ("customer_declined", "estimate_declined")
+
+    def _fix_check_post_repair_cancel(self, reason_code) -> None:
+        """A02 pass 2 (M01-03, owner decision D6): a repaired device was
+        cancelled by any clerk as 'customer declined', and the customer was
+        charged only the diagnostic fee for a repair already done.
+
+        From QC or Ready only a Service Supervisor cancels (a BER confirmed by
+        a second technician keeps its own two-person path; a device abandoned
+        after the disposal period is cancelled with a branch manager's
+        approval, M01-13). A refusal of the finished repair ('customer
+        declined' / 'estimate declined') still owes the approved estimate: it
+        is refused until that estimate is billed (Bill Refused Repair) or
+        waived by an approved goodwill."""
+        if self.env.su:
+            return
+        user = self.env.user
+        for order in self.filtered(lambda o: o.state in self._POST_REPAIR_STATES):
+            if reason_code == "unrepairable" and order._fix_ber_evidenced():
+                continue
+            if reason_code == "abandoned":
+                order._fix_assert_disposal_allowed()
+                continue
+            if not user.has_group(GROUP_SUPERVISOR):
+                raise UserError(
+                    "Order %s is %s: the repair is done, so only a Service Supervisor cancels "
+                    "it." % (order.name, order.state)
+                )
+            if reason_code in self._DECLINE_REASON_CODES and not (
+                order._fix_zero_charge_basis() or order._fix_refusal_billed()
+            ):
+                raise UserError(
+                    "Order %s is repaired: a customer who refuses it still owes the approved "
+                    "estimate (BDT %.2f). Bill it first (Bill Refused Repair), or have a "
+                    "goodwill waiver approved, then cancel." % (order.name, order._fix_amount_due())
+                )
+
+    def _fix_refusal_billed(self) -> bool:
+        """D6: the approved estimate of a refused repair is billed - a customer
+        invoice raised for this order (cd_billing_engine) covers it."""
+        self.ensure_one()
+        if self.state not in self._POST_REPAIR_STATES or self.cancel_reason_code:
+            return False
+        Invoice = self.env.get("fix.ar.invoice")
+        if Invoice is None:
+            return False
+        return bool(
+            Invoice.sudo().search_count(
+                [
+                    ("source_model", "=", self._name),
+                    ("source_id", "=", self.id),
+                    ("state", "in", ("issued", "paid")),
+                ]
+            )
+        )
+
+    def _fix_assert_disposal_allowed(self) -> None:
+        """M01-13 (D13): an uncollected device is disposed of (cancelled as
+        'abandoned') only once it is flagged abandoned - the disposal period
+        after Ready has passed - and only with a branch manager's approval."""
+        self.ensure_one()
+        if self.env.su:
+            return
+        if self.state == "ready" and not self.is_abandoned:
+            raise UserError(
+                "Order %s is not abandoned: a Ready device is disposed of only after %d days "
+                "uncollected (the reminders and the formal notice go first)."
+                % (self.name, self._fix_uncollected_policy()["dispose_after"])
+            )
+        if not self.env.user.has_group(GROUP_BRANCH_MANAGER):
+            raise UserError(
+                "Disposing of the uncollected device of order %s needs a branch manager's "
+                "approval (DOFA Tier 2)." % self.name
+            )
+
+    @api.model
+    def _fix_uncollected_policy(self) -> dict:
+        """D13: the ONE uncollected-device schedule: the reminder days after
+        Ready (the last is the formal notice) and the disposal day."""
+        params = self.env["ir.config_parameter"].sudo()
+        raw = params.get_param(UNCOLLECTED_REMINDER_DAYS_PARAM, UNCOLLECTED_REMINDER_DAYS_DEFAULT)
+        days = []
+        for part in str(raw or "").split(","):
+            try:
+                value = int(part.strip())
+            except ValueError:
+                continue
+            if value > 0:
+                days.append(value)
+        days = sorted(set(days)) or [3, 7, 15, 30]
+        try:
+            dispose = int(params.get_param(ABANDON_AFTER_DAYS_PARAM, ABANDON_AFTER_DAYS_DEFAULT))
+        except (TypeError, ValueError):
+            dispose = int(ABANDON_AFTER_DAYS_DEFAULT)
+        return {"reminders": days, "notice": days[-1], "dispose_after": dispose}
+
+    @api.model
+    def _fix_policy_warranty_days(self) -> int:
+        """M01-12 (O6): the repair warranty period of the company's policy."""
+        raw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(REPAIR_WARRANTY_DAYS_PARAM, REPAIR_WARRANTY_DAYS_DEFAULT)
+        )
+        try:
+            return max(int(raw), 0)
+        except (TypeError, ValueError):
+            return REPAIR_WARRANTY_DAYS_DEFAULT
 
     def _fix_cancel_downstream(self, reason_code, note) -> None:
         """Cancel what still runs for this order (M01-12, A02 ho_06/can_02):
@@ -2897,6 +3299,7 @@ class FixServiceOrder(models.Model):
         )
         records = records.with_context(**{_BIRTH_KEY: False})
         for rec in records:
+            rec._fix_bind_evidence(_ORDER_EVIDENCE_FIELDS)
             rec._check_warranty_gate()
             rec._flag_rework()
             # BRU-SRM-10, before the clock starts so it runs on the new priority
@@ -2962,6 +3365,29 @@ class FixServiceOrder(models.Model):
                     )
                 )
 
+    def _fix_publish_rework(self, original, basis) -> None:
+        """A02 pass 2 (M01-14): rework.detected was documented and never
+        published, so the quality loop (M23 CAPA, the technician's rework KPI)
+        never heard of a rework. One literal publish per detection."""
+        self.ensure_one()
+        publish(
+            self.env,
+            "rework.detected",
+            "fix.service.order",
+            self.id,
+            {
+                "service_order_id": self.id,
+                "name": self.name,
+                "original_order_id": original.id,
+                "original_name": original.sudo().name,
+                "device_id": self.device_id.id,
+                "customer_id": self.customer_id.id,
+                "branch_id": self.branch_id.id,
+                "original_technician_id": original.sudo().technician_id.id or False,
+                "basis": basis,
+            },
+        )
+
     def _fix_fault_categories(self) -> set:
         """The fault categories this order is about: its coded fault lines'
         categories, plus its catalogue service item."""
@@ -2999,9 +3425,14 @@ class FixServiceOrder(models.Model):
             categories = order._fix_fault_categories()
             if not categories:
                 continue
-            candidates = self.search(
+            # A02 pass 2 (M01-10): searched with the user's record rules, a
+            # repair delivered at another branch (operating unit) was invisible,
+            # so a comeback there was never flagged. The detection is the
+            # system's, fenced to the order's company.
+            candidates = self.sudo().search(
                 [
                     ("device_id", "=", order.device_id.id),
+                    ("company_id", "=", order.company_id.id),
                     ("id", "!=", order.id),
                     ("state", "in", ("delivered", "closed")),
                     "|",
@@ -3015,6 +3446,7 @@ class FixServiceOrder(models.Model):
             original = next((c for c in candidates if c._fix_fault_categories() & categories), None)
             if original:
                 order._guarded().write({"is_rework": True, "rework_of_id": original.id})
+                order._fix_publish_rework(original, "same_fault_30_days")
                 order.message_post(
                     body=(
                         "BRU-SRM-06: flagged as rework — device returned within 30 "

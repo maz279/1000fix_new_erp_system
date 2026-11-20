@@ -26,7 +26,7 @@ Document output layer per the 2026-11-10 capability report (Downloads/Report_Out
 Excludes: the workspace modal fix (cd_p03_portal) and statement export wiring, which
 live in their owning modules.
 """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Portal",

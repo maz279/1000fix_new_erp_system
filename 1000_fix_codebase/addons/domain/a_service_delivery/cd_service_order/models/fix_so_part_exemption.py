@@ -198,7 +198,9 @@ class FixSoPartExemption(models.Model):
         gross = qty * (line.unit_price or 0.0)
         chargeable = est._chargeable_total()
         share = (est.discount or 0.0) * gross / chargeable if chargeable > _EPS else 0.0
-        return round((gross - share) * (1.0 + (est.vat_rate or 0.0) / 100.0), 2)
+        # X5-03: the line's own VAT rate (M51 per line), as the invoice charges it
+        rate = est._fix_line_vat_rates().get(line.id, est.vat_rate or 0.0)
+        return round((gross - share) * (1.0 + (rate or 0.0) / 100.0), 2)
 
     # ---- requester side ---------------------------------------------------
     @api.model

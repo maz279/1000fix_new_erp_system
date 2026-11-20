@@ -10,7 +10,7 @@ The largest single module in the programme. AS-06: state transitions declared
 in one place per model (DP-01). SLA computation lives in services/ so it is
 unit-testable without a database (AR-007 section 3.1).
 """,
-    "version": "19.0.2.3.2",
+    "version": "19.0.2.4.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Orders",
@@ -42,6 +42,9 @@ unit-testable without a database (AR-007 section 3.1).
         "data/fix_m01_handback_consumers.xml",
         "data/fix_sla_default_policy.xml",
         "data/fix_m01_lifecycle_cron.xml",
+        # A02 ERP audit pass 2: warranty / validity / uncollected parameters,
+        # the close and uncollected-reminder crons
+        "data/fix_m01_pass2_data.xml",
         "views/fix_service_order_views.xml",
         "views/fix_estimate_views.xml",
         "views/fix_fault_code_views.xml",
