@@ -49,9 +49,8 @@ GROUP_QUALITY_MANAGER = "cd_device_registry.group_device_quality_manager"
 SECURE_LOCATIONS = ("z4_lab", "cleanroom", "vault")
 # the consuming record's wipe-request source (M06-05)
 CONSUMER_SOURCES = {
-    "fix.tradein": ("m14_refurbishment",),
-    "fix.ewaste.lot": ("m18_recycling",),
-    "fix.ewaste.item": ("m18_recycling",),
+    "fix.tradein.request": ("m14_refurbishment",),
+    "fix.ewaste.collection": ("m18_recycling",),
 }
 STANDARDS = {
     "nist_800_88": "NIST SP 800-88 Rev. 1 - Clear",
