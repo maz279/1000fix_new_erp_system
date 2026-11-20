@@ -94,6 +94,20 @@ requests a per-order waiver -> it reaches the Certification Override Approver's 
 requester's -> approved -> the dispatcher dispatches from the screen (dispatch decision) -> the
 branch technician accepts, travels, arrives on GPS, works and completes.
 
+## Full regression, 21 Nov 2026 (shared HEAD 54c6f289)
+Every A02 module and its finance / people / fleet neighbours, plus the 13 A02 portal suites, on a
+fresh template at HEAD: **3,684 passed, 0 failed**, 83 skipped (82 by design: A02 screen models with
+no workflow-controlled fields have nothing for the guard checks to attack; 1 environmental: the local
+residency service returns synthetic ID numbers). Modules: cd_service_order, cd_warranty_claims,
+cd_front_desk, cd_front_desk_finance, cd_msp_contract, cd_workshop, cd_field_service,
+cd_device_registry, cd_consignment, cd_data_case, cd_billing_engine, cd_gl_ext, cd_tax_engine_bd,
+cd_cash_position, cd_settlement_ext, cd_subscription, cd_quotation, cd_competency,
+cd_vehicle_dispatch, cd_asset_workorder_spine. cd_cash_position passes on an up-to-date DB (the setup
+error another session saw came from a shared test DB behind HEAD, not from the code).
+Two earlier runs were cut short by shared-Postgres crashes on 20 Nov (10:43 and 13:00 UTC, under
+concurrent drops and test load from several sessions). After each recovery both ports served and
+all 132 A02 screens read on fix_real and fix_dev with 0 errors and 0 dropped columns.
+
 ## Still the business's to supply
 - **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
   the waiver above is the path, and it works end to end today.
