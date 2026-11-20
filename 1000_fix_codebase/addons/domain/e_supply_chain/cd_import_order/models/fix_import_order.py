@@ -544,7 +544,7 @@ class FixImportOrder(models.Model):
 
     def _import_pending_serial_receipts(self):
         self.ensure_one()
-        return self.serial_receipt_id.sudo().filtered(lambda r: r.state != "posted")
+        return self._import_receipts().filtered(lambda r: r.state != "posted")
 
     def _import_scope_key(self):
         """What an LC remittance of this import pays for (AP scope, D6)."""
