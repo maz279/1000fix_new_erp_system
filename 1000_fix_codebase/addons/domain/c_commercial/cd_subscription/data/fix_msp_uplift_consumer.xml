@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_subscription: an MSP device uplift (M05 msp.device_uplift) becomes the
+     M39 subscription's controlled price change (A02 ERP audit M05-F4 / O14). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_msp_device_uplift" model="fix.event.consumer">
+            <field name="name">M39: bill an MSP device uplift</field>
+            <field name="event_type">msp.device_uplift</field>
+            <field name="model">fix.subscription.msp.uplift</field>
+            <field name="method">consume_msp_device_uplift</field>
+            <field name="module">cd_subscription</field>
+        </record>
+    </data>
+</odoo>

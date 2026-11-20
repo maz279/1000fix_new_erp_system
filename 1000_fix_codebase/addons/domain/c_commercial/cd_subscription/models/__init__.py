@@ -10,3 +10,6 @@ from . import (
 
 # M39 capture audit (2026-11-19): extends the classes above, so it loads last.
 from . import fix_m39_capture
+
+# A02 ERP audit M05-F4 (2026-11-20): the MSP device-uplift consumer (independent)
+from . import fix_msp_uplift_billing
