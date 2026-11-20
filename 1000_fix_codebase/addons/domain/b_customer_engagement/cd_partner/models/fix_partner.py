@@ -9,6 +9,13 @@ class FixPartner(models.Model):
     """M40: a partner is a PARTY ROLE on M33."""
     _name = "fix.partner"
     _description = "Channel Partner"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M40",
+        "form": "Partner",
+        "fields": ["name", "partner_id", "partner_type", "commission_rate", "territory",
+                   "contract_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

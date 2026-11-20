@@ -22,6 +22,13 @@ class FixRateCard(models.Model):
 
     _name = "fix.rate.card"
     _description = "Rate Card"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M11",
+        "form": "Rate Card",
+        "fields": ["product_code", "line_type", "unit_price", "min_tier", "contract_no",
+                   "valid_from", "valid_to"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "product_code, min_tier"
     # Odoo 19 dropped the legacy constraint tuple list;

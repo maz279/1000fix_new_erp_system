@@ -7,6 +7,12 @@ from libs.py.fix_events import publish
 class FixRiskRegister(models.Model):
     _name = "fix.risk.register"
     _description = "Risk Register Entry"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M60",
+        "form": "Risk",
+        "fields": ["name", "category", "likelihood", "impact", "mitigation", "owner_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

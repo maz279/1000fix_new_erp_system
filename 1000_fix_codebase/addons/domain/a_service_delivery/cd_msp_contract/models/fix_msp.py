@@ -147,6 +147,13 @@ class FixRemoteSession(models.Model):
     consent capture — the session is lawful, or it does not start."""
     _name = "fix.remote.session"
     _description = "Remote Session"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M05",
+        "form": "Remote Session (consent recorded)",
+        "fields": ["msp_contract_id", "asset_id", "technician_id", "tool",
+                   "consent_captured", "started_at"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "started_at desc"
 

@@ -523,14 +523,16 @@ class TestP03DataCapture(unittest.TestCase):
         block = js[js.index("  M42: {"):js.index("  M43: {")]
         subs = re.findall(r"\['(\d+)', '[^']+', \d+\]", block)
         self.assertEqual(len(subs), 9)
-        m42 = self.map_js[self.map_js.index("M42: {"):self.map_js.index("SERVICE_ORDER_FORMS")]
+        start = self.map_js.index("M42: {")
+        m42 = self.map_js[start:self.map_js.index("\n  },\n", start)]
         for n in subs:
             self.assertRegex(m42, rf"'{n}': \[('[^']+',? ?)+\]", f"sub-module {n} has no form")
 
     def test_every_mapped_form_has_a_backing_model(self):
         """A capture button never ships without its model."""
         import re
-        m42 = self.map_js[self.map_js.index("M42: {"):self.map_js.index("SERVICE_ORDER_FORMS")]
+        start = self.map_js.index("M42: {")
+        m42 = self.map_js[start:self.map_js.index("\n  },\n", start)]
         forms = set(re.findall(r"\{ en: '([^']+)', bn:", m42))
         self.assertEqual(len(forms), 11)
         declared = set()
@@ -539,6 +541,28 @@ class TestP03DataCapture(unittest.TestCase):
             if "_p03_capture" in text:
                 declared.update(re.findall(r'"module": "M42",\s*"form": "([^"]+)"', text))
         self.assertFalse(forms - declared, f"forms without a model: {sorted(forms - declared)}")
+
+    def test_every_sub_mapped_form_in_every_module_has_a_backing_model(self):
+        """Across all modules: a sub-module capture button never ships
+        without the model that saves it (forms the registry lists but no
+        model backs stay 'not yet wired' and are not mapped)."""
+        import re
+        declared = set()
+        for py in (REPO / "addons").rglob("*.py"):
+            text = py.read_text(encoding="utf-8", errors="ignore")
+            for mod, form in re.findall(
+                    r'_p03_capture = \{\s*"module": "(M\d\d)",\s*"form": "([^"]+)"', text):
+                declared.add((mod, form))
+        body = self.map_js[self.map_js.index("export const P03_CAPTURE_MAP"):
+                           self.map_js.index("SERVICE_ORDER_FORMS")]
+        mapped = set()
+        for mod, block in re.findall(r"\n  (M\d\d): \{(.*?)\n  \},", body, re.S):
+            sub = block[block.index("sub:"):]
+            for form in re.findall(r"'((?:[^'\\]|\\.)+)'(?=[,\]])", sub):
+                if not re.fullmatch(r"\d+", form):
+                    mapped.add((mod, form.replace("\\'", "'")))
+        self.assertGreater(len(mapped), 60)
+        self.assertFalse(mapped - declared, f"mapped without a model: {sorted(mapped - declared)}")
 
     def test_form_buttons_do_not_open_the_service_order_intake(self):
         """The defect: every module's form chip opened the M01 intake modal."""

@@ -11,6 +11,12 @@ class FixTokenQueue(models.Model):
     """A token in the branch service queue."""
     _name = "fix.token.queue"
     _description = "Token Queue"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M04",
+        "form": "Token Issue",
+        "fields": ["branch_id", "service_type", "customer_id", "counter_number"],
+    }
     _inherit = ["mail.thread"]
     _order = "branch_id, token_number"
 

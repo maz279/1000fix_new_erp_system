@@ -10,6 +10,12 @@ STANDARD_DAY_HOURS = 8.0   # s.102 Labour Act context (48h/6 days)
 class FixShiftTemplate(models.Model):
     _name = "fix.shift.template"
     _description = "Shift Template"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M55",
+        "form": "Shift Pattern",
+        "fields": ["name", "start_hour", "end_hour"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "name"
 

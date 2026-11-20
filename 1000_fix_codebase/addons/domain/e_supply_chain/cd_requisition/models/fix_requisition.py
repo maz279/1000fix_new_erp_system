@@ -15,6 +15,12 @@ class FixPurchaseOrder(models.Model):
 
     _name = "fix.purchase.order"
     _description = "Purchase Order"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M16",
+        "form": "Purchase Order",
+        "fields": ["vendor_id", "date_order", "branch_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_order desc, id desc"
 
@@ -131,6 +137,12 @@ class FixRequisition(models.Model):
 
     _name = "fix.requisition"
     _description = "Requisition"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M16",
+        "form": "Purchase Requisition",
+        "fields": ["requested_by", "description", "urgency", "branch_id", "estimate_amount"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

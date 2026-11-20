@@ -61,6 +61,23 @@ def _bengali_lang(env):
     return None
 
 
+def fill_operating_unit(model, vals):
+    """AS-03: transactional models carry operating_unit_id. When a model
+    requires it, has no default and the form does not ask for it, use the
+    user's own default operating unit - what the OCA operating_unit
+    convention does in Odoo's own forms. Never another user's unit."""
+    field = model._fields.get("operating_unit_id")
+    if not field or not field.required or vals.get("operating_unit_id"):
+        return vals
+    if model.default_get(["operating_unit_id"]).get("operating_unit_id"):
+        return vals
+    unit = model.env.user._get_default_operating_unit() if hasattr(
+        model.env.user, "_get_default_operating_unit") else None
+    if unit:
+        vals["operating_unit_id"] = unit.id
+    return vals
+
+
 def _coerce(ftype, value):
     """Turn a JSON form value into an ORM write value (None = leave unset)."""
     if value in (None, ""):
@@ -199,6 +216,7 @@ class P03CaptureController(http.Controller):
         if missing:
             return {"success": False, "missing": missing,
                     "error": "Required: " + ", ".join(missing)}
+        fill_operating_unit(model, vals)
         try:
             with request.env.cr.savepoint():
                 record = model.create(vals)

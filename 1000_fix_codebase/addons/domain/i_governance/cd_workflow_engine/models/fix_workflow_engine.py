@@ -114,6 +114,12 @@ class FixApprovalMatrix(models.Model):
 
     _name = "fix.approval.matrix"
     _description = "Approval Authority Matrix"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M63",
+        "form": "Approval Chain",
+        "fields": ["decision_domain", "threshold", "approver_role", "notes"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)

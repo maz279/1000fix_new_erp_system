@@ -18,6 +18,12 @@ class FixTradeinRequest(models.Model):
     -> grading -> resale. The circular business's money path."""
     _name = "fix.tradein.request"
     _description = "Trade-In Request"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M14",
+        "form": "Trade-In Request",
+        "fields": ["customer_id", "device_id", "offered_value", "grade"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
@@ -152,6 +158,12 @@ class FixRefurbishment(models.Model):
     """A refurbishment step within a trade-in (composes the workshop)."""
     _name = "fix.refurbishment"
     _description = "Refurbishment"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M14",
+        "form": "Refurb Work Order",
+        "fields": ["name", "step", "tradein_id", "notes"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

@@ -10,6 +10,13 @@ class FixRentalReservation(models.Model):
     -> closed. Availability checked against overlapping reservations."""
     _name = "fix.rental.reservation"
     _description = "Rental Reservation"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M13",
+        "form": "Reservation",
+        "fields": ["customer_id", "date_from", "date_to", "contract_id", "device_id",
+                   "fixed_asset_id", "deposit_collected", "daily_rate"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_from desc"
 
@@ -128,6 +135,12 @@ class FixRentalDamage(models.Model):
     """Damage assessment line on a rental return."""
     _name = "fix.rental.damage"
     _description = "Rental Damage"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M13",
+        "form": "Damage Assessment",
+        "fields": ["reservation_id", "category", "description", "cost"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

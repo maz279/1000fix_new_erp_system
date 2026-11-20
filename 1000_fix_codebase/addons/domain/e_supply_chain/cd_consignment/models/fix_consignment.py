@@ -26,6 +26,13 @@ class FixConsignment(models.Model):
 
     _name = "fix.consignment"
     _description = "Consignment"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M03",
+        "form": "Consignment (5 types)",
+        "fields": ["consignment_type", "scheduled_date", "origin_branch_id",
+                   "dest_branch_id", "rider_id", "service_order_id", "purchase_order_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "scheduled_date desc, id desc"
 

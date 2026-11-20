@@ -14,6 +14,13 @@ class FixFeatureFlag(models.Model):
     """A feature flag: any new capability is disableable without deployment."""
     _name = "fix.feature.flag"
     _description = "Feature Flag"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M30",
+        "form": "Feature Flag",
+        "fields": ["key", "name", "scope", "enabled", "branch_ids", "default_for_new",
+                   "role_ids"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     # Odoo 19 dropped the legacy constraint tuple list;
     # models.Constraint attributes (migrated by tooling/scripts/migrate-sql-constraints.py)

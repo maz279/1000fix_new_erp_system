@@ -26,6 +26,13 @@ class FixMdmChangeRequest(models.Model):
     """
     _name = "fix.mdm.change.request"
     _description = "MDM Change Request"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M64",
+        "form": "Steward Request",
+        "fields": ["title", "model_name", "record_id", "priority", "description",
+                   "proposed_changes"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

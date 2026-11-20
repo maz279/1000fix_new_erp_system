@@ -28,6 +28,14 @@ class FixContract(models.Model):
 
     _name = "fix.contract"
     _description = "Contract"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M08",
+        "form": "Contract (14 families)",
+        "fields": ["name", "family", "customer_id", "date_start", "date_end",
+                   "annual_value", "escalation_pct", "auto_renew", "renewal_lead_days",
+                   "sla_policy_ids", "covered_device_ids"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_start desc, id desc"
     # Odoo 19 dropped the legacy constraint tuple list;
@@ -327,6 +335,12 @@ class FixContractPmVisit(models.Model):
 
     _name = "fix.contract.pm.visit"
     _description = "Preventive Maintenance Visit"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M08",
+        "form": "PM Schedule",
+        "fields": ["contract_id", "device_id", "scheduled_date"],
+    }
     _inherit = ["mail.thread"]
 
     contract_id = fields.Many2one("fix.contract", required=True, ondelete="cascade",

@@ -7,6 +7,13 @@ from libs.py.fix_events import publish
 class FixHseIncident(models.Model):
     _name = "fix.hse.incident"
     _description = "HSE Incident"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M59",
+        "form": "Incident Report",
+        "fields": ["incident_type", "severity", "description", "branch_id", "employee_id",
+                   "corrective_action"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,
@@ -47,6 +54,14 @@ class FixHseIncident(models.Model):
 class FixSafetyInspection(models.Model):
     _name = "fix.safety.inspection"
     _description = "Safety Inspection"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M47",
+        "form": "Safety Inspection",
+        "fields": ["name", "branch_id", "inspected_on", "inspector_id",
+                   "fire_extinguisher_ok", "emergency_exit_ok", "first_aid_ok",
+                   "electrical_ok", "findings"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

@@ -8,6 +8,13 @@ class FixEstimate(models.Model):
     """A repair estimate — parts + labour + total, sent for customer approval."""
     _name = "fix.estimate"
     _description = "Repair Estimate"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M36",
+        "form": "Estimate",
+        "fields": ["order_id", "version", "discount", "vat_rate", "expiry_date",
+                   "valid_days", "tender_ref"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "order_id, version desc"
 

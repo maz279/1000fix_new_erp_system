@@ -90,6 +90,12 @@ class FixStorefrontCartLine(models.Model):
 class FixStorefrontReturn(models.Model):
     _name = "fix.storefront.return"
     _description = "Storefront Return"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M38",
+        "form": "RMA Request",
+        "fields": ["name", "customer_id", "reason", "cart_id", "refund_amount"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

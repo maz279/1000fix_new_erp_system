@@ -16,6 +16,12 @@ class FixEwasteCollection(models.Model):
     destruction -> recycling -> disposal certificate)."""
     _name = "fix.ewaste.collection"
     _description = "E-Waste Collection"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M18",
+        "form": "Collection Booking",
+        "fields": ["customer_id", "material_type", "device_id", "weight_kg"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

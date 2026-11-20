@@ -12,6 +12,12 @@ class FixCashShift(models.Model):
     """A cash-drawer shift with opening/closing balances and reconciliation."""
     _name = "fix.cash.shift"
     _description = "Cash Shift"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M04",
+        "form": "Shift Open/Close",
+        "fields": ["branch_id", "shift_date", "shift_type", "operator_id", "opening_float"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "shift_date desc, branch_id"
 

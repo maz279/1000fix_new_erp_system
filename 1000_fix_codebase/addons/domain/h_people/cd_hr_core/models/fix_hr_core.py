@@ -181,6 +181,12 @@ class FixLeaveRequest(models.Model):
     """Leave and absence management on the statutory floors."""
     _name = "fix.leave.request"
     _description = "Leave Request"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M55",
+        "form": "Leave Request",
+        "fields": ["employee_id", "leave_type_id", "date_from", "date_to", "reason"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_from desc"
 

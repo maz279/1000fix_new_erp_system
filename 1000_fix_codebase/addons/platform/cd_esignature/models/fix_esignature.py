@@ -18,6 +18,12 @@ class FixEsignatureEnvelope(models.Model):
 
     _name = "fix.esignature.envelope"
     _description = "E-Signature Envelope"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M24",
+        "form": "Signature Envelope",
+        "fields": ["name", "document_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc, id desc"
 

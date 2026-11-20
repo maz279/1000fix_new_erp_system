@@ -9,6 +9,12 @@ class FixBudget(models.Model):
     consumes depreciation EVENTS; M49 never reads budgets."""
     _name = "fix.budget"
     _description = "Budget"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M54",
+        "form": "Budget Version",
+        "fields": ["name", "fiscal_year", "planned_amount"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

@@ -45,6 +45,14 @@ class FixWorkshopJob(models.Model):
     """
     _name = "fix.workshop.job"
     _description = "Workshop Repair Job"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M31",
+        "form": "Repair Order",
+        "fields": ["workshop_id", "repair_level", "fault_description", "priority",
+                   "name_bn", "order_id", "bench_id", "technician_id", "device_id",
+                   "device_serial"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "priority desc, create_date desc"
 

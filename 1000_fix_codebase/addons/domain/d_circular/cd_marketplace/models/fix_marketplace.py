@@ -18,6 +18,12 @@ class FixMarketplaceSeller(models.Model):
     both customer and seller roles simultaneously."""
     _name = "fix.marketplace.seller"
     _description = "Marketplace Seller"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M12",
+        "form": "Seller Application",
+        "fields": ["name", "partner_id", "kyc_status", "kyc_ref"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

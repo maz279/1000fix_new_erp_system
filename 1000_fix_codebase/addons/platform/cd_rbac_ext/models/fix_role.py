@@ -12,6 +12,12 @@ class FixRole(models.Model):
     """
     _name = "fix.role"
     _description = "Business Role"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M29",
+        "form": "Role",
+        "fields": ["code", "name", "name_bn", "description", "tier_ids"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
     # Odoo 19 dropped the legacy constraint tuple list;

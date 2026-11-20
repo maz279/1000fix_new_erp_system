@@ -17,6 +17,14 @@ class FixDevice(models.Model):
     """
     _name = "fix.device"
     _description = "Device"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M17",
+        "form": "Asset (6 identifiers)",
+        "fields": ["device_model_id", "lifecycle_stage", "serial_number", "imei_1",
+                   "imei_2", "mac_address", "legacy_reference", "owner_id",
+                   "purchase_date", "purchase_channel", "branch_id", "end_of_support_date"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

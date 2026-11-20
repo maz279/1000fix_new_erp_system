@@ -66,6 +66,12 @@ class FixWarehouseBin(models.Model):
 
     _name = "fix.warehouse.bin"
     _description = "Warehouse Bin"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M41",
+        "form": "Bin",
+        "fields": ["zone_id", "name", "barcode", "capacity_qty"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     zone_id = fields.Many2one("fix.warehouse.zone", required=True, ondelete="cascade")

@@ -22,6 +22,14 @@ class FixSubscription(models.Model):
 
     _name = "fix.subscription"
     _description = "Subscription"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M39",
+        "form": "Subscription",
+        "fields": ["name", "customer_id", "plan", "billing_cycle", "recurring_amount",
+                   "start_date", "next_invoice_date", "contract_id", "grace_period_days",
+                   "consolidated"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "next_invoice_date, id desc"
 

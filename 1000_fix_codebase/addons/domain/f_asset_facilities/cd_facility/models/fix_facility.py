@@ -7,6 +7,13 @@ from libs.py.fix_events import publish
 class FixSite(models.Model):
     _name = "fix.site"
     _description = "Site / Facility"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M47",
+        "form": "Site",
+        "fields": ["name", "site_type", "branch_id", "address", "floor_area_sqm",
+                   "lease_start", "lease_end", "monthly_rent"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,
@@ -36,6 +43,13 @@ class FixSite(models.Model):
 class FixFacilityWorkOrder(models.Model):
     _name = "fix.facility.work.order"
     _description = "Facility Work Order"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M47",
+        "form": "Facility Work Order",
+        "fields": ["name", "site_id", "work_type", "description", "assigned_to",
+                   "scheduled_date", "estimated_cost"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

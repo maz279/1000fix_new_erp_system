@@ -8,6 +8,13 @@ from libs.py.fix_events import publish
 class FixEquipment(models.Model):
     _name = "fix.equipment"
     _description = "Test Equipment"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M45",
+        "form": "Equipment",
+        "fields": ["code", "name", "category", "maintenance_equipment_id", "custodian_id",
+                   "branch_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
 
@@ -59,6 +66,13 @@ class FixCalibration(models.Model):
     """The M31-deferred capability, delivered (P08-M08-T02)."""
     _name = "fix.calibration"
     _description = "Calibration"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M45",
+        "form": "Calibration Record",
+        "fields": ["equipment_id", "calibrated_on", "standard_ref", "result", "next_due",
+                   "performed_by"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "calibrated_on desc"
 

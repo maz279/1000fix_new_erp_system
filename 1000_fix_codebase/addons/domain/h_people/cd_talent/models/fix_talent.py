@@ -8,6 +8,12 @@ class FixJobRequisition(models.Model):
     """M58: talent acquisition. The joiner event drives M29 provisioning."""
     _name = "fix.job.requisition"
     _description = "Job Requisition"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M58",
+        "form": "Requisition",
+        "fields": ["name", "openings", "department_id", "position_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,
@@ -35,6 +41,12 @@ class FixJobRequisition(models.Model):
 class FixCandidate(models.Model):
     _name = "fix.candidate"
     _description = "Candidate"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M58",
+        "form": "Candidate",
+        "fields": ["name", "email", "phone", "requisition_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,
