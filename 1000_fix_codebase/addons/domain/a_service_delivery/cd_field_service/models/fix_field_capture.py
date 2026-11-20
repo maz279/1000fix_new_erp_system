@@ -54,6 +54,10 @@ EVIDENCE_RADIUS_M = 1000.0
 # a pause is a break or the end of a duty day, not a way to go dark for days
 MAX_PAUSE_HOURS = 14
 FINANCE_GROUP = "account.group_account_manager"
+# A02 ERP audit pass 2 M02-12 (D21): the fee for a visit wasted by the
+# customer (absent / no access). Default 0 = off; a dispatcher can waive it.
+WASTED_VISIT_FEE_PARAM = "cd_field_service.wasted_visit_fee_bdt"
+WASTED_TYPES = ("customer_absent", "no_access")
 
 
 def _is_dispatcher(env):
@@ -822,6 +826,11 @@ class FixFieldVisitException(models.Model):
     latitude = fields.Float(string="Latitude", digits=(10, 7), required=True)
     longitude = fields.Float(string="Longitude", digits=(10, 7), required=True)
     distance_from_site_m = fields.Float(string="Distance From Site (m)", readonly=True)
+    # A02 ERP audit pass 2 M02-12 (D21): the wasted-visit fee and its waiver
+    wasted_fee_bdt = fields.Float(string="Wasted-Visit Fee (BDT)", readonly=True)
+    fee_waived_by_id = fields.Many2one("res.users", string="Fee Waived By", readonly=True)
+    fee_waive_reason = fields.Text(string="Fee Waiver Reason", readonly=True)
+    zone_id = fields.Many2one("fix.zone", string="Zone", readonly=True, index=True)
     recorded_by_id = fields.Many2one(
         "res.users", string="Recorded By", readonly=True, default=lambda self: self.env.user
     )
@@ -856,8 +865,22 @@ class FixFieldVisitException(models.Model):
             if not (-90 <= lat <= 90 and -180 <= lon <= 180) or (lat == 0 and lon == 0):
                 raise UserError("BRU-FSM-09: that is not a real position.")
             distance = 0.0
+            # A02 ERP audit pass 2 M02-05: the site is the order's position,
+            # else where the technician checked in. With neither the evidence
+            # proves nothing: a dispatcher waives the check for the order.
+            site = None
             if order.latitude or order.longitude:
-                distance = _haversine_m(lat, lon, order.latitude, order.longitude)
+                site = (order.latitude, order.longitude)
+            elif order.arrival_latitude or order.arrival_longitude:
+                site = (order.arrival_latitude, order.arrival_longitude)
+            elif not order.geofence_waived_by:
+                raise UserError(
+                    "BRU-FSM-09: %s has no site position to check the evidence against. Ask "
+                    "a dispatcher to set the order's coordinates or to waive the check."
+                    % order.name
+                )
+            if site:
+                distance = _haversine_m(lat, lon, site[0], site[1])
                 if distance > EVIDENCE_RADIUS_M:
                     raise UserError(
                         "BRU-FSM-09: the evidence was taken %.0f m from the customer's site; it "
@@ -873,6 +896,8 @@ class FixFieldVisitException(models.Model):
                     "recorded_at": fields.Datetime.now(),
                     "company_id": order.company_id.id,
                     "operating_unit_id": order.operating_unit_id.id,
+                    "zone_id": order.zone_id.id,
+                    "wasted_fee_bdt": self._fix_wasted_fee(vals.get("exception_type")),
                     "name": self.env["ir.sequence"].sudo().next_by_code("fix.field.visit.exception")
                     or "/",
                 }
@@ -881,19 +906,35 @@ class FixFieldVisitException(models.Model):
         for rec in records:
             order = rec.field_order_id
             # back to the dispatch queue for the follow-up the dispatcher
-            # arranges; the visit's own times are kept on this record's chatter
+            # arranges; the visit's own times are kept on this record's chatter.
+            # A02 ERP audit pass 2 M02-07: the visit's evidence goes with it -
+            # the revisit's completion needs its OWN sign-off and photos (the
+            # first visit's signature and photo completed the revisit).
             order._guarded().write(
                 {
                     "state": "pending_dispatch",
                     "technician_id": False,
+                    "van_location_id": False,
                     "dispatched_at": False,
                     "accepted_at": False,
                     "en_route_at": False,
                     "arrived_at": False,
+                    "started_work_at": False,
+                    "arrival_latitude": 0.0,
+                    "arrival_longitude": 0.0,
                     "geofence_waived_by": False,
                     "geofence_waive_reason": False,
+                    "customer_otp_verified": False,
+                    "customer_signature_attachment_id": False,
+                    "customer_signature_signer": False,
+                    "customer_signature_sha256": False,
+                    "customer_signature_at": False,
+                    "pre_work_photo_attachment_id": False,
+                    "post_work_photo_attachment_id": False,
+                    "dispatch_requested_at": fields.Datetime.now(),
                 }
             )
+            rec._fix_apply_follow_up()
             order.message_post(
                 body="Failed visit %s by %s: %s (%s). Follow-up: %s."
                 % (
@@ -922,6 +963,92 @@ class FixFieldVisitException(models.Model):
         _immutable(self, "A failed visit")
         return super().write(vals)
 
+    @api.model
+    def _fix_wasted_fee(self, exception_type):
+        """D21: the configured fee for a visit the customer wasted (0 = off)."""
+        if exception_type not in WASTED_TYPES:
+            return 0.0
+        raw = self.env["ir.config_parameter"].sudo().get_param(WASTED_VISIT_FEE_PARAM, "0")
+        try:
+            fee = float(raw or 0.0)
+        except (TypeError, ValueError):
+            return 0.0
+        return round(fee, 2) if math.isfinite(fee) and fee > 0 else 0.0
+
+    def action_waive_fee(self, reason=None):
+        """D21: a dispatcher waives the wasted-visit fee, with a reason."""
+        _require_dispatcher(self.env, "Waiving a wasted-visit fee")
+        reason = (reason or "").strip()
+        if not reason:
+            raise UserError("Give the reason for waiving the fee.")
+        for rec in self:
+            if rec.wasted_fee_bdt <= 0:
+                raise UserError("%s carries no wasted-visit fee." % rec.name)
+            if rec.fee_waived_by_id:
+                raise UserError("The fee of %s is already waived." % rec.name)
+            rec.sudo().write({"fee_waived_by_id": self.env.uid, "fee_waive_reason": reason})
+            rec.field_order_id.message_post(
+                body="Wasted-visit fee BDT %.2f of %s waived by %s: %s"
+                % (rec.wasted_fee_bdt, rec.name, self.env.user.name, reason)
+            )
+        return True
+
+    def _fix_apply_follow_up(self):
+        """A02 ERP audit pass 2 M02-06: the follow-up is acted on. Convert to
+        pick-up, and transfer to the workshop (which needs the device in the
+        shop), close the field order and hand the service order to logistics
+        for a pickup leg (M03); the workshop transfer is also flagged on the
+        service order and announced for the workshop (M31). A revisit or a
+        revised estimate waits in the dispatch queue as before."""
+        self.ensure_one()
+        if self.follow_up not in ("convert_collection", "workshop_transfer"):
+            return
+        order = self.field_order_id
+        so = order.order_id.sudo()
+        label = dict(self._fields["follow_up"].selection)[self.follow_up]
+        order._guarded().write(
+            {
+                "state": "cancelled",
+                "cancel_reason": "%s after failed visit %s" % (label, self.name),
+            }
+        )
+        flags = {"field_pickup_requested": True}
+        if self.follow_up == "workshop_transfer":
+            flags["field_workshop_transfer"] = True
+            publish(
+                self.env,
+                "field.workshop_transfer_requested",
+                "fix.field.visit.exception",
+                self.id,
+                {
+                    "service_order_id": so.id,
+                    "field_order_id": order.id,
+                    "reason": self.reason,
+                },
+            )
+        so._guarded().write(flags)
+        make_leg = getattr(so, "action_create_consignment", None)
+        if make_leg is None:
+            order.message_post(
+                body="%s: logistics (M03) is not installed; arrange the pickup." % label
+            )
+            return
+        live = so.consignment_ids.filtered(
+            lambda c: c.state not in ("delivered", "returned", "lost")
+        )
+        if live:
+            return
+        try:
+            with self.env.cr.savepoint():
+                legs = make_leg()
+        except (UserError, ValidationError) as exc:
+            order.message_post(body="%s: the pickup leg was not raised (%s)." % (label, exc))
+            return
+        order.message_post(
+            body="%s: pickup leg %s raised for %s."
+            % (label, ", ".join(legs.mapped("name")), so.name)
+        )
+
 
 class FixFieldOrderVisits(models.Model):
     _inherit = "fix.field.order"
@@ -949,6 +1076,7 @@ class FixFieldCashRecon(models.Model):
 
     _name = "fix.field.cash.recon"
     _description = "Field Cash Reconciliation"
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "recon_date desc, id desc"
     company_id = fields.Many2one(
         "res.company",
@@ -1022,11 +1150,13 @@ class FixFieldCashRecon(models.Model):
         self.ensure_one()
         start, end = _local_day_bounds(self.env, self.recon_date)
         FieldOrder = self.env["fix.field.order"].sudo()
+        # A02 ERP audit pass 2 M02-02: a job cancelled after it took cash
+        # (before cancelling such a job was refused) still holds that cash
         cash = [
             ("technician_id", "=", self.employee_id.id),
             ("onsite_payment_method", "=", "cash"),
             ("onsite_collection_amount", ">", 0),
-            ("state", "=", "completed"),
+            ("state", "in", ("completed", "cancelled")),
         ]
         today = FieldOrder.search(
             [*cash, ("completed_at", ">=", start), ("completed_at", "<", end)],
@@ -1138,3 +1268,36 @@ class FixFieldCashRecon(models.Model):
                     "confirmed_at": fields.Datetime.now(),
                 }
             )
+            rec._fix_book_shortage()
+
+    shortage_booked = fields.Boolean(string="Shortage Booked", readonly=True, copy=False)
+
+    def _fix_book_shortage(self):
+        """A02 ERP audit pass 2 M02-11 (D20): a confirmed count short of the
+        cash the jobs say the technician holds is booked like the rider COD
+        shortage (recovered through payroll), by the finance method
+        ``_fix_book_field_cash_shortage(recon, amount)``. Without it the
+        shortage is put to finance as a to-do; it is never dropped."""
+        self.ensure_one()
+        shortage = round(-(self.variance or 0.0), 2)
+        if shortage <= 0.005 or self.shortage_booked:
+            return False
+        booker = None
+        for model in ("fix.field.cash.recon", "fix.cash.shift"):
+            if model in self.env and hasattr(self.env[model], "_fix_book_field_cash_shortage"):
+                booker = self.env[model].sudo()
+                break
+        if booker is not None:
+            booker._fix_book_field_cash_shortage(self, shortage)
+            self.sudo().write({"shortage_booked": True})
+            return True
+        group = self.env.ref(FINANCE_GROUP, raise_if_not_found=False)
+        for user in group.sudo().all_user_ids.filtered(lambda u: u.active) if group else []:
+            self.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Field cash shortage: %s" % self.name,
+                note="%s is short BDT %.2f on %s (%s). Book it for payroll recovery (D20)."
+                % (self.employee_id.name, shortage, self.recon_date, self.variance_reason or ""),
+                user_id=user.id,
+            )
+        return False

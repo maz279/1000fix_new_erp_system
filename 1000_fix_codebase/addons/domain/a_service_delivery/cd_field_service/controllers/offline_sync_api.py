@@ -401,6 +401,11 @@ class OfflineSyncApiController(http.Controller):
                 "Part product %s not found in inventory"
                 % (payload.get("product_id") or payload.get("barcode") or "(none given)"),
             )
+        # A02 ERP audit pass 2 M02-04 (D5): refused before any line or M15
+        # issue exists when the approved estimate does not cover the part
+        problem = order._fix_part_estimate_problem(prod, qty)
+        if problem:
+            return "rejected", {}, problem
         line = env["fix.field.order.part"].create(
             {
                 "field_order_id": order.id,

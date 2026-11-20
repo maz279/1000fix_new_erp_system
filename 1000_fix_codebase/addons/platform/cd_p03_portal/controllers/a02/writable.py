@@ -100,6 +100,7 @@ WRITABLE = {
             "volumetric_divisor",
             "waybill_attachment_id",
             "width_cm",
+            "zone_id",
         }
     ),
     "fix.counter.basket": frozenset(
@@ -488,6 +489,16 @@ WRITABLE = {
             "geofence_type",
             "geometry_json",
             "name",
+            "zone_id",
+        }
+    ),
+    "fix.logistics.tariff": frozenset(
+        {
+            "active",
+            "charge_bdt",
+            "consignment_type",
+            "weight_from_kg",
+            "weight_to_kg",
             "zone_id",
         }
     ),

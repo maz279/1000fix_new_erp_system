@@ -365,23 +365,58 @@ class P03A02FieldServiceReport(models.AbstractModel):
             {"title": "Work carried out", "rows": [("Summary", fo.work_summary or "")]},
         ]
         parts = fo.part_line_ids
+        # A02 ERP audit pass 2 M02-14: the customer's report shows what each
+        # fitted part is charged at - the approved estimate's price (the cost
+        # of a part is not its price)
+        estimate = (
+            order._fix_governing_estimate().filtered(lambda e: e.state == "approved")
+            if order
+            else None
+        )
+        prices = {}
+        for ln in estimate.line_ids if estimate else []:
+            prices.setdefault(ln.product_id.id, ln.unit_price)
+        rows = []
+        for i, line in enumerate(parts, 1):
+            price = prices.get(line.product_id.id)
+            rows.append(
+                [
+                    i,
+                    line.part_number or line.product_id.default_code or "",
+                    line.product_id.name or "",
+                    line.lot_serial_number or "",
+                    fmt_qty(line.quantity),
+                    fmt_money(price) if price is not None else "-",
+                    fmt_money(price * line.quantity) if price is not None else "-",
+                    _label(line, "state"),
+                ]
+            )
         p["tables"] = [
             {
                 "title": "Parts fitted",
-                "cols": ["SL", "Part No.", "Description", "Serial / Lot", "Qty", "Status"],
-                "rows": [
-                    [
-                        i,
-                        line.part_number or line.product_id.default_code or "",
-                        line.product_id.name or "",
-                        line.lot_serial_number or "",
-                        fmt_qty(line.quantity),
-                        _label(line, "state"),
-                    ]
-                    for i, line in enumerate(parts, 1)
+                "cols": [
+                    "SL",
+                    "Part No.",
+                    "Description",
+                    "Serial / Lot",
+                    "Qty",
+                    "Unit Price (BDT)",
+                    "Amount (BDT)",
+                    "Status",
                 ],
+                "rows": rows,
             }
         ]
+        if estimate:
+            p["blocks"].append(
+                {
+                    "title": "Charges",
+                    "rows": [
+                        ("Approved Estimate", estimate.display_name or ""),
+                        ("Estimate Total incl. VAT (BDT)", fmt_money(estimate.grand_total)),
+                    ],
+                }
+            )
         signoff = [
             ("Handover OTP Verified", "Yes" if fo.customer_otp_verified else "No"),
             ("Signed By", fo.customer_signature_signer or ""),
@@ -393,8 +428,28 @@ class P03A02FieldServiceReport(models.AbstractModel):
                 ("Collected On Site (BDT)", fmt_money(fo.onsite_collection_amount)),
                 ("Payment Method", _label(fo, "onsite_payment_method")),
                 ("TrxID", fo.onsite_payment_trx_id or ""),
+                ("On-Site Receipt No.", fo.onsite_receipt_no or ""),
             ]
         p["blocks"].append({"title": "Customer sign-off", "rows": signoff})
+        p["notes"].append(
+            "Customer declaration: the work above was carried out at my premises, the device "
+            "was tested in my presence and handed back working, and the parts listed were "
+            "fitted. Parts removed were returned to me or taken away with my consent."
+        )
+        signature = fo.customer_signature_attachment_id.sudo()
+        if signature and signature.datas and (signature.mimetype or "").startswith("image/"):
+            p["images"] = [
+                {
+                    "title": "Customer signature (%s)" % (fo.customer_signature_signer or ""),
+                    "src": "data:%s;base64,%s"
+                    % (
+                        signature.mimetype,
+                        signature.datas.decode()
+                        if isinstance(signature.datas, bytes)
+                        else signature.datas,
+                    ),
+                }
+            ]
         p["sign"] = ["Customer — signature & date", "Field Engineer"]
         return p
 
@@ -407,9 +462,24 @@ class P03A02ConsignmentNote(models.AbstractModel):
 
     _doc_model = "fix.consignment"
 
+    # A02 ERP audit pass 2 M02-14: the declared-value band a courier or
+    # rider handles the parcel under
+    _VALUE_BANDS = (
+        (5000, "up to BDT 5,000"),
+        (20000, "BDT 5,001-20,000"),
+        (50000, "BDT 20,001-50,000"),
+    )
+
+    def _value_band(self, value):
+        for ceiling, label in self._VALUE_BANDS:
+            if (value or 0.0) <= ceiling:
+                return label
+        return "above BDT 50,000 (high value)"
+
     def _payload(self, cons):
         p = self._base(cons, "DELIVERY NOTE / WAYBILL", _label(cons, "state").upper())
         order = cons.service_order_id
+        p["qr"] = cons.name or ""
         p["party_label"] = "Deliver To"
         if cons.dest_branch_id:
             p["bill_to"] = {"name": cons.dest_branch_id.name}
@@ -427,6 +497,21 @@ class P03A02ConsignmentNote(models.AbstractModel):
             ("Rider", cons.rider_id.name or ""),
             ("Vehicle", cons.vehicle_registration or ""),
         ]
+        bookings = (
+            self.env["fix.courier.booking"].sudo().search([("consignment_id", "=", cons.id)])
+            if "fix.courier.booking" in self.env
+            else []
+        )
+        awbs = ", ".join(b.awb_no for b in bookings if b.awb_no)
+        if awbs:
+            p["meta"].append(("AWB / Tracking No.", awbs))
+        if cons.consignment_type == "pickup" and order.customer_id:
+            p["meta"].append(("Pickup From", self._party(order.customer_id)["address"] or ""))
+        cod = getattr(cons, "cod_amount", 0.0) or 0.0
+        p["meta"].append(
+            ("Amount To Collect (BDT)", fmt_money(cod) if cod > 0.005 else "Nothing (prepaid)")
+        )
+        p["meta"].append(("Value Band", self._value_band(cons.declared_value_bdt)))
         device = order.device_id
         p["lines"] = []
         if order:
