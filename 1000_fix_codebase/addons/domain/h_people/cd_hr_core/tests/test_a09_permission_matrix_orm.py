@@ -48,8 +48,12 @@ SELF_SERVICE = [
     # M58 capture: the induction's conductor records the session (write only,
     # no create; global rule: sessions they conduct).
     "fix.onboarding.induction",
+]
+
+# Self-service that is CREATE-only: submitted by the worker, never edited after.
+SELF_SERVICE_CREATE_ONLY = [
     # M22 capture pass 2 (FR-LMS-036, fix_a09_m22_capture2_rules.xml): a
-    # participant gives feedback on their own training (create only).
+    # participant gives feedback on their own training.
     "fix.training.feedback",
 ]
 
@@ -127,6 +131,15 @@ def test_the_self_service_surface_stays_open(plain_user, model):
     plain_user[model].check_access("write")  # must not raise
 
 
+@pytest.mark.parametrize("model", SELF_SERVICE_CREATE_ONLY)
+def test_the_create_only_self_service_stays_create_only(plain_user, model):
+    if model not in plain_user:
+        pytest.skip(f"{model} not installed")
+    plain_user[model].check_access("create")  # must not raise
+    with pytest.raises(AccessError):
+        plain_user[model].check_access("write")
+
+
 @pytest.mark.parametrize("group,models", sorted(ROLE_FOR.items()))
 def test_the_owning_role_group_can_write(odoo_env, group, models):
     user = odoo_env["res.users"].create(
@@ -195,6 +208,7 @@ def test_no_a09_model_outside_the_self_service_set_is_writable_by_base_group_use
     offenders = sorted(
         r.model_id.model
         for r in rows
-        if r.model_id.model.startswith(a09_prefixes) and r.model_id.model not in SELF_SERVICE
+        if r.model_id.model.startswith(a09_prefixes)
+        and r.model_id.model not in SELF_SERVICE + SELF_SERVICE_CREATE_ONLY
     )
     assert offenders == [], f"A09 models writable by any internal user: {offenders}"
