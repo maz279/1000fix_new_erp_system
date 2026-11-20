@@ -2368,3 +2368,74 @@ body:has(.p03-workspace-root) .o_action_manager {
   }
 }
 
+
+// ---------------------------------------------------------------------
+// Data capture — per-sub-module capture buttons on the Function Register
+// and the registry-discovered capture modal (/p03/capture/*).
+// ---------------------------------------------------------------------
+.p03-workspace-root {
+  .freg-grid .freg-tile {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    .freg-item { width: 100%; }
+  }
+  .freg-capture {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding-left: 4px;
+  }
+  .freg-capture-btn {
+    font-size: 11px;
+    line-height: 1.4;
+    padding: 2px 8px;
+    border: 1px solid var(--primary);
+    border-radius: var(--r-pill);
+    color: var(--primary);
+    background: var(--surface);
+    cursor: pointer;
+    &:hover, &:focus-visible { background: var(--primary-wash); }
+    &:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+  }
+  .freg-capture-btn.unwired,
+  .form-chip.unwired {
+    border-style: dashed;
+    border-color: var(--stroke-strong);
+    color: var(--ink-500);
+  }
+  .form-chip .chip { margin-left: 6px; }
+}
+
+.modal-scrim .capture-dialog {
+  .modal-body {
+    .fld.invalid {
+      input, select, textarea { border-color: var(--err-bold); background: var(--err-bg); }
+      span { color: var(--err); }
+    }
+    .fld.fld-check {
+      flex-direction: row-reverse;
+      justify-content: flex-end;
+      align-items: center;
+      input { height: 16px; width: 16px; }
+    }
+    .fld select[multiple] { height: auto; min-height: 84px; padding: 4px; }
+    .fld .capture-search { height: 28px; font-size: 11px; }
+  }
+  .capture-error {
+    margin-top: 10px;
+    padding: 8px 12px;
+    border: 1px solid var(--err-border);
+    border-radius: var(--r-ctl);
+    background: var(--err-bg);
+    color: var(--err);
+    font-size: 12px;
+  }
+  .capture-empty, .capture-done {
+    padding: 12px 14px;
+    border-radius: var(--r-ctl);
+    background: var(--surface-2);
+    p { margin: 0 0 6px; font-size: 13px; }
+  }
+  .capture-done { background: var(--ok-bg); border: 1px solid var(--ok-border); }
+}
