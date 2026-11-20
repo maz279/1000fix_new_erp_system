@@ -247,10 +247,10 @@ def test_estimate_vat_rate_is_the_statutory_rate_not_a_typed_one(w, p03_write):
     assert est.grand_total == pytest.approx(1000 * (1 + std / 100))
     # the form posts the rate it shows: writing the value it has is no change
     est.with_user(w.clerk).write({"vat_rate": std, "diagnostic_notes": "saved from the form"})
-    # a commercial approver applies a zero / scheduled rate, never an invented one
+    # A02 pass 2 (X5-03, D23): nobody types a rate, a commercial approver
+    # included: a zero-rated or reduced item is set up on its M51 tariff
     assert attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 3.33}))
-    est.with_user(w.approver).write({"vat_rate": 0.0})
-    assert est.grand_total == 1000.0
+    assert "M51" in attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 0.0}))
 
 
 def test_estimate_vat_rate_follows_the_tax_rate_master(w):
@@ -260,17 +260,17 @@ def test_estimate_vat_rate_follows_the_tax_rate_master(w):
     in_force = SimpleNamespace(standard=Decimal("17.5"), reduced=frozenset({Decimal("5")}))
     with mock.patch.object(type(Rate), "_fix_vat_rates", lambda self, *a, **k: in_force):
         est = estimate(w, order(w), 1000)
-        assert est.vat_rate == 17.5 and est.grand_total == 1175.0
+        assert est.vat_rate == 17.5
         assert attempt(w, lambda: est.with_user(w.clerk).write({"vat_rate": 15.0}))
         assert attempt(w, lambda: est.with_user(w.clerk).write({"vat_rate": 5.0}))
-        est.with_user(w.approver).write({"vat_rate": 5.0})  # a scheduled reduced rate
-        assert est.grand_total == 1050.0
+        # A02 pass 2 (D23): a scheduled reduced rate is M51's tariff, not typed
+        assert attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 5.0}))
 
 
 def test_a_revision_keeps_the_rate_the_estimate_already_carries(w):
     o = to_estimating(order(w))
     est = estimate(w, o, 1000)
-    est.with_user(w.approver).write({"vat_rate": 0.0})
+    est._guarded().write({"vat_rate": 0.0})  # a rate carried from before D23
     est.with_user(w.clerk).action_send()
     v2 = w.env["fix.estimate"].browse(est.with_user(w.clerk).action_revise()["res_id"])
     assert v2.vat_rate == 0.0  # carried, not re-typed: the clerk changed nothing

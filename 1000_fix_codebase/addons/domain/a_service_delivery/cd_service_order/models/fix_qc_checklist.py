@@ -197,6 +197,14 @@ class FixQC(models.Model):
         for rec in self:
             if rec.state in _DONE:
                 raise UserError("This QC checklist is already %s." % rec.state)
+            # A02 pass 2 (M01-09): an inspection completed before the repair
+            # reached QC (round 0) opened Ready later. The release inspection
+            # is completed only while the order is in QC Pending.
+            if not self.env.su and rec.order_id and rec.order_id.state != "qc_pending":
+                raise UserError(
+                    "Order %s is %s: its QC inspection is completed once the repair is submitted "
+                    "to QC (QC Pending)." % (rec.order_id.name, rec.order_id.state)
+                )
             rec._fix_items_from_stages()
             if not rec.item_ids:
                 raise ValidationError(

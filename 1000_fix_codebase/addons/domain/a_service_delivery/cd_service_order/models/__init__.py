@@ -49,3 +49,9 @@ from . import fix_fault_taxonomy
 # B2B credit release. Overrides methods of fix_service_order, so it imports
 # LAST. Keep it last.
 from . import fix_so_settlement_ext
+
+# isort: split
+# A02 ERP audit pass 2 (20 Nov 2026): supervisor corrections, the close and
+# uncollected-device crons, the on-site completion (D4) and the M15 part
+# reservation. Reads the settlement rules above, so it imports after them.
+from . import fix_so_a02r2

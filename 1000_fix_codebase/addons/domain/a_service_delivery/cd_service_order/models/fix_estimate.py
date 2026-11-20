@@ -39,6 +39,10 @@ _ORDER_FINISHED_STATES = ("delivered", "closed", "cancelled")
 # used only where no Tax Rate Master (M51, cd_tax_engine_bd) can answer.
 _COMMERCIAL_APPROVER_GROUP = "cd_service_order.group_so_commercial_approver"
 _FALLBACK_VAT_RATE = 15.0
+# A02 pass 2 (M01-08, owner decision D12): an estimate is valid this many
+# days from sending (BRU-SRM-13); the date is set at send and then locked.
+VALIDITY_DAYS_PARAM = "cd_service_order.estimate_validity_days"
+VALIDITY_DAYS_DEFAULT = 15
 # In-process token (an object, which an RPC caller cannot put in the context):
 # lets a revision carry the rate its estimate already has.
 _VAT_CARRY_KEY = "fix_estimate_vat_carry"
@@ -100,9 +104,11 @@ class FixEstimate(models.Model):
         if self and any(e.state in _DECIDED_STATES for e in self):
             # An approved (or rejected/expired) estimate is frozen: revise it.
             locked |= _PRICED_FIELDS | {"signed_estimate_attachment_id", "expiry_date"}
-        if not (self.env.su or self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP)):
-            # shown, not typed: the server refuses any other rate anyway
-            locked.add("vat_rate")
+        if self and any(e.state != "draft" for e in self):
+            # M01-08: the validity is set when the estimate is sent
+            locked.add("expiry_date")
+        # X5-03 (D23): the VAT is M51's, per line; the header rate is shown only
+        locked.add("vat_rate")
         return locked
 
     # Discount authority, in percent of the chargeable total. The discount
@@ -437,20 +443,28 @@ class FixEstimate(models.Model):
         return _FALLBACK_VAT_RATE, set()
 
     def _fix_assert_vat_rate(self, rate, company=None) -> None:
-        standard, scheduled = self._fix_vat_rates_in_force(company)
+        """X5-03 (owner decision D23): the M51 Tax Rate Master decides the
+        VAT, line by line (cd_billing_engine computes the estimate's VAT the
+        way the invoice will). A typed header rate - a commercial approver's
+        zero or reduced rate - made the estimate and the Mushak 6.3 differ,
+        so the customer settled one amount and was invoiced another. The
+        header shows the standard rate in force and takes no other value."""
+        standard, _scheduled = self._fix_vat_rates_in_force(company)
         rate = float(rate or 0.0)
         if abs(rate - standard) < 1e-6:
             return
-        allowed = sorted(scheduled | {0.0})
-        if self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP) and any(
-            abs(rate - other) < 1e-6 for other in allowed
-        ):
-            return
         raise UserError(
-            "VAT rate %g%% cannot be set on an estimate: the standard VAT rate in force "
-            "is %g%%. Only a Service Commercial Approver applies a zero or scheduled "
-            "reduced rate (%s)." % (rate, standard, " / ".join("%g%%" % r for r in allowed))
+            "VAT rate %g%% cannot be set on an estimate: VAT is determined per line by the "
+            "M51 Tax Rate Master (standard rate in force: %g%%). A zero-rated or reduced "
+            "item is set up on its tariff in M51, and the estimate follows it." % (rate, standard)
         )
+
+    def _fix_line_vat_rates(self) -> dict:
+        """{line id: VAT rate %} the estimate charges on each line. The
+        header rate here; cd_billing_engine answers from M51 (X5-03), so the
+        billed-part exemption values a line as its invoice will."""
+        self.ensure_one()
+        return dict.fromkeys(self.line_ids.ids, self.vat_rate or 0.0)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -489,6 +503,18 @@ class FixEstimate(models.Model):
                 )
             if "signed_estimate_attachment_id" in vals and frozen:
                 raise UserError("The signed estimate of a decided estimate cannot be replaced.")
+            if "expiry_date" in vals:
+                # M01-08: the validity the customer was given is not stretched
+                # (an expired quote revived) or cut after sending
+                sent = self.filtered(
+                    lambda e: e.state != "draft"
+                    and e._fix_guard_differs("expiry_date", vals["expiry_date"], e.expiry_date)
+                )
+                if sent:
+                    raise UserError(
+                        "Estimate %s is with the customer: its validity is fixed. Revise it to "
+                        "quote a new validity." % ", ".join(sent.mapped("display_name"))
+                    )
         result = super().write(vals)
         if vals.get("customer_approval_ref") and "customer_approved_total" not in vals:
             # The portal records the customer's own approval (sudo): pin the
@@ -599,9 +625,25 @@ class FixEstimate(models.Model):
                     "Only a draft estimate is sent; this one is %s. Revise it to send a "
                     "new version." % est.state
                 )
-            est._guarded().write({"state": "sent"})
+            vals = {"state": "sent"}
+            if not est.expiry_date:
+                # M01-08 (D12): valid N days from sending, on the Dhaka day
+                vals["expiry_date"] = _dhaka_today() + timedelta(days=est._fix_validity_days())
+            est._guarded().write(vals)
             publish(self.env, "estimate.sent", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("estimate_sent")
+
+    @api.model
+    def _fix_validity_days(self) -> int:
+        raw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(VALIDITY_DAYS_PARAM, VALIDITY_DAYS_DEFAULT)
+        )
+        try:
+            return max(int(raw), 1)
+        except (TypeError, ValueError):
+            return VALIDITY_DAYS_DEFAULT
 
     def action_approve(self):
         """BRU-SRM-07 (H): above the customer threshold the CUSTOMER approval
@@ -684,6 +726,9 @@ class FixEstimate(models.Model):
             est._fix_supersede_other_versions()
             publish(self.env, "estimate.approved", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("approved")
+            if est.order_id and hasattr(est.order_id, "_fix_reserve_estimate_parts"):
+                # X5-16: the approved parts are held in M15 for the job
+                est.order_id._fix_reserve_estimate_parts(est)
 
     def _fix_other_versions(self):
         self.ensure_one()
@@ -945,7 +990,7 @@ class FixEstimate(models.Model):
     @api.model
     def _cron_expire_estimates(self):
         """BRU-SRM-13: a sent estimate past its validity date expires."""
-        today = fields.Date.context_today(self)
+        today = _dhaka_today()
         stale = self.sudo().search([("state", "=", "sent"), ("expiry_date", "<", today)])
         for est in stale:
             est._guarded().write({"state": "expired"})
@@ -1109,6 +1154,13 @@ _ESTIMATE_BUCKET.update(
         "diagnostic": "diagnostic",
     }
 )
+
+
+def _dhaka_today():
+    """The Asia/Dhaka business day (the validity is a customer-facing date)."""
+    import pytz
+
+    return pytz.utc.localize(fields.Datetime.now()).astimezone(pytz.timezone("Asia/Dhaka")).date()
 
 
 def _param_on(env, key, default="1"):

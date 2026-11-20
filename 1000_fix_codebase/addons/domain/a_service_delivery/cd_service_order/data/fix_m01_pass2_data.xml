@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP audit pass 2 (20 Nov 2026): the M01 policy parameters the owner
+     decided and the crons that act on them. noupdate: a company's own value
+     survives an upgrade. -->
+<odoo>
+    <data noupdate="1">
+        <!-- M01-12 / O6: the repair warranty every order carries (days) -->
+        <record id="param_repair_warranty_days" model="ir.config_parameter">
+            <field name="key">cd_service_order.repair_warranty_days</field>
+            <field name="value">90</field>
+        </record>
+        <!-- M01-08 / D12: an estimate is valid this many days from sending -->
+        <record id="param_estimate_validity_days" model="ir.config_parameter">
+            <field name="key">cd_service_order.estimate_validity_days</field>
+            <field name="value">15</field>
+        </record>
+        <!-- M01-13 / D13: reminders after Ready (the last is the formal notice) -->
+        <record id="param_uncollected_reminder_days" model="ir.config_parameter">
+            <field name="key">cd_service_order.uncollected_reminder_days</field>
+            <field name="value">3,7,15,30</field>
+        </record>
+        <!-- M01-13 / D13: disposal (abandoned flag) only after this many days -->
+        <record id="param_abandon_after_days" model="ir.config_parameter">
+            <field name="key">cd_service_order.abandon_after_days</field>
+            <field name="value">90</field>
+        </record>
+
+        <!-- M01-05: delivered orders close once the close gate passes -->
+        <record id="ir_cron_close_delivered_orders" model="ir.cron">
+            <field name="name">M01: close delivered orders whose close gate passes</field>
+            <field name="model_id" ref="model_fix_service_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_close_delivered()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- M01-13: uncollected-device reminders and the formal notice -->
+        <record id="ir_cron_uncollected_reminders" model="ir.cron">
+            <field name="name">M01: remind customers of uncollected devices (3/7/15/30 days)</field>
+            <field name="model_id" ref="model_fix_service_order"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_uncollected_reminders()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

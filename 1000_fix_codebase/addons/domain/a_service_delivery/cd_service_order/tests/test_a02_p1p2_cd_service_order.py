@@ -374,12 +374,16 @@ def test_abandoned_devices_are_flagged_only_when_switched_on(w):
     o = to_ready(w, order(w), 3000)
     o._guarded().write({"ready_at": fields.Datetime.now() - timedelta(days=10)})
     Order = w.env["fix.service.order"]
-    assert Order._cron_flag_abandoned() == 0 and not o.is_abandoned  # default: off
+    assert Order._cron_flag_abandoned() == 0 and not o.is_abandoned  # D13: 90 days
     w.env["ir.config_parameter"].sudo().set_param("cd_service_order.abandon_after_days", "7")
     assert Order._cron_flag_abandoned() >= 1
     assert o.is_abandoned and "Uncollected 7 days" in o.abandon_reason
     assert GUARD in attempt(w, lambda: o.with_user(w.clerk).write({"is_abandoned": False}))
-    o.with_user(w.clerk).action_cancel(reason_code="abandoned")
+    # A02 pass 2 (M01-13, D13): disposal is a branch manager's approval
+    assert "branch manager" in attempt(
+        w, lambda: o.with_user(w.clerk).action_cancel(reason_code="abandoned")
+    )
+    o.with_user(w.bm).action_cancel(reason_code="abandoned")
     assert o.cancel_reason_code == "abandoned"
 
 
