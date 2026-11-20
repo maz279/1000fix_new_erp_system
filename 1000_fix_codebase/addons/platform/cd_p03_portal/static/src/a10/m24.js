@@ -416,6 +416,7 @@ export const SCREENS = {
     empty: 'The exception queue is empty. A capture that cannot be classified, or lacks its class\'s mandatory metadata, waits here for a Records Officer.' },
   'M24-form-exception': {
     kind: 'model_form', model: 'fix.document.exception', create: false,
+    pick: 'An exception is queued by classification, never typed in: open one from Classification Exceptions.',
     title: 'Classification Exception', back: 'M24-exceptions',
     status: { field: 'state', labels: { open: 'Open', resolved: 'Resolved' } },
     sections: [

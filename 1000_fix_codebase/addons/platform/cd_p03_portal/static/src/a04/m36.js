@@ -705,8 +705,12 @@ export const SCREENS = {
       empty: 'No issued, expired or declined quotation. A draft is edited directly on Customer Quotations.'
     },
     saveAction: { method: 'action_revise', label: 'Make the Next Version', done: 'Next version made as a draft: edit, submit and issue it from Customer Quotations' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Version Being Replaced',
+      { tab: 'main', title: 'Step 2 of 2: The Version Being Replaced',
         note: 'BRU-QTE-02/04: an issued version is immutable and an expired one is never extended. The next version starts as a draft at current prices, with this one as its previous version; an issued version is marked superseded.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -715,7 +719,8 @@ export const SCREENS = {
           { name: 'value', label: 'Value (excl. VAT)', readonly: true },
           { name: 'valid_until', label: 'Valid Until', readonly: true },
           { name: 'state', label: 'State', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-submit': {
@@ -730,8 +735,12 @@ export const SCREENS = {
       empty: 'No draft quotation waits for submission.'
     },
     saveAction: { method: 'action_submit', label: 'Submit for Approval', done: 'Submitted: routed by value to an approver other than the author (M63 inbox)', kwargs: { justification: 'dofa_justification' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Business Justification',
+      { tab: 'main', title: 'Step 2 of 2: Business Justification',
         note: 'BRU-QTE-06/07/09: routed by value band to someone other than the author; above BDT 25,000 a Branch Manager, above BDT 100,000 the Operations Director. Every line must be priced and the direct cost recorded.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -740,7 +749,8 @@ export const SCREENS = {
           { name: 'margin_pct', label: 'Margin %', readonly: true },
           { name: 'dofa_tier_required', label: 'Approval Tier Needed', readonly: true },
           { name: 'dofa_justification', label: 'Business Justification (required above BDT 25,000)', type: 'text', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-issue': {
@@ -755,8 +765,12 @@ export const SCREENS = {
       empty: 'No approved quotation waits to be issued.'
     },
     saveAction: { method: 'action_issue_on_channel', label: 'Issue', done: 'Issued: the delivery is recorded and the validity clock runs', kwargs: { channel: 'issue_channel', recipient: 'issue_recipient', delivery_ref: 'issue_ref' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Channel',
+      { tab: 'main', title: 'Step 2 of 2: Channel',
         note: 'FR-QTE-033: the channel the customer receives it on. The terms issued are exactly the terms approved; past its validity date it cannot be issued (revise it).',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -766,14 +780,19 @@ export const SCREENS = {
           { name: 'issue_channel', label: 'Deliver By', required: true, readonly: true },
           { name: 'issue_recipient', label: 'Delivered To (empty: the customer\'s mobile or email)', readonly: true },
           { name: 'issue_ref', label: 'Message / Delivery Ref', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-delivery': {
     kind: 'model_form', model: 'fix.quotation.delivery',
     title: 'Quotation Delivery', newLabel: 'Record a Delivery / Re-send', back: 'M36-deliveries',
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Delivery',
+      { tab: 'main', title: 'Delivery',
         note: 'FR-QTE-039: a re-send, a delivery receipt or the customer opening it. What was sent, when, how and to whom is fixed once saved; delivery, first view and views are updated as they happen.',
         fields: [
           { name: 'quotation_id', label: 'Quotation (with the customer)', required: true, domain: [['state', '=', 'sent']] },
@@ -787,7 +806,8 @@ export const SCREENS = {
           { name: 'note', label: 'Note' },
           { name: 'version', label: 'Version', readonly: true },
           { name: 'recorded_by_id', label: 'Recorded By', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-otp': {
@@ -802,8 +822,12 @@ export const SCREENS = {
       empty: 'No quotation is with a customer.'
     },
     saveAction: { method: 'action_verify_acceptance_otp', label: 'Verify and Accept', done: 'Accepted: the evidence pack is sealed and the hand-off has run', kwargs: { otp: 'acceptance_code_entry' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Code the Customer Reads Out',
+      { tab: 'main', title: 'Step 2 of 2: The Code the Customer Reads Out',
         note: 'FR-QTE-037/042: first press Send Acceptance Code on Customer Approval Loop; the customer reads the code back (in person or on a recorded call). A wrong code is counted; too many burn it.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -811,7 +835,8 @@ export const SCREENS = {
           { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
           { name: 'valid_until', label: 'Valid Until', readonly: true },
           { name: 'acceptance_code_entry', label: 'Code the Customer Read Out', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-signed': {
@@ -826,8 +851,12 @@ export const SCREENS = {
       empty: 'No quotation is with a customer.'
     },
     saveAction: { method: 'action_record_signed_acceptance', label: 'Record Acceptance', done: 'Accepted on the signed copy: the evidence pack is sealed', kwargs: { attachment_id: 'signed_attachment_id' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Customer\'s Signed Quotation',
+      { tab: 'main', title: 'Step 2 of 2: The Customer\'s Signed Quotation',
         note: 'FR-QTE-037/038: upload the signed copy (PDF or photo). It is recorded by someone other than the author, within validity, against the exact version approved; its checksum goes into the evidence hash. A provider e-signature arrives on its own signed callback.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -836,7 +865,8 @@ export const SCREENS = {
           { name: 'amount_total', label: 'Total Payable incl. VAT', readonly: true },
           { name: 'valid_until', label: 'Valid Until', readonly: true },
           { name: 'signed_attachment_id', label: 'Signed Quotation (scan or photo)', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-decline': {
@@ -851,8 +881,12 @@ export const SCREENS = {
       empty: 'No quotation is with a customer.'
     },
     saveAction: { method: 'action_decline', label: 'Record Decline', done: 'Declined: the reason is recorded; a repair order gets its return / collection task', kwargs: { code: 'decline_reason_code', reason: 'decline_reason' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Why the Customer Declined',
+      { tab: 'main', title: 'Step 2 of 2: Why the Customer Declined',
         note: 'BRU-QTE-16: a reason from the governed list. BRU-QTE-12: a declined repair gives the service order a task to return or collect the device, with the diagnostic fee owed.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -861,7 +895,8 @@ export const SCREENS = {
           { name: 'estimate_id', label: 'Repair Estimate (M01)', readonly: true },
           { name: 'decline_reason_code', label: 'Decline Reason (governed)', required: true, readonly: true },
           { name: 'decline_reason', label: 'What the Customer Said', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-counter-offer': {
@@ -922,8 +957,12 @@ export const SCREENS = {
       empty: 'No counter-offer awaits a decision.'
     },
     saveAction: { method: 'action_decide', label: 'Record Decision', done: 'Decided: a revision is a new draft version on Customer Quotations', kwargs: { decision: 'decision_choice', note: 'decision_note' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Decision',
+      { tab: 'main', title: 'Step 2 of 2: The Decision',
         note: 'Not by the person who took the counter down. Revise: the next version is drafted on the customer\'s terms and goes through internal approval. Reject: the quotation stands as issued; say why.',
         fields: [
           { name: 'name', label: 'Counter-Offer', readonly: true },
@@ -933,7 +972,8 @@ export const SCREENS = {
           { name: 'accepted_value', label: 'Accepted Lines (excl. VAT)', readonly: true },
           { name: 'decision_choice', label: 'Decision', required: true, readonly: true },
           { name: 'decision_note', label: 'Decision Note (required to reject)', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M36-form-tender': {
@@ -1282,8 +1322,12 @@ export const SCREENS = {
   'M36-form-estate': { kind: 'model_form', model: 'fix.quotation',
     title: 'Bulk Estate Quotation (asset upload)', newLabel: 'Quote a Corporate Estate (asset upload)', back: 'M36-quotes',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'One Priced Line per Asset (FR-QTE-022)',
+      { tab: 'main', title: 'One Priced Line per Asset (FR-QTE-022)',
         note: 'Upload the customer\'s asset list (.xlsx or .csv): Description and Unit Price are required; Asset Tag, Site, Department, Cost Centre and Quantity are read when present. The lines are grouped by site and the quotation shows subtotals by site, department and cost centre (FR-QTE-021). The draft then takes the value-band approval like any quotation.',
         fields: [
           { name: 'customer_id', label: 'Corporate Customer', required: true },
@@ -1296,7 +1340,8 @@ export const SCREENS = {
           { name: 'name', label: 'Quotation No.', readonly: true },
           { name: 'value', label: 'Value (excl. VAT)', readonly: true },
           { name: 'estate_breakdown', label: 'Breakdown by Site / Department / Cost Centre', type: 'text', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   // p3 FR-QTE-013: the side-by-side difference with the version replaced.
   'M36-form-compare': { kind: 'model_form', model: 'fix.quotation',
@@ -1310,15 +1355,20 @@ export const SCREENS = {
       empty: 'No quotation has been revised yet.'
     },
     saveAction: { method: 'action_record_version_comparison', label: 'Keep This Comparison on the Quotation', done: 'Comparison recorded on the quotation (its history)', kwargs: {} },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: What Changed, in the Customer\'s Words',
+      { tab: 'main', title: 'Step 2 of 2: What Changed, in the Customer\'s Words',
         note: 'Price, discount, validity, every line added, removed or re-priced, and every term added or dropped, compared with the version this one replaced.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
           { name: 'version', label: 'Version', readonly: true },
           { name: 'parent_version_id', label: 'Previous Version', readonly: true },
           { name: 'version_diff', label: 'What Changed', type: 'text', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   // p5 FR-QTE-034 / T-05: the customer's one-screen approval link.
   'M36-form-approval-link': { kind: 'model_form', model: 'fix.quotation',
@@ -1332,8 +1382,12 @@ export const SCREENS = {
       empty: 'No quotation is with a customer.'
     },
     saveAction: { method: 'action_send_approval_link', label: 'Send the Link', done: 'Link recorded as a delivery (Deliveries & Views shows it and when it is opened)', kwargs: { channel: 'approval_link_channel', recipient: 'approval_link_recipient' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Channel',
+      { tab: 'main', title: 'Step 2 of 2: Channel',
         note: 'A one-screen Bengali / English page with the price, lines, VAT and terms, never cost or margin. The customer approves with a code sent to their own phone, within validity. Opening it is recorded as a view. A new link replaces the old one.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -1343,7 +1397,8 @@ export const SCREENS = {
           { name: 'approval_link_channel', label: 'Send By', required: true, readonly: true },
           { name: 'approval_link_recipient', label: 'Send To (empty: the customer\'s mobile or email)', readonly: true },
           { name: 'approval_link_sent_at', label: 'Last Link Sent At', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   /* ==== Capture audit, second pass (2026-11-19) ============================ */
@@ -1354,8 +1409,12 @@ export const SCREENS = {
   'M36-form-est-review': { kind: 'model_form', model: 'fix.estimate.review',
     title: 'Technical Review Request', newLabel: 'Request a Technical Review', back: 'M36-est-reviews',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Second Opinion (FR-QTE-009)',
+      { tab: 'main', title: 'Second Opinion (FR-QTE-009)',
         note: 'A high-value or contentious estimate goes to a senior technician or specialist before it becomes a quotation. Until the reviewer clears it, no quotation of this estimate can be submitted or issued; a return sends it back for rework.',
         fields: [
           { name: 'estimate_id', label: 'Estimate', required: true, domain: [['state', 'in', ['draft', 'sent', 'approved']]] },
@@ -1367,7 +1426,8 @@ export const SCREENS = {
           { name: 'requested_by_id', label: 'Requested By', readonly: true },
           { name: 'findings', label: 'Findings', type: 'text', readonly: true },
           { name: 'decided_at', label: 'Decided At', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   'M36-form-est-review-decide': { kind: 'model_form', model: 'fix.estimate.review',
     title: 'Record Technical Review Outcome', newLabel: 'Record Technical Review Outcome', back: 'M36-est-reviews',
@@ -1380,8 +1440,12 @@ export const SCREENS = {
       empty: 'No technical review awaits an outcome.'
     },
     saveAction: { method: 'action_decide', label: 'Record Outcome', done: 'Recorded: a cleared estimate can be quoted; a returned one is reworked', kwargs: { decision: 'decision_choice', findings: 'findings_entry' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Reviewer\'s Opinion',
+      { tab: 'main', title: 'Step 2 of 2: The Reviewer\'s Opinion',
         note: 'Only the named reviewer records the outcome. Cleared: the build-up is sound and the estimate can be quoted. Returned: it is reworked and reviewed again.',
         fields: [
           { name: 'estimate_id', label: 'Estimate', readonly: true },
@@ -1389,7 +1453,8 @@ export const SCREENS = {
           { name: 'question', label: 'What to Check', type: 'text', readonly: true },
           { name: 'decision_choice', label: 'Outcome', required: true, readonly: true },
           { name: 'findings_entry', label: 'Findings', type: 'text', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   // p10 / p2 FR-QTE-018: the governed library and the terms on each quotation.
@@ -1398,8 +1463,12 @@ export const SCREENS = {
     empty: 'No standard term yet. The Commercial Manager keeps the library of standard terms, assumptions and exclusions; a quotation quoting one word for word needs no approval.' },
   'M36-form-std-term': { kind: 'model_form', model: 'fix.quotation.standard.term',
     title: 'Standard Term (library)', newLabel: 'New Standard Term', back: 'M36-std-terms',
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Standard Term, Assumption or Exclusion (FR-QTE-018)',
+      { tab: 'main', title: 'Standard Term, Assumption or Exclusion (FR-QTE-018)',
         note: 'Kept by the Commercial Manager. Mandatory: every quotation of its kind must carry it before it is submitted. Changing the wording here does not change a term already quoted.',
         fields: [
           { name: 'code', label: 'Code', required: true },
@@ -1411,7 +1480,8 @@ export const SCREENS = {
           { name: 'mandatory', label: 'Mandatory on Every Quotation of Its Kind' },
           { name: 'sequence', label: 'Order' },
           { name: 'active', label: 'In Use' }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   'M36-terms': { kind: 'model_list', model: 'fix.quotation.term', stateField: 'deviation_state',
     cols: ['quotation_id', 'customer_id', 'term_type', 'standard_term_id', 'deviation_state', 'commercial_approver_id', 'finance_approver_id', 'quotation_state'],
@@ -1463,8 +1533,12 @@ export const SCREENS = {
       empty: 'No non-standard term awaits approval.'
     },
     saveAction: { method: 'action_decide_deviation', label: 'Record Decision', done: 'Recorded: the deviation is approved once both the CCO and the CFO have approved it', kwargs: { decision: 'decision_choice', note: 'decision_note' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Your Decision (BRU-QTE-08)',
+      { tab: 'main', title: 'Step 2 of 2: Your Decision (BRU-QTE-08)',
         note: 'The Commercial Manager signs for the CCO and Finance (Accounting Administrator) for the CFO: two different people, neither the author of the quotation or the term. Either may reject; say why.',
         fields: [
           { name: 'quotation_id', label: 'Quotation', readonly: true },
@@ -1475,7 +1549,8 @@ export const SCREENS = {
           { name: 'finance_approver_id', label: 'Approved (Finance / CFO)', readonly: true },
           { name: 'decision_choice', label: 'Decision', required: true, readonly: true },
           { name: 'decision_note', label: 'Note (required to reject)', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   'M36-credit-overrides': { kind: 'model_list', model: 'fix.quotation.credit.override',
     cols: ['quotation_id', 'version', 'customer_id', 'amount_total', 'block_reason', 'granted_by_id', 'granted_at', 'revoked'],
@@ -1485,8 +1560,12 @@ export const SCREENS = {
     ] },
   'M36-form-credit-override': { kind: 'model_form', model: 'fix.quotation.credit.override',
     title: 'Finance Credit Override', newLabel: 'Record a Credit Override (Finance)', back: 'M36-credit-overrides',
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Finance Lets One Quotation Through (FR-QTE-028, BRU-QTE-14)',
+      { tab: 'main', title: 'Finance Lets One Quotation Through (FR-QTE-028, BRU-QTE-14)',
         note: 'Only when M20 reports the customer on credit hold or over the limit with this quotation. Recorded by Finance (Accounting Administrator), never the author, for this version only; a revision needs a new one.',
         fields: [
           { name: 'quotation_id', label: 'Quotation', required: true, domain: [['state', 'in', ['draft', 'approved', 'sent']]] },
@@ -1497,7 +1576,8 @@ export const SCREENS = {
           { name: 'granted_by_id', label: 'Granted By', readonly: true },
           { name: 'granted_at', label: 'Granted At', readonly: true },
           { name: 'revoked', label: 'Revoked', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   // p2 FR-QTE-024 / BRU-QTE-18: a renewal quotation from an expiring contract.
@@ -1508,8 +1588,12 @@ export const SCREENS = {
   'M36-form-renewal': { kind: 'model_form', model: 'fix.quotation',
     title: 'Renewal Quotation', newLabel: 'Quote a Contract Renewal', back: 'M36-renewals',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Renewal of an Expiring Contract (FR-QTE-024)',
+      { tab: 'main', title: 'Renewal of an Expiring Contract (FR-QTE-024)',
         note: 'The customer, operating unit and contract family come from the contract; the scope lines are carried over at the contract\'s escalation and the new term starts the day after it ends. The draft then takes the value-band approval like any quotation: record its direct cost on Customer Quotations.',
         fields: [
           { name: 'renewal_of_contract_id', label: 'Contract Being Renewed', required: true, domain: [['state', 'in', ['active', 'expiring', 'expired']]] },
@@ -1521,7 +1605,8 @@ export const SCREENS = {
           { name: 'contract_start', label: 'Renewal Starts', readonly: true },
           { name: 'value', label: 'Renewal Value (excl. VAT)', readonly: true },
           { name: 'state', label: 'State', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   // p5 / p7 FR-QTE-042: acceptance on a recorded phone call.
@@ -1536,8 +1621,12 @@ export const SCREENS = {
       empty: 'No quotation is with a customer.'
     },
     saveAction: { method: 'action_record_phone_acceptance', label: 'Record Acceptance', done: 'Accepted on the recorded call: the evidence pack is sealed', kwargs: { consent_ref: 'phone_consent_ref', called_number: 'phone_called_number' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: The Recorded Call',
+      { tab: 'main', title: 'Step 2 of 2: The Recorded Call',
         note: 'FR-QTE-042: the call recording or consent reference is required, the number called must be the customer\'s own, and the agent is not the author. Within validity, against the exact version approved. Prefer Accept by Customer Code when the customer can read a code back.',
         fields: [
           { name: 'name', label: 'Quotation', readonly: true },
@@ -1546,7 +1635,8 @@ export const SCREENS = {
           { name: 'valid_until', label: 'Valid Until', readonly: true },
           { name: 'phone_called_number', label: 'Number Called', required: true, readonly: true },
           { name: 'phone_consent_ref', label: 'Call Recording / Consent Ref', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   // p7 BRU-QTE-17 / T-14: a disputed quotation on legal hold.
@@ -1556,8 +1646,12 @@ export const SCREENS = {
   'M36-form-legal-hold': { kind: 'model_form', model: 'fix.quotation.legal.hold',
     title: 'Legal Hold', newLabel: 'Place a Legal Hold', back: 'M36-legal-holds',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Quotation Under Dispute (BRU-QTE-17)',
+      { tab: 'main', title: 'Quotation Under Dispute (BRU-QTE-17)',
         note: 'While on hold the quotation and its evidence cannot be deleted or purged. The Commercial Manager releases it, never the person who placed it.',
         fields: [
           { name: 'quotation_id', label: 'Quotation', required: true },
@@ -1569,7 +1663,8 @@ export const SCREENS = {
           { name: 'placed_at', label: 'Placed At', readonly: true },
           { name: 'released_by_id', label: 'Released By', readonly: true },
           { name: 'release_reason', label: 'Why Released', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   'M36-form-hold-release': { kind: 'model_form', model: 'fix.quotation.legal.hold',
     title: 'Release a Legal Hold', newLabel: 'Release a Legal Hold', back: 'M36-legal-holds',
@@ -1582,15 +1677,20 @@ export const SCREENS = {
       empty: 'No quotation is on legal hold.'
     },
     saveAction: { method: 'action_release', label: 'Release', done: 'Released: the quotation follows its records schedule again', kwargs: { note: 'release_note' } },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Step 2 of 2: Why the Hold Ends',
+      { tab: 'main', title: 'Step 2 of 2: Why the Hold Ends',
         note: 'By the Commercial Manager, never the person who placed it.',
         fields: [
           { name: 'quotation_id', label: 'Quotation', readonly: true },
           { name: 'dispute_ref', label: 'Dispute / Case Ref', readonly: true },
           { name: 'reason', label: 'What Was Disputed', type: 'text', readonly: true },
           { name: 'release_note', label: 'Why It Is Released', required: true, readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   // p9 FR-QTE-046 / BRU-QTE-15: the submission pack; FR-QTE-048: the outcome.
@@ -1600,8 +1700,12 @@ export const SCREENS = {
   'M36-form-tender-doc': { kind: 'model_form', model: 'fix.tender.document',
     title: 'Tender Document', newLabel: 'Add a Document to the Submission Pack', back: 'M36-tender-docs',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Submission Checklist Item (FR-QTE-046)',
+      { tab: 'main', title: 'Submission Checklist Item (FR-QTE-046)',
         note: 'Upload the document itself: each new upload is a new version, and the pack is sealed by its hash when the bid is submitted (BRU-QTE-15). A document must be valid past the submission deadline. Frozen once the bid is submitted.',
         fields: [
           { name: 'tender_id', label: 'Tender (draft)', required: true, domain: [['state', '=', 'draft']] },
@@ -1615,15 +1719,20 @@ export const SCREENS = {
           { name: 'state', label: 'State', readonly: true },
           { name: 'version', label: 'Version', readonly: true },
           { name: 'prepared_by_id', label: 'Prepared By', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
   'M36-tender-outcomes': { kind: 'model_list', model: 'fix.tender.outcome',
     cols: ['tender_id', 'client_name', 'result', 'loss_reason_code', 'awarded_to', 'winning_value', 'our_value', 'price_gap_pct', 'recorded_by_id'],
     empty: 'No tender outcome recorded. A submitted bid that was not won is recorded here with its governed loss reason; a win is the Tender Committee\'s award.' },
   'M36-form-tender-outcome': { kind: 'model_form', model: 'fix.tender.outcome',
     title: 'Tender Outcome (loss)', newLabel: 'Record a Tender Outcome (not won)', back: 'M36-tender-outcomes',
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Outcome and Loss Analysis (FR-QTE-048, BRU-QTE-16)',
+      { tab: 'main', title: 'Outcome and Loss Analysis (FR-QTE-048, BRU-QTE-16)',
         note: 'For a submitted bid that was not won. The reason comes from the governed list; the winner and the winning price, where disclosed, feed the win/loss analysis. A win is recorded by the award decision (Request Award), never here.',
         fields: [
           { name: 'tender_id', label: 'Tender (submitted)', required: true, domain: [['state', '=', 'submitted']] },
@@ -1635,7 +1744,8 @@ export const SCREENS = {
           { name: 'our_value', label: 'Our Bid', readonly: true },
           { name: 'price_gap_pct', label: 'Our Price vs Winner (%)', readonly: true },
           { name: 'recorded_by_id', label: 'Recorded By', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] }
 };
 

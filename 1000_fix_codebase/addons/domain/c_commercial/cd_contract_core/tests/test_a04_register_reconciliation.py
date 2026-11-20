@@ -16,9 +16,15 @@ A04_JS = Path(__file__).resolve().parents[0] / "_a04_js_path.txt"
 
 
 def _js_dir():
-    base = Path(
-        r"C:\software_project\software_project_14\1000 fix\1000fix_new_erp_system"
-        r"\1000_fix_codebase\addons\platform\cd_p03_portal\static\src\a04"
+    # relative to this file: a hard-coded checkout path read the MAIN checkout
+    # from every worktree, so a fix under test was never the code measured
+    base = (
+        Path(__file__).resolve().parents[4]
+        / "platform"
+        / "cd_p03_portal"
+        / "static"
+        / "src"
+        / "a04"
     )
     assert base.is_dir(), base
     return base

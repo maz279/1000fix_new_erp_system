@@ -245,6 +245,7 @@ export const SCREENS = {
   // then blocked the real cycle (one charge per subscription and period). A
   // cycle is billed by a billing run; the form opens an existing charge.
   'M39-form-schedule': { kind: 'model_form', model: 'fix.subscription.charge', create: false,
+    pick: 'A cycle charge is raised by its billing run, never typed in: open one from Cycle Charges.',
     title: 'Cycle Charge', back: 'M39-runs',
     // A04 build (2026-11-04): the usage readings billed on this cycle (locked).
     lines: {
@@ -348,6 +349,7 @@ export const SCREENS = {
   // capture audit 2026-11-19: the dunning ladder is run by the daily job on
   // unpaid cycle invoices; this form opened BLANK and created a subscription.
   'M39-form-dunning': { kind: 'model_form', model: 'fix.subscription', create: false,
+    pick: 'A dunning step belongs to a subscription in arrears: open one from the Dunning Ladder.',
     title: 'Dunning Step', back: 'M39-dunning',
     status: { field: 'state' },
     tabs: [
@@ -512,7 +514,7 @@ export const SCREENS = {
   'M39-form-billing-schedule': { kind: 'model_form', model: 'fix.subscription.schedule',
     title: 'Billing Schedule', newLabel: 'New Billing Schedule', back: 'M39-schedules',
     status: { field: 'state' },
-    lines: {
+    lines: { tab: 'main',
       field: 'period_ids', fixedRows: true,
       title: 'Generated periods',
       note: 'Generated from the frequency, alignment and timing; billing bills them in order once the schedule is active.',
@@ -526,8 +528,12 @@ export const SCREENS = {
         { name: 'state', label: 'State', readonly: true }
       ]
     },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Schedule Terms', note: 'FR-SUB-002/003: anniversary or calendar alignment, billed in advance or in arrears; a partial first period is prorated by day or billed in full.',
+      { tab: 'main', title: 'Schedule Terms', note: 'FR-SUB-002/003: anniversary or calendar alignment, billed in advance or in arrears; a partial first period is prorated by day or billed in full.',
         fields: [
           { name: 'subscription_id', label: 'Subscription', required: true },
           { name: 'billing_cycle', label: 'Frequency (from the subscription)', readonly: true },
@@ -539,7 +545,8 @@ export const SCREENS = {
           { name: 'planned_total', label: 'Planned Total (BDT)', readonly: true },
           { name: 'state', label: 'State', readonly: true },
           { name: 'activated_by_id', label: 'Activated By', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   'M39-form-line': { kind: 'model_form', model: 'fix.subscription.line',
@@ -592,7 +599,7 @@ export const SCREENS = {
   'M39-form-billing-run': { kind: 'model_form', model: 'fix.subscription.billing.run',
     title: 'Billing Run', newLabel: 'New Billing Run', back: 'M39-billing-runs',
     status: { field: 'state' },
-    lines: {
+    lines: { tab: 'main',
       field: 'unit_ids', fixedRows: true,
       title: 'Run units (one per subscription)',
       note: 'Filled by the dry run. Give every exception a disposition before review; commit bills each unit on its own and resumes after a failure.',
@@ -607,8 +614,12 @@ export const SCREENS = {
         { name: 'charge_id', label: 'Charge', readonly: true }
       ]
     },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Run Scope', note: 'BRU-SUB-17: dry run first, reviewed by a Finance Manager who did not run it, then committed.',
+      { tab: 'main', title: 'Run Scope', note: 'BRU-SUB-17: dry run first, reviewed by a Finance Manager who did not run it, then committed.',
         fields: [
           { name: 'name', label: 'Run', readonly: true },
           { name: 'company_id', label: 'Company', required: true },
@@ -623,14 +634,19 @@ export const SCREENS = {
           { name: 'dry_run_by_id', label: 'Dry Run By', readonly: true },
           { name: 'reviewed_by_id', label: 'Reviewed By', readonly: true },
           { name: 'committed_at', label: 'Committed', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   'M39-form-adjustment': { kind: 'model_form', model: 'fix.subscription.adjustment',
     title: 'Credit / Adjustment', newLabel: 'New Credit / Adjustment', back: 'M39-adjustments',
     status: { field: 'state' },
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Credit or Adjustment', note: 'FR-SUB-037 / BRU-SUB-11: approved (a credit under DOFA from the M63 inbox, never by its author) and applied to the next cycle charge.',
+      { tab: 'main', title: 'Credit or Adjustment', note: 'FR-SUB-037 / BRU-SUB-11: approved (a credit under DOFA from the M63 inbox, never by its author) and applied to the next cycle charge.',
         fields: [
           { name: 'name', label: 'Reference', required: true },
           { name: 'subscription_id', label: 'Subscription', required: true },
@@ -644,7 +660,8 @@ export const SCREENS = {
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'state', label: 'State', readonly: true },
           { name: 'applied_charge_id', label: 'Applied On Cycle', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   'M39-form-lifecycle': { kind: 'model_form', model: 'fix.subscription.lifecycle',
@@ -688,8 +705,12 @@ export const SCREENS = {
 
   'M39-form-churn': { kind: 'model_form', model: 'fix.subscription.churn',
     title: 'Churn Record', newLabel: 'Record Churn Reason', back: 'M39-churn',
+    tabs: [
+      { id: 'main', label: '1. Details', bn: '১. বিবরণ' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি ও প্রমাণক', icon: '📁' }
+    ],
     sections: [
-      { title: 'Why the Customer Left', note: 'FR-SUB-042: logo churn is recorded once the subscription is cancelled; the lost MRR is stamped from its monthly value.',
+      { tab: 'main', title: 'Why the Customer Left', note: 'FR-SUB-042: logo churn is recorded once the subscription is cancelled; the lost MRR is stamped from its monthly value.',
         fields: [
           { name: 'subscription_id', label: 'Subscription', required: true },
           { name: 'churn_date', label: 'Churn Date', required: true },
@@ -699,7 +720,8 @@ export const SCREENS = {
           { name: 'notes', label: 'Notes', type: 'text' },
           { name: 'cohort', label: 'Start Cohort', readonly: true },
           { name: 'lost_mrr', label: 'Lost MRR (BDT)', readonly: true }
-        ] }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The signed papers and the proof this step relies on attach to this record; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ] },
 
   /* computed pack that had no screen (closure 2026-10-28) */
