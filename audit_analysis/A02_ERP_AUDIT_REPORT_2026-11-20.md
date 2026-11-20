@@ -115,6 +115,11 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
   charge code) never undoes the cancel; finance retries with **Invoice Diagnostic Fee** on the order.
   Other cancel reasons (duplicate, unreachable...) leave the fee as the customer's credit to move or
   refund. Tests: `cd_front_desk_finance/tests/test_a02_declined_repair_fee.py`.
+  Live since 16:21 on 8069/8090 (afa7b1ca). Walked on a fix_real copy, 9/9
+  (`evidence_a02_erp/a02_decline_walk_*`): cash fee 300 Dr 100108 -> estimate 8,050 declined ->
+  INV/2026/00001 paid, 260.87 + VAT 39.13, Mushak 2026-000003; receipt unapplied 0, customer AR 0.
+  Regression of every suite on the invoice path (billing, front desk, service order, settlement,
+  quotation, asset spine, A02/M01 portal): ~1,440 tests, 0 failures.
 - A refunded counter settlement no longer stays "unapplied": the refund is an M20 `fix.ar.refund`
   against the receipt, which takes it off the receipt (`test_a02_p1p2_cd_settlement_ext.py`,
   `test_a02_erp_review_money.py` assert unapplied 0). The earlier note here was out of date.
