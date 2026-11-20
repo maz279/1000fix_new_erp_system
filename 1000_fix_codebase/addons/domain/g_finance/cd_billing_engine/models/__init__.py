@@ -5,6 +5,7 @@
 from . import (
     account_move_mushak,
     fix_a04_claim_consumer,
+    fix_a04_warranty_subscription_billing,
     fix_ar_capture,
     fix_ar_engine,
     fix_ar_impairment,
@@ -21,6 +22,11 @@ from . import (
     fix_vds_certificate,
     fix_warranty_remittance,
 )
+
+# A04 ERP audit (20 Nov 2026, B2): extends the invoice, the credit note and
+# the contract billing period defined above, so it loads after them.
+# isort: split
+from . import fix_a04_contract_billing
 
 # NOTE: the bounced-cheque AR re-open (A08 cheque.bounced consumer) lives in
 # cd_cash_position/models/fix_ar_cheque_bounce.py — it extends fix.ar.receipt
