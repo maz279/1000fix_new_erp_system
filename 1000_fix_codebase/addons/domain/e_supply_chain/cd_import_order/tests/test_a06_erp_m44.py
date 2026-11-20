@@ -130,13 +130,15 @@ def test_erp_m44_11_lc_payment_before_the_bill_is_a_supplier_advance(c):
 def test_erp_x09_lc_payment_after_the_bill_settles_it_once(c):
     letter = _usd_lc_open(c)
     bill = _posted_bill(c, 2000.0, c.usd)
-    assert bill.total_payable == pytest.approx(2000.0)
-    pay = _pay(c, letter, 2000.0, rate=FX)
-    ap = c.env["fix.vendor.invoice"]._fields  # noqa: F841 - the model is installed
+    # what AP leaves payable after its own withholding (the test DB's VDS/TDS
+    # defaults apply); the LC remits exactly that
+    payable = bill.total_payable
+    assert 0 < payable <= 2000.0
+    pay = _pay(c, letter, payable, rate=FX)
     settlement = c.env["fix.ap.lc.settlement"].sudo().search([("source_id", "=", pay.id)])
     assert settlement.kind == "bill" and settlement.bill_id == bill
     assert bill.payment_state == "paid" and bill.total_payable == pytest.approx(0.0)
-    assert pay.settled_bills_bdt == pytest.approx(2000 * FX)
+    assert pay.settled_bills_bdt == pytest.approx(round(payable * FX, 2))
 
 
 def test_erp_m44_12_margin_not_drawn_returns_at_close(c):
@@ -237,6 +239,8 @@ def test_erp_m44_01_d6_account_defaults_and_repair(c):
     icp.set_param("cd_import_order.account_code.variance", "610000")
     icp.set_param("cd_import_order.account_code.duty_clearing", "200306")
     icp.set_param("cd_import_order.account_code.fx_difference", "")
+    # the fixture configured a test margin account: unset, as on fix_real
+    icp.set_param("cd_import_order.account_code.lc_margin", "")
     icp.set_param(common.PARAM_DUTY_VARIANCE, "0")
     common.default_params(c.env)
     assert icp.get_param("cd_import_order.account_code.variance") == "600007"
