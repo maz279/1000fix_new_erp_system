@@ -54,7 +54,7 @@
           "type": "integer"
         },
         "load_ref": {
-          "description": "Type not statically derivable from `stage[:1].load_ref` (addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops.py:775)."
+          "description": "Type not statically derivable from `stage[:1].load_ref` (addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops.py:1460)."
         },
         "cartons": {
           "type": "integer"

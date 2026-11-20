@@ -94,5 +94,18 @@
             <field name="key">cd_inventory.wms_medium_picks_90d</field>
             <field name="value">5</field>
         </record>
+        <!-- A06 ERP audit (20 Nov 2026), stream M41 -->
+        <record id="seq_fix_wms_slot_load" model="ir.sequence">
+            <field name="name">Opening Slot Load</field>
+            <field name="code">fix.wms.slot.load</field>
+            <field name="prefix">SLOAD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- O4: a WMS bin count variance is always recounted and approved (0 %) -->
+        <record id="param_wms_count_tolerance_pct" model="ir.config_parameter">
+            <field name="key">cd_inventory.wms_count_tolerance_pct</field>
+            <field name="value">0</field>
+        </record>
     </data>
 </odoo>

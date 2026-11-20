@@ -44,14 +44,14 @@ from .fix_inventory_approval import (
     location_class,
     require_supervisor,
 )
-from .fix_wms_ops import EPS
+from .fix_wms_ops import EPS, bin_class, require_operative_profile
 from .fix_wms_ops_floor import _warehouse_of
 from .fix_wms_ops_spec import NO_PICK_ZONES, _seq
 
 _logger = logging.getLogger(__name__)
 DHAKA = timedelta(hours=6)  # Asia/Dhaka wall time = UTC + 6, no DST
 RULE = re.compile(r"BRU-[A-Z]+-\d+|FR-WMS-\d+|T-\d+")
-ACTIVE_DEMAND = ("queued", "waved")
+ACTIVE_DEMAND = ("queued", "waved", "crossdocked")
 PARAM_FAST = "cd_inventory.wms_fast_picks_90d"
 PARAM_MEDIUM = "cd_inventory.wms_medium_picks_90d"
 PURPOSE_SOURCES = {
@@ -64,14 +64,21 @@ PURPOSE_SOURCES = {
 
 
 def _wms_warehouse(env, location):
-    """The warehouse that runs execution over this M15 location, if any."""
+    """The warehouse that runs execution over this M15 location, if any. F25: a
+    warehouse switched on with no bins yet (W0001 before its layout) picks
+    nothing, so no demand is queued for it: the document leaves through M15."""
     if not location:
         return env["fix.warehouse"]
-    return (
+    warehouse = (
         env["fix.warehouse"]
         .sudo()
         .search([("stock_location_id", "=", location.id), ("wms_enabled", "=", True)], limit=1)
     )
+    if warehouse and not env["fix.warehouse.bin"].sudo().search_count(
+        [("zone_id.warehouse_id", "=", warehouse.id)], limit=1
+    ):
+        return env["fix.warehouse"]
+    return warehouse
 
 
 # ===================================================================== 1. feed
@@ -138,6 +145,7 @@ class FixWmsTemplateAutoRelease(models.Model):
     _inherit = "fix.wms.wave.template"
 
     last_released_at = fields.Datetime(string="Last Auto-Release", readonly=True, copy=False)
+    last_release_error = fields.Char(string="Last Auto-Release Problem", readonly=True, copy=False)
 
     def _fix_cutoff_utc(self, day):
         self.ensure_one()
@@ -150,6 +158,14 @@ class FixWmsTemplateAutoRelease(models.Model):
         the supervisor who set the rule decided the release."""
         released = self.env["fix.wms.wave"]
         for tpl in self.sudo():
+            if tpl.release_rule in ("cutoff", "immediate") and not (
+                tpl.armed_by_id
+                and tpl.armed_by_id.active
+                and tpl.armed_by_id.has_group("cd_wms_structure.group_warehouse_supervisor")
+            ):
+                # O3: only what a supervisor armed releases by itself
+                tpl.write({"last_release_error": "not armed by a Warehouse Supervisor"})
+                continue
             demand = tpl.env["fix.wms.outbound.demand"].search(
                 [("state", "=", "queued"), ("template_id", "=", tpl.id)]
             )
@@ -161,10 +177,19 @@ class FixWmsTemplateAutoRelease(models.Model):
                         )
                         waves.action_release()
                         released |= waves
-                    tpl.write({"last_released_at": fields.Datetime.now()})
+                    tpl.write(
+                        {"last_released_at": fields.Datetime.now(), "last_release_error": False}
+                    )
             except (UserError, ValidationError) as exc:
                 if not quiet:
                     raise
+                # F28: the failure is kept on the template, not only in the server log
+                tpl.write(
+                    {
+                        "last_release_error": "%s: %s"
+                        % (fields.Datetime.now().strftime("%Y-%m-%d %H:%M UTC"), str(exc)[:200])
+                    }
+                )
                 _logger.warning("M41 auto-release of %s left queued: %s", tpl.name, exc)
         return released
 
@@ -243,7 +268,7 @@ class FixStockTransferWms(models.Model):
             return self._fix_dispatch_from_wave()
         for rec in self:
             demand = rec._fix_active_demand()
-            if demand.filtered(lambda d: d.state == "waved"):
+            if demand.filtered(lambda d: d.state in ("waved", "crossdocked")):
                 raise UserError(
                     "Transfer %s is being picked by wave %s: its shipment dispatches it "
                     "(FR-WMS-027)." % (rec.name, demand.mapped("wave_id")[:1].name)
@@ -256,7 +281,7 @@ class FixStockTransferWms(models.Model):
     def action_cancel(self):
         for rec in self:
             demand = rec._fix_active_demand()
-            if demand.filtered(lambda d: d.state == "waved"):
+            if demand.filtered(lambda d: d.state in ("waved", "crossdocked")):
                 raise UserError(
                     "Transfer %s is in wave %s: cancel the wave first."
                     % (rec.name, demand.mapped("wave_id")[:1].name)
@@ -337,7 +362,7 @@ class FixStockRtvWms(models.Model):
         if not self.env.context.get("fix_wms_ship"):
             for rec in self:
                 demand = rec._fix_active_demand()
-                if demand.filtered(lambda d: d.state == "waved"):
+                if demand.filtered(lambda d: d.state in ("waved", "crossdocked")):
                     raise UserError(
                         "RTV %s is being picked by wave %s: its shipment ships it."
                         % (rec.name, demand.mapped("wave_id")[:1].name)
@@ -348,7 +373,7 @@ class FixStockRtvWms(models.Model):
     def action_cancel(self):
         for rec in self:
             demand = rec._fix_active_demand()
-            if demand.filtered(lambda d: d.state == "waved"):
+            if demand.filtered(lambda d: d.state in ("waved", "crossdocked")):
                 raise UserError("RTV %s is in a wave: cancel the wave first." % rec.name)
             demand._guarded().write({"state": "cancelled"})
         return super().action_cancel()
@@ -364,16 +389,30 @@ class FixWmsWaveHandoff(models.Model):
             )
             if ready:
                 rec._fix_handoff()
-        return super().action_ship()
+        res = super().action_ship()
+        # F18: the licence plates of a shipped wave left with it
+        units = (
+            self.env["fix.wms.handling.unit"]
+            .sudo()
+            .search([("wave_id", "in", self.ids), ("state", "in", ("closed", "stored"))])
+        )
+        units._guarded().write({"state": "dispatched", "current_bin_id": False})
+        return res
 
     def _fix_handoff(self):
-        """Lines picked for a transfer or an RTV are shipped by that document."""
+        """Lines picked for a transfer, an RTV or a job issue are shipped by that
+        document (F01 / X16): the wave itself never takes stock off the ledger,
+        and a picked line with no document behind it does not leave."""
         self.ensure_one()
-        picked = self.line_ids.filtered(
-            lambda ln: ln.state == "picked"
-            and ln.demand_id
-            and (ln.demand_id.transfer_line_id or ln.demand_id.rtv_id)
-        )
+        picked = self.line_ids.filtered(lambda ln: ln.state == "picked")
+        loose = picked.filtered(lambda ln: not ln.demand_id or not ln.demand_id._fix_document())
+        if loose:
+            raise UserError(
+                "Wave %s: %s x %s has no M15 transfer, return to vendor or job issue behind "
+                "it. Nothing leaves the warehouse without an M15 document: cancel the wave, "
+                "or raise the demand through the outbound demand queue (BRU-WMS-01)."
+                % (self.name, loose[0].picked_qty, loose[0].part_id.part_number)
+            )
         demands = picked.mapped("demand_id")
         for demand in demands:
             lines = picked.filtered(lambda ln, d=demand: ln.demand_id == d)
@@ -383,6 +422,20 @@ class FixWmsWaveHandoff(models.Model):
                     "%s asks for %s of %s; wave %s picked %s. A transfer or RTV ships whole: "
                     "re-source or cancel the shortfall first."
                     % (demand.source_ref, demand.qty, demand.part_id.part_number, self.name, got)
+                )
+            stray = lines.filtered(
+                lambda ln, d=demand: (ln.ownership_class or "owned")
+                != (d.ownership_class or "owned")
+            )
+            if stray:
+                raise UserError(
+                    "%s takes %s stock; wave %s picked %s stock for it (BRU-WMS-03)."
+                    % (
+                        demand.source_ref,
+                        demand.ownership_class,
+                        self.name,
+                        stray[0].ownership_class,
+                    )
                 )
             named = demand.transfer_line_id.lot_id or demand.rtv_id.lot_id
             if named and lines.mapped("lot_id") != named:
@@ -398,15 +451,7 @@ class FixWmsWaveHandoff(models.Model):
             return
         picked._guarded().write({"state": "handed"})
         demands._guarded().write({"state": "shipped"})
-        shipper = self.env.uid
-        for transfer in demands.mapped("transfer_id"):
-            open_lines = transfer.sudo().wms_demand_ids.filtered(lambda d: d.state != "cancelled")
-            if all(d.state == "shipped" for d in open_lines):
-                transfer.sudo().with_context(
-                    fix_wms_ship=True, fix_wms_shipper=shipper
-                ).action_dispatch()
-        for rtv in demands.mapped("rtv_id"):
-            rtv.sudo().with_context(fix_wms_ship=True).action_ship()
+        demands._fix_ship_documents(picked)
         publish(
             self.env,
             "wh.dispatched",
@@ -734,7 +779,7 @@ class FixWmsSubstitution(models.Model):
             if line.state != "short" or line.wave_id.state != "picking":
                 raise UserError("Substitute only for a short line of a wave being picked.")
             demand = line.demand_id
-            if demand.transfer_line_id or demand.rtv_id:
+            if demand.transfer_line_id or demand.rtv_id or demand.consumption_id:
                 raise UserError(
                     "%s moves one named part (%s): it is not substituted."
                     % (demand.source_ref, line.part_id.part_number)
@@ -755,6 +800,18 @@ class FixWmsSubstitution(models.Model):
                 )
             if _warehouse_of(rec.bin_id) != line.wave_id.warehouse_id:
                 raise UserError("Bin %s is in another warehouse." % rec.bin_id.name)
+            zone = rec.bin_id.zone_id
+            if not zone.reservable or zone.zone_type in NO_PICK_ZONES:
+                # F17: a substitute is picked like any pick, from a pick zone
+                raise UserError(
+                    "Bin %s is in the %s zone: nothing is picked from it."
+                    % (rec.bin_id.name, zone.zone_type)
+                )
+            if bin_class(rec.bin_id) != (line.ownership_class or "owned"):
+                raise UserError(
+                    "Bin %s holds %s stock; the line picks %s stock (BRU-WMS-03)."
+                    % (rec.bin_id.name, bin_class(rec.bin_id), line.ownership_class)
+                )
             slot = Slot._slot_for(sub, rec.bin_id)
             free = round((slot.qty or 0.0) - (slot.reserved_qty or 0.0), 4) if slot else 0.0
             if not slot or free + EPS < rec.qty:
@@ -768,7 +825,13 @@ class FixWmsSubstitution(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         Line = self.env["fix.wms.wave.line"]
+        system = self._fix_guarded_fields() - {"qty"}
         for vals in vals_list:
+            # F17: the request is the caller's; who asked, the state and the
+            # decision are the workflow's, whatever the RPC sends
+            for key in system:
+                vals.pop(key, None)
+            vals["requested_by_id"] = self.env.uid
             if vals.get("name", "New") == "New":
                 vals["name"] = _seq(self.env, "fix.wms.substitution", "SUB/New")
             line = Line.browse(vals.get("wave_line_id") or 0)
@@ -792,7 +855,7 @@ class FixWmsSubstitution(models.Model):
             rec._fix_check()
             line, wave = rec.wave_line_id, rec.wave_line_id.wave_id
             _warehouse, location = wave._wave_location()
-            cls = location_class(location)
+            cls = location_class(location, line.ownership_class or "owned")
             slot = self.env["fix.wms.slot"]._slot_for(rec.substitute_part_id, rec.bin_id)
             Onhand._fix_reserve(rec.substitute_part_id, location, cls, rec.qty, wave.name)
             slot._guarded().write({"reserved_qty": round((slot.reserved_qty or 0.0) + rec.qty, 4)})
@@ -1023,7 +1086,7 @@ class FixWarehouseSlotting(models.Model):
             qty = free_of(slot)
             if qty <= EPS or (slot.part_id.id, slot.bin_id.id) in taken:
                 continue
-            cls = slot.bin_id.ownership_class or "any"
+            cls = slot.ownership_class or "owned"
             for face in faces:
                 if Slot.search_count([("bin_id", "=", face.id), ("qty", ">", 0)]):
                     continue
@@ -1057,11 +1120,9 @@ class FixWarehouseSlotting(models.Model):
                 qty = free_of(slot)
                 if qty <= EPS or (slot.part_id.id, slot.bin_id.id) in taken:
                     continue
-                if (slot.bin_id.ownership_class or "any") != (
-                    target.bin_id.ownership_class or "any"
-                ):
+                if slot.ownership_class != target.ownership_class:
                     continue
-                cls = slot.bin_id.ownership_class or "any"
+                cls = slot.ownership_class or "owned"
                 if Putaway._fix_bin_refusal(target.bin_id, slot.part_id, qty, cls, bins.browse()):
                     continue
                 made |= Proposal.create(
@@ -1104,7 +1165,7 @@ class FixWmsRfJournal(models.Model):
     processed_at = fields.Datetime(required=True, default=fields.Datetime.now)
 
     _key_unique = models.Constraint(
-        "UNIQUE (device_id, key)", "An idempotency key is used once per device"
+        "UNIQUE (key)", "An idempotency key is used once (whichever device sends it)"
     )
 
     @api.model_create_multi
@@ -1143,10 +1204,17 @@ class FixWmsDeviceRf(models.Model):
         )
         if not employee:
             raise AccessError("You have no employee record: the RF app is an operative's.")
-        if device.operative_id and device.operative_id != employee:
+        if not device.operative_id:
+            # O7: a handheld nobody signed for is usable by nobody
+            raise AccessError(
+                "RF device %s is not issued to a named operative: a supervisor issues it "
+                "first (T-15)." % device.device_code
+            )
+        if device.operative_id != employee:
             raise AccessError(
                 "RF device %s is issued to %s." % (device.device_code, device.operative_id.name)
             )
+        require_operative_profile(self.env, device.warehouse_id, what="use its RF devices")
         device._guarded().write({"last_seen_at": fields.Datetime.now()})
         # every action below runs as the operative, under their rules
         return device.with_env(self.env), employee
@@ -1206,9 +1274,12 @@ class FixWmsDeviceRf(models.Model):
         if not key:
             raise UserError("Every RF confirmation carries an idempotency key (T-07).")
         Journal = self.env["fix.wms.rf.journal"].sudo()
-        seen = Journal.search([("device_id", "=", self.id), ("key", "=", key)], limit=1)
-        if seen:
-            return {"ok": seen.ok, "replayed": True, **json.loads(seen.result or "{}")}
+        # F29: a key is the confirmation's own, whichever device replays it
+        seen = Journal.search([("key", "=", key)], limit=1)
+        if seen and seen.ok:
+            return {"ok": True, "replayed": True, **json.loads(seen.result or "{}")}
+        if seen and (seen.device_id != self or seen.user_id.id != self.env.uid):
+            raise AccessError("Idempotency key %s belongs to another confirmation (T-07)." % key)
         task = self.env["fix.wms.task"].browse(int(task_id or 0)).exists()
         ctx = {
             "fix_scan_device": self.device_code,
@@ -1223,19 +1294,23 @@ class FixWmsDeviceRf(models.Model):
             ok = True
         except (UserError, ValidationError, AccessError) as exc:
             ok, result = False, {"error": str(exc.args[0] if exc.args else exc)}
-        Journal.create(
-            {
-                "device_id": self.id,
-                "key": key,
-                "task_id": task.id or False,
-                "op": op,
-                "payload": json.dumps(payload or {}, default=str),
-                "ok": ok,
-                "result": json.dumps(result, default=str),
-                "offline": offline,
-                "user_id": self.env.uid,
-            }
-        )
+        vals = {
+            "device_id": self.id,
+            "key": key,
+            "task_id": task.id or False,
+            "op": op,
+            "payload": json.dumps(payload or {}, default=str),
+            "ok": ok,
+            "result": json.dumps(result, default=str),
+            "offline": offline,
+            "user_id": self.env.uid,
+            "processed_at": fields.Datetime.now(),
+        }
+        if seen:
+            # F29: a refused attempt is not cached: the retry ran and is recorded
+            seen.write(vals)
+        else:
+            Journal.create(vals)
         return {"ok": ok, "replayed": False, **result}
 
     def _rf_apply(self, task, op, payload):
@@ -1267,6 +1342,9 @@ class FixWmsDeviceRf(models.Model):
         elif kind in ("full_bin", "blocked_bin", "damaged_item") and task.putaway_id:
             task.putaway_id.action_report_exception(cause=kind, note=payload.get("note"))
         elif kind == "blocked_bin" and task.bin_id:
-            task.bin_id.action_block(payload.get("note") or "Blocked, reported from the RF device")
+            # O5 / F24: the RF device REPORTS a blocked bin; a supervisor or the QM blocks it
+            task.bin_id.action_report_block(
+                payload.get("note") or "Blocked, reported from the RF device"
+            )
         else:
             raise UserError("Exception %r does not apply to a %s task." % (kind, task.task_type))

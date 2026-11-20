@@ -47,7 +47,10 @@
           "type": "integer"
         },
         "bin_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "qty": {
           "type": "number"

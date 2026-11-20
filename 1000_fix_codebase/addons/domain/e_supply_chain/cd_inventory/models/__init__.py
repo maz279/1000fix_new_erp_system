@@ -16,4 +16,5 @@ from . import (
     fix_wms_ops_floor,
     fix_wms_ops_spec,
     fix_wms_ops_spec_flow,
+    fix_wms_ops_xcontrols,
 )
