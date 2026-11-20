@@ -42,6 +42,8 @@ CD-M10-01 (P05-M08-T01..T03):
         "data/fix_loyalty_merge_reversal.xml",
         # M10 capture pass 2: membership, wallet, batches, referral events, liability runs
         "data/fix_loyalty_capture_data.xml",
+        # A02 ERP pass 2 X5-09: credit notes / cancellations take earned points back
+        "data/fix_loyalty_reversal_consumers.xml",
         "views/fix_loyalty_views.xml",
     ],
     "installable": True,

@@ -17,3 +17,6 @@ from . import (
 
 # The capture registers extend tier, programme and voucher, so they load last.
 from . import fix_loyalty_capture  # isort: skip
+
+# A02 ERP pass 2 X5-09: the earn reversal extends the ledger and the account.
+from . import fix_loyalty_reversal  # isort: skip
