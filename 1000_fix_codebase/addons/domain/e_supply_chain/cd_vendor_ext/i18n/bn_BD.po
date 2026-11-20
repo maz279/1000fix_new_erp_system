@@ -36,6 +36,11 @@ msgid "Activate"
 msgstr "সক্রিয় করুন"
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_manager
+msgid "Activate and suspend suppliers, approve segmentation, price changes and risk assessments, execute agreements, clear screenings, configure questionnaires (R19 elevated grant)."
+msgstr "সরবরাহকারী সক্রিয় ও স্থগিত করা, সেগমেন্টেশন, মূল্য পরিবর্তন ও ঝুঁকি মূল্যায়ন অনুমোদন, চুক্তি সম্পাদন, যাচাই ছাড়পত্র প্রদান এবং প্রশ্নমালা কনফিগার করা (R19 উচ্চতর অনুমতি)।"
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__active
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__active
 msgid "Active"
@@ -120,6 +125,11 @@ msgid "Agreements"
 msgstr "চুক্তিসমূহ"
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_cfo
+msgid "All M42 rights; sole authority to block a supplier permanently (R03)."
+msgstr "M42-এর সকল অধিকার; সরবরাহকারীকে স্থায়ীভাবে অবরুদ্ধ করার একমাত্র কর্তৃত্ব (R03)।"
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__annual_spend
 msgid "Annual Spend"
 msgstr "বার্ষিক ব্যয়"
@@ -130,6 +140,11 @@ msgstr "বার্ষিক ব্যয়"
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
 msgid "Approve"
 msgstr "অনুমোদন করুন"
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_quality
+msgid "Approve qualifications, verify corrective actions and brand-authorisation evidence (R32)."
+msgstr "যোগ্যতা অনুমোদন, সংশোধনী পদক্ষেপ ও ব্র্যান্ড অনুমোদনের প্রমাণ যাচাই (R32)।"
 
 #. module: cd_vendor_ext
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_bank_change__state__approved
@@ -265,6 +280,11 @@ msgstr "সক্ষমতা"
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
 msgid "Capacity"
 msgstr "ধারণক্ষমতা"
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_officer
+msgid "Capture supplier profiles, qualifications, documents, agreements, price-change requests, CARs, risk assessments, screenings and reviews (R19)."
+msgstr "সরবরাহকারী প্রোফাইল, যোগ্যতা, দলিল, চুক্তি, মূল্য পরিবর্তনের অনুরোধ, সিএআর, ঝুঁকি মূল্যায়ন, যাচাই ও পর্যালোচনা লিপিবদ্ধ করা (R19)।"
 
 #. module: cd_vendor_ext
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__classification__cargo_insurer
@@ -950,6 +970,11 @@ msgid "Re-Tender"
 msgstr "পুনঃদরপত্র"
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_viewer
+msgid "Read supplier profiles, performance, lead times and risk (R17, R05, R06, R15)."
+msgstr "সরবরাহকারী প্রোফাইল, কর্মদক্ষতা, সরবরাহ সময় ও ঝুঁকি দেখা (R17, R05, R06, R15)।"
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__rebate_terms
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
 msgid "Rebate Terms"
@@ -1024,6 +1049,11 @@ msgstr "রাউটিং নম্বর"
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
 msgid "SMS Delivery error"
 msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_finance
+msgid "See and change supplier bank details; approve bank-detail changes (R26)."
+msgstr "সরবরাহকারীর ব্যাংক তথ্য দেখা ও পরিবর্তন করা; ব্যাংক তথ্য পরিবর্তন অনুমোদন (R26)।"
 
 #. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__segment
@@ -1190,6 +1220,41 @@ msgstr "সরবরাহকারী প্রোফাইলসমূহ"
 #: model:ir.ui.menu,name:cd_vendor_ext.menu_ws_supplier_relationship
 msgid "Supplier Relationship"
 msgstr "সরবরাহকারী সম্পর্ক"
+
+#. module: cd_vendor_ext
+#: model:res.groups.privilege,name:cd_vendor_ext.privilege_fix_supplier_relationship
+msgid "Supplier Relationship (M42)"
+msgstr "সরবরাহকারী সম্পর্ক (M42)"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_cfo
+msgid "Supplier Relationship: CFO"
+msgstr "সরবরাহকারী সম্পর্ক: প্রধান আর্থিক কর্মকর্তা"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_finance
+msgid "Supplier Relationship: Finance Manager"
+msgstr "সরবরাহকারী সম্পর্ক: অর্থ ব্যবস্থাপক"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_manager
+msgid "Supplier Relationship: Procurement Manager"
+msgstr "সরবরাহকারী সম্পর্ক: ক্রয় ব্যবস্থাপক"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_officer
+msgid "Supplier Relationship: Procurement Officer"
+msgstr "সরবরাহকারী সম্পর্ক: ক্রয় কর্মকর্তা"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_quality
+msgid "Supplier Relationship: Quality Manager"
+msgstr "সরবরাহকারী সম্পর্ক: মান ব্যবস্থাপক"
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_viewer
+msgid "Supplier Relationship: Viewer"
+msgstr "সরবরাহকারী সম্পর্ক: দর্শক"
 
 #. module: cd_vendor_ext
 #: model:ir.model,name:cd_vendor_ext.model_fix_supplier_segment_review

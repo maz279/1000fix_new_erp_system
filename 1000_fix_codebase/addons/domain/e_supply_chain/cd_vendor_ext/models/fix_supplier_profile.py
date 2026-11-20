@@ -12,7 +12,7 @@ import hashlib
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -69,6 +69,21 @@ DOC_TYPES = [
 # Documents expiring inside this window count as "expiring" (KPI
 # "Docs Expiring (60d)") and trigger the FR-SRM2-017 warning.
 EXPIRY_WARNING_DAYS = 60
+
+
+# Spec §13 function groups (security/fix_vendor_ext_security.xml).
+G_OFFICER = "cd_vendor_ext.group_m42_officer"
+G_QUALITY = "cd_vendor_ext.group_m42_quality"
+G_MANAGER = "cd_vendor_ext.group_m42_manager"
+G_FINANCE = "cd_vendor_ext.group_m42_finance"
+G_CFO = "cd_vendor_ext.group_m42_cfo"
+
+
+def require_group(env, xmlid, message):
+    """§13 authority check. Scheduled jobs run as superuser and pass."""
+    if env.su or env.user.has_group(xmlid):
+        return
+    raise AccessError(message)
 
 
 def check_sod(record, actor_field, approver, message):
@@ -166,9 +181,15 @@ class FixSupplierProfile(models.Model):
             {"state": "under_qualification"})
 
     def action_activate(self):
-        """Activation follows an approved qualification (cd_supplier_
-        qualification calls this); a blocked supplier is never re-activated
-        here — un-blocking is a CFO decision outside this flow."""
+        """Manual (re-)activation is a Procurement Manager decision (§13)."""
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can activate a supplier")
+        self._activate()
+
+    def _activate(self):
+        """The activation itself — also the consequence of an approved
+        qualification (cd_supplier_qualification). A blocked supplier is
+        never re-activated here; un-blocking is a CFO decision."""
         for profile in self:
             if profile.state == "blocked":
                 raise UserError("A permanently blocked supplier cannot be activated")
@@ -182,11 +203,16 @@ class FixSupplierProfile(models.Model):
     def action_suspend(self, reason=None):
         """FR-SRM2-014: immediately prevents new orders; open orders stay
         visible in M16."""
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can suspend a supplier")
         self._require_reason(reason)
         self.write({"state": "suspended", "status_reason": reason})
         self._publish_state("supplier.deactivated")
 
     def action_block(self, reason=None):
+        """§13: the CFO (with the CEO) alone blocks a supplier permanently."""
+        require_group(self.env, G_CFO,
+                      "Only the CFO can block a supplier permanently")
         self._require_reason(reason)
         self.write({"state": "blocked", "status_reason": reason})
         self._publish_state("supplier.deactivated")
@@ -253,6 +279,8 @@ class FixSupplierSegmentReview(models.Model):
         self.filtered(lambda r: r.state == "draft").write({"state": "submitted"})
 
     def action_approve(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can approve a segment change")
         for review in self:
             if review.state != "submitted":
                 raise UserError("Only a submitted review can be approved")
@@ -272,6 +300,8 @@ class FixSupplierSegmentReview(models.Model):
                     })
 
     def action_reject(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can reject a segment change")
         for review in self:
             if review.state != "submitted":
                 raise UserError("Only a submitted review can be rejected")
@@ -338,9 +368,14 @@ class FixSupplierDocument(models.Model):
         return docs
 
     def action_verify(self):
+        require_group(self.env, G_OFFICER, "Only procurement can verify documents")
         for doc in self:
             if doc.state != "draft":
                 raise UserError("Only a pending document can be verified")
+            if doc.doc_type == "brand_authorisation":
+                # §13: R32 owns authorisation evidence (FR-SRM2-015).
+                require_group(self.env, G_QUALITY, "Brand-authorisation evidence "
+                              "is verified by the Quality Manager")
             check_sod(doc, "create_uid", self.env.user,
                       "The user who captured a document cannot verify it")
             if doc.expires_on and doc.expires_on < fields.Date.today():
@@ -404,7 +439,9 @@ class FixSupplierBankChange(models.Model):
     branch_name = fields.Char(string="Bank Branch")
     routing_number = fields.Char(string="Routing Number")
     account_holder = fields.Char(string="Account Holder", required=True)
-    account_number = fields.Char(string="New Account Number", required=True)
+    # 05-04 §5 bank_account: visible only to Finance and the CFO.
+    account_number = fields.Char(string="New Account Number", required=True,
+                                 groups="cd_vendor_ext.group_m42_finance")
     verification_method = fields.Selection(
         [("callback", "Call-back to Registered Contact"),
          ("bank_letter", "Bank Confirmation Letter"),
@@ -451,11 +488,10 @@ class FixSupplierBankChange(models.Model):
                 raise UserError("Only a submitted change can be approved")
             check_sod(change, "create_uid", self.env.user,
                       "The requester of a bank-detail change cannot approve it")
-            if not self.env.user.has_group("base.group_partner_manager"):
-                # The approver writes the party's bank account: Odoo's own
-                # permission on res.partner.bank decides who may — no sudo.
-                raise UserError("Approving a bank-detail change needs the right to "
-                                "manage party bank accounts (Contact Creation)")
+            # §13: Finance approves; the group implies Odoo's own right to
+            # manage party bank accounts, so the write below needs no sudo.
+            require_group(self.env, G_FINANCE,
+                          "Only Finance can approve a bank-detail change")
             partner = change.profile_id.partner_id
             self.env["res.partner.bank"].create({
                 "partner_id": partner.id,
@@ -472,6 +508,7 @@ class FixSupplierBankChange(models.Model):
                                 "previous_value_hash": change.previous_value_hash})
 
     def action_reject(self):
+        require_group(self.env, G_FINANCE, "Only Finance can reject a bank-detail change")
         for change in self:
             if change.state != "submitted":
                 raise UserError("Only a submitted change can be rejected")

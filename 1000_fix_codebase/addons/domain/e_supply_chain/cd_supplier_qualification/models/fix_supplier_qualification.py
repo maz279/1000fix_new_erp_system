@@ -12,7 +12,7 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish  # FF-28
 
 from odoo.addons.cd_vendor_ext.models.fix_supplier_profile import (
-    RISK_TIERS, check_sod)
+    G_MANAGER, G_QUALITY, RISK_TIERS, check_sod, require_group)
 
 # Tiers at which the scorer may not be the sole approver (§13 SoD).
 STRICT_TIERS = ("high", "critical")
@@ -173,6 +173,10 @@ class FixSupplierQualification(models.Model):
         self.write({"state": "submitted"})
 
     def action_approve(self):
+        """FR-SRM2-009: approved by the Quality Manager or Procurement
+        Manager (the manager group implies quality)."""
+        require_group(self.env, G_QUALITY, "Only the Quality Manager or "
+                      "Procurement Manager can approve a qualification")
         for qual in self:
             if qual.state != "submitted":
                 raise UserError("Only a submitted qualification can be approved")
@@ -197,7 +201,7 @@ class FixSupplierQualification(models.Model):
             if qual.category_id not in qual.profile_id.category_ids:
                 qual.profile_id.category_ids = [(4, qual.category_id.id)]
             if qual.profile_id.state in ("prospect", "under_qualification", "suspended"):
-                qual.profile_id.action_activate()
+                qual.profile_id._activate()
             publish(self.env, "supplier.qualified", "fix.supplier.qualification",
                     qual.id, {"profile_id": qual.profile_id.id,
                               "category_id": qual.category_id.id,
@@ -205,6 +209,8 @@ class FixSupplierQualification(models.Model):
                               "valid_until": str(qual.valid_until)})
 
     def action_reject(self):
+        require_group(self.env, G_QUALITY, "Only the Quality Manager or "
+                      "Procurement Manager can reject a qualification")
         for qual in self:
             if qual.state != "submitted":
                 raise UserError("Only a submitted qualification can be rejected")
@@ -325,6 +331,8 @@ class FixSupplierScreening(models.Model):
         self.filtered(lambda s: s.state == "draft").write({"state": "submitted"})
 
     def action_clear(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can clear a screening")
         for s in self:
             if s.state != "submitted":
                 raise UserError("Only a submitted screening can be cleared")

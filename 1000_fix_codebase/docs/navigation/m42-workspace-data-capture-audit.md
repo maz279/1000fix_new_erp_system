@@ -89,10 +89,12 @@ each sub-module to the spec entity that people actually record:
 2. **Bengali at runtime.** Odoo 19 ships only `bn_IN`; it never loads the
    estate-wide `bn_BD.po` files. This is pre-existing, and a decision is needed
    (add a `bn_BD` `res.lang`, or ship `bn.po`).
-3. **Role groups.** Spec §13 roles (Procurement Manager, R26 Finance, R03 CFO
-   permanent block) have no Odoo groups yet. ACLs are `base.group_user`, and
-   SoD is enforced in code. Bank-change approval relies on Odoo's own
-   *Contact Creation* right.
+3. ~~**Role groups.**~~ Done: six §13 function groups (Viewer, Procurement
+   Officer, Quality Manager, Procurement Manager, Finance Manager, CFO) in
+   `cd_vendor_ext/security/fix_vendor_ext_security.xml`. ACLs are per group,
+   and approvals check the group before SoD. Bank details are visible to
+   Finance only, and permanent block is CFO only. Livefire is now 69/69,
+   with every role check paired with its SoD counterpart.
 4. **Not yet built.** From spec §10.1 / §12: the supplier-category standing
    table, consignment agreement (FR-024), development plan, concentration
    analysis, category strategy, the P05 supplier-facing flows, the T-08

@@ -12,7 +12,8 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from odoo.addons.cd_vendor_ext.models.fix_supplier_profile import check_sod
+from odoo.addons.cd_vendor_ext.models.fix_supplier_profile import (
+    G_QUALITY, check_sod, require_group)
 
 # FR-SRM2-030: strategic quarterly, preferred half-yearly, approved annually.
 REVIEW_CADENCE_DAYS = {"strategic": 91, "preferred": 182, "approved": 365,
@@ -170,6 +171,9 @@ class FixSupplierCar(models.Model):
         self.write({"state": "action_taken"})
 
     def action_verify_effective(self):
+        """§13: CAR verification is a Quality Manager right (R32)."""
+        require_group(self.env, G_QUALITY,
+                      "Only the Quality Manager can verify a corrective action")
         for car in self:
             if car.state != "action_taken":
                 raise UserError("Only a CAR with action taken can be verified")

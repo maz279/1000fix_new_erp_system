@@ -35,6 +35,11 @@ msgid "Activate"
 msgstr ""
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_manager
+msgid "Activate and suspend suppliers, approve segmentation, price changes and risk assessments, execute agreements, clear screenings, configure questionnaires (R19 elevated grant)."
+msgstr ""
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_agreement__state__active
 #: model:ir.model.fields.selection,name:cd_vendor_ext.selection__fix_supplier_profile__state__active
 msgid "Active"
@@ -119,6 +124,11 @@ msgid "Agreements"
 msgstr ""
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_cfo
+msgid "All M42 rights; sole authority to block a supplier permanently (R03)."
+msgstr ""
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__annual_spend
 msgid "Annual Spend"
 msgstr ""
@@ -128,6 +138,11 @@ msgstr ""
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_price_change_form
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_segment_review_form
 msgid "Approve"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_quality
+msgid "Approve qualifications, verify corrective actions and brand-authorisation evidence (R32)."
 msgstr ""
 
 #. module: cd_vendor_ext
@@ -263,6 +278,11 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__capacity_note
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_profile_form
 msgid "Capacity"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_officer
+msgid "Capture supplier profiles, qualifications, documents, agreements, price-change requests, CARs, risk assessments, screenings and reviews (R19)."
 msgstr ""
 
 #. module: cd_vendor_ext
@@ -949,6 +969,11 @@ msgid "Re-Tender"
 msgstr ""
 
 #. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_viewer
+msgid "Read supplier profiles, performance, lead times and risk (R17, R05, R06, R15)."
+msgstr ""
+
+#. module: cd_vendor_ext
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_agreement__rebate_terms
 #: model_terms:ir.ui.view,arch_db:cd_vendor_ext.view_fix_supplier_agreement_form
 msgid "Rebate Terms"
@@ -1022,6 +1047,11 @@ msgstr ""
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_profile__message_has_sms_error
 #: model:ir.model.fields,field_description:cd_vendor_ext.field_fix_supplier_segment_review__message_has_sms_error
 msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,comment:cd_vendor_ext.group_m42_finance
+msgid "See and change supplier bank details; approve bank-detail changes (R26)."
 msgstr ""
 
 #. module: cd_vendor_ext
@@ -1184,6 +1214,41 @@ msgstr ""
 #. module: cd_vendor_ext
 #: model:ir.ui.menu,name:cd_vendor_ext.menu_ws_supplier_relationship
 msgid "Supplier Relationship"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups.privilege,name:cd_vendor_ext.privilege_fix_supplier_relationship
+msgid "Supplier Relationship (M42)"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_cfo
+msgid "Supplier Relationship: CFO"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_finance
+msgid "Supplier Relationship: Finance Manager"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_manager
+msgid "Supplier Relationship: Procurement Manager"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_officer
+msgid "Supplier Relationship: Procurement Officer"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_quality
+msgid "Supplier Relationship: Quality Manager"
+msgstr ""
+
+#. module: cd_vendor_ext
+#: model:res.groups,name:cd_vendor_ext.group_m42_viewer
+msgid "Supplier Relationship: Viewer"
 msgstr ""
 
 #. module: cd_vendor_ext

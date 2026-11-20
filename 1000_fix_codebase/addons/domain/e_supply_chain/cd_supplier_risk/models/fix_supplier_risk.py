@@ -12,7 +12,8 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from odoo.addons.cd_vendor_ext.models.fix_supplier_profile import check_sod
+from odoo.addons.cd_vendor_ext.models.fix_supplier_profile import (
+    G_MANAGER, check_sod, require_group)
 
 RATING = [("1", "1 - Low"), ("2", "2 - Moderate"), ("3", "3 - Elevated"),
           ("4", "4 - High"), ("5", "5 - Critical")]
@@ -116,6 +117,8 @@ class FixSupplierRisk(models.Model):
         self.filtered(lambda r: r.state == "draft").write({"state": "submitted"})
 
     def action_approve(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can approve a risk assessment")
         for risk in self:
             if risk.state != "submitted":
                 raise UserError("Only a submitted assessment can be approved")
@@ -128,4 +131,6 @@ class FixSupplierRisk(models.Model):
                 "single_source_critical": risk.single_source_critical})
 
     def action_reject(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can reject a risk assessment")
         self.filtered(lambda r: r.state == "submitted").write({"state": "rejected"})

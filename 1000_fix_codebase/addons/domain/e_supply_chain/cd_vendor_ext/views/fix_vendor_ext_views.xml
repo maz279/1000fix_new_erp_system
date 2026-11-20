@@ -450,7 +450,7 @@
     <!-- The M42 Supplier Relationship workspace menu (spec §13 roles). -->
     <menuitem id="menu_ws_supplier_relationship" name="Supplier Relationship"
               parent="cd_entity_config.menu_fix_operations_root"
-              groups="cd_rbac_ext.group_fix_portal_user"
+              groups="cd_vendor_ext.group_m42_viewer"
               sequence="92"/>
     <menuitem id="menu_fix_supplier_profile" name="Supplier Profiles"
               parent="cd_vendor_ext.menu_ws_supplier_relationship"

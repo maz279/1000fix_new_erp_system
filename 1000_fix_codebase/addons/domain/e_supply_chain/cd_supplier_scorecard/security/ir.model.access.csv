@@ -1,3 +1,5 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
-access_fix_supplier_review,fix.supplier.review,model_fix_supplier_review,base.group_user,1,1,1,0
-access_fix_supplier_car,fix.supplier.car,model_fix_supplier_car,base.group_user,1,1,1,0
+access_fix_supplier_review_viewer,fix.supplier.review.viewer,model_fix_supplier_review,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_review_officer,fix.supplier.review.officer,model_fix_supplier_review,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_car_viewer,fix.supplier.car.viewer,model_fix_supplier_car,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_car_officer,fix.supplier.car.officer,model_fix_supplier_car,cd_vendor_ext.group_m42_officer,1,1,1,0

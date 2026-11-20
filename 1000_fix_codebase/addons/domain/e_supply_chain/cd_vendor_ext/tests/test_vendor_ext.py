@@ -90,7 +90,7 @@ class TestBankChange:
     def test_no_sudo_on_bank_account(self):
         body = PROFILE_SRC[PROFILE_SRC.index("class FixSupplierBankChange"):]
         assert ".sudo()" not in body
-        assert "base.group_partner_manager" in body
+        assert "G_FINANCE" in body  # the finance group implies base.group_partner_manager
 
     def test_security_event(self):
         assert '"supplier.bank_changed"' in PROFILE_SRC
@@ -137,3 +137,39 @@ class TestP03CaptureSpecs:
         assert names == {"Supplier Profile", "Segment & Risk-Tier Review",
                          "Supplier Document", "Bank Detail Change Request",
                          "Supplier Agreement", "Price Change Request"}
+
+
+class TestRoleGroups:
+    """Spec §13: six function groups; authority checks sit on top of SoD."""
+
+    ADDON = Path(__file__).resolve().parents[1]
+    E_SUPPLY = ADDON.parent
+
+    def test_six_spec_groups(self):
+        xml = (self.ADDON / "security" / "fix_vendor_ext_security.xml").read_text(encoding="utf-8")
+        for g in ("group_m42_viewer", "group_m42_officer", "group_m42_quality",
+                  "group_m42_manager", "group_m42_finance", "group_m42_cfo"):
+            assert f'id="{g}"' in xml
+
+    def test_no_blanket_internal_user_access(self):
+        """Access is per role, never base.group_user (the pre-§13 state)."""
+        for addon in ("cd_vendor_ext", "cd_supplier_qualification",
+                      "cd_supplier_scorecard", "cd_supplier_risk"):
+            acl = (self.E_SUPPLY / addon / "security" / "ir.model.access.csv").read_text(encoding="utf-8")
+            assert "base.group_user" not in acl, addon
+
+    def test_bank_details_finance_only(self):
+        """05-04 §5: bank details visible only to Finance and the CFO."""
+        assert 'groups="cd_vendor_ext.group_m42_finance"' in PROFILE_SRC
+        acl = (self.ADDON / "security" / "ir.model.access.csv").read_text(encoding="utf-8")
+        officer = [r for r in acl.splitlines() if r.startswith("access_fix_supplier_bank_change_officer")]
+        assert officer and officer[0].endswith(",1,0,0,0")
+
+    def test_permanent_block_is_cfo_only(self):
+        body = PROFILE_SRC[PROFILE_SRC.index("def action_block"):]
+        assert "G_CFO" in body.split("def ", 2)[1]
+
+    def test_cron_paths_pass_as_superuser(self):
+        p, _ = _classes()
+        assert "env.su" in PROFILE_SRC
+        assert callable(p.require_group)

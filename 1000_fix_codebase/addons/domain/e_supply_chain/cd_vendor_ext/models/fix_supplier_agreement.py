@@ -7,7 +7,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish  # FF-28
 
-from .fix_supplier_profile import check_sod
+from .fix_supplier_profile import G_MANAGER, check_sod, require_group
 
 # FR-SRM2-026: warn this many days ahead of agreement expiry.
 AGREEMENT_RENEWAL_WARNING_DAYS = 90
@@ -74,6 +74,9 @@ class FixSupplierAgreement(models.Model):
                 raise ValidationError("The notice period cannot be negative")
 
     def action_activate(self):
+        """Agreement execution is a Procurement Manager right (§13)."""
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can execute an agreement")
         for agreement in self:
             if agreement.state != "draft":
                 raise UserError("Only a draft agreement can be activated")
@@ -87,6 +90,8 @@ class FixSupplierAgreement(models.Model):
                                    "term_to": str(agreement.term_to)})
 
     def action_terminate(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can terminate an agreement")
         self.write({"state": "terminated"})
 
     @api.model
@@ -233,6 +238,8 @@ class FixSupplierPriceChange(models.Model):
     def action_approve(self):
         """Approval publishes the new agreed price row; the old row closes
         the day before the new one takes effect."""
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can approve a price change")
         PriceList = self.env["fix.supplier.price.list"].with_context(
             fix_price_change_approval=True)
         for change in self:
@@ -265,6 +272,8 @@ class FixSupplierPriceChange(models.Model):
                                 "effective_from": str(change.effective_from)})
 
     def action_reject(self):
+        require_group(self.env, G_MANAGER,
+                      "Only a Procurement Manager can reject a price change")
         for change in self:
             if change.state != "submitted":
                 raise UserError("Only a submitted price change can be rejected")
