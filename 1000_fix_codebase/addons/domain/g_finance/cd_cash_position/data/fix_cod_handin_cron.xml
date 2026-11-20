@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A02 pass 2 (owner decision D20, M03-08): a rider's delivered cash on delivery
+  is handed in by the end of the next business day. Daily, every rider holding
+  COD past that deadline is reported to the logistics managers and finance;
+  the block itself is live (fix.cod.settlement._fix_rider_has_open_variance).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="ir_cron_cod_handin_overdue" model="ir.cron">
+            <field name="name">M50: riders holding COD past the hand-in deadline</field>
+            <field name="model_id" ref="model_fix_cod_settlement"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_cod_handin_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

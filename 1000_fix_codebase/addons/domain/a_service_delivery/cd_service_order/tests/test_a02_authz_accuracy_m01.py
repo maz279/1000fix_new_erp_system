@@ -181,7 +181,7 @@ def test_a_finished_orders_estimate_is_not_revised(w):
     v2 = w.env["fix.estimate"].browse(est.with_user(w.clerk).action_revise()["res_id"])
     assert v2.state == "draft"
     v2.unlink()  # superuser clean-up, so v1 is the latest version again
-    o.with_user(w.cashier).action_mark_settled("POS-G3-1", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-G3-1", 3450.0, tender="cash")
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     assert "delivered" in (attempt(w, lambda: est.with_user(w.clerk).action_revise()) or "")

@@ -499,21 +499,24 @@ def test_settlement_api_refuses_bad_inputs(w):
         w, lambda: S._fix_record_settlement(11500, "R1", "cash")
     )
     assert "Only a Service Order Cashier" in attempt(
-        w, lambda: o.with_user(w.clerk)._fix_record_settlement(11500, "R1", "counter")
+        w,
+        lambda: o.with_user(w.clerk)
+        .with_context(fd_settlement_tender="cash")
+        ._fix_record_settlement(11500, "R1", "counter"),
     )
     assert "M20 receipt" in attempt(
         w, lambda: S._fix_record_settlement(11500, "NO-SUCH", "m20_receipt")
     )
     # action_mark_settled: no default reference and no arbitrary amount (M01-15)
     assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled())
-    assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled("X", 1.0))
+    assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled("X", 1.0, tender="cash"))
 
 
 def test_counter_settlement_opens_the_delivery_gate(w):
     o = to_ready(w, order(w), 10000)
     handover_evidence(w, o)
     assert "Settlement Gate" in attempt(w, lambda: o.with_user(w.clerk).action_deliver())
-    o.with_user(w.cashier).action_mark_settled("POS-123", 11500.0)
+    o.with_user(w.cashier).action_mark_settled("POS-123", 11500.0, tender="cash")
     assert (o.settlement_source, o.settlement_verified) == ("counter", True)
     o.with_user(w.clerk).action_deliver()
     assert o.state == "delivered" and o.delivered_at
@@ -568,7 +571,7 @@ def test_m20_receipt_settles_verified(w):
 
 def test_delivery_needs_verified_otp_recipient_and_report(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-9", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-9", 3450.0, tender="cash")
     msg = attempt(w, lambda: o.with_user(w.clerk).action_deliver())
     assert "handover OTP" in msg and "recipient" in msg and "signed service" in msg
     o.with_user(w.clerk).action_send_delivery_otp()
@@ -598,7 +601,7 @@ def test_five_wrong_codes_burn_the_otp(w):
 def test_settlement_cannot_be_reverted_and_close_needs_it(w):
     o = to_ready(w, order(w), 10000)
     handover_evidence(w, o)
-    o.with_user(w.cashier).action_mark_settled("POS-1", 11500.0)
+    o.with_user(w.cashier).action_mark_settled("POS-1", 11500.0, tender="cash")
     o.with_user(w.clerk).action_deliver()
     assert GUARD in attempt(
         w, lambda: o.with_user(w.clerk).write({"payment_settlement_state": "unpaid"})
@@ -678,7 +681,7 @@ def test_cancel_needs_a_reason_and_cascades(w):
 def test_cancelling_a_settled_order_raises_the_refund_hand_off(w):
     o = order(w)
     approved(w, o, 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-55", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-55", 3450.0, tender="cash")
     # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
     assert "only a Service Supervisor" in attempt(
         w, lambda: o.with_user(w.clerk).action_cancel(reason_code="customer_declined")

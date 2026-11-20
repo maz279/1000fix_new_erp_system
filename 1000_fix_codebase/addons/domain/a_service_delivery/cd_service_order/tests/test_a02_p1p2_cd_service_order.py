@@ -209,7 +209,9 @@ def test_delivery_leg_delivers_only_a_settled_order(w):
     leg = _leg(w, o, "delivery")
     _deliver_leg(w, leg, pod_verified_at=fields.Datetime.now())
     assert o.state == "ready"  # BDT 3,450 due, nothing settled
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=3450.0, reference="CASH-P1-1")
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=3450.0, reference="CASH-P1-1", tender="cash"
+    )
     publish(w.env, "consignment.delivered", "fix.consignment", leg.id, {"service_order_id": o.id})
     relay(w.env)
     assert o.state == "delivered"
@@ -306,7 +308,9 @@ def test_await_approval_needs_a_valid_estimate_with_the_customer(w):
 
 def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=3450.0, reference="CASH-P1-2")
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=3450.0, reference="CASH-P1-2", tender="cash"
+    )
     leg = _leg(w, o, "delivery")
     leg._guarded().write({"state": "confirmed"})
     # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
@@ -318,7 +322,9 @@ def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
 def _delivered(w, amount=3000):
     o = to_ready(w, order(w), amount)
     due = o._fix_amount_due()
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=due, reference="CASH-%d" % o.id)
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=due, reference="CASH-%d" % o.id, tender="cash"
+    )
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     return o

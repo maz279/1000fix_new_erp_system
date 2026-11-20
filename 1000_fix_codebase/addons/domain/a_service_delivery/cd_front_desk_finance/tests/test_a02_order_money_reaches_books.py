@@ -151,7 +151,7 @@ def test_counter_cash_is_a_receipt_on_the_drawer_and_pays_the_invoice(books):
     due = order._fix_amount_due()
     assert due == 1150.0  # 1,000 + 15% VAT
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=due, reference="CTR-OMB-1", source="counter"
+        amount_bdt=due, reference="CTR-OMB-1", source="counter", tender="cash"
     )
     receipt = order.settlement_receipt_id
     assert receipt.state == "confirmed" and receipt.method == "cash"
@@ -196,7 +196,7 @@ def test_more_than_the_amount_due_is_refused_at_the_counter(books):
     order = m.job(500.0)
     with pytest.raises(UserError, match="more than the BDT 575.00 due"):
         order.with_user(m.so_cashier).action_mark_settled(
-            amount_bdt=50000.0, reference="CTR-OVER", source="counter"
+            amount_bdt=50000.0, reference="CTR-OVER", source="counter", tender="cash"
         )
     assert order.payment_settlement_state == "unpaid"
 
@@ -206,7 +206,7 @@ def test_a_price_rise_after_payment_is_topped_up_not_deadlocked(books):
     s = m.shift(as_user=m.so_cashier)
     order = m.job(1000.0)
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-TOP-1", source="counter"
+        amount_bdt=1150.0, reference="CTR-TOP-1", source="counter", tender="cash"
     )
     # the approved estimate is revised upwards: 2,000 + VAT = 2,300 due
     m.env["fix.estimate"].create(
@@ -231,10 +231,10 @@ def test_a_price_rise_after_payment_is_topped_up_not_deadlocked(books):
     assert order._fix_amount_due() == 2300.0
     with pytest.raises(UserError, match="does not cover"):
         order.with_user(m.so_cashier).action_mark_settled(
-            amount_bdt=100.0, reference="CTR-TOP-2", source="counter"
+            amount_bdt=100.0, reference="CTR-TOP-2", source="counter", tender="cash"
         )
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-TOP-2", source="counter"
+        amount_bdt=1150.0, reference="CTR-TOP-2", source="counter", tender="cash"
     )
     assert order.amount_settled_bdt == 2300.0
     assert s.sudo().cash_payments == 2300.0  # the drawer took only the difference
@@ -279,7 +279,7 @@ def test_only_a_supervisor_cancels_a_paid_order(books):
     m.shift(as_user=m.so_cashier)
     order = m.job(500.0)
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=575.0, reference="CTR-CAN-1", source="counter"
+        amount_bdt=575.0, reference="CTR-CAN-1", source="counter", tender="cash"
     )
     with pytest.raises(UserError, match="only a Service Supervisor"):
         order.with_user(m.so_cashier).action_cancel(reason_code="customer_declined")
@@ -301,7 +301,7 @@ def test_a_paid_diagnostic_fee_is_an_advance_the_repair_nets(books):
     # the customer pays the repair less what they already paid
     assert order._fix_amount_due() == 850.0
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=850.0, reference="CTR-DIAG-1", source="counter"
+        amount_bdt=850.0, reference="CTR-DIAG-1", source="counter", tender="cash"
     )
     invoice = m.deliver(order)
     invoice.invalidate_recordset()

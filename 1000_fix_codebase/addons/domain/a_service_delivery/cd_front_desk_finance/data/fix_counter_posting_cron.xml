@@ -25,5 +25,25 @@
             <field name="interval_type">hours</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A02 pass 2 (M04-03): an approved opening-float difference. -->
+        <record id="ir_cron_cash_shift_float_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending opening-float differences to the GL</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_cash_shift"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_float_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A02 pass 2 (M04-01): a drawer cash-out whose account did not resolve. -->
+        <record id="ir_cron_cash_movement_posting_retry" model="ir.cron">
+            <field name="name">M04: post pending drawer cash-outs to the GL</field>
+            <field name="model_id" ref="cd_front_desk.model_fix_cash_movement"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_movement_postings()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

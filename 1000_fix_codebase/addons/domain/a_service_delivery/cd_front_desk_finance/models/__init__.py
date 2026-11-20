@@ -19,3 +19,8 @@ from . import fix_m04_cash_id
 # M20 receipt (drawer / channel), and the order's cash takes the high-value ID
 # check. Extends fix.cash.id.check after fix_m04_cash_id, so it loads last.
 from . import fix_diagnostic_fee_receipt, fix_order_cash_receipt
+
+# isort: split
+# A02 pass 2 (M04-01 / X5-02): the drawer's cash-outs post to the GL. Extends
+# fix.cash.movement and fix.cash.shift; reads the account roles above.
+from . import fix_cash_movement_posting, fix_field_cash_receipt

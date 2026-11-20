@@ -120,7 +120,7 @@ def _delivered(w, lines):
     )
     qc.with_user(w.inspector).action_complete()
     o.action_ready()
-    o.with_user(w.cashier).action_mark_settled("POS-D11-%s" % o.id, est.grand_total)
+    o.with_user(w.cashier).action_mark_settled("POS-D11-%s" % o.id, est.grand_total, tender="cash")
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     assert o.state == "delivered"

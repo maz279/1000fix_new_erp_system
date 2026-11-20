@@ -39,7 +39,7 @@ carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
 clearing (gross), prepared by an accountant and settled by a different
 Accounting Administrator.
 """,
-    "version": "19.0.1.5.1",
+    "version": "19.0.1.5.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -71,6 +71,8 @@ Accounting Administrator.
         # A08 B1 (F1/E12): deposit matching, LC expiry and the payment
         # consumer crons.
         "data/fix_treasury_automation.xml",
+        # A02 pass 2 (D20): riders holding COD past the hand-in deadline
+        "data/fix_cod_handin_cron.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

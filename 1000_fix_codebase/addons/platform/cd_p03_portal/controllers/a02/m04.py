@@ -31,6 +31,10 @@ SURFACES = {
             "action_request_approval",
             "action_recall_approval",
             "action_reconcile",
+            # A02 pass 2 (M04-03): a float other than the last close's cash
+            "action_approve_opening_float",
+            # A02 pass 2 (X5-20): a variance the GL still owes
+            "action_retry_variance_posting",
         },
     },
     "fix.counter.sale": {
@@ -50,6 +54,8 @@ SURFACES = {
             # A02 ERP audit X-17: the customer's receipt, A4 and 80 mm
             "action_print_receipt",
             "action_print_receipt_80",
+            # A02 pass 2 (X5-20): a sale / refund the books still owe
+            "action_retry_posting",
         },
     },
     # Quote-to-cash (13 Nov 2026): a customer's several items, one payment.
@@ -77,7 +83,8 @@ SURFACES = {
     "fix.cash.movement": {
         "order": "id desc",
         "limit": 300,
-        "actions": {"action_approve", "action_post", "action_cancel"},
+        # A02 pass 2 (M04-01 / X5-20): a cash-out the GL still owes
+        "actions": {"action_approve", "action_post", "action_cancel", "action_retry_posting"},
     },
     "fix.branch.announcement": {
         "order": "id desc",
@@ -182,35 +189,90 @@ def _wait_minutes(token):
     return max((token.called_at - token.issued_at).total_seconds(), 0.0) / 60.0
 
 
+def _branch_fence(env, model):
+    """A02 pass 2 (M04-06): the tile shows the reader's branches. A reader
+    restricted to some operating units sees theirs; the fence is the record's
+    operating unit (or its branch's)."""
+    units = getattr(env.user, "operating_unit_ids", None)
+    if not units:
+        return []
+    if "operating_unit_id" in model._fields:
+        return [("operating_unit_id", "in", units.ids)]
+    if "branch_id" in model._fields:
+        return [("branch_id.operating_unit_id", "in", units.ids)]
+    return []
+
+
+_WIP_EXCLUDED = ("ready", "delivered", "closed", "cancelled")
+
+
 def kpis(env):
     """The M04 module-tile KPI row (registry-canonical metrics), fenced to the
-    reader's companies and dated in the Bangladesh business day."""
+    reader's companies and branches (A02 pass 2, M04-06) and dated in the
+    Bangladesh business day. No figure is measured over a capped subset
+    (X5-17: the average wait read the last 500 tokens of every branch ever)."""
     Token = env["fix.token.queue"].sudo()
     Shift = env["fix.cash.shift"].sudo()
     Sale = env["fix.counter.sale"].sudo()
     Order = env["fix.service.order"].sudo()
-    domain = [("company_id", "in", env.companies.ids)]
+    Intake = env["fix.walkin.intake"].sudo()
+    base = [("company_id", "in", env.companies.ids)]
     today = _today(env)
     day_start = _utc_start(env, today)
     day_end = _utc_start(env, today + datetime.timedelta(days=1))
+    today_dt = [(">=", day_start), ("<", day_end)]
 
+    def fenced(model):
+        return [*base, *_branch_fence(env, model)]
+
+    domain = fenced(Token)
     tokens_today = Token.search_count(
         [*domain, ("issued_at", ">=", day_start), ("issued_at", "<", day_end)]
     )
 
-    # the wait is issue -> call; the population is the served tokens
+    # the wait is issue -> call, over every token called today (no cap)
     served = Token.search(
         [
             *domain,
-            ("state", "=", "completed"),
-            ("served_at", "!=", False),
             ("called_at", "!=", False),
-        ],
-        order="called_at desc",
-        limit=500,
+            ("issued_at", "!=", False),
+            ("called_at", ">=", day_start),
+            ("called_at", "<", day_end),
+        ]
     )
     waits_min = [w for w in (_wait_minutes(t) for t in served) if w is not None]
     avg_wait = round(sum(waits_min) / len(waits_min), 1) if waits_min else None
+
+    # today's branch work: intakes handed over today, the repair work in
+    # progress, the devices ready for collection, and today's takings
+    intakes_today = Intake.search_count(
+        [
+            *fenced(Intake),
+            ("state", "=", "completed"),
+            *[("handover_complete", op, value) for op, value in today_dt],
+        ]
+    )
+    order_domain = fenced(Order)
+    wip = Order.search_count([*order_domain, ("state", "not in", _WIP_EXCLUDED)])
+    ready = Order.search_count([*order_domain, ("state", "=", "ready")])
+    sale_domain = fenced(Sale)
+    sales_today = Sale.search(
+        [*sale_domain, ("state", "=", "confirmed"), *[("sale_date", op, v) for op, v in today_dt]]
+    )
+    revenue_today = sum(sales_today.mapped("total"))
+    if "fix.ar.receipt" in env and "source_order_id" in env["fix.ar.receipt"]._fields:
+        Receipt = env["fix.ar.receipt"].sudo()
+        receipts = Receipt.search(
+            [
+                *fenced(Receipt),
+                ("state", "=", "confirmed"),
+                ("source_order_id", "!=", False),
+                ("receipt_date", "=", today),
+            ]
+        )
+        revenue_today += sum(receipts.mapped("amount"))
+    revenue_today = round(revenue_today, 2)
+    domain = fenced(Order)
 
     # ready (not delivered) for more than 7 days since it became ready
     cutoff = _utc_start(env, today - datetime.timedelta(days=UNCOLLECTED_DAYS))
@@ -218,14 +280,15 @@ def kpis(env):
         [*domain, ("state", "=", "ready"), ("ready_at", "!=", False), ("ready_at", "<", cutoff)]
     )
 
-    counted_today = Shift.search([*domain, *_COUNTED, ("shift_date", "=", today)])
+    shift_domain = fenced(Shift)
+    counted_today = Shift.search([*shift_domain, *_COUNTED, ("shift_date", "=", today)])
     shortage = round(sum(s.variance for s in counted_today if s.variance < 0), 2)
     overage = round(sum(s.variance for s in counted_today if s.variance > 0), 2)
 
-    shifts_open = Shift.search_count([*domain, ("state", "in", ("open", "counting"))])
+    shifts_open = Shift.search_count([*shift_domain, ("state", "in", ("open", "counting"))])
 
     month_start = _utc_start(env, today.replace(day=1))
-    sales_domain = [*domain, ("state", "=", "confirmed"), ("sale_date", ">=", month_start)]
+    sales_domain = [*sale_domain, ("state", "=", "confirmed"), ("sale_date", ">=", month_start)]
     sales_mtd = Sale.search_count(sales_domain)
     sales_mtd_bdt = round(sum(Sale.search(sales_domain).mapped("total")), 2)
 
@@ -240,35 +303,136 @@ def kpis(env):
         "shifts_open": shifts_open,
         "counter_sales_mtd": sales_mtd,
         "counter_sales_mtd_bdt": sales_mtd_bdt,
+        # A02 pass 2 (M04-06): the branch's day
+        "intakes_today": intakes_today,
+        "orders_wip": wip,
+        "orders_ready": ready,
+        "takings_today_bdt": revenue_today,
+        "books_pending": _books_pending_count(env),
     }
 
 
 # ---------------------------------------------------------------- reports
 
 
+_CASH_OUT_TYPES = ("safe_drop", "petty_expense", "staff_advance", "field_shortage")
+
+
+def _drawer_breakdown(movements):
+    """A shift's drawer movements by source (the ledger's own references)."""
+    out = {"sales": 0.0, "settlements": 0.0, "field": 0.0, "refunds": 0.0, "cash_outs": 0.0}
+    for mv in movements:
+        if mv.state != "posted":
+            continue
+        ref = mv.reference or ""
+        if mv.movement_type == "receipt":
+            key = "sales" if ref.startswith("Counter sale") else "settlements"
+        elif mv.movement_type == "field_cash":
+            key = "field"
+        elif mv.movement_type == "refund":
+            key = "refunds"
+        elif mv.movement_type in _CASH_OUT_TYPES:
+            key = "cash_outs"
+        else:
+            continue
+        out[key] += mv.amount
+    return {k: round(v, 2) for k, v in out.items()}
+
+
+def _non_cash_takings(env, branch, day):
+    """What the branch took on ``day`` other than drawer cash: counter sales
+    by wallet / card, service-order settlements and diagnostic fees by wallet /
+    card (M20 receipts), and cash on delivery collected by riders."""
+    Sale = env["fix.counter.sale"].sudo()
+    total = sum(
+        Sale.search(
+            [
+                ("branch_id", "=", branch.id),
+                ("state", "in", ("confirmed", "refunded")),
+                ("payment_method", "!=", "cash"),
+                ("sale_date", ">=", _utc_start(env, day)),
+                ("sale_date", "<", _utc_start(env, day + datetime.timedelta(days=1))),
+            ]
+        ).mapped("total")
+    )
+    if "fix.ar.receipt" in env and "source_order_id" in env["fix.ar.receipt"]._fields:
+        total += sum(
+            env["fix.ar.receipt"]
+            .sudo()
+            .search(
+                [
+                    ("branch_id", "=", branch.id),
+                    ("state", "=", "confirmed"),
+                    ("source_order_id", "!=", False),
+                    ("method", "!=", "cash"),
+                    ("receipt_date", "=", day),
+                ]
+            )
+            .mapped("amount")
+        )
+    return round(total, 2)
+
+
 def _daily_cash_report(env, **params):
+    """X5-24 (A02 pass 2): every shift of the period with its drawer broken
+    down by source (sales, service-order settlements and fees, field cash,
+    refunds, cash-outs), and per branch day the takings that never touched a
+    drawer (wallet / card / COD). No cap: the period decides."""
     Shift = env["fix.cash.shift"].sudo()
+    Movement = env["fix.cash.movement"].sudo()
     rows = []
     shifts = Shift.search(
-        [
-            *_company(env),
-            ("state", "in", ("closed", "reconciled", "discrepancy")),
-            *_period_date("shift_date", params),
-        ],
-        order="shift_date desc, id desc",
-        limit=500,
+        [*_company(env), *_period_date("shift_date", params)],
+        order="shift_date desc, branch_id, id desc",
     )
+    states = dict(Shift._fields["state"].selection)
+    movements = Movement.search([("shift_id", "in", shifts.ids)])
+    by_shift = {}
+    for mv in movements:
+        by_shift.setdefault(mv.shift_id.id, []).append(mv)
+    seen_days = []
     for s in shifts:
+        parts = _drawer_breakdown(by_shift.get(s.id, []))
+        counted = s.blind_count_submitted or s.state in ("closed", "reconciled", "discrepancy")
         rows.append(
             {
                 "date": str(s.shift_date),
                 "branch": s.branch_id.name or "—",
                 "operator": s.operator_id.name or "—",
                 "opening": s.opening_float,
+                "sales": parts["sales"],
+                "settlements": parts["settlements"],
+                "field": parts["field"],
+                "refunds": parts["refunds"],
+                "cash_outs": parts["cash_outs"],
                 "expected": s.expected_closing,
-                "counted": s.closing_counted,
-                "variance": s.variance,
-                "state": s.state,
+                "counted": s.closing_counted if counted else None,
+                "variance": s.variance if counted else None,
+                "non_cash": None,
+                "state": states.get(s.state, s.state),
+            }
+        )
+        key = (s.branch_id.id, s.shift_date)
+        if s.branch_id and key not in seen_days:
+            seen_days.append(key)
+    for branch_id, day in seen_days:
+        branch = env["fix.branch"].sudo().browse(branch_id)
+        rows.append(
+            {
+                "date": str(day),
+                "branch": branch.name or "—",
+                "operator": "Non-cash takings (branch day)",
+                "opening": None,
+                "sales": None,
+                "settlements": None,
+                "field": None,
+                "refunds": None,
+                "cash_outs": None,
+                "expected": None,
+                "counted": None,
+                "variance": None,
+                "non_cash": _non_cash_takings(env, branch, day),
+                "state": "—",
             }
         )
     return {
@@ -278,9 +442,15 @@ def _daily_cash_report(env, **params):
             "branch",
             "operator",
             "opening",
+            "sales",
+            "settlements",
+            "field",
+            "refunds",
+            "cash_outs",
             "expected",
             "counted",
             "variance",
+            "non_cash",
             "state",
         ],
         "labels": {
@@ -288,15 +458,138 @@ def _daily_cash_report(env, **params):
             "branch": "Branch",
             "operator": "Operator",
             "opening": "Opening Float",
+            "sales": "Counter Sales (cash)",
+            "settlements": "Order Settlements & Fees (cash)",
+            "field": "Field Cash Handed In",
+            "refunds": "Refunds Paid",
+            "cash_outs": "Cash-Outs (expense / advance / safe)",
             "expected": "Expected",
             "counted": "Counted",
             "variance": "Variance",
+            "non_cash": "Non-Cash Takings (wallet / card / COD)",
             "state": "State",
         },
         "rows": rows,
         "notes": [
-            "Closed and reconciled shifts with their counted drawers and variances.",
+            "Every shift of the period: opening float + counter sales + order settlements and "
+            "diagnostic fees + field cash - refunds - cash-outs = expected; counted and the "
+            "variance once the count is in.",
+            "One line per branch day adds what was taken without touching a drawer: counter "
+            "sales by wallet or card, service-order payments and fees by wallet, card or cash "
+            "on delivery (their M20 receipts).",
             _period_note(params),
+        ],
+    }
+
+
+# ---------------------------------------------------------------- books pending (X5-20)
+
+
+def _books_pending_rows(env):
+    """Everything the front desk took that the books still owe, with why."""
+    rows = []
+    Sale = env["fix.counter.sale"].sudo()
+    if "posting_state" in Sale._fields:
+        for sale in Sale.search(
+            [*_company(env), ("posting_state", "in", ("pending", "reversal_pending"))],
+            order="id",
+        ):
+            rows.append(
+                {
+                    "kind": "Counter sale",
+                    "record": sale.name,
+                    "model": "fix.counter.sale",
+                    "id": sale.id,
+                    "branch": sale.branch_id.name or "—",
+                    "amount": sale.total,
+                    "state": dict(Sale._fields["posting_state"].selection).get(
+                        sale.posting_state, sale.posting_state
+                    ),
+                    "note": (sale.posting_note or "")[:200],
+                    "retry": "action_retry_posting",
+                }
+            )
+    Shift = env["fix.cash.shift"].sudo()
+    if "variance_posting_state" in Shift._fields:
+        for shift in Shift.search(
+            [
+                *_company(env),
+                "|",
+                ("variance_posting_state", "=", "pending"),
+                ("float_posting_state", "=", "pending"),
+            ],
+            order="id",
+        ):
+            if shift.variance_posting_state == "pending":
+                rows.append(
+                    {
+                        "kind": "Shift variance",
+                        "record": "Shift #%s %s" % (shift.id, shift.shift_date),
+                        "model": "fix.cash.shift",
+                        "id": shift.id,
+                        "branch": shift.branch_id.name or "—",
+                        "amount": shift.variance,
+                        "state": "Pending Posting",
+                        "note": (shift.variance_posting_note or "")[:200],
+                        "retry": "action_retry_variance_posting",
+                    }
+                )
+            if shift.float_posting_state == "pending":
+                rows.append(
+                    {
+                        "kind": "Opening float difference",
+                        "record": "Shift #%s %s" % (shift.id, shift.shift_date),
+                        "model": "fix.cash.shift",
+                        "id": shift.id,
+                        "branch": shift.branch_id.name or "—",
+                        "amount": shift.float_variance,
+                        "state": "Pending Posting",
+                        "note": (shift.float_posting_note or "")[:200],
+                        "retry": "action_retry_variance_posting",
+                    }
+                )
+    Movement = env["fix.cash.movement"].sudo()
+    if "posting_state" in Movement._fields:
+        for mv in Movement.search([*_company(env), ("posting_state", "=", "pending")], order="id"):
+            rows.append(
+                {
+                    "kind": "Drawer cash-out",
+                    "record": mv.name,
+                    "model": "fix.cash.movement",
+                    "id": mv.id,
+                    "branch": mv.branch_id.name or "—",
+                    "amount": mv.amount,
+                    "state": "Pending Posting",
+                    "note": (mv.posting_note or "")[:200],
+                    "retry": "action_retry_posting",
+                }
+            )
+    return rows
+
+
+def _books_pending_count(env):
+    return len(_books_pending_rows(env))
+
+
+def _books_pending_report(env, **params):
+    rows = _books_pending_rows(env)
+    return {
+        "title": "Front-Desk Money Not Yet in the Books",
+        "cols": ["kind", "record", "branch", "amount", "state", "note"],
+        "labels": {
+            "kind": "What",
+            "record": "Record",
+            "branch": "Branch",
+            "amount": "Amount (BDT)",
+            "state": "Books",
+            "note": "Why It Has Not Posted",
+        },
+        "rows": rows,
+        "notes": [
+            "Counter sales and refunds, drawer variances, opening-float differences and "
+            "drawer cash-outs whose GL / VAT / stock posting is pending. Fix the cause named "
+            "(usually an account parameter), then Retry Posting on the record or wait for "
+            "the hourly job. Nothing posts twice.",
         ],
     }
 
@@ -310,7 +603,6 @@ def _wait_distribution_report(env, **params):
             *_period_datetime(env, "issued_at", params),
         ],
         order="issued_at desc",
-        limit=5000,
     )
     buckets = {"< 5 min": 0, "5–15 min": 0, "15–30 min": 0, "> 30 min": 0}
     for t in called:
@@ -344,7 +636,6 @@ def _uncollected_ageing_report(env, **params):
     for o in Order.search(
         [*_company(env), ("state", "=", "ready"), *_period_datetime(env, "ready_at", params)],
         order="ready_at asc, id asc",
-        limit=1000,
     ):
         since = _local_day(env, o.ready_at)
         rows.append(
@@ -438,7 +729,6 @@ def _variance_register_report(env, **params):
                 *_period_date("shift_date", params),
             ],
             order="shift_date desc, id desc",
-            limit=1000,
         )
     ]
     return {
@@ -511,7 +801,6 @@ def _shift_checklists_report(env, **params):
     for s in Shift.search(
         [*_company(env), *_period_date("shift_date", params)],
         order="shift_date desc, id desc",
-        limit=500,
     ):
         needs = s.blind_count_submitted and abs(s.variance) > s._fd_tolerance()
         rows.append(
@@ -576,6 +865,8 @@ REPORTS = {
     "branch_league": _branch_league_report,
     # M04 sweep audit 2026-11-06: the checklist screen gets its own pack.
     "shift_checklists": _shift_checklists_report,
+    # A02 pass 2 (X5-20): money taken that the books still owe
+    "books_pending": _books_pending_report,
 }
 
 

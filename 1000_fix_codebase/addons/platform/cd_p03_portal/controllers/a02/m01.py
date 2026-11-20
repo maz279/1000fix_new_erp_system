@@ -45,6 +45,8 @@ SURFACES = {
             "action_verify_delivery_otp",
             # M04 build (BRU-FRD-05, cd_front_desk): a third-party collector's ID
             "action_verify_collector_id",
+            # A02 pass 2 (M04-06, cd_front_desk): the customer's own rating page
+            "action_request_counter_rating",
             # A02 audit B1: goodwill and zero-charge rework are REQUESTED here
             # and decided from the approver's M63 inbox (the approve methods
             # refuse a direct press, so they are not offered).

@@ -93,7 +93,7 @@ def _relay_to_hold(w, event_type, device, method):  # noqa: F811
 def _ready_to_hand_over(w):  # noqa: F811
     o = to_ready(w, order(w), 10000)
     handover_evidence(w, o)
-    o.with_user(w.cashier).action_mark_settled("POS-M17", 11500.0)
+    o.with_user(w.cashier).action_mark_settled("POS-M17", 11500.0, tender="cash")
     return o
 
 

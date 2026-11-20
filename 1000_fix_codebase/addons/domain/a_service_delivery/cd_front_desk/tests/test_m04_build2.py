@@ -314,6 +314,8 @@ def test_a_large_petty_expense_and_an_advance_need_an_independent_manager(m04, u
             "movement_type": "staff_advance",
             "amount": 100.0,
             "reason": "Rider fuel",
+            # A02 pass 2 (D2): an advance is booked to the staff member who took it
+            "employee_id": m04.cashier2_emp.id,
         }
     )
     for mv in (big, adv):

@@ -45,6 +45,8 @@ WRITABLE = {
     "fix.cash.movement": frozenset(
         {
             "amount",
+            "employee_id",
+            "expense_category",
             "movement_type",
             "reason",
             "receipt_attachment_id",
@@ -813,8 +815,6 @@ WRITABLE = {
             "collector_is_customer",
             "collector_relation",
             "cosmetic_condition_notes",
-            "counter_feedback",
-            "counter_rating",
             "customer_id",
             "deferred_notes",
             "deferred_until",
@@ -833,6 +833,7 @@ WRITABLE = {
             "service_report_attachment_id",
             "service_type",
             "sim_memory_removed",
+            "storage_location_id",
             "symptom_reproducibility",
             "technician_id",
             "triage_verdict",
