@@ -1,65 +1,541 @@
-# Bengali translations for cd_attendance (M55, P08-M02) — 100% coverage.
+# Translation template for cd_attendance — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-""
-""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
-msgid "Attendance Record"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_needaction
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_needaction
+msgid "Action Needed"
 msgstr ""
 
-msgid "Shift Template"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_ids
+msgid "Activities"
 msgstr ""
 
-msgid "Roster Slot"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_exception_decoration
+msgid "Activity Exception Decoration"
 msgstr ""
 
-msgid "Attendance Lock"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_state
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_state
+msgid "Activity State"
 msgstr ""
 
-msgid "Biometric Device"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_type_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_type_icon
+msgid "Activity Type Icon"
 msgstr ""
 
-msgid "Mobile (Geofenced)"
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_attachment_count
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_attachment_count
+msgid "Attachment Count"
 msgstr ""
 
-msgid "Manual"
-msgstr ""
-
-msgid "Device Reference"
-msgstr ""
-
-msgid "Latitude (P02 geofence)"
-msgstr ""
-
-msgid "Longitude (P02 geofence)"
-msgstr ""
-
-msgid "Check Out"
-msgstr ""
-
-msgid "Lock Period"
-msgstr ""
-
-msgid "Re-open"
-msgstr ""
-
-msgid "Locked"
-msgstr ""
-
-msgid "Re-opened"
-msgstr ""
-
-msgid "Shift"
-msgstr ""
-
-msgid "Branch"
-msgstr ""
-
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_attendance
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance
 msgid "Attendance"
 msgstr ""
 
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_lock
+msgid "Attendance Lock"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_attendance_lock
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_attendance_lock
+msgid "Attendance Locks"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_attendance_record
+msgid "Attendance Record"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__biometric
+msgid "Biometric Device"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__branch_id
+msgid "Branch"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_in
+msgid "Check In"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__check_out
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_form
+msgid "Check Out"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__company_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__create_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__create_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__date
+msgid "Date"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__device_ref
+msgid "Device Reference"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__display_label
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__display_label
+msgid "Display Label"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__display_name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__employee_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__employee_id
+msgid "Employee"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__end_hour
+msgid "End Hour"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_follower_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_partner_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_type_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__has_message
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__overtime_hours
+msgid "Hours beyond the statutory 8/day"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__device_ref
+msgid "INT-041 device id. The biometric TEMPLATE never lands here - S3 residency data routes through fix.identity.document"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_exception_icon
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_needaction
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_sms_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_error
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_is_follower
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__write_uid
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__write_date
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_lat
+msgid "Latitude (P02 geofence)"
+msgstr ""
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Lock Period"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__locked
+msgid "Locked"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__geo_long
+msgid "Longitude (P02 geofence)"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__manual
+msgid "Manual"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_record__source__mobile
+msgid "Mobile (Geofenced)"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__name
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__name
+msgid "Name"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_summary
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_type_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_needaction_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__message_has_error_counter
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__on_leave
+msgid "On Leave"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__operating_unit_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_work_order__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__overtime_hours
+msgid "Overtime Hours"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__period_end
+msgid "Period End"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__period_start
+msgid "Period Start"
+msgstr ""
+
+#. module: cd_attendance
+#: model_terms:ir.ui.view,arch_db:cd_attendance.view_fix_attendance_lock_form
+msgid "Re-open"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields.selection,name:cd_attendance.selection__fix_attendance_lock__state__unlocked
+msgid "Re-opened"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__activity_user_id
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.actions.act_window,name:cd_attendance.action_fix_roster
+#: model:ir.ui.menu,name:cd_attendance.menu_fix_roster
 msgid "Roster"
 msgstr ""
 
-msgid "Attendance Locks"
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_roster_slot
+msgid "Roster Slot"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__on_leave
+msgid "Set when an approved fix.leave.request covers this date"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__shift_id
+msgid "Shift"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_shift_template
+msgid "Shift Template"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__source
+msgid "Source"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__start_hour
+msgid "Start Hour"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__state
+msgid "State"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_state
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__activity_exception_decoration
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_lock__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_roster_slot__website_message_ids
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_shift_template__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_lock__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_attendance_record__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_roster_slot__website_message_ids
+#: model:ir.model.fields,help:cd_attendance.field_fix_shift_template__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model,name:cd_attendance.model_fix_work_order
+msgid "Work Order"
+msgstr ""
+
+#. module: cd_attendance
+#: model:ir.model.fields,field_description:cd_attendance.field_fix_attendance_record__worked_hours
+msgid "Worked Hours"
 msgstr ""

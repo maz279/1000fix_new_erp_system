@@ -1,23 +1,104 @@
 # Bengali (Bangladesh) translation for cd_crm_ext.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__campaign
+msgid "Campaign"
+msgstr "প্রচারণা"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__converted_service_order_id
 msgid "Converted Service Order"
 msgstr "রূপান্তরিত সার্ভিস অর্ডার"
 
-msgid "Linked Party"
-msgstr "সংযুক্ত পার্টি"
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
 
-msgid "Party Role (Customer)"
-msgstr "পার্টি ভূমিকা (গ্রাহক)"
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__hotline
+msgid "Hotline 16743"
+msgstr "হটলাইন 16743"
 
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_crm_ext
+#: model:ir.model,name:cd_crm_ext.model_crm_lead
+msgid "Lead"
+msgstr "লিড"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__lead_source
+msgid "Lead Source"
+msgstr "লিডের উৎস"
+
+#. module: cd_crm_ext
+#: model:ir.ui.menu,name:cd_crm_ext.menu_fix_crm
 msgid "Leads"
 msgstr "লিড"
 
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__linked_partner_id
+msgid "Linked Party"
+msgstr "সংযুক্ত পার্টি"
+
+#. module: cd_crm_ext
+#: model_terms:ir.ui.view,arch_db:cd_crm_ext.crm_lead_view_form_fix
 msgid "Party Kernel (M33)"
 msgstr "পার্টি কার্নেল (M33)"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,field_description:cd_crm_ext.field_crm_lead__party_role_id
+msgid "Party Role (Customer)"
+msgstr "পার্টি ভূমিকা (গ্রাহক)"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__portal
+msgid "Portal P01"
+msgstr "পোর্টাল P01"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__referral
+msgid "Referral"
+msgstr "রেফারেল"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__social
+msgid "Social Media"
+msgstr "সোশ্যাল মিডিয়া"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,help:cd_crm_ext.field_crm_lead__party_role_id
+msgid "The fix.party.role linking this lead's account to the party kernel"
+msgstr "এই লিডের অ্যাকাউন্টকে পার্টি কার্নেলের সাথে যুক্তকারী fix.party.role"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,help:cd_crm_ext.field_crm_lead__linked_partner_id
+msgid "The res.partner this lead maps to through the party kernel"
+msgstr "পার্টি কার্নেলের মাধ্যমে এই লিড যে res.partner-এর সাথে যুক্ত"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields,help:cd_crm_ext.field_crm_lead__converted_service_order_id
+msgid "The service order created from this lead"
+msgstr "এই লিড থেকে তৈরি সার্ভিস অর্ডার"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__walk_in
+msgid "Walk-in"
+msgstr "সরাসরি আগত"
+
+#. module: cd_crm_ext
+#: model:ir.model.fields.selection,name:cd_crm_ext.selection__crm_lead__lead_source__website
+msgid "Website"
+msgstr "ওয়েবসাইট"

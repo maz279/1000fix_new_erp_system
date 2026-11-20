@@ -8,6 +8,12 @@ class FixKnowledgeArticle(models.Model):
     """M61: the technical library (M22's technical content moved here)."""
     _name = "fix.knowledge.article"
     _description = "Knowledge Article"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M61",
+        "form": "Article",
+        "fields": ["name", "category", "content", "title_bn", "tags"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

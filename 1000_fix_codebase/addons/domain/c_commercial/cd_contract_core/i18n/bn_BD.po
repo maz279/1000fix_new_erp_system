@@ -5,56 +5,600 @@ msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__quantity_included
+msgid "0 = unlimited for that type"
+msgstr "0 = ওই ধরনের জন্য সীমাহীন"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__amc
+msgid "AMC (Annual Maintenance)"
+msgstr "AMC (বার্ষিক রক্ষণাবেক্ষণ)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__auto_renew
+msgid "AUT-015: renewal opp auto-created at lead time"
+msgstr "AUT-015: লিড টাইমে নবায়নের সুযোগ স্বয়ংক্রিয়ভাবে তৈরি হয়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__renewal_lead_days
+msgid "AUT-015: −90/−60/−30/−15 escalation ladder"
+msgstr "AUT-015: −90/−60/−30/−15 ঊর্ধ্বতনে পাঠানোর ধাপ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_needaction
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_needaction
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_state
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_type_icon
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_contract_core
+#: model:ir.ui.menu,name:cd_contract_core.menu_fix_contract
 msgid "All Contracts"
 msgstr "সকল চুক্তি"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__escalation_pct
 msgid "Annual Escalation (%)"
 msgstr "বার্ষিক বৃদ্ধি (%)"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__annual_value
 msgid "Annual Value"
 msgstr "বার্ষিক মূল্য"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__escalation_pct
+msgid "Applied at renewal (T05): next-term value = value * (1 + pct/100)"
+msgstr "নবায়নের সময় প্রয়োগ হয় (T05): পরবর্তী মেয়াদের মূল্য = value * (1 + pct/100)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_attachment_count
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_attachment_count
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__auto_renew
+msgid "Auto Renew"
+msgstr "স্বয়ংক্রিয় নবায়ন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__covered_device_ids
+msgid "BRU-SRM-03: an AMC order can only be created if the device is on an ACTIVE contract's covered-asset list"
+msgstr "BRU-SRM-03: ডিভাইসটি কোনো সক্রিয় চুক্তির আওতাভুক্ত সম্পদ তালিকায় থাকলেই কেবল AMC অর্ডার তৈরি করা যাবে"
+
+#. module: cd_contract_core
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Commercial"
 msgstr "বাণিজ্যিক"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_contract_core
+#: model:ir.model,name:cd_contract_core.model_fix_contract
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__contract_id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__contract_id
+msgid "Contract"
+msgstr "চুক্তি"
+
+#. module: cd_contract_core
+#: model:ir.model,name:cd_contract_core.model_fix_contract_entitlement
+msgid "Contract Entitlement"
+msgstr "চুক্তির প্রাপ্যতা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__code
 msgid "Contract No."
 msgstr "চুক্তি নং"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__sla_policy_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Contract SLAs"
 msgstr "চুক্তি SLA"
 
+#. module: cd_contract_core
+#: model:ir.model.constraint,message:cd_contract_core.constraint_fix_contract_code_unique
+msgid "Contract code must be unique"
+msgstr "চুক্তির কোড অনন্য হতে হবে"
+
+#. module: cd_contract_core
+#: model:ir.actions.act_window,name:cd_contract_core.action_fix_contract
+#: model:ir.ui.menu,name:cd_contract_core.menu_ws_contract
 msgid "Contracts"
 msgstr "চুক্তিসমূহ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__covered_device_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Covered Assets"
 msgstr "আচ্ছাদিত সম্পদ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__create_uid
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__create_uid
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__create_date
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__create_date
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__date_end
+msgid "Date End"
+msgstr "শেষের তারিখ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__date_start
+msgid "Date Start"
+msgstr "শুরুর তারিখ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__dispatched
+msgid "Dispatched"
+msgstr "প্রেরিত"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__display_name
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__display_name
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__esignature_envelope_id
 msgid "E-Signature"
 msgstr "ই-সিগনেচার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__device_id
+msgid "Empty = the whole covered estate"
+msgstr "খালি = সম্পূর্ণ আওতাভুক্ত সম্পদ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__entitlement_type
+msgid "Entitlement Type"
+msgstr "প্রাপ্যতার ধরন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__entitlement_ids
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Entitlements"
 msgstr "এনটাইটেলমেন্ট"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__expiring
+msgid "Expiring Soon"
+msgstr "শীঘ্রই মেয়াদোত্তীর্ণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_follower_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_follower_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_partner_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_partner_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__activity_type_icon
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__has_message
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__has_message
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__activity_exception_icon
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__message_needaction
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__message_needaction
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__message_has_error
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__message_has_sms_error
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__message_has_error
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__message_has_sms_error
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__message_has_error
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_is_follower
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_is_follower
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__hours
+msgid "Labour Hours"
+msgstr "শ্রম-ঘণ্টা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__write_uid
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__write_uid
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__write_date
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__write_date
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__loaners
+msgid "Loaner Devices"
+msgstr "লোনার ডিভাইস"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__managed
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__marketplace
+msgid "Marketplace Agreement"
+msgstr "মার্কেটপ্লেস চুক্তি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_has_error
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_has_error
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_summary
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_type_id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__message_needaction_counter
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__message_needaction_counter
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__message_has_error_counter
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__message_has_error_counter
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__oca_contract_id
+msgid "OCA Contract Reference"
+msgstr "OCA চুক্তির রেফারেন্স"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_contract_core
+#: model:ir.actions.act_window,name:cd_contract_core.action_fix_pm_visit
+#: model:ir.ui.menu,name:cd_contract_core.menu_fix_pm_visit
 msgid "PM Schedule"
 msgstr "পিএম সময়সূচি"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__pending_signature
+msgid "Pending Signature"
+msgstr "স্বাক্ষরের অপেক্ষায়"
+
+#. module: cd_contract_core
+#: model:ir.model,name:cd_contract_core.model_fix_contract_pm_visit
+msgid "Preventive Maintenance Visit"
+msgstr "প্রতিরোধমূলক রক্ষণাবেক্ষণ ভিজিট"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__visits
+msgid "Preventive Visits"
+msgstr "প্রতিরোধমূলক ভিজিট"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__family
 msgid "Product Family"
 msgstr "পণ্য পরিবার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__quantity_consumed
+msgid "Quantity Consumed"
+msgstr "ব্যবহৃত পরিমাণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__quantity_included
+msgid "Quantity Included"
+msgstr "অন্তর্ভুক্ত পরিমাণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__quantity_remaining
+msgid "Quantity Remaining"
+msgstr "অবশিষ্ট পরিমাণ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__ramc
+msgid "RAMC (Repair & Maintenance)"
+msgstr "RAMC (মেরামত ও রক্ষণাবেক্ষণ)"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__renewal_lead_days
+msgid "Renewal Lead Days"
+msgstr "নবায়নের অগ্রিম দিন"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__family__rental
+msgid "Rental"
+msgstr "ভাড়া"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_entitlement__entitlement_type__incidents
+msgid "Repair Incidents"
+msgstr "মেরামতের ঘটনা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__activity_user_id
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__scheduled
+msgid "Scheduled"
+msgstr "নির্ধারিত"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__scheduled_date
+msgid "Scheduled Date"
+msgstr "নির্ধারিত তারিখ"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
 
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract_pm_visit__state__skipped
+msgid "Skipped"
+msgstr "বাদ দেওয়া হয়েছে"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__device_id
 msgid "Specific Asset"
 msgstr "নির্দিষ্ট সম্পদ"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__state
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__activity_state
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__oca_contract_id
+msgid "T01: Rebuilt on OCA contract (12 modules) for recurring accounting, lines, and billing"
+msgstr "T01: পুনরাবৃত্ত হিসাব, লাইন ও বিলিংয়ের জন্য OCA contract (12টি মডিউল)-এর উপর পুনর্নির্মিত"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__sla_policy_ids
+msgid "T04: contract SLAs reference the SAME policy model as M01's service SLAs — one SLA concept, two scopes, not two implementations"
+msgstr "T04: চুক্তির SLA এবং M01-এর সার্ভিস SLA একই পলিসি মডেল ব্যবহার করে — এক SLA ধারণা, দুই পরিসর, দুই বাস্তবায়ন নয়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__esignature_envelope_id
+msgid "T07: through M24's kernel envelope, never a local implementation"
+msgstr "T07: M24-এর কার্নেল এনভেলপের মাধ্যমে, কখনো স্থানীয় বাস্তবায়ন নয়"
+
+#. module: cd_contract_core
+#: model:ir.model.fields.selection,name:cd_contract_core.selection__fix_contract__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_contract_core
+#: model_terms:ir.ui.view,arch_db:cd_contract_core.view_fix_contract_form
 msgid "Terms"
 msgstr "শর্তাবলী"
 
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__date_end
+msgid "The term end — renewal extends or replaces this"
+msgstr "মেয়াদের শেষ — নবায়ন এটিকে বাড়ায় বা প্রতিস্থাপন করে"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__name
 msgid "Title"
 msgstr "শিরোনাম"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__activity_exception_decoration
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract__website_message_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_entitlement__website_message_ids
+#: model:ir.model.fields,field_description:cd_contract_core.field_fix_contract_pm_visit__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_contract_core
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract__website_message_ids
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_entitlement__website_message_ids
+#: model:ir.model.fields,help:cd_contract_core.field_fix_contract_pm_visit__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

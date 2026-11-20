@@ -12,6 +12,13 @@ class FixRetentionClass(models.Model):
     """
     _name = "fix.retention.class"
     _description = "Retention Class"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M24",
+        "form": "Retention Policy",
+        "fields": ["code", "name", "retention_years", "expiry_action", "description",
+                   "regulatory_basis", "document_types"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
     # Odoo 19 dropped the legacy constraint tuple list;

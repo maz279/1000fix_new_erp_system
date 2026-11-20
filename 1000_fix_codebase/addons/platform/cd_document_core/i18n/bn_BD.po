@@ -1,96 +1,669 @@
 # Bengali (Bangladesh) translation for cd_document_core.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__legal_hold
+msgid "A legal-hold document is frozen: retention cannot expire it and destruction is blocked until the hold is released by Legal"
+msgstr "লিগ্যাল-হোল্ডে থাকা দলিল স্থগিত থাকে: আইন বিভাগ হোল্ড তুলে না নেওয়া পর্যন্ত সংরক্ষণ মেয়াদে এটি মেয়াদোত্তীর্ণ হবে না এবং ধ্বংস করা যাবে না"
 
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_needaction
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_needaction
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__active
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__active
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_state
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_state
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_type_icon
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_type_icon
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_document_core
+#: model:ir.ui.menu,name:cd_document_core.menu_fix_document
 msgid "All Documents"
 msgstr "সকল দলিল"
 
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__document_types
 msgid "Applicable Document Types"
 msgstr "প্রযোজ্য দলিলের ধরন"
 
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_retention_class__expiry_action__archive
+msgid "Archive to Cold Storage"
+msgstr "কোল্ড স্টোরেজে আর্কাইভ করুন"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__asset_document
+msgid "Asset Document"
+msgstr "সম্পদের দলিল"
+
+#. module: cd_document_core
+#: model:ir.model,name:cd_document_core.model_ir_attachment
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__attachment_id
 msgid "Attachment"
 msgstr "সংযুক্তি"
 
-msgid "Document"
-msgstr "দলিল"
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_attachment_count
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_attachment_count
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
 
-msgid "Documents"
-msgstr "দলিলসমূহ"
-
-msgid "Linked Model"
-msgstr "সংযুক্ত মডেল"
-
-msgid "Linked Record ID"
-msgstr "সংযুক্ত রেকর্ড আইডি"
-
-msgid "Name (Bengali)"
-msgstr "নাম (বাংলা)"
-
-msgid "Regulatory Basis"
-msgstr "নিয়ন্ত্রক ভিত্তি"
-
-msgid "Retention Class"
-msgstr "সংরক্ষণ শ্রেণি"
-
-msgid "Retention Expires"
-msgstr "সংরক্ষণ মেয়াদোত্তীর্ণ"
-
-msgid "Retention Period (years)"
-msgstr "সংরক্ষণ মেয়াদ (বছর)"
-
-msgid "Document Template"
-msgstr "দলিল টেমপ্লেট"
-
-msgid "Document Templates"
-msgstr "দলিল টেমপ্লেটসমূহ"
-
-msgid "Templates"
-msgstr "টেমপ্লেটসমূহ"
-
-msgid "QWeb Report XML ID"
-msgstr "QWeb রিপোর্ট XML আইডি"
-
-msgid "Signs As"
-msgstr "যে পরিচয়ে স্বাক্ষর"
-
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__bilingual
 msgid "Bilingual"
 msgstr "দ্বিভাষিক"
 
-msgid "Requires Approval"
-msgstr "অনুমোদন প্রয়োজন"
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__code
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__code
+msgid "Code"
+msgstr "কোড"
 
-msgid "Invoice"
-msgstr "চালান"
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__document_types
+msgid "Comma-separated list of fix.document document_type values"
+msgstr "fix.document document_type মানগুলোর কমা-বিভক্ত তালিকা"
 
-msgid "Receipt"
-msgstr "রসিদ"
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__company_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__company_id
+msgid "Company"
+msgstr "কোম্পানি"
 
-msgid "Statutory Notice"
-msgstr "সাংবিধানিক নোটিশ"
-
-msgid "Evidence Pack"
-msgstr "প্রমাণ প্যাক"
-
-msgid "Service Report"
-msgstr "সার্ভিস রিপোর্ট"
-
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__contract
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__contract
 msgid "Contract"
 msgstr "চুক্তি"
 
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__create_uid
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__create_uid
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__create_date
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__create_date
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__custody_photo
+msgid "Custody Photograph"
+msgstr "হেফাজতের ছবি"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__name_bn
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__name_bn
+msgid "DE-17"
+msgstr "DE-17"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__description
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_retention_class__expiry_action__destroy
+msgid "Destroy (secure wipe)"
+msgstr "ধ্বংস করুন (নিরাপদ মুছে ফেলা)"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__state__destroyed
+msgid "Destroyed"
+msgstr "ধ্বংসকৃত"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__retention_class_id
+msgid "Determines how long this document is kept and what happens at expiry"
+msgstr "এই দলিল কতদিন সংরক্ষিত থাকবে এবং মেয়াদ শেষে কী হবে তা নির্ধারণ করে"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__display_name
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__display_name
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__display_name
+#: model:ir.model.fields,field_description:cd_document_core.field_ir_attachment__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_document_core
+#: model_terms:ir.ui.view,arch_db:cd_document_core.view_fix_document_form
+msgid "Document"
+msgstr "দলিল"
+
+#. module: cd_document_core
+#: model:ir.model,name:cd_document_core.model_fix_document_template
+msgid "Document Template"
+msgstr "দলিল টেমপ্লেট"
+
+#. module: cd_document_core
+#: model:ir.actions.act_window,name:cd_document_core.action_fix_document_template
+msgid "Document Templates"
+msgstr "দলিল টেমপ্লেটসমূহ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__document_type
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__document_type
+msgid "Document Type"
+msgstr "দলিলের ধরন"
+
+#. module: cd_document_core
+#: model:ir.actions.act_window,name:cd_document_core.action_fix_document
+#: model:ir.ui.menu,name:cd_document_core.menu_fix_document_root
+#: model_terms:ir.ui.view,arch_db:cd_document_core.view_fix_document_tree
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__requires_approval
+msgid "Documents from this template enter the approval chain before issue"
+msgstr "এই টেমপ্লেট থেকে তৈরি দলিল ইস্যুর আগে অনুমোদন প্রক্রিয়ায় যায়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__bilingual
+msgid "Every template ships Bengali and English variants (AS-12)"
+msgstr "প্রতিটি টেমপ্লেটের বাংলা ও ইংরেজি সংস্করণ থাকে (AS-12)"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__evidence_pack
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__evidence_pack
+msgid "Evidence Pack"
+msgstr "প্রমাণ প্যাক"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__expiry_action
+msgid "Expiry Action"
+msgstr "মেয়াদ শেষের পদক্ষেপ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_follower_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_follower_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_partner_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_partner_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__activity_type_icon
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__activity_type_icon
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__template_id
 msgid "Generated From"
 msgstr "হইতে উৎপন্ন"
 
+#. module: cd_document_core
+#: model:ir.model,name:cd_document_core.model_fix_document
+msgid "Governed Document"
+msgstr "নিয়ন্ত্রিত দলিল"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__has_message
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__has_message
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__retention_years
+msgid "How long documents of this class are retained from creation"
+msgstr "এই শ্রেণির দলিল তৈরির তারিখ থেকে কতদিন সংরক্ষিত থাকে"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__id
+#: model:ir.model.fields,field_description:cd_document_core.field_ir_attachment__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__activity_exception_icon
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__activity_exception_icon
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__identity_document
+msgid "Identity Document"
+msgstr "পরিচয়পত্র"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__is_residency_classified
+msgid "If True, the document contains residency-classified data and is stored in Z4 via the residency service (FF-09)"
+msgstr "True হলে, দলিলে রেসিডেন্সি-শ্রেণিভুক্ত তথ্য আছে এবং এটি রেসিডেন্সি সার্ভিসের মাধ্যমে Z4-এ সংরক্ষিত হয় (FF-09)"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__message_needaction
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__message_needaction
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__message_has_error
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__message_has_sms_error
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__message_has_error
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__message_has_sms_error
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__message_has_error
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__invoice
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__invoice
+msgid "Invoice"
+msgstr "চালান"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_is_follower
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_is_follower
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__is_residency_classified
+#: model:ir.model.fields,field_description:cd_document_core.field_ir_attachment__is_residency_classified
+#: model:ir.model.fields,field_description:cd_document_core.field_product_document__is_residency_classified
+msgid "Is Residency Classified"
+msgstr "রেসিডেন্সি-শ্রেণিভুক্ত কি না"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__isolation_tier
+msgid "Isolation Tier"
+msgstr "আইসোলেশন স্তর"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__write_uid
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__write_uid
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__write_date
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__write_date
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__legal_hold
 msgid "Legal Hold"
 msgstr "আইনি হোল্ড"
 
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__legal_hold_reason
 msgid "Legal Hold Reason"
 msgstr "আইনি হোল্ডের কারণ"
 
-msgid "A bilingual template needs its Bengali name (AS-12)"
-msgstr "দ্বিভাষিক টেমপ্লেটের বাংলা নাম প্রয়োজন (AS-12)"
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__res_model
+msgid "Linked Model"
+msgstr "সংযুক্ত মডেল"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__res_id
+msgid "Linked Record ID"
+msgstr "সংযুক্ত রেকর্ড আইডি"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_has_error
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_has_error
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__name
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__name
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__name_bn
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__name_bn
+msgid "Name (Bengali)"
+msgstr "নাম (বাংলা)"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_summary
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_summary
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_type_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_type_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__message_needaction_counter
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__message_needaction_counter
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__message_has_error_counter
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__message_has_error_counter
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__other
+msgid "Other"
+msgstr "অন্যান্য"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__state__pending_destruction
+msgid "Pending Destruction"
+msgstr "ধ্বংসের অপেক্ষায়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__report_ref
+msgid "QWeb Report XML ID"
+msgstr "QWeb রিপোর্ট XML আইডি"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__receipt
+msgid "Receipt"
+msgstr "রসিদ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__regulatory_basis
+msgid "Regulatory Basis"
+msgstr "নিয়ন্ত্রক ভিত্তি"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_retention_class__expiry_action__review
+msgid "Require Manual Review Before Destruction"
+msgstr "ধ্বংসের আগে ম্যানুয়াল পর্যালোচনা আবশ্যক"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__requires_approval
+msgid "Requires Approval"
+msgstr "অনুমোদন প্রয়োজন"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__activity_user_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__activity_user_id
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_document_core
+#: model:ir.model,name:cd_document_core.model_fix_retention_class
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__retention_class_id
+msgid "Retention Class"
+msgstr "সংরক্ষণ শ্রেণি"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__state__expired
+msgid "Retention Expired"
+msgstr "সংরক্ষণ মেয়াদোত্তীর্ণ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__retention_expires
+msgid "Retention Expires"
+msgstr "সংরক্ষণ মেয়াদোত্তীর্ণ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__retention_years
+msgid "Retention Period (years)"
+msgstr "সংরক্ষণ মেয়াদ (বছর)"
+
+#. module: cd_document_core
+#: model:ir.model.constraint,message:cd_document_core.constraint_fix_retention_class_code_unique
+msgid "Retention code must be unique"
+msgstr "সংরক্ষণ কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__service_report
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__service_report
+msgid "Service Report"
+msgstr "সার্ভিস রিপোর্ট"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__code
+msgid "Short code, e.g. FIN-7Y, HR-5Y, CUST-3Y"
+msgstr "সংক্ষিপ্ত কোড, যেমন FIN-7Y, HR-5Y, CUST-3Y"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__activity_state
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__activity_state
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document_template__document_type__notice
+msgid "Statutory Notice"
+msgstr "সাংবিধানিক নোটিশ"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__isolation_tier__t1
+msgid "T1 — Internal"
+msgstr "T1 — অভ্যন্তরীণ"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__isolation_tier__t2
+msgid "T2 — Branch-scoped"
+msgstr "T2 — শাখাভিত্তিক"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__isolation_tier__t3
+msgid "T3 — Role-scoped"
+msgstr "T3 — ভূমিকাভিত্তিক"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__isolation_tier__t5
+msgid "T5 — Residency-classified"
+msgstr "T5 — রেসিডেন্সি-শ্রেণিভুক্ত"
+
+#. module: cd_document_core
+#: model:ir.model.constraint,message:cd_document_core.constraint_fix_document_template_code_unique
+msgid "Template code must be unique"
+msgstr "টেমপ্লেট কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_document_core
+#: model:ir.ui.menu,name:cd_document_core.menu_fix_document_template
+msgid "Templates"
+msgstr "টেমপ্লেটসমূহ"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__expiry_action
+msgid "The action taken when retention expires"
+msgstr "সংরক্ষণ মেয়াদ শেষ হলে যে পদক্ষেপ নেওয়া হয়"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__isolation_tier
+msgid "The minimum isolation tier required to read this document"
+msgstr "এই দলিল পড়ার জন্য প্রয়োজনীয় সর্বনিম্ন আইসোলেশন স্তর"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__template_id
+msgid "The template this document was generated from (the template engine, CD-M24-05)"
+msgstr "যে টেমপ্লেট থেকে এই দলিল তৈরি হয়েছে (টেমপ্লেট ইঞ্জিন, CD-M24-05)"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__attachment_id
+msgid "The underlying file — stored in the object store (D-028 Ceph)"
+msgstr "মূল ফাইল — অবজেক্ট স্টোরে সংরক্ষিত (D-028 Ceph)"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_ir_attachment__is_residency_classified
+#: model:ir.model.fields,help:cd_document_core.field_product_document__is_residency_classified
+msgid "True if this attachment contains residency-classified data. If True, the attachment must be stored in Z4 (FF-09)."
+msgstr "এই সংযুক্তিতে রেসিডেন্সি-শ্রেণিভুক্ত তথ্য থাকলে True। True হলে সংযুক্তিটি অবশ্যই Z4-এ সংরক্ষণ করতে হবে (FF-09)।"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__activity_exception_decoration
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__activity_exception_decoration
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_document_core
+#: model:ir.model.fields.selection,name:cd_document_core.selection__fix_document__document_type__warranty_card
+msgid "Warranty Card"
+msgstr "ওয়ারেন্টি কার্ড"
+
+#. module: cd_document_core
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document__website_message_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_document_template__website_message_ids
+#: model:ir.model.fields,field_description:cd_document_core.field_fix_retention_class__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document__website_message_ids
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__website_message_ids
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_retention_class__regulatory_basis
+msgid "Which law or policy mandates this retention period, e.g. 'Income Tax Ordinance 1984 §184' or 'PDPA 2026 §33'"
+msgstr "কোন আইন বা নীতি এই সংরক্ষণ মেয়াদ বাধ্যতামূলক করে, যেমন 'Income Tax Ordinance 1984 §184' বা 'PDPA 2026 §33'"
+
+#. module: cd_document_core
+#: model:ir.model.fields,help:cd_document_core.field_fix_document_template__report_ref
+msgid "e.g. cd_tax_engine_bd.report_mushak63 — the rendering entry point"
+msgstr "যেমন cd_tax_engine_bd.report_mushak63 — রেন্ডারিং এন্ট্রি পয়েন্ট"

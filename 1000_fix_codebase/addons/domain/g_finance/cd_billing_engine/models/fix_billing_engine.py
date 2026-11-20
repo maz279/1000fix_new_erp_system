@@ -280,6 +280,12 @@ class FixCreditNote(models.Model):
 
     _name = "fix.credit.note"
     _description = "Credit Note"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M20",
+        "form": "Credit Note",
+        "fields": ["invoice_id", "amount", "reason_code"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

@@ -1,0 +1,416 @@
+# Translation template for cd_supplier_risk — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__compliance__1
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__continuity__1
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__counterfeit__1
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__financial__1
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__geographic__1
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__operational__1
+msgid "1 - Low"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__compliance__2
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__continuity__2
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__counterfeit__2
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__financial__2
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__geographic__2
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__operational__2
+msgid "2 - Moderate"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__compliance__3
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__continuity__3
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__counterfeit__3
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__financial__3
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__geographic__3
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__operational__3
+msgid "3 - Elevated"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__compliance__4
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__continuity__4
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__counterfeit__4
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__financial__4
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__geographic__4
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__operational__4
+msgid "4 - High"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__compliance__5
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__continuity__5
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__counterfeit__5
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__financial__5
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__geographic__5
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__operational__5
+msgid "5 - Critical"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model_terms:ir.ui.view,arch_db:cd_supplier_risk.view_fix_supplier_risk_form
+msgid "Approve"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__state__approved
+msgid "Approved"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__approved_by
+msgid "Approved By"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__assessed_at
+msgid "Assessed On"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__assessor_id
+msgid "Assessor"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__compliance
+msgid "Compliance Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__continuity
+msgid "Continuity Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__counterfeit
+msgid "Counterfeit Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__overall_tier__critical
+msgid "Critical"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__single_source_critical
+msgid "FR-SRM2-033: a single-source dependency for critical parts needs a named qualified alternate or an accepted, approved exception"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__financial
+msgid "Financial Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__geographic
+msgid "Geographic Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__overall_tier__high
+msgid "High"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__message_has_error
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__overall_tier__low
+msgid "Low"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__overall_tier__medium
+msgid "Medium"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__mitigations
+#: model_terms:ir.ui.view,arch_db:cd_supplier_risk.view_fix_supplier_risk_form
+msgid "Mitigations"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__next_assessment_due
+msgid "Next Assessment Due"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__operational
+msgid "Operational Risk"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__overall_tier
+msgid "Overall Tier"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__alternate_profile_id
+msgid "Qualified Alternate Supplier"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__state__rejected
+msgid "Rejected"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.actions.act_window,name:cd_supplier_risk.action_fix_supplier_risk
+#: model:ir.ui.menu,name:cd_supplier_risk.menu_fix_supplier_risk
+msgid "Risk Assessments"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__exception_note
+#: model_terms:ir.ui.view,arch_db:cd_supplier_risk.view_fix_supplier_risk_form
+msgid "Single-Source Exception"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__single_source_critical
+msgid "Sole Source for Critical Parts"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__state
+msgid "Status"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model_terms:ir.ui.view,arch_db:cd_supplier_risk.view_fix_supplier_risk_form
+msgid "Submit"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields.selection,name:cd_supplier_risk.selection__fix_supplier_risk__state__submitted
+msgid "Submitted"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__profile_id
+msgid "Supplier"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model,name:cd_supplier_risk.model_fix_supplier_risk
+msgid "Supplier Risk Assessment"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,field_description:cd_supplier_risk.field_fix_supplier_risk__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_supplier_risk
+#: model:ir.model.fields,help:cd_supplier_risk.field_fix_supplier_risk__website_message_ids
+msgid "Website communication history"
+msgstr ""

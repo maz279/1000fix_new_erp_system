@@ -1,0 +1,19 @@
+# Bengali (Bangladesh) translation for cd_customer_portal.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_customer_portal
+#: model:res.groups,name:cd_customer_portal.group_fix_customer_portal
+msgid "P01 Customer Portal"
+msgstr "P01 গ্রাহক পোর্টাল"
+
+#. module: cd_customer_portal
+#: model:res.groups,comment:cd_customer_portal.group_fix_customer_portal
+msgid "P01 access: customers see their own devices, orders, estimates and consent rows (EA-05)."
+msgstr "P01 অ্যাক্সেস: গ্রাহকরা নিজেদের ডিভাইস, অর্ডার, আনুমানিক খরচ ও সম্মতির রেকর্ড দেখতে পান (EA-05)।"

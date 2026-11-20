@@ -18,6 +18,13 @@ class FixDataRecoveryCase(models.Model):
     purge certificate. ALL recovered data routes to Z4 (SC-007, FF-09)."""
     _name = "fix.data.recovery.case"
     _description = "Data Recovery Case"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M06",
+        "form": "Recovery Case",
+        "fields": ["customer_id", "media_type", "residency_zone", "device_id",
+                   "custody_chain"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

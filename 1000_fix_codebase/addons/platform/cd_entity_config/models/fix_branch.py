@@ -8,6 +8,13 @@ class FixBranch(models.Model):
     """An operational branch — the isolation unit for OU-based record rules."""
     _name = "fix.branch"
     _description = "Branch"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M30",
+        "form": "Branch",
+        "fields": ["code", "name", "entity_id", "name_bn", "zone_id", "address_id",
+                   "phone", "email", "manager_id", "calendar_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "entity_id, code"
     # Odoo 19 dropped the legacy constraint tuple list;

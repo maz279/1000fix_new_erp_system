@@ -9,6 +9,13 @@ class FixImportOrder(models.Model):
     M44 CONSUMES goods.received events; M41 never calls M44."""
     _name = "fix.import.order"
     _description = "Import Order"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M44",
+        "form": "Import Order",
+        "fields": ["name", "supplier_id", "country_origin", "fob_value", "freight_cost",
+                   "insurance_cost", "customs_duty"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

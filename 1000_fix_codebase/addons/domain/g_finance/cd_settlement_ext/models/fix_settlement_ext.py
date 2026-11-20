@@ -67,6 +67,12 @@ class FixPayoutRun(models.Model):
     """Payout run: money to 500-2,000 sellers. SoD is not optional."""
     _name = "fix.payout.run"
     _description = "Payout Run"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M53",
+        "form": "Payout Run",
+        "fields": ["name", "period", "commission_ids"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

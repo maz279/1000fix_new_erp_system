@@ -1,218 +1,1856 @@
 # Bengali (Bangladesh) translation for cd_service_order.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Approved By"
-msgstr "অনুমোদনকারী"
-
-msgid "Assigned Technician"
-msgstr "নিয়োজিত টেকনিশিয়ান"
-
-msgid "Branch"
-msgstr "শাখা"
-
-msgid "Checklist Items"
-msgstr "চেকলিস্ট আইটেম"
-
-msgid "Customer"
-msgstr "গ্রাহক"
-
-msgid "Device"
-msgstr "ডিভাইস"
-
-msgid "Diagnostic Path"
-msgstr "ডায়াগনস্টিক পথ"
-
-msgid "Discount"
-msgstr "ছাড়"
-
-msgid "Estimate Valid Until"
-msgstr "আনুমানিক খরচ বৈধ থাকবে"
-
-msgid "Estimates"
-msgstr "আনুমানিক খরচ"
-
-msgid "Fault Code"
-msgstr "ত্রুটি কোড"
-
-msgid "Fault Description"
-msgstr "ত্রুটির বিবরণ"
-
-msgid "Grand Total"
-msgstr "সর্বমোট"
-
-msgid "Idempotency Key"
-msgstr "ইডেম্পোটেন্সি কী"
-
-msgid "Labour Total"
-msgstr "শ্রম খরচ মোট"
-
-msgid "Legacy Reference"
-msgstr "লিগ্যাসি রেফারেন্স"
-
-msgid "Line Total"
-msgstr "লাইন মোট"
-
-msgid "Lines"
-msgstr "লাইনসমূহ"
-
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
-
-msgid "Order Reference"
-msgstr "অর্ডার রেফারেন্স"
-
-msgid "Part"
-msgstr "পার্টস"
-
-msgid "Parts Consumed"
-msgstr "ব্যবহৃত পার্টস"
-
-msgid "Parts Total"
-msgstr "পার্টস খরচ মোট"
-
-msgid "Phone"
-msgstr "ফোন"
-
-msgid "Product"
-msgstr "পণ্য"
-
-msgid "QC Checklists"
-msgstr "কিউসি চেকলিস্ট"
-
-msgid "QC Inspector"
-msgstr "কিউসি পরিদর্শক"
-
-msgid "S/N"
-msgstr "সিরিয়াল নম্বর"
-
-msgid "SLA Policy"
-msgstr "SLA নীতি"
-
-msgid "Service Catalogue Item"
-msgstr "সার্ভিস ক্যাটালগ আইটেম"
-
-msgid "Service Order"
-msgstr "সার্ভিস অর্ডার"
-
-msgid "Technician"
-msgstr "টেকনিশিয়ান"
-
-msgid "Unit Cost"
-msgstr "একক ব্যয়"
-
-msgid "Unit Price"
-msgstr "একক মূল্য"
-
-msgid "VAT Amount"
-msgstr "ভ্যাটের পরিমাণ"
-
-msgid "VAT Rate (%)"
-msgstr "ভ্যাটের হার (%)"
-
-msgid "Work Order"
-msgstr "ওয়ার্ক অর্ডার"
-
-msgid "Answers / Children"
-msgstr "উত্তর / চাইল্ড"
-
-msgid "Company"
-msgstr "কোম্পানি"
-
-msgid "Escalation Template"
-msgstr "এসকালেশন টেমপ্লেট"
-
-msgid "Node Code"
-msgstr "নোড কোড"
-
-msgid "Parent Node"
-msgstr "ঊর্ধ্বতন নোড"
-
-msgid "Question / Symptom"
-msgstr "প্রশ্ন / উপসর্গ"
-
-msgid "Recommended Action"
-msgstr "সুপারিশকৃত পদক্ষেপ"
-
-msgid "Resolution Target (hours)"
-msgstr "সমাধানের লক্ষ্য (ঘণ্টা)"
-
-msgid "Response Target (hours)"
-msgstr "সাড়া দেওয়ার লক্ষ্য (ঘণ্টা)"
-
-msgid "SLA Code"
-msgstr "SLA কোড"
-
-msgid "Terminal Node"
-msgstr "টার্মিনাল নোড"
-
-msgid "Answers"
-msgstr "উত্তরসমূহ"
-
-msgid "Diagnostic Trees"
-msgstr "ডায়াগনস্টিক ট্রি"
-
-msgid "SLA Policies"
-msgstr "SLA নীতিমালা"
-
-msgid "Work Orders"
-msgstr "ওয়ার্ক অর্ডারসমূহ"
-
-msgid "Customer & Device"
-msgstr "গ্রাহক ও ডিভাইস"
-
-msgid "Fulfilment"
-msgstr "সম্পাদন"
-
-msgid "Group By"
-msgstr "গ্রুপ অনুযায়ী"
-
-msgid "Open Orders"
-msgstr "চলমান অর্ডার"
-
-msgid "SLA"
-msgstr "SLA"
-
-msgid "SLA Risk"
-msgstr "SLA ঝুঁকি"
-
-msgid "Service Delivery"
-msgstr "সার্ভিস ডেলিভারি"
-
-msgid "Service Orders"
-msgstr "সার্ভিস অর্ডার"
-
-msgid "State"
-msgstr "অবস্থা"
-
-msgid "Order Category"
-msgstr "অর্ডারের শ্রেণি"
-
-msgid "Standard (Paid)"
-msgstr "স্ট্যান্ডার্ড (পেইড)"
-
-msgid "Warranty"
-msgstr "ওয়ারেন্টি"
-
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "<span>অর্ডার রেফারেন্স:</span>"
+msgstr "<span>অর্ডার রেফারেন্স:</span>"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "<span>তারিখ:</span>"
+msgstr "<span>তারিখ:</span>"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__is_terminal
+msgid "A node with no children ends a diagnostic path"
+msgstr "কোনো চাইল্ড নেই এমন নোডে ডায়াগনস্টিক পথ শেষ হয়"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__amc
 msgid "AMC / Contract"
 msgstr "এএমসি / চুক্তি"
 
-msgid "Rework"
-msgstr "পুনঃকার্য"
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_needaction
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
-msgid "Rework Of"
-msgstr "মূল অর্ডার"
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__active
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__active
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__active
+msgid "Active"
+msgstr "সক্রিয়"
 
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_type_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__all_passed
+msgid "All Passed"
+msgstr "সবগুলো উত্তীর্ণ"
+
+#. module: cd_service_order
+#: model:ir.model.constraint,message:cd_service_order.constraint_fix_service_order_idempotency_key_unique
+msgid "An order with this idempotency key already exists (DI-04 idempotency)."
+msgstr "এই আইডেমপোটেন্সি কী-সহ একটি অর্ডার ইতিমধ্যে বিদ্যমান (DI-04 আইডেমপোটেন্সি)।"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_diagnostic_node_form
+msgid "Answers"
+msgstr "উত্তরসমূহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__children_ids
+msgid "Answers / Children"
+msgstr "উত্তর / চাইল্ড"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__approved_at
+msgid "Approved At"
+msgstr "অনুমোদনের সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__approved_by
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__approved
+msgid "Approved — Queued for Repair"
+msgstr "অনুমোদিত — মেরামতের সারিতে"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_work_order__state__assigned
+msgid "Assigned"
+msgstr "বরাদ্দকৃত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__technician_id
+msgid "Assigned Technician"
+msgstr "দায়িত্বপ্রাপ্ত টেকনিশিয়ান"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__response_hours
+msgid "Assignment to first action, business hours"
+msgstr "বরাদ্দ থেকে প্রথম পদক্ষেপ পর্যন্ত, কর্মঘণ্টায়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_attachment_count
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__awaiting_approval
+msgid "Awaiting Customer Approval"
+msgstr "গ্রাহকের অনুমোদনের অপেক্ষায়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__is_rework
+msgid "BRU-SRM-06: auto-flagged when the same device returns with the same fault within 30 days; linked to the original order"
+msgstr "BRU-SRM-06: একই ডিভাইস 30 দিনের মধ্যে একই ত্রুটি নিয়ে ফিরলে স্বয়ংক্রিয়ভাবে চিহ্নিত হয়; মূল অর্ডারের সাথে সংযুক্ত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__customer_approval_ref
+msgid "BRU-SRM-07: documented customer approval (SMS/OTP ref, signature id) — required above BDT 5,000 before work begins"
+msgstr "BRU-SRM-07: নথিভুক্ত গ্রাহক অনুমোদন (এসএমএস/ওটিপি রেফারেন্স, স্বাক্ষর আইডি) — 5,000 টাকার বেশি হলে কাজ শুরুর আগে আবশ্যক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__manager_approval_uid
+msgid "BRU-SRM-08: branch-manager approval — required above BDT 25,000"
+msgstr "BRU-SRM-08: শাখা ব্যবস্থাপকের অনুমোদন — 25,000 টাকার বেশি হলে আবশ্যক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__inspector_id
+msgid "BRU-SRM-18: must be a person other than the repairing technician above BDT 25,000"
+msgstr "BRU-SRM-18: 25,000 টাকার বেশি হলে মেরামতকারী টেকনিশিয়ান ছাড়া অন্য কোনো ব্যক্তি হতে হবে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__vat_rate
+msgid "Bangladesh standard VAT rate"
+msgstr "বাংলাদেশের স্ট্যান্ডার্ড ভ্যাট হার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__branch_id
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_search
+msgid "Branch"
+msgstr "শাখা"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__disposition_triage__safe_destruction
+msgid "Certified Data & Device Destruction"
+msgstr "প্রত্যয়িত ডেটা ও ডিভাইস ধ্বংস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__checked_at
+msgid "Checked At"
+msgstr "পরীক্ষার সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__checklist_id
+msgid "Checklist"
+msgstr "চেকলিস্ট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__item_ids
+msgid "Checklist Items"
+msgstr "চেকলিস্ট আইটেম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__sla_clock_paused
+msgid "Clock paused during customer hold or parts wait"
+msgstr "গ্রাহকের কারণে স্থগিত বা যন্ত্রাংশের অপেক্ষার সময় ঘড়ি বিরতিতে থাকে"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__service_type__collection
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__service_type__collection
+msgid "Collection/Delivery"
+msgstr "সংগ্রহ/ডেলিভারি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__order_category
+msgid "Commercial classification gating order workflow (BRU-SRM-02/03 & W2 business lines)"
+msgstr "অর্ডারের কর্মপ্রবাহ নিয়ন্ত্রণকারী বাণিজ্যিক শ্রেণিবিভাগ (BRU-SRM-02/03 ও W2 ব্যবসায়িক লাইন)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__company_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order_fault__severity__critical
+msgid "Complete Failure / Power Inoperable"
+msgstr "সম্পূর্ণ বিকল / পাওয়ার অচল"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_work_order__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__disposition_triage__parts_harvest
+msgid "Component / Parts Harvesting"
+msgstr "কম্পোনেন্ট / যন্ত্রাংশ সংগ্রহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__data_confidentiality_level__confidential
+msgid "Confidential"
+msgstr "গোপনীয়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__data_confidentiality_level
+msgid "Confidentiality Level"
+msgstr "গোপনীয়তার স্তর"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__service_type__corporate
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__service_type__corporate
+msgid "Corporate/Bulk"
+msgstr "কর্পোরেট/বাল্ক"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order_fault__severity__cosmetic
+msgid "Cosmetic / Minor"
+msgstr "বাহ্যিক / সামান্য"
+
+#. module: cd_service_order
+#: model_terms:ir.actions.act_window,help:cd_service_order.action_fix_service_order
+msgid "Create the first service order"
+msgstr "প্রথম সার্ভিস অর্ডার তৈরি করুন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__create_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__create_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__currency_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__currency_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__currency_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__currency_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "Customer & Device"
+msgstr "গ্রাহক ও ডিভাইস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__customer_approval_ref
 msgid "Customer Approval Ref"
 msgstr "গ্রাহকের অনুমোদন রেফারেন্স"
 
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__is_approved
+msgid "Customer Approved"
+msgstr "গ্রাহক অনুমোদিত"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_reason__customer_request
+msgid "Customer Preference"
+msgstr "গ্রাহকের পছন্দ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__refurb_source__trade_in
+msgid "Customer Trade-in"
+msgstr "গ্রাহকের ট্রেড-ইন"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__deferred_reason__customer_travel
+msgid "Customer Unavailable / Travel"
+msgstr "গ্রাহক অনুপলব্ধ / ভ্রমণে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__preferred_technician_id
+msgid "Customer-Preferred Technician"
+msgstr "গ্রাহকের পছন্দের টেকনিশিয়ান"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__idempotency_key
+msgid "DI-04: a retried POST must not create two orders"
+msgstr "DI-04: পুনরায় পাঠানো POST যেন দুটি অর্ডার তৈরি না করে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_data_service
+msgid "Data Recovery / Migration"
+msgstr "ডেটা পুনরুদ্ধার / স্থানান্তর"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__data_retention_days
+msgid "Data Retention Window (Days)"
+msgstr "ডেটা সংরক্ষণের মেয়াদ (দিন)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__deferred_notes
+msgid "Deferred Hold Justification"
+msgstr "স্থগিত রাখার যৌক্তিকতা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__deferred_reason
+msgid "Deferred Reason"
+msgstr "স্থগিতের কারণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_deferred_block
+msgid "Deferred Repair Hold"
+msgstr "মেরামত স্থগিত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__deferred_until
+msgid "Deferred Resumption Date"
+msgstr "পুনরায় শুরুর তারিখ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__delivered
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__device_id
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_device_history
+msgid "Device History"
+msgstr "ডিভাইস ইতিহাস"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_logistics_status__completed
+msgid "Device Swapped & Signed"
+msgstr "ডিভাইস বদল ও স্বাক্ষর সম্পন্ন"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate_line__line_type__diagnostic
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__diagnostic
+msgid "Diagnostic"
+msgstr "ডায়াগনস্টিক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__diagnostic_tree_id
+msgid "Diagnostic Path"
+msgstr "ডায়াগনস্টিক পথ"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_diagnostic_node
+msgid "Diagnostic Tree Node"
+msgstr "ডায়াগনস্টিক ট্রি নোড"
+
+#. module: cd_service_order
+#: model:ir.actions.act_window,name:cd_service_order.action_fix_diagnostic_node
+#: model:ir.ui.menu,name:cd_service_order.menu_fix_diagnostic_node
+msgid "Diagnostic Trees"
+msgstr "ডায়াগনস্টিক ট্রি"
+
+#. module: cd_service_order
+#: model:ir.model.constraint,message:cd_service_order.constraint_fix_diagnostic_node_code_unique
+msgid "Diagnostic node code must be unique"
+msgstr "ডায়াগনস্টিক নোড কোড অনন্য হতে হবে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__discount
+msgid "Discount"
+msgstr "ছাড়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_device_history__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__display_name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__disposition_triage
+msgid "Disposition Triage"
+msgstr "নিষ্পত্তি বাছাই"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate__state__draft
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__duration_hours
+msgid "Duration Hours"
+msgstr "সময়কাল (ঘণ্টা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_recycling
+msgid "E-Waste / Recycling Intake"
+msgstr "ই-বর্জ্য / পুনর্ব্যবহার ইনটেক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__e_waste_cert_ref
+msgid "E-Waste Green Certificate Ref"
+msgstr "ই-বর্জ্য গ্রিন সনদ রেফারেন্স"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__priority__emergency
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__priority__emergency
+msgid "Emergency"
+msgstr "জরুরি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__end_time
+msgid "End Time"
+msgstr "শেষ সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__escalation_template_id
+msgid "Escalation Template"
+msgstr "এসকালেশন টেমপ্লেট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__estimate_id
+msgid "Estimate"
+msgstr "আনুমানিক খরচ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__estimate_bdt
+msgid "Estimate (BDT)"
+msgstr "আনুমানিক খরচ (টাকা)"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_estimate_line
+msgid "Estimate Line"
+msgstr "আনুমানিক খরচের লাইন"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__estimate_pending
+msgid "Estimate Pending"
+msgstr "আনুমানিক খরচ অপেক্ষমাণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__estimate_sent
+msgid "Estimate Sent to Customer"
+msgstr "গ্রাহককে আনুমানিক খরচ পাঠানো হয়েছে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__expiry_date
+msgid "Estimate Valid Until"
+msgstr "আনুমানিক খরচ বৈধ থাকবে"
+
+#. module: cd_service_order
+#: model:ir.actions.act_window,name:cd_service_order.action_fix_estimate
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__estimate_ids
+#: model:ir.ui.menu,name:cd_service_order.menu_fix_estimate
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "Estimates"
+msgstr "আনুমানিক খরচ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_reason__sla_breach_risk
+msgid "Expedited SLA Swap"
+msgstr "দ্রুত SLA বদল"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__is_approved
+msgid "FR-SRM-077: Independent estimate and approval tracking per fault."
+msgstr "FR-SRM-077: প্রতিটি ত্রুটির জন্য স্বতন্ত্র আনুমানিক খরচ ও অনুমোদন ট্র্যাকিং।"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_qc_checklist__state__failed
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_work_order__state__failed
+msgid "Failed"
+msgstr "অনুত্তীর্ণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__fault_code
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__fault_code
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__diagnosed_fault_code
+msgid "Fault Code"
+msgstr "ত্রুটি কোড"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__fault_description
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__description
+msgid "Fault Description"
+msgstr "ত্রুটির বিবরণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__fault_line_ids
+msgid "Fault Diagnosis Lines"
+msgstr "ত্রুটি নির্ণয়ের লাইনসমূহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_follower_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_partner_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__activity_type_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__diagnosed_fault_code
+msgid "From the diagnostic tree's terminal node"
+msgstr "ডায়াগনস্টিক ট্রির টার্মিনাল নোড থেকে"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "Fulfilment"
+msgstr "সম্পাদন"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order_fault__severity__functional
+msgid "Functional Impairment"
+msgstr "কার্যক্ষমতায় ত্রুটি"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__goodwill
+msgid "Goodwill (Zero-Charge)"
+msgstr "সৌজন্য সেবা (বিনা খরচে)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__goodwill_approved_by
+msgid "Goodwill Approved By"
+msgstr "সৌজন্য সেবা অনুমোদনকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__goodwill_cost_attribution_bdt
+msgid "Goodwill Cost Absorbed (BDT)"
+msgstr "সৌজন্য সেবায় বহনকৃত খরচ (টাকা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_goodwill
+msgid "Goodwill Repair (Zero-Charge)"
+msgstr "সৌজন্য মেরামত (বিনা খরচে)"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__target_grade__grade_a
+msgid "Grade A"
+msgstr "গ্রেড A"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_condition_grade__grade_a
+msgid "Grade A (Like New)"
+msgstr "গ্রেড A (নতুনের মতো)"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__target_grade__grade_b
+msgid "Grade B"
+msgstr "গ্রেড B"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_condition_grade__grade_b
+msgid "Grade B (Minor Blemishes)"
+msgstr "গ্রেড B (সামান্য দাগ)"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__target_grade__grade_c
+msgid "Grade C"
+msgstr "গ্রেড C"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_condition_grade__grade_c
+msgid "Grade C (Functional)"
+msgstr "গ্রেড C (কার্যকর)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__grand_total
+msgid "Grand Total"
+msgstr "সর্বমোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__has_message
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__priority__high
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__priority__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_device_history__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__activity_exception_icon
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__idempotency_key
+msgid "Idempotency Key"
+msgstr "ইডেম্পোটেন্সি কী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__message_needaction
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__message_has_sms_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__message_has_error
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_qc_checklist__state__in_progress
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_work_order__state__in_progress
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__in_repair
+msgid "In Repair"
+msgstr "মেরামত চলছে"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_logistics_status__dispatched
+msgid "In Transit"
+msgstr "পরিবহনে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__version
+msgid "Incremented on each revision"
+msgstr "প্রতিটি সংশোধনে বৃদ্ধি পায়"
+
+#. module: cd_service_order
+#: model_terms:ir.actions.act_window,help:cd_service_order.action_fix_service_order
+msgid "Intake to delivery across the 14-state machine, with SLA clocks and estimates."
+msgstr "ইনটেক থেকে ডেলিভারি পর্যন্ত 14-অবস্থার স্টেট মেশিন, SLA ঘড়ি ও আনুমানিক খরচসহ।"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__resolution_hours
+msgid "Intake to ready, business hours"
+msgstr "ইনটেক থেকে প্রস্তুত পর্যন্ত, কর্মঘণ্টায়"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__intake
+msgid "Intake — Walk-in/Collection"
+msgstr "ইনটেক — ওয়াক-ইন/সংগ্রহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_reason__unrepairable
+msgid "Irreparable Fault"
+msgstr "মেরামত-অযোগ্য ত্রুটি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_is_follower
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate_line__line_type__labour
+msgid "Labour"
+msgstr "শ্রম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__labour_total
+msgid "Labour Total"
+msgstr "শ্রম খরচ মোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__write_uid
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__write_date
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__legacy_reference
+msgid "Legacy Reference"
+msgstr "পূর্ববর্তী রেফারেন্স"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__deferred_reason__disputed_liability
+msgid "Liability / Estimate Dispute"
+msgstr "দায় / আনুমানিক খরচ নিয়ে বিরোধ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__line_total
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__line_type
+msgid "Line Type"
+msgstr "লাইনের ধরন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__line_ids
+msgid "Lines"
+msgstr "লাইনসমূহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__linked_order_ids
+msgid "Linked Visit Orders"
+msgstr "সংযুক্ত ভিজিট অর্ডারসমূহ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__loan_condition
+msgid "Loan Device Return Condition"
+msgstr "ধার দেওয়া ডিভাইস ফেরতের অবস্থা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__loan_issued_at
+msgid "Loan Issued At"
+msgstr "ধার প্রদানের সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__loan_returned_at
+msgid "Loan Returned At"
+msgstr "ধার ফেরতের সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__legacy_reference
+msgid "MIG-03: the legacy system's order number, permanently retained"
+msgstr "MIG-03: পূর্ববর্তী সিস্টেমের অর্ডার নম্বর, স্থায়ীভাবে সংরক্ষিত"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__service_type__mail_in
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__service_type__mail_in
+msgid "Mail-in"
+msgstr "মেইল-ইন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__manager_approval_uid
 msgid "Manager Approval"
 msgstr "ব্যবস্থাপকের অনুমোদন"
 
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__device_serial
+msgid "Manufacturer serial number — unique when present"
+msgstr "প্রস্তুতকারকের সিরিয়াল নম্বর — থাকলে অবশ্যই অনন্য"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_has_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__disposition_triage__metals_recovery
+msgid "Metals & PCB Recovery"
+msgstr "ধাতু ও PCB পুনরুদ্ধার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__escalation_template_id
+msgid "NT-020 escalation template fired on breach / near-breach"
+msgstr "লঙ্ঘন / লঙ্ঘনের কাছাকাছি হলে চালু হওয়া NT-020 এসকেলেশন টেমপ্লেট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__name
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_summary
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_type_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__code
+msgid "Node Code"
+msgstr "নোড কোড"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__priority__normal
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__priority__normal
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__notes
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__notes
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__notes
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__message_needaction_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__message_has_error_counter
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__deferred_reason__third_party_vendor
+msgid "OEM Escalation Hold"
+msgstr "ওইএম এসকেলেশনের জন্য স্থগিত"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__service_type__onsite
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__service_type__onsite
+msgid "On-site"
+msgstr "অন-সাইট"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_search
+msgid "Open Orders"
+msgstr "চলমান অর্ডার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__operating_unit_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__operating_unit_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__order_category
+msgid "Order Category"
+msgstr "অর্ডারের শ্রেণি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__name
+msgid "Order Reference"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__parent_case_id
+msgid "Parent Customer Problem Case"
+msgstr "মূল গ্রাহক সমস্যা কেস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__parent_id
+msgid "Parent Node"
+msgstr "ঊর্ধ্বতন নোড"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__product_id
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate_line__line_type__part
+msgid "Part"
+msgstr "যন্ত্রাংশ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__deferred_reason__parts_backorder
+msgid "Parts Backorder (Supply Chain Hold)"
+msgstr "যন্ত্রাংশ ব্যাকঅর্ডার (সাপ্লাই চেইনের কারণে স্থগিত)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__parts_consumed_ids
+msgid "Parts Consumed"
+msgstr "ব্যবহৃত যন্ত্রাংশ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__parts_total
+msgid "Parts Total"
+msgstr "পার্টস খরচ মোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__passed
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_qc_checklist__state__passed
+msgid "Passed"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_qc_checklist__state__pending
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_work_order__state__pending
+msgid "Pending"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__swap_logistics_status__pending
+msgid "Pending Dispatch"
+msgstr "প্রেরণের অপেক্ষায়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__customer_phone
+msgid "Phone"
+msgstr "ফোন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__priority
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__priority
+msgid "Priority"
+msgstr "অগ্রাধিকার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__priority_override_user_id
+msgid "Priority Overridden By"
+msgstr "অগ্রাধিকার পরিবর্তনকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__priority_override_reason
+msgid "Priority Override Justification"
+msgstr "অগ্রাধিকার পরিবর্তনের যৌক্তিকতা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__product_id
+msgid "Product"
+msgstr "পণ্য"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_qc_checklist
+msgid "QC Checklist"
+msgstr "কিউসি চেকলিস্ট"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_qc_item
+msgid "QC Checklist Item"
+msgstr "QC চেকলিস্ট আইটেম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__qc_checklist_ids
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "QC Checklists"
+msgstr "কিউসি চেকলিস্ট"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__qc_failed
+msgid "QC Failed — Rework"
+msgstr "QC ব্যর্থ — পুনঃকার্য"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__inspector_id
+msgid "QC Inspector"
+msgstr "কিউসি পরিদর্শক"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__qc_pending
+msgid "QC Pending"
+msgstr "QC অপেক্ষমাণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__quantity
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__quantity
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__name
+msgid "Question / Symptom"
+msgstr "প্রশ্ন / উপসর্গ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__state__ready
+msgid "Ready for Collection"
+msgstr "সংগ্রহের জন্য প্রস্তুত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__recommended_action
+msgid "Recommended Action"
+msgstr "সুপারিশকৃত পদক্ষেপ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__recycling
+msgid "Recycling / E-Waste"
+msgstr "পুনর্ব্যবহার / ই-বর্জ্য"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_refurbishment
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__refurbishment
+msgid "Refurbishment Intake"
+msgstr "রিফার্বিশমেন্ট ইনটেক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__refurb_source
+msgid "Refurbishment Source"
+msgstr "রিফার্বিশমেন্ট উৎস"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rental_agreement_ref
+msgid "Rental Agreement Ref"
+msgstr "ভাড়া চুক্তির রেফারেন্স"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__rental
+msgid "Rental Asset Service"
+msgstr "ভাড়ার সম্পদের সার্ভিস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rental_deposit_bdt
+msgid "Rental Deposit (BDT)"
+msgstr "ভাড়ার জামানত (টাকা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rental_end_date
+msgid "Rental End Date"
+msgstr "ভাড়া শেষের তারিখ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__refurb_source__rental_retirement
+msgid "Rental Fleet Retirement"
+msgstr "ভাড়া বহর থেকে অবসর"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_rental
+msgid "Rental Intake"
+msgstr "ভাড়া ইনটেক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rental_liability_bdt
+msgid "Rental Liability (BDT)"
+msgstr "ভাড়ার দায় (টাকা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rental_start_date
+msgid "Rental Start Date"
+msgstr "ভাড়া শুরুর তারিখ"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_estimate
+msgid "Repair Estimate"
+msgstr "মেরামতের আনুমানিক খরচ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__repaired
+msgid "Repaired & Verified"
+msgstr "মেরামতকৃত ও যাচাইকৃত"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__swap_device_id
+msgid "Replacement Swap Device"
+msgstr "প্রতিস্থাপন (বদলি) ডিভাইস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__resolution_hours
+msgid "Resolution Target (hours)"
+msgstr "সমাধানের লক্ষ্য (ঘণ্টা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__response_hours
+msgid "Response Target (hours)"
+msgstr "সাড়া দেওয়ার লক্ষ্য (ঘণ্টা)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__activity_user_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_rework
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__rework
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_tree
+msgid "Rework"
+msgstr "পুনঃকার্য"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__rework_of_id
+msgid "Rework Of"
+msgstr "মূল অর্ডার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__device_serial
+msgid "S/N"
+msgstr "সিরিয়াল নম্বর"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "SLA"
+msgstr "SLA"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__code
+msgid "SLA Code"
+msgstr "SLA কোড"
+
+#. module: cd_service_order
+#: model:ir.actions.act_window,name:cd_service_order.action_fix_sla_policy
+#: model:ir.ui.menu,name:cd_service_order.menu_fix_sla_policy
+msgid "SLA Policies"
+msgstr "SLA নীতিমালা"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_sla_policy
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_policy_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__name
+msgid "SLA Policy"
+msgstr "SLA নীতি"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_search
+msgid "SLA Risk"
+msgstr "SLA ঝুঁকি"
+
+#. module: cd_service_order
+#: model:ir.model.constraint,message:cd_service_order.constraint_fix_sla_policy_code_unique
+msgid "SLA policy code must be unique"
+msgstr "SLA নীতি কোড অনন্য হতে হবে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_estimate_form
 msgid "SMS/OTP ref or signature id (BRU-SRM-07)"
 msgstr "এসএমএস/ওটিপি রেফারেন্স বা স্বাক্ষর আইডি (BRU-SRM-07)"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_estimate__state__sent
+msgid "Sent to Customer"
+msgstr "গ্রাহককে পাঠানো হয়েছে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__sequence
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__sequence
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__sequence
+msgid "Sequence"
+msgstr "ক্রম"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__catalog_item_id
+msgid "Service Catalogue Item"
+msgstr "সার্ভিস ক্যাটালগ আইটেম"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_device_history__service_order_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__order_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__order_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__order_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_service_order_fault
+msgid "Service Order Fault Line"
+msgstr "সার্ভিস অর্ডারের ত্রুটি লাইন"
+
+#. module: cd_service_order
+#: model:ir.actions.act_window,name:cd_service_order.action_fix_service_order
+#: model:ir.ui.menu,name:cd_service_order.menu_fix_service_orders
+#: model:ir.ui.menu,name:cd_service_order.menu_ws_service_orders
+msgid "Service Orders"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__service_type
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__service_type
+msgid "Service Type"
+msgstr "সার্ভিসের ধরন"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__fault_code
+msgid "Set on terminal nodes: feeds work_order.diagnosed_fault_code"
+msgstr "টার্মিনাল নোডে নির্ধারিত হয়: work_order.diagnosed_fault_code-এ মান সরবরাহ করে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__severity
+msgid "Severity"
+msgstr "তীব্রতা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_clock_paused
+msgid "Sla Clock Paused"
+msgstr "SLA ঘড়ি বিরতিতে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_resolution_at
+msgid "Sla Resolution At"
+msgstr "SLA সমাধানের সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_resolution_deadline
+msgid "Sla Resolution Deadline"
+msgstr "SLA সমাধানের শেষ সময়সীমা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_response_at
+msgid "Sla Response At"
+msgstr "SLA সাড়াদানের সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__sla_response_deadline
+msgid "Sla Response Deadline"
+msgstr "SLA সাড়াদানের শেষ সময়সীমা"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__standard
+msgid "Standard (Paid)"
+msgstr "স্ট্যান্ডার্ড (পেইড)"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__data_confidentiality_level__standard
+msgid "Standard Commercial"
+msgstr "সাধারণ বাণিজ্যিক"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__start_time
+msgid "Start Time"
+msgstr "শুরুর সময়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__state
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__state
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_search
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__activity_state
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__data_confidentiality_level__strict_nda
+msgid "Strict NDA / Legal Hold"
+msgstr "কঠোর NDA / আইনি স্থগিতাদেশ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__swap_condition_grade
+msgid "Swap Condition Grade"
+msgstr "বদলি ডিভাইসের অবস্থার গ্রেড"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__swap_logistics_status
+msgid "Swap Logistics Status"
+msgstr "বদলের লজিস্টিকস অবস্থা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__swap_reason
+msgid "Swap Reason"
+msgstr "বদলের কারণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__is_swap_out
+msgid "Swap-Out Triggered"
+msgstr "বদল শুরু হয়েছে"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__target_grade
+msgid "Target Grade"
+msgstr "লক্ষ্য গ্রেড"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__technician_id
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_search
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__loan_device_id
+msgid "Temporary Loan Device"
+msgstr "অস্থায়ী ধার ডিভাইস"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__is_terminal
+msgid "Terminal Node"
+msgstr "টার্মিনাল নোড"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_estimate_form
+msgid "Total"
+msgstr "মোট"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__activity_exception_decoration
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__unit_cost
+msgid "Unit Cost"
+msgstr "একক ব্যয়"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__unit_price
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__refurb_source__unrepairable_scrap
+msgid "Unrepairable Conversion"
+msgstr "মেরামত-অযোগ্য থেকে রূপান্তর"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__priority__urgent
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__priority__urgent
+msgid "Urgent"
+msgstr "জরুরি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__vat_amount
+msgid "VAT Amount"
+msgstr "ভ্যাটের পরিমাণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__vat_rate
+msgid "VAT Rate (%)"
+msgstr "ভ্যাটের হার (%)"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__version
+msgid "Version"
+msgstr "সংস্করণ"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__service_type__walk_in
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_sla_policy__service_type__walk_in
+msgid "Walk-in"
+msgstr "সরাসরি আগত"
+
+#. module: cd_service_order
+#: model:ir.model.fields.selection,name:cd_service_order.selection__fix_service_order__order_category__warranty
+msgid "Warranty"
+msgstr "ওয়ারেন্টি"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_diagnostic_node__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_estimate_line__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_item__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order_fault__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_sla_policy__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order__website_message_ids
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_service_order
+#: model:ir.model.fields,help:cd_service_order.field_fix_diagnostic_node__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_estimate_line__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_checklist__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_qc_item__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_service_order_fault__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_sla_policy__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order__website_message_ids
+#: model:ir.model.fields,help:cd_service_order.field_fix_work_order_part__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_work_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_qc_checklist__work_order_id
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_work_order_part__work_order_id
+msgid "Work Order"
+msgstr "ওয়ার্ক অর্ডার"
+
+#. module: cd_service_order
+#: model:ir.model,name:cd_service_order.model_fix_work_order_part
+msgid "Work Order Part"
+msgstr "ওয়ার্ক অর্ডারের যন্ত্রাংশ"
+
+#. module: cd_service_order
+#: model:ir.model.fields,field_description:cd_service_order.field_fix_service_order__work_order_ids
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_service_order_form
+msgid "Work Orders"
+msgstr "ওয়ার্ক অর্ডারসমূহ"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "কর্তৃপক্ষের স্বাক্ষর: ..............................."
+msgstr "কর্তৃপক্ষের স্বাক্ষর: ..............................."
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "গ্রাহক"
+msgstr "গ্রাহক"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "গ্রাহকের স্বাক্ষর: ..............................."
+msgstr "গ্রাহকের স্বাক্ষর: ..............................."
+
+#. module: cd_service_order
+#: model:ir.actions.report,name:cd_service_order.action_report_fix_jobcard
+msgid "জব কার্ড / Job Card"
+msgstr "জব কার্ড / Job Card"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "ডিভাইস"
+msgstr "ডিভাইস"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "ত্রুটির বিবরণ"
+msgstr "ত্রুটির বিবরণ"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "নিয়োজিত টেকনিশিয়ান"
+msgstr "নিয়োজিত টেকনিশিয়ান"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "ফোন"
+msgstr "ফোন"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "লিগ্যাসি রেফারেন্স"
+msgstr "লিগ্যাসি রেফারেন্স"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "শাখা"
+msgstr "শাখা"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "হটলাইন ১৬৭৪৩ · 1000fix.com"
+msgstr "হটলাইন ১৬৭৪৩ · 1000fix.com"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.report_jobcard
+msgid "১০০০FiX — সার্ভিস জব কার্ড"
+msgstr "১০০০FiX — সার্ভিস জব কার্ড"
+
+#. module: cd_service_order
+#: model_terms:ir.ui.view,arch_db:cd_service_order.view_fix_estimate_form
+msgid "— v"
+msgstr "— v"

@@ -1,21 +1,40 @@
 # Bengali (Bangladesh) translation for cd_vendor_portal.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
-msgid "My Invoices"
-msgstr "আমার চালানসমূহ"
-
+#. module: cd_vendor_portal
+#: model:ir.actions.act_window,name:cd_vendor_portal.action_fix_vendor_invoice_portal
 msgid "My Invoice Submissions"
 msgstr "আমার দাখিলকৃত চালানসমূহ"
 
+#. module: cd_vendor_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_invoices
+msgid "My Invoices"
+msgstr "আমার চালানসমূহ"
+
+#. module: cd_vendor_portal
+#: model:ir.actions.act_window,name:cd_vendor_portal.action_fix_po_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_pos
 msgid "My Purchase Orders"
 msgstr "আমার ক্রয় আদেশসমূহ"
 
+#. module: cd_vendor_portal
+#: model:res.groups,name:cd_vendor_portal.group_fix_vendor_portal
+msgid "P05 Vendor Portal"
+msgstr "P05 ভেন্ডর পোর্টাল"
+
+#. module: cd_vendor_portal
+#: model:res.groups,comment:cd_vendor_portal.group_fix_vendor_portal
+msgid "P05 access: vendors see their own POs, deliveries and invoice submissions only (EA-05 scoping via record rules)."
+msgstr "P05 অ্যাক্সেস: ভেন্ডররা কেবল নিজেদের PO, ডেলিভারি ও চালান জমা দেখতে পারবেন (রেকর্ড রুলের মাধ্যমে EA-05 সীমাবদ্ধকরণ)।"
+
+#. module: cd_vendor_portal
+#: model:ir.ui.menu,name:cd_vendor_portal.menu_vendor_portal_root
 msgid "Vendor Portal"
 msgstr "ভেন্ডর পোর্টাল"

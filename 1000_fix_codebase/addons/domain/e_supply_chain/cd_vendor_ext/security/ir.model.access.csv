@@ -1,0 +1,16 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_fix_supplier_profile_viewer,fix.supplier.profile.viewer,model_fix_supplier_profile,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_profile_officer,fix.supplier.profile.officer,model_fix_supplier_profile,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_segment_review_viewer,fix.supplier.segment.review.viewer,model_fix_supplier_segment_review,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_segment_review_officer,fix.supplier.segment.review.officer,model_fix_supplier_segment_review,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_document_viewer,fix.supplier.document.viewer,model_fix_supplier_document,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_document_officer,fix.supplier.document.officer,model_fix_supplier_document,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_agreement_viewer,fix.supplier.agreement.viewer,model_fix_supplier_agreement,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_agreement_officer,fix.supplier.agreement.officer,model_fix_supplier_agreement,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_price_list_viewer,fix.supplier.price.list.viewer,model_fix_supplier_price_list,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_price_list_officer,fix.supplier.price.list.officer,model_fix_supplier_price_list,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_price_change_viewer,fix.supplier.price.change.viewer,model_fix_supplier_price_change,cd_vendor_ext.group_m42_viewer,1,0,0,0
+access_fix_supplier_price_change_officer,fix.supplier.price.change.officer,model_fix_supplier_price_change,cd_vendor_ext.group_m42_officer,1,1,1,0
+access_fix_supplier_price_list_system,fix.supplier.price.list.system,model_fix_supplier_price_list,base.group_system,1,1,1,1
+access_fix_supplier_bank_change_officer,fix.supplier.bank.change.officer,model_fix_supplier_bank_change,cd_vendor_ext.group_m42_officer,1,0,0,0
+access_fix_supplier_bank_change_finance,fix.supplier.bank.change.finance,model_fix_supplier_bank_change,cd_vendor_ext.group_m42_finance,1,1,1,0

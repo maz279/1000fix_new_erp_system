@@ -5,32 +5,487 @@ msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_needaction
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__active
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_ids
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_state
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_type_icon
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__annual
+msgid "Annual"
+msgstr "বার্ষিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_attachment_count
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__basic
+msgid "Basic"
+msgstr "বেসিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__billing_cycle
+msgid "Billing Cycle"
+msgstr "বিলিং চক্র"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__cancelled
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__churned
+msgid "Churned"
+msgstr "গ্রাহক চলে গেছে"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__company_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_revenue_schedule__state__complete
+msgid "Complete"
+msgstr "সম্পন্ন করুন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__consolidated
+msgid "Consolidated"
+msgstr "একীভূত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__contract_id
 msgid "Contract"
 msgstr "চুক্তি"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__create_uid
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__create_date
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__currency_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__customer_id
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__days_overdue
+msgid "Days Overdue"
+msgstr "অতিবাহিত দিন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__grace_period_days
+msgid "Days before hold escalation"
+msgstr "স্থগিতাদেশে উন্নীত হওয়ার আগের দিনসংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__total_amount
 msgid "Deferred Amount"
 msgstr "স্থগিত পরিমাণ"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__display_name
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__dunning_step
+msgid "Dunning Step"
+msgstr "বকেয়া তাগাদার ধাপ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__end_date
+msgid "End Date"
+msgstr "শেষ তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__final
+msgid "Final Notice (L2)"
+msgstr "চূড়ান্ত নোটিশ (L2)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_follower_ids
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_partner_ids
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__activity_type_icon
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__grace_period_days
+msgid "Grace Period Days"
+msgstr "গ্রেস পিরিয়ড (দিন)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__has_message
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__activity_exception_icon
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__message_needaction
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__message_has_error
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__message_has_sms_error
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__message_has_error
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_is_follower
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__write_uid
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__write_date
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_has_error
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_ids
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__monthly
+msgid "Monthly"
+msgstr "মাসিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_summary
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_type_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__next_invoice_date
+msgid "Next Invoice Date"
+msgstr "পরবর্তী চালানের তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__none
+msgid "None"
+msgstr "কোনোটি নয়"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__message_needaction_counter
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__message_has_error_counter
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_subscription
+#: model:ir.model.constraint,message:cd_subscription.constraint_fix_revenue_schedule_source_schedule_unique
+msgid "One recognition schedule per source document"
+msgstr "প্রতিটি উৎস দলিলের জন্য একটিমাত্র স্বীকৃতি সময়সূচি"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__past_due
+msgid "Past Due"
+msgstr "মেয়াদ পেরিয়ে বকেয়া"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__paused
+msgid "Paused"
+msgstr "স্থগিত"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__plan
+msgid "Plan"
+msgstr "প্ল্যান"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__premium
+msgid "Premium"
+msgstr "প্রিমিয়াম"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__billing_cycle__quarterly
+msgid "Quarterly"
+msgstr "ত্রৈমাসিক"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__recognized_amount
 msgid "Recognized"
 msgstr "স্বীকৃত"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__recurring_amount
 msgid "Recurring Amount"
 msgstr "পুনরাবৃত্ত পরিমাণ"
 
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__reminder
+msgid "Reminder (L1)"
+msgstr "অনুস্মারক (L1)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__activity_user_id
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_subscription
+#: model:ir.model,name:cd_subscription.model_fix_revenue_schedule
+msgid "Revenue Recognition Schedule"
+msgstr "রাজস্ব স্বীকৃতি সময়সূচি"
+
+#. module: cd_subscription
+#: model:ir.actions.act_window,name:cd_subscription.action_fix_revenue_schedule
+#: model:ir.ui.menu,name:cd_subscription.menu_fix_revenue_schedule
 msgid "Revenue Schedules"
 msgstr "রাজস্ব সময়সূচি"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__hold
+msgid "Service Hold"
+msgstr "সেবা সাময়িক বন্ধ"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__dunning_step__escalate
+msgid "Service Suspended (L3)"
+msgstr "সেবা স্থগিত (L3)"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__source_id
 msgid "Source ID"
 msgstr "উৎস আইডি"
 
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__source_model
 msgid "Source Model"
 msgstr "উৎস মডেল"
 
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__plan__standard
+msgid "Standard"
+msgstr "স্ট্যান্ডার্ড"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__start_date
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__start_date
+msgid "Start Date"
+msgstr "শুরুর তারিখ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__state
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__activity_state
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_subscription
+#: model:ir.model,name:cd_subscription.model_fix_subscription
+msgid "Subscription"
+msgstr "সাবস্ক্রিপশন"
+
+#. module: cd_subscription
+#: model:ir.actions.act_window,name:cd_subscription.action_fix_subscription
+#: model:ir.ui.menu,name:cd_subscription.menu_fix_subscription
 msgid "Subscriptions"
 msgstr "সাবস্ক্রিপশনসমূহ"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__consolidated
+msgid "T02: roll this subscription's period charges into the customer's ONE consolidated invoice (with jobs and other subscriptions)"
+msgstr "T02: এই সাবস্ক্রিপশনের মেয়াদি চার্জ গ্রাহকের একটিমাত্র একীভূত চালানে যুক্ত করুন (জব ও অন্যান্য সাবস্ক্রিপশনসহ)"
+
+#. module: cd_subscription
+#: model:ir.model.fields.selection,name:cd_subscription.selection__fix_subscription__state__trial
+msgid "Trial"
+msgstr "ট্রায়াল"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__activity_exception_decoration
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_subscription
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_revenue_schedule__website_message_ids
+#: model:ir.model.fields,field_description:cd_subscription.field_fix_subscription__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_subscription
+#: model:ir.model.fields,help:cd_subscription.field_fix_revenue_schedule__website_message_ids
+#: model:ir.model.fields,help:cd_subscription.field_fix_subscription__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

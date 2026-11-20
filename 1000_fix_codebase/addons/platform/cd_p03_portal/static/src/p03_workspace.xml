@@ -287,23 +287,23 @@
                         <div class="fx-card">
                             <h3>Journeys — End-to-End Business Workflows</h3>
                             <div class="journey-strip">
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M31-all')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M31-orders')" style="cursor: pointer;">
                                     <b>J01</b> Customer books on-site repair
                                     <span>9 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M03-intake')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M04-counter')" style="cursor: pointer;">
                                     <b>J02</b> Walk-in branch repair &amp; bench
                                     <span>7 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M04-manifests')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M03-cons')" style="cursor: pointer;">
                                     <b>J03</b> Pick &amp; drop logistics round trip
                                     <span>6 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M05-claims')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M09-claims')" style="cursor: pointer;">
                                     <b>J04</b> Brand warranty claim reimbursement
                                     <span>6 steps</span>
                                 </div>
-                                <div class="journey-chip" t-on-click="() => this.openScreen('M06-contracts')" style="cursor: pointer;">
+                                <div class="journey-chip" t-on-click="() => this.openScreen('M08-contracts')" style="cursor: pointer;">
                                     <b>J05</b> Corporate AMC preventive maintenance
                                     <span>8 steps</span>
                                 </div>
@@ -334,7 +334,11 @@
                                 <p class="pg-sub"><t t-esc="state.activeModule.desc"/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Service Order</button>
+                                <button class="btn btn-primary" t-if="activeModuleForms.length"
+                                        t-on-click="openPrimaryCapture"
+                                        t-att-title="'Capture a new ' + activeModuleForms[0].en">
+                                    + <t t-esc="formLabel(activeModuleForms[0])"/>
+                                </button>
                                 <button class="btn" t-on-click="openReportCenter">▤ Reports (<t t-esc="state.activeModule.reports.length"/>)</button>
                             </div>
                         </div>
@@ -361,13 +365,25 @@
                             </div>
                             <div class="freg-grid">
                                 <t t-foreach="state.activeModule.freg.sub" t-as="sub" t-key="sub[0]">
-                                    <button class="freg-item"
-                                            t-on-click="() => this.openFreg(state.activeModuleId, sub_index)"
-                                            t-att-title="'Open sub-module ' + sub[1]">
-                                        <span class="freg-n"><t t-esc="sub[0]"/></span>
-                                        <b><t t-esc="sub[1]"/></b>
-                                        <span class="freg-c"><t t-esc="sub[2]"/> fns ›</span>
-                                    </button>
+                                    <div class="freg-tile">
+                                        <button class="freg-item"
+                                                t-on-click="() => this.openFreg(state.activeModuleId, sub_index)"
+                                                t-att-title="'Open sub-module ' + sub[1]">
+                                            <span class="freg-n"><t t-esc="sub[0]"/></span>
+                                            <b><t t-esc="sub[1]"/></b>
+                                            <span class="freg-c"><t t-esc="sub[2]"/> fns ›</span>
+                                        </button>
+                                        <div class="freg-capture" t-if="subForms(sub[0]).length">
+                                            <t t-foreach="subForms(sub[0])" t-as="sf" t-key="sf.en">
+                                                <button class="freg-capture-btn"
+                                                        t-att-class="{'unwired': !isFormWired(state.activeModuleId, sf.en)}"
+                                                        t-on-click="() => this.openCaptureForm(state.activeModuleId, sf)"
+                                                        t-att-title="'Capture: ' + sf.en">
+                                                    + <t t-esc="formLabel(sf)"/>
+                                                </button>
+                                            </t>
+                                        </div>
+                                    </div>
                                 </t>
                             </div>
                         </div>
@@ -406,9 +422,13 @@
                         <div class="grid-3">
                             <div class="fx-card">
                                 <h3>⛁ Data-Entry Forms</h3>
-                                <t t-foreach="state.activeModule.forms" t-as="f" t-key="f">
-                                    <button class="form-chip" t-on-click="openNewForm" t-att-title="'Open ' + f">
-                                        ⛁ <t t-esc="f"/>
+                                <t t-foreach="activeModuleForms" t-as="f" t-key="f.en">
+                                    <button class="form-chip"
+                                            t-att-class="{'unwired': !isFormWired(state.activeModuleId, f.en)}"
+                                            t-on-click="() => this.openCaptureForm(state.activeModuleId, f)"
+                                            t-att-title="isFormWired(state.activeModuleId, f.en) ? 'Open ' + f.en : f.en + ' — backend not yet built'">
+                                        ⛁ <t t-esc="formLabel(f)"/>
+                                        <span class="chip warn" t-if="!isFormWired(state.activeModuleId, f.en)">not yet wired</span>
                                     </button>
                                 </t>
                             </div>
@@ -448,7 +468,10 @@
                                 <p class="pg-sub">Sub-module <t t-esc="state.activeFreg.subModuleNo"/> of <t t-esc="state.activeFreg.mid"/> — <t t-esc="state.activeFreg.functionCount"/> automated functions mapped to production screens below</p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Entry</button>
+                                <button class="btn btn-primary" t-if="state.activeFreg.forms.length"
+                                        t-on-click="() => this.openCaptureForm(state.activeFreg.mid, state.activeFreg.forms[0])">
+                                    + <t t-esc="formLabel(state.activeFreg.forms[0])"/>
+                                </button>
                                 <button class="btn" t-on-click="() => this.openModule(state.activeFreg.mid)">‹ Back to Workspace</button>
                             </div>
                         </div>
@@ -477,10 +500,13 @@
                                     </t>
                                 </div>
                                 <div class="group-block">
-                                    <h4>Forms Capturing It</h4>
-                                    <t t-foreach="state.activeFreg.forms" t-as="f" t-key="f">
-                                        <button class="form-chip" t-on-click="openNewForm">
-                                            ⛁ <t t-esc="f"/>
+                                    <h4>Forms Capturing It<t t-if="!state.activeFreg.subSpecificForms"> (module-wide)</t></h4>
+                                    <t t-foreach="state.activeFreg.forms" t-as="f" t-key="f.en">
+                                        <button class="form-chip"
+                                                t-att-class="{'unwired': !isFormWired(state.activeFreg.mid, f.en)}"
+                                                t-on-click="() => this.openCaptureForm(state.activeFreg.mid, f)">
+                                            ⛁ <t t-esc="formLabel(f)"/>
+                                            <span class="chip warn" t-if="!isFormWired(state.activeFreg.mid, f.en)">not yet wired</span>
                                         </button>
                                     </t>
                                 </div>
@@ -1500,8 +1526,8 @@
                                     <span class="fb-lbl">CROSS-MODULE LINKS</span>
                                     <div class="fb-links">
                                         <button class="screen-link" t-on-click="() => this.openScreen('M02-wo')">⇄ M02 Field Work Order</button>
-                                        <button class="screen-link" t-on-click="() => this.openScreen('M05-claims')">⇄ M09 Brand Claim</button>
-                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-reserved')">⇄ M15 Reserved Parts</button>
+                                        <button class="screen-link" t-on-click="() => this.openScreen('M09-claims')">⇄ M09 Brand Claim</button>
+                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-movements')">⇄ M15 Parts Issues &amp; Returns</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M20-invoices')">⇄ M20 Mushak 6.3 Invoice</button>
                                     </div>
                                 </div>
@@ -1538,6 +1564,118 @@
                 </footer>
             </main>
         </div>
+
+        <!-- ========================================================
+             DATA-CAPTURE MODAL — the form a workspace / sub-module
+             button names, rendered from the backing model's schema
+             (/p03/capture/schema) and saved as the user (/p03/capture/submit)
+             ======================================================== -->
+        <t t-if="state.capture.open">
+            <div class="modal-scrim" t-on-click.self="closeCapture" role="dialog" aria-modal="true" aria-labelledby="captureModalTitle">
+                <div class="modal-dialog capture-dialog">
+                    <div class="modal-head">
+                        <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+                            <span style="font-size: 18px;">⛁</span>
+                            <h2 id="captureModalTitle" style="font-size: 16px; margin: 0;">
+                                <t t-esc="state.lang === 'bn' ? state.capture.formBn : state.capture.form"/>
+                            </h2>
+                            <span class="chip" style="margin-left: 8px;"><t t-esc="state.capture.module"/></span>
+                            <span class="chip" t-if="state.capture.schema &amp;&amp; state.capture.schema.model"><t t-esc="state.capture.schema.model"/></span>
+                        </div>
+                        <button class="btn btn-ghost btn-sm" t-on-click="closeCapture" aria-label="Close">✕</button>
+                    </div>
+                    <div class="modal-body">
+                        <t t-if="state.capture.loading">
+                            <div class="chart-empty">Loading the form…</div>
+                        </t>
+                        <t t-elif="state.capture.result">
+                            <div class="capture-done">
+                                <p><b>Saved ✓</b> — <t t-esc="state.capture.result.display_name"/></p>
+                                <p class="pg-sub">The record is created as a draft. Its workflow (submit, approve, verify) continues on the record itself.</p>
+                            </div>
+                        </t>
+                        <t t-elif="state.capture.schema &amp;&amp; !state.capture.schema.available">
+                            <div class="capture-empty">
+                                <p><b>This form's backend has not been built yet.</b></p>
+                                <p class="pg-sub"><t t-esc="state.capture.module"/> · <t t-esc="state.capture.form"/> is listed in the navigation registry, but no model registers it for capture. It becomes live when the module's backend lands — nothing is saved from here until then.</p>
+                            </div>
+                        </t>
+                        <t t-elif="state.capture.schema &amp;&amp; !state.capture.schema.can_create">
+                            <div class="capture-empty">
+                                <p><b>You do not have permission to create these records.</b></p>
+                            </div>
+                        </t>
+                        <t t-elif="state.capture.schema">
+                            <div class="fld-grid">
+                                <t t-foreach="state.capture.schema.fields" t-as="fld" t-key="fld.name">
+                                    <label class="fld" t-att-class="{'wide': fld.type === 'text' || fld.type === 'html' || fld.type === 'many2many', 'invalid': isCaptureInvalid(fld.name), 'fld-check': fld.type === 'boolean'}" t-att-title="fld.help">
+                                        <span><t t-esc="captureFieldLabel(fld)"/><i class="req" t-if="fld.required &amp;&amp; fld.type !== 'boolean'"> *</i></span>
+                                        <t t-if="fld.type === 'selection'">
+                                            <select t-model="state.capture.values[fld.name]">
+                                                <option value="">— select —</option>
+                                                <t t-foreach="captureSelection(fld)" t-as="opt" t-key="opt[0]">
+                                                    <option t-att-value="opt[0]"><t t-esc="opt[1]"/></option>
+                                                </t>
+                                            </select>
+                                        </t>
+                                        <t t-elif="fld.type === 'many2one'">
+                                            <input type="search" class="capture-search" placeholder="Search…" t-on-input="(ev) => this.onCaptureSearch(fld.name, ev)"/>
+                                            <select t-model.number="state.capture.values[fld.name]">
+                                                <option value="">— select —</option>
+                                                <t t-foreach="state.capture.options[fld.name] || []" t-as="opt" t-key="opt.id">
+                                                    <option t-att-value="opt.id"><t t-esc="opt.name"/></option>
+                                                </t>
+                                            </select>
+                                        </t>
+                                        <t t-elif="fld.type === 'many2many'">
+                                            <input type="search" class="capture-search" placeholder="Search…" t-on-input="(ev) => this.onCaptureSearch(fld.name, ev)"/>
+                                            <select multiple="multiple" size="4" t-on-change="(ev) => this.onCaptureMulti(fld.name, ev)">
+                                                <t t-foreach="state.capture.options[fld.name] || []" t-as="opt" t-key="opt.id">
+                                                    <option t-att-value="opt.id" t-att-selected="state.capture.values[fld.name].includes(opt.id)"><t t-esc="opt.name"/></option>
+                                                </t>
+                                            </select>
+                                        </t>
+                                        <t t-elif="fld.type === 'boolean'">
+                                            <input type="checkbox" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                        <t t-elif="fld.type === 'text' || fld.type === 'html'">
+                                            <textarea rows="3" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                        <t t-elif="fld.type === 'integer' || fld.type === 'float' || fld.type === 'monetary'">
+                                            <input type="number" step="any" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                        <t t-elif="fld.type === 'date'">
+                                            <input type="date" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                        <t t-elif="fld.type === 'datetime'">
+                                            <input type="datetime-local" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                        <t t-else="">
+                                            <input type="text" t-model="state.capture.values[fld.name]"/>
+                                        </t>
+                                    </label>
+                                </t>
+                            </div>
+                        </t>
+                        <div class="capture-error" role="alert" t-if="state.capture.error"><t t-esc="state.capture.error"/></div>
+                    </div>
+                    <div class="modal-footer">
+                        <t t-if="state.capture.result">
+                            <button class="btn" t-on-click="captureAnother">+ Capture another</button>
+                            <button class="btn" t-on-click="closeCapture">Close</button>
+                            <button class="btn btn-primary" t-on-click="openCapturedRecord">Open record ▸</button>
+                        </t>
+                        <t t-else="">
+                            <button class="btn" t-on-click="closeCapture">Cancel</button>
+                            <button class="btn btn-primary" t-if="state.capture.schema &amp;&amp; state.capture.schema.available &amp;&amp; state.capture.schema.can_create"
+                                    t-att-disabled="state.capture.saving" t-on-click="submitCapture">
+                                <t t-if="state.capture.saving">Saving…</t><t t-else="">Save ▸</t>
+                            </button>
+                        </t>
+                    </div>
+                </div>
+            </div>
+        </t>
 
         <!-- ========================================================
              5-TAB ENTERPRISE DATA-ENTRY FORM MODAL

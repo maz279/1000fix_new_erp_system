@@ -8,6 +8,12 @@ from libs.py.fix_events import publish
 class FixItsmTicket(models.Model):
     _name = "fix.itsm.ticket"
     _description = "ITSM Ticket"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M66",
+        "form": "Incident",
+        "fields": ["title", "requester_id", "category", "priority", "description"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 

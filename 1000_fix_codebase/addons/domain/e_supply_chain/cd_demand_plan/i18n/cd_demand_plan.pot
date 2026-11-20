@@ -1,8 +1,285 @@
-# Bengali translations for cd_demand_plan (P09) — 100% coverage.
+# Translation template for cd_demand_plan — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-"Language: bn_BD\n"
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
-msgid "Demand Planning & Replenishment"
-msgstr "Demand Planning & Replenishment (বাংলা)"
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields.selection,name:cd_demand_plan.selection__fix_demand_plan__state__approved
+msgid "Approved"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__current_stock
+msgid "Current Stock"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.actions.act_window,name:cd_demand_plan.action_fix_demand_plan
+#: model:ir.model,name:cd_demand_plan.model_fix_demand_plan
+#: model:ir.ui.menu,name:cd_demand_plan.menu_fix_demand_plan
+msgid "Demand Plan"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields.selection,name:cd_demand_plan.selection__fix_demand_plan__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__forecast_quantity
+msgid "Forecast Quantity"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__message_has_error
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__reorder_point
+msgid "M15's reorder seam, consumed here"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__name
+msgid "Name"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__period_end
+msgid "Period End"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__period_start
+msgid "Period Start"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__product_id
+msgid "Product"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__recommended_order
+msgid "Recommended Order Qty"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__reorder_point
+msgid "Reorder Point"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__state
+msgid "State"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__forecast_quantity
+msgid "The M26 forecast model's output; replaces heuristics"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,field_description:cd_demand_plan.field_fix_demand_plan__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_demand_plan
+#: model:ir.model.fields,help:cd_demand_plan.field_fix_demand_plan__website_message_ids
+msgid "Website communication history"
+msgstr ""

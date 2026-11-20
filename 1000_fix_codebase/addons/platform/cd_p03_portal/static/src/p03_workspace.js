@@ -16,6 +16,18 @@ import { rpc } from "@web/core/network/rpc";
 import { user } from "@web/core/user";
 import { Component, onWillStart, useState, markup } from "@odoo/owl";
 import { P03_AREAS, P03_MODULES, P03_ROLES, generateGridData } from "./p03_modules_meta";
+import { SERVICE_ORDER_FORMS, moduleForms, subModuleForms } from "./p03_capture_map";
+
+/* The capture modal's blank state — a form is captured into the domain
+   model that registered it (/p03/capture/*); nothing is pre-invented. */
+function blankCapture() {
+    return {
+        open: false, loading: false, saving: false,
+        module: "", form: "", formBn: "",
+        schema: null, values: {}, options: {}, invalid: [],
+        error: "", result: null,
+    };
+}
 
 // Register rpc & user services in Odoo services registry to guarantee useService resolves cleanly
 export const rpcService = {
@@ -254,6 +266,10 @@ export class P03Workspace extends Component {
             dispatchForm: { technician: "", vanRoute: "", etaWindow: "", notes: "" },
             inventoryForm: { partSku: "", partName: "", qty: 1, bin: "" },
 
+            // Registry-discovered data-capture forms (/p03/capture/*)
+            capture: blankCapture(),
+            wiredForms: {},
+
             // Live backend caches
             stats: null,
             recentOrders: []
@@ -291,6 +307,7 @@ export class P03Workspace extends Component {
                 this.loadRecentOrders(),
                 this.loadDispatchMap(),
                 this.loadConsoleData(),
+                this.loadCaptureForms(),
             ]);
         });
     }
@@ -574,9 +591,189 @@ export class P03Workspace extends Component {
         return (this.state.activeModule.kpis || []).map(k => k.l);
     }
 
+    /* ---------------------------------------------------------------
+       DATA CAPTURE — every data-entry button opens the form it names,
+       backed by the domain model that registered it (_p03_capture).
+       --------------------------------------------------------------- */
+
+    /* The workspace's data-entry forms ({ en, bn }) for the open module. */
+    get activeModuleForms() {
+        return moduleForms(this.state.activeModuleId, this.state.activeModule);
+    }
+
+    /* The forms that capture Function Register sub-module `subNo`. */
+    subForms(subNo) {
+        return subModuleForms(this.state.activeModuleId, subNo);
+    }
+
+    formLabel(f) {
+        return this.state.lang === "bn" && f.bn ? f.bn : f.en;
+    }
+
+    isFormWired(mid, formEn) {
+        return SERVICE_ORDER_FORMS.includes(formEn) || Boolean(this.state.wiredForms[`${mid}::${formEn}`]);
+    }
+
+    async loadCaptureForms() {
+        try {
+            const res = await this.rpc("/p03/capture/forms", {});
+            const wired = {};
+            for (const f of (res && res.forms) || []) {
+                wired[`${f.module}::${f.form}`] = f.can_create;
+            }
+            this.state.wiredForms = wired;
+        } catch (e) {
+            console.warn("Could not fetch /p03/capture/forms:", e);
+        }
+    }
+
+    /* The workspace header's primary action: the module's first form. */
+    openPrimaryCapture() {
+        const forms = this.activeModuleForms;
+        if (!forms.length) {
+            this.showToast("This module has no data-entry form in the registry.");
+            return;
+        }
+        this.openCaptureForm(this.state.activeModuleId, forms[0]);
+    }
+
+    async openCaptureForm(mid, form) {
+        const f = typeof form === "string" ? { en: form, bn: form } : form;
+        if (SERVICE_ORDER_FORMS.includes(f.en)) {
+            this.openNewForm();
+            return;
+        }
+        this.state.capture = Object.assign(blankCapture(), {
+            open: true, loading: true, module: mid, form: f.en, formBn: f.bn || f.en,
+        });
+        try {
+            const schema = await this.rpc("/p03/capture/schema", { module: mid, form: f.en });
+            const values = {};
+            for (const fld of schema.fields || []) {
+                const d = schema.defaults ? schema.defaults[fld.name] : undefined;
+                if (fld.type === "many2many") values[fld.name] = Array.isArray(d) ? d : [];
+                else if (fld.type === "boolean") values[fld.name] = Boolean(d);
+                else values[fld.name] = d === undefined || d === false || d === null ? "" : d;
+            }
+            Object.assign(this.state.capture, { loading: false, schema, values });
+            await Promise.all((schema.fields || [])
+                .filter((fld) => fld.type === "many2one" || fld.type === "many2many")
+                .map((fld) => this.loadCaptureOptions(fld.name, "")));
+        } catch (e) {
+            Object.assign(this.state.capture, {
+                loading: false, error: "Could not load this form from the server.",
+            });
+        }
+    }
+
+    async loadCaptureOptions(fieldName, q) {
+        const c = this.state.capture;
+        try {
+            const res = await this.rpc("/p03/capture/options", {
+                module: c.module, form: c.form, field: fieldName, q: q || "",
+            });
+            const opts = (res && res.options) || [];
+            // keep the currently selected record visible after a narrowing search
+            const current = c.values[fieldName];
+            const prev = c.options[fieldName] || [];
+            for (const id of Array.isArray(current) ? current : [current]) {
+                const keep = prev.find((o) => String(o.id) === String(id));
+                if (keep && !opts.some((o) => o.id === keep.id)) opts.unshift(keep);
+            }
+            c.options[fieldName] = opts;
+        } catch (e) {
+            c.options[fieldName] = [];
+        }
+    }
+
+    onCaptureSearch(fieldName, ev) {
+        clearTimeout(this._captureSearchTimer);
+        const q = ev.target.value;
+        this._captureSearchTimer = setTimeout(() => this.loadCaptureOptions(fieldName, q), 250);
+    }
+
+    onCaptureMulti(fieldName, ev) {
+        this.state.capture.values[fieldName] = Array.from(ev.target.selectedOptions).map((o) => Number(o.value));
+    }
+
+    captureFieldLabel(fld) {
+        return this.state.lang === "bn" ? fld.string_bn || fld.string : fld.string;
+    }
+
+    captureSelection(fld) {
+        return this.state.lang === "bn" ? fld.selection_bn || fld.selection : fld.selection;
+    }
+
+    isCaptureInvalid(name) {
+        return this.state.capture.invalid.includes(name);
+    }
+
+    closeCapture() {
+        this.state.capture = blankCapture();
+    }
+
+    async submitCapture() {
+        const c = this.state.capture;
+        if (!c.schema || c.saving) return;
+        // AS-09: required inputs are checked here for fast feedback and
+        // again on the server, which is the authority.
+        c.invalid = c.schema.fields
+            .filter((fld) => fld.required && fld.type !== "boolean")
+            .filter((fld) => {
+                const v = c.values[fld.name];
+                return v === "" || v === null || v === undefined || (Array.isArray(v) && !v.length);
+            })
+            .map((fld) => fld.name);
+        if (c.invalid.length) {
+            c.error = `${c.invalid.length} required field(s) missing — highlighted in red.`;
+            return;
+        }
+        c.saving = true;
+        c.error = "";
+        try {
+            const res = await this.rpc("/p03/capture/submit", {
+                module: c.module, form: c.form, values: c.values,
+            });
+            if (res && res.success) {
+                c.result = res;
+                this.showToast(`${c.form} saved — ${res.display_name}`);
+            } else {
+                c.error = (res && res.error) || "The record could not be saved.";
+            }
+        } catch (e) {
+            c.error = "The server rejected the request.";
+        } finally {
+            c.saving = false;
+        }
+    }
+
+    /* After a save: open the record in the back-office form, where its
+       workflow buttons (submit / approve / verify) live. */
+    openCapturedRecord() {
+        const r = this.state.capture.result;
+        if (!r) return;
+        this.closeCapture();
+        this.actionService.doAction({
+            type: "ir.actions.act_window",
+            res_model: r.model,
+            res_id: r.id,
+            views: [[false, "form"]],
+            target: "current",
+        });
+    }
+
+    captureAnother() {
+        const { module, form, formBn } = this.state.capture;
+        this.openCaptureForm(module, { en: form, bn: formBn });
+    }
+
     /* Resolve a cross-navigation term to a real module/screen — no dead
        hardcoded targets. */
     openCross(term) {
+        // Registry cross links lead with the target code ("M33 party
+        // extension", "M16 activation gate").
+        const code = /^(M\d\d)\b/.exec(String(term));
+        if (code && P03_MODULES[code[1]]) return this.openModule(code[1]);
         const q = String(term).toLowerCase();
         const mod = Object.values(P03_MODULES).find(m =>
             m.title.toLowerCase().includes(q) || m.en.toLowerCase().includes(q) ||
@@ -698,7 +895,10 @@ export class P03Workspace extends Component {
             module: mod,
             screens: mappedScreens.slice(0, 6),
             reports: mod.reports.slice(0, 4),
-            forms: mod.forms.slice(0, 3),
+            // the forms that capture THIS sub-module; the module's full list
+            // when no sub-module mapping exists yet
+            forms: subModuleForms(mid, sub[0]).length ? subModuleForms(mid, sub[0]) : moduleForms(mid, mod),
+            subSpecificForms: subModuleForms(mid, sub[0]).length > 0,
             gridData: grid
         };
         this.state.viewMode = "freg";
@@ -1201,8 +1401,8 @@ export class P03Workspace extends Component {
                 screens: [
                     { id: "M01-all", title: "All Service Orders", icon: "⛁", group: "Service Operations", fn: () => { this.closeTellMe(); this.openScreen("M01-all"); } },
                     { id: "M02-dispatch", title: "Live Dispatch Board", icon: "🚐", group: "Field Service", fn: () => { this.closeTellMe(); this.openScreen("M02-dispatch"); } },
-                    { id: "M03-counter", title: "Walk-in Counter Queue", icon: "🏢", group: "Branch Operations", fn: () => { this.closeTellMe(); this.openScreen("M03-counter"); } },
-                    { id: "M15-stock", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-stock"); } }
+                    { id: "M04-counter", title: "Walk-in Counter Queue", icon: "🏢", group: "Branch Operations", fn: () => { this.closeTellMe(); this.openScreen("M04-counter"); } },
+                    { id: "M15-onhand", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-onhand"); } }
                 ]
             };
         }

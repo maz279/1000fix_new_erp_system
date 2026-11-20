@@ -71,6 +71,12 @@ class FixWarrantyClaim(models.Model):
 
     _name = "fix.warranty.claim"
     _description = "Warranty Claim"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M09",
+        "form": "Brand Claim",
+        "fields": ["service_order_id", "brand_id", "claim_amount", "warranty_product_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "created_at desc, id desc"
     # Odoo 19 dropped the legacy constraint tuple list;

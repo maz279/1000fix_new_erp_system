@@ -15,6 +15,13 @@ class FixIdentityDocument(models.Model):
     the IDENTIFIER VALUE lives in Z4, accessible only via fix_residency."""
     _name = "fix.identity.document"
     _description = "Identity Document"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M33",
+        "form": "Identity Document",
+        "fields": ["partner_id", "document_type", "document_number", "issuing_country",
+                   "expiry_date", "is_primary"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin", "residency.mixin"]
 
     # The classified fields routed to Z4 by the residency.mixin:

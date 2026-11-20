@@ -1,101 +1,679 @@
-# Bengali translations for cd_msp_contract (M05, P08-M07) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_msp_contract.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "MSP Contract"
-msgstr "এমএসপি চুক্তি"
-
-msgid "Monitored Asset"
-msgstr "পর্যবেক্ষিত সম্পদ"
-
-msgid "MSP Alert"
-msgstr "এমএসপি সতর্কতা"
-
-msgid "Remote Session"
-msgstr "রিমোট সেশন"
-
-msgid "MSP Service Report"
-msgstr "এমএসপি সার্ভিস রিপোর্ট"
-
-msgid "Contract (M08)"
-msgstr "চুক্তি (M08)"
-
-msgid "Covered Devices"
-msgstr "আচ্ছাদিত ডিভাইস"
-
-msgid "Endpoints Only"
-msgstr "শুধু এন্ডপয়েন্ট"
-
-msgid "Endpoints + Network"
-msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
-
-msgid "Full Stack"
-msgstr "ফুল স্ট্যাক"
-
-msgid "Per-Device Monthly"
-msgstr "প্রতি ডিভাইস মাসিক"
-
-msgid "Monitored Assets"
-msgstr "পর্যবেক্ষিত সম্পদসমূহ"
-
-msgid "Service Reports"
-msgstr "সার্ভিস রিপোর্টসমূহ"
-
-msgid "Healthy"
-msgstr "সুস্থ"
-
-msgid "Degraded"
-msgstr "খারাপ"
-
-msgid "Offline"
-msgstr "অফলাইন"
-
-msgid "Raised"
-msgstr "উত্থাপিত"
-
-msgid "Acknowledged"
-msgstr "স্বীকৃত"
-
-msgid "Ticketed"
-msgstr "টিকেটকৃত"
-
-msgid "Resolved"
-msgstr "সমাধানকৃত"
-
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
 msgid "Acknowledge"
 msgstr "স্বীকার করুন"
 
-msgid "Create Ticket"
-msgstr "টিকেট তৈরি করুন"
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__acked
+msgid "Acknowledged"
+msgstr "স্বীকৃত"
 
-msgid "MeshCentral"
-msgstr "মেশসেন্ট্রাল"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_needaction
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_needaction
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_needaction
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_needaction
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
-msgid "RustDesk"
-msgstr "রাস্টডেস্ক"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
 
-msgid "Technician"
-msgstr "কারিগর"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
 
-msgid "Period"
-msgstr "পিরিয়ড"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_state
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_state
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_state
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_state
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
 
-msgid "SLA Attainment (0-1)"
-msgstr "এসএলএ অর্জন (০-১)"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_type_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_type_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_type_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_type_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
 
-msgid "সারসংক্ষেপ (Bengali)"
-msgstr "সারসংক্ষেপ (বাংলা)"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__agent_id
+msgid "Agent"
+msgstr "এজেন্ট"
 
-msgid "Summary (English)"
-msgstr "সারসংক্ষেপ (ইংরেজি)"
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__alert_count
+msgid "Alert Count"
+msgstr "সতর্কতার সংখ্যা"
 
-msgid "Managed Services"
-msgstr "পরিচালিত সেবা"
-
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_alerts
 msgid "Alerts"
 msgstr "সতর্কতাসমূহ"
 
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__asset_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__asset_id
+msgid "Asset"
+msgstr "সম্পদ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_attachment_count
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_attachment_count
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_attachment_count
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_attachment_count
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__company_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__company_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__company_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__company_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__consent_captured
+msgid "Consent Captured"
+msgstr "সম্মতি গৃহীত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__contract_id
+msgid "Contract (M08)"
+msgstr "চুক্তি (M08)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__device_count
+msgid "Covered Devices"
+msgstr "আচ্ছাদিত ডিভাইস"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_form
+msgid "Create Ticket"
+msgstr "টিকেট তৈরি করুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__create_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__create_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__create_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__create_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__create_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__create_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__create_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__create_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__summary_bn
+msgid "DE-17"
+msgstr "DE-17"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__degraded
+msgid "Degraded"
+msgstr "খারাপ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__display_name
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__display_name
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__display_name
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__display_name
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__ended_at
+msgid "Ended At"
+msgstr "শেষের সময়"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints_network
+msgid "Endpoints + Network"
+msgstr "এন্ডপয়েন্ট + নেটওয়ার্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__endpoints
+msgid "Endpoints Only"
+msgstr "শুধু এন্ডপয়েন্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_follower_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_follower_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_follower_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_follower_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_partner_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_partner_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_partner_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_partner_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__activity_type_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__activity_type_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__activity_type_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__activity_type_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_contract__monitoring_scope__full
+msgid "Full Stack"
+msgstr "ফুল স্ট্যাক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__has_message
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__has_message
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__has_message
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__has_message
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__health
+msgid "Health"
+msgstr "স্বাস্থ্য"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__healthy
+msgid "Healthy"
+msgstr "সুস্থ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__hostname
+msgid "Hostname"
+msgstr "হোস্টনেম"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__activity_exception_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__activity_exception_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__activity_exception_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__activity_exception_icon
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__message_needaction
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__message_needaction
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__message_needaction
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__message_needaction
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__message_has_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__message_has_sms_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__message_has_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__message_has_sms_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__message_has_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__message_has_sms_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__message_has_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__message_has_sms_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__message_has_error
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_is_follower
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_is_follower
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_is_follower
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_is_follower
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__last_seen
+msgid "Last Seen"
+msgstr "সর্বশেষ দেখা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__write_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__write_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__write_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__write_uid
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__write_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__write_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__write_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__write_date
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_alert
+msgid "MSP Alert"
+msgstr "এমএসপি সতর্কতা"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_alert
+msgid "MSP Alerts"
+msgstr "MSP সতর্কতাসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_contract
+msgid "MSP Contract"
+msgstr "এমএসপি চুক্তি"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_contracts
 msgid "MSP Contracts"
 msgstr "এমএসপি চুক্তিসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_msp_service_report
+msgid "MSP Service Report"
+msgstr "এমএসপি সার্ভিস রিপোর্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__major
+msgid "Major"
+msgstr "বড়"
+
+#. module: cd_msp_contract
+#: model:ir.ui.menu,name:cd_msp_contract.menu_ws_msp
+msgid "Managed Services"
+msgstr "পরিচালিত সেবা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__meshcentral
+msgid "MeshCentral"
+msgstr "মেশসেন্ট্রাল"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message
+msgid "Message"
+msgstr "বার্তা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_has_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_has_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_has_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_has_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__severity__minor
+msgid "Minor"
+msgstr "গৌণ"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_monitored_asset
+msgid "Monitored Asset"
+msgstr "পর্যবেক্ষিত সম্পদ"
+
+#. module: cd_msp_contract
+#: model:ir.actions.act_window,name:cd_msp_contract.action_fix_monitored_asset
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__asset_ids
+#: model:ir.ui.menu,name:cd_msp_contract.menu_fix_msp_assets
+msgid "Monitored Assets"
+msgstr "পর্যবেক্ষিত সম্পদসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__monitoring_scope
+msgid "Monitoring Scope"
+msgstr "মনিটরিং পরিসর"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__msp_contract_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__msp_contract_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__msp_contract_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__msp_contract_id
+msgid "Msp Contract"
+msgstr "এমএসপি চুক্তি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_summary
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_summary
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_summary
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_summary
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_type_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_type_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_type_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_type_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__message_needaction_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__message_needaction_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__message_needaction_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__message_needaction_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__message_has_error_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__message_has_error_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__message_has_error_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__message_has_error_counter
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_monitored_asset__health__offline
+msgid "Offline"
+msgstr "অফলাইন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__operating_unit_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__consent_captured
+msgid "PDPA: the client user's consent to the remote session - without it the session does not start"
+msgstr "PDPA: রিমোট সেশনে ক্লায়েন্ট ব্যবহারকারীর সম্মতি - এটি ছাড়া সেশন শুরু হয় না"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__per_device_monthly
+msgid "Per-Device Monthly"
+msgstr "প্রতি ডিভাইস মাসিক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__period_label
+msgid "Period"
+msgstr "পর্যায়"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__agent_id
+msgid "RMM agent identifier"
+msgstr "RMM এজেন্ট শনাক্তকারী"
+
+#. module: cd_msp_contract
+#: model_terms:ir.ui.view,arch_db:cd_msp_contract.view_fix_msp_alert_list
+msgid "Raised"
+msgstr "উত্থাপিত"
+
+#. module: cd_msp_contract
+#: model:ir.model,name:cd_msp_contract.model_fix_remote_session
+msgid "Remote Session"
+msgstr "রিমোট সেশন"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__resolved
+msgid "Resolved"
+msgstr "সমাধানকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__resolved_count
+msgid "Resolved Count"
+msgstr "সমাধানকৃত সংখ্যা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__activity_user_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__activity_user_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__activity_user_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__activity_user_id
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_remote_session__tool__rustdesk
+msgid "RustDesk"
+msgstr "রাস্টডেস্ক"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__sla_attainment
+msgid "SLA Attainment (0-1)"
+msgstr "SLA অর্জন (০-১)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__order_id
+msgid "Service Order"
+msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__report_ids
+msgid "Service Reports"
+msgstr "সার্ভিস রিপোর্টসমূহ"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__severity
+msgid "Severity"
+msgstr "তীব্রতা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__started_at
+msgid "Started At"
+msgstr "শুরুর সময়"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__activity_state
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__activity_state
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__activity_state
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__activity_state
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_en
+msgid "Summary (English)"
+msgstr "সারসংক্ষেপ (ইংরেজি)"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__technician_id
+msgid "Technician"
+msgstr "টেকনিশিয়ান"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields.selection,name:cd_msp_contract.selection__fix_msp_alert__state__ticketed
+msgid "Ticketed"
+msgstr "টিকেটকৃত"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__tool
+msgid "Tool"
+msgstr "টুল"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__activity_exception_decoration
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__activity_exception_decoration
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__activity_exception_decoration
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__activity_exception_decoration
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_monitored_asset__website_message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_alert__website_message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_contract__website_message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__website_message_ids
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_remote_session__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_monitored_asset__website_message_ids
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_alert__website_message_ids
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_contract__website_message_ids
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_msp_service_report__website_message_ids
+#: model:ir.model.fields,help:cd_msp_contract.field_fix_remote_session__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_msp_contract
+#: model:ir.model.fields,field_description:cd_msp_contract.field_fix_msp_service_report__summary_bn
+msgid "সারসংক্ষেপ (Bengali)"
+msgstr "সারসংক্ষেপ (বাংলা)"

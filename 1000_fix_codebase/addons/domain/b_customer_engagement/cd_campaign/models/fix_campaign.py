@@ -8,6 +8,13 @@ from libs.py.fix_events import publish
 class FixCampaign(models.Model):
     _name = "fix.campaign"
     _description = "Marketing Campaign"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M35",
+        "form": "Campaign",
+        "fields": ["name", "channel", "name_bn", "budget", "start_date", "end_date",
+                   "audience_domain"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "start_date desc"
 

@@ -1,8 +1,335 @@
-# Bengali translations for cd_fpa (P09) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_fpa.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "FP&A, Cost Accounting & Budgeting"
-msgstr "FP&A, Cost Accounting & Budgeting (বাংলা)"
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_needaction
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_ids
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_state
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_type_icon
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__actual_amount
+msgid "Actual"
+msgstr "প্রকৃত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__allocated_overhead
+msgid "Allocated Overhead"
+msgstr "বণ্টিত পরোক্ষ ব্যয়"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_attachment_count
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_budget
+#: model:ir.model,name:cd_fpa.model_fix_budget
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_budget
+msgid "Budget"
+msgstr "বাজেট"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__company_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_fpa
+#: model:ir.actions.act_window,name:cd_fpa.action_fix_cost_allocation
+#: model:ir.model,name:cd_fpa.model_fix_cost_allocation
+#: model:ir.ui.menu,name:cd_fpa.menu_fix_cost_allocation
+msgid "Cost Allocation"
+msgstr "ব্যয় বণ্টন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__create_uid
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__create_date
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__currency_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__direct_cost
+msgid "Direct Cost"
+msgstr "প্রত্যক্ষ ব্যয়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__display_name
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_fpa
+#: model:ir.model.fields.selection,name:cd_fpa.selection__fix_budget__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__fiscal_year
+msgid "Fiscal Year"
+msgstr "অর্থবছর"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_follower_ids
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_partner_ids
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__activity_type_icon
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__has_message
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__activity_exception_icon
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__message_needaction
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__message_has_error
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__message_has_sms_error
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__message_has_error
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_is_follower
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__write_uid
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__write_date
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_has_error
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_ids
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__name
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_summary
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_type_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__message_needaction_counter
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__message_has_error_counter
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__operating_unit_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__planned_amount
+msgid "Planned"
+msgstr "পরিকল্পিত"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__activity_user_id
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__activity_state
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__total_cost
+msgid "Total"
+msgstr "মোট"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__activity_exception_decoration
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__variance
+msgid "Variance"
+msgstr "ব্যবধান"
+
+#. module: cd_fpa
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_budget__website_message_ids
+#: model:ir.model.fields,field_description:cd_fpa.field_fix_cost_allocation__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_fpa
+#: model:ir.model.fields,help:cd_fpa.field_fix_budget__website_message_ids
+#: model:ir.model.fields,help:cd_fpa.field_fix_cost_allocation__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

@@ -1,0 +1,4589 @@
+# Bengali (Bangladesh) translation for cd_p03_portal.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "(Includes 15% NBR Statutory VAT"
+msgstr "(NBR-এর 15% বিধিবদ্ধ VAT সহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "(module-wide)"
+msgstr "(মডিউল-জুড়ে)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Add Line"
+msgstr "+ লাইন যোগ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Add Line Item"
+msgstr "+ লাইন আইটেম যোগ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Capture another"
+msgstr "+ আরেকটি ক্যাপচার করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Job"
+msgstr "+ নতুন কাজ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Record"
+msgstr "+ নতুন রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Service Order"
+msgstr "+ নতুন সার্ভিস অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Walk-in Intake"
+msgstr "+ নতুন ওয়াক-ইন ইনটেক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+8801XXXXXXXXX"
+msgstr "+8801XXXXXXXXX"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1. General & Branch (53 BD Centers)"
+msgstr "1. সাধারণ ও শাখা (53টি বাংলাদেশ সেন্টার)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid ""
+"1. Please preserve this original Job Card receipt for device handover.\n"
+"                                2. Repaired hardware components carry a 90-day replacement warranty. Software issues are not covered.\n"
+"                                3. Uncollected equipment after 30 days of readiness notification may incur nominal storage fees as per 1000 FiX policy.\n"
+"                                4. For emergency inquiries or status tracking, please dial hotline"
+msgstr ""
+"1. ডিভাইস হস্তান্তরের জন্য অনুগ্রহ করে এই মূল জব কার্ড রসিদটি সংরক্ষণ করুন।\n"
+"                                2. মেরামতকৃত হার্ডওয়্যার যন্ত্রাংশে 90 দিনের প্রতিস্থাপন ওয়ারেন্টি রয়েছে। সফটওয়্যার সমস্যা এর আওতাভুক্ত নয়।\n"
+"                                3. প্রস্তুতির বিজ্ঞপ্তির 30 দিন পরেও সংগ্রহ না করা যন্ত্রপাতির জন্য 1000 FiX নীতি অনুযায়ী সামান্য সংরক্ষণ ফি প্রযোজ্য হতে পারে।\n"
+"                                4. জরুরি জিজ্ঞাসা বা অবস্থা জানতে অনুগ্রহ করে হটলাইনে কল করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP"
+msgstr "1000 FiX ERP"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP — 11 Business Areas & 67 Modules"
+msgstr "1000 FiX ERP — 11টি ব্যবসায়িক ক্ষেত্র ও 67টি মডিউল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP — Role Center Home"
+msgstr "1000 FiX ERP — রোল সেন্টার হোম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Services Ltd."
+msgstr "1000 FiX Services Ltd."
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Services Ltd. — ISO 9001:2015 Certified"
+msgstr "1000 FiX Services Ltd. — ISO 9001:2015 সনদপ্রাপ্ত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Smart Portal v2.0"
+msgstr "1000 FiX Smart Portal v2.0"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "1000FiX Enterprise Information"
+msgstr "1000FiX এন্টারপ্রাইজ তথ্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "1000FiX Integrated Enterprise Navigation"
+msgstr "1000FiX সমন্বিত এন্টারপ্রাইজ নেভিগেশন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "1000FiX Mega Menu — All 11 Business Areas"
+msgstr "1000FiX মেগা মেনু — সব 11টি ব্যবসায়িক ক্ষেত্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "12 production portals · all surfaces behind the Kong gateway (ARCHITECTURE_STATE §6)"
+msgstr "12টি প্রোডাকশন পোর্টাল · সব সারফেস Kong গেটওয়ের পেছনে (ARCHITECTURE_STATE §6)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15 Enterprise Role Workspaces"
+msgstr "15টি এন্টারপ্রাইজ রোল ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15% Statutory VAT:"
+msgstr "15% বিধিবদ্ধ VAT:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15% VAT"
+msgstr "15% VAT"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "2. Entitlement & SLA"
+msgstr "2. প্রাপ্যতা ও SLA"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "24–48 Hours (Standard)"
+msgstr "24–48 ঘণ্টা (স্ট্যান্ডার্ড)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "3. Symptoms & Fault (বাংলা / EN)"
+msgstr "3. লক্ষণ ও ত্রুটি (বাংলা / EN)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "4. Parts, Labor & NBR 15% VAT"
+msgstr "4. যন্ত্রাংশ, শ্রম ও NBR 15% VAT"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "5 steps"
+msgstr "5টি ধাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "5. Review & Submit"
+msgstr "5. পর্যালোচনা ও জমা দিন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "6 steps"
+msgstr "6টি ধাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "67 Modules · 823 Screens"
+msgstr "67টি মডিউল · 823টি স্ক্রিন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "7 steps"
+msgstr "7টি ধাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8 steps"
+msgstr "8টি ধাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Bench Station Board (Real-Time Workshop Floor)"
+msgstr "8-বেঞ্চ স্টেশন বোর্ড (রিয়েল-টাইম ওয়ার্কশপ ফ্লোর)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Bench Station Board · Stuck/Blocked Holds · QC Inspection Queue with Pass/Rework Toggle"
+msgstr "8-বেঞ্চ স্টেশন বোর্ড · আটকে থাকা/ব্লকড হোল্ড · Pass/Rework টগলসহ QC পরিদর্শন কিউ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Stage Service Lifecycle Stepper"
+msgstr "8-ধাপের সার্ভিস লাইফসাইকেল স্টেপার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "9 steps"
+msgstr "9টি ধাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "; the reservation lands on the order's work order at the product's real cost."
+msgstr "; রিজার্ভেশনটি পণ্যের প্রকৃত মূল্যে অর্ডারের ওয়ার্ক অর্ডারে যুক্ত হয়।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "< 24 Hours (Fresh)"
+msgstr "< 24 ঘণ্টা (নতুন)"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>12</b>\n"
+"                                <span>portals</span>"
+msgstr ""
+"<b>12</b>\n"
+"                                <span>পোর্টাল</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>346</b>\n"
+"                                <span>reports</span>"
+msgstr ""
+"<b>346</b>\n"
+"                                <span>রিপোর্ট</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>823</b>\n"
+"                                <span>screens</span>"
+msgstr ""
+"<b>823</b>\n"
+"                                <span>স্ক্রিন</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span class=\"badge-dot\"/>\n"
+"                            <span>✓ ISO 9001:2015 CERTIFIED</span>"
+msgstr ""
+"<span class=\"badge-dot\"/>\n"
+"                            <span>✓ ISO 9001:2015 সনদপ্রাপ্ত</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span class=\"brand-title\">1000 FiX ERP</span>\n"
+"                            <span class=\"brand-sub\">SERVICE OPERATIONS PLATFORM</span>"
+msgstr ""
+"<span class=\"brand-title\">1000 FiX ERP</span>\n"
+"                            <span class=\"brand-sub\">সার্ভিস অপারেশনস প্ল্যাটফর্ম</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "<span class=\"mark\">F</span>"
+msgstr "<span class=\"mark\">F</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_form_style
+msgid "<span>Continue ▸</span>"
+msgstr "<span>চালিয়ে যান ▸</span>"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span>📞 24/7 Helpline: 16743</span>\n"
+"                                <span class=\"portal-sep\">·</span>"
+msgstr ""
+"<span>📞 24/7 হেল্পলাইন: 16743</span>\n"
+"                                <span class=\"portal-sep\">·</span>"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "> 48 Hours (Escalated)"
+msgstr "> 48 ঘণ্টা (এসকেলেটেড)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "AI Auto-Dispatch & Technician Allocation"
+msgstr "AI স্বয়ংক্রিয় ডিসপ্যাচ ও টেকনিশিয়ান বরাদ্দ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "AMC / Contract"
+msgstr "এএমসি / চুক্তি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext
+msgid "AP & Employee Expense"
+msgstr "AP ও কর্মী খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine
+msgid "AR, Invoicing & Collections"
+msgstr "AR, চালান ও আদায়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ASSIGNED TECHNICIAN"
+msgstr "নিযুক্ত টেকনিশিয়ান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ASSIGNED TECHNICIAN (live HR master)"
+msgstr "নিযুক্ত টেকনিশিয়ান (লাইভ HR মাস্টার)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s2
+msgid "Access"
+msgstr "অ্যাক্সেস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s3
+msgid "Accounts"
+msgstr "অ্যাকাউন্টসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Action"
+msgstr "কার্যক্রম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Advance ▸"
+msgstr "অগ্রসর করুন ▸"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s2
+msgid "Agent Desktop (P10)"
+msgstr "এজেন্ট ডেস্কটপ (P10)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s2
+msgid "Alerting"
+msgstr "সতর্কবার্তা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All 50 Branches"
+msgstr "সব 50টি শাখা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All OEM spare parts carry genuine serial tracing and a 90-day post-repair warranty. Statutory Value Added Tax (VAT) is computed at 15% under National Board of Revenue Bangladesh Service SRO."
+msgstr "সব OEM খুচরা যন্ত্রাংশে আসল সিরিয়াল ট্রেসিং ও মেরামত-পরবর্তী 90 দিনের ওয়ারেন্টি রয়েছে। জাতীয় রাজস্ব বোর্ড (NBR) বাংলাদেশের সার্ভিস SRO অনুযায়ী বিধিবদ্ধ মূল্য সংযোজন কর (VAT) 15% হারে গণনা করা হয়।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All Records"
+msgstr "সব রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All Statuses"
+msgstr "সব অবস্থা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "All areas"
+msgstr "সব ক্ষেত্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All branches"
+msgstr "সব শাখা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All work orders are currently dispatched."
+msgstr "সব ওয়ার্ক অর্ডার বর্তমানে ডিসপ্যাচ করা হয়েছে।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Allocation / Inventory Status"
+msgstr "বরাদ্দ / মজুদ অবস্থা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Alt+Q"
+msgstr "Alt+Q"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s5
+msgid "Analysis"
+msgstr "বিশ্লেষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s4
+msgid "Analytics"
+msgstr "অ্যানালিটিক্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s3
+msgid "Approval Loop"
+msgstr "অনুমোদন চক্র"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s2
+msgid "Approvals"
+msgstr "অনুমোদনসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved estimate settlement & statutory 15% VAT collection today"
+msgstr "আজ অনুমোদিত আনুমানিক খরচের নিষ্পত্তি ও বিধিবদ্ধ 15% VAT আদায়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved estimate value this month"
+msgstr "এই মাসে অনুমোদিত আনুমানিক খরচের মূল্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Archetypes:"
+msgstr "আর্কিটাইপসমূহ:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s2
+msgid "Assets"
+msgstr "সম্পদসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Assigned Engineer:"
+msgstr "নিযুক্ত প্রকৌশলী:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Attachments ("
+msgstr "সংযুক্তি ("
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Audit Trail"
+msgstr "অডিট ট্রেইল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s3
+msgid "Audits"
+msgstr "নিরীক্ষাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s1
+msgid "Authoring"
+msgstr "রচনা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Authorized Officer / Inspector"
+msgstr "অনুমোদিত কর্মকর্তা / পরিদর্শক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Available"
+msgstr "উপলব্ধ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BIN:"
+msgstr "BIN:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BRANCH"
+msgstr "শাখা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BUSINESS AREAS"
+msgstr "ব্যবসায়িক ক্ষেত্রসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s4
+msgid "Backup & Destruction"
+msgstr "ব্যাকআপ ও ধ্বংসকরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s2
+msgid "Banking"
+msgstr "ব্যাংকিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Bench Active:"
+msgstr "সক্রিয় বেঞ্চ:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s2
+msgid "Bench Board"
+msgstr "বেঞ্চ বোর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Bench Tech"
+msgstr "বেঞ্চ টেকনিশিয়ান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s2
+msgid "Booking"
+msgstr "বুকিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk
+msgid "Branch & Front-Desk"
+msgstr "শাখা ও ফ্রন্ট-ডেস্ক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch (live master)"
+msgstr "শাখা (লাইভ মাস্টার)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch Code:"
+msgstr "শাখা কোড:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch Operations & Front-Desk Console"
+msgstr "শাখা পরিচালনা ও ফ্রন্ট-ডেস্ক কনসোল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s5
+msgid "Branch Ops"
+msgstr "শাখা পরিচালনা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch:"
+msgstr "শাখা:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branches"
+msgstr "শাখাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s2
+msgid "Brand Claims"
+msgstr "ব্র্যান্ড দাবি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Brand warranty claim reimbursement"
+msgstr "ব্র্যান্ড ওয়ারেন্টি দাবির অর্থ ফেরত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s3
+msgid "Budgeting"
+msgstr "বাজেটিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Business Areas & Modules"
+msgstr "ব্যবসায়িক ক্ষেত্র ও মডিউলসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Business Areas (11)"
+msgstr "ব্যবসায়িক ক্ষেত্র (11)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "By:"
+msgstr "দ্বারা:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CENTRAL DHAKA"
+msgstr "কেন্দ্রীয় ঢাকা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CHITTAGONG & SYLHET"
+msgstr "চট্টগ্রাম ও সিলেট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "COASTAL SOUTH"
+msgstr "উপকূলীয় দক্ষিণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext
+msgid "CRM & Sales Pipeline"
+msgstr "CRM ও বিক্রয় পাইপলাইন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CROSS-MODULE LINKS"
+msgstr "ক্রস-মডিউল লিংক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CUSTOMER"
+msgstr "গ্রাহক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CUSTOMER PHONE"
+msgstr "গ্রাহকের ফোন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback
+msgid "CX, Feedback & Complaints"
+msgstr "CX, মতামত ও অভিযোগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s3
+msgid "Calibration"
+msgstr "ক্যালিব্রেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s1
+msgid "Campaigns"
+msgstr "প্রচারণাসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cancel"
+msgstr "বাতিল করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s1
+msgid "Capex"
+msgstr "মূলধনী ব্যয় (Capex)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s1
+msgid "Capture"
+msgstr "ক্যাপচার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s2
+msgid "Cart & Checkout"
+msgstr "কার্ট ও চেকআউট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s1
+msgid "Cash"
+msgstr "নগদ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s3
+msgid "Cash & Shift"
+msgstr "নগদ ও শিফট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cash Position & NBR Mushak 6.3 Register"
+msgstr "নগদ অবস্থান ও NBR Mushak 6.3 রেজিস্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Central Workshop HQ"
+msgstr "কেন্দ্রীয় ওয়ার্কশপ সদর দপ্তর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s2
+msgid "Certifications"
+msgstr "সার্টিফিকেশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s4
+msgid "Change"
+msgstr "পরিবর্তন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s4
+msgid "Change & Renewal"
+msgstr "পরিবর্তন ও নবায়ন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s3
+msgid "Channels"
+msgstr "চ্যানেলসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Clear"
+msgstr "পরিষ্কার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s5
+msgid "Client Reporting"
+msgstr "ক্লায়েন্ট রিপোর্টিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s2
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Close"
+msgstr "বন্ধ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close Mega Menu"
+msgstr "মেগা মেনু বন্ধ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close modal"
+msgstr "মডাল বন্ধ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close tab"
+msgstr "ট্যাব বন্ধ করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s3
+msgid "Closed Loop"
+msgstr "ক্লোজড লুপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s1
+msgid "Collection"
+msgstr "সংগ্রহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Collection / Delivery"
+msgstr "সংগ্রহ / ডেলিভারি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Comfortable"
+msgstr "প্রশস্ত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s4
+msgid "Commerce Marketing"
+msgstr "কমার্স মার্কেটিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s3
+msgid "Commercial"
+msgstr "বাণিজ্যিক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s2
+msgid "Commission"
+msgstr "কমিশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s4
+msgid "Comms"
+msgstr "যোগাযোগ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Compact"
+msgstr "কমপ্যাক্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s3
+msgid "Compatibility & Faults"
+msgstr "সামঞ্জস্যতা ও ত্রুটি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s3
+msgid "Compensation"
+msgstr "ক্ষতিপূরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s1
+msgid "Competency"
+msgstr "দক্ষতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s2
+msgid "Complaints"
+msgstr "অভিযোগসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s3
+msgid "Compliance"
+msgstr "কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s2
+msgid "Configuration"
+msgstr "কনফিগারেশন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Confirm & Dispatch Technician ▸"
+msgstr "নিশ্চিত করুন ও টেকনিশিয়ান পাঠান ▸"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Connected to PostgreSQL"
+msgstr "PostgreSQL-এর সাথে সংযুক্ত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s3
+msgid "Connectors"
+msgstr "কানেক্টরসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s4
+msgid "Consent & Rights"
+msgstr "সম্মতি ও অধিকার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s1
+msgid "Consignments"
+msgstr "কনসাইনমেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre
+msgid "Contact Centre (16743)"
+msgstr "কন্টাক্ট সেন্টার (16743)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Contact Phone:"
+msgstr "যোগাযোগের ফোন:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core
+msgid "Contract Lifecycle (AMC)"
+msgstr "চুক্তির জীবনচক্র (AMC)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s1
+msgid "Contract Register"
+msgstr "চুক্তি রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s2
+msgid "Controls"
+msgstr "নিয়ন্ত্রণসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core
+msgid "Core HR & Lifecycle"
+msgstr "মূল এইচআর ও জীবনচক্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate / Bulk"
+msgstr "কর্পোরেট / বাল্ক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate AMC preventive maintenance"
+msgstr "কর্পোরেট AMC প্রতিরোধমূলক রক্ষণাবেক্ষণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate Client (if B2B — free text)"
+msgstr "কর্পোরেট ক্লায়েন্ট (B2B হলে — মুক্ত টেক্সট)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s4
+msgid "Corporate Estates"
+msgstr "কর্পোরেট এস্টেট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s4
+msgid "Costing"
+msgstr "খরচ নির্ধারণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s4
+msgid "Costing & Knowledge"
+msgstr "খরচ নির্ধারণ ও জ্ঞানভান্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa
+msgid "Costing, Budget & FP&A"
+msgstr "খরচ নির্ধারণ, বাজেট ও FP&A"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s4
+msgid "Counter Sales"
+msgstr "কাউন্টার বিক্রয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Counter Walk-in Queue"
+msgstr "কাউন্টার ওয়াক-ইন কিউ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s4
+msgid "Courier Partners"
+msgstr "কুরিয়ার অংশীদার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s5
+msgid "Coverage"
+msgstr "কভারেজ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s2
+msgid "Coverage & Entitlement"
+msgstr "কভারেজ ও প্রাপ্যতা"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Created By"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s3
+msgid "Credit Control"
+msgstr "ক্রেডিট নিয়ন্ত্রণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cryptographically verified timeline conforming to ISO 9001:2015 Clause 8.2 & Bangladesh PDPA 2026 split-residency."
+msgstr "ISO 9001:2015 ধারা 8.2 ও বাংলাদেশ PDPA 2026 স্প্লিট-রেসিডেন্সি অনুযায়ী ক্রিপ্টোগ্রাফিকভাবে যাচাইকৃত সময়রেখা।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Current company"
+msgstr "বর্তমান কোম্পানি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s2
+msgid "Custody"
+msgstr "হেফাজত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s2
+msgid "Custody & POD"
+msgstr "হেফাজত ও POD"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Custody Branch"
+msgstr "হেফাজতকারী শাখা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master
+msgid "Customer & Party Master"
+msgstr "গ্রাহক ও পার্টি মাস্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Full Name *"
+msgstr "গ্রাহকের পূর্ণ নাম *"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Information"
+msgstr "গ্রাহকের তথ্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Phone (+880) *"
+msgstr "গ্রাহকের ফোন (+880) *"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Signature & Date"
+msgstr "গ্রাহকের স্বাক্ষর ও তারিখ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer books on-site repair"
+msgstr "গ্রাহক অন-সাইট মেরামত বুক করেন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer:"
+msgstr "গ্রাহক:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DEVICE"
+msgstr "ডিভাইস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DEVICE / OBJECT"
+msgstr "ডিভাইস / বস্তু"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DHAKA 15KM GEOFENCE"
+msgstr "ঢাকা 15KM জিওফেন্স"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DISPATCH DISPATCHER NOTES"
+msgstr "ডিসপ্যাচ — ডিসপ্যাচারের নোট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry
+msgid "Data Platform & Governance"
+msgstr "ডেটা প্ল্যাটফর্ম ও গভর্ন্যান্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s3
+msgid "Data Protection"
+msgstr "ডেটা সুরক্ষা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s3
+msgid "Data Quality"
+msgstr "ডেটার মান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case
+msgid "Data Services & Recovery"
+msgstr "ডেটা সেবা ও পুনরুদ্ধার"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Database Manager"
+msgstr "ডেটাবেস ম্যানেজার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Date Range (orders are shown newest first)"
+msgstr "তারিখের পরিসর (নতুন অর্ডার আগে দেখানো হয়)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Delivered Today"
+msgstr "আজ ডেলিভারি হয়েছে"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s2
+msgid "Delivery"
+msgstr "সরবরাহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan
+msgid "Demand Planning"
+msgstr "চাহিদা পরিকল্পনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s3
+msgid "Depreciation"
+msgstr "অবচয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Describe the device fault in detail…"
+msgstr "ডিভাইসের ত্রুটি বিস্তারিত লিখুন…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Description of Service / Part"
+msgstr "সেবা / যন্ত্রাংশের বিবরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device"
+msgstr "ডিভাইস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry
+msgid "Device & Asset Registry"
+msgstr "ডিভাইস ও সম্পদ রেজিস্ট্রি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device / Model:"
+msgstr "ডিভাইস / মডেল:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device Brand (matched against brand master)"
+msgstr "ডিভাইসের ব্র্যান্ড (ব্র্যান্ড মাস্টারের সাথে মেলানো)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s2
+msgid "Device Custody"
+msgstr "ডিভাইস হেফাজত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device serial or service tag"
+msgstr "ডিভাইসের সিরিয়াল বা সার্ভিস ট্যাগ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dhaka Circle (15 km Geofenced)"
+msgstr "ঢাকা সার্কেল (15 km জিওফেন্সড)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Diagnosing"
+msgstr "ডায়াগনোসিস চলছে"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s3
+msgid "Diagnosis & Estimates"
+msgstr "ডায়াগনোসিস ও আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Diagnostic"
+msgstr "ডায়াগনস্টিক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Directly Implementing"
+msgstr "সরাসরি বাস্তবায়নকারী"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s3
+msgid "Disbursement"
+msgstr "বেতন বিতরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s1
+msgid "Dispatch Console"
+msgstr "ডিসপ্যাচ কনসোল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Console & Live Pipeline"
+msgstr "ডিসপ্যাচ কনসোল ও লাইভ পাইপলাইন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Console & Live Vector Map"
+msgstr "ডিসপ্যাচ কনসোল ও লাইভ ভেক্টর ম্যাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Field Technician"
+msgstr "ফিল্ড টেকনিশিয়ান পাঠান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s3
+msgid "Distribution"
+msgstr "বিতরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s3
+msgid "Documents"
+msgstr "দলিলসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core
+msgid "Documents & E-Signature"
+msgstr "দলিল ও ই-সিগনেচার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dynamics-365 Mega Menu"
+msgstr "Dynamics-365 মেগা মেনু"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront
+msgid "E-Commerce Storefront"
+msgstr "ই-কমার্স স্টোরফ্রন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s3
+msgid "E-Signature"
+msgstr "ই-সিগনেচার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste
+msgid "E-Waste & Recycling"
+msgstr "ই-বর্জ্য ও পুনর্ব্যবহার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ETA APPOINTMENT WINDOW"
+msgstr "ETA অ্যাপয়েন্টমেন্ট সময়সীমা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Emergency"
+msgstr "জরুরি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s3
+msgid "Employee Expense"
+msgstr "কর্মীর ব্যয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s3
+msgid "Employee IT"
+msgstr "কর্মী আইটি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s1
+msgid "Employee Master"
+msgstr "কর্মী মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s1
+msgid "Engine"
+msgstr "ইঞ্জিন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Engineer:"
+msgstr "প্রকৌশলী:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "English"
+msgstr "ইংরেজি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register
+msgid "Enterprise Assets & Test Equipment"
+msgstr "এন্টারপ্রাইজ সম্পদ ও পরীক্ষা যন্ত্রপাতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s4
+msgid "Entitlement & SLA"
+msgstr "প্রাপ্যতা ও SLA"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Entitlement Type (order category)"
+msgstr "প্রাপ্যতার ধরন (অর্ডার শ্রেণি)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Equipment & Diagnostic Details"
+msgstr "যন্ত্রপাতি ও ডায়াগনস্টিক বিবরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Esc to close"
+msgstr "বন্ধ করতে Esc চাপুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Estimate"
+msgstr "আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Estimated Parts & Labor Line Items"
+msgstr "আনুমানিক যন্ত্রাংশ ও শ্রম লাইন আইটেম"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s1
+msgid "Estimates"
+msgstr "আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s2
+msgid "Events"
+msgstr "ইভেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s4
+msgid "Evidence"
+msgstr "প্রমাণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s5
+msgid "Exceptions & Billing"
+msgstr "ব্যতিক্রম ও বিলিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s3
+msgid "Execution"
+msgstr "বাস্তবায়ন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "F"
+msgstr "F"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility
+msgid "Facility & Branch Infrastructure"
+msgstr "Facility & Branch Infrastructure (বাংলা)"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "FactBox"
+msgstr "ফ্যাক্টবক্স"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "FactBox Inspector"
+msgstr "ফ্যাক্টবক্স ইন্সপেক্টর"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Fail QC and return to bench for rework"
+msgstr "QC-তে অকৃতকার্য করুন ও পুনঃকার্যের জন্য বেঞ্চে ফেরত পাঠান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Fault:"
+msgstr "ত্রুটি:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s4
+msgid "Feedback"
+msgstr "মতামত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s3
+msgid "Field Safety"
+msgstr "ফিল্ড নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service
+msgid "Field Service & Dispatch"
+msgstr "ফিল্ড সার্ভিস ও ডিসপ্যাচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Field Techs"
+msgstr "ফিল্ড টেকনিশিয়ান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Files attached to this service order in the backend."
+msgstr "ব্যাকএন্ডে এই সার্ভিস অর্ডারে সংযুক্ত ফাইলসমূহ।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter by branch"
+msgstr "শাখা অনুযায়ী ফিল্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter by workflow status"
+msgstr "ওয়ার্কফ্লো অবস্থা অনুযায়ী ফিল্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter from date"
+msgstr "শুরুর তারিখ অনুযায়ী ফিল্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter modules"
+msgstr "মডিউল ফিল্টার করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter modules…"
+msgstr "মডিউল ফিল্টার করুন…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "Filter reports…"
+msgstr "রিপোর্ট ফিল্টার করুন…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter to date"
+msgstr "শেষ তারিখ অনুযায়ী ফিল্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext
+msgid "Financial Accounting & GL"
+msgstr "আর্থিক হিসাব ও GL"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s3
+msgid "Financials"
+msgstr "আর্থিক বিবরণী"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext
+msgid "Fixed Assets & Capex"
+msgstr "স্থায়ী সম্পদ ও মূলধনী ব্যয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s1
+msgid "Fleet"
+msgstr "যানবাহন বহর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext
+msgid "Fleet & Vehicles"
+msgstr "ফ্লিট ও যানবাহন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s4
+msgid "Floor Ops"
+msgstr "ফ্লোর অপারেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s1
+msgid "Forecasting"
+msgstr "পূর্বাভাস"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Forgot password · Terms · PDPA 2026 privacy notice"
+msgstr "পাসওয়ার্ড ভুলে গেছেন · শর্তাবলি · PDPA 2026 গোপনীয়তা বিজ্ঞপ্তি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Forms Capturing It"
+msgstr "যে ফর্মগুলো এটি সংগ্রহ করে"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s1
+msgid "Framework"
+msgstr "কাঠামো চুক্তি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Function Register"
+msgstr "ফাংশন রেজিস্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Function Register — Sub-modules & Capabilities"
+msgstr "ফাংশন রেজিস্টার — সাব-মডিউল ও সক্ষমতা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "GOVT. NBR MUSHAK 6.3"
+msgstr "সরকারি NBR MUSHAK 6.3"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s1
+msgid "Gateway"
+msgstr "গেটওয়ে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Global Tell-Me Search"
+msgstr "গ্লোবাল টেল-মি সার্চ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s4
+msgid "Governance"
+msgstr "গভর্ন্যান্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc
+msgid "Governance, Risk & Compliance"
+msgstr "Governance, Risk & Compliance (বাংলা)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Grand Total (BDT):"
+msgstr "সর্বমোট (টাকা):"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Grand Total Payable:"
+msgstr "সর্বমোট প্রদেয়:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse
+msgid "Health, Safety & Wellbeing"
+msgstr "স্বাস্থ্য, নিরাপত্তা ও কল্যাণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s2
+msgid "History"
+msgstr "ইতিহাস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hold"
+msgstr "হোল্ড করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home"
+msgstr "হোম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home › M01 Service Orders ›"
+msgstr "হোম › M01 সার্ভিস অর্ডার ›"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home › Role Center"
+msgstr "হোম › রোল সেন্টার"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Hotline 16743 to workshop bench, brand claim to Mushak 9.1 — 67 modules, 12 portals, one golden record per customer and device."
+msgstr "হটলাইন 16743 থেকে ওয়ার্কশপ বেঞ্চ, ব্র্যান্ড দাবি থেকে Mushak 9.1 — 67টি মডিউল, 12টি পোর্টাল, প্রতিটি গ্রাহক ও ডিভাইসের জন্য একটি গোল্ডেন রেকর্ড।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hotline:"
+msgstr "হটলাইন:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hotline: 16743"
+msgstr "হটলাইন: 16743"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015"
+msgstr "ISO 9001:2015"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 & NBR Mushak 6.3 Compliance Note"
+msgstr "ISO 9001:2015 ও NBR Mushak 6.3 কমপ্লায়েন্স নোট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 Certified After-Sales Service Network"
+msgstr "ISO 9001:2015 সনদপ্রাপ্ত বিক্রয়োত্তর সেবা নেটওয়ার্ক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 Enterprise Architecture · Complete Unified Navigation"
+msgstr "ISO 9001:2015 এন্টারপ্রাইজ আর্কিটেকচার · সম্পূর্ণ একীভূত নেভিগেশন"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "ISO 9001:2015 · 51+ centres · 8 divisions<br/>© 2026 1000 FiX Services Ltd. All rights reserved."
+msgstr "ISO 9001:2015 · 51+ সেন্টার · 8টি বিভাগ<br/>© 2026 1000 FiX Services Ltd. সর্বস্বত্ব সংরক্ষিত।"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s1
+msgid "Identity"
+msgstr "পরিচয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s2
+msgid "Identity & Verification"
+msgstr "পরিচয় ও যাচাই"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext
+msgid "Identity, Access & Security"
+msgstr "পরিচয়, অ্যাক্সেস ও নিরাপত্তা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Immutable Service Lifecycle Audit Trail"
+msgstr "অপরিবর্তনীয় সার্ভিস জীবনচক্র নিরীক্ষা ট্রেইল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s4
+msgid "Impact"
+msgstr "প্রভাব"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order
+msgid "Import & Trade Compliance"
+msgstr "আমদানি ও বাণিজ্য কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "In Progress"
+msgstr "চলমান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "In Repair Now"
+msgstr "এখন মেরামতাধীন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s2
+msgid "Inbound"
+msgstr "ইনবাউন্ড"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s2
+msgid "Incentives"
+msgstr "প্রণোদনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s2
+msgid "Incidents"
+msgstr "ঘটনাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s4
+msgid "Infrastructure"
+msgstr "অবকাঠামো"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s1
+msgid "Ingestion"
+msgstr "ডেটা গ্রহণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Inspect"
+msgstr "পরিদর্শন করুন"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Intake"
+msgstr "ইনটেক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s1
+msgid "Intake & Channels"
+msgstr "ইনটেক ও চ্যানেল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel / Type (model enum)"
+msgstr "ইনটেক চ্যানেল / ধরন (মডেল enum)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel Mix — Last 30 Days (live)"
+msgstr "ইনটেক চ্যানেল মিশ্রণ — গত 30 দিন (লাইভ)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel:"
+msgstr "ইনটেক চ্যানেল:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Today"
+msgstr "আজকের ইনটেক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox
+msgid "Integration, API & Events"
+msgstr "ইন্টিগ্রেশন, API ও ইভেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s3
+msgid "Intelligence"
+msgstr "ইন্টেলিজেন্স"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Interactive Dispatch Map"
+msgstr "ইন্টারঅ্যাক্টিভ ডিসপ্যাচ ম্যাপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm
+msgid "Internal IT Service"
+msgstr "অভ্যন্তরীণ আইটি সেবা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Inventory Requisition & Bin Allocation"
+msgstr "মজুদ অনুরোধ ও বিন বরাদ্দ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s1
+msgid "Invoicing"
+msgstr "চালান প্রস্তুতকরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry
+msgid "IoT Telemetry & Predictive"
+msgstr "IoT টেলিমেট্রি ও পূর্বাভাসমূলক বিশ্লেষণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Issue Date:"
+msgstr "ইস্যুর তারিখ:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Item Description"
+msgstr "আইটেমের বিবরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Item Description / SKU"
+msgstr "আইটেমের বিবরণ / SKU"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s1
+msgid "Item Master"
+msgstr "আইটেম মাস্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Itemized Parts & Labor Lines (latest estimate)"
+msgstr "আইটেমভিত্তিক যন্ত্রাংশ ও শ্রম লাইন (সর্বশেষ আনুমানিক খরচ)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Itemized Replacement Parts & Technical Labor"
+msgstr "আইটেমভিত্তিক প্রতিস্থাপন যন্ত্রাংশ ও টেকনিশিয়ানি শ্রম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J01"
+msgstr "J01"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J02"
+msgstr "J02"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J03"
+msgstr "J03"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J04"
+msgstr "J04"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J05"
+msgstr "J05"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J06"
+msgstr "J06"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Job Card Number"
+msgstr "জব কার্ড নম্বর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s3
+msgid "Job Market"
+msgstr "জব মার্কেট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s2
+msgid "Journeys"
+msgstr "জার্নিসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Journeys — End-to-End Business Workflows"
+msgstr "জার্নি — শুরু থেকে শেষ পর্যন্ত ব্যবসায়িক ওয়ার্কফ্লো"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge
+msgid "Knowledge & Technical Library"
+msgstr "জ্ঞানভান্ডার ও টেকনিশিয়ানি লাইব্রেরি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "LATEST CHATTER"
+msgstr "সর্বশেষ চ্যাটার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Labor"
+msgstr "শ্রম"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Last Update"
+msgstr "সর্বশেষ হালনাগাদ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s1
+msgid "Leads"
+msgstr "লিড"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency
+msgid "Learning & Certification"
+msgstr "শিক্ষণ ও সার্টিফিকেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s2
+msgid "Leases"
+msgstr "লিজসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s3
+msgid "Leave"
+msgstr "ছুটি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Leave blank for retail"
+msgstr "খুচরা গ্রাহকের জন্য ফাঁকা রাখুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s1
+msgid "Ledger"
+msgstr "খতিয়ান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s4
+msgid "Legal & Data"
+msgstr "আইনি ও ডেটা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s3
+msgid "Lifecycle"
+msgstr "জীবনচক্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Line Description"
+msgstr "লাইনের বিবরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Line Total"
+msgstr "লাইন মোট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Lines & Parts"
+msgstr "লাইন ও যন্ত্রাংশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Live 8-stage operational board across all 53 Bangladesh branches with automated technician allocation"
+msgstr "স্বয়ংক্রিয় টেকনিশিয়ান বরাদ্দসহ বাংলাদেশের সব 53টি শাখাজুড়ে লাইভ 8-ধাপের অপারেশনাল বোর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Live Record"
+msgstr "লাইভ রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Loading the form…"
+msgstr "ফর্ম লোড হচ্ছে…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Loading the order from the backend…"
+msgstr "ব্যাকএন্ড থেকে অর্ডার লোড হচ্ছে…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M01 Intake"
+msgstr "M01 ইনটেক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M02 Field Service"
+msgstr "M02 ফিল্ড সার্ভিস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M15 Stock"
+msgstr "M15 মজুদ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mail-in"
+msgstr "মেইল-ইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s4
+msgid "Maintenance"
+msgstr "রক্ষণাবেক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign
+msgid "Marketing Campaigns"
+msgstr "মার্কেটিং প্রচারণাসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace
+msgid "Marketplace & Sellers"
+msgstr "মার্কেটপ্লেস ও বিক্রেতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core
+msgid "Master Data Management"
+msgstr "মাস্টার ডেটা ব্যবস্থাপনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s4
+msgid "Measurement"
+msgstr "পরিমাপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s2
+msgid "Media Custody"
+msgstr "মিডিয়া হেফাজত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mega Menu"
+msgstr "মেগা মেনু"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s4
+msgid "Metrics"
+msgstr "মেট্রিকস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mode:"
+msgstr "মোড:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Model Name & Number"
+msgstr "মডেলের নাম ও নম্বর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s2
+msgid "Modelling"
+msgstr "মডেলিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Module"
+msgstr "মডিউল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s4
+msgid "Money"
+msgstr "অর্থ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s2
+msgid "Monitored Estate"
+msgstr "পর্যবেক্ষণাধীন সম্পদ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s4
+msgid "Monitoring"
+msgstr "পর্যবেক্ষণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mushak 6.3 Invoice & Tax Settlement"
+msgstr "Mushak 6.3 চালান ও কর নিষ্পত্তি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mushak 6.3 Tax Invoices Issued:"
+msgstr "ইস্যুকৃত Mushak 6.3 কর চালান:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Approvals"
+msgstr "আমার অনুমোদনসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Branch (Elephant Rd)"
+msgstr "আমার শাখা (এলিফ্যান্ট রোড)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Worklist"
+msgstr "আমার কাজের তালিকা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "NBR Mushak 6.3 VAT (15%):"
+msgstr "NBR Mushak 6.3 ভ্যাট (15%):"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "NORTH REGION"
+msgstr "উত্তর অঞ্চল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Name:"
+msgstr "নাম:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "National Bangladesh (8 Divisions)"
+msgstr "সারা বাংলাদেশ (8টি বিভাগ)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Navigation: Click or type to search •"
+msgstr "নেভিগেশন: অনুসন্ধানে ক্লিক করুন বা টাইপ করুন •"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "New Service Order — Enterprise Intake Form"
+msgstr "নতুন সার্ভিস অর্ডার — এন্টারপ্রাইজ ইনটেক ফর্ম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Next ▸"
+msgstr "পরবর্তী ▸"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+msgid "No active work orders on the board."
+msgstr "বোর্ডে কোনো সক্রিয় ওয়ার্ক অর্ডার নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No attachments on this order yet — upload via the record form in the back office."
+msgstr "এই অর্ডারে এখনও কোনো সংযুক্তি নেই — ব্যাক অফিসের রেকর্ড ফর্ম থেকে আপলোড করুন।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No counter customers waiting in queue."
+msgstr "কিউতে কোনো কাউন্টার গ্রাহক অপেক্ষমাণ নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No estimate lines yet — the estimate surfaces with the quoting phase."
+msgstr "এখনও কোনো আনুমানিক খরচের লাইন নেই — কোটেশন পর্যায়ে আনুমানিক খরচ দেখা যাবে।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No line items registered on this order estimate yet."
+msgstr "এই অর্ডারের আনুমানিক খরচে এখনও কোনো লাইন আইটেম নিবন্ধিত হয়নি।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No live records for this screen yet — this surface wires to its model in its porting phase."
+msgstr "এই স্ক্রিনের জন্য এখনও কোনো লাইভ রেকর্ড নেই — পোর্টিং পর্যায়ে এটি নিজ মডেলের সাথে সংযুক্ত হবে।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "No matches for \""
+msgstr "কোনো মিল পাওয়া যায়নি: \""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No orders blocked on holds."
+msgstr "হোল্ডের কারণে কোনো অর্ডার আটকে নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No pending approvals for your account."
+msgstr "আপনার অ্যাকাউন্টে কোনো অপেক্ষমাণ অনুমোদন নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No repaired units waiting for pickup."
+msgstr "সংগ্রহের অপেক্ষায় কোনো মেরামতকৃত ইউনিট নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "No reports match \""
+msgstr "কোনো রিপোর্ট মেলেনি: \""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s2
+msgid "Nonconformance"
+msgstr "অসঙ্গতি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Normal"
+msgstr "সাধারণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s4
+msgid "Notification Hub"
+msgstr "নোটিফিকেশন হাব"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Notifications"
+msgstr "নোটিফিকেশন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ON DUTY"
+msgstr "কর্তব্যরত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ORDER REFERENCE"
+msgstr "অর্ডার রেফারেন্স"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Odoo 19 · P03 Operations Workspace"
+msgstr "Odoo 19 · P03 অপারেশন্স ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s3
+msgid "Offers & Content"
+msgstr "অফার ও কনটেন্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Official Job Card & NBR Mushak 6.3 Invoice"
+msgstr "অফিসিয়াল জব কার্ড ও NBR Mushak 6.3 চালান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "On Duty"
+msgstr "কর্তব্যরত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "On-site"
+msgstr "অন-সাইট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s4
+msgid "Onboarding"
+msgstr "অনবোর্ডিং"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "One platform,<br/>every service moment."
+msgstr "একটি প্ল্যাটফর্ম,<br/>প্রতিটি সেবা মুহূর্তে।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open 8-Bench Workshop & QC Console"
+msgstr "8-বেঞ্চ ওয়ার্কশপ ও QC কনসোল খুলুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Branch Counter & Collection Console"
+msgstr "শাখা কাউন্টার ও সংগ্রহ কনসোল খুলুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Field Dispatch Console & Live Map"
+msgstr "ফিল্ড ডিসপ্যাচ কনসোল ও লাইভ ম্যাপ খুলুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Mega Menu"
+msgstr "মেগা মেনু খুলুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Record"
+msgstr "রেকর্ড খুলুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Service Orders"
+msgstr "চলমান সার্ভিস অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open record ▸"
+msgstr "রেকর্ড খুলুন ▸"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open ›"
+msgstr "খুলুন ›"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open ▸"
+msgstr "খুলুন ▸"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Opened"
+msgstr "খোলা হয়েছে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Operational Screen Groups"
+msgstr "অপারেশনাল স্ক্রিন গ্রুপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s3
+msgid "Operations"
+msgstr "অপারেশন্স"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_workspace
+msgid "Operations Workspace"
+msgstr "অপারেশন্স ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order"
+msgstr "ক্রম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order Intake Steps"
+msgstr "অর্ডার ইনটেকের ধাপসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s2
+msgid "Order Lifecycle"
+msgstr "অর্ডারের জীবনচক্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order Pre-Dispatch Confirmation"
+msgstr "অর্ডারের প্রি-ডিসপ্যাচ নিশ্চিতকরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order:"
+msgstr "অর্ডার:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s3
+msgid "Orders"
+msgstr "অর্ডারসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s1
+msgid "Orders & Finance"
+msgstr "অর্ডার ও অর্থ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders awaiting technician dispatch or field assignment"
+msgstr "টেকনিশিয়ান প্রেরণ বা ফিল্ড অ্যাসাইনমেন্টের অপেক্ষায় থাকা অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders currently in repair"
+msgstr "বর্তমানে মেরামতাধীন অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders delivered today"
+msgstr "আজ ডেলিভারি হওয়া অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders past SLA deadline"
+msgstr "SLA সময়সীমা পেরোনো অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders registered today"
+msgstr "আজ নিবন্ধিত অর্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s1
+msgid "Organisation"
+msgstr "প্রতিষ্ঠান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s3
+msgid "Outbound"
+msgstr "আউটবাউন্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Overview"
+msgstr "সংক্ষিপ্ত বিবরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_home
+msgid "P03 Workspace"
+msgstr "P03 ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PART SKU / MODEL"
+msgstr "যন্ত্রাংশ SKU / মডেল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PHONE"
+msgstr "ফোন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PRIORITY"
+msgstr "অগ্রাধিকার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Part"
+msgstr "যন্ত্রাংশ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner
+msgid "Partner & Channel"
+msgstr "অংশীদার ও চ্যানেল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s1
+msgid "Partner Master"
+msgstr "অংশীদার মাস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s3
+msgid "Partners & Compliance"
+msgstr "অংশীদার ও কমপ্লায়েন্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s1
+msgid "Party Records"
+msgstr "পার্টি রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pass QC Inspection and advance to Ready"
+msgstr "QC পরিদর্শনে উত্তীর্ণ করুন ও প্রস্তুত ধাপে এগিয়ে নিন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s3
+msgid "Payments"
+msgstr "পেমেন্টসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd
+msgid "Payroll & Statutory"
+msgstr "পেরোল ও সংবিধিবদ্ধ বিষয়"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s1
+msgid "Payroll Engine"
+msgstr "পেরোল ইঞ্জিন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pending Orders"
+msgstr "অপেক্ষমাণ অর্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s1
+msgid "Performance"
+msgstr "কর্মদক্ষতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance
+msgid "Performance & Incentives"
+msgstr "কর্মদক্ষতা ও প্রণোদনা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pick & drop logistics round trip"
+msgstr "পিক অ্যান্ড ড্রপ লজিস্টিকস রাউন্ড ট্রিপ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s2
+msgid "Pipeline"
+msgstr "পাইপলাইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s1
+msgid "Pipelines"
+msgstr "পাইপলাইনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s4
+msgid "Planning"
+msgstr "পরিকল্পনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s4
+msgid "Plans & Templates"
+msgstr "পরিকল্পনা ও টেমপ্লেট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config
+msgid "Platform Administration"
+msgstr "প্ল্যাটফর্ম প্রশাসন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Platform:"
+msgstr "প্ল্যাটফর্ম:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s2
+msgid "Policies"
+msgstr "নীতিমালা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s1
+msgid "Portfolio"
+msgstr "পোর্টফোলিও"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Power adapter / accessories received in custody"
+msgstr "পাওয়ার অ্যাডাপ্টার / আনুষঙ্গিক জিনিস হেফাজতে গৃহীত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pre-existing physical damage / scratches acknowledged"
+msgstr "পূর্ববর্তী ভৌত ক্ষতি / দাগ স্বীকৃত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s1
+msgid "Price Books"
+msgstr "মূল্য তালিকা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing
+msgid "Pricing & Rate Cards"
+msgstr "মূল্য নির্ধারণ ও রেট কার্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Primary Fault:"
+msgstr "প্রধান ত্রুটি:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine
+msgid "Process Automation"
+msgstr "প্রসেস অটোমেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s2
+msgid "Processing"
+msgstr "প্রক্রিয়াকরণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition
+msgid "Procurement & Sourcing"
+msgstr "ক্রয় ও সোর্সিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue
+msgid "Product & Service Catalogue"
+msgstr "পণ্য ও সেবা ক্যাটালগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s2
+msgid "Profitability"
+msgstr "লাভজনকতা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s4
+msgid "Programme"
+msgstr "প্রোগ্রাম"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s2
+msgid "Programmes"
+msgstr "প্রোগ্রামসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm
+msgid "Projects & Portfolio"
+msgstr "প্রকল্প ও পোর্টফোলিও"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s3
+msgid "Protection Plans"
+msgstr "সুরক্ষা প্ল্যান"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "QC"
+msgstr "QC"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Check"
+msgstr "QC যাচাই"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Decision"
+msgstr "QC সিদ্ধান্ত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Inspection Queue"
+msgstr "QC পরিদর্শন কিউ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Inspection queue is all clear."
+msgstr "QC পরিদর্শন কিউ সম্পূর্ণ খালি।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Qty"
+msgstr "পরিমাণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s2
+msgid "Quality"
+msgstr "মান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s5
+msgid "Quality & Release"
+msgstr "মান ও রিলিজ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s5
+msgid "Quality & WFM"
+msgstr "মান ও WFM"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process
+msgid "Quality Management (ISO)"
+msgstr "মান ব্যবস্থাপনা (ISO)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Quantity"
+msgstr "পরিমাণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s1
+msgid "Queue & Token"
+msgstr "কিউ ও টোকেন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s3
+msgid "Quotation & Handover"
+msgstr "কোটেশন ও হস্তান্তর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s2
+msgid "Quotations"
+msgstr "কোটেশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation
+msgid "Quotations & Tenders"
+msgstr "কোটেশন ও দরপত্র"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "REQUISITION QUANTITY"
+msgstr "অনুরোধের পরিমাণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Rate (BDT)"
+msgstr "দর (টাকা)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s2
+msgid "Rate Cards"
+msgstr "রেট কার্ডসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s2
+msgid "Rating & Billing"
+msgstr "রেটিং ও বিলিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Ready"
+msgstr "প্রস্তুত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Ready for Collection Shelf"
+msgstr "সংগ্রহের জন্য প্রস্তুত তাক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Real-time GPS dispatch board · 50 Service Centers · Field Technicians · Work Orders across Bangladesh"
+msgstr "রিয়েল-টাইম GPS ডিসপ্যাচ বোর্ড · 50টি সার্ভিস সেন্টার · ফিল্ড টেকনিশিয়ান · সারা বাংলাদেশের ওয়ার্ক অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Real-time inventory reservation synced with Tejgaon Central Warehouse & M15 Stock."
+msgstr "তেজগাঁও কেন্দ্রীয় গুদাম ও M15 মজুদের সাথে সিঙ্ক করা রিয়েল-টাইম মজুদ রিজার্ভেশন।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reason"
+msgstr "কারণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s4
+msgid "Recalls & Fraud"
+msgstr "রিকল ও জালিয়াতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s2
+msgid "Receipts"
+msgstr "রসিদসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Received"
+msgstr "গৃহীত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s4
+msgid "Receiving & Match"
+msgstr "গ্রহণ ও মিলকরণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Record Attachments (live ir.attachment)"
+msgstr "রেকর্ড সংযুক্তি (লাইভ ir.attachment)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s1
+msgid "Recovery Cases"
+msgstr "পুনরুদ্ধার কেস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s3
+msgid "Reference Data"
+msgstr "রেফারেন্স ডেটা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Refresh from backend"
+msgstr "ব্যাকএন্ড থেকে রিফ্রেশ করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s2
+msgid "Refurbishment"
+msgstr "রিফারবিশমেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s1
+msgid "Register"
+msgstr "রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s1
+msgid "Registry"
+msgstr "রেজিস্ট্রি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s1
+msgid "Remote Sessions"
+msgstr "রিমোট সেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract
+msgid "Remote Support & MSP"
+msgstr "রিমোট সাপোর্ট ও MSP"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Remove item"
+msgstr "আইটেম সরান"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s4
+msgid "Renewals & Growth"
+msgstr "নবায়ন ও প্রবৃদ্ধি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset
+msgid "Rental & EaaS"
+msgstr "ভাড়া ও EaaS"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Repair"
+msgstr "মেরামত"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s1
+msgid "Repair Orders"
+msgstr "মেরামত অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_report_center
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_report_center
+msgid "Report Center"
+msgstr "রিপোর্ট সেন্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reported Fault & Symptoms (English) *"
+msgstr "জানানো ত্রুটি ও লক্ষণ (ইংরেজি) *"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reports Measuring It"
+msgstr "এটি পরিমাপকারী রিপোর্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s1
+msgid "Repository"
+msgstr "সংগ্রহশালা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s1
+msgid "Requisitions"
+msgstr "ক্রয় অনুরোধসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s3
+msgid "Resale"
+msgstr "পুনঃবিক্রয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reserve Part from Stock ▸"
+msgstr "মজুদ থেকে যন্ত্রাংশ সংরক্ষণ করুন ▸"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s4
+msgid "Retention"
+msgstr "সংরক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s1
+msgid "Revenue"
+msgstr "রাজস্ব"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Revenue MTD (est.)"
+msgstr "চলতি মাসের রাজস্ব (আনুমানিক)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext
+msgid "Revenue Recognition & Settlement"
+msgstr "রাজস্ব স্বীকৃতি ও নিষ্পত্তি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Rework"
+msgstr "পুনঃকার্য"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s3
+msgid "Riders & Fleet"
+msgstr "রাইডার ও বহর"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s4
+msgid "Risk"
+msgstr "ঝুঁকি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center"
+msgstr "রোল সেন্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center Home"
+msgstr "রোল সেন্টার হোম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center —"
+msgstr "রোল সেন্টার —"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_branch
+msgid "Role Center — Branch"
+msgstr "রোল সেন্টার — শাখা"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_finance
+msgid "Role Center — Finance"
+msgstr "রোল সেন্টার — অর্থ"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_ops
+msgid "Role Center — Operations"
+msgstr "রোল সেন্টার — অপারেশনস"
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_super
+msgid "Role Center — Super User"
+msgstr "রোল সেন্টার — সুপার ইউজার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s3
+msgid "Routing & Territories"
+msgstr "রাউটিং ও এলাকা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s3
+msgid "Rules"
+msgstr "নিয়মাবলি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SERIAL NUMBER"
+msgstr "সিরিয়াল নম্বর"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SERVICE CENTER"
+msgstr "সার্ভিস সেন্টার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SL"
+msgstr "ক্রম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA At-Risk"
+msgstr "SLA ঝুঁকিতে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA Priority (model enum)"
+msgstr "SLA অগ্রাধিকার (model enum)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA RESOLUTION TARGET"
+msgstr "SLA সমাধানের লক্ষ্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STANDBY"
+msgstr "স্ট্যান্ডবাই"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STATUS"
+msgstr "অবস্থা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STATUTORY 15% VAT"
+msgstr "আইনি ১৫% VAT"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STORAGE BIN / SHELF (note)"
+msgstr "স্টোরেজ বিন / তাক (নোট)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s5
+msgid "Safety"
+msgstr "নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s4
+msgid "Safety & Cost"
+msgstr "নিরাপত্তা ও খরচ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s5
+msgid "Safety & Payments"
+msgstr "নিরাপত্তা ও পেমেন্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Sample & Live Database Records"
+msgstr "নমুনা ও লাইভ ডেটাবেস রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Save ▸"
+msgstr "সংরক্ষণ করুন ▸"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Saved ✓"
+msgstr "সংরক্ষিত ✓"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Saving…"
+msgstr "সংরক্ষণ হচ্ছে…"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s4
+msgid "Scheduling"
+msgstr "সময়সূচি নির্ধারণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Screen"
+msgstr "স্ক্রিন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Screens Executing this Sub-Module"
+msgstr "এই সাব-মডিউল চালানো স্ক্রিনসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search in Rows"
+msgstr "সারিতে খুঁজুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "Search modules, screens, reports… (EN or বাংলা)"
+msgstr "মডিউল, স্ক্রিন, রিপোর্ট খুঁজুন… (EN বা বাংলা)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search records by customer, order, device"
+msgstr "গ্রাহক, অর্ডার, ডিভাইস দিয়ে রেকর্ড খুঁজুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search…"
+msgstr "খুঁজুন…"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s4
+msgid "Security"
+msgstr "নিরাপত্তা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s5
+msgid "Segments & Credit"
+msgstr "সেগমেন্ট ও ক্রেডিট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Select Field Technician from On-Duty Pool"
+msgstr "কর্তব্যরত পুল থেকে ফিল্ড টেকনিশিয়ান নির্বাচন করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Select any screen or module to navigate directly with zero dead ends"
+msgstr "কোনো বাধা ছাড়াই সরাসরি যেতে যেকোনো স্ক্রিন বা মডিউল নির্বাচন করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s3
+msgid "Selection"
+msgstr "বাছাই"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s4
+msgid "Self-Service"
+msgstr "সেলফ-সার্ভিস"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s1
+msgid "Sellers"
+msgstr "বিক্রেতাসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Serial / IMEI:"
+msgstr "সিরিয়াল / IMEI:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Serial / Service Tag Number *"
+msgstr "সিরিয়াল / সার্ভিস ট্যাগ নম্বর *"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Center (live branch master) *"
+msgstr "সার্ভিস সেন্টার (লাইভ শাখা মাস্টার) *"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s3
+msgid "Service Commitments"
+msgstr "সেবা প্রতিশ্রুতি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s2
+msgid "Service Definitions"
+msgstr "সেবার সংজ্ঞা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s3
+msgid "Service Desk"
+msgstr "সার্ভিস ডেস্ক"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment
+msgid "Service Logistics (Pick & Drop)"
+msgstr "সার্ভিস লজিস্টিকস (পিক অ্যান্ড ড্রপ)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M01 Workshop & Benches › Supervisor Console"
+msgstr "সার্ভিস অপারেশনস › M01 ওয়ার্কশপ ও বেঞ্চ › সুপারভাইজার কনসোল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M02 Field Service & Dispatch"
+msgstr "সার্ভিস অপারেশনস › M02 ফিল্ড সার্ভিস ও ডিসপ্যাচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M02 Field Service › Dispatch Console & Live Map"
+msgstr "সার্ভিস অপারেশনস › M02 ফিল্ড সার্ভিস › ডিসপ্যাচ কনসোল ও লাইভ ম্যাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M03 Branch Operations › Branch Console"
+msgstr "সার্ভিস অপারেশনস › M03 শাখা অপারেশনস › শাখা কনসোল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Order:"
+msgstr "সার্ভিস অর্ডার:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Orders — 12-Month Trend (live)"
+msgstr "সার্ভিস অর্ডার — ১২ মাসের প্রবণতা (লাইভ)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order
+msgid "Service Requests & Orders"
+msgstr "সেবা অনুরোধ ও অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Session:"
+msgstr "সেশন:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s4
+msgid "Settlement"
+msgstr "নিষ্পত্তি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s3
+msgid "Settlements"
+msgstr "নিষ্পত্তিসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s3
+msgid "Shipping & Customs"
+msgstr "শিপিং ও কাস্টমস"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Sign in"
+msgstr "সাইন ইন করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s4
+msgid "Simulation"
+msgstr "সিমুলেশন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s1
+msgid "Sites"
+msgstr "সাইটসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s2
+msgid "Sourcing"
+msgstr "সোর্সিং"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Standard (Paid)"
+msgstr "স্ট্যান্ডার্ড (পেইড)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s3
+msgid "Statements"
+msgstr "বিবরণী"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s2
+msgid "Statutory"
+msgstr "আইনি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Statutory 15% NBR VAT Amount:"
+msgstr "আইনি ১৫% NBR VAT-এর পরিমাণ:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Statutory 15% VAT (NBR):"
+msgstr "আইনি ১৫% VAT (NBR):"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s1
+msgid "Storefront"
+msgstr "স্টোরফ্রন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s1
+msgid "Structure"
+msgstr "কাঠামো"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Stuck / Blocked Holds"
+msgstr "আটকে থাকা / অবরুদ্ধ হোল্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Sub-module"
+msgstr "সাব-মডিউল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Submit Service Order ▸"
+msgstr "সার্ভিস অর্ডার জমা দিন ▸"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s1
+msgid "Subscriptions"
+msgstr "সাবস্ক্রিপশনসমূহ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription
+msgid "Subscriptions & Recurring"
+msgstr "সাবস্ক্রিপশন ও পুনরাবৃত্ত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Subtotal"
+msgstr "উপমোট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s2
+msgid "Supply"
+msgstr "সরবরাহ চুক্তি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s1
+msgid "Surveys"
+msgstr "সমীক্ষাসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Switch Language"
+msgstr "ভাষা পরিবর্তন করুন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s4
+msgid "Sync"
+msgstr "সিঙ্ক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "System Notifications (chatter — per-record)"
+msgstr "সিস্টেম বিজ্ঞপ্তি (চ্যাটার — প্রতি রেকর্ড)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "TERMS & CONDITIONS (ISO 9001:2015 COMPLIANT):"
+msgstr "শর্তাবলি (ISO 9001:2015 সম্মত):"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "TOTAL (LATEST ESTIMATE)"
+msgstr "মোট (সর্বশেষ আনুমানিক খরচ)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent
+msgid "Talent Acquisition"
+msgstr "কর্মী নিয়োগ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s4
+msgid "Task Inbox"
+msgstr "কাজের ইনবক্স"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd
+msgid "Tax & Regulatory (BD)"
+msgstr "কর ও নিয়ন্ত্রক (বাংলাদেশ)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable (৳)"
+msgstr "করযোগ্য (৳)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable Subtotal:"
+msgstr "করযোগ্য উপমোট:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable Value"
+msgstr "করযোগ্য মূল্য"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s2
+msgid "Technical Library"
+msgstr "টেকনিক্যাল লাইব্রেরি"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s4
+msgid "Technician App (P02)"
+msgstr "টেকনিশিয়ান অ্যাপ (P02)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell Me Command Input"
+msgstr "টেল মি কমান্ড ইনপুট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell Me Command Palette"
+msgstr "টেল মি কমান্ড প্যালেট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell me what you want to do (Alt+Q)…"
+msgstr "আপনি কী করতে চান লিখুন (Alt+Q)…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell me what you want to do (e.g. 'Dispatch', 'Invoice', 'Warranty')…"
+msgstr "আপনি কী করতে চান লিখুন (যেমন 'Dispatch', 'Invoice', 'Warranty')…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "Tell-ME Global Search (Ctrl+K or Alt+Q)"
+msgstr "Tell-ME গ্লোবাল সার্চ (Ctrl+K বা Alt+Q)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s4
+msgid "Tenders"
+msgstr "দরপত্রসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "The SKU is matched against"
+msgstr "SKU মিলিয়ে দেখা হয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "The record is created as a draft. Its workflow (submit, approve, verify) continues on the record itself."
+msgstr "রেকর্ডটি খসড়া হিসেবে তৈরি হয়। এর ওয়ার্কফ্লো (জমা, অনুমোদন, যাচাই) রেকর্ডেই চলতে থাকে।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "This form's backend has not been built yet."
+msgstr "এই ফর্মের ব্যাকএন্ড এখনো তৈরি হয়নি।"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance
+msgid "Time, Attendance & Scheduling"
+msgstr "সময়, উপস্থিতি ও সময়সূচি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Compact Density"
+msgstr "কমপ্যাক্ট ঘনত্ব চালু/বন্ধ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Dark/Light Theme"
+msgstr "ডার্ক/লাইট থিম পরিবর্তন করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Navigation Rail"
+msgstr "নেভিগেশন রেল চালু/বন্ধ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Theme"
+msgstr "থিম পরিবর্তন করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Token / Order"
+msgstr "টোকেন / অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total (BDT)"
+msgstr "মোট (টাকা)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Amount"
+msgstr "মোট পরিমাণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Cash Collected Today:"
+msgstr "আজ মোট নগদ আদায়:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Estimated Charges:"
+msgstr "মোট আনুমানিক চার্জ:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Net Taxable Value:"
+msgstr "মোট নিট করযোগ্য মূল্য:"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s1
+msgid "Trade-In"
+msgstr "ট্রেড-ইন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein
+msgid "Trade-In & Refurbishment"
+msgstr "ট্রেড-ইন ও রিফারবিশমেন্ট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s3
+msgid "Training"
+msgstr "প্রশিক্ষণ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position
+msgid "Treasury & Banking"
+msgstr "ট্রেজারি ও ব্যাংকিং"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s5
+msgid "Trust"
+msgstr "আস্থা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Type"
+msgstr "ধরন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Type customer, order, device…"
+msgstr "গ্রাহক, অর্ডার, ডিভাইস লিখুন…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unassigned Orders"
+msgstr "বরাদ্দহীন অর্ডার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s1
+msgid "Unified Queue"
+msgstr "সমন্বিত কিউ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unit Price"
+msgstr "একক মূল্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unit Price (৳)"
+msgstr "একক মূল্য (৳)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Urgent"
+msgstr "জরুরি"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Use your 1000 FiX credentials — SSO (M29) with MFA."
+msgstr "আপনার 1000 FiX ক্রেডেনশিয়াল ব্যবহার করুন — MFA সহ SSO (M29)।"
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "User Sign In"
+msgstr "ব্যবহারকারী সাইন ইন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "VAN ROUTE / GPS ZONE"
+msgstr "ভ্যান রুট / GPS জোন"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s1
+msgid "VAT"
+msgstr "ভ্যাট"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s1
+msgid "Vendor Payables"
+msgstr "ভেন্ডর প্রদেয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "View All Service Orders"
+msgstr "সব সার্ভিস অর্ডার দেখুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "View ▸"
+msgstr "দেখুন ▸"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s4
+msgid "Voice of Customer"
+msgstr "গ্রাহকের মতামত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WIP Ageing Bands (ISO 9001:2015 SLA)"
+msgstr "WIP বয়সসীমা (ISO 9001:2015 SLA)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WORKFLOW STATUS"
+msgstr "ওয়ার্কফ্লো অবস্থা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WOs"
+msgstr "কার্যাদেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in"
+msgstr "সরাসরি আগত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in Queue · WIP Ageing · Cash & NBR Mushak 6.3 Register · Ready for Collection Shelf"
+msgstr "ওয়াক-ইন কিউ · WIP বয়স · নগদ ও NBR Mushak 6.3 রেজিস্টার · সংগ্রহের জন্য প্রস্তুত তাক"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in branch repair & bench"
+msgstr "ওয়াক-ইন শাখা মেরামত ও বেঞ্চ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure
+msgid "Warehouse Management"
+msgstr "গুদাম ব্যবস্থাপনা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims
+msgid "Warranty & Claims"
+msgstr "ওয়ারেন্টি ও দাবি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Warranty (OEM claim)"
+msgstr "ওয়ারেন্টি (OEM দাবি)"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s1
+msgid "Warranty Register"
+msgstr "ওয়ারেন্টি রেজিস্টার"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s2
+msgid "Withholding"
+msgstr "উৎসে কর্তন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Work In Progress grouped by hours in branch custody"
+msgstr "শাখার হেফাজতে থাকা ঘণ্টা অনুযায়ী চলমান কাজ"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s2
+msgid "Work Orders"
+msgstr "ওয়ার্ক অর্ডারসমূহ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Workflow Status"
+msgstr "ওয়ার্কফ্লো অবস্থা"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s2
+msgid "Workflows"
+msgstr "ওয়ার্কফ্লো"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s2
+msgid "Working Time"
+msgstr "কর্মসময়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Workshop & Bench Supervisor Console"
+msgstr "ওয়ার্কশপ ও বেঞ্চ সুপারভাইজার কনসোল"
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop
+msgid "Workshop & Depot Repair"
+msgstr "ওয়ার্কশপ ও ডিপো মেরামত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "You do not have permission to create these records."
+msgstr "এই রেকর্ডগুলো তৈরি করার অনুমতি আপনার নেই।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Zero Dead Ends · 100% Routed"
+msgstr "কোনো বাধা নেই · ১০০% রাউটেড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "and the order's technician (HR master)."
+msgstr "এবং অর্ডারের টেকনিশিয়ান (HR মাস্টার)।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "anywhere to launch"
+msgstr "যেকোনো স্থানে চালু করতে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "approved estimates"
+msgstr "অনুমোদিত আনুমানিক খরচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "automated functions mapped to production screens below"
+msgstr "স্বয়ংক্রিয় ফাংশন নিচের প্রোডাকশন স্ক্রিনে ম্যাপ করা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "awaiting customer approval"
+msgstr "গ্রাহকের অনুমোদনের অপেক্ষায়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "awaiting sign-off"
+msgstr "চূড়ান্ত অনুমোদনের অপেক্ষায়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "built-in reports"
+msgstr "বিল্ট-ইন রিপোর্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Dell"
+msgstr "যেমন Dell"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Latitude 5420"
+msgstr "যেমন Latitude 5420"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Rashedul Islam"
+msgstr "যেমন রাশেদুল ইসলাম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "empty"
+msgstr "খালি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "fix.work.order.technician_id"
+msgstr "fix.work.order.technician_id"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "fns ›"
+msgstr "ফাংশন ›"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "functions total"
+msgstr "মোট ফাংশন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "holds"
+msgstr "হোল্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "hrs"
+msgstr "ঘণ্টা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "invoices"
+msgstr "চালান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "is listed in the navigation registry, but no model registers it for capture. It becomes live when the module's backend lands — nothing is saved from here until then."
+msgstr "নেভিগেশন রেজিস্ট্রিতে তালিকাভুক্ত, কিন্তু কোনো মডেল এটি সংরক্ষণের জন্য নিবন্ধন করেনি। মডিউলের ব্যাকএন্ড চালু হলে এটি লাইভ হবে — ততক্ষণ এখান থেকে কিছুই সংরক্ষিত হবে না।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "live count"
+msgstr "লাইভ সংখ্যা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "no messages yet"
+msgstr "এখনো কোনো বার্তা নেই"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "not yet wired"
+msgstr "এখনো সংযুক্ত নয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "of"
+msgstr "এর মধ্যে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "or visit https://1000fix.com."
+msgstr "অথবা https://1000fix.com দেখুন।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "orders"
+msgstr "অর্ডার"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "past SLA resolution deadline"
+msgstr "SLA সমাধানের সময়সীমা পার হয়েছে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "past deadline"
+msgstr "সময়সীমা পার হয়েছে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "pending work orders without a technician"
+msgstr "টেকনিশিয়ানবিহীন অপেক্ষমাণ কার্যাদেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "product.product"
+msgstr "product.product"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "reports"
+msgstr "রিপোর্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "rows · live"
+msgstr "সারি · লাইভ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "units ready"
+msgstr "ইউনিট প্রস্তুত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "waiting"
+msgstr "অপেক্ষমাণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "wired with module phase"
+msgstr "মডিউল পর্যায়ে সংযুক্ত হবে"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Active WOs:"
+msgstr "· সক্রিয় কার্যাদেশ:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Branch:"
+msgstr "· শাখা:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Device:"
+msgstr "· ডিভাইস:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Open Orders:"
+msgstr "· চলমান অর্ডার:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· P03 Operations Workspace · live data from the Odoo backend"
+msgstr "· P03 অপারেশনস ওয়ার্কস্পেস · Odoo ব্যাকএন্ড থেকে লাইভ ডেটা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Phone:"
+msgstr "· ফোন:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· ROLE WORKSPACE"
+msgstr "· রোল ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· SLA Priority:"
+msgstr "· SLA অগ্রাধিকার:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Screen ID:"
+msgstr "· স্ক্রিন আইডি:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Shift:"
+msgstr "· শিফট:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Statutory NBR Mushak 6.3 15% VAT Compliant"
+msgstr "· আইনি NBR Mushak 6.3 ১৫% VAT সম্মত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· due"
+msgstr "· বকেয়া"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "কাস্টমার বর্ণিত সমস্যা (বাংলায়)"
+msgstr "কাস্টমার বর্ণিত সমস্যা (বাংলায়)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "বাংলা"
+msgstr "বাংলা"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "সমস্যার বিবরণ লিখুন…"
+msgstr "সমস্যার বিবরণ লিখুন…"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— assignment writes"
+msgstr "— বরাদ্দ লেখা হয়"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select branch —"
+msgstr "— শাখা নির্বাচন করুন —"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select technician —"
+msgstr "— টেকনিশিয়ান নির্বাচন করুন —"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select —"
+msgstr "— নির্বাচন করুন —"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "• Company BIN:"
+msgstr "• কোম্পানির BIN:"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "• Escalation Rule: Orders > 48h trigger SMS supervisor alert and automated expedited dispatch priority."
+msgstr "• এসকেলেশন নিয়ম: ৪৮ ঘণ্টার বেশি পুরনো অর্ডারে সুপারভাইজারকে SMS সতর্কতা ও স্বয়ংক্রিয় দ্রুত ডিসপ্যাচ অগ্রাধিকার চালু হয়।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Back"
+msgstr "‹ ফিরে যান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Back to Workspace"
+msgstr "‹ ওয়ার্কস্পেসে ফিরে যান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Module Workspace"
+msgstr "‹ মডিউল ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ℹ️"
+msgstr "ℹ️"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "↑↓ navigate · Enter open · Esc close"
+msgstr "↑↓ নেভিগেট · Enter খুলুন · Esc বন্ধ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh"
+msgstr "↻ রিফ্রেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Benches"
+msgstr "↻ বেঞ্চ রিফ্রেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Console"
+msgstr "↻ কনসোল রিফ্রেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Live GPS"
+msgstr "↻ লাইভ GPS রিফ্রেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Pipeline"
+msgstr "↻ পাইপলাইন রিফ্রেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M02 Field Work Order"
+msgstr "⇄ M02 ফিল্ড কার্যাদেশ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M09 Brand Claim"
+msgstr "⇄ M09 ব্র্যান্ড দাবি"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M15 Parts Issues & Returns"
+msgstr "⇄ M15 যন্ত্রাংশ ইস্যু ও ফেরত"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M20 Mushak 6.3 Invoice"
+msgstr "⇄ M20 Mushak 6.3 চালান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ Quick Cross-Navigation"
+msgstr "⇄ দ্রুত ক্রস-নেভিগেশন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ Related Records"
+msgstr "⇄ সম্পর্কিত রেকর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "⌘ Board"
+msgstr "⌘ বোর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "▤ Built-in Reports"
+msgstr "▤ বিল্ট-ইন রিপোর্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "▤ Grid"
+msgstr "▤ গ্রিড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "▤ Reports ("
+msgstr "▤ রিপোর্ট ("
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "▦ Workspace"
+msgstr "▦ ওয়ার্কস্পেস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "◈ Report"
+msgstr "◈ রিপোর্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "● LIVE"
+msgstr "● লাইভ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "◫ Dashboard"
+msgstr "◫ ড্যাশবোর্ড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚑ Filter Records"
+msgstr "⚑ রেকর্ড ফিল্টার করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚠ Rework"
+msgstr "⚠ পুনঃকার্য"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ AI Auto-Dispatch"
+msgstr "⚡ AI স্বয়ংক্রিয় ডিসপ্যাচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ AI Dispatch"
+msgstr "⚡ AI ডিসপ্যাচ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Assign"
+msgstr "⚡ বরাদ্দ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Assign Technician"
+msgstr "⚡ টেকনিশিয়ান বরাদ্দ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ QUICK ACTIONS"
+msgstr "⚡ দ্রুত কার্যক্রম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Quick Assign Tech"
+msgstr "⚡ দ্রুত টেকনিশিয়ান বরাদ্দ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⛁ Data-Entry Forms"
+msgstr "⛁ ডেটা-এন্ট্রি ফর্ম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "⛁ Form"
+msgstr "⛁ ফর্ম"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⛁ OPERATIONAL SCREENS & GRIDS"
+msgstr "⛁ অপারেশনাল স্ক্রিন ও গ্রিড"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "✓ Pass"
+msgstr "✓ উত্তীর্ণ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⤓ Export CSV"
+msgstr "⤓ CSV এক্সপোর্ট"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⬆ Upload Attachment"
+msgstr "⬆ সংযুক্তি আপলোড করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🏢 Branch Console"
+msgstr "🏢 শাখা কনসোল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🏢 Branch Operations"
+msgstr "🏢 শাখা অপারেশনস"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📁 BUSINESS MODULES (11 AREAS / 67 MODULES)"
+msgstr "📁 ব্যবসায়িক মডিউল (১১টি এলাকা / ৬৭টি মডিউল)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📍 Zoom to Dhaka 15km Circle"
+msgstr "📍 ঢাকা ১৫ কিমি বৃত্তে জুম করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📦 Reserve Parts"
+msgstr "📦 যন্ত্রাংশ সংরক্ষণ করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📦 Reserve Parts (M15)"
+msgstr "📦 যন্ত্রাংশ সংরক্ষণ করুন (M15)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📲 Notify Pickup"
+msgstr "📲 পিকআপ জানান"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔒 Trail source: the order's mail.thread chatter (tracking-enabled fields and posted messages, newest first)."
+msgstr "🔒 ট্রেইলের উৎস: অর্ডারের mail.thread চ্যাটার (ট্র্যাকিং-সক্রিয় ফিল্ড ও পোস্ট করা বার্তা, নতুনগুলো আগে)।"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔧 Workshop & Benches"
+msgstr "🔧 ওয়ার্কশপ ও বেঞ্চ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔧 Workshop Console"
+msgstr "🔧 ওয়ার্কশপ কনসোল"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🖶 Print Document"
+msgstr "🖶 দলিল প্রিন্ট করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🖶 Print Job Card"
+msgstr "🖶 জব কার্ড প্রিন্ট করুন"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗄 LIVE DATABASE RECORDS (≤4 CLICKS DIRECT JUMP)"
+msgstr "🗄 লাইভ ডেটাবেস রেকর্ড (≤৪ ক্লিকে সরাসরি)"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Dispatch & Map"
+msgstr "🗺 ডিসপ্যাচ ও ম্যাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Dispatch Console & Map"
+msgstr "🗺 ডিসপ্যাচ কনসোল ও ম্যাপ"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Switch to National Map"
+msgstr "🗺 জাতীয় ম্যাপে যান"

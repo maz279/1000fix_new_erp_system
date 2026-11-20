@@ -82,6 +82,13 @@ class FixComplaint(models.Model):
 
     _name = "fix.complaint"
     _description = "Complaint"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M34",
+        "form": "Complaint",
+        "fields": ["name", "customer_id", "category", "severity", "description",
+                   "service_order_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc, id desc"
 

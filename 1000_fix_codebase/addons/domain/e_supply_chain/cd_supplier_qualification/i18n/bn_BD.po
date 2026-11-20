@@ -1,0 +1,711 @@
+# Bengali (Bangladesh) translation for cd_supplier_qualification.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: bn_BD\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_needaction
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_needaction
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_needaction
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_state
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_state
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_state
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_type_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_type_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_type_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__anti_bribery_declared
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__anti_bribery_declared
+msgid "Anti-Bribery Declaration Signed"
+msgstr "ঘুষবিরোধী ঘোষণায় স্বাক্ষরিত"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_qualification_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__approved
+msgid "Approved"
+msgstr "অনুমোদিত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__approved_at
+msgid "Approved At"
+msgstr "অনুমোদনের সময়"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__approved_by
+msgid "Approved By"
+msgstr "অনুমোদনকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_attachment_count
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_attachment_count
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_attachment_count
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__outcome__clear
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__sanctions_result__clear
+msgid "Clear"
+msgstr "পরিষ্কার"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_screening_form
+msgid "Clear Screening"
+msgstr "যাচাই ছাড়পত্র দিন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__state__cleared
+msgid "Cleared"
+msgstr "ছাড়পত্রপ্রাপ্ত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__code_of_conduct_accepted
+msgid "Code of Conduct Accepted"
+msgstr "আচরণবিধি গৃহীত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__code_of_conduct_version
+msgid "Code of Conduct Version"
+msgstr "আচরণবিধির সংস্করণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__code_of_conduct_version
+msgid "Code of Conduct Version Accepted"
+msgstr "গৃহীত আচরণবিধির সংস্করণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__company_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__company_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__company_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__sanctions_result__confirmed_match
+msgid "Confirmed Match"
+msgstr "নিশ্চিত মিল"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__coi_declared
+msgid "Conflict of Interest Declared"
+msgstr "স্বার্থের দ্বন্দ্ব ঘোষিত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__coi_details
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_screening_form
+msgid "Conflict of Interest Details"
+msgstr "স্বার্থের দ্বন্দ্বের বিবরণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__create_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__create_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__create_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__create_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__create_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__create_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_qualification_questionnaire__risk_tier__critical
+msgid "Critical"
+msgstr "সংকটপূর্ণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__display_name
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__display_name
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__display_name
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__draft
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_screening_form
+msgid "Escalate"
+msgstr "ঊর্ধ্বতনে পাঠান"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__state__escalated
+msgid "Escalated"
+msgstr "ঊর্ধ্বতনে প্রেরিত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__evidence_note
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_qualification_form
+msgid "Evidence Provided"
+msgstr "প্রদত্ত প্রমাণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__evidence_required
+msgid "Evidence Required"
+msgstr "প্রমাণ আবশ্যক"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__result__fail
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__outcome__fail
+msgid "Fail"
+msgstr "অকৃতকার্য"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_follower_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_follower_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_follower_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_partner_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_partner_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_partner_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__activity_type_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_type_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__activity_type_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__has_message
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__has_message
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__has_message
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_qualification_questionnaire__risk_tier__high
+msgid "High"
+msgstr "উচ্চ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__activity_exception_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_exception_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__activity_exception_icon
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__message_needaction
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__message_needaction
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__message_needaction
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__message_has_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__message_has_sms_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_sms_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__message_has_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__message_has_sms_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__message_has_error
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_supplier_qualification
+#: model:ir.actions.act_window,name:cd_supplier_qualification.action_fix_supplier_screening
+#: model:ir.ui.menu,name:cd_supplier_qualification.menu_fix_supplier_screening
+msgid "Integrity Screening"
+msgstr "সততা যাচাই"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_is_follower
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_is_follower
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_is_follower
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__write_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__write_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__write_uid
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__write_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__write_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__write_date
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_qualification_questionnaire__risk_tier__low
+msgid "Low"
+msgstr "নিম্ন"
+
+#. module: cd_supplier_qualification
+#: model:ir.actions.server,name:cd_supplier_qualification.cron_fix_supplier_qualification_expiry_ir_actions_server
+msgid "M42: Supplier qualification expiry"
+msgstr "M42: সরবরাহকারী যোগ্যতার মেয়াদোত্তীর্ণতা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__mandatory
+msgid "Mandatory Criterion"
+msgstr "বাধ্যতামূলক মানদণ্ড"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_qualification_questionnaire__risk_tier__medium
+msgid "Medium"
+msgstr "মাঝারি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_has_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_has_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__outcome__review
+msgid "Needs Review"
+msgstr "পর্যালোচনা প্রয়োজন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_summary
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_summary
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_summary
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_type_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_type_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_type_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__message_needaction_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__message_needaction_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__message_needaction_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__message_has_error_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_error_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__message_has_error_counter
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.constraint,message:cd_supplier_qualification.constraint_fix_supplier_qualification_version_unique
+msgid "One qualification version per supplier, category and entity (T-03)"
+msgstr "প্রতি সরবরাহকারী, শ্রেণি ও প্রতিষ্ঠানে একটি যোগ্যতা সংস্করণ (T-03)"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__operating_unit_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__operating_unit_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__operating_unit_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__outcome
+msgid "Outcome"
+msgstr "ফলাফল"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__result__pass
+msgid "Pass"
+msgstr "উত্তীর্ণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__pass_threshold
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__threshold
+msgid "Pass Threshold"
+msgstr "উত্তীর্ণের সীমা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__sanctions_result__potential_match
+msgid "Potential Match"
+msgstr "সম্ভাব্য মিল"
+
+#. module: cd_supplier_qualification
+#: model:ir.model,name:cd_supplier_qualification.model_fix_qualification_question
+msgid "Qualification Question"
+msgstr "যোগ্যতা প্রশ্ন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model,name:cd_supplier_qualification.model_fix_qualification_questionnaire
+msgid "Qualification Questionnaire Template"
+msgstr "যোগ্যতা প্রশ্নমালার টেমপ্লেট"
+
+#. module: cd_supplier_qualification
+#: model:ir.actions.act_window,name:cd_supplier_qualification.action_fix_supplier_qualification
+#: model:ir.ui.menu,name:cd_supplier_qualification.menu_fix_supplier_qualification
+msgid "Qualifications"
+msgstr "যোগ্যতা যাচাই"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__question
+msgid "Question"
+msgstr "প্রশ্ন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__questionnaire_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__name
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__questionnaire_id
+msgid "Questionnaire"
+msgstr "প্রশ্নমালা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__responses
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_qualification_form
+msgid "Questionnaire Responses"
+msgstr "প্রশ্নমালার উত্তর"
+
+#. module: cd_supplier_qualification
+#: model:ir.actions.act_window,name:cd_supplier_qualification.action_fix_qualification_questionnaire
+#: model:ir.ui.menu,name:cd_supplier_qualification.menu_fix_qualification_questionnaire
+msgid "Questionnaires"
+msgstr "প্রশ্নমালাসমূহ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__question_ids
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_qualification_questionnaire_form
+msgid "Questions"
+msgstr "প্রশ্নসমূহ"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_qualification_form
+msgid "Reject"
+msgstr "প্রত্যাখ্যান করুন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__related_party
+msgid "Related Party"
+msgstr "সংশ্লিষ্ট পক্ষ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__activity_user_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_user_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__activity_user_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__result
+msgid "Result"
+msgstr "ফলাফল"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__review_note
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_screening_form
+msgid "Review Note"
+msgstr "পর্যালোচনা নোট"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__reviewed_by
+msgid "Reviewed By"
+msgstr "পর্যালোচনাকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__risk_tier
+msgid "Risk Tier"
+msgstr "ঝুঁকির স্তর"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__sanctions_source
+msgid "Sanctions List(s) Checked"
+msgstr "যাচাইকৃত নিষেধাজ্ঞা তালিকা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__sanctions_result
+msgid "Sanctions Result"
+msgstr "নিষেধাজ্ঞা যাচাইয়ের ফল"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__score
+msgid "Score"
+msgstr "স্কোর"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__scored_by
+msgid "Scored By"
+msgstr "স্কোরদাতা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__screened_on
+msgid "Screened On"
+msgstr "যাচাইয়ের তারিখ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__sequence
+msgid "Sequence"
+msgstr "ক্রম"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__category_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__category_id
+msgid "Spend Category"
+msgstr "ব্যয় শ্রেণি"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__state
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__state
+msgid "Status"
+msgstr "অবস্থা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__activity_state
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_state
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__activity_state
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_screening_form
+msgid "Submit"
+msgstr "জমা দিন"
+
+#. module: cd_supplier_qualification
+#: model_terms:ir.ui.view,arch_db:cd_supplier_qualification.view_fix_supplier_qualification_form
+msgid "Submit for Approval"
+msgstr "অনুমোদনের জন্য জমা দিন"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__submitted
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_screening__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields.selection,name:cd_supplier_qualification.selection__fix_supplier_qualification__state__superseded
+msgid "Superseded"
+msgstr "প্রতিস্থাপিত"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__profile_id
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__profile_id
+msgid "Supplier"
+msgstr "সরবরাহকারী"
+
+#. module: cd_supplier_qualification
+#: model:ir.model,name:cd_supplier_qualification.model_fix_supplier_screening
+msgid "Supplier Integrity Screening"
+msgstr "সরবরাহকারী সততা যাচাই"
+
+#. module: cd_supplier_qualification
+#: model:ir.model,name:cd_supplier_qualification.model_fix_supplier_qualification
+msgid "Supplier Qualification"
+msgstr "সরবরাহকারী যোগ্যতা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__activity_exception_decoration
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__activity_exception_decoration
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__activity_exception_decoration
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__valid_from
+msgid "Valid From"
+msgstr "কার্যকর শুরু"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__valid_until
+msgid "Valid Until"
+msgstr "কার্যকর থাকবে"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__validity_days
+msgid "Validity (days)"
+msgstr "মেয়াদ (দিন)"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__version
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__version
+msgid "Version"
+msgstr "সংস্করণ"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__website_message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_questionnaire__website_message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_qualification__website_message_ids
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_supplier_screening__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_question__website_message_ids
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_qualification_questionnaire__website_message_ids
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_qualification__website_message_ids
+#: model:ir.model.fields,help:cd_supplier_qualification.field_fix_supplier_screening__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_supplier_qualification
+#: model:ir.model.fields,field_description:cd_supplier_qualification.field_fix_qualification_question__weight
+msgid "Weight"
+msgstr "ভার"

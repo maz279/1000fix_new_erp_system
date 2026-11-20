@@ -1,8 +1,445 @@
-# Bengali translations for cd_data_case (P09) — 100% coverage.
+# Translation template for cd_data_case — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-"Language: bn_BD\n"
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
-msgid "Data Services & Secure Data Handling"
-msgstr "Data Services & Secure Data Handling (বাংলা)"
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_needaction
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_ids
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_state
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_type_icon
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_attachment_count
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__certified_at
+msgid "Certified At"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__certified_by
+msgid "Certified By"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__custody_chain
+msgid "Chain of Custody Log"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__closed
+msgid "Closed"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__company_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__create_uid
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__create_date
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__cryptographic_erase
+msgid "Cryptographic Erase"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__customer_id
+msgid "Customer"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_recovery_case
+#: model:ir.model,name:cd_data_case.model_fix_data_recovery_case
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_recovery_case
+msgid "Data Recovery Case"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.actions.act_window,name:cd_data_case.action_fix_data_wipe_certificate
+#: model:ir.model,name:cd_data_case.model_fix_data_wipe_certificate
+#: model:ir.ui.menu,name:cd_data_case.menu_fix_data_wipe_certificate
+msgid "Data Wipe Certificate"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__device_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__device_id
+msgid "Device"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__display_name
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__custody_chain
+msgid "Every hand-off logged: who, when, where (append-only)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_follower_ids
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_partner_ids
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__activity_type_icon
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__hdd
+msgid "HDD"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__handover
+msgid "Handover"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__has_message
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__activity_exception_icon
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__message_needaction
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__message_has_error
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__message_has_sms_error
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__message_has_error
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__custody
+msgid "In Custody"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_is_follower
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__write_uid
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__write_date
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__media_type
+msgid "Media Type"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_has_error
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_ids
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__method
+msgid "Method"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__nist_800_88
+msgid "NIST SP 800-88 (Clear)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__nist_800_88_purge
+msgid "NIST SP 800-88 (Purge)"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__name
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__name
+msgid "Name"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__new
+msgid "New"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_summary
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_type_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__message_needaction_counter
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__message_has_error_counter
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__operating_unit_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__other
+msgid "Other"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__pending
+msgid "Pending Routing"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__phone
+msgid "Phone Storage"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_wipe_certificate__method__physical_destruction
+msgid "Physical Destruction"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__purge_certificate_id
+msgid "Purge Certificate"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__purged
+msgid "Purged"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__recovered
+msgid "Recovered"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__recovering
+msgid "Recovering"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__residency_zone
+msgid "Residency Zone"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__activity_user_id
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__residency_zone
+msgid "SC-007: recovered customer data lives ONLY in Z4"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__sd_card
+msgid "SD Card"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__ssd
+msgid "SSD"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__state
+msgid "State"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__activity_state
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__verification_hash
+msgid "The wipe verification hash; the certificate is verifiable"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__activity_exception_decoration
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__media_type__usb
+msgid "USB Drive"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__state__unrecoverable
+msgid "Unrecoverable"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__verification_hash
+msgid "Verification Hash"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_recovery_case__website_message_ids
+#: model:ir.model.fields,field_description:cd_data_case.field_fix_data_wipe_certificate__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_recovery_case__website_message_ids
+#: model:ir.model.fields,help:cd_data_case.field_fix_data_wipe_certificate__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_data_case
+#: model:ir.model.fields.selection,name:cd_data_case.selection__fix_data_recovery_case__residency_zone__z4
+msgid "Z4 (Residency-Classified)"
+msgstr ""

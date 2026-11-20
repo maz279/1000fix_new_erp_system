@@ -17,6 +17,14 @@ class FixCatalogueItem(models.Model):
     """
     _name = "fix.catalogue.item"
     _description = "Catalogue Item"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M37",
+        "form": "Catalogue Item (9 types)",
+        "fields": ["product_tmpl_id", "item_type", "description_bn", "category_id",
+                   "brand_id", "device_model_ids", "standard_labour_time",
+                   "is_warranty_eligible", "is_out_of_scope", "requires_brand_authorisation"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "product_tmpl_id"
 

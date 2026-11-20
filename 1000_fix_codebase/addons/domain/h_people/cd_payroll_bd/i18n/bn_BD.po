@@ -1,107 +1,582 @@
-# Bengali translations for cd_payroll_bd (M56, P08-M03) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_payroll_bd.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Payroll Period"
-msgstr "পেরোল পিরিয়ড"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_needaction
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_needaction
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
-msgid "Payslip"
-msgstr "বেতন স্লিপ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
 
-msgid "BEFTN Batch"
-msgstr "বিইএফটিএন ব্যাচ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
 
-msgid "Slips"
-msgstr "স্লিপসমূহ"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
 
-msgid "Net Total"
-msgstr "নিট মোট"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_type_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_type_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
 
-msgid "Draft"
-msgstr "খসড়া"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__incentive
+msgid "Applied by the M57 incentive engine before approval"
+msgstr "অনুমোদনের আগে M57 প্রণোদনা ইঞ্জিন দ্বারা প্রয়োগকৃত"
 
-msgid "Attendance Locked"
-msgstr "উপস্থিতি লক করা"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
 
-msgid "Calculated"
-msgstr "গণনা করা"
-
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__approved
 msgid "Approved"
 msgstr "অনুমোদিত"
 
-msgid "Paid"
-msgstr "পরিশোধিত"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_attachment_count
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_attachment_count
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
 
-msgid "Posted"
-msgstr "পোস্ট করা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__attendance_locked
+msgid "Attendance Locked"
+msgstr "উপস্থিতি লক করা"
 
-msgid "Verify Attendance Lock"
-msgstr "উপস্থিতি লক যাচাই"
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_beftn_batch
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__beftn_batch_id
+msgid "BEFTN Batch"
+msgstr "বিইএফটিএন ব্যাচ"
 
-msgid "Calculate"
-msgstr "গণনা করুন"
-
-msgid "Approve"
-msgstr "অনুমোদন"
-
-msgid "Pay (BEFTN)"
-msgstr "পরিশোধ (বিইএফটিএন)"
-
-msgid "Post to GL"
-msgstr "জিএল-এ পোস্ট"
-
-msgid "Payroll Periods"
-msgstr "পেরোল পিরিয়ডসমূহ"
-
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__basic
 msgid "Basic (Monthly)"
 msgstr "মূল বেতন (মাসিক)"
 
-msgid "Overtime Hours"
-msgstr "অতিরিক্ত কর্মঘণ্টা"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Calculate"
+msgstr "গণনা করুন"
 
-msgid "Incentive (M57)"
-msgstr "প্রণোদনা (M57)"
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__calculated
+msgid "Calculated"
+msgstr "গণনা করা"
 
-msgid "PF Employee %"
-msgstr "পিএফ কর্মী %"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__company_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__company_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__company_id
+msgid "Company"
+msgstr "কোম্পানি"
 
-msgid "PF Employer %"
-msgstr "পিএফ নিয়োগকর্তা %"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__create_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__create_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
 
-msgid "YTD Taxable Outside This Slip"
-msgstr "এই স্লিপের বাইরে যাদ-নির্ণীত করযোগ্য"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__create_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__create_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__currency_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__currency_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__display_name
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__display_name
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__employee_id
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__employee_count
+msgid "Employee Count"
+msgstr "কর্মীর সংখ্যা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__settlement_date
+msgid "Engine-computed: after the 16:00 cut-off, or Fri/Sat/holiday, the next working day (Sun-Thu week)"
+msgstr "ইঞ্জিন-গণনাকৃত: 16:00 কাট-অফের পরে, বা শুক্র/শনি/ছুটির দিনে, পরবর্তী কর্মদিবস (রবি-বৃহস্পতি সপ্তাহ)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_follower_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_follower_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_partner_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_partner_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_type_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_type_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__gross
 msgid "Gross"
 msgstr "স্থূল"
 
-msgid "Overtime Pay"
-msgstr "অতিরিক্ত কর্মঘণ্টার বেতন"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__has_message
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__has_message
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
 
-msgid "PF Employee"
-msgstr "পিএফ কর্মী"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__id
+msgid "ID"
+msgstr "আইডি"
 
-msgid "PF Employer"
-msgstr "পিএফ নিয়োগকর্তা"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_exception_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_exception_icon
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_needaction
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_needaction
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_sms_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_sms_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_error
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__incentive
+msgid "Incentive (M57)"
+msgstr "প্রণোদনা (M57)"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__tax_withheld
 msgid "Income Tax Withheld"
 msgstr "আয়কর কর্তন"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_is_follower
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_is_follower
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__write_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__write_uid
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__write_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__write_date
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__net
 msgid "Net Pay"
 msgstr "নিট বেতন"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__net_total
+msgid "Net Total"
+msgstr "নিট মোট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_summary
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_summary
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_type_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_type_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_needaction_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_needaction_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__message_has_error_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__message_has_error_counter
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__operating_unit_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__ot_hours
+msgid "Overtime Hours"
+msgstr "অতিরিক্ত কর্মঘণ্টা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__overtime
+msgid "Overtime Pay"
+msgstr "অতিরিক্ত কর্মঘণ্টার বেতন"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__annual_taxable_other
+msgid "P08-M03-T08: migrated YTD statutory balances land here"
+msgstr "P08-M03-T08: স্থানান্তরিত YTD আইনি ব্যালান্স এখানে আসে"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee
+msgid "PF Employee"
+msgstr "পিএফ কর্মী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employee_pct
+msgid "PF Employee %"
+msgstr "পিএফ কর্মী %"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer
+msgid "PF Employer"
+msgstr "পিএফ নিয়োগকর্তা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__pf_employer_pct
+msgid "PF Employer %"
+msgstr "পিএফ নিয়োগকর্তা %"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__paid
+msgid "Paid"
+msgstr "পরিশোধিত"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Pay (BEFTN)"
+msgstr "পরিশোধ (বিইএফটিএন)"
+
+#. module: cd_payroll_bd
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payroll
 msgid "Payroll"
 msgstr "পেরোল"
 
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payroll_period
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__period_id
+msgid "Payroll Period"
+msgstr "পেরোল পিরিয়ড"
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payroll_period
+msgid "Payroll Periods"
+msgstr "পেরোল পিরিয়ডসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model,name:cd_payroll_bd.model_fix_payslip
+msgid "Payslip"
+msgstr "বেতন স্লিপ"
+
+#. module: cd_payroll_bd
+#: model:ir.actions.act_window,name:cd_payroll_bd.action_fix_payslip
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__payslip_ids
+#: model:ir.ui.menu,name:cd_payroll_bd.menu_fix_payslips
 msgid "Payslips"
 msgstr "বেতন স্লিপসমূহ"
 
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__period_id
+msgid "Period"
+msgstr "পর্যায়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_end
+msgid "Period End"
+msgstr "পর্যায় সমাপ্তি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__period_start
+msgid "Period Start"
+msgstr "পিরিয়ড শুরু"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Post to GL"
+msgstr "জিএল-এ পোস্ট"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_payroll_period__state__posted
+msgid "Posted"
+msgstr "পোস্ট করা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__activity_user_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__activity_user_id
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__settled
+msgid "Settled"
+msgstr "নিষ্পত্তি"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__settlement_date
+msgid "Settlement Date"
+msgstr "নিষ্পত্তির তারিখ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__slip_count
+msgid "Slips"
+msgstr "স্লিপসমূহ"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__state
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_state
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_state
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields.selection,name:cd_payroll_bd.selection__fix_beftn_batch__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__submitted_at
+msgid "Submitted At"
+msgstr "জমার সময়"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__total_amount
 msgid "Total Amount"
 msgstr "মোট পরিমাণ"
 
-msgid "Submitted"
-msgstr "জমা দেওয়া হয়েছে"
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__activity_exception_decoration
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__activity_exception_decoration
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
 
-msgid "Settled"
-msgstr "নিষ্পত্তি"
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.view_fix_payroll_period_form
+msgid "Verify Attendance Lock"
+msgstr "উপস্থিতি লক যাচাই"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_beftn_batch__website_message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payroll_period__website_message_ids
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_beftn_batch__website_message_ids
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payroll_period__website_message_ids
+#: model:ir.model.fields,help:cd_payroll_bd.field_fix_payslip__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_payroll_bd
+#: model:ir.model.fields,field_description:cd_payroll_bd.field_fix_payslip__annual_taxable_other
+msgid "YTD Taxable Outside This Slip"
+msgstr "এই স্লিপের বাইরে যাদ-নির্ণীত করযোগ্য"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "অতিরিক্ত কর্মঘণ্টা:"
+msgstr "অতিরিক্ত কর্মঘণ্টা:"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "আয়কর কর্তন:"
+msgstr "আয়কর কর্তন:"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "কর্মী:"
+msgstr "কর্মী:"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "নিট বেতন:"
+msgstr "নিট বেতন:"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "প্রভিডেন্ট ফান্ড (কর্মী):"
+msgstr "প্রভিডেন্ট ফান্ড (কর্মী):"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "বেতন স্লিপ"
+msgstr "বেতন স্লিপ"
+
+#. module: cd_payroll_bd
+#: model:ir.actions.report,name:cd_payroll_bd.action_report_payslip_bn
+msgid "বেতন স্লিপ (Payslip)"
+msgstr "বেতন স্লিপ (Payslip)"
+
+#. module: cd_payroll_bd
+#: model_terms:ir.ui.view,arch_db:cd_payroll_bd.report_payslip_bn
+msgid "মূল বেতন:"
+msgstr "মূল বেতন:"

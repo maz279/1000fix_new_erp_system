@@ -61,7 +61,7 @@ Realisation kinds: **cd** = first-party Odoo module(s) (manifest
 | M39 | Subscriptions & Recurring | cd | cd_subscription |
 | M40 | Partner & Channel | cd | cd_partner |
 | M41 | Warehouse Management | cd | cd_wms_structure |
-| M42 | Supplier Relationship | shared | cd_cx_feedback (supplier scorecard — module's secondary ID, primary M34) |
+| M42 | Supplier Relationship | cd | cd_vendor_ext (CD-M42-01), cd_supplier_qualification (-02), cd_supplier_scorecard (-03), cd_supplier_risk (-04); the computed scorecard stays in cd_cx_feedback (pair-10 consumer) |
 | M43 | Demand Planning | cd | cd_demand_plan |
 | M44 | Import & Trade Compliance | cd | cd_import_order |
 | M45 | Enterprise Assets & Test Equipment | cd | cd_equipment_register |
@@ -91,7 +91,7 @@ Realisation kinds: **cd** = first-party Odoo module(s) (manifest
 **Coverage at PP0**: 65 of 67 realised. Open items, by design and on the
 record: **M10 pending** (no realisation — the completeness ledger carries it;
 the registry marks every `nav.module.m10` surface as unbacked), **M65
-planned** (Phase 12). Shared IDs (M11, M21, M24, M42) are legal: one registry
+planned** (Phase 12). Shared IDs (M11, M21, M24) are legal: one registry
 module may be realised by several cd modules or carry a secondary ID.
 
 ## 2. Screen-key → Odoo menu convention (PP2 implements this)

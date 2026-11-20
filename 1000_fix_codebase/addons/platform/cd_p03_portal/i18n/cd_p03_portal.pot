@@ -1,0 +1,4572 @@
+# Translation template for cd_p03_portal — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "(Includes 15% NBR Statutory VAT"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "(module-wide)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Add Line"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Add Line Item"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ Capture another"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Job"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Record"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Service Order"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+ New Walk-in Intake"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "+8801XXXXXXXXX"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1. General & Branch (53 BD Centers)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid ""
+"1. Please preserve this original Job Card receipt for device handover.\n"
+"                                2. Repaired hardware components carry a 90-day replacement warranty. Software issues are not covered.\n"
+"                                3. Uncollected equipment after 30 days of readiness notification may incur nominal storage fees as per 1000 FiX policy.\n"
+"                                4. For emergency inquiries or status tracking, please dial hotline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP — 11 Business Areas & 67 Modules"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX ERP — Role Center Home"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Services Ltd."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Services Ltd. — ISO 9001:2015 Certified"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "1000 FiX Smart Portal v2.0"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "1000FiX Enterprise Information"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "1000FiX Integrated Enterprise Navigation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "1000FiX Mega Menu — All 11 Business Areas"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "12 production portals · all surfaces behind the Kong gateway (ARCHITECTURE_STATE §6)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15 Enterprise Role Workspaces"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15% Statutory VAT:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "15% VAT"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "2. Entitlement & SLA"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "24–48 Hours (Standard)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "3. Symptoms & Fault (বাংলা / EN)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "4. Parts, Labor & NBR 15% VAT"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "5 steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "5. Review & Submit"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "6 steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "67 Modules · 823 Screens"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "7 steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8 steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Bench Station Board (Real-Time Workshop Floor)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Bench Station Board · Stuck/Blocked Holds · QC Inspection Queue with Pass/Rework Toggle"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "8-Stage Service Lifecycle Stepper"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "9 steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "; the reservation lands on the order's work order at the product's real cost."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "< 24 Hours (Fresh)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>12</b>\n"
+"                                <span>portals</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>346</b>\n"
+"                                <span>reports</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<b>823</b>\n"
+"                                <span>screens</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span class=\"badge-dot\"/>\n"
+"                            <span>✓ ISO 9001:2015 CERTIFIED</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span class=\"brand-title\">1000 FiX ERP</span>\n"
+"                            <span class=\"brand-sub\">SERVICE OPERATIONS PLATFORM</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "<span class=\"mark\">F</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_form_style
+msgid "<span>Continue ▸</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid ""
+"<span>📞 24/7 Helpline: 16743</span>\n"
+"                                <span class=\"portal-sep\">·</span>"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "> 48 Hours (Escalated)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "AI Auto-Dispatch & Technician Allocation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "AMC / Contract"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext
+msgid "AP & Employee Expense"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine
+msgid "AR, Invoicing & Collections"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ASSIGNED TECHNICIAN"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ASSIGNED TECHNICIAN (live HR master)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s2
+msgid "Access"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s3
+msgid "Accounts"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Action"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Advance ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s2
+msgid "Agent Desktop (P10)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s2
+msgid "Alerting"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All 50 Branches"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All OEM spare parts carry genuine serial tracing and a 90-day post-repair warranty. Statutory Value Added Tax (VAT) is computed at 15% under National Board of Revenue Bangladesh Service SRO."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All Records"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All Statuses"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "All areas"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All branches"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "All work orders are currently dispatched."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Allocation / Inventory Status"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Alt+Q"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s5
+msgid "Analysis"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s4
+msgid "Analytics"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s3
+msgid "Approval Loop"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s2
+msgid "Approvals"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved estimate settlement & statutory 15% VAT collection today"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Approved estimate value this month"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Archetypes:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s2
+msgid "Assets"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Assigned Engineer:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Attachments ("
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Audit Trail"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s3
+msgid "Audits"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s1
+msgid "Authoring"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Authorized Officer / Inspector"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Available"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BIN:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BRANCH"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "BUSINESS AREAS"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s4
+msgid "Backup & Destruction"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s2
+msgid "Banking"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Bench Active:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s2
+msgid "Bench Board"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Bench Tech"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s2
+msgid "Booking"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk
+msgid "Branch & Front-Desk"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch (live master)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch Code:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch Operations & Front-Desk Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s5
+msgid "Branch Ops"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branch:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Branches"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s2
+msgid "Brand Claims"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Brand warranty claim reimbursement"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s3
+msgid "Budgeting"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Business Areas & Modules"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Business Areas (11)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "By:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CENTRAL DHAKA"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CHITTAGONG & SYLHET"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "COASTAL SOUTH"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext
+msgid "CRM & Sales Pipeline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CROSS-MODULE LINKS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CUSTOMER"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "CUSTOMER PHONE"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback
+msgid "CX, Feedback & Complaints"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s3
+msgid "Calibration"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s1
+msgid "Campaigns"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cancel"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s1
+msgid "Capex"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s1
+msgid "Capture"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s2
+msgid "Cart & Checkout"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s1
+msgid "Cash"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s3
+msgid "Cash & Shift"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cash Position & NBR Mushak 6.3 Register"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Central Workshop HQ"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s2
+msgid "Certifications"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s4
+msgid "Change"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s4
+msgid "Change & Renewal"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s3
+msgid "Channels"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Clear"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s5
+msgid "Client Reporting"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s2
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Close"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close Mega Menu"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close modal"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Close tab"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s3
+msgid "Closed Loop"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s1
+msgid "Collection"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Collection / Delivery"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Comfortable"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s4
+msgid "Commerce Marketing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s3
+msgid "Commercial"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s2
+msgid "Commission"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s4
+msgid "Comms"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Compact"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s3
+msgid "Compatibility & Faults"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s3
+msgid "Compensation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s1
+msgid "Competency"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s2
+msgid "Complaints"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s3
+msgid "Compliance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s2
+msgid "Configuration"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Confirm & Dispatch Technician ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Connected to PostgreSQL"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s3
+msgid "Connectors"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s4
+msgid "Consent & Rights"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s1
+msgid "Consignments"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre
+msgid "Contact Centre (16743)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Contact Phone:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core
+msgid "Contract Lifecycle (AMC)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s1
+msgid "Contract Register"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s2
+msgid "Controls"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core
+msgid "Core HR & Lifecycle"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate / Bulk"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate AMC preventive maintenance"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Corporate Client (if B2B — free text)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s4
+msgid "Corporate Estates"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s4
+msgid "Costing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s4
+msgid "Costing & Knowledge"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa
+msgid "Costing, Budget & FP&A"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s4
+msgid "Counter Sales"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Counter Walk-in Queue"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s4
+msgid "Courier Partners"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s5
+msgid "Coverage"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s2
+msgid "Coverage & Entitlement"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Created By"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s3
+msgid "Credit Control"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Cryptographically verified timeline conforming to ISO 9001:2015 Clause 8.2 & Bangladesh PDPA 2026 split-residency."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Current company"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s2
+msgid "Custody"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s2
+msgid "Custody & POD"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Custody Branch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master
+msgid "Customer & Party Master"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Full Name *"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Information"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Phone (+880) *"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer Signature & Date"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer books on-site repair"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Customer:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DEVICE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DEVICE / OBJECT"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DHAKA 15KM GEOFENCE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "DISPATCH DISPATCHER NOTES"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry
+msgid "Data Platform & Governance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s3
+msgid "Data Protection"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s3
+msgid "Data Quality"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case
+msgid "Data Services & Recovery"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Database Manager"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Date Range (orders are shown newest first)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Delivered"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Delivered Today"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s2
+msgid "Delivery"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan
+msgid "Demand Planning"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s3
+msgid "Depreciation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Describe the device fault in detail…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Description of Service / Part"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry
+msgid "Device & Asset Registry"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device / Model:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device Brand (matched against brand master)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s2
+msgid "Device Custody"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Device serial or service tag"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dhaka Circle (15 km Geofenced)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Diagnosing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s3
+msgid "Diagnosis & Estimates"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Diagnostic"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Directly Implementing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s3
+msgid "Disbursement"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_dispatch
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s1
+msgid "Dispatch Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Console & Live Pipeline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Console & Live Vector Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dispatch Field Technician"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s3
+msgid "Distribution"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s3
+msgid "Documents"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core
+msgid "Documents & E-Signature"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Dynamics-365 Mega Menu"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront
+msgid "E-Commerce Storefront"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s3
+msgid "E-Signature"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste
+msgid "E-Waste & Recycling"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ETA APPOINTMENT WINDOW"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Emergency"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s3
+msgid "Employee Expense"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s3
+msgid "Employee IT"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s1
+msgid "Employee Master"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s1
+msgid "Engine"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Engineer:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "English"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register
+msgid "Enterprise Assets & Test Equipment"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s4
+msgid "Entitlement & SLA"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Entitlement Type (order category)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Equipment & Diagnostic Details"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Esc to close"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Estimate"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Estimated Parts & Labor Line Items"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s1
+msgid "Estimates"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s2
+msgid "Events"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s4
+msgid "Evidence"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s5
+msgid "Exceptions & Billing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s3
+msgid "Execution"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "F"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility
+msgid "Facility & Branch Infrastructure"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "FactBox"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "FactBox Inspector"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Fail QC and return to bench for rework"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Fault:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s4
+msgid "Feedback"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s3
+msgid "Field Safety"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service
+msgid "Field Service & Dispatch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Field Techs"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Files attached to this service order in the backend."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter by branch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter by workflow status"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter from date"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter modules"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter modules…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "Filter reports…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Filter to date"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext
+msgid "Financial Accounting & GL"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s3
+msgid "Financials"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext
+msgid "Fixed Assets & Capex"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s1
+msgid "Fleet"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext
+msgid "Fleet & Vehicles"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s4
+msgid "Floor Ops"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s1
+msgid "Forecasting"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Forgot password · Terms · PDPA 2026 privacy notice"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Forms Capturing It"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s1
+msgid "Framework"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Function Register"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Function Register — Sub-modules & Capabilities"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "GOVT. NBR MUSHAK 6.3"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s1
+msgid "Gateway"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Global Tell-Me Search"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s4
+msgid "Governance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc
+msgid "Governance, Risk & Compliance"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Grand Total (BDT):"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Grand Total Payable:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse
+msgid "Health, Safety & Wellbeing"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "High"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s2
+msgid "History"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hold"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home › M01 Service Orders ›"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Home › Role Center"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Hotline 16743 to workshop bench, brand claim to Mushak 9.1 — 67 modules, 12 portals, one golden record per customer and device."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hotline:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Hotline: 16743"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 & NBR Mushak 6.3 Compliance Note"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 Certified After-Sales Service Network"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ISO 9001:2015 Enterprise Architecture · Complete Unified Navigation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "ISO 9001:2015 · 51+ centres · 8 divisions<br/>© 2026 1000 FiX Services Ltd. All rights reserved."
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s1
+msgid "Identity"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s2
+msgid "Identity & Verification"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext
+msgid "Identity, Access & Security"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Immutable Service Lifecycle Audit Trail"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s4
+msgid "Impact"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order
+msgid "Import & Trade Compliance"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "In Progress"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "In Repair Now"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s2
+msgid "Inbound"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s2
+msgid "Incentives"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s2
+msgid "Incidents"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s4
+msgid "Infrastructure"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s1
+msgid "Ingestion"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Inspect"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Intake"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s1
+msgid "Intake & Channels"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel / Type (model enum)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel Mix — Last 30 Days (live)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Channel:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Intake Today"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox
+msgid "Integration, API & Events"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry_s3
+msgid "Intelligence"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Interactive Dispatch Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm
+msgid "Internal IT Service"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Inventory Requisition & Bin Allocation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s1
+msgid "Invoicing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_stream_registry
+msgid "IoT Telemetry & Predictive"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Issue Date:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Item Description"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Item Description / SKU"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s1
+msgid "Item Master"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Itemized Parts & Labor Lines (latest estimate)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Itemized Replacement Parts & Technical Labor"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J01"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J02"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J03"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J04"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J05"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "J06"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Job Card Number"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s3
+msgid "Job Market"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s2
+msgid "Journeys"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Journeys — End-to-End Business Workflows"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge
+msgid "Knowledge & Technical Library"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "LATEST CHATTER"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Labor"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Last Update"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s1
+msgid "Leads"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency
+msgid "Learning & Certification"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s2
+msgid "Leases"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s3
+msgid "Leave"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Leave blank for retail"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s1
+msgid "Ledger"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s4
+msgid "Legal & Data"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset_s3
+msgid "Lifecycle"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Line Description"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Line Total"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Lines & Parts"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Live 8-stage operational board across all 53 Bangladesh branches with automated technician allocation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Live Record"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Loading the form…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Loading the order from the backend…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M01 Intake"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M02 Field Service"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "M15 Stock"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mail-in"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s4
+msgid "Maintenance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign
+msgid "Marketing Campaigns"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace
+msgid "Marketplace & Sellers"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core
+msgid "Master Data Management"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s4
+msgid "Measurement"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s2
+msgid "Media Custody"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mega Menu"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s4
+msgid "Metrics"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mode:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Model Name & Number"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s2
+msgid "Modelling"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Module"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s4
+msgid "Money"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s2
+msgid "Monitored Estate"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rbac_ext_s4
+msgid "Monitoring"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mushak 6.3 Invoice & Tax Settlement"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Mushak 6.3 Tax Invoices Issued:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Approvals"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Branch (Elephant Rd)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "My Worklist"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "NBR Mushak 6.3 VAT (15%):"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "NORTH REGION"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Name:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "National Bangladesh (8 Divisions)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Navigation: Click or type to search •"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "New Service Order — Enterprise Intake Form"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Next ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+msgid "No active work orders on the board."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No attachments on this order yet — upload via the record form in the back office."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No counter customers waiting in queue."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No estimate lines yet — the estimate surfaces with the quoting phase."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No line items registered on this order estimate yet."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No live records for this screen yet — this surface wires to its model in its porting phase."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "No matches for \""
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No orders blocked on holds."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No pending approvals for your account."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "No repaired units waiting for pickup."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "No reports match \""
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process_s2
+msgid "Nonconformance"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Normal"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s4
+msgid "Notification Hub"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Notifications"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ON DUTY"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ORDER REFERENCE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Odoo 19 · P03 Operations Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_campaign_s3
+msgid "Offers & Content"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Official Job Card & NBR Mushak 6.3 Invoice"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "On Duty"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "On-site"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s4
+msgid "Onboarding"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "One platform,<br/>every service moment."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open 8-Bench Workshop & QC Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Branch Counter & Collection Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Field Dispatch Console & Live Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Mega Menu"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Record"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open Service Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open record ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open ›"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Open ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Opened"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Operational Screen Groups"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s3
+msgid "Operations"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_workspace
+msgid "Operations Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order Intake Steps"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s2
+msgid "Order Lifecycle"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order Pre-Dispatch Confirmation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Order:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s3
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s3
+msgid "Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s1
+msgid "Orders & Finance"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders awaiting technician dispatch or field assignment"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders currently in repair"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders delivered today"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders past SLA deadline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Orders registered today"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config_s1
+msgid "Organisation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s3
+msgid "Outbound"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Overview"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_home
+msgid "P03 Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PART SKU / MODEL"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PHONE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "PRIORITY"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Part"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner
+msgid "Partner & Channel"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s1
+msgid "Partner Master"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s3
+msgid "Partners & Compliance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s1
+msgid "Party Records"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pass QC Inspection and advance to Ready"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s3
+msgid "Payments"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd
+msgid "Payroll & Statutory"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s1
+msgid "Payroll Engine"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pending Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s4
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance_s1
+msgid "Performance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_performance
+msgid "Performance & Incentives"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pick & drop logistics round trip"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s2
+msgid "Pipeline"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s1
+msgid "Pipelines"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s5
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s4
+msgid "Planning"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s4
+msgid "Plans & Templates"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_entity_config
+msgid "Platform Administration"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Platform:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s2
+msgid "Policies"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s1
+msgid "Portfolio"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Power adapter / accessories received in custody"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Pre-existing physical damage / scratches acknowledged"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s1
+msgid "Price Books"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing
+msgid "Pricing & Rate Cards"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Primary Fault:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine
+msgid "Process Automation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ewaste_s2
+msgid "Processing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition
+msgid "Procurement & Sourcing"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue
+msgid "Product & Service Catalogue"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fpa_s2
+msgid "Profitability"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s4
+msgid "Programme"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_partner_s2
+msgid "Programmes"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm
+msgid "Projects & Portfolio"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s3
+msgid "Protection Plans"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "QC"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Check"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Decision"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Inspection Queue"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "QC Inspection queue is all clear."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Qty"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s2
+msgid "Quality"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order_s5
+msgid "Quality & Release"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s5
+msgid "Quality & WFM"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_qms_process
+msgid "Quality Management (ISO)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Quantity"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_front_desk_s1
+msgid "Queue & Token"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s3
+msgid "Quotation & Handover"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s2
+msgid "Quotations"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation
+msgid "Quotations & Tenders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "REQUISITION QUANTITY"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Rate (BDT)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_dynamic_pricing_s2
+msgid "Rate Cards"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s2
+msgid "Rating & Billing"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Ready"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Ready for Collection Shelf"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Real-time GPS dispatch board · 50 Service Centers · Field Technicians · Work Orders across Bangladesh"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Real-time inventory reservation synced with Tejgaon Central Warehouse & M15 Stock."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reason"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s4
+msgid "Recalls & Fraud"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_billing_engine_s2
+msgid "Receipts"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Received"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s4
+msgid "Receiving & Match"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Record Attachments (live ir.attachment)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_data_case_s1
+msgid "Recovery Cases"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_mdm_core_s3
+msgid "Reference Data"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Refresh from backend"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s2
+msgid "Refurbishment"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_equipment_register_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_fixed_asset_ext_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s1
+msgid "Register"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_device_registry_s1
+msgid "Registry"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s1
+msgid "Remote Sessions"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract
+msgid "Remote Support & MSP"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Remove item"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_crm_ext_s4
+msgid "Renewals & Growth"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_rental_asset
+msgid "Rental & EaaS"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.inherit_service_order_bpf
+msgid "Repair"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop_s1
+msgid "Repair Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_report_center
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_report_center
+msgid "Report Center"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reported Fault & Symptoms (English) *"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reports Measuring It"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s1
+msgid "Repository"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s1
+msgid "Requisitions"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s3
+msgid "Resale"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Reserve Part from Stock ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s4
+msgid "Retention"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s1
+msgid "Revenue"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Revenue MTD (est.)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext
+msgid "Revenue Recognition & Settlement"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Rework"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment_s3
+msgid "Riders & Fleet"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_grc_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_hse_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ppm_s4
+msgid "Risk"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center Home"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Role Center —"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_branch
+msgid "Role Center — Branch"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_finance
+msgid "Role Center — Finance"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_ops
+msgid "Role Center — Operations"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.actions.client,name:cd_p03_portal.action_p03_center_super
+msgid "Role Center — Super User"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s3
+msgid "Routing & Territories"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s3
+msgid "Rules"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SERIAL NUMBER"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SERVICE CENTER"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SL"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA At-Risk"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA Priority (model enum)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "SLA RESOLUTION TARGET"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STANDBY"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STATUS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STATUTORY 15% VAT"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "STORAGE BIN / SHELF (note)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s5
+msgid "Safety"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s4
+msgid "Safety & Cost"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s5
+msgid "Safety & Payments"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Sample & Live Database Records"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Save ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Saved ✓"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Saving…"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s4
+msgid "Scheduling"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Screen"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Screens Executing this Sub-Module"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search in Rows"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "Search modules, screens, reports… (EN or বাংলা)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search records by customer, order, device"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Search…"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_metric_registry_s4
+msgid "Security"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_party_master_s5
+msgid "Segments & Credit"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Select Field Technician from On-Duty Pool"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "Select any screen or module to navigate directly with zero dead ends"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s3
+msgid "Selection"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_employee_core_s4
+msgid "Self-Service"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s1
+msgid "Sellers"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Serial / IMEI:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Serial / Service Tag Number *"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Center (live branch master) *"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contract_core_s3
+msgid "Service Commitments"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_catalogue_s2
+msgid "Service Definitions"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_itsm_s1
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_msp_contract_s3
+msgid "Service Desk"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_consignment
+msgid "Service Logistics (Pick & Drop)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M01 Workshop & Benches › Supervisor Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M02 Field Service & Dispatch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M02 Field Service › Dispatch Console & Live Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Operations › M03 Branch Operations › Branch Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Order:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Service Orders — 12-Month Trend (live)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_service_order
+msgid "Service Requests & Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Session:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position_s4
+msgid "Settlement"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_settlement_ext_s3
+msgid "Settlements"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_import_order_s3
+msgid "Shipping & Customs"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Sign in"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_demand_plan_s4
+msgid "Simulation"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_facility_s1
+msgid "Sites"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_requisition_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent_s2
+msgid "Sourcing"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Standard (Paid)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_gl_ext_s3
+msgid "Statements"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Status"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_payroll_bd_s2
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_vehicle_ext_s2
+msgid "Statutory"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Statutory 15% NBR VAT Amount:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Statutory 15% VAT (NBR):"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_storefront_s1
+msgid "Storefront"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure_s1
+msgid "Structure"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Stuck / Blocked Holds"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Sub-module"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Submit Service Order ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription_s1
+msgid "Subscriptions"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_subscription
+msgid "Subscriptions & Recurring"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Subtotal"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s2
+msgid "Supply"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s1
+msgid "Surveys"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Switch Language"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_event_outbox_s4
+msgid "Sync"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "System Notifications (chatter — per-record)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "TERMS & CONDITIONS (ISO 9001:2015 COMPLIANT):"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "TOTAL (LATEST ESTIMATE)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_talent
+msgid "Talent Acquisition"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workflow_engine_s4
+msgid "Task Inbox"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd
+msgid "Tax & Regulatory (BD)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable (৳)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable Subtotal:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Taxable Value"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_knowledge_s2
+msgid "Technical Library"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s4
+msgid "Technician App (P02)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell Me Command Input"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell Me Command Palette"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell me what you want to do (Alt+Q)…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Tell me what you want to do (e.g. 'Dispatch', 'Invoice', 'Warranty')…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "Tell-ME Global Search (Ctrl+K or Alt+Q)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_quotation_s4
+msgid "Tenders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "The SKU is matched against"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "The record is created as a draft. Its workflow (submit, approve, verify) continues on the record itself."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "This form's backend has not been built yet."
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance
+msgid "Time, Attendance & Scheduling"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Compact Density"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Dark/Light Theme"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Navigation Rail"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Toggle Theme"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Token / Order"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total (BDT)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Amount"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Cash Collected Today:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Estimated Charges:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Total Net Taxable Value:"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein_s1
+msgid "Trade-In"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tradein
+msgid "Trade-In & Refurbishment"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_competency_s3
+msgid "Training"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cash_position
+msgid "Treasury & Banking"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_marketplace_s5
+msgid "Trust"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Type"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Type customer, order, device…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unassigned Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_contact_centre_s1
+msgid "Unified Queue"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unit Price"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Unit Price (৳)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Urgent"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "Use your 1000 FiX credentials — SSO (M29) with MFA."
+msgstr ""
+
+#. module: cd_p03_portal
+#: model_terms:ir.ui.view,arch_db:cd_p03_portal.p03_login_layout
+msgid "User Sign In"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "VAN ROUTE / GPS ZONE"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s1
+msgid "VAT"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_ap_ext_s1
+msgid "Vendor Payables"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "View All Service Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "View ▸"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_cx_feedback_s4
+msgid "Voice of Customer"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WIP Ageing Bands (ISO 9001:2015 SLA)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WORKFLOW STATUS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "WOs"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in Queue · WIP Ageing · Cash & NBR Mushak 6.3 Register · Ready for Collection Shelf"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Walk-in branch repair & bench"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_wms_structure
+msgid "Warehouse Management"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims
+msgid "Warranty & Claims"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Warranty (OEM claim)"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_warranty_claims_s1
+msgid "Warranty Register"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_tax_engine_bd_s2
+msgid "Withholding"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Work In Progress grouped by hours in branch custody"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_field_service_s2
+msgid "Work Orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Workflow Status"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_document_core_s2
+msgid "Workflows"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_attendance_s2
+msgid "Working Time"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Workshop & Bench Supervisor Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#: model:ir.ui.menu,name:cd_p03_portal.menu_p03_ws_workshop
+msgid "Workshop & Depot Repair"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "You do not have permission to create these records."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "Zero Dead Ends · 100% Routed"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "and the order's technician (HR master)."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "anywhere to launch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "approved estimates"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "automated functions mapped to production screens below"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "awaiting customer approval"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "awaiting sign-off"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "built-in reports"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Dell"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Latitude 5420"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "e.g. Rashedul Islam"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "empty"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "fix.work.order.technician_id"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "fns ›"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "functions total"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "holds"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "hrs"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "invoices"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "is listed in the navigation registry, but no model registers it for capture. It becomes live when the module's backend lands — nothing is saved from here until then."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "live count"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "no messages yet"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "not yet wired"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "of"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "or visit https://1000fix.com."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "orders"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "past SLA resolution deadline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "past deadline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "pending work orders without a technician"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "product.product"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_report_center.xml:0
+msgid "reports"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "rows · live"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "units ready"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "waiting"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "wired with module phase"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Active WOs:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Branch:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Device:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Open Orders:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· P03 Operations Workspace · live data from the Odoo backend"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Phone:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· ROLE WORKSPACE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· SLA Priority:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Screen ID:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Shift:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· Statutory NBR Mushak 6.3 15% VAT Compliant"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "· due"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "কাস্টমার বর্ণিত সমস্যা (বাংলায়)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "বাংলা"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "সমস্যার বিবরণ লিখুন…"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— assignment writes"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select branch —"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select technician —"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "— select —"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "• Company BIN:"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "• Escalation Rule: Orders > 48h trigger SMS supervisor alert and automated expedited dispatch priority."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Back"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Back to Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "‹ Module Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "ℹ️"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_tellme.xml:0
+msgid "↑↓ navigate · Enter open · Esc close"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_dispatch_console.xml:0
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Benches"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Live GPS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "↻ Refresh Pipeline"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M02 Field Work Order"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M09 Brand Claim"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M15 Parts Issues & Returns"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ M20 Mushak 6.3 Invoice"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ Quick Cross-Navigation"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⇄ Related Records"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "⌘ Board"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "▤ Built-in Reports"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "▤ Grid"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "▤ Reports ("
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "▦ Workspace"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "◈ Report"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "● LIVE"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "◫ Dashboard"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚑ Filter Records"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚠ Rework"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ AI Auto-Dispatch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ AI Dispatch"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Assign"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Assign Technician"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ QUICK ACTIONS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⚡ Quick Assign Tech"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⛁ Data-Entry Forms"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_mega_menu.xml:0
+msgid "⛁ Form"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⛁ OPERATIONAL SCREENS & GRIDS"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "✓ Pass"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⤓ Export CSV"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "⬆ Upload Attachment"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🏢 Branch Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🏢 Branch Operations"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📁 BUSINESS MODULES (11 AREAS / 67 MODULES)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📍 Zoom to Dhaka 15km Circle"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📦 Reserve Parts"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📦 Reserve Parts (M15)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "📲 Notify Pickup"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔒 Trail source: the order's mail.thread chatter (tracking-enabled fields and posted messages, newest first)."
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔧 Workshop & Benches"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🔧 Workshop Console"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🖶 Print Document"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🖶 Print Job Card"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗄 LIVE DATABASE RECORDS (≤4 CLICKS DIRECT JUMP)"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Dispatch & Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Dispatch Console & Map"
+msgstr ""
+
+#. module: cd_p03_portal
+#. odoo-javascript
+#: code:addons/cd_p03_portal/static/src/p03_workspace.xml:0
+msgid "🗺 Switch to National Map"
+msgstr ""

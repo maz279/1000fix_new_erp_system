@@ -412,5 +412,170 @@ class TestP03ConsolesAndRoles(unittest.TestCase):
         self.assertNotIn("Standard Inspection (Passed)", src)
 
 
+class TestP03MetaMirrorsRegistry(unittest.TestCase):
+    """The workspace meta is a generated mirror of the navigation registry
+    (sync-p03-meta.py). It had drifted for all 67 modules — M42 showed two
+    warehouse sub-modules and a GRN form instead of its nine supplier
+    sub-modules."""
+
+    def test_no_drift(self):
+        import subprocess
+        import sys
+        proc = subprocess.run(
+            [sys.executable, str(REPO / "tooling" / "scripts" / "sync-p03-meta.py"), "--check"],
+            capture_output=True, text=True, cwd=REPO, check=False)
+        self.assertEqual(proc.returncode, 0, proc.stdout + proc.stderr)
+
+    def test_m42_has_its_nine_supplier_sub_modules(self):
+        js = (MODULE / "static" / "src" / "p03_modules_meta.js").read_text(encoding="utf-8")
+        block = js[js.index("  M42: {"):js.index("  M43: {")]
+        for sub in ("Supplier Profiles", "Segmentation", "Qualification", "Documents & Validity",
+                    "Contracts & Price Lists", "Scorecards", "Corrective Actions",
+                    "Risk Assessment", "Compliance Screening"):
+            self.assertIn(f"'{sub}'", block)
+        self.assertNotIn("Inbound GRN Receiving Form", block)
+        self.assertNotIn("Wave Picking", block)
+
+    def test_hardcoded_screen_ids_exist_in_registry(self):
+        """Journey chips, fact-box links and Tell-ME shortcuts must point at
+        real registry screens (stale ids silently fell back to the wrong page)."""
+        import re
+        reg = json.loads((REPO / "contracts" / "nav" / "registry.json").read_text(encoding="utf-8"))
+        ids = {s["id"] for m in reg["modules"] for g in m["groups"] for s in g["screens"]}
+        src = ((MODULE / "static" / "src" / "p03_workspace.xml").read_text(encoding="utf-8")
+               + (MODULE / "static" / "src" / "p03_workspace.js").read_text(encoding="utf-8"))
+        used = set(re.findall(r"openScreen\(['\"](M\d\d-[a-z0-9-]+)['\"]\)", src))
+        self.assertTrue(used)
+        self.assertFalse(used - ids, f"screen ids not in the registry: {sorted(used - ids)}")
+
+
+class TestP03DataCapture(unittest.TestCase):
+    """Every data-entry button opens the form it names, backed by the domain
+    model that declares `_p03_capture` (M42: one or more per sub-module)."""
+
+    def setUp(self):
+        self.ctrl = (MODULE / "controllers" / "p03_capture.py").read_text(encoding="utf-8")
+        self.map_js = (MODULE / "static" / "src" / "p03_capture_map.js").read_text(encoding="utf-8")
+        self.xml = (MODULE / "static" / "src" / "p03_workspace.xml").read_text(encoding="utf-8")
+        self.js = (MODULE / "static" / "src" / "p03_workspace.js").read_text(encoding="utf-8")
+
+    def test_routes_authenticated(self):
+        for route in ("/p03/capture/forms", "/p03/capture/schema",
+                      "/p03/capture/options", "/p03/capture/submit"):
+            self.assertIn(f'"{route}"', self.ctrl)
+        self.assertEqual(self.ctrl.count('auth="user"'), 4)
+
+    def test_runs_as_the_user(self):
+        """No sudo: ACLs, record rules and the models' SoD checks apply."""
+        self.assertNotIn(".sudo().create", self.ctrl)
+        self.assertNotIn("env.su", self.ctrl)
+
+    def test_only_spec_fields_accepted(self):
+        body = self.ctrl[self.ctrl.index("def submit"):]
+        self.assertIn('set(values) - set(spec["fields"])', body)
+
+    def test_platform_does_not_import_domain(self):
+        """AR-007: discovery via the ORM registry, never an import."""
+        self.assertNotIn("odoo.addons.cd_vendor_ext", self.ctrl)
+        self.assertNotIn("odoo.addons.cd_supplier", self.ctrl)
+        manifest = (MODULE / "__manifest__.py").read_text(encoding="utf-8")
+        for dom in ("cd_vendor_ext", "cd_supplier_qualification", "cd_supplier_scorecard",
+                    "cd_supplier_risk"):
+            self.assertNotIn(dom, manifest)
+
+    def test_coerce(self):
+        import importlib.util
+        import sys
+        import types
+        # load the pure helper without Odoo's http stack
+        stub = {name: types.ModuleType(name) for name in (
+            "odoo", "odoo.http", "odoo.exceptions", "odoo.fields", "psycopg2")}
+        stub["odoo"].http = stub["odoo.http"]
+        stub["odoo.http"].Controller = object
+        stub["odoo.http"].request = None
+        stub["odoo.http"].route = lambda *a, **k: (lambda f: f)
+        for exc in ("AccessError", "UserError", "ValidationError"):
+            setattr(stub["odoo.exceptions"], exc, type(exc, (Exception,), {}))
+        stub["odoo.fields"].Command = type("Command", (), {"set": staticmethod(lambda ids: ("set", ids))})
+        stub["psycopg2"].IntegrityError = type("IntegrityError", (Exception,), {})
+        saved = {k: sys.modules.get(k) for k in stub}
+        sys.modules.update(stub)
+        try:
+            spec = importlib.util.spec_from_file_location("p03_capture_t", MODULE / "controllers" / "p03_capture.py")
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+        finally:
+            for k, v in saved.items():
+                if v is None:
+                    sys.modules.pop(k, None)
+                else:
+                    sys.modules[k] = v
+        self.assertEqual(mod._coerce("integer", "7"), 7)
+        self.assertEqual(mod._coerce("monetary", "8800.5"), 8800.5)
+        self.assertIs(mod._coerce("many2one", ""), False)
+        self.assertIsNone(mod._coerce("char", ""))
+        self.assertEqual(mod._coerce("many2many", ["3", 4]), [("set", [3, 4])])
+        self.assertIs(mod._coerce("boolean", 0), False)
+
+    def test_every_m42_sub_module_has_a_capture_form(self):
+        import re
+        js = (MODULE / "static" / "src" / "p03_modules_meta.js").read_text(encoding="utf-8")
+        block = js[js.index("  M42: {"):js.index("  M43: {")]
+        subs = re.findall(r"\['(\d+)', '[^']+', \d+\]", block)
+        self.assertEqual(len(subs), 9)
+        start = self.map_js.index("M42: {")
+        m42 = self.map_js[start:self.map_js.index("\n  },\n", start)]
+        for n in subs:
+            self.assertRegex(m42, rf"'{n}': \[('[^']+',? ?)+\]", f"sub-module {n} has no form")
+
+    def test_every_mapped_form_has_a_backing_model(self):
+        """A capture button never ships without its model."""
+        import re
+        start = self.map_js.index("M42: {")
+        m42 = self.map_js[start:self.map_js.index("\n  },\n", start)]
+        forms = set(re.findall(r"\{ en: '([^']+)', bn:", m42))
+        self.assertEqual(len(forms), 11)
+        declared = set()
+        for py in (REPO / "addons" / "domain").rglob("*.py"):
+            text = py.read_text(encoding="utf-8", errors="ignore")
+            if "_p03_capture" in text:
+                declared.update(re.findall(r'"module": "M42",\s*"form": "([^"]+)"', text))
+        self.assertFalse(forms - declared, f"forms without a model: {sorted(forms - declared)}")
+
+    def test_every_sub_mapped_form_in_every_module_has_a_backing_model(self):
+        """Across all modules: a sub-module capture button never ships
+        without the model that saves it (forms the registry lists but no
+        model backs stay 'not yet wired' and are not mapped)."""
+        import re
+        declared = set()
+        for py in (REPO / "addons").rglob("*.py"):
+            text = py.read_text(encoding="utf-8", errors="ignore")
+            for mod, form in re.findall(
+                    r'_p03_capture = \{\s*"module": "(M\d\d)",\s*"form": "([^"]+)"', text):
+                declared.add((mod, form))
+        body = self.map_js[self.map_js.index("export const P03_CAPTURE_MAP"):
+                           self.map_js.index("SERVICE_ORDER_FORMS")]
+        mapped = set()
+        for mod, block in re.findall(r"\n  (M\d\d): \{(.*?)\n  \},", body, re.S):
+            sub = block[block.index("sub:"):]
+            for form in re.findall(r"'((?:[^'\\]|\\.)+)'(?=[,\]])", sub):
+                if not re.fullmatch(r"\d+", form):
+                    mapped.add((mod, form.replace("\\'", "'")))
+        self.assertGreater(len(mapped), 60)
+        self.assertFalse(mapped - declared, f"mapped without a model: {sorted(mapped - declared)}")
+
+    def test_form_buttons_do_not_open_the_service_order_intake(self):
+        """The defect: every module's form chip opened the M01 intake modal."""
+        self.assertNotIn('class="form-chip" t-on-click="openNewForm"', self.xml)
+        self.assertIn("openCaptureForm", self.xml)
+        self.assertIn("freg-capture-btn", self.xml)
+        ws = self.xml[self.xml.index("t-elif=\"state.viewMode === 'workspace'\""):self.xml.index("VIEW C: SUB-MODULE")]
+        self.assertNotIn("New Service Order", ws, "the module workspace header is module-specific")
+
+    def test_unbuilt_forms_say_so(self):
+        self.assertIn("backend has not been built yet", self.xml)
+        self.assertIn("not yet wired", self.xml)
+
+
 if __name__ == "__main__":
     unittest.main()

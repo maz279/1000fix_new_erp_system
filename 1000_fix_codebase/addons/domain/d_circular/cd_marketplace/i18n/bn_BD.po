@@ -1,8 +1,600 @@
-# Bengali translations for cd_marketplace (P10).
+# Bengali (Bangladesh) translation for cd_marketplace.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Marketplace & Seller Ecosystem"
-msgstr "Marketplace & Seller Ecosystem (\u09ac\u09be\u0982\u09b2\u09be)"
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__acceptance_rate
+msgid "Acceptance Rate (0-1)"
+msgstr "গ্রহণের হার (0-1)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_needaction
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_needaction
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_needaction
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_state
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_state
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_state
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_type_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_type_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_type_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_attachment_count
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_attachment_count
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_attachment_count
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__cancelled
+msgid "Cancelled"
+msgstr "বাতিল"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__commission_amount
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__commissioned
+msgid "Commission Earned"
+msgstr "অর্জিত কমিশন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__company_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__company_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__company_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__completed
+msgid "Completed"
+msgstr "সম্পন্ন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__composite
+msgid "Composite"
+msgstr "সমন্বিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__create_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__create_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__create_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__create_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__create_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__create_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__currency_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__customer_id
+msgid "Customer"
+msgstr "গ্রাহক"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__budget
+msgid "Customer Budget"
+msgstr "গ্রাহকের বাজেট"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__display_name
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__display_name
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__display_name
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__dispute_rate
+msgid "Dispute Rate (0-1)"
+msgstr "বিরোধের হার (0-1)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__eta_days
+msgid "ETA (days)"
+msgstr "আনুমানিক সময় (দিন)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_follower_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_follower_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_follower_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_partner_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_partner_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_partner_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__activity_type_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__activity_type_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__activity_type_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__has_message
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__has_message
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__has_message
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__kyc_status
+msgid "INT-034 L6 KYC; seller identity documents are S3 residency data routed to Z4"
+msgstr "INT-034 L6 KYC; বিক্রেতার পরিচয়পত্র S3 রেসিডেন্সি ডেটা, যা Z4-এ পাঠানো হয়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__activity_exception_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__activity_exception_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__activity_exception_icon
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__message_needaction
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__message_needaction
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__message_needaction
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__message_has_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__message_has_sms_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__message_has_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__message_has_sms_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__message_has_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__message_has_sms_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__message_has_error
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_is_follower
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_is_follower
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_is_follower
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__in_progress
+msgid "Job In Progress"
+msgstr "কাজ চলমান"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__pending
+msgid "KYC Pending"
+msgstr "KYC অপেক্ষমাণ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__kyc_ref
+msgid "KYC Reference"
+msgstr "KYC রেফারেন্স"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__rejected
+msgid "KYC Rejected"
+msgstr "KYC প্রত্যাখ্যাত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_seller__kyc_status__verified
+msgid "KYC Verified"
+msgstr "KYC যাচাইকৃত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__kyc_status
+msgid "Kyc Status"
+msgstr "KYC অবস্থা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__write_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__write_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__write_uid
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__write_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__write_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__write_date
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_marketplace_order
+#: model:ir.model,name:cd_marketplace.model_fix_marketplace_order
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__marketplace_order_id
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_marketplace_order
+msgid "Marketplace Order"
+msgstr "মার্কেটপ্লেস অর্ডার"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_marketplace_seller
+#: model:ir.model,name:cd_marketplace.model_fix_marketplace_seller
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_marketplace_seller
+msgid "Marketplace Seller"
+msgstr "মার্কেটপ্লেস বিক্রেতা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_has_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_has_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_has_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__name
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_summary
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_summary
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_summary
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_type_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_type_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_type_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__not_selected
+msgid "Not Selected"
+msgstr "নির্বাচিত নয়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__notes
+msgid "Notes"
+msgstr "নোট"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__message_needaction_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__message_needaction_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__message_needaction_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__message_has_error_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__message_has_error_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__message_has_error_counter
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__on_time_rate
+msgid "On-Time Delivery (0-1)"
+msgstr "সময়মতো ডেলিভারি (0-1)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__open
+msgid "Open for Quotes"
+msgstr "কোটেশনের জন্য উন্মুক্ত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__operating_unit_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__partner_id
+msgid "Party (M33)"
+msgstr "পার্টি (M33)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__paid
+msgid "Payout Complete"
+msgstr "পেআউট সম্পন্ন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__period
+msgid "Period"
+msgstr "পর্যায়"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__quoted_price
+msgid "Quoted Price"
+msgstr "উদ্ধৃত মূল্য"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__quoted
+msgid "Quotes Received"
+msgstr "কোটেশন পাওয়া গেছে"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__rating
+msgid "Rating (0-5)"
+msgstr "রেটিং (0-5)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__activity_user_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__activity_user_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__activity_user_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__review_rating
+msgid "Review Rating (0-5)"
+msgstr "রিভিউ রেটিং (0-5)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__reviewed
+msgid "Reviewed"
+msgstr "পর্যালোচিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__selected
+msgid "Selected"
+msgstr "নির্বাচিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__selected_quote_id
+msgid "Selected Quote"
+msgstr "নির্বাচিত কোটেশন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__seller_id
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__seller_id
+msgid "Seller"
+msgstr "বিক্রেতা"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_seller_quote
+#: model:ir.model,name:cd_marketplace.model_fix_seller_quote
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_seller_quote
+msgid "Seller Quote"
+msgstr "বিক্রেতার কোটেশন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__quote_ids
+msgid "Seller Quotes"
+msgstr "বিক্রেতার কোটেশনসমূহ"
+
+#. module: cd_marketplace
+#: model:ir.actions.act_window,name:cd_marketplace.action_fix_seller_score
+#: model:ir.model,name:cd_marketplace.model_fix_seller_score
+#: model:ir.ui.menu,name:cd_marketplace.menu_fix_seller_score
+msgid "Seller Score"
+msgstr "বিক্রেতার স্কোর"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_marketplace_order__state__selected
+msgid "Seller Selected"
+msgstr "বিক্রেতা নির্বাচিত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__service_order_id
+msgid "Service Order (M01)"
+msgstr "সার্ভিস অর্ডার (M01)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__commission_amount
+msgid "Set when commission.earned is published (the M53 engine consumes the event)"
+msgstr "commission.earned প্রকাশিত হলে নির্ধারিত হয় (M53 ইঞ্জিন ইভেন্টটি গ্রহণ করে)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__state
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__activity_state
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__activity_state
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__activity_state
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_marketplace
+#: model:ir.model.fields.selection,name:cd_marketplace.selection__fix_seller_quote__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__kyc_ref
+msgid "The KYC provider's reference; documents never land here (Z4 only)"
+msgstr "KYC প্রদানকারীর রেফারেন্স; দলিল কখনও এখানে রাখা হয় না (শুধু Z4)"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__partner_id
+msgid "The party master record — a seller may also be a customer"
+msgstr "পার্টি মাস্টার রেকর্ড — একজন বিক্রেতা গ্রাহকও হতে পারেন"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__total_jobs
+msgid "Total Jobs"
+msgstr "মোট কাজ"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__activity_exception_decoration
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__activity_exception_decoration
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__activity_exception_decoration
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_order__website_message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_marketplace_seller__website_message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_quote__website_message_ids
+#: model:ir.model.fields,field_description:cd_marketplace.field_fix_seller_score__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_order__website_message_ids
+#: model:ir.model.fields,help:cd_marketplace.field_fix_marketplace_seller__website_message_ids
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_quote__website_message_ids
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_marketplace
+#: model:ir.model.fields,help:cd_marketplace.field_fix_seller_score__period
+msgid "YYYY-MM"
+msgstr "YYYY-MM"

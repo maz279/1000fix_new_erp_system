@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_supplier_scorecard data — CAR numbering and overdue escalation. -->
+<odoo noupdate="1">
+    <record id="seq_fix_supplier_car" model="ir.sequence">
+        <field name="name">Supplier Corrective Action Request</field>
+        <field name="code">fix.supplier.car</field>
+        <field name="prefix">CAR/%(year)s/</field>
+        <field name="padding">5</field>
+    </record>
+    <record id="cron_fix_supplier_car_escalation" model="ir.cron">
+        <field name="name">M42: Escalate overdue corrective actions</field>
+        <field name="model_id" ref="model_fix_supplier_car"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_escalate_overdue()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+    </record>
+</odoo>

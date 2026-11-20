@@ -8,6 +8,12 @@ from libs.py.fix_events import publish
 class FixProject(models.Model):
     _name = "fix.project"
     _description = "Project"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M67",
+        "form": "Project (6 types)",
+        "fields": ["name", "project_type", "manager_id", "date_start", "date_end", "budget"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "date_start desc"
 
@@ -63,6 +69,12 @@ class FixProject(models.Model):
 class FixProjectMilestone(models.Model):
     _name = "fix.project.milestone"
     _description = "Project Milestone"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M67",
+        "form": "Milestone",
+        "fields": ["name", "project_id", "due_date"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

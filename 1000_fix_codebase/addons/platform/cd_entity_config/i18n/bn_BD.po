@@ -1,252 +1,1337 @@
 # Bengali (Bangladesh) translation for cd_entity_config.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__frequency_cap
+msgid "0 = uncapped (NT-003 §2.2: transactional and security are uncapped)"
+msgstr "0 = সীমাহীন (NT-003 §2.2: লেনদেন ও নিরাপত্তা বার্তা সীমাহীন)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar_line__hour_from
+msgid "0.0-24.0 local Dhaka time"
+msgstr "0.0-24.0 ঢাকার স্থানীয় সময়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__send_window__08:00-21:00
+msgid "08:00-21:00 (service-related)"
+msgstr "08:00-21:00 (সার্ভিস-সংক্রান্ত)"
+
+#. module: cd_entity_config
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_operations_root
 msgid "1000FiX Operations"
 msgstr "1000FiX অপারেশন্স"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__send_window__10:00-20:00
+msgid "10:00-20:00 (marketing — BTRC)"
+msgstr "10:00-20:00 (মার্কেটিং — BTRC)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__send_window__24/7
+msgid "24/7 (security & transactional — QH-01)"
+msgstr "24/7 (নিরাপত্তা ও লেনদেন — QH-01)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__operating_unit_id
+msgid "AS-03: every transactional model carries operating_unit_id. This is the isolation mechanism OCA operating-unit provides."
+msgstr "AS-03: প্রতিটি লেনদেন মডেলে operating_unit_id থাকে। OCA operating-unit এই আইসোলেশন পদ্ধতি প্রদান করে।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_needaction
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__active
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__active
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__active
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__active
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__active
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_state
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_type_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__address_id
 msgid "Address"
 msgstr "ঠিকানা"
 
+#. module: cd_entity_config
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_entity_form
 msgid "Archived"
 msgstr "সংরক্ষণাগারভুক্ত"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar__timezone__asia/dhaka
+msgid "Asia/Dhaka (UTC+6)"
+msgstr "Asia/Dhaka (UTC+6)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_attachment_count
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__sms_route
+msgid "BD-02: a marketing message never uses the masking route"
+msgstr "BD-02: মার্কেটিং বার্তা কখনো মাস্কিং রুট ব্যবহার করে না"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_bd_address
+msgid "Bangladesh Address"
+msgstr "বাংলাদেশের ঠিকানা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__address_id
+msgid "Bangladesh address hierarchy"
+msgstr "বাংলাদেশের ঠিকানার স্তরবিন্যাস"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_bd_address__postcode
+msgid "Bangladesh postcodes are 4 digits"
+msgstr "বাংলাদেশের পোস্টকোড ৪ অঙ্কের"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__name_bn
+msgid "Bengali branch name — DE-17"
+msgstr "শাখার বাংলা নাম — DE-17"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__legal_name_bn
+msgid "Bengali legal name — DE-17 Bengali-first"
+msgstr "বাংলা আইনি নাম — DE-17 বাংলা-অগ্রাধিকার"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_branch
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__branch_id
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_branch_form
 msgid "Branch"
 msgstr "শাখা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__code
 msgid "Branch Code"
 msgstr "শাখা কোড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__branch_count
+msgid "Branch Count"
+msgstr "শাখার সংখ্যা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__manager_id
 msgid "Branch Manager"
 msgstr "শাখা ব্যবস্থাপক"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__name
 msgid "Branch Name"
 msgstr "শাখার নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__name_bn
 msgid "Branch Name (Bengali)"
 msgstr "শাখার নাম (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_branch_code_entity_unique
+msgid "Branch code must be unique within an entity"
+msgstr "একটি প্রতিষ্ঠানের মধ্যে শাখা কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_branch
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__branch_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__branch_ids
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_branch
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_branch_tree
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_entity_form
 msgid "Branches"
 msgstr "শাখাসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__calendar_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__calendar_id
+msgid "Calendar"
+msgstr "ক্যালেন্ডার"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_working_calendar_holiday
+msgid "Calendar Holiday"
+msgstr "ক্যালেন্ডারের ছুটি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__name
 msgid "Calendar Name"
 msgstr "ক্যালেন্ডারের নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__channel
+msgid "Channel"
+msgstr "চ্যানেল"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_geofence__geofence_type__circle
+msgid "Circle (centre + radius)"
+msgstr "বৃত্ত (কেন্দ্র + ব্যাসার্ধ)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__code
 msgid "Code"
 msgstr "কোড"
 
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_country_pack_line_pack_code_unique
+msgid "Code appears once per pack"
+msgstr "প্রতিটি প্যাকে কোড একবারই থাকবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__combined_cap_non_transactional
 msgid "Combined Cap (non-transactional)"
 msgstr "সম্মিলিত সীমা (অ-লেনদেন)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__company_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__company_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__company_id
 msgid "Company"
 msgstr "কোম্পানি"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__name
 msgid "Configuration"
 msgstr "কনফিগারেশন"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__consent_class
+msgid "Consent Class"
+msgstr "সম্মতির শ্রেণি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__zone_id
+msgid "Consumed by M02 dispatch in Phase 5"
+msgstr "Phase 5-এ M02 ডিসপ্যাচ দ্বারা ব্যবহৃত"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__country_id
 msgid "Country"
 msgstr "দেশ"
 
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_country_pack
+msgid "Country Data Pack"
+msgstr "দেশ ডেটা প্যাক"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_country_pack_line
+msgid "Country Data Pack Line"
+msgstr "দেশ ডেটা প্যাক লাইন"
+
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_country_pack
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_country_pack
 msgid "Country Data Packs"
 msgstr "দেশ ডেটা প্যাক"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__create_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__create_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__currency_id
 msgid "Currency"
 msgstr "মুদ্রা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar_holiday__name_bn
+msgid "DE-17"
+msgstr "DE-17"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__name_bn
+msgid "DE-17 Bengali-first"
+msgstr "DE-17 বাংলা-প্রথম"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack_line__name_bn
+msgid "DE-17: Bengali is not optional for place names"
+msgstr "DE-17: স্থানের নামের ক্ষেত্রে বাংলা ঐচ্ছিক নয়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__date_value
 msgid "Date (holiday packs)"
 msgstr "তারিখ (ছুটির প্যাক)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__default_for_new
+msgid "Default For New"
+msgstr "নতুনের জন্য ডিফল্ট"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__description
 msgid "Description"
 msgstr "বিবরণ"
 
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_zone
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__zone_id
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_zone_form
 msgid "Dispatch Zone"
 msgstr "ডিসপ্যাচ জোন"
 
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_zone
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_zone
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_zone_tree
 msgid "Dispatch Zones"
 msgstr "ডিসপ্যাচ জোনসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__display_name
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__district
 msgid "District"
 msgstr "জেলা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__district_bn
 msgid "District (Bengali)"
 msgstr "জেলা (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack_line__parent_code
+msgid "District lines point at their division code"
+msgstr "জেলার লাইন তাদের বিভাগ কোড নির্দেশ করে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__division
 msgid "Division"
 msgstr "বিভাগ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__division_bn
 msgid "Division (Bengali)"
 msgstr "বিভাগ (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_country_pack__kind__divisions
+msgid "Divisions & Districts"
+msgstr "বিভাগ ও জেলা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__key
+msgid "Dot-notation key, e.g. 'dispatch.auto_assign'"
+msgstr "ডট-নোটেশন কী, যেমন 'dispatch.auto_assign'"
+
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_entity_company_unique
+msgid "Each res.company maps to exactly one fix.entity"
+msgstr "প্রতিটি res.company ঠিক একটি fix.entity-এর সাথে সংযুক্ত"
+
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_working_calendar_line_calendar_weekday_unique
+msgid "Each weekday appears once per calendar"
+msgstr "প্রতিটি ক্যালেন্ডারে প্রতিটি বার একবারই থাকবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__email
 msgid "Email"
 msgstr "ইমেইল"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__channel__email
+msgid "Email (INT-013)"
+msgstr "ইমেইল (INT-013)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__branch_id
+msgid "Empty on template calendars; SLA availability resolves through the branch -> calendar link (fix.branch.calendar_id)."
+msgstr "টেমপ্লেট ক্যালেন্ডারে খালি থাকে; SLA প্রাপ্যতা শাখা -> ক্যালেন্ডার সংযোগের (fix.branch.calendar_id) মাধ্যমে নির্ধারিত হয়।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__enabled
+msgid "Enabled"
+msgstr "সক্রিয়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__branch_ids
 msgid "Enabled Branches"
 msgstr "সক্রিয় শাখাসমূহ"
 
-msgid "Enabled Roles"
-msgstr "সক্রিয় ভূমিকাসমূহ"
-
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__entity_id
 msgid "Entity"
 msgstr "প্রতিষ্ঠান"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__code
 msgid "Entity Code"
 msgstr "প্রতিষ্ঠান কোড"
 
+#. module: cd_entity_config
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_entity_root
+msgid "Entity Configuration"
+msgstr "প্রতিষ্ঠান কনফিগারেশন"
+
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_entity_code_unique
+msgid "Entity code must be unique"
+msgstr "প্রতিষ্ঠান কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__enabled
+msgid "False = capability disabled (safe default)"
+msgstr "False = সক্ষমতা নিষ্ক্রিয় (নিরাপদ ডিফল্ট)"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_feature_flag
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_feature_flag_form
 msgid "Feature Flag"
 msgstr "ফিচার ফ্ল্যাগ"
 
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_feature_flag
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_feature_flag
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_feature_flag_tree
 msgid "Feature Flags"
 msgstr "ফিচার ফ্ল্যাগসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_feature_flag_key_unique
+msgid "Feature flag key must be unique"
+msgstr "ফিচার ফ্ল্যাগ কী অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_bd_address__landmark
+msgid "Field dispatch relies on landmarks; the GPS geocode lives on the geofence, not here"
+msgstr "ফিল্ড ডিসপ্যাচ ল্যান্ডমার্কের উপর নির্ভর করে; GPS জিওকোড জিওফেন্সে থাকে, এখানে নয়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_follower_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_partner_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__activity_type_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__frequency_cap
 msgid "Frequency Cap (7-day rolling)"
 msgstr "ফ্রিকোয়েন্সি সীমা (৭ দিন রোলিং)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__fri
+msgid "Friday"
+msgstr "শুক্রবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__date_from
 msgid "From"
 msgstr "হইতে"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__hour_from
 msgid "From (hour)"
 msgstr "শুরু (ঘণ্টা)"
 
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_geofence
+msgid "Geofence"
+msgstr "জিওফেন্স"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__name
 msgid "Geofence Name"
 msgstr "জিওফেন্সের নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__geofence_ids
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_zone_form
 msgid "Geofences"
 msgstr "জিওফেন্সসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__geometry_json
 msgid "Geometry (JSON)"
 msgstr "জ্যামিতি (JSON)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_feature_flag__scope__global
+msgid "Global"
+msgstr "বৈশ্বিক"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__has_message
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__name
 msgid "Holiday"
 msgstr "ছুটি"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__name_bn
 msgid "Holiday (Bengali)"
 msgstr "ছুটি (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__holiday_ids
 msgid "Holidays"
 msgstr "ছুটিসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__house
 msgid "House/Building"
 msgstr "বাড়ি/ভবন"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__activity_exception_icon
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__default_for_new
+msgid "If True, new branches/roles get this flag enabled"
+msgstr "True হলে, নতুন শাখা/ভূমিকায় এই ফ্ল্যাগ সক্রিয় থাকবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__message_needaction
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__message_has_error
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__message_has_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__channel__in_app
+msgid "In-App (NT-018)"
+msgstr "ইন-অ্যাপ (NT-018)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__template_id
+msgid "Inherits day/holiday lines from a template calendar; local overrides may be added on top (a branch closed on Friday inherits everything else from the national template)."
+msgstr "একটি টেমপ্লেট ক্যালেন্ডার থেকে দিন/ছুটির লাইন উত্তরাধিকারসূত্রে পায়; এর উপর স্থানীয় পরিবর্তন যোগ করা যায় (শুক্রবার বন্ধ থাকা কোনো শাখা বাকি সবকিছু জাতীয় টেমপ্লেট থেকে পায়)।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_is_follower
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__key
 msgid "Key"
 msgstr "কী"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__kind
+msgid "Kind"
+msgstr "ধরন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__landmark
 msgid "Landmark"
 msgstr "ল্যান্ডমার্ক"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__write_uid
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__write_date
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__legacy_reference
+msgid "Legacy Reference"
+msgstr "পূর্ববর্তী রেফারেন্স"
+
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_entity
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_entity
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_entity_tree
 msgid "Legal Entities"
 msgstr "আইনি প্রতিষ্ঠানসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_entity
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_entity_form
 msgid "Legal Entity"
 msgstr "আইনি প্রতিষ্ঠান"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__legal_name
 msgid "Legal Name"
 msgstr "আইনি নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__legal_name_bn
 msgid "Legal Name (Bengali)"
 msgstr "আইনি নাম (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__line_ids
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_country_pack_form
 msgid "Lines"
 msgstr "লাইনসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__loaded_at
 msgid "Loaded At"
 msgstr "লোডের সময়"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__calendar_id
+msgid "M02's W2 availability stub reads this"
+msgstr "M02-এর W2 প্রাপ্যতা স্টাব এটি পড়ে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__legacy_reference
+msgid "MIG-03: permanent source system reference (FR-SRM-088)"
+msgstr "MIG-03: উৎস সিস্টেমের স্থায়ী রেফারেন্স (FR-SRM-088)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__consent_class__marketing
+msgid "Marketing"
+msgstr "মার্কেটিং"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__sms_route__masking
+msgid "Masking (alphanumeric sender — 1000FiX)"
+msgstr "মাস্কিং (অক্ষর-সংখ্যাযুক্ত প্রেরক — 1000FiX)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_has_error
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_ids
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__mon
+msgid "Monday"
+msgstr "সোমবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__consent_class
+msgid "NT-002: the class routes the SMS lane (BD-01 masking vs non-masking)"
+msgstr "NT-002: শ্রেণি অনুযায়ী SMS লেন নির্ধারিত হয় (BD-01 মাস্কিং বনাম নন-মাস্কিং)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__combined_cap_non_transactional
+msgid "NT-003: all non-transactional classes combined, rolling 7 days"
+msgstr "NT-003: সকল অ-লেনদেন শ্রেণি সম্মিলিতভাবে, চলমান ৭ দিন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__name
 msgid "Name (English)"
 msgstr "নাম (ইংরেজি)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_summary
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_type_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__sms_route__non-masking
+msgid "Non-masking (numeric sender)"
+msgstr "নন-মাস্কিং (সংখ্যাযুক্ত প্রেরক)"
+
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_notification_config
+#: model:ir.model,name:cd_entity_config.model_fix_notification_config
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_notification_config
 msgid "Notification Configuration"
 msgstr "নোটিফিকেশন কনফিগারেশন"
 
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__message_needaction_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__message_has_error_counter
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_notification_config_consent_class_channel_unique
+msgid "One configuration row per consent class and channel"
+msgstr "প্রতিটি সম্মতি শ্রেণি ও চ্যানেলের জন্য একটি কনফিগারেশন সারি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__branch_ids
+msgid "Only used when scope=branch"
+msgstr "শুধু scope=branch হলে ব্যবহৃত"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__pack_id
+msgid "Pack"
+msgstr "প্যাক"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__code
 msgid "Pack Code"
 msgstr "প্যাক কোড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__name
 msgid "Pack Name"
 msgstr "প্যাকের নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_country_pack_code_unique
+msgid "Pack code must be unique"
+msgstr "প্যাক কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack_line__parent_code
 msgid "Parent Code"
 msgstr "ঊর্ধ্বতন কোড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_feature_flag__scope__branch
+msgid "Per Branch"
+msgstr "শাখাভিত্তিক"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_feature_flag__scope__role
+msgid "Per Role"
+msgstr "ভূমিকাভিত্তিক"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__phone
 msgid "Phone"
 msgstr "ফোন"
 
-msgid "Platform Administration"
-msgstr "প্ল্যাটফর্ম প্রশাসন"
-
+#. module: cd_entity_config
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_notification_config_form
 msgid "Policy (NT-003)"
 msgstr "নীতি (NT-003)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_geofence__geofence_type__polygon
+msgid "Polygon"
+msgstr "বহুভুজ (পলিগন)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__postcode
 msgid "Postcode"
 msgstr "পোস্টকোড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_country_pack__kind__postcodes
+msgid "Postcodes"
+msgstr "পোস্টকোড"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__operating_unit_id
 msgid "Primary Operating Unit"
 msgstr "প্রধান পরিচালন ইউনিট"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_country_pack__kind__holidays
+msgid "Public Holidays"
+msgstr "সরকারি ছুটি"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__channel__push
+msgid "Push (Novu)"
+msgstr "পুশ (Novu)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__stale_discard_hours
+msgid "QH-03: a held message this old when the window opens is discarded"
+msgstr "QH-03: উইন্ডো খোলার সময় এতটা পুরোনো কোনো আটকে থাকা বার্তা বাতিল করা হয়"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__timezone
+msgid "QH-04 companion: Asia/Dhaka is the only operational zone"
+msgstr "QH-04 সহযোগী: Asia/Dhaka-ই একমাত্র কার্যকর সময় অঞ্চল"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__send_window
+msgid "QH-04: windows are Asia/Dhaka; there is no per-customer timezone"
+msgstr "QH-04: উইন্ডো Asia/Dhaka অনুযায়ী; গ্রাহকভিত্তিক আলাদা সময় অঞ্চল নেই"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_entity__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__activity_user_id
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__channel__sms
+msgid "SMS (INT-010)"
+msgstr "SMS (INT-010)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__sms_route
+msgid "SMS Route"
+msgstr "SMS রুট"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__sat
+msgid "Saturday"
+msgstr "শনিবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_feature_flag__scope
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_notification_config_form
 msgid "Scope"
 msgstr "পরিসর"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__consent_class__security
+msgid "Security (OTP)"
+msgstr "নিরাপত্তা (OTP)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__send_window
 msgid "Send Window"
 msgstr "প্রেরণ সময়সীমা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__consent_class__service
+msgid "Service-Related"
+msgstr "সার্ভিস-সংক্রান্ত"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__code
+msgid "Short unique code, e.g. 1000FIX-BD"
+msgstr "সংক্ষিপ্ত অনন্য কোড, যেমন 1000FIX-BD"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_notification_config__stale_discard_hours
 msgid "Stale Discard (hours)"
 msgstr "পুরানো বাতিল (ঘণ্টা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__activity_state
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__street
 msgid "Street/Road"
 msgstr "রাস্তা/সড়ক"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__sun
+msgid "Sunday"
+msgstr "রবিবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__template_id
 msgid "Template"
 msgstr "টেমপ্লেট"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__operating_unit_id
+msgid "The OU for this entity's headquarters operations (AS-03)"
+msgstr "এই প্রতিষ্ঠানের প্রধান কার্যালয়ের কার্যক্রমের OU (AS-03)"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__thu
+msgid "Thursday"
+msgstr "বৃহস্পতিবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__timezone
+msgid "Timezone"
+msgstr "সময় অঞ্চল"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_holiday__date_to
 msgid "To"
 msgstr "প্রতি"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__hour_to
 msgid "To (hour)"
 msgstr "শেষ (ঘণ্টা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__consent_class__transactional
+msgid "Transactional"
+msgstr "লেনদেনভিত্তিক"
+
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__tue
+msgid "Tuesday"
+msgstr "মঙ্গলবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__geofence_type
+msgid "Type"
+msgstr "ধরন"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_branch__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_entity__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_feature_flag__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_geofence__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_notification_config__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_working_calendar__activity_exception_decoration
+#: model:ir.model.fields,help:cd_entity_config.field_fix_zone__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__union_or_ward
 msgid "Union/Ward"
 msgstr "ইউনিয়ন/ওয়ার্ড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__upazila
 msgid "Upazila/Thana"
 msgstr "উপজেলা/থানা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_bd_address__upazila_bn
 msgid "Upazila/Thana (Bengali)"
 msgstr "উপজেলা/থানা (বাংলা)"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_country_pack__version
 msgid "Version"
 msgstr "সংস্করণ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_working_calendar_line__weekday__wed
+msgid "Wednesday"
+msgstr "বুধবার"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar_line__weekday
 msgid "Weekday"
 msgstr "সপ্তাহের দিন"
 
+#. module: cd_entity_config
+#: model:ir.model.fields.selection,name:cd_entity_config.selection__fix_notification_config__channel__whatsapp
+msgid "WhatsApp (INT-012)"
+msgstr "WhatsApp (INT-012)"
+
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_working_calendar
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_branch__calendar_id
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_working_calendar_form
 msgid "Working Calendar"
 msgstr "ওয়ার্কিং ক্যালেন্ডার"
 
+#. module: cd_entity_config
+#: model:ir.model,name:cd_entity_config.model_fix_working_calendar_line
+msgid "Working Calendar Line"
+msgstr "কর্মদিবস ক্যালেন্ডার লাইন"
+
+#. module: cd_entity_config
+#: model:ir.actions.act_window,name:cd_entity_config.action_fix_working_calendar
+#: model:ir.ui.menu,name:cd_entity_config.menu_fix_working_calendar
+#: model_terms:ir.ui.view,arch_db:cd_entity_config.view_fix_working_calendar_tree
 msgid "Working Calendars"
 msgstr "ওয়ার্কিং ক্যালেন্ডারসমূহ"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_working_calendar__line_ids
 msgid "Working Hours"
 msgstr "কর্মঘণ্টা"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_geofence__zone_id
 msgid "Zone"
 msgstr "জোন"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__code
 msgid "Zone Code"
 msgstr "জোন কোড"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__name
 msgid "Zone Name"
 msgstr "জোনের নাম"
 
+#. module: cd_entity_config
+#: model:ir.model.fields,field_description:cd_entity_config.field_fix_zone__name_bn
 msgid "Zone Name (Bengali)"
 msgstr "জোনের নাম (বাংলা)"
+
+#. module: cd_entity_config
+#: model:ir.model.constraint,message:cd_entity_config.constraint_fix_zone_code_unique
+msgid "Zone code must be unique"
+msgstr "জোন কোড অবশ্যই অনন্য হতে হবে"
+
+#. module: cd_entity_config
+#: model:ir.model.fields,help:cd_entity_config.field_fix_country_pack__code
+msgid "e.g. BD-DIV-2026, BD-HOL-2026"
+msgstr "যেমন BD-DIV-2026, BD-HOL-2026"

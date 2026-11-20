@@ -1,110 +1,631 @@
-# Bengali translations for cd_hr_core (M21, P08-M01) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_hr_core.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Employment Contract"
-msgstr "চাকরি চুক্তি"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_needaction
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_needaction
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_needaction
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
-msgid "Employee"
-msgstr "কর্মী"
-
-msgid "Permanent"
-msgstr "স্থায়ী"
-
-msgid "Probation"
-msgstr "পরীক্ষামূলক"
-
-msgid "Fixed Term"
-msgstr "নির্দিষ্ট মেয়াদি"
-
-msgid "Part Time"
-msgstr "খণ্ডকালীন"
-
-msgid "Joining Date"
-msgstr "যোগদানের তারিখ"
-
-msgid "Basic Salary (Monthly)"
-msgstr "মূল বেতন (মাসিক)"
-
-msgid "Statutory Weekly Hours"
-msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
-
-msgid "Operating Unit"
-msgstr "পরিচালন ইউনিট"
-
-msgid "Draft"
-msgstr "খসড়া"
-
-msgid "Active"
-msgstr "সক্রিয়"
-
-msgid "Expired"
-msgstr "মেয়াদোত্তীর্ণ"
-
-msgid "Terminated"
-msgstr "সমাপ্ত"
-
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
 msgid "Activate"
 msgstr "সক্রিয় করুন"
 
-msgid "Terminate"
-msgstr "সমাপ্ত করুন"
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__active
+msgid "Active"
+msgstr "সক্রিয়"
 
-msgid "Leave Type"
-msgstr "ছুটির ধরন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
 
-msgid "Leave Request"
-msgstr "ছুটির আবেদন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
 
-msgid "Leave Name (Bengali)"
-msgstr "ছুটির নাম (বাংলা)"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_state
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_state
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_state
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_type_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_type_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_type_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__encashable
+msgid "Annual leave is encashable at separation (s.118)"
+msgstr "চাকরি অবসানের সময় বার্ষিক ছুটি নগদায়নযোগ্য (ধারা 118)"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_leave_request_form
+msgid "Approve"
+msgstr "অনুমোদন করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__approved
 msgid "Approved"
 msgstr "অনুমোদিত"
 
-msgid "Rejected"
-msgstr "প্রত্যাখ্যাত"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_attachment_count
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_attachment_count
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_attachment_count
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
 
-msgid "Submitted"
-msgstr "জমা দেওয়া হয়েছে"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__basic_monthly
+msgid "Basic Salary (Monthly)"
+msgstr "মূল বেতন (মাসিক)"
 
-msgid "Approve"
-msgstr "অনুমোদন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__code
+msgid "Code"
+msgstr "কোড"
 
-msgid "Organisation Position"
-msgstr "প্রাতিষ্ঠানিক পদ"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__company_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__company_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__company_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__company_id
+msgid "Company"
+msgstr "কোম্পানি"
 
-msgid "Reports To"
-msgstr "রিপোর্ট করেন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__contract_type
+msgid "Contract Type"
+msgstr "চুক্তির ধরন"
 
-msgid "Holders"
-msgstr "অধিকারী"
-
-msgid "Grade"
-msgstr "গ্রেড"
-
-msgid "Employee Code"
-msgstr "কর্মী কোড"
-
-msgid "Position"
-msgstr "পদ"
-
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__contract_count
 msgid "Contracts"
 msgstr "চুক্তিসমূহ"
 
-msgid "Identity Store Ref"
-msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__create_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__create_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__create_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
 
-msgid "People & Payroll"
-msgstr "জনবল ও বেতন"
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__create_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__create_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__create_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__currency_id
+msgid "Currency"
+msgstr "মুদ্রা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__name_bn
+msgid "DE-17"
+msgstr "DE-17"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__date_from
+msgid "Date From"
+msgstr "তারিখ (থেকে)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__date_to
+msgid "Date To"
+msgstr "তারিখ (পর্যন্ত)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__days
+msgid "Days"
+msgstr "দিন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__display_name
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__display_name
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__display_name
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__display_name
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__draft
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_hr_employee
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__employee_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__employee_id
+msgid "Employee"
+msgstr "কর্মী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__employee_code
+msgid "Employee Code"
+msgstr "কর্মী কোড"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_employment_contract
+msgid "Employment Contract"
+msgstr "চাকরি চুক্তি"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_employment_contract
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_contracts
 msgid "Employment Contracts"
 msgstr "চাকরি চুক্তিসমূহ"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__encashable
+msgid "Encashable"
+msgstr "নগদায়নযোগ্য"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__entitlement_days
+msgid "Entitlement Days"
+msgstr "প্রাপ্য দিন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__expired
+msgid "Expired"
+msgstr "মেয়াদোত্তীর্ণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__fixed_term
+msgid "Fixed Term"
+msgstr "নির্দিষ্ট মেয়াদি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_follower_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_follower_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_follower_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_partner_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_partner_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_partner_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__activity_type_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__activity_type_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__activity_type_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__grade
+msgid "Grade"
+msgstr "গ্রেড"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__has_message
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__has_message
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__has_message
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__employee_ids
+msgid "Holders"
+msgstr "অধিকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__id
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__activity_exception_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__activity_exception_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__activity_exception_icon
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__identity_document_note
+msgid "Identity Store Ref"
+msgstr "পরিচয়পত্র সংরক্ষণ রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__message_needaction
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__message_needaction
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__message_needaction
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__message_has_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__message_has_sms_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__message_has_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__message_has_sms_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__message_has_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__message_has_sms_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__message_has_error
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_is_follower
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_is_follower
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_is_follower
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__joining_date
+msgid "Joining Date"
+msgstr "যোগদানের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__probation_end
+msgid "Labour Rules 2021 r.25: probation may not exceed 6 months"
+msgstr "শ্রম বিধিমালা 2021 বিধি 25: পরীক্ষামূলক মেয়াদ 6 মাসের বেশি হতে পারবে না"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__write_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__write_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__write_uid
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__write_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__write_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__write_date
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_leave
 msgid "Leave"
 msgstr "ছুটি"
 
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__name_bn
+msgid "Leave Name (Bengali)"
+msgstr "ছুটির নাম (বাংলা)"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_request
+msgid "Leave Request"
+msgstr "ছুটির আবেদন"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_leave_request
+msgid "Leave Requests"
+msgstr "ছুটির আবেদনসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_leave_type
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__leave_type_id
+msgid "Leave Type"
+msgstr "ছুটির ধরন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__grade
+msgid "M57 compensation band reference"
+msgstr "M57 বেতন ব্যান্ড রেফারেন্স"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__maternity
+msgid "Maternity"
+msgstr "মাতৃত্বকালীন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_has_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_has_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_has_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__name
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_summary
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_summary
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_summary
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_type_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_type_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_type_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__message_needaction_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__message_needaction_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__message_needaction_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__message_has_error_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__message_has_error_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__message_has_error_counter
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__operating_unit_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_hr_core
+#: model:ir.model,name:cd_hr_core.model_fix_org_position
+msgid "Organisation Position"
+msgstr "প্রাতিষ্ঠানিক পদ"
+
+#. module: cd_hr_core
+#: model:ir.actions.act_window,name:cd_hr_core.action_fix_org_position
+msgid "Organisation Positions"
+msgstr "প্রাতিষ্ঠানিক পদসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__identity_document_note
+msgid "PII pointer: the NID/passport artefact lives in fix.identity.document (Z4 residency), referenced, never copied"
+msgstr "PII নির্দেশক: NID/পাসপোর্ট নথি fix.identity.document-এ (Z4 রেসিডেন্সি) সংরক্ষিত থাকে; এখানে শুধু রেফারেন্স করা হয়, কখনো কপি করা হয় না"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__part_time
+msgid "Part Time"
+msgstr "খণ্ডকালীন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_hr_employee__employee_code
+msgid "Payroll reference (M56); the identity documents carry the PII, not this model"
+msgstr "পেরোল রেফারেন্স (M56); ব্যক্তিগত শনাক্তযোগ্য তথ্য (PII) পরিচয়পত্রে থাকে, এই মডেলে নয়"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_ws_people
+msgid "People & Payroll"
+msgstr "জনবল ও বেতন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__permanent
+msgid "Permanent"
+msgstr "স্থায়ী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_hr_employee__position_id
+msgid "Position"
+msgstr "অবস্থান"
+
+#. module: cd_hr_core
+#: model:ir.ui.menu,name:cd_hr_core.menu_fix_positions
 msgid "Positions"
 msgstr "পদসমূহ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__contract_type__probation
+msgid "Probation"
+msgstr "পরীক্ষামূলক"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__probation_end
+msgid "Probation End"
+msgstr "পরীক্ষামূলক মেয়াদ শেষ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__reason
+msgid "Reason"
+msgstr "কারণ"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__parent_id
+msgid "Reports To"
+msgstr "রিপোর্ট করেন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__activity_user_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__activity_user_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__activity_user_id
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__state
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__activity_state
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__activity_state
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__activity_state
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__weekly_hours
+msgid "Statutory Weekly Hours"
+msgstr "সাপ্তাহিক কর্মঘণ্টা (আইনি)"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_leave_request__state__submitted
+msgid "Submitted"
+msgstr "জমাকৃত"
+
+#. module: cd_hr_core
+#: model_terms:ir.ui.view,arch_db:cd_hr_core.view_fix_employment_contract_form
+msgid "Terminate"
+msgstr "সমাপ্ত করুন"
+
+#. module: cd_hr_core
+#: model:ir.model.fields.selection,name:cd_hr_core.selection__fix_employment_contract__state__terminated
+msgid "Terminated"
+msgstr "সমাপ্ত"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__activity_exception_decoration
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__activity_exception_decoration
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__activity_exception_decoration
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_employment_contract__website_message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_request__website_message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_leave_type__website_message_ids
+#: model:ir.model.fields,field_description:cd_hr_core.field_fix_org_position__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__website_message_ids
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_request__website_message_ids
+#: model:ir.model.fields,help:cd_hr_core.field_fix_leave_type__website_message_ids
+#: model:ir.model.fields,help:cd_hr_core.field_fix_org_position__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_hr_core
+#: model:ir.model.fields,help:cd_hr_core.field_fix_employment_contract__weekly_hours
+msgid "s. 102: 48 hours/week ceiling"
+msgstr "ধারা 102: সপ্তাহে সর্বোচ্চ 48 ঘণ্টা"

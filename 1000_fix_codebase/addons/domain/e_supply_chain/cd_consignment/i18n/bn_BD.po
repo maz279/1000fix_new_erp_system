@@ -1,48 +1,437 @@
 # Bengali (Bangladesh) translation for cd_consignment.
-# 100% coverage — FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_needaction
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_attachment_count
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__branch_transfer
+msgid "Branch Transfer"
+msgstr "শাখা স্থানান্তর"
+
+#. module: cd_consignment
+#: model_terms:ir.ui.view,arch_db:cd_consignment.view_fix_consignment_tree
 msgid "Chain"
 msgstr "চেইন"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__chain_broken
 msgid "Chain Broken"
 msgstr "চেইন ভাঙা"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__confirmed
+msgid "Confirmed"
+msgstr "নিশ্চিত"
+
+#. module: cd_consignment
+#: model:ir.model,name:cd_consignment.model_fix_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__consignment_id
+msgid "Consignment"
+msgstr "কনসাইনমেন্ট"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__name
 msgid "Consignment No."
 msgstr "কনসাইনমেন্ট নং"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__consignment_type
+msgid "Consignment Type"
+msgstr "কনসাইনমেন্টের ধরন"
+
+#. module: cd_consignment
+#: model:ir.actions.act_window,name:cd_consignment.action_fix_consignment
+#: model:ir.ui.menu,name:cd_consignment.menu_fix_consignment
 msgid "Consignments"
 msgstr "কনসাইনমেন্টসমূহ"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__create_uid
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__create_date
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__custody_ids
 msgid "Custody Chain"
 msgstr "কাস্টডি চেইন"
 
+#. module: cd_consignment
+#: model:ir.model,name:cd_consignment.model_fix_custody_scan
+msgid "Custody Scan"
+msgstr "কাস্টডি স্ক্যান"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__custody_summary
+msgid "Custody Summary"
+msgstr "কাস্টডির সারাংশ"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__delivered
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__delivered
+msgid "Delivered"
+msgstr "ডেলিভারি সম্পন্ন"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__delivery
+msgid "Delivery (branch -> customer)"
+msgstr "ডেলিভারি (শাখা -> গ্রাহক)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__dest_branch_id
 msgid "Destination"
 msgstr "গন্তব্য"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__device_serial
 msgid "Device Serial"
 msgstr "ডিভাইস সিরিয়াল"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__display_name
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__exception_reason
+msgid "Exception Reason"
+msgstr "ব্যতিক্রমের কারণ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_follower_ids
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_partner_ids
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__has_message
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__hub_scan
+msgid "Hub Scan"
+msgstr "হাব স্ক্যান"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__id
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__message_needaction
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__message_has_error
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__message_has_sms_error
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__message_has_error
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__in_transit
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__in_transit
+msgid "In Transit"
+msgstr "পরিবহনে"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_is_follower
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__write_uid
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__write_date
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__location_branch_id
 msgid "Location"
 msgstr "অবস্থান"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__lost
+msgid "Lost"
+msgstr "হারিয়ে গেছে"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_has_error
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_ids
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__message_needaction_counter
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__message_has_error_counter
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__origin_branch_id
 msgid "Origin"
 msgstr "উৎস"
 
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__out_for_delivery
+msgid "Out for Delivery"
+msgstr "ডেলিভারির পথে"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__picked_up
+msgid "Picked Up"
+msgstr "পিকআপ সম্পন্ন"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__pickup
+msgid "Pickup (customer -> branch)"
+msgstr "পিকআপ (গ্রাহক -> শাখা)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__purchase_order_id
 msgid "Purchase Order"
 msgstr "ক্রয় আদেশ"
 
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__exception_reason
+msgid "Required when a step is skipped (named exception, never silent)"
+msgstr "কোনো ধাপ বাদ দিলে আবশ্যক (নির্দিষ্ট ব্যতিক্রম, কখনো নীরবে নয়)"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__consignment_type__return_to_vendor
+msgid "Return to Vendor"
+msgstr "ভেন্ডরের কাছে ফেরত"
+
+#. module: cd_consignment
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_consignment__state__returned
+#: model:ir.model.fields.selection,name:cd_consignment.selection__fix_custody_scan__step__returned
+msgid "Returned"
+msgstr "ফেরত এসেছে"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__rider_id
 msgid "Rider"
 msgstr "রাইডার"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__scanned_at
+msgid "Scanned At"
+msgstr "স্ক্যানের সময়"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__scanned_by
 msgid "Scanned By"
 msgstr "স্ক্যানকারী"
 
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__scheduled_date
+msgid "Scheduled Date"
+msgstr "নির্ধারিত তারিখ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__service_order_id
 msgid "Service Order"
 msgstr "সার্ভিস অর্ডার"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__step
+msgid "Step"
+msgstr "ধাপ"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__step
+msgid "The canonical custody step this scan records"
+msgstr "এই স্ক্যান যে আদর্শ কাস্টডি ধাপ রেকর্ড করে"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_consignment
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_consignment__website_message_ids
+#: model:ir.model.fields,field_description:cd_consignment.field_fix_custody_scan__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_consignment__website_message_ids
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_consignment
+#: model:ir.model.fields,help:cd_consignment.field_fix_custody_scan__device_serial
+msgid "What is in custody — verified at every scan"
+msgstr "কাস্টডিতে কী আছে — প্রতিটি স্ক্যানে যাচাই করা হয়"

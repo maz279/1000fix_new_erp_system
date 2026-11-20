@@ -20,6 +20,12 @@ class FixVendorInvoice(models.Model):
 
     _name = "fix.vendor.invoice"
     _description = "Vendor Invoice (three-way match)"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M52",
+        "form": "Vendor Bill",
+        "fields": ["vendor_id", "invoice_ref", "invoice_date", "requisition_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "invoice_date desc, id desc"
 
@@ -145,6 +151,12 @@ class FixExpenseClaim(models.Model):
 
     _name = "fix.expense.claim"
     _description = "Expense Claim"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M52",
+        "form": "Expense Claim",
+        "fields": ["employee_id", "description", "amount", "expense_date"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

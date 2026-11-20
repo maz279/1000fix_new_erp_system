@@ -78,6 +78,12 @@ class FixDataQualityRule(models.Model):
     """M62: DA-008 data quality monitoring with thresholds."""
     _name = "fix.data.quality.rule"
     _description = "Data Quality Rule"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M62",
+        "form": "Quality Test",
+        "fields": ["name", "entity_id", "rule_type", "threshold"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

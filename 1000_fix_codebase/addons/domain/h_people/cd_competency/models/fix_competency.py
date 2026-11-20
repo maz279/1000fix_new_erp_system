@@ -33,6 +33,12 @@ class FixCertification(models.Model):
     """The certification register with expiry tracking (P08-M05-T02)."""
     _name = "fix.certification"
     _description = "Certification"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M22",
+        "form": "Certification",
+        "fields": ["employee_id", "competency_id", "issued_on", "expires_on", "evidence_ref"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "employee_id, expires_on"
 
@@ -119,6 +125,12 @@ class FixCertification(models.Model):
 class FixTrainingCourse(models.Model):
     _name = "fix.training.course"
     _description = "Training Course"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M22",
+        "form": "Course",
+        "fields": ["code", "name", "name_bn", "content_ref", "competency_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
 

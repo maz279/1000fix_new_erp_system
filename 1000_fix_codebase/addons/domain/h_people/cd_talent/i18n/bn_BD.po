@@ -1,8 +1,361 @@
-# Bengali translations for cd_talent (P09) — 100% coverage.
+# Bengali (Bangladesh) translation for cd_talent.
+# 100% coverage - FF-24/FF-25 block below 100% (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-msgid "Talent Acquisition & Onboarding"
-msgstr "Talent Acquisition & Onboarding (বাংলা)"
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_needaction
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_ids
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_state
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_type_icon
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__applied
+msgid "Applied"
+msgstr "আবেদনকৃত"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_attachment_count
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_talent
+#: model:ir.actions.act_window,name:cd_talent.action_fix_candidate
+#: model:ir.model,name:cd_talent.model_fix_candidate
+#: model:ir.ui.menu,name:cd_talent.menu_fix_candidate
+msgid "Candidate"
+msgstr "প্রার্থী"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__closed
+msgid "Closed"
+msgstr "বন্ধ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__company_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__create_uid
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__create_date
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__department_id
+msgid "Department"
+msgstr "বিভাগ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__display_name
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__draft
+msgid "Draft"
+msgstr "খসড়া"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__email
+msgid "Email"
+msgstr "ইমেইল"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_follower_ids
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_partner_ids
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__activity_type_icon
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__has_message
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__hired
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__hired
+msgid "Hired"
+msgstr "নিয়োগপ্রাপ্ত"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__activity_exception_icon
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__message_needaction
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__message_has_error
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__message_has_sms_error
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__message_has_error
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__interview
+msgid "Interview"
+msgstr "সাক্ষাৎকার"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_is_follower
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_talent
+#: model:ir.actions.act_window,name:cd_talent.action_fix_job_requisition
+#: model:ir.model,name:cd_talent.model_fix_job_requisition
+#: model:ir.ui.menu,name:cd_talent.menu_fix_job_requisition
+msgid "Job Requisition"
+msgstr "নিয়োগ চাহিদাপত্র"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__write_uid
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__write_date
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_has_error
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_ids
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__name
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_summary
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_type_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__message_needaction_counter
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__message_has_error_counter
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__offered
+msgid "Offered"
+msgstr "প্রস্তাব দেওয়া হয়েছে"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_job_requisition__state__open
+msgid "Open"
+msgstr "খোলা"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__openings
+msgid "Openings"
+msgstr "শূন্য পদ"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__operating_unit_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__phone
+msgid "Phone"
+msgstr "ফোন"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__position_id
+msgid "Position"
+msgstr "অবস্থান"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__rejected
+msgid "Rejected"
+msgstr "প্রত্যাখ্যাত"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__requisition_id
+msgid "Requisition"
+msgstr "চাহিদাপত্র"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__activity_user_id
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_talent
+#: model:ir.model.fields.selection,name:cd_talent.selection__fix_candidate__state__screening
+msgid "Screening"
+msgstr "বাছাই"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__state
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__activity_state
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__activity_exception_decoration
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_talent
+#: model:ir.model.fields,field_description:cd_talent.field_fix_candidate__website_message_ids
+#: model:ir.model.fields,field_description:cd_talent.field_fix_job_requisition__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_talent
+#: model:ir.model.fields,help:cd_talent.field_fix_candidate__website_message_ids
+#: model:ir.model.fields,help:cd_talent.field_fix_job_requisition__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"

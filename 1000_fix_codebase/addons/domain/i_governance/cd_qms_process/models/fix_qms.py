@@ -9,6 +9,13 @@ class FixNcr(models.Model):
     """A non-conformance — from any source. Journey 14's middle."""
     _name = "fix.ncr"
     _description = "Non-Conformance Record"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M23",
+        "form": "NCR",
+        "fields": ["source", "severity", "description", "order_id", "complaint_id",
+                   "audit_id"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "create_date desc"
 
@@ -78,6 +85,13 @@ class FixCapa(models.Model):
     """Corrective AND preventive action with verification and closure."""
     _name = "fix.capa"
     _description = "CAPA"
+    # P03 workspace data-entry form (discovered by cd_p03_portal).
+    _p03_capture = {
+        "module": "M23",
+        "form": "CAPA",
+        "fields": ["ncr_id", "severity", "corrective_action", "owner_id",
+                   "preventive_action", "due_on"],
+    }
     _inherit = ["mail.thread", "mail.activity.mixin"]
 
     company_id = fields.Many2one("res.company", required=True, index=True,

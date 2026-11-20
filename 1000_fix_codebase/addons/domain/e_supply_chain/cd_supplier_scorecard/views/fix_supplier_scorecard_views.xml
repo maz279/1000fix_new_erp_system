@@ -1,0 +1,144 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_supplier_scorecard views — performance reviews and corrective action requests. -->
+<odoo>
+
+    <record id="view_fix_supplier_review_list" model="ir.ui.view">
+        <field name="name">fix.supplier.review.list</field>
+        <field name="model">fix.supplier.review</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="profile_id"/>
+                <field name="period"/>
+                <field name="scheduled_for"/>
+                <field name="held_on"/>
+                <field name="next_review_due"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_review_form" model="ir.ui.view">
+        <field name="name">fix.supplier.review.form</field>
+        <field name="model">fix.supplier.review</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_mark_held" type="object" string="Mark Held" class="oe_highlight" invisible="state not in ('scheduled')"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('scheduled')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="scheduled,held"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="profile_id"/>
+                            <field name="period"/>
+                            <field name="scheduled_for"/>
+                            <field name="held_on"/>
+                            <field name="scorecard_id"/>
+                        </group>
+                        <group>
+                            <field name="next_review_due"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Attendees"/>
+                    <field name="attendees" nolabel="1"/>
+                    <separator string="Agenda"/>
+                    <field name="agenda" nolabel="1"/>
+                    <separator string="Minutes"/>
+                    <field name="minutes" nolabel="1"/>
+                    <separator string="Outcomes &amp; Actions"/>
+                    <field name="outcomes" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_review" model="ir.actions.act_window">
+        <field name="name">Performance Reviews</field>
+        <field name="res_model">fix.supplier.review</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <record id="view_fix_supplier_car_list" model="ir.ui.view">
+        <field name="name">fix.supplier.car.list</field>
+        <field name="model">fix.supplier.car</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="profile_id"/>
+                <field name="source"/>
+                <field name="due_date"/>
+                <field name="owner_user_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+
+    <record id="view_fix_supplier_car_form" model="ir.ui.view">
+        <field name="name">fix.supplier.car.form</field>
+        <field name="model">fix.supplier.car</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_record_response" type="object" string="Record Response" class="oe_highlight" invisible="state not in ('open')"/>
+                    <button name="action_mark_action_taken" type="object" string="Action Taken" invisible="state not in ('responded')"/>
+                    <button name="action_verify_effective" type="object" string="Verify Effective" invisible="state not in ('action_taken')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="open,responded,action_taken,verified"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="name"/>
+                            <field name="profile_id"/>
+                            <field name="source"/>
+                            <field name="owner_user_id"/>
+                            <field name="due_date"/>
+                            <field name="ncr_ref"/>
+                        </group>
+                        <group>
+                            <field name="verified_by"/>
+                            <field name="verified_at"/>
+                            <field name="effectiveness"/>
+                            <field name="company_id"/>
+                            <field name="operating_unit_id"/>
+                        </group>
+                    </group>
+                    <separator string="Issue"/>
+                    <field name="issue" nolabel="1"/>
+                    <separator string="Required Action"/>
+                    <field name="required_action" nolabel="1"/>
+                    <separator string="Supplier Response"/>
+                    <field name="supplier_response" nolabel="1"/>
+                    <separator string="Root Cause"/>
+                    <field name="root_cause" nolabel="1"/>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_fix_supplier_car" model="ir.actions.act_window">
+        <field name="name">Corrective Actions</field>
+        <field name="res_model">fix.supplier.car</field>
+        <field name="view_mode">list,form</field>
+    </record>
+
+    <menuitem id="menu_fix_supplier_review" name="Performance Reviews"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_review" sequence="210"/>
+    <menuitem id="menu_fix_supplier_car" name="Corrective Actions"
+              parent="cd_vendor_ext.menu_ws_supplier_relationship"
+              action="action_fix_supplier_car" sequence="220"/>
+
+</odoo>

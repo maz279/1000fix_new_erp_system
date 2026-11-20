@@ -1,0 +1,1179 @@
+# Translation template for cd_inventory — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
+msgid ""
+msgstr ""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_needaction
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_needaction
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_needaction
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_needaction
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_needaction
+msgid "Action Needed"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__active
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__active
+msgid "Active"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__active
+msgid "Active Rule"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_type_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_type_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_type_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_type_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__archived
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__archived
+msgid "Archived"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_attachment_count
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_attachment_count
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_attachment_count
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_attachment_count
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__audit_discrepancy_count
+msgid "Audit Discrepancies"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Audit Van Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__barcode
+msgid "Barcode (EAN-13 / UPC)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__name_bn
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__name_bn
+msgid "Bengali name per DoD-08"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__name_bn
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__name_bn
+msgid "Bengali reference per DoD-08"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__name_bn
+msgid "Bengali rule name per DoD-08"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__branch_id
+msgid "Branch Hub"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__branch
+msgid "Branch Hub / Workshop"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__cancelled
+msgid "Cancelled"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Categorization & Identification"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__central
+msgid "Central Warehouse"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__charging_port
+msgid "Charging Port & Sub-PCB"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Comma-separated models, e.g. Dell Inspiron 15 3501, 3505, 3511"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__company_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__compatible_models
+msgid "Compatible Models / Hardware Matrix"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__part_category
+msgid "Component Category"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Confirm Consumption"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__quantity
+msgid "Consumed Quantity"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__consumed
+msgid "Consumed on Job"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__technician_id
+msgid "Consuming Technician"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__name
+msgid "Consumption Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__consumed_at
+msgid "Consumption Timestamp"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__core_exchange_required
+msgid "Core Return Required"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__create_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__create_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__create_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__create_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__create_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__create_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__create_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__create_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__current_stock
+msgid "Current Stock On Hand"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__technician_id
+msgid "Custodian Technician"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__customer_refusal
+msgid "Customer declined estimate"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__core_exchange_required
+msgid "Customer or workshop must return the defective part for reverse logistics / e-waste"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__location_id
+msgid "Deduction Location / Van"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__wrong_diagnosis
+msgid "Defect misdiagnosed - part not needed"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__technician_id
+msgid "Designated field technician for mobile van stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__device_brand
+msgid "Device Brand / Manufacturer"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__compatibility_notes
+msgid "Device Compatibility Matrix"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__display
+msgid "Display & Touch Screen Assembly"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__display_name
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__display_name
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__display_name
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__display_name
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__draft
+msgid "Draft"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__draft
+msgid "Draft Scan"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__motor
+msgid "Drive Motor & Pump"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__name
+msgid "Entry Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__entry_type
+msgid "Entry Type"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__excess_draw
+msgid "Excess van stock drawn and returned"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__stub_expiry_date
+msgid "Expiry target: Wave 3 / Phase R04 M19 GL cutover"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_follower_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_follower_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_follower_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_follower_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_partner_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_partner_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_partner_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_partner_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__activity_type_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__activity_type_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__activity_type_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__activity_type_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__camera
+msgid "Front / Rear Camera Module"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__gl_cutover_ref
+msgid "GL Cutover Voucher Ref"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__status
+msgid "GL Status"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__stub_reference
+msgid "GV-005 Stub Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_inventory_valuation_suspense_form
+msgid "GV-005 Suspense Stub Governance"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Hardware Compatibility"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__has_message
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__has_message
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__has_message
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__has_message
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__fastener
+msgid "Housing, Screws & Thermal Pads"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__activity_exception_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__activity_exception_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__activity_exception_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__activity_exception_icon
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__message_needaction
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__message_needaction
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__message_needaction
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__message_needaction
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__message_has_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__message_has_sms_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__message_has_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__message_has_sms_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__message_has_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__message_has_sms_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__message_has_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__message_has_sms_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__message_has_error
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qr_code
+msgid "Internal QR Code"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "Inventory & Pricing"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model,name:cd_inventory.model_fix_stock_location
+msgid "Inventory Location & Van Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__revaluation
+msgid "Inventory Revaluation"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model,name:cd_inventory.model_fix_inventory_valuation_suspense
+msgid "Inventory Valuation Suspense Entry"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__compressor
+msgid "Inverter / Rotary Compressor"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_is_follower
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_is_follower
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_is_follower
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_is_follower
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__is_van_location
+msgid "Is Van Location"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__is_van_stock
+msgid "Is Van Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__consumption
+msgid "Job Consumption"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model,name:cd_inventory.model_fix_stock_consumption
+msgid "Job Parts Consumption"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__return
+msgid "Job Return"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__last_alert_date
+msgid "Last Alert Triggered At"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__last_audit_date
+msgid "Last Physical Audit Date"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__write_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__write_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__write_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__write_uid
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__write_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__write_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__write_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__write_date
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__battery
+msgid "Lithium Battery Pack"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__code
+msgid "Location Code"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Location Metadata"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__name
+msgid "Location Name"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__location_type
+msgid "Location Type"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.constraint,message:cd_inventory.constraint_fix_stock_location_code_company_unique
+msgid "Location code must be unique per company."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_stock_locations
+msgid "Locations & Mobile Vans"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_predicted_demand
+msgid "M43 7-Day Forecast Demand"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_ai_override
+msgid "M43 Dynamic AI Forecast Active"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "M43 Machine Learning Forecasting Seam (Phase R07)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__m43_model_version
+msgid "M43 Seam Interface Version"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.actions.act_window,help:cd_inventory.action_fix_stock_location
+msgid "Manage branch warehouses, service centers, and technician mobile van stock locations."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__is_serialized
+msgid "Mandates individual serial number tracking on receipt and consumption"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_has_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_has_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_has_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_has_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__min_qty
+msgid "Minimum Reorder Point"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__min_qty
+msgid "Minimum Stock (Reorder Point)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__van
+msgid "Mobile Technician Van Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "Mobile Van Configuration"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__motherboard
+msgid "Motherboard / Main PCB"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__quantity
+msgid "Movement Quantity"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_summary
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_summary
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_summary
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_summary
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_type_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_type_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_type_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_type_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__message_needaction_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__message_needaction_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__message_needaction_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__message_needaction_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__message_has_error_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__message_has_error_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__message_has_error_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__message_has_error_counter
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__branch_id
+msgid "Operating Branch / Hub"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__operating_unit_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__consumption_id
+msgid "Originating Consumption"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__return_reason__defective_new
+msgid "Part DOA / defective out of box"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__name
+msgid "Part Description"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__part_number
+msgid "Part Number / SKU"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Part Scan & Valuation"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__serial_number
+msgid "Part Serial Number / IMEI"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.constraint,message:cd_inventory.constraint_fix_spare_part_part_code_unique
+msgid "Part number must be unique per company."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_spare_parts
+msgid "Parts Catalog"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_stock_consumption
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_stock_consumption
+msgid "Parts Consumption (Scan-to-Consume)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__pending_gl_cutover
+msgid "Pending GL Cutover (M19 Suspense)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__entry_type__initial_count
+msgid "Physical Baseline Migration"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__m43_predicted_demand
+msgid "Populated by M43 demand forecast worker in Phase R07"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qty_available
+msgid "Quantity On Hand"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__qty_reserved
+msgid "Quantity Reserved"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__quarantine
+msgid "Quarantine / Inspection"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__scanned_code
+msgid "Raw Scanned Barcode/QR"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__reconciled_at
+msgid "Reconciled Timestamp"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_inventory_valuation_suspense__status__reconciled
+msgid "Reconciled to GL"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__stub_reference
+msgid "Reference in docs/traceability/gv-005-stub-register.md"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "Reorder Scope"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Repair Job Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_reorder_rule
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_reorder_rules
+msgid "Replenishment & Reorder Rules"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__alert
+msgid "Replenishment Alert"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__lead_time_days
+msgid "Replenishment Lead Time (Days)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_reorder_rule__state__ordered
+msgid "Requisition In Flight"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__activity_user_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__activity_user_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__activity_user_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__activity_user_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__list_price
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__sales_price
+msgid "Retail Replacement Price (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_consumption_form
+msgid "Return Information"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__return_notes
+msgid "Return Notes"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__return_reason
+msgid "Return Reason"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__returned_at
+msgid "Return Timestamp"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_consumption__state__returned
+msgid "Returned to Location"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__name
+msgid "Rule Code"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "SKU / Part Number"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__safety_stock
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__safety_stock
+msgid "Safety Buffer Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_stock_location__location_type__scrap
+msgid "Scrap / E-Waste Disposal"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__is_serialized
+msgid "Serialized Component"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__service_order_ref
+msgid "Service Order Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__product_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__spare_part_id
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__product_id
+msgid "Spare Part"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model,name:cd_inventory.model_fix_spare_part
+msgid "Spare Part & Component"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model,name:cd_inventory.model_fix_reorder_rule
+msgid "Spare Part Reorder Rule"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_inventory_root
+msgid "Spare Parts & Inventory"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_spare_part
+msgid "Spare Parts Catalog"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__unit_cost
+msgid "Standard Cost (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__state
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__state
+msgid "Status"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__activity_state
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__activity_state
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__activity_state
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__activity_state
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__location_id
+msgid "Stock Location / Van"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_stock_location
+msgid "Stock Locations & Vans"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__stub_expiry_date
+msgid "Stub Expiry Target"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__suggested_order_qty
+msgid "Suggested Order Qty"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__suspense_account_code
+msgid "Suspense Account Code"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__suspense_account_code
+msgid "Suspense clearing account code (M15->M19 stub)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__max_qty
+msgid "Target Max Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__max_qty
+msgid "Target Maximum Stock"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__max_qty
+msgid "Target stock quantity after replenishment"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields.selection,name:cd_inventory.selection__fix_spare_part__part_category__sensor
+msgid "Thermal / Pressure Sensor"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "Thresholds & Lead Time"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__total_valuation
+msgid "Total Valuation (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__total_cost
+msgid "Total Valuation Cost (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_reorder_rule_form
+msgid "Trigger Replenishment Alert"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__activity_exception_decoration
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__activity_exception_decoration
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__activity_exception_decoration
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__activity_exception_decoration
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__unit_cost
+msgid "Unit Cost (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__unit_cost
+msgid "Unit Valuation Cost (BDT)"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_inventory_valuation_suspense_form
+msgid "Valuation Movement"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.actions.act_window,name:cd_inventory.action_fix_inventory_valuation_suspense
+#: model:ir.ui.menu,name:cd_inventory.menu_fix_valuation_suspense
+msgid "Valuation Suspense Ledger (GV-005)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__van_plate
+msgid "Vehicle Registration / Plate Number"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__warranty_months
+msgid "Warranty Period (Months)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__website_message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__website_message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__website_message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__website_message_ids
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_inventory_valuation_suspense__website_message_ids
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__website_message_ids
+#: model:ir.model.fields,help:cd_inventory.field_fix_spare_part__website_message_ids
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_consumption__website_message_ids
+#: model:ir.model.fields,help:cd_inventory.field_fix_stock_location__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__min_qty
+msgid "When stock falls at or below this level, replenishment is triggered"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,help:cd_inventory.field_fix_reorder_rule__m43_ai_override
+msgid "When true, compute_dynamic_reorder_point() consumes ML demand forecasts"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__work_order_ref
+msgid "Work Order Reference"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "e.g. 15.6 Inch FHD IPS Display Panel"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "e.g. Central Warehouse Mirpur"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_stock_location_form
+msgid "বাংলা নাম (যেমন: কেন্দ্রীয় গুদাম মিরপুর)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_consumption__name_bn
+msgid "ব্যবহারের রেফারেন্স (বাংলা)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_inventory_valuation_suspense__name_bn
+msgid "মূল্যায়ন এন্ট্রি রেফারেন্স (বাংলা)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_spare_part__name_bn
+msgid "যন্ত্রাংশের নাম (বাংলা)"
+msgstr ""
+
+#. module: cd_inventory
+#: model_terms:ir.ui.view,arch_db:cd_inventory.view_fix_spare_part_form
+msgid "যন্ত্রাংশের বাংলা বিবরণ"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_reorder_rule__name_bn
+msgid "রি-অর্ডার রুল নাম (বাংলা)"
+msgstr ""
+
+#. module: cd_inventory
+#: model:ir.model.fields,field_description:cd_inventory.field_fix_stock_location__name_bn
+msgid "লোকেশন নাম (বাংলা)"
+msgstr ""

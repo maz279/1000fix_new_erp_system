@@ -5,50 +5,582 @@ msgstr ""
 "Project-Id-Version: 1000FiX ERP 19.0\n"
 "Language: bn_BD\n"
 "Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=(n != 1);\n"
 
-
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_tree
 msgid "AI"
 msgstr "এআই"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__ai
+msgid "AI Assistant"
+msgstr "এআই সহকারী"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__abandoned
+msgid "Abandoned"
+msgstr "পরিত্যক্ত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_needaction
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_needaction
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_needaction
+msgid "Action Needed"
+msgstr "পদক্ষেপ প্রয়োজন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__active
+msgid "Active"
+msgstr "সক্রিয়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_ids
+msgid "Activities"
+msgstr "কার্যক্রম"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr "কার্যক্রম ব্যতিক্রম চিহ্ন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_state
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_state
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_state
+msgid "Activity State"
+msgstr "কার্যক্রমের অবস্থা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_type_icon
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_type_icon
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_type_icon
+msgid "Activity Type Icon"
+msgstr "কার্যক্রম ধরনের আইকন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__agent
+msgid "Agent"
+msgstr "এজেন্ট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__ai_resolved
+msgid "Ai Resolved"
+msgstr "এআই দ্বারা সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model,name:cd_contact_centre.model_fix_assistant_intent
+msgid "Assistant Intent (transactional)"
+msgstr "সহকারী অভিপ্রায় (লেনদেনমূলক)"
+
+#. module: cd_contact_centre
+#: model:ir.actions.act_window,name:cd_contact_centre.action_fix_assistant_intent
+#: model:ir.ui.menu,name:cd_contact_centre.menu_fix_assistant_intent
 msgid "Assistant Intents"
 msgstr "সহকারী অভিপ্রায়সমূহ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_attachment_count
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_attachment_count
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_attachment_count
+msgid "Attachment Count"
+msgstr "সংযুক্তির সংখ্যা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__sample_bn
 msgid "Bengali Utterances"
 msgstr "বাংলা উচ্চারণ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__grounding
+msgid "CD-M32-03: the live source this intent answers from — e.g. fix.service.order.tracking_ref via the party"
+msgstr "CD-M32-03: এই অভিপ্রায় যে লাইভ উৎস থেকে উত্তর দেয় — যেমন পার্টির মাধ্যমে fix.service.order.tracking_ref"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__channel
+msgid "Channel"
+msgstr "চ্যানেল"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__code
+msgid "Code"
+msgstr "কোড"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__company_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__company_id
+msgid "Company"
+msgstr "কোম্পানি"
+
+#. module: cd_contact_centre
+#: model:ir.ui.menu,name:cd_contact_centre.menu_ws_contact
 msgid "Contact Centre"
 msgstr "যোগাযোগ কেন্দ্র"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__contact_identity
 msgid "Contact Identity"
 msgstr "যোগাযোগ পরিচয়"
 
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_form
 msgid "Context"
 msgstr "প্রসঙ্গ"
 
+#. module: cd_contact_centre
+#: model:ir.model,name:cd_contact_centre.model_fix_conversation
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__conversation_id
+msgid "Conversation"
+msgstr "কথোপকথন"
+
+#. module: cd_contact_centre
+#: model:ir.model,name:cd_contact_centre.model_fix_conversation_turn
+msgid "Conversation Turn"
+msgstr "কথোপকথনের পালা"
+
+#. module: cd_contact_centre
+#: model:ir.actions.act_window,name:cd_contact_centre.action_fix_conversation
+#: model:ir.ui.menu,name:cd_contact_centre.menu_fix_conversation
 msgid "Conversations"
 msgstr "কথোপকথনসমূহ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__create_uid
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__create_uid
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__create_uid
+msgid "Created by"
+msgstr "তৈরি করেছেন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__create_date
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__create_date
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__create_date
+msgid "Created on"
+msgstr "তৈরির তারিখ"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__customer_id
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__speaker__customer
 msgid "Customer"
 msgstr "গ্রাহক"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__name_bn
+msgid "DE-17 + T08: authored Bengali, never machine-translated"
+msgstr "DE-17 + T08: বাংলায় রচিত, কখনো যন্ত্রানুবাদ নয়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__description
+msgid "Description"
+msgstr "বিবরণ"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__display_name
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__display_name
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__display_name
+msgid "Display Name"
+msgstr "প্রদর্শন নাম"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__email
+msgid "Email"
+msgstr "ইমেইল"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__ended_at
+msgid "Ended At"
+msgstr "শেষের সময়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__lang__en
 msgid "English"
 msgstr "ইংরেজি"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__sample_en
 msgid "English Utterances"
 msgstr "ইংরেজি উচ্চারণ"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_follower_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_follower_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_follower_ids
+msgid "Followers"
+msgstr "অনুসরণকারী"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_partner_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_partner_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_partner_ids
+msgid "Followers (Partners)"
+msgstr "অনুসরণকারী (পার্টনার)"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__activity_type_icon
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__activity_type_icon
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr "ফন্ট অসাম আইকন, যেমন fa-tasks"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__ai_resolved
+msgid "G4-05: resolved by the assistant without an agent"
+msgstr "G4-05: এজেন্ট ছাড়াই সহকারী দ্বারা সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__grounding
 msgid "Grounding (live ERP data)"
 msgstr "গ্রাউন্ডিং (লাইভ ইআরপি ডেটা)"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__handoff_on_failure
+msgid "Handoff On Failure"
+msgstr "ব্যর্থ হলে হস্তান্তর"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__handoff_reason
+msgid "Handoff Reason"
+msgstr "হস্তান্তরের কারণ"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__has_message
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__has_message
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__has_message
+msgid "Has Message"
+msgstr "বার্তা আছে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__id
+msgid "ID"
+msgstr "আইডি"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_exception_icon
+msgid "Icon"
+msgstr "আইকন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__activity_exception_icon
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__activity_exception_icon
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr "ব্যতিক্রমী কার্যক্রম নির্দেশক আইকন।"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__message_needaction
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__message_needaction
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr "চিহ্নিত থাকলে নতুন বার্তায় আপনার মনোযোগ প্রয়োজন।"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__message_has_error
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__message_has_sms_error
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__message_has_error
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__message_has_sms_error
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__message_has_error
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr "চিহ্নিত থাকলে কিছু বার্তা পৌঁছাতে ত্রুটি হয়েছে।"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__in_app
+msgid "In-App"
+msgstr "অ্যাপের ভেতরে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__intent
+msgid "Intent"
+msgstr "অভিপ্রায়"
+
+#. module: cd_contact_centre
+#: model:ir.model.constraint,message:cd_contact_centre.constraint_fix_assistant_intent_code_unique
+msgid "Intent code must be unique"
+msgstr "অভিপ্রায় কোড অনন্য হতে হবে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_is_follower
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_is_follower
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_is_follower
+msgid "Is Follower"
+msgstr "অনুসরণকারী কি না"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__lang
+msgid "Lang"
+msgstr "ভাষা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__write_uid
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__write_uid
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__write_uid
+msgid "Last Updated by"
+msgstr "সর্বশেষ হালনাগাদকারী"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__write_date
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__write_date
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__write_date
+msgid "Last Updated on"
+msgstr "সর্বশেষ হালনাগাদের তারিখ"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_has_error
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_has_error
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_has_error
+msgid "Message Delivery error"
+msgstr "বার্তা প্রেরণে ত্রুটি"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_ids
+msgid "Messages"
+msgstr "বার্তা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr "আমার কার্যক্রমের শেষ সময়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__name
+msgid "Name"
+msgstr "নাম"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__name_bn
 msgid "Name (Bengali)"
 msgstr "নাম (বাংলা)"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__new
+msgid "New"
+msgstr "নতুন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr "পরবর্তী কার্যক্রমের ক্যালেন্ডার ইভেন্ট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr "পরবর্তী কার্যক্রমের শেষ সময়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_summary
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_summary
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_summary
+msgid "Next Activity Summary"
+msgstr "পরবর্তী কার্যক্রমের সারসংক্ষেপ"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_type_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_type_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_type_id
+msgid "Next Activity Type"
+msgstr "পরবর্তী কার্যক্রমের ধরন"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_needaction_counter
+msgid "Number of Actions"
+msgstr "পদক্ষেপের সংখ্যা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_has_error_counter
+msgid "Number of errors"
+msgstr "ত্রুটির সংখ্যা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__message_needaction_counter
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__message_needaction_counter
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr "পদক্ষেপ প্রয়োজন এমন বার্তার সংখ্যা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__message_has_error_counter
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__message_has_error_counter
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr "প্রেরণ ত্রুটিসহ বার্তার সংখ্যা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__operating_unit_id
+msgid "Operating Unit"
+msgstr "অপারেটিং ইউনিট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__sample_bn
+msgid "Real Bengali utterances, one per line — the NLU test corpus (T08)"
+msgstr "বাস্তব বাংলা বাক্য, প্রতি লাইনে একটি — NLU পরীক্ষার কর্পাস (T08)"
+
+#. module: cd_contact_centre
+#: model_terms:ir.ui.view,arch_db:cd_contact_centre.view_fix_conversation_form
 msgid "Resolution"
 msgstr "সমাধান"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__resolved_ai
+msgid "Resolved by AI"
+msgstr "এআই দ্বারা সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__resolved_agent
+msgid "Resolved by Agent"
+msgstr "এজেন্ট দ্বারা সমাধানকৃত"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__activity_user_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__activity_user_id
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__activity_user_id
+msgid "Responsible User"
+msgstr "দায়িত্বপ্রাপ্ত ব্যবহারকারী"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr "এসএমএস প্রেরণে ত্রুটি"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__sequence
+msgid "Sequence"
+msgstr "ক্রম"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__speaker
+msgid "Speaker"
+msgstr "বক্তা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__spoken_at
+msgid "Spoken At"
+msgstr "বলার সময়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__started_at
+msgid "Started At"
+msgstr "শুরুর সময়"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__state
+msgid "State"
+msgstr "অবস্থা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__activity_state
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__activity_state
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+"কার্যক্রমভিত্তিক অবস্থা\n"
+"বিলম্বিত: নির্ধারিত তারিখ পেরিয়ে গেছে\n"
+"আজ: কার্যক্রমের তারিখ আজ\n"
+"পরিকল্পিত: ভবিষ্যৎ কার্যক্রম।"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__handoff_on_failure
+msgid "T07: an intent the assistant cannot resolve hands off with full context rather than dead-ending"
+msgstr "T07: সহকারী যে অভিপ্রায়ের সমাধান করতে পারে না তা আটকে না রেখে পূর্ণ প্রসঙ্গসহ হস্তান্তর করে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__text
+msgid "Text"
+msgstr "টেক্সট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__contact_identity
+msgid "The caller's number / WhatsApp JID / email — the join key when the party is not yet identified"
+msgstr "কলারের নম্বর / WhatsApp JID / ইমেইল — পার্টি শনাক্ত না হলে সংযোগ কী"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__intent
+msgid "The classified transactional intent (bn/en)"
+msgstr "শ্রেণিকৃত লেনদেনমূলক অভিপ্রায় (bn/en)"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__turn_ids
 msgid "Transcript"
 msgstr "ট্রান্সক্রিপ্ট"
 
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__activity_exception_decoration
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__activity_exception_decoration
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr "রেকর্ডের ব্যতিক্রমী কার্যক্রমের ধরন।"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__voice
+msgid "Voice (Hotline 16743)"
+msgstr "ভয়েস (হটলাইন 16743)"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__chat
+msgid "Web Chat"
+msgstr "ওয়েব চ্যাট"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_assistant_intent__website_message_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation__website_message_ids
+#: model:ir.model.fields,field_description:cd_contact_centre.field_fix_conversation_turn__website_message_ids
+msgid "Website Messages"
+msgstr "ওয়েবসাইট বার্তা"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__website_message_ids
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation__website_message_ids
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_conversation_turn__website_message_ids
+msgid "Website communication history"
+msgstr "ওয়েবসাইট যোগাযোগের ইতিহাস"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__channel__whatsapp
+msgid "WhatsApp"
+msgstr "WhatsApp"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__with_ai
+msgid "With AI Assistant"
+msgstr "এআই সহকারীর কাছে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation__state__with_agent
+msgid "With Agent"
+msgstr "এজেন্টের কাছে"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields,help:cd_contact_centre.field_fix_assistant_intent__code
+msgid "e.g. order.status, invoice.download, appointment.book"
+msgstr "যেমন order.status, invoice.download, appointment.book"
+
+#. module: cd_contact_centre
+#: model:ir.model.fields.selection,name:cd_contact_centre.selection__fix_conversation_turn__lang__bn
 msgid "বাংলা"
 msgstr "বাংলা"

@@ -1,47 +1,376 @@
-# Bengali translations for cd_equipment_register (M45, P08-M08).
+# Translation template for cd_equipment_register — exported from the Odoo 19 runtime (tooling/scripts/export-translations.py).
+# Bengali (bn_BD) is the first-class locale (AS-12, DE-17, TR-07).
 msgid ""
 msgstr ""
-""
-""
+"Project-Id-Version: 1000FiX ERP 19.0\n"
+"Language: \n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
 
-msgid "Test Equipment"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_needaction
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_needaction
+msgid "Action Needed"
 msgstr ""
 
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_ids
+msgid "Activities"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_exception_decoration
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_exception_decoration
+msgid "Activity Exception Decoration"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_state
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_state
+msgid "Activity State"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_type_icon
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_type_icon
+msgid "Activity Type Icon"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_attachment_count
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_attachment_count
+msgid "Attachment Count"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__branch_id
+msgid "Branch"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__calibrated_on
+msgid "Calibrated On"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model,name:cd_equipment_register.model_fix_calibration
 msgid "Calibration"
 msgstr ""
 
-msgid "Equipment Category"
-msgstr ""
-
-msgid "Maintenance Equipment"
-msgstr ""
-
-msgid "Custodian"
-msgstr ""
-
-msgid "Calibrations"
-msgstr ""
-
-msgid "Last Calibration"
-msgstr ""
-
-msgid "Next Calibration"
-msgstr ""
-
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_overdue
 msgid "Calibration Overdue"
 msgstr ""
 
-msgid "Standard Reference"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__calibration_ids
+msgid "Calibrations"
 msgstr ""
 
-msgid "Pass"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__code
+msgid "Code"
 msgstr ""
 
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__company_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__company_id
+msgid "Company"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__create_uid
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__create_uid
+msgid "Created by"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__create_date
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__create_date
+msgid "Created on"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__custodian_id
+msgid "Custodian"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__display_name
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__display_name
+msgid "Display Name"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__equipment_id
+msgid "Equipment"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__category
+msgid "Equipment Category"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.ui.menu,name:cd_equipment_register.menu_fix_equipment
+msgid "Equipment Register"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields.selection,name:cd_equipment_register.selection__fix_calibration__result__fail
 msgid "Fail"
 msgstr ""
 
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_follower_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_follower_ids
+msgid "Followers"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_partner_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_partner_ids
+msgid "Followers (Partners)"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__activity_type_icon
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__activity_type_icon
+msgid "Font awesome icon e.g. fa-tasks"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__has_message
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__has_message
+msgid "Has Message"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__id
+msgid "ID"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_exception_icon
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_exception_icon
+msgid "Icon"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__activity_exception_icon
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__activity_exception_icon
+msgid "Icon to indicate an exception activity."
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__message_needaction
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__message_needaction
+msgid "If checked, new messages require your attention."
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__message_has_error
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__message_has_sms_error
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__message_has_error
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__message_has_sms_error
+msgid "If checked, some messages have a delivery error."
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_is_follower
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_is_follower
+msgid "Is Follower"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__last_calibration
+msgid "Last Calibration"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__write_uid
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__write_uid
+msgid "Last Updated by"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__write_date
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__write_date
+msgid "Last Updated on"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__maintenance_equipment_id
+msgid "Maintenance Equipment"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_has_error
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_has_error
+msgid "Message Delivery error"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_ids
+msgid "Messages"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__my_activity_date_deadline
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__my_activity_date_deadline
+msgid "My Activity Deadline"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__name
+msgid "Name"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_calendar_event_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_calendar_event_id
+msgid "Next Activity Calendar Event"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_date_deadline
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_date_deadline
+msgid "Next Activity Deadline"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_summary
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_summary
+msgid "Next Activity Summary"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_type_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_type_id
+msgid "Next Activity Type"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__next_calibration
+msgid "Next Calibration"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__next_due
+msgid "Next Due"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_needaction_counter
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_needaction_counter
+msgid "Number of Actions"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_has_error_counter
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_has_error_counter
+msgid "Number of errors"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__message_needaction_counter
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__message_needaction_counter
+msgid "Number of messages requiring action"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__message_has_error_counter
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__message_has_error_counter
+msgid "Number of messages with delivery error"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__operating_unit_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__operating_unit_id
+msgid "Operating Unit"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields.selection,name:cd_equipment_register.selection__fix_calibration__result__pass
+msgid "Pass"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__performed_by
 msgid "Performed By"
 msgstr ""
 
-msgid "Equipment Register"
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__activity_user_id
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__activity_user_id
+msgid "Responsible User"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__result
+msgid "Result"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__message_has_sms_error
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__message_has_sms_error
+msgid "SMS Delivery error"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__standard_ref
+msgid "Standard Reference"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__activity_state
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__activity_state
+msgid ""
+"Status based on activities\n"
+"Overdue: Due date is already passed\n"
+"Today: Activity date is today\n"
+"Planned: Future activities."
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.actions.act_window,name:cd_equipment_register.action_fix_equipment
+#: model:ir.model,name:cd_equipment_register.model_fix_equipment
+#: model:ir.ui.menu,name:cd_equipment_register.menu_ws_equipment
+msgid "Test Equipment"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__maintenance_equipment_id
+msgid "The Odoo maintenance link stays authoritative for work orders"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__standard_ref
+msgid "The traceable standard (ISO 9001 7.1.5: measurement traceability)"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__activity_exception_decoration
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__activity_exception_decoration
+msgid "Type of the exception activity on record."
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_calibration__website_message_ids
+#: model:ir.model.fields,field_description:cd_equipment_register.field_fix_equipment__website_message_ids
+msgid "Website Messages"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_calibration__website_message_ids
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__website_message_ids
+msgid "Website communication history"
+msgstr ""
+
+#. module: cd_equipment_register
+#: model:ir.model.fields,help:cd_equipment_register.field_fix_equipment__category
+msgid "e.g. multimeter, thermal camera, OTP programmer"
 msgstr ""
