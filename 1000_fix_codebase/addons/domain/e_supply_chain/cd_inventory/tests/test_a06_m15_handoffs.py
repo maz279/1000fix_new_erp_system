@@ -209,7 +209,10 @@ def _rule(inv, location, **kw):
 
 
 def test_m15_78b_van_rule_raises_in_the_custodians_name(inv):
-    rule = _rule(inv, inv.van)
+    # D7 (20 Nov 2026): only a warehouse buys; a van is refilled by transfer.
+    # The custodian is still the requester of a warehouse rule naming none.
+    inv.central.sudo().write({"technician_id": inv.tech1.id})
+    rule = _rule(inv, inv.central, min_qty=12.0, max_qty=20.0)
     rule.with_user(inv.keeper).action_trigger_reorder()
     assert rule.state == "ordered" and rule.requisition_id.requested_by == inv.tech1
 
@@ -218,7 +221,7 @@ def test_m15_78c_configured_default_then_branch_manager(inv):
     inv.env["ir.config_parameter"].sudo().set_param(
         "cd_inventory.reorder_default_requester_id", str(inv.tech2.id)
     )
-    rule = _rule(inv, inv.hub)
+    rule = _rule(inv, inv.central, min_qty=12.0, max_qty=20.0)
     rule.with_user(inv.keeper).action_trigger_reorder()
     assert rule.state == "ordered" and rule.requisition_id.requested_by == inv.tech2
     manager_user = inv.user("branchmgr")
@@ -228,7 +231,7 @@ def test_m15_78c_configured_default_then_branch_manager(inv):
     inv.branch().manager_id = manager_user
     if "employee_manager_id" in inv.branch()._fields:
         inv.branch().employee_manager_id = manager
-    rule2 = _rule(inv, inv.hub, spare_part_id=inv.spart.id)
+    rule2 = _rule(inv, inv.central, spare_part_id=inv.spart.id)
     rule2.with_user(inv.keeper).action_trigger_reorder()
     assert rule2.requisition_id.requested_by == manager
 
