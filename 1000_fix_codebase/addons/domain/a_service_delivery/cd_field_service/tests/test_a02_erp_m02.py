@@ -345,8 +345,23 @@ def test_route_keeps_its_optimised_order_and_uses_its_own_depot(w):
     stops = w.env["fix.field.order"].browse(
         [w.fo(latitude=la, longitude=lo).id for la, lo in coords]
     )
+    # owner decision (20 Nov 2026): a new route starts at the default depot
+    w.env["ir.config_parameter"].sudo().set_param(
+        "cd_field_service.default_depot", "23.7905,90.3735"
+    )
+    defaulted = w.env["fix.field.route"].create(
+        {"technician_id": w.ea.id, "operating_unit_id": w.ou.id}
+    )
+    assert (defaulted.depot_latitude, defaulted.depot_longitude) == (23.7905, 90.3735)
+    # a route with no depot at all is still refused optimisation
     route = w.env["fix.field.route"].create(
-        {"technician_id": w.ea.id, "operating_unit_id": w.ou.id, "field_order_ids": stops.ids}
+        {
+            "technician_id": w.ea.id,
+            "operating_unit_id": w.ou.id,
+            "field_order_ids": stops.ids,
+            "depot_latitude": 0.0,
+            "depot_longitude": 0.0,
+        }
     )
     err = refused(w.env, lambda: route.with_user(w.ud).action_optimize_route())
     assert err and "no depot position" in err

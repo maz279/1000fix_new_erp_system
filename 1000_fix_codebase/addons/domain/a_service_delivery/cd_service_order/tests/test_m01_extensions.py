@@ -114,8 +114,8 @@ def test_repair_warranty_issues_once_with_history_and_event(base):
     order = _walk_to_delivered(_order(base))
 
     assert order.service_warranty_until  # issued
-    expected_until = _dhaka_date(order.delivered_at) + timedelta(days=30)
-    assert order.service_warranty_until == expected_until  # default 30 days
+    expected_until = _dhaka_date(order.delivered_at) + timedelta(days=90)
+    assert order.service_warranty_until == expected_until  # owner decision: 90 days
     assert order.service_warranty_issued_by == env.user
 
     # evidenced on the permanent device history

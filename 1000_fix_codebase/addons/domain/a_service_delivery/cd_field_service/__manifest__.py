@@ -1,6 +1,6 @@
 {
     "name": "1000FiX Field Service, Dispatch & Geospatial Platform",
-    "version": "19.0.2.1.1",
+    "version": "19.0.2.1.2",
     "category": "Service Delivery",
     "summary": "AI dispatch board, route optimization, field order tracking, accept/decline flows and geofencing",
     "author": "1000FiX Services Ltd.",
@@ -30,6 +30,8 @@
         "security/fix_field_service_security.xml",
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
+        # owner decision (20 Nov 2026): the default depot of a new route
+        "data/fix_default_depot.xml",
         # A02 audit M02-7: the SLA breach escalation
         "data/ir_cron.xml",
         # M02 capture audit 2026-11-18: the six capture registers' sequences

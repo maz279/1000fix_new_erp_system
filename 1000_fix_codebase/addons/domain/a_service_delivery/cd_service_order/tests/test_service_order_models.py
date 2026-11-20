@@ -141,7 +141,7 @@ def test_full_lifecycle_records_history_events_and_sla_clocks(base):
         f"Order {name}: qc_pending -> ready",
         f"Order {name}: ready -> delivered",
         # A02 ERP audit M01-F21: the repair warranty is issued with the handover
-        f"Repair warranty issued with order {name}: 30 days",
+        f"Repair warranty issued with order {name}: 90 days",
         f"Order {name}: delivered -> closed",
     ]
     assert set(base.device.history_ids.mapped("service_order_id")) == {order}

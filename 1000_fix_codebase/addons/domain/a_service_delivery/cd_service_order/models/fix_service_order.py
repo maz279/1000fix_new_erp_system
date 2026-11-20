@@ -98,8 +98,12 @@ _CUSTOMER_INDUCED_CATEGORIES = ("physical",)
 #    level is "priority-1" is the CCO's call (OWNER); default 'urgent'.
 LOYALTY_PRIORITY_PARAM = "cd_service_order.loyalty_priority"
 # A02 ERP audit M01-F8: who may read a customer's unlock code (OWNER: confirm).
+# Owner decision (20 Nov 2026): the repair technicians (workshop and field)
+# read the passcode to test the device; it stays masked to everyone else and
+# is purged at hand-over.
 PASSCODE_READERS = (
     "cd_service_order.group_so_qc_inspector,cd_service_order.group_so_supervisor,"
+    "cd_workshop.group_fix_workshop_user,cd_field_service.group_fix_field_service_user,"
     "base.group_system"
 )
 # A02 ERP audit M01-F20: the KPI code of the response clock (fix.sla.item
@@ -531,9 +535,10 @@ class FixServiceOrder(models.Model):
     # issues on completed repairs. Complements the device entitlement in
     # cd_device_registry — that warranty is the BRAND's contract; this one
     # is ours.
+    # Owner decision (20 Nov 2026): 90 days on every repair, all categories
     service_warranty_days = fields.Integer(
         string="Repair Warranty (Days)",
-        default=30,
+        default=90,
         tracking=True,
         help="Service guarantee period issued on this repair.",
     )

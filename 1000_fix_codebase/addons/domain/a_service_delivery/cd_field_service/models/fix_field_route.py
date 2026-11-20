@@ -14,6 +14,8 @@ from odoo.exceptions import UserError, ValidationError
 # the optimised sequence, so the recorded improvement is a real consequence of
 # the sequence change, not a factor. Tune per city if field telemetry says so.
 AVG_SPEED_KMH = 18.0  # Dhaka mixed-traffic planning speed
+# the depot a new route starts from, "lat,lon" (owner decision: Shewrapara HQ)
+DEFAULT_DEPOT_PARAM = "cd_field_service.default_depot"
 SERVICE_MINUTES_PER_STOP = 25.0  # on-site service time per stop
 # A02 ERP audit M02-F11: the depot was hard-coded to Tejgaon (23.7776, 90.3959)
 # whatever the route said. The route now starts from its OWN depot position;
@@ -209,8 +211,27 @@ class FixFieldRoute(models.Model):
         help="The depot's name. Its position is the Depot Latitude / Longitude; a name "
         "alone cannot be measured from.",
     )
-    depot_latitude = fields.Float(string="Depot Latitude", digits=(10, 7))
-    depot_longitude = fields.Float(string="Depot Longitude", digits=(10, 7))
+    # Owner decision (20 Nov 2026): a new route starts at the default depot
+    # (cd_field_service.default_depot = "lat,lon", Shewrapara HQ); the
+    # dispatcher changes it per route
+    depot_latitude = fields.Float(
+        string="Depot Latitude", digits=(10, 7), default=lambda self: self._default_depot()[0]
+    )
+    depot_longitude = fields.Float(
+        string="Depot Longitude", digits=(10, 7), default=lambda self: self._default_depot()[1]
+    )
+
+    @api.model
+    def _default_depot(self):
+        raw = self.env["ir.config_parameter"].sudo().get_param(DEFAULT_DEPOT_PARAM) or ""
+        try:
+            lat, lon = (float(x) for x in raw.split(","))
+        except ValueError:
+            return (0.0, 0.0)
+        if not (-90 <= lat <= 90 and -180 <= lon <= 180):
+            return (0.0, 0.0)
+        return (lat, lon)
+
     stop_sequence_json = fields.Text(
         string="Optimised Stop Order (JSON)",
         readonly=True,
