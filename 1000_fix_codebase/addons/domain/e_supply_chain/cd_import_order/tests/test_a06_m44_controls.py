@@ -54,6 +54,7 @@ ROLES = (
     "grni",
     "lc_clearing",
     "fx_difference",
+    "lc_margin",
 )
 FX = 117.5
 
@@ -143,6 +144,7 @@ def c(odoo_env):
         "grni": "liability_current",
         "lc_clearing": "asset_current",
         "fx_difference": "expense",
+        "lc_margin": "asset_current",
     }
     for i, role in enumerate(ROLES):
         code = "M44%s%d" % (tag[:3], i)
@@ -183,6 +185,17 @@ def c(odoo_env):
         }
     )
     icp.set_param("cd_import_order.payment_journal_code", x.bank.code)
+    # A06 ERP D6: an LC remittance settles the supplier in AP (advance before
+    # the bill); the advances account is a test account
+    x.advance_acc = env["account.account"].create(
+        {
+            "code": "M44%sV" % tag[:3],
+            "name": "M44T advances to suppliers",
+            "account_type": "asset_current",
+            "company_ids": [(6, 0, x.co.ids)],
+        }
+    )
+    icp.set_param("cd_ap_ext.account_code.supplier_advance", x.advance_acc.code)
     icp.set_param("cd_import_order.landing_charge_pct", "1.0")
     # ---- the bank's LC facility (M50), sanctioned limit BDT 5,000,000 ----
     x.facility_liability = env["account.account"].create(
@@ -485,6 +498,8 @@ def boe(c, user=None, lines=None, **kw):
         "boe_no": "BE-%s" % c.tag,
         "line_ids": lines,
         "cnf_agent_id": c.agent.id,
+        # M44-07: the customs rate of the BoE date (here equal to the commitment)
+        "customs_fx_rate": FX,
     }
     vals.update(kw)
     return c.env["fix.import.boe"].with_user(user or c.officer).create(vals)

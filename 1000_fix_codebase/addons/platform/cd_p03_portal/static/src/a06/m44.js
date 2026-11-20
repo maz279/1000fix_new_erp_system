@@ -251,6 +251,8 @@ export const SCREENS = {
         { name: 'quantity', required: true, label: 'Quantity' },
         { name: 'uom', label: 'Unit' },
         { name: 'unit_price', required: true, label: 'Unit Price' },
+        { name: 'weight_kg', label: 'Gross Weight (kg)' },
+        { name: 'volume_cbm', label: 'Volume (CBM)' },
         { name: 'fob_amount', readonly: true, label: 'Line Value' }
       ]
     }
@@ -344,7 +346,9 @@ export const SCREENS = {
           { name: 'expiry', label: 'Expiry' },
           { name: 'margin_pct', label: 'Margin %' },
           { name: 'dofa_justification', type: 'text', label: 'Justification' },
-          { name: 'paid_amount', readonly: true, label: 'Paid' }
+          { name: 'paid_amount', readonly: true, label: 'Paid' },
+          { name: 'margin_amount_bdt', readonly: true, label: 'Margin Held (BDT)' },
+          { name: 'margin_released_bdt', readonly: true, label: 'Margin Released (BDT)' }
         ] }
     ]
   },
@@ -575,11 +579,18 @@ export const SCREENS = {
           { name: 'boe_no', required: true, label: 'Bill of Entry No' },
           { name: 'asycuda_ref', label: 'ASYCUDA Reference' },
           { name: 'cnf_agent_id', label: 'C&F Agent', domain: [['state', '=', 'approved']] },
-          { name: 'boe_date', required: true, label: 'Lodgement Date' }
+          { name: 'boe_date', required: true, label: 'Lodgement Date' },
+          { name: 'customs_fx_rate', label: 'Customs Exchange Rate (BDT per unit)' }
         ] },
       { tab: 'duty', title: 'Assessment & Payment', note: 'Paid by Finance with the payment reference once the customs-assessed total agrees. A real variance is accepted by an Import Approver who did not assess it, with a reason, and is then paid at customs\' figure; otherwise the assessment is cancelled and a new Bill of Entry lodged. A paid Bill of Entry is final: a correction is a reversal, refused once the goods are received.',
         fields: [
           { name: 'customs_assessed_total', label: 'Customs Assessed Total' },
+          { name: 'customs_cd', label: 'Customs CD' },
+          { name: 'customs_rd', label: 'Customs RD' },
+          { name: 'customs_sd', label: 'Customs SD' },
+          { name: 'customs_vat', label: 'Customs VAT' },
+          { name: 'customs_at', label: 'Customs AT' },
+          { name: 'customs_ait', label: 'Customs AIT' },
           { name: 'payment_ref', label: 'Duty Payment Reference' },
           { name: 'total_tax', readonly: true, label: 'Computed Duty & Tax' },
           { name: 'duty_variance', readonly: true, label: 'Variance vs Customs' },
@@ -788,6 +799,8 @@ export const SCREENS = {
           { name: 'billed_by_id', required: true, label: 'Billed By' },
           { name: 'cnf_agent_id', label: 'C&F Agent (for an agency fee)' },
           { name: 'lc_id', label: 'Letter of Credit (for a bank charge)' },
+          { name: 'order_line_id', label: 'Charged to One Line (direct allocation)' },
+          { name: 'bill_id', label: 'AP Bill Paying It' },
           { name: 'document_ref', required: true, label: 'Bill / Advice No' },
           { name: 'incurred_on', required: true, label: 'Document Date' },
           { name: 'document', type: 'binary', filename: 'document_name', accept: '.pdf,.jpg,.jpeg,.png', label: 'Bill / Advice (copy)' },

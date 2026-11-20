@@ -11,6 +11,7 @@ from . import (
     fix_stock_bridges,
     fix_stock_consumption,
     fix_stock_location,
+    fix_stock_provisional,
     fix_valuation_suspense,
     fix_wms_ops,
     fix_wms_ops_floor,

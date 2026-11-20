@@ -18,6 +18,7 @@ from libs.py.fix_events import publish
 
 from .fix_import_common import (
     APPROVER,
+    DEFAULT_DUTY_VARIANCE,
     FINANCE,
     FORMULA_VERSION,
     OFFICER,
@@ -357,6 +358,15 @@ class FixImportLc(models.Model):
     opened_on = fields.Date(default=fields.Date.context_today)
     expiry = fields.Date(tracking=True)
     margin_pct = fields.Float(string="Margin %", default=0.0)
+    # M44-12: the margin the bank holds against the LC, posted when it opens
+    margin_amount_bdt = fields.Float(string="Margin Held (BDT)", readonly=True, copy=False)
+    margin_released_bdt = fields.Float(string="Margin Released (BDT)", readonly=True, copy=False)
+    margin_move_id = fields.Many2one(
+        "account.move", string="Margin Entry", readonly=True, copy=False
+    )
+    margin_return_move_id = fields.Many2one(
+        "account.move", string="Margin Return Entry", readonly=True, copy=False
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -399,6 +409,10 @@ class FixImportLc(models.Model):
             "closed_on",
             "terms_changed_by_id",
             "paid_amount",
+            "margin_amount_bdt",
+            "margin_released_bdt",
+            "margin_move_id",
+            "margin_return_move_id",
         }
 
     def _lc_locked(self) -> set:
@@ -584,7 +598,7 @@ class FixImportLc(models.Model):
         others = self.sudo().search(
             [
                 ("facility_id", "=", fac.id),
-                ("state", "in", ("applied", "opened")),
+                ("state", "in", ("applied", "opened", "amended")),
                 ("id", "!=", self.id),
             ]
         )
@@ -640,6 +654,7 @@ class FixImportLc(models.Model):
             rec._guarded().write(
                 {"state": "opened", "opened_on": today(rec), "opened_by_id": rec.env.user.id}
             )
+            rec._lc_post_margin()
             publish(
                 rec.env,
                 "import.lc_opened",
@@ -649,10 +664,72 @@ class FixImportLc(models.Model):
             )
         return True
 
+    def _lc_post_margin(self):
+        """M44-12: the margin the bank blocks when the LC opens: Dr 100812 L/C
+        Margin / Cr the bank, at the LC's BDT value."""
+        self.ensure_one()
+        margin = round(abs(self._lc_bdt(self.amount, self)) * (self.margin_pct or 0.0) / 100.0, 2)
+        if margin <= 0:
+            return
+        company = self.company_id
+        journal = import_journal(self.env, company, "payment")
+        ref = "LC %s margin %.2f%%" % (self.lc_no, self.margin_pct)
+        move = post_import_move(
+            self.env,
+            company,
+            journal,
+            today(self),
+            ref,
+            [
+                (import_account(self.env, company, "lc_margin"), ref, margin),
+                (journal.default_account_id, ref, -margin),
+            ],
+            operating_unit=self.operating_unit_id,
+        )
+        self._guarded().write({"margin_amount_bdt": margin, "margin_move_id": move.id or False})
+
+    def _lc_margin_share(self, amount):
+        """The part of the held margin a payment of `amount` (LC currency)
+        draws: the margin follows the LC value it secures."""
+        self.ensure_one()
+        left = round((self.margin_amount_bdt or 0.0) - (self.margin_released_bdt or 0.0), 2)
+        if left <= 0 or not self.amount:
+            return 0.0
+        return round(min(left, self.margin_amount_bdt * (amount or 0.0) / self.amount), 2)
+
+    def _lc_return_margin(self):
+        """At closing, margin the payments did not draw comes back to the bank."""
+        self.ensure_one()
+        left = round((self.margin_amount_bdt or 0.0) - (self.margin_released_bdt or 0.0), 2)
+        if left <= 0:
+            return
+        company = self.company_id
+        journal = import_journal(self.env, company, "payment")
+        ref = "LC %s margin returned" % self.lc_no
+        move = post_import_move(
+            self.env,
+            company,
+            journal,
+            today(self),
+            ref,
+            [
+                (journal.default_account_id, ref, left),
+                (import_account(self.env, company, "lc_margin"), ref, -left),
+            ],
+            operating_unit=self.operating_unit_id,
+        )
+        self._guarded().write(
+            {
+                "margin_released_bdt": self.margin_amount_bdt,
+                "margin_return_move_id": move.id or False,
+            }
+        )
+
     def action_close(self):
         require_group(self.env, OFFICER, "Closing an LC")
         for rec in self:
-            if rec.state != "opened":
+            # M44-22: an amended LC is closed like an opened one
+            if rec.state not in ("opened", "amended"):
                 raise UserError("Close an opened LC")
             if rec.amendment_ids.filtered(lambda a: a.state == "draft"):
                 raise UserError("LC %s has an open amendment." % rec.lc_no)
@@ -672,6 +749,7 @@ class FixImportLc(models.Model):
                     "LC %s cannot be closed before the documents are presented (a received B/L) "
                     "and the LC is retired (a recorded payment)." % rec.lc_no
                 )
+            rec._lc_return_margin()
             rec._guarded().write(
                 {"state": "closed", "closed_by_id": rec.env.user.id, "closed_on": today(rec)}
             )
@@ -773,7 +851,7 @@ class FixImportLcAmendment(models.Model):
                 vals["name"] = _seq(self.env, "fix.import.lc.amendment", "ILCA-AM/New")
         records = super().create(vals_list)
         for rec in records:
-            if rec.lc_id.state != "opened":
+            if rec.lc_id.state not in ("opened", "amended"):
                 raise UserError(
                     "Only an opened LC can be amended (LC %s is %s)."
                     % (rec.lc_id.lc_no, rec.lc_id.state)
@@ -817,7 +895,7 @@ class FixImportLcAmendment(models.Model):
             lc = rec.lc_id
             if rec.state != "draft":
                 raise UserError("Apply a draft amendment.")
-            if lc.state != "opened":
+            if lc.state not in ("opened", "amended"):
                 raise UserError("LC %s is %s: only an opened LC is amended." % (lc.lc_no, lc.state))
             if rec.approval_state != "approved":
                 raise UserError("Amendment %s is not approved through the M63 inbox." % rec.name)
@@ -833,6 +911,28 @@ class FixImportLcAmendment(models.Model):
             if not new_expiry or new_expiry <= today(rec):
                 raise UserError("The amended expiry must be in the future.")
             lc._lc_facility_check("Amending LC %s" % lc.lc_no, new_amount, new_expiry)
+            # M44-23: a larger LC needs an approved LCA covering the new value
+            if new_amount > (lc.amount or 0.0) + 0.005 and param_bool(
+                self.env, PARAM_LC_REQUIRES_LCA, True
+            ):
+                covered = sum(
+                    self.env["fix.import.lca"]
+                    .sudo()
+                    .search(
+                        [
+                            ("lc_id", "=", lc.id),
+                            ("state", "=", "approved"),
+                            ("currency_id", "=", lc.currency_id.id),
+                        ]
+                    )
+                    .mapped("amount")
+                )
+                if covered + 0.005 < new_amount:
+                    raise UserError(
+                        "Amendment %s raises LC %s to %.2f %s but the approved LCA covers %.2f: "
+                        "lodge an LCA for the amended value (M44-23)."
+                        % (rec.name, lc.lc_no, new_amount, lc.currency_id.name, covered)
+                    )
             rec._guarded().write(
                 {
                     "old_amount": lc.amount,
@@ -846,6 +946,8 @@ class FixImportLcAmendment(models.Model):
             # approval, decided at the band of the new total, is carried over
             lc._guarded().write(
                 {
+                    # M44-22: the LC now reads Amended
+                    "state": "amended",
                     "amount": new_amount,
                     "expiry": new_expiry,
                     "dofa_approved": True,
@@ -879,9 +981,14 @@ class FixImportLcPayment(models.Model):
 
     BRU-ITC-14 / FR-ITC-019: a foreign-currency payment records the settlement
     rate with its source; the commitment rate is the order's, never re-derived.
-    The payment posts Dr LC clearing at the commitment rate, the exchange
-    difference, Cr bank at the settlement rate. Scorecard 25: a payment names
-    the Bill of Entry it remits (now, or later through Link Bill of Entry)."""
+    A06 ERP audit D6 (X09 / M44-11): the payment SETTLES the supplier in AP
+    (cd_ap_ext fix.ap.lc.settlement): Dr trade payables against the supplier's
+    posted bills of this import, and for what no bill carries yet Dr advances
+    to suppliers (10255), which the bill takes back when it posts; both at the
+    commitment rate. The exchange difference goes to 500030; the bank is
+    credited at the settlement rate, less the part of the LC margin the payment
+    draws (Cr 100812, M44-12). Scorecard 25: a payment names the Bill of Entry
+    it remits (now, or later through Link Bill of Entry)."""
 
     _name = "fix.import.lc.payment"
     _description = "LC Payment"
@@ -918,6 +1025,9 @@ class FixImportLcPayment(models.Model):
         "positive is a loss.",
     )
     move_id = fields.Many2one("account.move", string="Payment Entry", readonly=True, copy=False)
+    margin_drawn_bdt = fields.Float(string="Margin Drawn (BDT)", readonly=True, copy=False)
+    settled_bills_bdt = fields.Float(string="Bills Settled (BDT)", readonly=True, copy=False)
+    advance_bdt = fields.Float(string="Supplier Advance (BDT)", readonly=True, copy=False)
     boe_id = fields.Many2one(
         "fix.import.boe", string="Bill of Entry", index=True, ondelete="restrict", copy=False
     )
@@ -930,6 +1040,9 @@ class FixImportLcPayment(models.Model):
         "fx_difference",
         "move_id",
         "match_flagged_on",
+        "margin_drawn_bdt",
+        "settled_bills_bdt",
+        "advance_bdt",
     )
 
     @api.constrains("boe_id", "lc_id")
@@ -965,29 +1078,64 @@ class FixImportLcPayment(models.Model):
         committed = round(order._to_bdt(self.amount, lc.currency_id), 2)
         paid = round((self.amount or 0.0) * settlement, 2)
         difference = round(paid - committed, 2)
-        clearing = import_account(self.env, company, "lc_clearing")
         fx_account = import_account(self.env, company, "fx_difference") if difference else False
+        margin = lc._lc_margin_share(self.amount)
+        margin_account = import_account(self.env, company, "lc_margin") if margin else False
         journal = import_journal(self.env, company, "payment")
         ref = "LC %s payment %s" % (lc.lc_no, self.reference)
+        if not order.supplier_id:
+            raise UserError("Import order %s names no supplier to settle." % order.name)
+        # D6: the remittance settles the supplier's bills, else is an advance
+        settlements, legs = (
+            self.env["fix.ap.lc.settlement"]
+            .sudo()
+            ._fix_settle(
+                company,
+                lc.operating_unit_id,
+                order.supplier_id,
+                lc.currency_id,
+                self.amount,
+                committed,
+                self.payment_date,
+                ref,
+                self,
+                purchase_order=order.purchase_order_id or None,
+                scope_key=order._import_scope_key(),
+                bills=order._import_supplier_bills(),
+            )
+        )
+        lines = [(account, label, amount) for account, label, amount, _partner in legs]
+        lines += [
+            (fx_account, "Exchange difference %s" % lc.lc_no, difference),
+            (margin_account, "LC margin drawn %s" % lc.lc_no, -margin),
+            (journal.default_account_id, ref, -(paid - margin)),
+        ]
         move = post_import_move(
             self.env,
             company,
             journal,
             self.payment_date,
             ref,
-            [
-                (clearing, "LC payment %s" % order.name, committed),
-                (fx_account, "Exchange difference %s" % lc.lc_no, difference),
-                (journal.default_account_id, ref, -paid),
-            ],
+            [line for line in lines if line[0] and line[2]],
             operating_unit=lc.operating_unit_id,
+            partner=order.supplier_id.commercial_partner_id,
         )
+        settlements._fix_attach_move(move)
+        if margin:
+            lc._guarded().write({"margin_released_bdt": round(lc.margin_released_bdt + margin, 2)})
         self.sudo().write(
             {
                 "commitment_rate": commitment,
                 "amount_bdt": paid,
                 "fx_difference": difference,
                 "move_id": move.id or False,
+                "margin_drawn_bdt": margin,
+                "settled_bills_bdt": round(
+                    sum(r.amount_bdt for r in settlements if r.kind == "bill"), 2
+                ),
+                "advance_bdt": round(
+                    sum(r.amount_bdt for r in settlements if r.kind == "advance"), 2
+                ),
             }
         )
 
@@ -1001,7 +1149,7 @@ class FixImportLcPayment(models.Model):
         records = super().create(vals_list)
         for rec in records:
             lc = rec.lc_id
-            if lc.state != "opened":
+            if lc.state not in ("opened", "amended"):
                 raise UserError(
                     "Payments are recorded against an opened LC (LC %s is %s)."
                     % (lc.lc_no, lc.state)
@@ -1930,8 +2078,18 @@ BOE_LOCK_ASSESSED = (
     "currency_id",
     "line_ids",
     "cnf_agent_id",
+    "customs_fx_rate",
 )
-BOE_LOCK_PAID = ("customs_assessed_total", "payment_ref")
+# M44-05: customs' assessed amount of each levy
+CUSTOMS_LEVIES = (
+    ("customs_cd", "cd_amount"),
+    ("customs_rd", "rd_amount"),
+    ("customs_sd", "sd_amount"),
+    ("customs_vat", "vat_amount"),
+    ("customs_at", "at_amount"),
+    ("customs_ait", "ait_amount"),
+)
+BOE_LOCK_PAID = ("customs_assessed_total", "payment_ref", *(c for c, _f in CUSTOMS_LEVIES))
 
 
 class FixImportBoe(models.Model):
@@ -1975,6 +2133,31 @@ class FixImportBoe(models.Model):
     )
     # BRU-ITC-07: customs' own assessed figure, compared to this computation.
     customs_assessed_total = fields.Monetary(string="Customs Assessed Total", tracking=True)
+    # M44-07: duty is assessed at the customs exchange rate of the BoE date,
+    # not the LC commitment rate
+    customs_fx_rate = fields.Float(
+        string="Customs Exchange Rate (BDT per unit)",
+        digits=(16, 6),
+        tracking=True,
+        help="The rate customs applied on the Bill of Entry date (ASYCUDA). Required for a "
+        "foreign-currency import before assessment.",
+    )
+    # M44-05: customs' assessed amount per levy (from the assessment notice).
+    # When recorded, each levy is booked to its own account: extra CD/RD/SD
+    # reaches the stock cost, extra VAT/AT the input tax.
+    customs_cd = fields.Monetary(string="Customs CD")
+    customs_rd = fields.Monetary(string="Customs RD")
+    customs_sd = fields.Monetary(string="Customs SD")
+    customs_vat = fields.Monetary(string="Customs VAT")
+    customs_at = fields.Monetary(string="Customs AT")
+    customs_ait = fields.Monetary(string="Customs AIT")
+    # what the payment booked (M44-04/05): the landed cost reads these
+    levies_booked = fields.Boolean(readonly=True, copy=False)
+    booked_duty = fields.Monetary(string="Duty Booked (CD+RD+SD)", readonly=True, copy=False)
+    booked_vat = fields.Monetary(string="VAT Booked", readonly=True, copy=False)
+    booked_at = fields.Monetary(string="AT Booked", readonly=True, copy=False)
+    booked_ait = fields.Monetary(string="AIT Booked", readonly=True, copy=False)
+    booked_rounding = fields.Monetary(string="Customs Rounding Booked", readonly=True, copy=False)
     duty_variance = fields.Monetary(compute="_compute_variance", string="Variance vs Customs")
     payment_ref = fields.Char(string="Duty Payment Reference", tracking=True)
     paid_on = fields.Date(readonly=True, copy=False)
@@ -2030,6 +2213,12 @@ class FixImportBoe(models.Model):
             "variance_reason",
             "cancelled_by_id",
             "remittance_flagged_on",
+            "levies_booked",
+            "booked_duty",
+            "booked_vat",
+            "booked_at",
+            "booked_ait",
+            "booked_rounding",
             # computed from the lines; never written directly (M51 reads them)
             *_DUTY_FIELDS,
             "total_tax",
@@ -2045,7 +2234,7 @@ class FixImportBoe(models.Model):
         if self.state == "reversed":
             locked |= {"reversal_reason"}
         if self.variance_accepted_by_id:
-            locked |= {"customs_assessed_total"}
+            locked |= {"customs_assessed_total", *(c for c, _f in CUSTOMS_LEVIES)}
         return locked
 
     def _fix_form_locked_fields(self) -> set:
@@ -2113,17 +2302,13 @@ class FixImportBoe(models.Model):
             "an assessed Bill of Entry is fixed, and a paid one is final: a correction is a "
             "reversal and a new Bill of Entry (BRU-ITC-11).",
         )
-        retyped = (
-            self.filtered(
-                lambda r: changes(r, {"customs_assessed_total": vals["customs_assessed_total"]})
-            )
-            if self and "customs_assessed_total" in vals
-            else self.browse()
-        )
+        customs_keys = {"customs_assessed_total", *(c for c, _f in CUSTOMS_LEVIES)}
+        typed = {k: vals[k] for k in customs_keys if k in vals}
+        retyped = self.filtered(lambda r: changes(r, typed)) if self and typed else self.browse()
         result = super().write(vals)
         if retyped and not self.env.su:
             retyped._guarded().write({"customs_total_by_id": self.env.uid})
-        if "boe_date" in vals or "order_id" in vals:
+        if "boe_date" in vals or "order_id" in vals or "customs_fx_rate" in vals:
             self.filtered(lambda r: r.state == "draft").line_ids._boe_line_refresh()
         return result
 
@@ -2160,6 +2345,15 @@ class FixImportBoe(models.Model):
                 rec.company_id, "Assessing Bill of Entry %s" % rec.boe_no
             )
             rec.order_id._import_check_eligibility("Assessing Bill of Entry %s" % rec.boe_no)
+            if (
+                rec.order_id.currency_id != rec.env.ref("base.BDT")
+                and (rec.customs_fx_rate or 0.0) <= 0
+            ):
+                raise UserError(
+                    "Bill of Entry %s: record the customs exchange rate of %s on %s; duty is "
+                    "assessed at it, not at the LC commitment rate (M44-07)."
+                    % (rec.boe_no, rec.order_id.currency_id.name, rec.boe_date)
+                )
             rec.line_ids._boe_line_refresh()
             for line in rec.line_ids:
                 if not line.order_line_id or line.order_line_id.order_id != rec.order_id:
@@ -2211,7 +2405,7 @@ class FixImportBoe(models.Model):
         customs' figure accepts it with a reason; it is then payable, at
         customs' figure."""
         require_group(self.env, APPROVER, "Accepting a duty variance")
-        tol = param_float(self.env, PARAM_DUTY_VARIANCE, 0.0)
+        tol = param_float(self.env, PARAM_DUTY_VARIANCE, DEFAULT_DUTY_VARIANCE)
         for rec in self:
             if rec.state != "assessed":
                 raise UserError("Accept the variance of an assessed Bill of Entry.")
@@ -2275,7 +2469,7 @@ class FixImportBoe(models.Model):
         clearing account, import VAT and AT to input tax, AIT to tax advance,
         an accepted variance to the variance account)."""
         require_group(self.env, FINANCE, "Paying a Bill of Entry")
-        tol = param_float(self.env, PARAM_DUTY_VARIANCE, 0.0)
+        tol = param_float(self.env, PARAM_DUTY_VARIANCE, DEFAULT_DUTY_VARIANCE)
         for rec in self:
             if rec.state != "assessed":
                 raise UserError("Pay an assessed bill of entry")
@@ -2299,29 +2493,31 @@ class FixImportBoe(models.Model):
                     % (rec.customs_assessed_total, rec.total_tax, rec.duty_variance, tol)
                 )
             company = rec.company_id
-            capitalisable = rec.cd_amount + rec.rd_amount + rec.sd_amount
+            levies = rec._boe_booked_levies(tol)
+            capitalisable = levies["duty"]
             accounts = {}
             for role, amount in (
                 ("duty_clearing", capitalisable),
-                ("vat_input", rec.vat_amount),
-                ("at_input", rec.at_amount),
-                ("ait_advance", rec.ait_amount),
-                ("variance", rec.duty_variance if accepted else 0.0),
+                ("vat_input", levies["vat"]),
+                ("at_input", levies["at"]),
+                ("ait_advance", levies["ait"]),
+                ("variance", levies["rounding"]),
             ):
                 if amount:
                     accounts[role] = import_account(rec.env, company, role)
             journal = import_journal(rec.env, company, "payment")
-            paid = rec.customs_assessed_total if accepted else rec.total_tax
+            # M44-04: the bank pays what customs assessed, always
+            paid = rec.customs_assessed_total
             ref = "Bill of Entry %s duty payment %s" % (rec.boe_no, rec.payment_ref)
             lines = [
                 (accounts.get("duty_clearing"), "CD + RD + SD %s" % rec.boe_no, capitalisable),
-                (accounts.get("vat_input"), "Import VAT %s" % rec.boe_no, rec.vat_amount),
-                (accounts.get("at_input"), "Advance tax %s" % rec.boe_no, rec.at_amount),
-                (accounts.get("ait_advance"), "AIT %s" % rec.boe_no, rec.ait_amount),
+                (accounts.get("vat_input"), "Import VAT %s" % rec.boe_no, levies["vat"]),
+                (accounts.get("at_input"), "Advance tax %s" % rec.boe_no, levies["at"]),
+                (accounts.get("ait_advance"), "AIT %s" % rec.boe_no, levies["ait"]),
                 (
                     accounts.get("variance"),
-                    "Accepted duty variance %s" % rec.boe_no,
-                    rec.duty_variance,
+                    "Customs rounding / accepted variance %s" % rec.boe_no,
+                    levies["rounding"],
                 ),
                 (journal.default_account_id, ref, -paid),
             ]
@@ -2340,6 +2536,12 @@ class FixImportBoe(models.Model):
                     "paid_on": today(rec),
                     "paid_by_id": rec.env.user.id,
                     "move_id": move.id or False,
+                    "levies_booked": True,
+                    "booked_duty": capitalisable,
+                    "booked_vat": levies["vat"],
+                    "booked_at": levies["at"],
+                    "booked_ait": levies["ait"],
+                    "booked_rounding": levies["rounding"],
                 }
             )
             publish(
@@ -2349,14 +2551,63 @@ class FixImportBoe(models.Model):
                 rec.id,
                 {
                     "boe": rec.boe_no,
+                    "boe_date": str(rec.boe_date),
                     "order": rec.order_id.name,
-                    "vat": rec.vat_amount,
-                    "at": rec.at_amount,
-                    "ait": rec.ait_amount,
+                    "vat": rec.booked_vat,
+                    "at": rec.booked_at,
+                    "ait": rec.booked_ait,
                     "inventoriable": capitalisable,
                 },
             )
         return True
+
+    def _boe_booked_levies(self, tol):
+        """M44-04 / M44-05: what the payment books per levy. With customs'
+        per-levy figures, each levy at customs' amount (they must add up to the
+        assessed total). Without them, the computed levies plus the difference
+        to the assessed total as customs rounding (600007) - allowed only within
+        the tolerance, or for a variance an approver accepted when it is mere
+        rounding; a real variance beyond the tolerance needs the per-levy
+        figures, so that extra duty reaches stock and extra VAT/AT input tax."""
+        self.ensure_one()
+        given = [self[c] for c, _f in CUSTOMS_LEVIES]
+        if any(given):
+            total = round(sum(given), 2)
+            if abs(total - (self.customs_assessed_total or 0.0)) > 0.005:
+                raise UserError(
+                    "Bill of Entry %s: customs' levies add up to %.2f but the assessed total is "
+                    "%.2f." % (self.boe_no, total, self.customs_assessed_total)
+                )
+            return {
+                "duty": round(self.customs_cd + self.customs_rd + self.customs_sd, 2),
+                "vat": round(self.customs_vat, 2),
+                "at": round(self.customs_at, 2),
+                "ait": round(self.customs_ait, 2),
+                "rounding": 0.0,
+            }
+        rounding = round((self.customs_assessed_total or 0.0) - self.total_tax, 2)
+        if abs(rounding) > tol + 0.005:
+            raise UserError(
+                "Bill of Entry %s: customs assessed %.2f against %.2f computed (difference %.2f, "
+                "above the BDT %.2f rounding tolerance). Record customs' amount of each levy "
+                "(CD, RD, SD, VAT, AT, AIT) from the assessment notice so each reaches its own "
+                "account (M44-05)."
+                % (self.boe_no, self.customs_assessed_total, self.total_tax, rounding, tol)
+            )
+        return {
+            "duty": round(self.cd_amount + self.rd_amount + self.sd_amount, 2),
+            "vat": self.vat_amount,
+            "at": self.at_amount,
+            "ait": self.ait_amount,
+            "rounding": rounding,
+        }
+
+    def _boe_duty_factor(self):
+        """Booked CD+RD+SD over the computed: scales each line's own duty."""
+        self.ensure_one()
+        computed = round(self.cd_amount + self.rd_amount + self.sd_amount, 2)
+        booked = self.booked_duty if self.levies_booked else computed
+        return (booked / computed) if computed else 0.0
 
     def action_reverse(self, reason=None):
         """A paid Bill of Entry is final; a correction reverses it (the
@@ -2564,7 +2815,11 @@ class FixImportBoeLine(models.Model):
         order = ol.order_id
         qty = self.quantity or 0.0
         share = (qty / ol.quantity) if ol.quantity else 0.0
-        cif = (ol.cif_amount or 0.0) * share * (order.fx_rate or 0.0)
+        # M44-07: the customs rate of the Bill of Entry date when recorded
+        rate = boe.customs_fx_rate or order.fx_rate or 0.0
+        if order.currency_id == self.env.ref("base.BDT"):
+            rate = 1.0
+        cif = (ol.cif_amount or 0.0) * share * rate
         lc_pct = param_float(self.env, PARAM_LANDING_CHARGE, 1.0)
         av = cif * (1.0 + lc_pct / 100.0)
         hs = ol.hs_id
@@ -2714,8 +2969,16 @@ class FixImportLanded(models.Model):
     at_amount = fields.Monetary(compute="_compute_duty", store=True, string="AT (recoverable)")
     ait_amount = fields.Monetary(compute="_compute_duty", store=True, string="AIT (tax advance)")
     total_landed = fields.Monetary(compute="_compute_total", store=True, string="Total Landed")
+    # M44-09: the basis of the charges (duty is allocated from each Bill of
+    # Entry line's own HS duty, M44-08; a cost document naming an order line
+    # goes to that line directly)
     allocation_method = fields.Selection(
-        [("value", "By Value"), ("qty", "By Quantity")],
+        [
+            ("value", "By Value"),
+            ("qty", "By Quantity"),
+            ("weight", "By Weight"),
+            ("volume", "By Volume"),
+        ],
         required=True,
         default="value",
     )
@@ -2774,6 +3037,10 @@ class FixImportLanded(models.Model):
         "order_id.boe_ids.vat_amount",
         "order_id.boe_ids.at_amount",
         "order_id.boe_ids.ait_amount",
+        "order_id.boe_ids.booked_duty",
+        "order_id.boe_ids.booked_vat",
+        "order_id.boe_ids.booked_at",
+        "order_id.boe_ids.booked_ait",
     )
     def _compute_duty(self):
         for rec in self:
@@ -2782,10 +3049,23 @@ class FixImportLanded(models.Model):
                 rec.vat_amount = rec.at_amount = rec.ait_amount = 0.0
                 continue
             paid = rec.order_id.boe_ids.filtered(lambda b: b.state == "paid")
-            rec.duty = round(sum(b.cd_amount + b.rd_amount + b.sd_amount for b in paid), 2)
-            rec.vat_amount = round(sum(paid.mapped("vat_amount")), 2)
-            rec.at_amount = round(sum(paid.mapped("at_amount")), 2)
-            rec.ait_amount = round(sum(paid.mapped("ait_amount")), 2)
+            # M44-05: what the payment booked (customs' levies), not the computation
+            rec.duty = round(
+                sum(
+                    b.booked_duty if b.levies_booked else b.cd_amount + b.rd_amount + b.sd_amount
+                    for b in paid
+                ),
+                2,
+            )
+            rec.vat_amount = round(
+                sum(b.booked_vat if b.levies_booked else b.vat_amount for b in paid), 2
+            )
+            rec.at_amount = round(
+                sum(b.booked_at if b.levies_booked else b.at_amount for b in paid), 2
+            )
+            rec.ait_amount = round(
+                sum(b.booked_ait if b.levies_booked else b.ait_amount for b in paid), 2
+            )
 
     @api.depends("freight", "insurance", "duty", "clearing_charges", "bank_charges")
     def _compute_total(self):
@@ -2834,10 +3114,21 @@ class FixImportLanded(models.Model):
             raise UserError(
                 "Import order %s has no lines to allocate the landed cost to." % self.order_id.name
             )
-        basis = {
-            ln.id: (ln.fob_amount if self.allocation_method == "value" else ln.quantity)
-            for ln in lines
-        }
+        method = self.allocation_method
+        field = {
+            "value": "fob_amount",
+            "qty": "quantity",
+            "weight": "weight_kg",
+            "volume": "volume_cbm",
+        }[method]
+        if method in ("weight", "volume"):
+            missing = lines.filtered(lambda ln: (ln[field] or 0.0) <= 0)
+            if missing:
+                raise UserError(
+                    "Allocation by %s needs the %s of every line of %s: %s has none (M44-09)."
+                    % (method, method, self.order_id.name, missing[0].display_name)
+                )
+        basis = {ln.id: (ln[field] or 0.0) for ln in lines}
         whole = sum(basis.values())
         if whole <= 0:
             raise UserError("The allocation basis of %s is zero." % self.order_id.name)
@@ -2864,6 +3155,108 @@ class FixImportLanded(models.Model):
                     "unit_amount": round(amount / ln.quantity, 4) if ln.quantity else 0.0,
                 }
             )
+
+    def _landed_final_allocation(self):
+        """M44-08 / M44-09: the final sheet's allocation per order line =
+        the line's own HS duty from the paid Bills of Entry (scaled to what
+        customs' levies booked) + cost documents that name the line + the rest
+        of the charges by the sheet's basis. Sums to total_landed exactly."""
+        self.ensure_one()
+        order = self.order_id
+        lines = order.line_ids
+        duty = {ln.id: 0.0 for ln in lines}
+        for boe in order.boe_ids.filtered(lambda b: b.state == "paid"):
+            factor = boe._boe_duty_factor()
+            for bl in boe.line_ids:
+                if bl.order_line_id.id in duty:
+                    duty[bl.order_line_id.id] += (
+                        bl.cd_amount + bl.rd_amount + bl.sd_amount
+                    ) * factor
+        duty = {k: round(v, 2) for k, v in duty.items()}
+        if duty and lines:
+            residual = round((self.duty or 0.0) - sum(duty.values()), 2)
+            duty[lines[-1].id] = round(duty[lines[-1].id] + residual, 2)
+        direct = order._import_direct_costs(self.currency_id)
+        direct_total = round(sum(direct.values()), 2)
+        charges = round((self.total_landed or 0.0) - (self.duty or 0.0) - direct_total, 2)
+        if charges < -0.005:
+            raise UserError(
+                "Cost documents assigned to lines of %s (%.2f) exceed the sheet's charges."
+                % (order.name, direct_total)
+            )
+        spread = (
+            {ln.id: (amount, basis) for ln, amount, basis in self._landed_allocate(charges)}
+            if abs(charges) > 0.005
+            else {}
+        )
+        out = []
+        for ln in lines:
+            amount, basis = spread.get(ln.id, (0.0, 0.0))
+            total = round(duty.get(ln.id, 0.0) + direct.get(ln.id, 0.0) + amount, 2)
+            out.append((ln, total, basis))
+        return out
+
+    def _landed_revalue_network(self, ln, to_stock, ref, Onhand):
+        """M44-13: the share still in stock is revalued WHEREVER it now is:
+        every owned, unrestricted bucket of the part in the company, in
+        proportion to its quantity (a transfer is not a consumption)."""
+        buckets = Onhand.search(
+            [
+                ("part_id", "=", ln.part_id.id),
+                ("company_id", "=", self.company_id.id),
+                ("ownership_class", "=", "owned"),
+                ("stock_status", "=", "unrestricted"),
+                ("qty", ">", 0),
+            ]
+        )
+        whole = sum(buckets.mapped("qty"))
+        if not buckets or whole <= 0:
+            return 0.0
+        done = 0.0
+        for idx, bucket in enumerate(buckets):
+            if idx == len(buckets) - 1:
+                amount = round(to_stock - done, 2)
+            else:
+                amount = round(to_stock * bucket.qty / whole, 2)
+            done = round(done + amount, 2)
+            if amount:
+                Onhand._fix_revalue(ln.part_id, bucket.location_id, "owned", amount, ref)
+        return done
+
+    def _landed_still_in_stock(self, ln, Onhand):
+        """X12: how much of THIS import's line is still in the network: what
+        it received, less what M15 consumed of the part since the receipt,
+        never more than the part's owned stock anywhere in the company. The
+        pooled bucket alone counted other receipts' stock as this import's."""
+        order = self.order_id
+        received = ln._import_received_qty()
+        if received <= 0:
+            return 0.0, 0.0
+        since = order.receipt_id.create_date or fields.Datetime.now()
+        consumed = sum(
+            self.env["fix.stock.consumption"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", self.company_id.id),
+                    ("product_id", "=", ln.part_id.id),
+                    ("state", "=", "consumed"),
+                    ("consumed_at", ">=", since),
+                ]
+            )
+            .mapped("quantity")
+        )
+        network = sum(
+            Onhand.search(
+                [
+                    ("part_id", "=", ln.part_id.id),
+                    ("company_id", "=", self.company_id.id),
+                    ("ownership_class", "=", "owned"),
+                    ("stock_status", "=", "unrestricted"),
+                ]
+            ).mapped("qty")
+        )
+        return received, max(min(received - consumed, network), 0.0)
 
     # ---- estimate -----------------------------------------------------------------
     def action_post_estimate(self):
@@ -2985,11 +3378,23 @@ class FixImportLanded(models.Model):
                 ],
                 limit=1,
             )
+            if rec.currency_id != rec.env.ref("base.BDT"):
+                raise UserError(
+                    "A landed-cost sheet is in BDT: %s posts to the books in BDT (M44-26)."
+                    % rec.name
+                )
+            pending = order._import_pending_serial_receipts()
+            if pending:
+                raise UserError(
+                    "Serialised parts of %s are still on draft receipt %s: capture their serials "
+                    "and post it before the final landed cost (M44-10)."
+                    % (order.name, ", ".join(pending.mapped("name")))
+                )
             est_by_line = {al.order_line_id.id: al.amount for al in estimate.line_ids}
             est_total = round(sum(est_by_line.values()), 2) if estimate.move_id else 0.0
             if not estimate.move_id:
                 est_by_line = {}
-            allocation = rec._landed_allocate(rec.total_landed)
+            allocation = rec._landed_final_allocation()
             svc = round(
                 (rec.freight or 0.0)
                 + (rec.insurance or 0.0)
@@ -3000,9 +3405,8 @@ class FixImportLanded(models.Model):
             plan, stock_total, var_total = [], 0.0, 0.0
             for ln, amount, _basis in allocation:
                 diff = round(amount - est_by_line.get(ln.id, 0.0), 2)
-                bucket = Onhand._bucket(ln.part_id, order.location_id, "owned")
-                on_hand = bucket.qty if bucket else 0.0
-                share = min(on_hand, ln.quantity) / ln.quantity if ln.quantity else 0.0
+                received, still = rec._landed_still_in_stock(ln, Onhand)
+                share = still / received if received else 0.0
                 to_stock = round(diff * share, 2)
                 plan.append((ln, to_stock))
                 stock_total += to_stock
@@ -3021,9 +3425,15 @@ class FixImportLanded(models.Model):
                     acc[role] = import_account(rec.env, company, role)
             journal = import_journal(rec.env, company)
             ref = "Final landed cost %s (%s)" % (rec.name, order.name)
+            revalued = 0.0
             for ln, to_stock in plan:
                 if to_stock:
-                    Onhand._fix_revalue(ln.part_id, order.location_id, "owned", to_stock, ref)
+                    revalued += rec._landed_revalue_network(ln, to_stock, ref, Onhand)
+            if abs(round(revalued, 2) - stock_total) > 0.01:
+                raise UserError(
+                    "The landed cost of %s could not be spread over the stock still on hand."
+                    % order.name
+                )
             lines = [
                 (acc.get("landed_accrual"), "Reverse provisional landed cost", est_total),
                 (acc.get("duty_clearing"), "CD + RD + SD capitalised", -rec.duty),
@@ -3053,6 +3463,8 @@ class FixImportLanded(models.Model):
                 }
             )
             order._import_set_state("landed", ("received",))
+            # M44-17: the stock's cost is final now
+            order._import_receipts()._fix_clear_provisional()
             publish(
                 rec.env,
                 "landed_cost.finalised",

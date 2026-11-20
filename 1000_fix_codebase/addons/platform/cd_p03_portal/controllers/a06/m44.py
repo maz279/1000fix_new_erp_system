@@ -159,6 +159,21 @@ def _scoped(env, model, domain=None, order=None):
     )
 
 
+def _dated(field, date_from=None, date_to=None):
+    """M44-25: the report's date range as a domain on `field`."""
+    domain = []
+    if date_from:
+        domain.append((field, ">=", date_from))
+    if date_to:
+        domain.append((field, "<=", date_to))
+    return domain
+
+
+def _dhaka_today():
+    """M44-25: KPIs count Dhaka business days, not UTC ones."""
+    return (datetime.datetime.utcnow() + datetime.timedelta(hours=6)).date()
+
+
 def _orders(env):
     return _scoped(env, "fix.import.order")
 
@@ -225,7 +240,7 @@ def incoterms_fx(env, date_from=None, date_to=None, **params):
 
 def duty_cascade(env, date_from=None, date_to=None, **params):
     rows = []
-    for line in _scoped(env, "fix.import.boe.line"):
+    for line in _scoped(env, "fix.import.boe.line", _dated("boe_id.boe_date", date_from, date_to)):
         rows.append(
             {
                 "boe": line.boe_id.boe_no,
@@ -305,7 +320,7 @@ def duty_cascade(env, date_from=None, date_to=None, **params):
 
 def landed_cost_by_shipment(env, date_from=None, date_to=None, **params):
     rows = []
-    for rec in _scoped(env, "fix.import.landed"):
+    for rec in _scoped(env, "fix.import.landed", _dated("create_date", date_from, date_to)):
         goods = sum(ln._goods_value_bdt() for ln in rec.order_id.line_ids)
         rows.append(
             {
@@ -316,6 +331,8 @@ def landed_cost_by_shipment(env, date_from=None, date_to=None, **params):
                 "insurance": round(rec.insurance, 2),
                 "duty": round(rec.duty, 2),
                 "clearing": round(rec.clearing_charges, 2),
+                # M44-24: LC and bank charges are part of the landed cost
+                "bank": round(rec.bank_charges, 2),
                 "landed": round(rec.total_landed, 2),
                 "pct_of_goods": round((rec.total_landed / goods) * 100.0, 1) if goods else 0.0,
                 "state": _label(rec, "state"),
@@ -333,6 +350,7 @@ def landed_cost_by_shipment(env, date_from=None, date_to=None, **params):
             "insurance",
             "duty",
             "clearing",
+            "bank",
             "landed",
             "pct_of_goods",
             "state",
@@ -345,13 +363,15 @@ def landed_cost_by_shipment(env, date_from=None, date_to=None, **params):
             "insurance": "Insurance",
             "duty": "Duty (CD+RD+SD)",
             "clearing": "Clearing",
+            "bank": "LC & Bank Charges",
             "landed": "Total Landed",
             "pct_of_goods": "% of Goods (BDT)",
             "state": "State",
         },
         rows,
         [
-            "Total landed = freight + insurance + CD + RD + SD + clearing. Import VAT, AT and "
+            "Total landed = freight + insurance + CD + RD + SD + clearing + LC/bank charges. "
+            "Import VAT, AT and "
             "AIT are recoverable and never in landed cost (BRU-ITC-02). The total row counts "
             "finalised sheets only."
         ],
@@ -755,7 +775,7 @@ def kpis(env):
     lcs = _scoped(env, "fix.import.lc")
     boes = _scoped(env, "fix.import.boe")
     arrivals = _scoped(env, "fix.import.arrival", [("state", "!=", "cleared")])
-    today = datetime.date.today()
+    today = _dhaka_today()
     month_start = today.replace(day=1)
     landed = _scoped(
         env,
@@ -771,7 +791,7 @@ def kpis(env):
         "open_imports": len(
             orders.filtered(lambda o: o.state not in ("received", "landed", "closed"))
         ),
-        "lc_open": len(lcs.filtered(lambda ln: ln.state in ("applied", "opened"))),
+        "lc_open": len(lcs.filtered(lambda ln: ln.state in ("applied", "opened", "amended"))),
         "boe_unpaid": len(boes.filtered(lambda b: b.state in ("draft", "assessed"))),
         "demurrage_days": sum(rec.demurrage_days or 0 for rec in arrivals),
         "landed_mtd": round(sum(landed.mapped("total_landed")), 2),

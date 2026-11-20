@@ -23,7 +23,10 @@ PARAM_PROFORMA_TOLERANCE = P + "proforma_tolerance_pct"  # default 0
 PARAM_LC_REQUIRES_LCA = P + "lc_requires_lca"  # default "1"
 PARAM_LC_LADDER = P + "lc_dofa_ladder"  # default "inf:tier_4"
 PARAM_BOE_DOCS = P + "boe_required_documents"  # default "bl,invoice,packing"
-PARAM_DUTY_VARIANCE = P + "duty_variance_tolerance"  # BDT, default 0
+# D6 / M44-03: customs rounds each levy; a difference up to BDT 10 per Bill of
+# Entry is rounding and needs no variance acceptance
+PARAM_DUTY_VARIANCE = P + "duty_variance_tolerance"  # BDT, default 10
+DEFAULT_DUTY_VARIANCE = 10.0
 PARAM_JOURNAL = P + "journal_code"  # general journal; default: company's first
 PARAM_PAYMENT_JOURNAL = P + "payment_journal_code"  # bank/cash journal; REQUIRED
 PARAM_LC_REQUIRES_FACILITY = P + "lc_requires_facility"  # default "1" (BRU-ITC-06)
@@ -34,7 +37,7 @@ PARAM_IRC_WARNING_DAYS = P + "irc_expiry_warning_days"  # default 30 (BRU-ITC-03
 PARAM_BOE_REMITTANCE_DAYS = P + "boe_remittance_match_days"  # default 120
 
 # role -> label. Each role's account code is the system parameter
-# cd_import_order.account_code.<role>; there is NO default code.
+# cd_import_order.account_code.<role>.
 ACCOUNT_ROLES = {
     "inventory": "Inventory (stock valuation)",
     "duty_clearing": "Customs duty clearing (CD/RD/SD paid, awaiting landed cost)",
@@ -44,9 +47,27 @@ ACCOUNT_ROLES = {
     "ait_advance": "Advance Income Tax (AIT) paid at import",
     "variance": "Landed-cost variance / cost-of-sales adjustment",
     "grni": "Goods received not invoiced (import goods value awaiting the supplier bill)",
-    "lc_clearing": "LC payments clearing (remitted under an LC, awaiting the supplier bill)",
+    "lc_clearing": "LC payments clearing (retired: D6 settles the supplier in AP)",
     "fx_difference": "Exchange difference on LC settlement (settlement rate vs commitment rate)",
+    "lc_margin": "LC margin held by the bank (M44-12)",
 }
+# Owner decision D6 (20 Nov 2026), legacy chart codes. Used when the role's
+# parameter is unset; a configured code wins. The account must still exist in
+# the company's chart, else the posting is refused.
+#  - variance: duty and landed-cost variance 600007 Purchase Price Variance
+#    (M44-01 / X10: the old 610000 is not in the chart)
+#  - duty_clearing: customs duty paid is an asset awaiting capitalisation,
+#    100302 Deposits - Customs (owner item 6), not the 200306 liability
+#  - fx_difference: 500030 Foreign Exchange Gain/Loss
+#  - lc_margin: 100812 L/C Margin
+DEFAULT_ACCOUNT_CODES = {
+    "variance": "600007",
+    "duty_clearing": "100302",
+    "fx_difference": "500030",
+    "lc_margin": "100812",
+}
+# configured values D6 replaces (a data repair the owner decided)
+SUPERSEDED_ACCOUNT_CODES = {"variance": ("610000",), "duty_clearing": ("200306",)}
 
 
 def param(env, key, default=None):
@@ -162,7 +183,11 @@ def import_account(env, company, role):
     The stock line ("inventory") is not configurable: it is M15's valuation
     suspense account (see stock_valuation_code)."""
     key = P + "account_code." + role
-    code = stock_valuation_code(env) if role == "inventory" else param(env, key)
+    code = (
+        stock_valuation_code(env)
+        if role == "inventory"
+        else (param(env, key) or DEFAULT_ACCOUNT_CODES.get(role))
+    )
     account = env["account.account"]
     if code:
         account = (
@@ -215,7 +240,28 @@ def import_journal(env, company, kind="general"):
     return journal
 
 
-def post_import_move(env, company, journal, entry_date, ref, lines, operating_unit=None):
+def default_params(env):
+    """D6 defaults, applied at install/upgrade: an unset import account role
+    takes its D6 code, a value D6 superseded (variance 610000, duty clearing
+    200306) is replaced, and the BoE rounding tolerance becomes BDT 10 when
+    nobody set one. Returns the keys changed."""
+    icp = env["ir.config_parameter"].sudo()
+    changed = []
+    for role, code in DEFAULT_ACCOUNT_CODES.items():
+        key = P + "account_code." + role
+        current = icp.get_param(key)
+        if not current or current in SUPERSEDED_ACCOUNT_CODES.get(role, ()):
+            icp.set_param(key, code)
+            changed.append(key)
+    if icp.get_param(PARAM_DUTY_VARIANCE) in (None, False, "", "0", "0.0"):
+        icp.set_param(PARAM_DUTY_VARIANCE, str(DEFAULT_DUTY_VARIANCE))
+        changed.append(PARAM_DUTY_VARIANCE)
+    return changed
+
+
+def post_import_move(
+    env, company, journal, entry_date, ref, lines, operating_unit=None, partner=None
+):
     """Post ONE balanced entry through M19's engine (post_with_dimensions).
 
     lines: [(account, label, amount)] where a positive amount is a debit and a
@@ -235,7 +281,17 @@ def post_import_move(env, company, journal, entry_date, ref, lines, operating_un
         total_d += debit
         total_c += credit
         move_lines.append(
-            (0, 0, {"account_id": account.id, "name": label, "debit": debit, "credit": credit})
+            (
+                0,
+                0,
+                {
+                    "account_id": account.id,
+                    "name": label,
+                    "debit": debit,
+                    "credit": credit,
+                    "partner_id": partner.id if partner else False,
+                },
+            )
         )
     if not move_lines:
         return su["account.move"]
@@ -243,8 +299,15 @@ def post_import_move(env, company, journal, entry_date, ref, lines, operating_un
         raise UserError(
             "%s does not balance (%.2f / %.2f): nothing was posted." % (ref, total_d, total_c)
         )
-    ou = operating_unit or su["operating.unit"].search([("company_id", "=", company.id)], limit=1)
-    dims = {i: {"operating_unit_id": ou.id} for i in range(len(move_lines))} if ou else {}
+    # X13: an import entry carries the import's own operating unit; it is never
+    # attributed to the company's first OU
+    ou = operating_unit
+    if not ou:
+        raise UserError(
+            "%s: the import order has no operating unit, so the entry cannot carry the "
+            "branch dimension. Set the order's operating unit. Nothing was posted." % ref
+        )
+    dims = {i: {"operating_unit_id": ou.id} for i in range(len(move_lines))}
     move, _dims = post_with_dimensions(
         su(context=dict(su.context, allowed_company_ids=[company.id])),
         {

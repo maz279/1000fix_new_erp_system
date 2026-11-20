@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A06 ERP audit D6 (X09 / M44-11): supplier settlements by LC remittance are
+  company-scoped like the bills they settle.
+-->
+<odoo>
+    <record id="rule_fix_ap_lc_settlement_company" model="ir.rule">
+        <field name="name">fix.ap.lc.settlement: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_lc_settlement"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_lc_settlement_operating_unit" model="ir.rule">
+        <field name="name">fix.ap.lc.settlement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ap_lc_settlement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ap_lc_advance_application_company" model="ir.rule">
+        <field name="name">fix.ap.lc.advance.application: allowed companies</field>
+        <field name="model_id" ref="model_fix_ap_lc_advance_application"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>
