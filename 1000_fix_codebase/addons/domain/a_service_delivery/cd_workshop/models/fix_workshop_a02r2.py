@@ -257,8 +257,8 @@ class FixWorkshopJobA02R2(models.Model):
                 error = rec._m31_bench_fit_error(rec.bench_id, rec.workshop_id, level)
                 if error:
                     raise UserError("Job %s cannot be %s: %s" % (rec.name, level.upper(), error))
-            if rec.technician_id and level in ("l2", "l3"):
-                rec._check_technician_certification(rec.technician_id, level)
+            # the M22 certification of the new level is checked where the
+            # repair starts (the in_repair gate), as for any routing
             rec._guarded().write({"repair_level": level})
             rec.message_post(
                 body="Repair level revised %s -> %s by %s: %s"

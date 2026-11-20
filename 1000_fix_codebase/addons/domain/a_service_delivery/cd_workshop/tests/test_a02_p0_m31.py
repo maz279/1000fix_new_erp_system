@@ -811,8 +811,13 @@ def test_p31_11_ber_needs_dofa_approval_and_a_second_technician(m31):
     job = m31.job(so=so)
     job.action_intake()
     job.action_diagnostic()
-    _evidence(m31, job, "diagnostic_report")
-    job.action_propose_ber("Board corroded beyond repair", writeoff_amount=8000.0)
+    _evidence(m31, job, "diagnostic_report", "pre_repair_photo")
+    job.action_propose_ber(
+        "Board corroded beyond repair",
+        writeoff_amount=8000.0,
+        estimated_repair_cost=9000.0,
+        device_value=5000.0,
+    )
     job.invalidate_recordset()
     assert (job.dofa_writeoff_tier, job.ber_proposed_by_id) == ("tier_2", m31.tech)
     # the proposer cannot approve his own write-off, and nobody presses Approve

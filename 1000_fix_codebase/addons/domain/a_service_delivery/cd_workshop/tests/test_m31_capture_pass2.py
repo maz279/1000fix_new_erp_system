@@ -496,6 +496,8 @@ def test_a_booked_in_job_moves_workshop_only_by_a_confirmed_transfer(m31, ui):  
     other = env["fix.workshop"].create(
         {"code": "WS-P2-T", "name": "Specialist Depot", "name_bn": "ডি"}
     )
+    # A02 pass 2 M31-12: the supervisor confirms for HIS workshop
+    other.sudo().write({"supervisor_user_ids": [(4, m31.supv.id)]})
     job = _intake(m31)
     _ok(_allocate(ui, m31.tech, job, m31.l1))
     # the routing form can no longer move it
@@ -534,6 +536,7 @@ def test_a_booked_in_job_moves_workshop_only_by_a_confirmed_transfer(m31, ui):  
 
 def test_the_requester_does_not_confirm_his_own_transfer(m31, ui):  # noqa: F811
     other = m31.env["fix.workshop"].create({"code": "WS-P2-U", "name": "Depot U", "name_bn": "ডি"})
+    other.sudo().write({"supervisor_user_ids": [(4, m31.supv.id)]})
     job = _intake(m31)
     transfer = (
         m31.env["fix.workshop.transfer"]
