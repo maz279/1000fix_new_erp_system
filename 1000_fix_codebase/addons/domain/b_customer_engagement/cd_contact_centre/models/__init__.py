@@ -30,6 +30,10 @@ from . import fix_conversation_party_merge
 from . import fix_m01_notifications
 from . import fix_a02_notifications
 
+# A02 ERP pass 2 X5-14: M27 notices for the SLA, MSP report and M06 events
+# (extends fix.notif.delivery).
+from . import fix_a02r2_notifications
+
 # A11 audit P2: approver notifications for M63 approval events (extends
 # fix.notif.delivery).
 from . import fix_approval_notify
