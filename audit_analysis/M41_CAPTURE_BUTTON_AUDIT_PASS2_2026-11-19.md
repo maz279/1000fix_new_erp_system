@@ -192,3 +192,15 @@ After pass 2 went live, the owner was asked item by item about the open spec wor
   - an unknown device → forbidden.
 - **Feed on real data:** approving a transfer on the clone queued its demand, and the wave was built and released from it.
 - **Walk:** 9/9 pages, all chips including the substitute form, 42/42 screens, 0 console errors.
+
+**Part 2 state: LIVE on 8069 (fix_real) and 8090 (fix_dev), 20 Nov 2026.** The user approved this deploy separately.
+
+- Rebased onto `834f0aba` and landed as `1beccd75` by a compare-and-swap `update-ref` plus `read-tree -m -u`; pushed. The branch `fix/m41-capture-pass2` on origin still points at the pre-rebase `368990f5`, which holds the same change. A force-push to align it was refused, and is not needed.
+- Backups: `_migration/backups/fix_real_pre_m41_capture2b_2026-11-20.dump` (53.1 MB) and `fix_dev_pre_m41_capture2b_2026-11-20.dump` (49.3 MB).
+- Upgrade: `-u cd_inventory,cd_p03_portal` on both databases, 0 errors.
+  - cd_inventory is at 19.0.1.6.0.
+  - 32 `fix_wms_*` tables exist.
+  - The 3 M41 crons are present: auto-release, slotting proposals and productivity.
+- One restart: 8069 = PID 33748, 8090 = PID 67160. `/web/login` returns 200 on both, and `/api/v1/wh/tasks/next` answers 401 without a key (the route is served).
+- Read-only walk of both estates: 42/42 screens, every chip including "Request a Substitute Part", 0 console errors.
+- From now on, approving a transfer or RTV out of a warehouse that runs execution sends it through the warehouse queue. fix_real has no such warehouse yet; fix_dev has 3.
