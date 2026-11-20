@@ -714,6 +714,45 @@ def test_tieout_after_the_estate_moves(live):
     )
 
 
+def _tie(w):
+    return w.as_(w.finance, "fix.inventory.valuation.suspense").get_stock_gl_tieout(
+        w.company.id, fields.Date.to_string(dhaka_today())
+    )
+
+
+def test_tieout_absorbs_unit_cost_rounding_of_a_revaluation(live):
+    """A06 integration: a revaluation of BDT 10 spread over 13 units leaves a
+    unit cost of 4 decimals (10/13 a piece); qty x unit cost then differs from the posted value
+    by a fraction of a paisa, which is rounding, not a break."""
+    w = live
+    w.receipt(qty=3.0, cost=500.0)
+    Onhand = w.env["fix.stock.onhand"].sudo()
+    Onhand.with_context(fix_stock_counter_account="300101")._fix_revalue(
+        w.part, w.north, "owned", 10.0, "ROUNDING-%s" % w.tag
+    )
+    tie = _tie(w)
+    north = {(r["account_code"], r["operating_unit_id"]): r for r in tie["rows"]}[
+        ("100502", w.ou1.id)
+    ]
+    assert north["gl_minus_subledger"] == 0.0
+    assert abs(north["subledger_minus_onhand"]) <= north["rounding_allowance"]
+    assert tie["ties_out"], tie["rows"]
+
+
+def test_tieout_catches_stock_value_changed_outside_the_ledger(live):
+    """A unit cost rewritten without a valuation row is a break: the tie-out
+    must say so (the allowance covers rounding only)."""
+    w = live
+    w.receipt(qty=2.0, cost=500.0)
+    bucket = w.bucket(w.part, w.north)
+    w.env.cr.execute(
+        "UPDATE fix_stock_onhand SET unit_cost = unit_cost + 1 WHERE id = %s", [bucket.id]
+    )
+    bucket.invalidate_recordset(["unit_cost"])
+    tie = _tie(w)
+    assert not tie["ties_out"], tie["rows"]
+
+
 # ============================================================ X17 graded stock
 def _graded(w, **vals):
     w.job()

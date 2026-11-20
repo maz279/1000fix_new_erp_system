@@ -92,7 +92,12 @@ def param_bool(env, key, default=True):
 
 
 def today(record):
-    return fields.Date.context_today(record)
+    """The Asia/Dhaka business date (A06 integration): import entries are
+    dated like M15's real-time stock postings, whatever the acting user's
+    time zone (a user or cron with none would otherwise date them in UTC, a
+    day early between 00:00 and 06:00 Dhaka, splitting one receipt across
+    two periods)."""
+    return fields.Date.context_today(record.with_context(tz="Asia/Dhaka"))
 
 
 # ---- roles and segregation of duties --------------------------------------

@@ -682,7 +682,7 @@ class FixValuationSuspensePosting(models.Model):
         def cell(code, ou):
             return table.setdefault(
                 (code, ou.id if ou else False),
-                {"subledger": 0.0, "onhand": 0.0, "gl": 0.0, "ou": ou},
+                {"subledger": 0.0, "onhand": 0.0, "gl": 0.0, "rounding": 0.0, "ou": ou},
             )
 
         Rows = self.sudo()
@@ -716,9 +716,13 @@ class FixValuationSuspensePosting(models.Model):
                     ou_cache[loc.id] = self._fix_location_ou(loc, company)
                 except UserError:
                     ou_cache[loc.id] = self.env["operating.unit"]
-            cell(self._fix_stock_code(bucket.part_id), ou_cache[loc.id])["onhand"] += round(
-                bucket.qty * (bucket.unit_cost or 0.0), 2
-            )
+            row = cell(self._fix_stock_code(bucket.part_id), ou_cache[loc.id])
+            row["onhand"] += round(bucket.qty * (bucket.unit_cost or 0.0), 2)
+            # A06 integration: the unit cost is kept to 4 decimals (WAC and the
+            # landed-cost spread), so qty x unit cost can differ from the posted
+            # value by at most half a unit of the 4th decimal per piece plus the
+            # bucket's own 2-decimal rounding. Beyond that bound is a real break.
+            row["rounding"] += bucket.qty * 0.00005 + 0.005
         graded_code = role_code(self.env, "graded_stock")
         if graded_code:
             for unit in (
@@ -778,6 +782,7 @@ class FixValuationSuspensePosting(models.Model):
                     "gl_balance": gl,
                     "gl_minus_subledger": round(gl - sub, 2),
                     "subledger_minus_onhand": round(sub - onhand, 2),
+                    "rounding_allowance": round(vals["rounding"] + 0.005, 2),
                 }
             )
         totals = {
@@ -798,8 +803,11 @@ class FixValuationSuspensePosting(models.Model):
             "onhand_as_of": str(dhaka_today()),
             "rows": rows,
             "totals": totals,
+            # GL and subledger agree to the paisa; subledger and qty x unit cost
+            # within the unit-cost rounding bound (shown per row)
             "ties_out": all(
-                abs(r["gl_minus_subledger"]) < 0.005 and abs(r["subledger_minus_onhand"]) < 0.005
+                abs(r["gl_minus_subledger"]) < 0.005
+                and abs(r["subledger_minus_onhand"]) <= r["rounding_allowance"]
                 for r in rows
             ),
         }
