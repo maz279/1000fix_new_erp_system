@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from odoo.addons.cd_p03_portal.controllers import a06
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as g
+from odoo.exceptions import AccessError, UserError
 
 SK = "cd_wms_structure.group_storekeeper"
 OP = "cd_wms_structure.group_warehouse_operator"
@@ -142,10 +143,14 @@ def test_a1_part_status_buttons_are_the_controllers(s):
     assert s.part.state == "active"
 
 
-def test_a1_standard_cost_button_collects_the_cost(s):
-    res = s.act(s.keeper, s.part, "action_set_standard_cost", cost=1.0)
+def test_a1_standard_cost_is_the_controllers_and_not_on_the_m41_surface(s):
+    # A06 ERP audit F32: no cost on M41 (spec section 13): the action left the
+    # M41 surface; the control itself still holds on the model
+    res = s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)
     assert not res["success"]
-    assert s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)["success"]
+    with pytest.raises((AccessError, UserError)), s.env.cr.savepoint():
+        s.part.with_user(s.keeper).action_set_standard_cost(cost=1.0)
+    s.part.with_user(s.controller).action_set_standard_cost(cost=450.0)
     assert s.part.unit_cost == 450.0
 
 
@@ -236,6 +241,9 @@ def _wms(s):
         {"warehouse_id": wh.id, "name": "Pick", "code": "PK", "zone_type": "storage"}
     )
     the_bin = env["fix.warehouse.bin"].create({"zone_id": zone.id, "name": "B-" + s.tag})
+    # A06 ERP audit O7 / F16: floor work is an operative's of THIS warehouse
+    emp = env["hr.employee"].create({"name": "A6FS Op " + s.tag, "user_id": s.operator.id})
+    env["fix.wms.operative"].create({"employee_id": emp.id, "warehouse_id": wh.id})
     env["fix.wms.slot"].sudo()._guarded().create(
         {"part_id": s.part.id, "bin_id": the_bin.id, "qty": 8.0}
     )

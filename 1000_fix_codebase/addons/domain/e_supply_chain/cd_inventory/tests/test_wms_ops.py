@@ -159,10 +159,12 @@ def test_wave_lifecycle_moves_the_ledger(ctx):
     stage = env["fix.wms.stage"].create({"wave_id": wave.id, "lane": "L1", "load_ref": "VAN-1"})
     wave.action_stage()
     stage.action_load(carton_scans=carton.name)
-    wave.action_ship()
-    assert wave.state == "shipped"
-    assert wave.shipped_at
-    assert part.qty_available == pytest.approx(10.0)  # 12 received - 2 shipped
+    # A06 ERP audit F01: a hand-typed wave line has no M15 document behind it,
+    # so it never leaves the warehouse (and M41 writes nothing off itself)
+    with pytest.raises(UserError, match="M15 document"), env.cr.savepoint():
+        wave.action_ship()
+    assert wave.state == "staged"
+    assert part.qty_available == pytest.approx(12.0)  # the 2 staged are still on hand
 
 
 def test_wave_release_needs_lines(ctx):
@@ -220,8 +222,8 @@ def test_floor_count_variance_and_post(ctx):
         }
     )
     assert count.name.startswith("FLCT/")
-    assert (count.expected_qty, count.variance) == (5.0, 0.0)
     count.action_post()
+    assert (count.expected_qty, count.variance) == (5.0, 0.0)
     assert count.state == "posted"
     with pytest.raises(UserError, match="draft"), env.cr.savepoint():
         count.action_post()
