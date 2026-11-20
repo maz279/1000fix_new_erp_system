@@ -690,6 +690,10 @@ export class P03Workspace extends Component {
         mod.groups.forEach(g => {
             g.screens.forEach(s => mappedScreens.push({ ...s, groupEn: g.en }));
         });
+        // A mapped module knows which screens execute each sub-module.
+        const subIds = new Set([...(mod.captures || []), ...(mod.gaps || [])]
+            .filter(e => e.freg.includes(sub[0])).flatMap(e => e.screens));
+        const subScreens = mappedScreens.filter(s => subIds.has(s.id));
 
         this.state.activeFreg = {
             mid,
@@ -698,11 +702,12 @@ export class P03Workspace extends Component {
             subModuleTitle: sub[1],
             functionCount: sub[2],
             module: mod,
-            screens: mappedScreens.slice(0, 6),
+            screens: mod.captures ? subScreens : mappedScreens.slice(0, 6),
             reports: mod.reports.slice(0, 4),
             forms: mod.captures
                 ? mod.captures.filter(c => c.freg.includes(sub[0])).map(c => c.en)
                 : mod.forms.slice(0, 3),
+            gaps: (mod.gaps || []).filter(g => g.freg.includes(sub[0])),
             gridData: grid
         };
         this.state.viewMode = "freg";
@@ -763,6 +768,8 @@ export class P03Workspace extends Component {
             moduleTitle: hit.m.title,
             groupTitle: customGroupEn || hit.g.en,
             captureLabel: ((hit.m.captures || []).find(c => c.screens.includes(hit.sc.id)) || {}).en || null,
+            mapped: !!hit.m.captures,
+            gap: (hit.m.gaps || []).find(g => g.screens.includes(hit.sc.id)) || null,
             gridData: grid
         };
         this.state.filteredGridRows = [...grid.rows];
@@ -841,11 +848,28 @@ export class P03Workspace extends Component {
 
     /* --- Data capture routing (module-aware) ---------------------------
        A module that declares a `captures` map (P03_MODULES[mid].captures)
-       opens the REAL Odoo form each label captures into. A module without
-       one keeps the service-order intake modal until its phase maps it. */
+       opens the REAL Odoo form each label captures into, with the optional
+       `ctx` defaults (e.g. a consignment pre-typed as a branch transfer).
+       Its `gaps` list names what has no backing model yet: those buttons
+       say so and NEVER fall back to an unrelated form. A module without a
+       map keeps the service-order intake modal until its phase maps it. */
     findCapture(label, mid) {
         const mod = P03_MODULES[mid || this.state.activeModuleId];
         return ((mod && mod.captures) || []).find(c => c.en === label) || null;
+    }
+
+    findGap(label, mid) {
+        const mod = P03_MODULES[mid || this.state.activeModuleId];
+        return ((mod && mod.gaps) || []).find(g => g.en === label) || null;
+    }
+
+    isGapForm(label) {
+        return !!this.findGap(label);
+    }
+
+    showGap(label, gap) {
+        const why = gap && gap.note ? ` (${gap.note})` : "";
+        this.showToast(`No data-capture form for '${label}' yet${why}.`);
     }
 
     get headerCaptureLabel() {
@@ -855,17 +879,22 @@ export class P03Workspace extends Component {
 
     get fregCaptureLabel() {
         const f = this.state.activeFreg;
-        return f && f.module.captures && f.forms.length ? `+ New ${f.forms[0]}` : "+ New Entry";
+        if (!f || !f.module.captures) return "+ New Entry";
+        return f.forms.length ? `+ New ${f.forms[0]}` : "No capture form yet";
     }
 
     get screenCaptureLabel() {
         const sc = this.state.activeScreen;
-        return sc && sc.captureLabel ? `+ New ${sc.captureLabel}` : "+ New Record";
+        if (!sc) return "+ New Record";
+        if (sc.captureLabel) return `+ New ${sc.captureLabel}`;
+        return sc.mapped ? "No capture form yet" : "+ New Record";
     }
 
     async openCapture(label, mid) {
+        const mod = P03_MODULES[mid || this.state.activeModuleId];
         const cap = this.findCapture(label, mid);
         if (!cap) {
+            if (mod && mod.captures) return this.showGap(label, this.findGap(label, mid));
             this.openNewForm();
             return;
         }
@@ -876,6 +905,7 @@ export class P03Workspace extends Component {
                 res_model: cap.model,
                 views: [[false, "form"]],
                 target: "new",
+                context: { ...(cap.ctx || {}) },
             });
         } catch (e) {
             console.error(`Capture '${cap.en}' failed to open`, e);
@@ -891,13 +921,18 @@ export class P03Workspace extends Component {
 
     openFregCapture() {
         const f = this.state.activeFreg;
-        if (f && f.module.captures && f.forms.length) return this.openCapture(f.forms[0], f.mid);
+        if (f && f.module.captures) {
+            if (f.forms.length) return this.openCapture(f.forms[0], f.mid);
+            const gap = f.gaps[0];
+            return this.showGap(gap ? gap.en : f.subModuleTitle, gap);
+        }
         this.openNewForm();
     }
 
     openScreenCapture() {
         const sc = this.state.activeScreen;
         if (sc && sc.captureLabel) return this.openCapture(sc.captureLabel, sc.mid);
+        if (sc && sc.mapped) return this.showGap(sc.gap ? sc.gap.en : sc.en, sc.gap);
         this.openNewForm();
     }
 
@@ -1269,7 +1304,7 @@ export class P03Workspace extends Component {
                     { id: "M01-all", title: "All Service Orders", icon: "⛁", group: "Service Operations", fn: () => { this.closeTellMe(); this.openScreen("M01-all"); } },
                     { id: "M02-dispatch", title: "Live Dispatch Board", icon: "🚐", group: "Field Service", fn: () => { this.closeTellMe(); this.openScreen("M02-dispatch"); } },
                     { id: "M03-counter", title: "Walk-in Counter Queue", icon: "🏢", group: "Branch Operations", fn: () => { this.closeTellMe(); this.openScreen("M03-counter"); } },
-                    { id: "M15-stock", title: "Parts Stock & Inventory", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-stock"); } }
+                    { id: "M15-onhand", title: "On-Hand by Location", icon: "📦", group: "Supply Chain", fn: () => { this.closeTellMe(); this.openScreen("M15-onhand"); } }
                 ]
             };
         }

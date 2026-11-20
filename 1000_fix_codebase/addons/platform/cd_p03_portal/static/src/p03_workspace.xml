@@ -407,8 +407,9 @@
                             <div class="fx-card">
                                 <h3>⛁ Data-Entry Forms</h3>
                                 <t t-foreach="state.activeModule.forms" t-as="f" t-key="f">
-                                    <button class="form-chip" t-on-click="() => this.openCapture(f)" t-att-title="'Open ' + f">
-                                        ⛁ <t t-esc="f"/>
+                                    <button t-att-class="isGapForm(f) ? 'form-chip is-gap' : 'form-chip'" t-on-click="() => this.openCapture(f)"
+                                            t-att-title="isGapForm(f) ? 'No data-capture form yet: ' + f : 'Open ' + f">
+                                        <t t-if="isGapForm(f)">⚠</t><t t-else="">⛁</t> <t t-esc="f"/>
                                     </button>
                                 </t>
                             </div>
@@ -481,6 +482,11 @@
                                     <t t-foreach="state.activeFreg.forms" t-as="f" t-key="f">
                                         <button class="form-chip" t-on-click="() => this.openCapture(f, state.activeFreg.mid)" t-att-title="'Open ' + f">
                                             ⛁ <t t-esc="f"/>
+                                        </button>
+                                    </t>
+                                    <t t-foreach="state.activeFreg.gaps" t-as="g" t-key="g.en">
+                                        <button class="form-chip is-gap" t-on-click="() => this.showGap(g.en, g)" t-att-title="'No data-capture form yet: ' + g.note">
+                                            ⚠ <t t-esc="g.en"/> — no backing model yet
                                         </button>
                                     </t>
                                 </div>
@@ -1501,7 +1507,7 @@
                                     <div class="fb-links">
                                         <button class="screen-link" t-on-click="() => this.openScreen('M02-wo')">⇄ M02 Field Work Order</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M05-claims')">⇄ M09 Brand Claim</button>
-                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-reserved')">⇄ M15 Reserved Parts</button>
+                                        <button class="screen-link" t-on-click="() => this.openScreen('M15-onhand')">⇄ M15 On-Hand by Location</button>
                                         <button class="screen-link" t-on-click="() => this.openScreen('M20-invoices')">⇄ M20 Mushak 6.3 Invoice</button>
                                     </div>
                                 </div>

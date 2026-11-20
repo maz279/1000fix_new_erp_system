@@ -317,7 +317,7 @@ export const P03_MODULES = {
     ],
     reports: ['Transit Damage & Loss Log', 'District Round-Trip TAT', 'Courier Delivery Success'],
     forms: ['Create Custody Bag Manifest', 'Seal Verification Check', 'Handover to Customer'],
-    cross: ['M01 Service Orders', 'M43 Transit Tracking', 'M47 Logistics Fleet'],
+    cross: ['M01 Service Orders', 'M03 Collection & Delivery', 'M47 Logistics Fleet'],
     freg: {
       src: 88,
       sub: [
@@ -731,69 +731,241 @@ export const P03_MODULES = {
     area: 'A06', code: 'M15', en: 'Spare Parts & Inventory', title: 'M15 · Spare Parts & Inventory',
     bn: 'স্পেয়ার পার্টস ও ইনভেন্টরি', icon: '🧰',
     desc: 'Stock ledger across 6 ownership classes — serial/lot trace, van stock, valuation, transfers, counts.',
-    kpis: [
-      { l: 'Total Inventory Value' },
-      { l: 'Parts Stock-Out Rate' },
-      { l: 'Inventory Accuracy' }
-    ],
+    kpis: [{ l: 'Inventory Accuracy' }, { l: 'Stock Value' }, { l: 'Part Availability' }, { l: 'Dead Stock' },
+           { l: 'Van Variance' }, { l: 'Turns (annualised)' }],
     groups: [
-      {
-        en: 'Parts Management',
-        screens: [
-          { id: 'M15-stock', en: 'Parts Stock by Branch (53 Hubs)', bn: 'সকল শাখার স্টক', t: 'g' },
-          { id: 'M15-reserved', en: 'Reserved Parts for Active Jobs', bn: 'রিজার্ভড পার্টস', t: 'g' },
-          { id: 'M15-reorder', en: 'Min/Max Auto-Reorder Alerts', bn: 'অটো রি-অর্ডার অ্যালার্ট', t: 'g' }
-        ]
-      }
+      { en: 'Stock Ledger', screens: [
+        { id: 'M15-onhand', en: 'On-Hand by Location', bn: 'স্টক লেজার', t: 'g' },
+        { id: 'M15-ownership', en: '6 Ownership Classes', bn: 'মালিকানা শ্রেণি', t: 'g' },
+        { id: 'M15-movements', en: 'Issues & Returns', bn: 'ইস্যু ও ফেরত', t: 'g' },
+        { id: 'M15-network', en: 'Network Availability Search', bn: 'নেটওয়ার্ক অনুসন্ধান', t: 'c' }] },
+      { en: 'Traceability', screens: [
+        { id: 'M15-serials', en: 'Serial & Lot Trace', bn: 'সিরিয়াল ট্রেস', t: 'g' },
+        { id: 'M15-genealogy', en: 'Consumption Genealogy', bn: 'ব্যবহার বংশতালিকা', t: 'r' }] },
+      { en: 'Van Stock', screens: [
+        { id: 'M15-van', en: 'Van Stock by Technician', bn: 'ভ্যান স্টক', t: 'g' },
+        { id: 'M15-replen', en: 'Replenishment & Par', bn: 'পূরণকরণ', t: 'g' },
+        { id: 'M15-recon', en: 'Daily Reconciliation', bn: 'দৈনিক মিলকরণ', t: 'c' }] },
+      { en: 'Control', screens: [
+        { id: 'M15-counts', en: 'Cycle & Full Counts', bn: 'গণনা', t: 'c' },
+        { id: 'M15-transfers', en: 'Inter-Branch Transfers', bn: 'শাখা স্থানান্তর', t: 'g' },
+        { id: 'M15-quarantine', en: 'Quarantine & Scrap', bn: 'কোয়ারেন্টাইন', t: 'g' },
+        { id: 'M15-rtv', en: 'RTV Initiation', bn: 'ফেরত প্রেরণ', t: 'g' }] },
+      { en: 'Valuation & Analysis', screens: [
+        { id: 'M15-valuation', en: 'Valuation (FIFO/WAC)', bn: 'মূল্যায়ন', t: 'r' },
+        { id: 'M15-ageing', en: 'Ageing & Obsolescence', bn: 'বয়স ও অবচয়', t: 'r' },
+        { id: 'M15-abc', en: 'ABC / XYZ / Criticality', bn: 'এবিসি বিশ্লেষণ', t: 'r' }] }
     ],
-    reports: ['Inventory Valuation by Class', 'Fast vs Slow Moving Parts Pareto', 'Branch Stock Discrepancy Log'],
-    forms: ['Stock Adjustment Request', 'Issue Parts to Service Order', 'Bin Transfer Voucher'],
-    cross: ['M01 Service Orders', 'M41 Purchase Orders', 'M19 General Ledger'],
-    freg: {
-      src: 124,
-      sub: [
-        ['1', 'Multi-Warehouse Bin Stock Tracking', 14],
-        ['2', 'Real-Time Job Part Reservation', 12],
-        ['3', 'Automated Reorder Point Triggers', 10],
-        ['4', 'Cycle Counting & Stock Take Audits', 8]
-      ]
-    }
+    reports: ['Stock Valuation by Class', 'Inventory Accuracy Audit', 'Ageing & Dead Stock',
+              'Van Stock Variance', 'Transfer Performance', 'ABC Segmentation'],
+    // Data-entry forms = capture labels (sub-module order), then registry forms
+    // with no backing model yet (each listed under `gaps`).
+    forms: ['Spare Part', 'Stock Location', 'Stock Issue', 'Van Stock Location', 'Reorder Rule',
+            'Valuation Entry', 'Part Segment Classification', 'Transfer Request',
+            'Return-to-Vendor Consignment', 'Goods Receipt (inspection gate)', 'Cycle Count', 'Scrap Order'],
+    cross: ['M41 warehouse execution', 'M16 procurement', 'M02 van consumption', 'M09 consignment stock',
+            'M31 bench stock'],
+    freg: { src: 107, sub: [
+      ['1', 'On-Hand & Classes', 12], ['2', 'Location Hierarchy', 8], ['3', 'Ownership Segregation', 9],
+      ['4', 'Reservations', 7], ['5', 'Issue / Return / Consumption', 10], ['6', 'Van Stock', 11],
+      ['7', 'Serial & Lot Trace', 10], ['8', 'Valuation', 8], ['9', 'Goods Receipt', 7], ['10', 'Counting', 9],
+      ['11', 'Ageing & Analysis', 8], ['12', 'Transfers & RTV', 8]] },
+    // Capture map (CD-M15, A06 audit): cd_inventory, cd_consignment, cd_demand_plan.
+    // Every sub-module (freg) and screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Spare Part', bn: 'স্পেয়ার পার্ট', model: 'fix.spare.part', freg: ['1'], screens: ['M15-onhand'] },
+      { en: 'Stock Location', bn: 'স্টক লোকেশন', model: 'fix.stock.location', freg: ['2'], screens: ['M15-onhand'] },
+      { en: 'Stock Issue', bn: 'স্টক ইস্যু', model: 'fix.stock.consumption', freg: ['5'], screens: ['M15-movements'] },
+      { en: 'Van Stock Location', bn: 'ভ্যান স্টক লোকেশন', model: 'fix.stock.location', ctx: { default_location_type: 'van' }, freg: ['6'], screens: ['M15-van'] },
+      { en: 'Reorder Rule', bn: 'পুনঃঅর্ডার নিয়ম', model: 'fix.reorder.rule', freg: ['6'], screens: ['M15-replen'] },
+      { en: 'Valuation Entry', bn: 'মূল্যায়ন এন্ট্রি', model: 'fix.inventory.valuation.suspense', ctx: { default_entry_type: 'revaluation' }, freg: ['8'], screens: ['M15-valuation'] },
+      { en: 'Part Segment Classification', bn: 'পার্টস সেগমেন্ট শ্রেণীকরণ', model: 'fix.part.segment', freg: ['11'], screens: ['M15-abc'] },
+      { en: 'Transfer Request', bn: 'স্থানান্তর অনুরোধ', model: 'fix.consignment', ctx: { default_consignment_type: 'branch_transfer' }, freg: ['12'], screens: ['M15-transfers'] },
+      { en: 'Return-to-Vendor Consignment', bn: 'সরবরাহকারীকে ফেরত চালান', model: 'fix.consignment', ctx: { default_consignment_type: 'return_to_vendor' }, freg: ['12'], screens: ['M15-rtv'] }
+    ],
+    // Gaps: no backing model in addons/ yet. Their buttons say so instead of
+    // opening an unrelated form.
+    gaps: [
+      { en: 'Ownership Class Assignment', freg: ['3'], screens: ['M15-ownership'], note: 'no ownership-class field or record (6 classes) on any stock model' },
+      { en: 'Stock Reservation', freg: ['4'], screens: [], note: 'only a qty_reserved counter on fix.spare.part; no reservation record' },
+      { en: 'Serial / Lot Record', freg: ['7'], screens: ['M15-serials', 'M15-genealogy'], note: 'no serial/lot model; a serial is free text on fix.stock.consumption' },
+      { en: 'Goods Receipt (inspection gate)', freg: ['9'], screens: [], note: 'no GRN model; receipt is only qty_received on fix.purchase.order.line' },
+      { en: 'Cycle Count', freg: ['10'], screens: ['M15-counts'], note: 'no count plan / count sheet model' },
+      { en: 'Network Availability Search', freg: [], screens: ['M15-network'], note: 'search console over on-hand stock; no record to capture' },
+      { en: 'Van Reconciliation', freg: [], screens: ['M15-recon'], note: 'no daily van reconciliation record' },
+      { en: 'Scrap Order', freg: [], screens: ['M15-quarantine'], note: 'no quarantine disposition / scrap order model' },
+      { en: 'Ageing & Obsolescence Review', freg: [], screens: ['M15-ageing'], note: 'no ageing or obsolescence provision model' }
+    ]
   },
 
   M41: {
     area: 'A06', code: 'M41', en: 'Warehouse Management', title: 'M41 · Warehouse Management',
     bn: 'ওয়্যারহাউস ব্যবস্থাপনা', icon: '🏭',
     desc: 'Physical execution — bins & slots, directed put-away, wave picking, packing, RF mobile, task interleaving.',
-    kpis: [{ l: 'Active Purchase Orders' }, { l: 'On-Time Supplier Delivery' }],
+    kpis: [{ l: 'Pick Accuracy' }, { l: 'Lines Picked Today' }, { l: 'Waves Open' },
+           { l: 'Dock Appointments' }, { l: 'Labour Efficiency' }, { l: 'Short-Picks' }],
     groups: [
-      { en: 'Procurement', screens: [{ id: 'M41-orders', en: 'Purchase Orders Register', bn: 'পারচেজ অর্ডার রেজিস্টার', t: 'g' }] }
+      { en: 'Structure', screens: [
+        { id: 'M41-zones', en: 'Zones, Aisles & Bins', bn: 'জোন ও বিন', t: 'g' },
+        { id: 'M41-slotting', en: 'Slotting & Re-Slotting', bn: 'স্লটিং', t: 'g' }] },
+      { en: 'Inbound', screens: [
+        { id: 'M41-docks', en: 'Dock Appointments', bn: 'ডক অ্যাপয়েন্টমেন্ট', t: 'g' },
+        { id: 'M41-receiving', en: 'Scan Receiving', bn: 'রিসিভিং', t: 'c' },
+        { id: 'M41-putaway', en: 'Directed Put-Away', bn: 'পুট-অ্যাওয়ে', t: 'g' }] },
+      { en: 'Outbound', screens: [
+        { id: 'M41-waves', en: 'Wave Planning', bn: 'ওয়েভ পরিকল্পনা', t: 'c' },
+        { id: 'M41-picking', en: 'Pick Strategies', bn: 'পিকিং', t: 'g' },
+        { id: 'M41-packing', en: 'Packing & Cartons', bn: 'প্যাকিং', t: 'g' },
+        { id: 'M41-staging', en: 'Staging & Load', bn: 'স্টেজিং', t: 'g' }] },
+      { en: 'Floor Ops', screens: [
+        { id: 'M41-rf', en: 'RF Mobile App', bn: 'আরএফ অ্যাপ', t: 'd' },
+        { id: 'M41-tasks', en: 'Task Management', bn: 'কাজ ব্যবস্থাপনা', t: 'g' },
+        { id: 'M41-counting', en: 'Floor Counts', bn: 'ফ্লোর গণনা', t: 'g' }] }
     ],
-    reports: ['Supplier Lead Time Performance'], forms: ['Generate Purchase Order'], cross: ['M15 Inventory', 'M16 Suppliers'],
-    freg: { src: 96, sub: [['1', 'Consumption-Driven Reorder Engine', 12], ['2', '3-Way Match & PO Approvals', 10]] }
+    reports: ['Throughput by Shift', 'Pick Accuracy Trend', 'Wave Cycle Time', 'Labour Productivity',
+              'Bin Utilisation Heatmap'],
+    // Data-entry forms = capture labels (sub-module order), then registry forms
+    // with no backing model yet (each listed under `gaps`).
+    forms: ['Warehouse', 'Warehouse Zone', 'Bin', 'Wave Template', 'Dock Appointment',
+            'Packing Station Config'],
+    cross: ['M15 stock ledger', 'M16 goods receipt', 'M03 outbound staging', 'M44 import receiving'],
+    freg: { src: 78, sub: [
+      ['1', 'Physical Structure', 8], ['2', 'Slotting', 7], ['3', 'Inbound & Put-Away', 12],
+      ['4', 'Wave Planning', 9], ['5', 'Picking', 11], ['6', 'Packing & Staging', 8],
+      ['7', 'Replenishment', 6], ['8', 'RF Execution', 8], ['9', 'Labour & Analytics', 9]] },
+    // Capture map (CD-M41, A06 audit): cd_wms_structure. Execution sub-modules have no backend yet.
+    // Every sub-module (freg) and screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Warehouse', bn: 'গুদাম', model: 'fix.warehouse', freg: ['1'], screens: ['M41-zones'] },
+      { en: 'Warehouse Zone', bn: 'গুদাম জোন', model: 'fix.warehouse.zone', freg: ['1'], screens: ['M41-zones'] },
+      { en: 'Bin', bn: 'বিন', model: 'fix.warehouse.bin', freg: ['1'], screens: ['M41-zones'] }
+    ],
+    // Gaps: no backing model in addons/ yet. Their buttons say so instead of
+    // opening an unrelated form.
+    gaps: [
+      { en: 'Slotting Rule', freg: ['2'], screens: ['M41-slotting'], note: 'no slotting / pick-face model' },
+      { en: 'Dock Appointment', freg: ['3'], screens: ['M41-docks'], note: 'no dock door or appointment model' },
+      { en: 'Scan Receipt & Put-Away Task', freg: ['3'], screens: ['M41-receiving', 'M41-putaway'], note: 'no inbound receipt or put-away task model' },
+      { en: 'Wave Template', freg: ['4'], screens: ['M41-waves'], note: 'no wave or wave template model' },
+      { en: 'Pick Task', freg: ['5'], screens: ['M41-picking'], note: 'no pick list / pick task model' },
+      { en: 'Packing Station Config', freg: ['6'], screens: ['M41-packing', 'M41-staging'], note: 'no packing station, carton or staging model' },
+      { en: 'Bin Replenishment Task', freg: ['7'], screens: [], note: 'no pick-face replenishment model (fix.reorder.rule is supplier reorder, M15)' },
+      { en: 'RF Task', freg: ['8'], screens: ['M41-rf', 'M41-tasks'], note: 'no RF session or warehouse task model' },
+      { en: 'Labour Standard', freg: ['9'], screens: [], note: 'no time standard or productivity model' },
+      { en: 'Floor Count', freg: [], screens: ['M41-counting'], note: 'no count plan / count sheet model' }
+    ]
   },
 
   M16: {
     area: 'A06', code: 'M16', en: 'Procurement & Sourcing', title: 'M16 · Procurement & Sourcing',
     bn: 'ক্রয় ও সোর্সিং', icon: '🛍️',
     desc: 'Demand-to-PO, RFQ with normalised comparison, three-way match, blanket orders, expediting, spend analysis.',
-    kpis: [{ l: 'Active Suppliers' }, { l: 'Defective Parts Rate' }],
+    kpis: [{ l: 'Open PRs' }, { l: 'POs Awaiting Approval' }, { l: '3-Way Match Exceptions' },
+           { l: 'Vendor OTD' }, { l: 'Spend Under Contract' }, { l: 'Emergency Purchases' }],
     groups: [
-      { en: 'Suppliers', screens: [{ id: 'M16-vendors', en: 'Approved Vendor List (AVL)', bn: 'অনুমোদিত ভেন্ডর তালিকা', t: 'g' }] }
+      { en: 'Requisitions', screens: [
+        { id: 'M16-prs', en: 'Purchase Requisitions', bn: 'ক্রয় অনুরোধ', t: 'g' },
+        { id: 'M16-consol', en: 'Cross-Branch Consolidation', bn: 'একত্রীকরণ', t: 'c' }] },
+      { en: 'Sourcing', screens: [
+        { id: 'M16-rfqs', en: 'RFQ Events', bn: 'আরএফকিউ', t: 'g' },
+        { id: 'M16-compare', en: 'Bid Comparison', bn: 'দর তুলনা', t: 'f' },
+        { id: 'M16-award', en: 'Award Decisions', bn: 'পুরস্কার সিদ্ধান্ত', t: 'g' }] },
+      { en: 'Orders', screens: [
+        { id: 'M16-pos', en: 'Purchase Orders', bn: 'ক্রয় আদেশ', t: 'g' },
+        { id: 'M16-blanket', en: 'Blanket / Call-Off', bn: 'ব্ল্যাঙ্কেট আদেশ', t: 'g' },
+        { id: 'M16-expedite', en: 'Expediting Desk', bn: 'ত্বরান্বিতকরণ', t: 'c' }] },
+      { en: 'Receiving & Match', screens: [
+        { id: 'M16-grn', en: 'Goods Receipts', bn: 'পণ্য গ্রহণ', t: 'g' },
+        { id: 'M16-inspection', en: 'Inspection Outcomes', bn: 'পরিদর্শন', t: 'g' },
+        { id: 'M16-match', en: '3-Way Match Workbench', bn: 'ত্রিমুখী মিলকরণ', t: 'c' }] },
+      { en: 'Analysis', screens: [
+        { id: 'M16-spend', en: 'Spend Analysis', bn: 'ব্যয় বিশ্লেষণ', t: 'r' },
+        { id: 'M16-pricehist', en: 'Price History & Alerts', bn: 'মূল্য ইতিহাস', t: 'g' },
+        { id: 'M16-rtv', en: 'RTV Lifecycle', bn: 'ফেরত জীবনচক্র', t: 'g' }] }
     ],
-    reports: ['Supplier Quality Scorecards'], forms: ['Onboard New Vendor Form'], cross: ['M41 Purchase Orders', 'M44 Parts RMA'],
-    freg: { src: 86, sub: [['1', 'Vendor Scorecard & SLA Engine', 10], ['2', 'Defective RMA Return Tracking', 8]] }
+    reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert',
+              'Maverick Spend', 'PO Cycle Time'],
+    // Data-entry forms = capture labels (sub-module order), then registry forms
+    // with no backing model yet (each listed under `gaps`).
+    forms: ['Purchase Requisition', 'Purchase Order', 'Vendor Invoice (3-way match)', 'RTV Request', 'RFQ',
+            'GRN'],
+    cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
+    freg: { src: 88, sub: [
+      ['1', 'Demand Intake', 8], ['2', 'Requisition & Approval', 10], ['3', 'Consolidation', 6],
+      ['4', 'RFQ & Bidding', 12], ['5', 'PO Lifecycle', 11], ['6', 'Blanket Orders', 6],
+      ['7', 'Expediting', 7], ['8', 'GRN & Inspection', 9], ['9', '3-Way Match', 10],
+      ['10', 'Spend Analysis', 9]] },
+    // Capture map (CD-M16, A06 audit): cd_requisition, cd_ap_ext (M52 matcher), cd_consignment.
+    // Every sub-module (freg) and screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Purchase Requisition', bn: 'ক্রয় অনুরোধ', model: 'fix.requisition', freg: ['1', '2'], screens: ['M16-prs'] },
+      { en: 'Purchase Order', bn: 'ক্রয় আদেশ', model: 'fix.purchase.order', freg: ['5'], screens: ['M16-pos'] },
+      { en: 'Vendor Invoice (3-way match)', bn: 'সরবরাহকারী চালান (ত্রিমুখী মিলকরণ)', model: 'fix.vendor.invoice', freg: ['9'], screens: ['M16-match'] },
+      { en: 'RTV Request', bn: 'ফেরত অনুরোধ', model: 'fix.consignment', ctx: { default_consignment_type: 'return_to_vendor' }, freg: [], screens: ['M16-rtv'] }
+    ],
+    // Gaps: no backing model in addons/ yet. Their buttons say so instead of
+    // opening an unrelated form.
+    gaps: [
+      { en: 'Consolidation Run', freg: ['3'], screens: ['M16-consol'], note: 'no cross-branch consolidation model' },
+      { en: 'RFQ', freg: ['4'], screens: ['M16-rfqs', 'M16-compare', 'M16-award'], note: 'no RFQ, bid or award model' },
+      { en: 'Blanket Order', freg: ['6'], screens: ['M16-blanket'], note: 'no blanket / call-off agreement model' },
+      { en: 'Expedite Action', freg: ['7'], screens: ['M16-expedite'], note: 'no expediting record' },
+      { en: 'GRN', freg: ['8'], screens: ['M16-grn', 'M16-inspection'], note: 'no GRN or inspection model; receipt is only qty_received on fix.purchase.order.line' },
+      { en: 'Spend Review', freg: ['10'], screens: ['M16-spend', 'M16-pricehist'], note: 'analysis only; no price history or spend model' }
+    ]
   },
 
   M42: {
     area: 'A06', code: 'M42', en: 'Supplier Relationship', title: 'M42 · Supplier Relationship',
     bn: 'সরবরাহকারী সম্পর্ক', icon: '🧑‍💼',
     desc: 'Supplier qualification gate, scorecards, corrective actions, risk assessment, compliance screening.',
-    kpis: [{ l: 'Orders Picked Today' }],
+    kpis: [{ l: 'Qualified Suppliers' }, { l: 'Scorecard Avg' }, { l: 'CARs Open' },
+           { l: 'Docs Expiring (60d)' }, { l: 'Single-Source Items' }, { l: 'Restricted Suppliers' }],
     groups: [
-      { en: 'Warehouse Floor', screens: [{ id: 'M42-docks', en: 'Dock Receiving & Inbound Shipments', bn: 'ডক রিসিভিং ও ইনবাউন্ড', t: 'g' }] }
+      { en: 'Register', screens: [
+        { id: 'M42-suppliers', en: 'Supplier Directory', bn: 'সরবরাহকারী তালিকা', t: 'g' },
+        { id: 'M42-segments', en: 'Segmentation', bn: 'সেগমেন্টেশন', t: 'g' },
+        { id: 'M42-docs', en: 'Document Register', bn: 'দলিল রেজিস্টার', t: 'g' }] },
+      { en: 'Qualification', screens: [
+        { id: 'M42-qualification', en: 'Qualification Workflow', bn: 'যোগ্যতা যাচাই', t: 'c' },
+        { id: 'M42-gate', en: 'Activation Gate (M16)', bn: 'অ্যাক্টিভেশন গেট', t: 'g' },
+        { id: 'M42-requal', en: 'Re-Qualification', bn: 'পুনঃযোগ্যতা', t: 'g' }] },
+      { en: 'Performance', screens: [
+        { id: 'M42-scorecards', en: 'Scorecards', bn: 'স্কোরকার্ড', t: 'g' },
+        { id: 'M42-cars', en: 'Corrective Actions', bn: 'সংশোধনী কর্ম', t: 'g' },
+        { id: 'M42-reviews', en: 'Review Cycles', bn: 'পর্যালোচনা', t: 'c' }] },
+      { en: 'Risk & Compliance', screens: [
+        { id: 'M42-risk', en: 'Risk Assessment', bn: 'ঝুঁকি মূল্যায়ন', t: 'r' },
+        { id: 'M42-screening', en: 'Sanctions / COI / ABAC', bn: 'স্ক্রিনিং', t: 'g' }] }
     ],
-    reports: ['Warehouse Picking Accuracy'], forms: ['Inbound GRN Receiving Form'], cross: ['M15 Inventory'],
-    freg: { src: 84, sub: [['1', 'Wave Picking & Staging', 10], ['2', 'Barcode Inbound Receipt', 8]] }
+    reports: ['Supplier Scorecard League', 'CAR Closure Performance', 'Risk Heat Map', 'Contract Coverage',
+              'Compliance Screening Log'],
+    // Data-entry forms = capture labels (sub-module order), then registry forms
+    // with no backing model yet (each listed under `gaps`).
+    forms: ['Supplier Profile', 'Supplier Scorecard', 'CAR', 'Qualification Questionnaire', 'Risk Assessment'],
+    cross: ['M33 party extension', 'M16 activation gate', 'P05 vendor portal', 'M40 brand class'],
+    freg: { src: 71, sub: [
+      ['1', 'Supplier Profiles', 9], ['2', 'Segmentation', 6], ['3', 'Qualification', 10],
+      ['4', 'Documents & Validity', 8], ['5', 'Contracts & Price Lists', 7], ['6', 'Scorecards', 9],
+      ['7', 'Corrective Actions', 7], ['8', 'Risk Assessment', 9], ['9', 'Compliance Screening', 6]] },
+    // Capture map (CD-M42, A06 audit): cd_party_master (M33 party extension), cd_cx_feedback, cd_qms_process.
+    // Every sub-module (freg) and screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Supplier Profile', bn: 'সরবরাহকারী প্রোফাইল', model: 'fix.party.role', ctx: { default_role_type: 'vendor' }, freg: ['1'], screens: ['M42-suppliers'] },
+      { en: 'Supplier Scorecard', bn: 'সরবরাহকারী স্কোরকার্ড', model: 'fix.supplier.scorecard', freg: ['6'], screens: ['M42-scorecards'] },
+      { en: 'CAR', bn: 'সংশোধনী কর্ম অনুরোধ', model: 'fix.ncr', ctx: { default_source: 'supplier' }, freg: ['7'], screens: ['M42-cars'] }
+    ],
+    // Gaps: no backing model in addons/ yet. Their buttons say so instead of
+    // opening an unrelated form.
+    gaps: [
+      { en: 'Supplier Segment', freg: ['2'], screens: ['M42-segments'], note: 'no supplier segmentation model' },
+      { en: 'Qualification Questionnaire', freg: ['3'], screens: ['M42-qualification', 'M42-gate', 'M42-requal'], note: 'no qualification, activation gate or re-qualification model' },
+      { en: 'Supplier Document', freg: ['4'], screens: ['M42-docs'], note: 'no supplier document validity model (fix.document has retention, not validity)' },
+      { en: 'Supplier Contract & Price List', freg: ['5'], screens: [], note: 'no supplier contract or price list model' },
+      { en: 'Review Cycle', freg: [], screens: ['M42-reviews'], note: 'no supplier review cycle model' },
+      { en: 'Risk Assessment', freg: ['8'], screens: ['M42-risk'], note: 'no supplier risk model (fix.risk.register is the enterprise register, no supplier link)' },
+      { en: 'Compliance Screening', freg: ['9'], screens: ['M42-screening'], note: 'no sanctions / COI / ABAC screening model' }
+    ]
   },
 
   M43: {
@@ -854,12 +1026,55 @@ export const P03_MODULES = {
     area: 'A06', code: 'M44', en: 'Import & Trade Compliance', title: 'M44 · Import & Trade Compliance',
     bn: 'আমদানি ও বাণিজ্য', icon: '🚢',
     desc: 'LC/TT lifecycle, HS classification, ASYCUDA Bill of Entry, duty cascade, landed-cost allocation.',
-    kpis: [{ l: 'Quarantined Items' }],
+    kpis: [{ l: 'Active Imports' }, { l: 'LCs Open' }, { l: 'Duty Accuracy' }, { l: 'Demurrage Incidents' },
+           { l: 'Landed-Cost Variance' }, { l: 'Cycle Time (order→release)' }],
     groups: [
-      { en: 'Quarantine', screens: [{ id: 'M44-quarantine', en: 'Quarantine Stock Bins', bn: 'কোয়ারেন্টাইন স্টক বিন', t: 'g' }] }
+      { en: 'Orders & Finance', screens: [
+        { id: 'M44-orders', en: 'Import Orders', bn: 'আমদানি অর্ডার', t: 'g' },
+        { id: 'M44-proforma', en: 'Proforma Invoices', bn: 'প্রোফর্মা', t: 'g' },
+        { id: 'M44-lc', en: 'Letters of Credit', bn: 'এলসি', t: 'g' },
+        { id: 'M44-incoterms', en: 'Incoterms & FX', bn: 'ইনকোটার্ম', t: 'g' }] },
+      { en: 'Compliance', screens: [
+        { id: 'M44-hs', en: 'HS Classification', bn: 'এইচএস কোড', t: 'g' },
+        { id: 'M44-irc', en: 'IRC & Restrictions', bn: 'আইআরসি', t: 'g' },
+        { id: 'M44-lca', en: 'LCA via Dealer Bank', bn: 'এলসিএ', t: 'g' }] },
+      { en: 'Shipping & Customs', screens: [
+        { id: 'M44-docs', en: 'Shipping Documents', bn: 'শিপিং দলিল', t: 'g' },
+        { id: 'M44-arrival', en: 'Arrival & Port Handling', bn: 'বন্দর পরিচালনা', t: 'g' },
+        { id: 'M44-boe', en: 'Bill of Entry (ASYCUDA)', bn: 'বিল অব এন্ট্রি', t: 'f' },
+        { id: 'M44-duty', en: 'Duty Cascade (CD/RD/SD/VAT/AT/AIT)', bn: 'শুল্ক', t: 'r' }] },
+      { en: 'Costing', screens: [
+        { id: 'M44-landed', en: 'Landed Cost Allocation', bn: 'ল্যান্ডেড কস্ট', t: 'c' },
+        { id: 'M44-cf', en: 'C&F Management', bn: 'সিঅ্যান্ডএফ', t: 'g' }] }
     ],
-    reports: ['RMA Recovery Rate'], forms: ['Quarantine Inspection Form'], cross: ['M16 Suppliers', 'M15 Inventory'],
-    freg: { src: 72, sub: [['1', 'Defective Part Quarantine Isolation', 8], ['2', 'Supplier RMA Return Workflow', 8]] }
+    reports: ['Landed Cost by Shipment', 'Duty & Tax Cascade', 'Cycle-Time Analysis', 'Demurrage Avoidance',
+              'FX Exposure'],
+    // Data-entry forms = capture labels (sub-module order), then registry forms
+    // with no backing model yet (each listed under `gaps`).
+    forms: ['Import Order', 'LC Application', 'HS Ruling Request', 'Bill of Entry'],
+    cross: ['M16 import POs', 'M50 trade finance', 'M51 import VAT/duty', 'M15 landed cost'],
+    freg: { src: 64, sub: [
+      ['1', 'Import Order Lifecycle', 9], ['2', 'LC & Payments', 10], ['3', 'HS Classification', 7],
+      ['4', 'Eligibility & IRC', 5], ['5', 'Shipping & Insurance', 8], ['6', 'Port & Customs', 9],
+      ['7', 'Duty Computation', 8], ['8', 'Landed Cost', 8]] },
+    // Capture map (CD-M44, A06 audit): cd_import_order. Only the order and its landed cost have a backend.
+    // Every sub-module (freg) and screen opens the real Odoo form it captures into.
+    captures: [
+      { en: 'Import Order', bn: 'আমদানি অর্ডার', model: 'fix.import.order', freg: ['1', '8'], screens: ['M44-orders', 'M44-landed'] }
+    ],
+    // Gaps: no backing model in addons/ yet. Their buttons say so instead of
+    // opening an unrelated form.
+    gaps: [
+      { en: 'Proforma Invoice', freg: [], screens: ['M44-proforma'], note: 'no proforma invoice model' },
+      { en: 'LC Application', freg: ['2'], screens: ['M44-lc'], note: 'no letter of credit / TT payment model' },
+      { en: 'Incoterm & FX Terms', freg: [], screens: ['M44-incoterms'], note: 'no incoterm or FX booking fields/model' },
+      { en: 'HS Ruling Request', freg: ['3'], screens: ['M44-hs'], note: 'no HS classification model' },
+      { en: 'IRC / LCA Record', freg: ['4'], screens: ['M44-irc', 'M44-lca'], note: 'no IRC or LCA eligibility model' },
+      { en: 'Shipping Document', freg: ['5'], screens: ['M44-docs'], note: 'no shipping document or insurance model' },
+      { en: 'Bill of Entry', freg: ['6'], screens: ['M44-arrival', 'M44-boe'], note: 'no port or Bill of Entry model' },
+      { en: 'Duty Computation', freg: ['7'], screens: ['M44-duty'], note: 'no duty line model; customs duty is one amount on fix.import.order' },
+      { en: 'C&F Agent Job', freg: [], screens: ['M44-cf'], note: 'no C&F agent model' }
+    ]
   },
 
   /* ============ A07 · ASSETS & FACILITIES ============================== */
