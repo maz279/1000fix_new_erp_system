@@ -15,6 +15,9 @@ PARAM_PREFIX = "cd_cash_position.account_code."
 # role -> human label (used in the refusal message and the settings notes)
 ACCOUNT_ROLES = {
     "branch_cash": "Branch cash on hand (drawer cash awaiting deposit)",
+    # A02 pass 2 (M04-01, D2): the branch safe the drawers drop cash into
+    # (100112 Cash in Safe; the parameter ships with cd_front_desk_finance)
+    "branch_safe": "Cash in the branch safe (safe drops awaiting deposit)",
     "cash_in_transit": "Cash-in-transit (deposits between branch and bank)",
     "cod_clearing": "Rider COD receivable / clearing",
     "rider_shortage": "Rider shortage recoverable",
