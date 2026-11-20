@@ -133,7 +133,7 @@ def test_a_cutoff_template_releases_its_queue_and_leaves_short_demand_waiting(wm
     w = wms
     tpl = (
         w.env["fix.wms.wave.template"]
-        .with_user(w.operator)
+        .with_user(w.supervisor)
         .create(
             {
                 "name": "Branch run " + w.tag,
@@ -144,24 +144,22 @@ def test_a_cutoff_template_releases_its_queue_and_leaves_short_demand_waiting(wm
             }
         )
     )
-    Demand = w.env["fix.wms.outbound.demand"].with_user(w.keeper)
-    vals = {"warehouse_id": w.wh.id, "part_id": w.wpart.id, "dest_location_id": w.hub.id}
-    ok = Demand.create(dict(vals, source_ref="TRF/A-" + w.tag, qty=3))
-    big = Demand.create(dict(vals, source_ref="TRF/B-" + w.tag, qty=500))
+    ok = _demand(w, _approved_transfer(w, qty=3))
+    big = _demand(w, _approved_transfer(w, qty=500))
     assert ok.template_id == tpl and big.template_id == tpl  # assigned by purpose
     w.env["fix.wms.wave.template"].sudo()._cron_auto_release()
     assert ok.state == "waved" and ok.wave_id.state == "released"
     assert big.state == "queued" and "only" in big.short_note
     assert tpl.last_released_at
     # released once per cut-off: later demand waits for the next one
-    late = Demand.create(dict(vals, source_ref="TRF/C-" + w.tag, qty=1))
+    late = _demand(w, _approved_transfer(w, qty=1))
     w.env["fix.wms.wave.template"].sudo()._cron_auto_release()
     assert late.state == "queued"
 
 
 def test_an_immediate_template_releases_on_arrival(wms):
     w = wms
-    w.env["fix.wms.wave.template"].with_user(w.operator).create(
+    w.env["fix.wms.wave.template"].with_user(w.supervisor).create(
         {
             "name": "Van now " + w.tag,
             "warehouse_id": w.wh.id,

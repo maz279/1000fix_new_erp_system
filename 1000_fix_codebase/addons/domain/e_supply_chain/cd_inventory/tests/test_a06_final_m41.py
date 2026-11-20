@@ -31,6 +31,13 @@ def _pick(w, line, user=None):
     )
 
 
+def _doc_released(w, qty=4):
+    """A06 ERP audit F01: a wave that ships picks an approved transfer's demand."""
+    wave = base._doc_wave(w, qty=qty)
+    wave.with_user(w.supervisor).action_release()
+    return wave
+
+
 def _serial_slot(w):
     """One serialized unit, received at the warehouse's location and binned."""
     env = w.env
@@ -195,6 +202,9 @@ def test_b8_another_operator_cannot_scan_pick_an_assigned_line(wms):
     task = w.env["fix.wms.task"].search([("wave_line_id", "=", wave.line_ids.id)])
     task.with_user(w.operator).write({"assignee_id": w.op_emp.id})
     task.with_user(w.operator).action_assign()
+    # O7: operator2 is an operative of this warehouse too, so only BRU-WMS-14 refuses
+    emp2 = w.env["hr.employee"].create({"name": "Op2 " + w.tag, "user_id": w.operator2.id})
+    w.env["fix.wms.operative"].create({"employee_id": emp2.id, "warehouse_id": w.wh.id})
     refused(w, lambda: _pick(w, wave.line_ids, user=w.operator2), "assigned to")
     assert wave.line_ids.state == "pending"
 
@@ -245,7 +255,7 @@ def test_b9_a_location_with_no_warehouse_is_unaffected(inv):
 # ======================================================== B11 the block closes the bin
 def test_b11_another_part_cannot_enter_a_blocked_bin(wms):
     w = wms
-    w.slot.with_user(w.operator).action_block(reason="Racking damaged")
+    w.slot.with_user(w.supervisor).action_block(reason="Racking damaged")
     other = w.env["fix.spare.part"].create(
         {"name": "A06 Other", "part_number": "A6Z-" + w.tag, "unit_cost": 1.0}
     )
@@ -272,7 +282,7 @@ def test_b11_another_part_cannot_enter_a_blocked_bin(wms):
 
 def test_b11_an_empty_bin_can_be_blocked_from_the_bin_row(wms):
     w = wms
-    w.bin2.with_user(w.operator).action_block(reason="Cleaning")
+    w.bin2.with_user(w.supervisor).action_block(reason="Cleaning")
     assert w.bin2.blocked and w.bin2.block_reason == "Cleaning"
     refused(
         w,
@@ -299,7 +309,7 @@ def test_b11_block_is_guarded_and_the_blocker_cannot_unblock(wms):
 
 def test_b11_unblocking_a_slot_opens_every_slot_of_the_bin(wms):
     w = wms
-    w.slot.with_user(w.operator).action_block(reason="Racking damaged")
+    w.slot.with_user(w.supervisor).action_block(reason="Racking damaged")
     assert w.bin.blocked and w.slot.state == "blocked"
     w.slot.with_user(w.controller).action_unblock(note="Repaired")
     assert not w.bin.blocked and w.slot.state == "active"
@@ -348,7 +358,7 @@ def test_b12_cancel_puts_picked_stock_back(wms):
 
 def test_b12_a_loaded_or_shipped_wave_cannot_be_cancelled(wms):
     w = wms
-    wave = _released(w, qty=4)
+    wave = _doc_released(w, qty=4)
     _pick(w, wave.line_ids)
     _carton, stage = _pack_and_load(w, wave)
     assert stage.state == "loaded"
@@ -402,7 +412,7 @@ def test_b13_loading_needs_the_scanned_manifest(wms):
 
 def test_b13_ship_refuses_a_load_with_no_verified_manifest(wms):
     w = wms
-    wave = _released(w)
+    wave = _doc_released(w)
     _pick(w, wave.line_ids)
     _carton, stage = _staged(w, wave)
     # an old stage already loaded when the manifest arrived
@@ -443,9 +453,27 @@ def test_b13_transfer_received_publishes(inv):
 def test_b1_scan_pick_needs_the_serial_and_ship_closes_it(wms):
     w = wms
     lot = _serial_slot(w)
-    wave = w.wave(qty=1, part=w.spart, bin_rec=w.bin2)
+    # F01: the serial leaves through the transfer that names it
+    tr = (
+        w.env["fix.stock.transfer"]
+        .with_user(w.keeper)
+        .create(
+            {
+                "from_location_id": w.central.id,
+                "to_location_id": w.hub.id,
+                "operating_unit_id": w.ou.id,
+                "line_ids": [(0, 0, {"part_id": w.spart.id, "qty": 1, "lot_id": lot.id})],
+            }
+        )
+    )
+    tr.with_user(w.keeper).action_submit()
+    if tr.state == "submitted":
+        tr.with_user(w.controller).action_approve()
+    demand = w.env["fix.wms.outbound.demand"].search([("transfer_id", "=", tr.id)])
+    wave = w.env["fix.wms.wave"].browse(demand.with_user(w.operator).action_build_wave())
     wave.with_user(w.supervisor).action_release()
     line = wave.line_ids
+    assert line.bin_id == w.bin2
     scan = {"bin_code": w.bin2.name, "item_code": w.spart.part_number}
     refused(w, lambda: line.with_user(w.operator).action_scan_pick(**scan), "serial")
     refused(
@@ -468,7 +496,7 @@ def test_b1_scan_pick_needs_the_serial_and_ship_closes_it(wms):
     _pack_and_load(w, wave)
     wave.with_user(w.operator).action_ship()
     w.env.invalidate_all()
-    assert (lot.status, lot.qty) == ("shipped", 0.0)
+    assert tr.state == "dispatched" and lot.status == "in_transit"
 
 
 def test_b1_cancelled_wave_puts_the_serial_back(wms):

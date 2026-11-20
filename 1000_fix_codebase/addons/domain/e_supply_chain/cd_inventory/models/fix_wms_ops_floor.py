@@ -26,7 +26,15 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2.errors import LockNotAvailable
 
 from .fix_inventory_approval import check_quantity, is_supervisor, is_whole_unit
-from .fix_wms_ops import EPS, _differs, _scan_bin, _scan_item
+from .fix_wms_ops import (
+    EPS,
+    NO_PUTAWAY_ZONE_TYPES,
+    _differs,
+    _scan_bin,
+    _scan_item,
+    bin_class,
+    require_operative_profile,
+)
 
 MOVE_TYPES = [
     ("replenish", "Pick-Face Replenishment"),
@@ -211,6 +219,9 @@ class FixWmsMove(models.Model):
                 raise UserError(
                     "Move %s is assigned to %s (BRU-WMS-14)." % (rec.name, rec.assignee_id.name)
                 )
+            require_operative_profile(
+                self.env, _warehouse_of(rec.from_bin_id), rec.from_bin_id.zone_id, "move stock"
+            )
             evidence = {}
             if not self.env.su:
                 evidence = {
@@ -250,19 +261,28 @@ class FixWmsMove(models.Model):
                     "%s is hazardous: it goes only into a hazardous-class bin, not %s "
                     "(BRU-WMS-11)." % (rec.part_id.part_number, target.name)
                 )
-            src_class = rec.from_bin_id.ownership_class or "any"
-            dst_class = target.ownership_class or "any"
-            if dst_class != "any" and src_class != dst_class:
+            src_class = source.ownership_class or "owned"
+            dst_class = bin_class(target)
+            if src_class != dst_class:
+                # O6: the stock keeps its class; an "any" bin holds owned stock only
                 raise UserError(
-                    "Bin %s holds %s stock only; bin %s is %s, so its stock's class is not "
-                    "proven (BRU-WMS-03)."
+                    "Bin %s holds %s stock only; the %s in bin %s is %s stock (BRU-WMS-03)."
                     % (
                         target.name,
                         dst_class,
+                        rec.part_id.part_number,
                         rec.from_bin_id.name,
-                        "unrestricted" if src_class == "any" else src_class,
+                        src_class,
                     )
                 )
+            if target.zone_id.zone_type in NO_PUTAWAY_ZONE_TYPES:
+                raise UserError(
+                    "Bin %s is in the %s zone: stock is not stored there by a bin move."
+                    % (target.name, target.zone_id.zone_type)
+                )
+            dest_probe = Slot._slot_for(rec.part_id, target)
+            if dest_probe:
+                dest_probe._check_pickable()
             dest = Slot._slot_for(rec.part_id, target, create=True)
             source._guarded().write({"qty": round((source.qty or 0.0) - rec.qty, 4)})
             # the capacity constraint on the slot refuses an over-full bin (BRU-WMS-09)
@@ -463,6 +483,23 @@ class FixWmsTaskFloor(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"move_id"}
 
+    def write(self, vals):
+        """F19 / BRU-WMS-18: what a task needs is the supervisor's to change; an
+        operative cannot clear the equipment requirement and then claim it."""
+        if (
+            "equipment_required" in vals
+            and not self._fix_guard_open()
+            and not is_supervisor(self.env)
+            and any(
+                (rec.equipment_required or False) != (vals["equipment_required"] or False)
+                for rec in self
+            )
+        ):
+            raise AccessError(
+                "Only a Warehouse Supervisor changes the equipment a task needs (BRU-WMS-18)."
+            )
+        return super().write(vals)
+
     def _fix_check_equipment(self, employee):
         """BRU-WMS-18: a task that needs equipment goes only to an operative
         whose profile at this warehouse holds that equipment."""
@@ -521,6 +558,10 @@ class FixWmsTaskFloor(models.Model):
             if rec.assignee_id and rec.assignee_id != employee:
                 raise UserError(
                     "Task %s is already %s's (BRU-WMS-14)." % (rec.name, rec.assignee_id.name)
+                )
+            if rec.bin_id:
+                require_operative_profile(
+                    self.env, _warehouse_of(rec.bin_id), rec.bin_id.zone_id, "claim its tasks"
                 )
             rec._fix_check_equipment(employee)
             rec.write({"assignee_id": employee.id})

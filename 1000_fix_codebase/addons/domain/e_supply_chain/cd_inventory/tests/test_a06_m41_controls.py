@@ -48,6 +48,10 @@ def wms(inv):
     w.izone = Zone.create(
         {"warehouse_id": w.wh.id, "name": "Inspection", "code": "QC", "zone_type": "inspection"}
     )
+    # A06 ERP audit O7 / F16: floor work is an operative's of THIS warehouse
+    w.profile = env["fix.wms.operative"].create(
+        {"employee_id": w.op_emp.id, "warehouse_id": w.wh.id}
+    )
     Bin = env["fix.warehouse.bin"]
     w.bin = Bin.create({"zone_id": w.zone.id, "name": "A-01-" + inv.tag, "capacity_qty": 10})
     w.bin2 = Bin.create({"zone_id": w.zone.id, "name": "A-02-" + inv.tag, "capacity_qty": 100})
@@ -111,6 +115,29 @@ def _pack_and_load(w, wave, user=None):
     return carton, stage
 
 
+def _doc_wave(w, qty=4):
+    """A06 ERP audit F01 / O1: a wave ships only stock an M15 document moves.
+    An approved transfer central -> hub queues its demand; the wave is built
+    from it (the transfer is dispatched by the wave's shipment)."""
+    tr = (
+        w.env["fix.stock.transfer"]
+        .with_user(w.keeper)
+        .create(
+            {
+                "from_location_id": w.central.id,
+                "to_location_id": w.hub.id,
+                "operating_unit_id": w.ou.id,
+                "line_ids": [(0, 0, {"part_id": w.wpart.id, "qty": qty})],
+            }
+        )
+    )
+    tr.with_user(w.keeper).action_submit()
+    if tr.state == "submitted":
+        tr.with_user(w.controller).action_approve()
+    demand = w.env["fix.wms.outbound.demand"].search([("transfer_id", "=", tr.id)])
+    return w.env["fix.wms.wave"].browse(demand.with_user(w.operator).action_build_wave())
+
+
 def _ship(w, wave, user=None):
     user = user or w.operator
     wave.with_user(w.supervisor).action_release()
@@ -125,20 +152,23 @@ def _ship(w, wave, user=None):
 def test_m41_00_reference_full_wave_moves_m15(wms):
     w = wms
     assert w.slot.qty == 10 and w.qty(w.wpart, w.central) == 100
-    wave = w.wave(qty=4)
+    wave = _doc_wave(w, qty=4)
     carton, stage = _ship(w, wave)
     assert (wave.state, wave.line_ids.state, carton.state, stage.state) == (
         "shipped",
-        "picked",
+        "handed",
         "dispatched",
         "dispatched",
     )
     assert w.slot.qty == 6
-    assert w.qty(w.wpart, w.central) == 96  # M15 lost the shipped units
+    assert w.qty(w.wpart, w.central) == 96  # the transfer took the shipped units
+    assert w.qty(w.wpart, w.central, status="in_transit") == 4  # BRU-INV-16
     assert w.qty(w.wpart, w.central, status="staged") == 0
     assert w.wpart.qty_reserved == 0
     assert w.events("wh.shipped", "fix.wms.wave", wave.id) == 1
-    assert w.suspense(wave.name, "shipment").total_valuation == -200.0
+    assert wave.demand_ids.transfer_id.state == "dispatched"
+    # F01: M41 books no write-off of its own (it was a "shipment" suspense row)
+    assert not w.suspense(wave.name, "shipment")
 
 
 # ===================================================== put-away and bin rules
@@ -164,7 +194,7 @@ def test_m41_03_inspection_zone_not_picked(wms):
 
 
 def test_m41_04_blocked_slot_not_filled(wms):
-    wms.slot.with_user(wms.operator).action_block("racking damaged")
+    wms.slot.with_user(wms.supervisor).action_block("racking damaged")
     pa = wms.putaway(wms.operator, qty=2)
     refused(wms, lambda: _complete(wms, pa), "blocked")
     assert wms.slot.qty == 10
@@ -378,9 +408,9 @@ def test_m41_21_pick_evidence_not_typed(wms):
 
 
 def test_m41_22_ship_decrements_m15(wms):
-    wave = wms.wave(qty=4)
+    wave = _doc_wave(wms, qty=4)
     _ship(wms, wave)
-    assert wms.wpart.qty_available == 96 and wms.wpart.qty_reserved == 0
+    assert wms.qty(wms.wpart, wms.central) == 96 and wms.wpart.qty_reserved == 0
 
 
 def test_m41_23_short_pick_raises_count_back(wms):
@@ -464,7 +494,7 @@ def test_m41_28_pack_needs_sealed_cartons(wms):
 
 
 def test_m41_29_ship_needs_a_loaded_stage(wms):
-    wave = wms.wave(qty=4)
+    wave = _doc_wave(wms, qty=4)
     wave.with_user(wms.supervisor).action_release()
     wave.with_user(wms.supervisor).action_pick_all(reason="Scanner down")
     carton = (
@@ -488,7 +518,7 @@ def test_m41_29_ship_needs_a_loaded_stage(wms):
 
 
 def test_m41_30_ship_publishes_wh_shipped(wms):
-    wave = wms.wave(qty=4)
+    wave = _doc_wave(wms, qty=4)
     _ship(wms, wave)
     event = (
         wms.env["fix.event.outbox"]
@@ -499,7 +529,7 @@ def test_m41_30_ship_publishes_wh_shipped(wms):
 
 
 def test_m41_31_shipped_lines_final(wms):
-    wave = wms.wave(qty=4)
+    wave = _doc_wave(wms, qty=4)
     _ship(wms, wave)
     refused(
         wms,
@@ -668,8 +698,8 @@ def _floor(wms, counted, user=None):
 
 def test_m41_44_floor_variance_goes_to_m15_for_approval(wms):
     fc = _floor(wms, 7)
-    assert fc.expected_qty == 10
     fc.with_user(wms.operator).action_post()
+    assert fc.sudo().expected_qty == 10  # F13: the supervisor's to read, not the counter's
     assert fc.state == "recount"
     refused(wms, lambda: fc.with_user(wms.operator).action_post(), "reason")
     fc.with_user(wms.operator).write({"reason_code": "loss"})
@@ -701,8 +731,10 @@ def test_m41_45_floor_expected_not_typed(wms):
             {"bin_id": wms.bin.id, "part_id": wms.wpart.id, "expected_qty": 7, "counted_qty": 7}
         )
     )
-    assert (fc.expected_qty, fc.variance) == (10, -3)
-    refused(wms, lambda: fc.with_user(wms.operator).write({"expected_qty": 7}), GUARD)
+    fc.with_user(wms.operator).action_post()
+    assert (fc.sudo().expected_qty, fc.sudo().variance) == (10, -3)
+    # F13: the counter can neither read nor type it
+    refused(wms, lambda: fc.with_user(wms.operator).write({"expected_qty": 7}))
 
 
 def test_m41_46_submitted_floor_count_final(wms):
@@ -791,13 +823,26 @@ def test_m41_53_labour_kpi_counts_executed_tasks_only(wms):
     forged.write({"state": "done", "done_at": "2026-11-03 08:00:00"})  # su: no operative recorded
     rows = m41.labour_productivity(wms.env(user=wms.operator.id))["rows"]
     assert not [r for r in rows if r["assignee"] == wms.op_emp.name]
-    task = (
-        wms.env["fix.wms.task"]
+    # A06 ERP audit F27: only work that moved something counts: a real move
+    move = (
+        wms.env["fix.wms.move"]
         .with_user(wms.operator)
-        .create({"task_type": "replenish", "qty": 3, "assignee_id": wms.op_emp.id})
+        .create(
+            {
+                "part_id": wms.wpart.id,
+                "from_bin_id": wms.bin.id,
+                "to_bin_id": wms.bin2.id,
+                "qty": 3,
+                "reason_code": "wrong_bin",
+                "assignee_id": wms.op_emp.id,
+            }
+        )
     )
+    task = move.task_id
     task.with_user(wms.operator).action_assign()
-    task.with_user(wms.operator).action_done()
+    task.with_user(wms.operator).action_done(
+        scan="%s %s %s" % (wms.bin.name, wms.bin2.name, wms.wpart.part_number)
+    )
     rows = m41.labour_productivity(wms.env(user=wms.operator.id))["rows"]
     assert next(r for r in rows if r["assignee"] == wms.op_emp.name)["qty"] == 3
 

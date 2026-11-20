@@ -1,0 +1,43 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "wh.productivity_recorded",
+  "description": "Published by cd_inventory through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "wh.productivity_recorded"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`{k: str(v) if k == 'date' else v for k, v in row.items() if k != 'run_id'}`, addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops_spec.py:2516); its keys are not statically derivable."
+    }
+  },
+  "x-owner-module": "cd_inventory",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops_spec.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

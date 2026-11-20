@@ -12,17 +12,24 @@
 # read-only through this surface (their forms offer no ledger field).
 import datetime
 
+from odoo import fields
+
 SURFACES = {
     "fix.warehouse.bin": {
         "order": "zone_id, name",
         "limit": 400,
-        "actions": {"action_block", "action_unblock"},
+        "actions": {"action_block", "action_unblock", "action_report_block"},
     },
     "fix.warehouse.zone": {"order": "warehouse_id, name", "limit": 200, "actions": set()},
     "fix.wms.slot": {
         "order": "bin_id, part_id",
         "limit": 400,
-        "actions": {"action_block", "action_unblock", "action_raise_replenishment"},
+        "actions": {
+            "action_block",
+            "action_unblock",
+            "action_raise_replenishment",
+            "action_report_block",
+        },
     },
     "fix.wms.dock": {
         "order": "slot_start desc, id desc",
@@ -38,6 +45,7 @@ SURFACES = {
             "action_approve_override",
             "action_reject_override",
             "action_report_exception",
+            "action_cancel",
         },
     },
     "fix.wms.wave": {
@@ -85,16 +93,12 @@ SURFACES = {
         "limit": 400,
         "actions": {"action_set_active", "action_set_inactive", "action_audit_van_stock"},
     },
-    "fix.inventory.valuation.suspense": {"order": "id desc", "limit": 400, "actions": set()},
+    # F32 (A06 ERP audit): no cost in M41 (spec section 13): the valuation
+    # suspense list and the standard-cost action are M15's, not this surface's
     "fix.spare.part": {
         "order": "id desc",
         "limit": 400,
-        "actions": {
-            "action_discontinue",
-            "action_mark_obsolete",
-            "action_reactivate",
-            "action_set_standard_cost",
-        },
+        "actions": {"action_discontinue", "action_mark_obsolete", "action_reactivate"},
     },
     "fix.warehouse": {"order": "id desc", "limit": 400, "actions": {"action_propose_slotting"}},
     # capture audit 2026-11-14: internal moves, RF devices, operatives, equipment
@@ -172,7 +176,18 @@ SURFACES = {
     },
     "fix.wms.scan.event": {"order": "occurred_at desc, id desc", "limit": 500, "actions": set()},
     "fix.wms.rf.journal": {"order": "processed_at desc, id desc", "limit": 400, "actions": set()},
+    # A06 ERP audit O2 / F07: the supervisor's opening bin positions
+    "fix.wms.slot.load": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_load", "action_cancel"},
+    },
 }
+
+
+DHAKA = datetime.timedelta(hours=6)  # Asia/Dhaka wall time = UTC + 6, no DST
+EPS = 1e-6
+SHIFTS = (("Morning (06–14)", 6, 14), ("Afternoon (14–22)", 14, 22))
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -194,45 +209,91 @@ def _mine(env, model, domain=None, **kw):
     return records.search(company + list(domain or []), **kw)
 
 
-def _tasks(env):
-    return _mine(env, "fix.wms.task")
+def _day(value):
+    if not value:
+        return None
+    if isinstance(value, datetime.date) and not isinstance(value, datetime.datetime):
+        return value
+    return datetime.date.fromisoformat(str(value)[:10])
+
+
+def _period(field, date_from=None, date_to=None):
+    """F14: ``field`` (a UTC datetime) within the Dhaka days date_from..date_to."""
+    domain = []
+    start, end = _day(date_from), _day(date_to)
+    if start:
+        domain.append((field, ">=", datetime.datetime.combine(start, datetime.time.min) - DHAKA))
+    if end:
+        stop = datetime.datetime.combine(end + datetime.timedelta(days=1), datetime.time.min)
+        domain.append((field, "<", stop - DHAKA))
+    return domain
+
+
+def _period_note(date_from=None, date_to=None):
+    if not (date_from or date_to):
+        return "Period: all dates (Asia/Dhaka days)."
+    return "Period: %s to %s (Asia/Dhaka days)." % (date_from or "start", date_to or "today")
+
+
+def _local(dt):
+    """The Dhaka wall time of a stored UTC datetime."""
+    return dt + DHAKA if dt else dt
+
+
+def _shift(dt):
+    hour = _local(dt).hour
+    for label, start, stop in SHIFTS:
+        if start <= hour < stop:
+            return label
+    return "Night (22–06)"
 
 
 def _executed(tasks):
-    """Tasks the system recorded as done by an operative (not typed)."""
-    return tasks.filtered(lambda t: t.state == "done" and t.done_at and t.done_by_id)
-
-
-def _picked_lines(env):
-    """Wave lines the wave itself picked (picked_by / picked_at set)."""
-    waves = _mine(env, "fix.wms.wave")
-    return env["fix.wms.wave.line"].search(
-        [("wave_id", "in", waves.ids), ("picked_at", "!=", False)]
+    """Tasks the system recorded as done by an operative, that moved or counted
+    something (F27: a typed task closed with nothing behind it is not work)."""
+    return tasks.filtered(
+        lambda t: t.state == "done"
+        and t.done_at
+        and t.done_by_id
+        and (t.wave_line_id or t.putaway_id or t.move_id or t.floor_count_id)
     )
 
 
+def _requested(line):
+    return line.requested_qty or line.qty or 0.0
+
+
+def _picked_lines(env, date_from=None, date_to=None):
+    """Wave lines the wave itself picked (picked_by / picked_at set)."""
+    waves = _mine(env, "fix.wms.wave")
+    return env["fix.wms.wave.line"].search(
+        [
+            ("wave_id", "in", waves.ids),
+            ("picked_at", "!=", False),
+            *_period("picked_at", date_from, date_to),
+        ]
+    )
+
+
+def _state(record, field="state"):
+    return dict(record._fields[field].selection).get(record[field])
+
+
+def _hours(start, stop):
+    if not (start and stop) or stop < start:
+        return None
+    return round((stop - start).total_seconds() / 3600.0, 2)
+
+
 def throughput_by_shift(env, date_from=None, date_to=None, **params):
-    rows = []
+    tasks = _executed(_mine(env, "fix.wms.task", _period("done_at", date_from, date_to)))
     buckets = {}
-    for task in _executed(_tasks(env)):
-        hour = task.done_at.hour
-        shift = (
-            "Morning (06–14)"
-            if 6 <= hour < 14
-            else ("Afternoon (14–22)" if 14 <= hour < 22 else "Night (22–06)")
-        )
-        key = (str(task.done_at.date()), shift)
-        row = buckets.setdefault(
-            key,
-            {
-                "date": key[0],
-                "shift": shift,
-                "tasks": 0,
-                "qty": 0.0,
-            },
-        )
+    for task in tasks:
+        key = (str(_local(task.done_at).date()), _shift(task.done_at))
+        row = buckets.setdefault(key, {"date": key[0], "shift": key[1], "tasks": 0, "qty": 0.0})
         row["tasks"] += 1
         row["qty"] += task.qty or 0.0
+    rows = []
     for row in buckets.values():
         row["qty"] = round(row["qty"], 3)
         rows.append(row)
@@ -240,111 +301,146 @@ def throughput_by_shift(env, date_from=None, date_to=None, **params):
     return _pack(
         "Throughput by Shift — completed warehouse tasks",
         ["date", "shift", "tasks", "qty"],
-        {"date": "Date", "shift": "Shift", "tasks": "Tasks", "qty": "Quantity"},
+        {"date": "Date (Dhaka)", "shift": "Shift", "tasks": "Tasks", "qty": "Quantity"},
         rows,
-        ["Shift buckets are the task's done hour (06–14, 14–22, 22–06)."],
+        [
+            "Shift buckets are the Dhaka hour the task was done (06–14, 14–22, 22–06); only "
+            "tasks that moved or counted stock.",
+            _period_note(date_from, date_to),
+        ],
         totals={
             "date": "Total",
             "tasks": sum(r["tasks"] for r in rows),
             "qty": round(sum(r["qty"] for r in rows), 3),
         },
-        empty="No completed warehouse tasks yet.",
+        empty="No completed warehouse tasks in the period.",
     )
 
 
 def pick_accuracy(env, date_from=None, date_to=None, **params):
-    lines = _picked_lines(env)
+    """F14: against what the line FIRST asked for (requested_qty), which no
+    accepted short, re-source or substitution rewrites."""
+    lines = _picked_lines(env, date_from, date_to)
     rows = []
+    exact = 0
     for line in lines:
-        qty = line.qty or 0.0
+        asked = _requested(line)
         picked = line.picked_qty or 0.0
+        ok = abs(picked - asked) <= EPS and not line.resourced_from_id
+        exact += 1 if ok else 0
         rows.append(
             {
                 "wave": line.wave_id.name,
                 "part": line.part_id.part_number,
                 "bin": line.bin_id.name if line.bin_id else "—",
-                "qty": round(qty, 3),
+                "requested": round(asked, 3),
                 "picked": round(picked, 3),
-                "short": round(max(qty - picked, 0.0), 3),
-                "accuracy_pct": round((picked / qty) * 100.0, 1) if qty else 0.0,
-                "state": dict(line._fields["state"].selection).get(line.state),
+                "short": round(max(asked - picked, 0.0), 3),
+                "accuracy_pct": round((picked / asked) * 100.0, 1) if asked else 0.0,
+                "exact": "yes" if ok else "no",
+                "state": _state(line),
             }
         )
     rows.sort(key=lambda r: r["accuracy_pct"])
-    total_qty = sum(r["qty"] for r in rows)
+    total_req = sum(r["requested"] for r in rows)
     total_picked = sum(r["picked"] for r in rows)
     return _pack(
-        "Pick Accuracy Trend — picked quantity against wave quantity",
-        ["wave", "part", "bin", "qty", "picked", "short", "accuracy_pct", "state"],
+        "Pick Accuracy Trend — picked against what each line asked for",
+        ["wave", "part", "bin", "requested", "picked", "short", "accuracy_pct", "exact", "state"],
         {
             "wave": "Wave",
             "part": "Part",
             "bin": "Bin",
-            "qty": "Wave Qty",
+            "requested": "Requested",
             "picked": "Picked",
             "short": "Short",
-            "accuracy_pct": "Accuracy %",
+            "accuracy_pct": "Fill %",
+            "exact": "Picked Exactly",
             "state": "State",
         },
         rows,
         [
-            "Accuracy = picked ÷ wave quantity over lines the wave actually picked; "
-            "overall %.1f%% across %d lines."
-            % ((total_picked / total_qty) * 100.0 if total_qty else 0.0, len(lines))
+            "Line accuracy: %.1f%% of %d picked lines were picked exactly as first requested; "
+            "quantity fill %.1f%%. A short that was accepted, re-sourced or substituted still "
+            "counts against the original request."
+            % (
+                (exact / len(lines)) * 100.0 if lines else 0.0,
+                len(lines),
+                (total_picked / total_req) * 100.0 if total_req else 0.0,
+            ),
+            _period_note(date_from, date_to),
         ],
         totals={
             "wave": "Total",
-            "qty": round(total_qty, 3),
+            "requested": round(total_req, 3),
             "picked": round(total_picked, 3),
-            "short": round(total_qty - total_picked, 3),
+            "short": round(total_req - total_picked, 3),
         },
-        empty="No wave lines yet.",
+        empty="No picked wave lines in the period.",
     )
 
 
 def wave_cycle_time(env, date_from=None, date_to=None, **params):
-    waves = _mine(env, "fix.wms.wave")
+    waves = _mine(env, "fix.wms.wave", _period("released_at", date_from, date_to))
     rows = []
     for wave in waves:
-        hours = "—"
-        if wave.released_at and wave.shipped_at:
-            hours = round((wave.shipped_at - wave.released_at).total_seconds() / 3600.0, 2)
+        hours = _hours(wave.released_at, wave.shipped_at)
         rows.append(
             {
                 "wave": wave.name,
                 "date": str(wave.wave_date),
-                "strategy": dict(wave._fields["strategy"].selection).get(wave.strategy),
+                "strategy": _state(wave, "strategy"),
                 "lines": len(wave.line_ids),
-                "released": str(wave.released_at)[:16] if wave.released_at else "—",
-                "shipped": str(wave.shipped_at)[:16] if wave.shipped_at else "—",
-                "cycle_hours": hours,
-                "state": dict(wave._fields["state"].selection).get(wave.state),
+                "short": len(
+                    wave.line_ids.filtered(
+                        lambda ln: ln.picked_at and (ln.picked_qty or 0.0) + EPS < _requested(ln)
+                    )
+                ),
+                "released": str(_local(wave.released_at))[:16] if wave.released_at else "—",
+                "shipped": str(_local(wave.shipped_at))[:16] if wave.shipped_at else "—",
+                "cycle_hours": "—" if hours is None else hours,
+                "state": _state(wave),
             }
         )
     rows.sort(key=lambda r: str(r["wave"]), reverse=True)
     return _pack(
         "Wave Cycle Time — released to shipped",
-        ["wave", "date", "strategy", "lines", "released", "shipped", "cycle_hours", "state"],
+        [
+            "wave",
+            "date",
+            "strategy",
+            "lines",
+            "short",
+            "released",
+            "shipped",
+            "cycle_hours",
+            "state",
+        ],
         {
             "wave": "Wave",
             "date": "Date",
             "strategy": "Strategy",
             "lines": "Lines",
-            "released": "Released",
-            "shipped": "Shipped",
+            "short": "Lines Short",
+            "released": "Released (Dhaka)",
+            "shipped": "Shipped (Dhaka)",
             "cycle_hours": "Cycle (h)",
             "state": "State",
         },
         rows,
-        ["Cycle hours = shipped − released; an open wave shows '—'."],
-        empty="No waves yet.",
+        [
+            "Cycle hours = shipped − released; an open wave shows '—'. Waves released in the "
+            "period.",
+            _period_note(date_from, date_to),
+        ],
+        empty="No waves released in the period.",
     )
 
 
 def labour_productivity(env, date_from=None, date_to=None, **params):
     rows = []
     by_emp = {}
-    for task in _executed(_tasks(env)):
+    for task in _executed(_mine(env, "fix.wms.task", _period("done_at", date_from, date_to))):
         key = task.assignee_id.name if task.assignee_id else "Unassigned"
         row = by_emp.setdefault(key, {"assignee": key, "tasks": 0, "qty": 0.0})
         row["tasks"] += 1
@@ -358,20 +454,28 @@ def labour_productivity(env, date_from=None, date_to=None, **params):
         ["assignee", "tasks", "qty"],
         {"assignee": "Operator", "tasks": "Tasks Done", "qty": "Quantity Moved"},
         rows,
-        ["Completed tasks only; a task without an assignee counts under Unassigned."],
+        [
+            "Completed tasks that moved or counted stock; a task without an assignee counts "
+            "under Unassigned.",
+            _period_note(date_from, date_to),
+        ],
         totals={
             "assignee": "Total",
             "tasks": sum(r["tasks"] for r in rows),
             "qty": round(sum(r["qty"] for r in rows), 3),
         },
-        empty="No completed tasks with an operator yet.",
+        empty="No completed tasks with an operator in the period.",
+    )
+
+
+def _bins(env):
+    return env["fix.warehouse.bin"].search(
+        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
     )
 
 
 def bin_utilisation(env, date_from=None, date_to=None, **params):
-    bins = env["fix.warehouse.bin"].search(
-        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
-    )
+    bins = _bins(env)
     slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
     rows = []
     for bin_record in bins:
@@ -382,13 +486,18 @@ def bin_utilisation(env, date_from=None, date_to=None, **params):
             {
                 "bin": bin_record.name,
                 "zone": bin_record.zone_id.name,
-                "capacity": round(capacity, 3),
+                "capacity": round(capacity, 3) if capacity else "unconstrained",
                 "slotted_qty": round(qty, 3),
                 "skus": len(bin_slots),
-                "utilisation_pct": round((qty / capacity) * 100.0, 1) if capacity else 0.0,
+                "utilisation_pct": round((qty / capacity) * 100.0, 1) if capacity else "—",
             }
         )
-    rows.sort(key=lambda r: -r["utilisation_pct"])
+    rows.sort(
+        key=lambda r: -(r["utilisation_pct"] if isinstance(r["utilisation_pct"], float) else -1)
+    )
+    constrained = [r for r in rows if isinstance(r["capacity"], float)]
+    cap_total = sum(r["capacity"] for r in constrained)
+    held = sum(r["slotted_qty"] for r in constrained)
     return _pack(
         "Bin Utilisation Heatmap — slotted quantity against capacity",
         ["bin", "zone", "capacity", "slotted_qty", "skus", "utilisation_pct"],
@@ -402,13 +511,15 @@ def bin_utilisation(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Bins with capacity 0 are unconstrained and report 0% — the capacity is "
-            "not invented for them."
+            "F14: utilisation is measured over the %d bins that have a capacity (%.1f%%); "
+            "unconstrained bins are listed but never averaged in."
+            % (len(constrained), (held / cap_total) * 100.0 if cap_total else 0.0),
+            "As at now (a bin's contents have no history).",
         ],
         totals={
-            "bin": "Total",
-            "capacity": round(sum(r["capacity"] for r in rows), 3),
-            "slotted_qty": round(sum(r["slotted_qty"] for r in rows), 3),
+            "bin": "Total (constrained bins)",
+            "capacity": round(cap_total, 3),
+            "slotted_qty": round(held, 3),
             "skus": sum(r["skus"] for r in rows),
         },
         empty="No bins yet.",
@@ -416,63 +527,60 @@ def bin_utilisation(env, date_from=None, date_to=None, **params):
 
 
 def pick_strategy(env, date_from=None, date_to=None, **params):
-    bins = env["fix.warehouse.bin"].search(
-        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
-    )
-    slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
+    slots = env["fix.wms.slot"].search([("bin_id", "in", _bins(env).ids)])
     tasks = _mine(
         env, "fix.wms.task", [("task_type", "=", "pick"), ("state", "in", ("open", "assigned"))]
     )
     rows = []
     for slot in slots:
-        open_picks = tasks.filtered(lambda t, s=slot: t.part_id.id == s.part_id.id)
+        open_picks = tasks.filtered(
+            lambda t, s=slot: t.part_id.id == s.part_id.id and t.bin_id.id == s.bin_id.id
+        )
         rows.append(
             {
                 "zone": slot.bin_id.zone_id.name,
                 "bin": slot.bin_id.name,
                 "part": slot.part_id.part_number,
-                "velocity": dict(slot._fields["velocity"].selection).get(slot.velocity),
-                "slot_type": dict(slot._fields["slot_type"].selection).get(slot.slot_type),
-                "qty": round(slot.qty or 0.0, 3),
+                "velocity": _state(slot, "velocity"),
+                "slot_type": _state(slot, "slot_type"),
                 "open_picks": len(open_picks),
             }
         )
     rows.sort(key=lambda r: (r["zone"], r["bin"]))
     return _pack(
         "Pick Strategies — slot layout against open pick work",
-        ["zone", "bin", "part", "velocity", "slot_type", "qty", "open_picks"],
+        ["zone", "bin", "part", "velocity", "slot_type", "open_picks"],
         {
             "zone": "Zone",
             "bin": "Bin",
             "part": "Part",
             "velocity": "Velocity",
             "slot_type": "Slot Type",
-            "qty": "Bin Qty",
             "open_picks": "Open Picks",
         },
         rows,
         [
-            "Strategy view: fast movers should sit in pick-face bins; the open pick "
-            "count is live from the task queue."
+            "Strategy view: fast movers should sit in pick-face bins; the open pick count is "
+            "live from the task queue. Quantities are not shown: floor counts are blind.",
         ],
         empty="No slots yet.",
     )
 
 
 def rf_queue(env, date_from=None, date_to=None, **params):
-    tasks = _tasks(env).filtered(lambda t: t.state in ("open", "assigned"))
+    tasks = _mine(env, "fix.wms.task", [("state", "in", ("open", "assigned"))])
     rows = []
     for task in tasks:
         rows.append(
             {
                 "task": task.name,
-                "type": dict(task._fields["task_type"].selection).get(task.task_type),
+                "type": _state(task, "task_type"),
                 "ref": task.ref or "—",
                 "part": task.part_id.part_number if task.part_id else "—",
                 "bin": task.bin_id.name if task.bin_id else "—",
                 "qty": round(task.qty or 0.0, 3),
                 "assignee": task.assignee_id.name if task.assignee_id else "—",
-                "state": dict(task._fields["state"].selection).get(task.state),
+                "state": _state(task),
             }
         )
     rows.sort(key=lambda r: (r["state"], r["task"]))
@@ -490,7 +598,7 @@ def rf_queue(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["This is the RF device's work list: open tasks first, then assigned ones."],
+        ["This is the RF device's work list: open tasks first, then assigned ones. As at now."],
         empty="No open warehouse tasks.",
     )
 
@@ -499,7 +607,11 @@ def scan_violations(env, date_from=None, date_to=None, **params):
     """Spec section 14 "Ownership-class segregation": the scans the floor
     REFUSED, by rule and operative (BRU-WMS-03 class, -05 wrong bin or item,
     -11 hazard, -12 blocked bin ...), from the scan log."""
-    events = _mine(env, "fix.wms.scan.event", [("accepted", "=", False)])
+    events = _mine(
+        env,
+        "fix.wms.scan.event",
+        [("accepted", "=", False), *_period("occurred_at", date_from, date_to)],
+    )
     buckets = {}
     for ev in events:
         key = (ev.rule or "refused", ev.user_name or "-")
@@ -508,9 +620,9 @@ def scan_violations(env, date_from=None, date_to=None, **params):
             {"rule": key[0], "operative": key[1], "attempts": 0, "last": "", "example": ""},
         )
         row["attempts"] += 1
-        stamp = str(ev.occurred_at or "")
+        stamp = str(_local(ev.occurred_at) or "")
         if stamp > row["last"]:
-            row["last"], row["example"] = stamp, (ev.message or "")[:120]
+            row["last"], row["example"] = stamp[:16], (ev.message or "")[:120]
     rows = sorted(buckets.values(), key=lambda r: (-r["attempts"], r["rule"], r["operative"]))
     return _pack(
         "Attempted Violations - scans the floor refused",
@@ -519,7 +631,7 @@ def scan_violations(env, date_from=None, date_to=None, **params):
             "rule": "Rule",
             "operative": "Operative",
             "attempts": "Attempts",
-            "last": "Last Attempt (UTC)",
+            "last": "Last Attempt (Dhaka)",
             "example": "Last Reason",
         },
         rows,
@@ -527,9 +639,407 @@ def scan_violations(env, date_from=None, date_to=None, **params):
             "BRU-WMS-03 is the ownership-class segregation the spec's report counts; "
             "BRU-WMS-05 a wrong bin or item scan; BRU-WMS-11 hazard; BRU-WMS-12 a blocked bin.",
             "Refused attempts are logged in their own transaction, so they survive the refusal.",
+            _period_note(date_from, date_to),
         ],
         totals={"rule": "Total", "attempts": sum(r["attempts"] for r in rows)},
-        empty="No refused scan.",
+        empty="No refused scan in the period.",
+    )
+
+
+# ------------------------------------------------------------------ F15
+def override_report(env, date_from=None, date_to=None, **params):
+    """BRU-WMS-06: the daily override report: every put-away that went to
+    another bin than the directive's, with its reason and who approved it."""
+    putaways = _mine(
+        env,
+        "fix.wms.putaway",
+        [("override_state", "!=", "none"), *_period("create_date", date_from, date_to)],
+    )
+    reasons = dict(env["fix.wms.putaway"]._fields["override_reason"].selection)
+    rows = [
+        {
+            "date": str(_local(pa.create_date).date()),
+            "putaway": pa.name,
+            "part": pa.part_id.part_number,
+            "directed": pa.directed_bin_id.name or "(none)",
+            "actual": pa.to_bin_id.name or "—",
+            "reason": reasons.get(pa.override_reason, "—"),
+            "note": pa.override_note or "",
+            "by": pa.override_by_id.name or "—",
+            "approved_by": pa.override_approved_by_id.name or "—",
+            "state": _state(pa, "override_state"),
+        }
+        for pa in putaways
+    ]
+    rows.sort(key=lambda r: (r["date"], r["putaway"]), reverse=True)
+    return _pack(
+        "Daily Override Report — put-aways against the directive (BRU-WMS-06)",
+        [
+            "date",
+            "putaway",
+            "part",
+            "directed",
+            "actual",
+            "reason",
+            "note",
+            "by",
+            "approved_by",
+            "state",
+        ],
+        {
+            "date": "Date (Dhaka)",
+            "putaway": "Put-Away",
+            "part": "Part",
+            "directed": "Directed Bin",
+            "actual": "Actual Bin",
+            "reason": "Reason",
+            "note": "Note",
+            "by": "Overridden By",
+            "approved_by": "Approved By",
+            "state": "Override",
+        },
+        rows,
+        [_period_note(date_from, date_to)],
+        totals={"date": "Total", "putaway": len(rows)},
+        empty="No override in the period.",
+    )
+
+
+def short_pick_rate(env, date_from=None, date_to=None, **params):
+    lines = _picked_lines(env, date_from, date_to)
+    days = {}
+    for line in lines:
+        key = str(_local(line.picked_at).date())
+        row = days.setdefault(key, {"date": key, "lines": 0, "short": 0, "short_qty": 0.0})
+        row["lines"] += 1
+        gap = _requested(line) - (line.picked_qty or 0.0)
+        if gap > EPS:
+            row["short"] += 1
+            row["short_qty"] += gap
+    rows = []
+    for row in days.values():
+        row["rate_pct"] = round(100.0 * row["short"] / row["lines"], 1) if row["lines"] else 0.0
+        row["short_qty"] = round(row["short_qty"], 3)
+        rows.append(row)
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    total, short = sum(r["lines"] for r in rows), sum(r["short"] for r in rows)
+    return _pack(
+        "Short-Pick Rate — lines picked short of their request",
+        ["date", "lines", "short", "short_qty", "rate_pct"],
+        {
+            "date": "Date (Dhaka)",
+            "lines": "Lines Picked",
+            "short": "Lines Short",
+            "short_qty": "Quantity Short",
+            "rate_pct": "Short-Pick Rate %",
+        },
+        rows,
+        [
+            "Overall %.1f%% of %d lines." % (100.0 * short / total if total else 0.0, total),
+            _period_note(date_from, date_to),
+        ],
+        totals={"date": "Total", "lines": total, "short": short},
+        empty="No picked lines in the period.",
+    )
+
+
+def cycle_times(env, date_from=None, date_to=None, **params):
+    """Spec section 14 inbound cycle time and wave analysis: dock arrival to
+    completion, receipt posting to put-away, wave release to shipment."""
+    rows = []
+    for dock in _mine(env, "fix.wms.dock", _period("arrived_at", date_from, date_to)):
+        rows.append(
+            {
+                "stage": "Dock: arrival to unloaded",
+                "ref": dock.name,
+                "start": str(_local(dock.arrived_at))[:16],
+                "end": str(_local(dock.completed_at))[:16] if dock.completed_at else "—",
+                "hours": _hours(dock.arrived_at, dock.completed_at),
+            }
+        )
+    for pa in _mine(
+        env,
+        "fix.wms.putaway",
+        [("state", "=", "done"), *_period("done_at", date_from, date_to)],
+    ):
+        posted = pa.receipt_line_id.receipt_id.posted_at
+        rows.append(
+            {
+                "stage": "Receipt posted to put away",
+                "ref": pa.name,
+                "start": str(_local(posted))[:16] if posted else "—",
+                "end": str(_local(pa.done_at))[:16],
+                "hours": _hours(posted, pa.done_at),
+            }
+        )
+    for wave in _mine(env, "fix.wms.wave", _period("shipped_at", date_from, date_to)):
+        rows.append(
+            {
+                "stage": "Wave released to shipped",
+                "ref": wave.name,
+                "start": str(_local(wave.released_at))[:16] if wave.released_at else "—",
+                "end": str(_local(wave.shipped_at))[:16],
+                "hours": _hours(wave.released_at, wave.shipped_at),
+            }
+        )
+    notes = []
+    for stage in (
+        "Dock: arrival to unloaded",
+        "Receipt posted to put away",
+        "Wave released to shipped",
+    ):
+        values = [r["hours"] for r in rows if r["stage"] == stage and r["hours"] is not None]
+        notes.append(
+            "%s: %d measured, average %.2f h."
+            % (stage, len(values), sum(values) / len(values) if values else 0.0)
+        )
+    for row in rows:
+        if row["hours"] is None:
+            row["hours"] = "—"
+    notes.append(_period_note(date_from, date_to))
+    return _pack(
+        "Cycle Times — inbound, put-away and outbound",
+        ["stage", "ref", "start", "end", "hours"],
+        {
+            "stage": "Stage",
+            "ref": "Record",
+            "start": "Start (Dhaka)",
+            "end": "End (Dhaka)",
+            "hours": "Hours",
+        },
+        rows,
+        notes,
+        empty="Nothing completed in the period.",
+    )
+
+
+def putaway_compliance(env, date_from=None, date_to=None, **params):
+    putaways = _mine(
+        env, "fix.wms.putaway", [("state", "=", "done"), *_period("done_at", date_from, date_to)]
+    )
+    exceptions = _mine(env, "fix.wms.putaway.exception", _period("reported_at", date_from, date_to))
+    days = {}
+    for pa in putaways:
+        key = str(_local(pa.done_at).date())
+        row = days.setdefault(
+            key, {"date": key, "done": 0, "directed": 0, "overridden": 0, "exceptions": 0}
+        )
+        row["done"] += 1
+        if pa.override_state == "none" and pa.to_bin_id == pa.directed_bin_id:
+            row["directed"] += 1
+        else:
+            row["overridden"] += 1
+    for exc in exceptions:
+        key = str(_local(exc.reported_at).date())
+        row = days.setdefault(
+            key, {"date": key, "done": 0, "directed": 0, "overridden": 0, "exceptions": 0}
+        )
+        row["exceptions"] += 1
+    rows = []
+    for row in days.values():
+        row["compliance_pct"] = (
+            round(100.0 * row["directed"] / row["done"], 1) if row["done"] else 0.0
+        )
+        rows.append(row)
+    rows.sort(key=lambda r: r["date"], reverse=True)
+    causes = {}
+    labels = dict(env["fix.wms.putaway.exception"]._fields["cause"].selection)
+    for exc in exceptions:
+        causes[labels.get(exc.cause, exc.cause)] = (
+            causes.get(labels.get(exc.cause, exc.cause), 0) + 1
+        )
+    done = sum(r["done"] for r in rows)
+    directed = sum(r["directed"] for r in rows)
+    return _pack(
+        "Put-Away Compliance — directive adherence, overrides and exceptions",
+        ["date", "done", "directed", "overridden", "exceptions", "compliance_pct"],
+        {
+            "date": "Date (Dhaka)",
+            "done": "Put-Aways",
+            "directed": "To the Directed Bin",
+            "overridden": "Overridden",
+            "exceptions": "Exceptions",
+            "compliance_pct": "Compliance %",
+        },
+        rows,
+        [
+            "Directive compliance %.1f%% (target 99%%)."
+            % (100.0 * directed / done if done else 0.0),
+            "Exception causes: %s."
+            % (", ".join("%s %d" % (k, v) for k, v in sorted(causes.items())) or "none"),
+            _period_note(date_from, date_to),
+        ],
+        totals={
+            "date": "Total",
+            "done": done,
+            "directed": directed,
+            "overridden": sum(r["overridden"] for r in rows),
+            "exceptions": sum(r["exceptions"] for r in rows),
+        },
+        empty="No put-away in the period.",
+    )
+
+
+def crossdock_utilisation(env, date_from=None, date_to=None, **params):
+    docks = _mine(env, "fix.wms.crossdock", _period("staged_at", date_from, date_to))
+    sources = dict(env["fix.wms.outbound.demand"]._fields["source_type"].selection)
+    rows = [
+        {
+            "crossdock": xd.name,
+            "receipt": xd.receipt_line_id.receipt_id.name,
+            "demand": xd.demand_id.name or "—",
+            "source": sources.get(xd.demand_id.source_type, "—"),
+            "part": xd.part_id.part_number,
+            "qty": round(xd.qty, 3),
+            "staged": str(_local(xd.staged_at))[:16] if xd.staged_at else "—",
+            "dispatched": str(_local(xd.dispatched_at))[:16] if xd.dispatched_at else "—",
+            "state": _state(xd),
+        }
+        for xd in docks
+    ]
+    return _pack(
+        "Cross-Dock Utilisation — lines sent straight to waiting demand",
+        [
+            "crossdock",
+            "receipt",
+            "demand",
+            "source",
+            "part",
+            "qty",
+            "staged",
+            "dispatched",
+            "state",
+        ],
+        {
+            "crossdock": "Cross-Dock",
+            "receipt": "Receipt",
+            "demand": "Demand",
+            "source": "Demand Type",
+            "part": "Part",
+            "qty": "Qty",
+            "staged": "Staged (Dhaka)",
+            "dispatched": "Dispatched (Dhaka)",
+            "state": "State",
+        },
+        rows,
+        [_period_note(date_from, date_to)],
+        totals={"crossdock": "Total", "qty": round(sum(r["qty"] for r in rows), 3)},
+        empty="No cross-dock in the period.",
+    )
+
+
+def device_health(env, date_from=None, date_to=None, **params):
+    devices = _mine(env, "fix.wms.device")
+    journal = _mine(env, "fix.wms.rf.journal", _period("processed_at", date_from, date_to))
+    rows = []
+    for device in devices:
+        mine = journal.filtered(lambda j, d=device: j.device_id == d)
+        rows.append(
+            {
+                "device": device.device_code,
+                "warehouse": device.warehouse_id.name,
+                "operative": device.operative_id.name or "NOT ISSUED",
+                "state": _state(device),
+                "last_seen": str(_local(device.last_seen_at))[:16]
+                if device.last_seen_at
+                else "never",
+                "confirmations": len(mine.filtered("ok")),
+                "refused": len(mine.filtered(lambda j: not j.ok)),
+                "offline": len(mine.filtered("offline")),
+            }
+        )
+    rows.sort(key=lambda r: (r["state"], r["device"]))
+    return _pack(
+        "Device and Connectivity Health — RF handhelds",
+        [
+            "device",
+            "warehouse",
+            "operative",
+            "state",
+            "last_seen",
+            "confirmations",
+            "refused",
+            "offline",
+        ],
+        {
+            "device": "Device",
+            "warehouse": "Warehouse",
+            "operative": "Issued To",
+            "state": "State",
+            "last_seen": "Last Seen (Dhaka)",
+            "confirmations": "Confirmed",
+            "refused": "Refused",
+            "offline": "Offline Replays",
+        },
+        rows,
+        [
+            "A device not issued to a named operative is refused by the RF API (T-15).",
+            _period_note(date_from, date_to),
+        ],
+        empty="No RF device enrolled.",
+    )
+
+
+def slot_ledger_recon(env, date_from=None, date_to=None, **params):
+    """AC-01 / BRU-WMS-01: the bins against M15. For every part and class at a
+    location a warehouse breaks down, what the bins hold against the
+    unrestricted on-hand the ledger holds there. Slotted above on-hand is a
+    defect; the rest is stock no bin holds yet."""
+    warehouses = env["fix.warehouse"].search(
+        [("company_id", "in", env.companies.ids), ("stock_location_id", "!=", False)]
+    )
+    slots = env["fix.wms.slot"].search([("bin_id.zone_id.warehouse_id", "in", warehouses.ids)])
+    Onhand = env["fix.stock.onhand"]
+    keys = {}
+    for slot in slots:
+        wh = slot.bin_id.zone_id.warehouse_id
+        key = (wh.id, slot.part_id.id, slot.ownership_class or "owned")
+        keys[key] = keys.get(key, 0.0) + (slot.qty or 0.0)
+    rows = []
+    over = 0
+    for (wh_id, part_id, cls), slotted in keys.items():
+        wh = env["fix.warehouse"].browse(wh_id)
+        part = env["fix.spare.part"].browse(part_id)
+        location = wh.stock_location_id
+        ledger_cls = "van" if cls == "owned" and location.location_type == "van" else cls
+        bucket = Onhand._bucket(part, location, ledger_cls)
+        on_hand = bucket.qty if bucket else 0.0
+        gap = round(on_hand - slotted, 4)
+        if gap < -EPS:
+            over += 1
+        rows.append(
+            {
+                "warehouse": wh.name,
+                "location": location.code,
+                "part": part.part_number,
+                "class": cls,
+                "on_hand": round(on_hand, 3),
+                "slotted": round(slotted, 3),
+                "unslotted": gap,
+                "status": "SLOTS EXCEED LEDGER" if gap < -EPS else "ok",
+            }
+        )
+    rows.sort(key=lambda r: (r["status"] == "ok", r["warehouse"], r["part"]))
+    return _pack(
+        "Slot vs Ledger Reconciliation (AC-01)",
+        ["warehouse", "location", "part", "class", "on_hand", "slotted", "unslotted", "status"],
+        {
+            "warehouse": "Warehouse",
+            "location": "M15 Location",
+            "part": "Part",
+            "class": "Class",
+            "on_hand": "M15 Unrestricted",
+            "slotted": "In Bins",
+            "unslotted": "Outside Bins",
+            "status": "Status",
+        },
+        rows,
+        [
+            "%d part/class line(s) where the bins hold more than M15: each is a defect to "
+            "count back. As at now." % over,
+            "Stock outside the bins is slotted by put-away or a supervisor's opening slot load.",
+        ],
+        empty="No slotted stock.",
     )
 
 
@@ -542,35 +1052,42 @@ REPORTS = {
     "pick_strategy": pick_strategy,
     "rf_queue": rf_queue,
     "scan_violations": scan_violations,
+    "override_report": override_report,
+    "short_pick_rate": short_pick_rate,
+    "cycle_times": cycle_times,
+    "putaway_compliance": putaway_compliance,
+    "crossdock_utilisation": crossdock_utilisation,
+    "device_health": device_health,
+    "slot_ledger_recon": slot_ledger_recon,
 }
 
 
 def kpis(env):
-    """Read as the caller, in the caller's companies, from executed work only."""
-    tasks = _tasks(env)
+    """Read as the caller, in the caller's companies, from executed work only;
+    'today' is the Dhaka day (F14)."""
+    tasks = _mine(env, "fix.wms.task")
     waves = _mine(env, "fix.wms.wave")
-    bins = env["fix.warehouse.bin"].search(
-        [("zone_id.warehouse_id.company_id", "in", env.companies.ids)]
-    )
+    bins = _bins(env)
     slots = env["fix.wms.slot"].search([("bin_id", "in", bins.ids)])
     lines = _picked_lines(env)
-    total_qty = sum(line.qty or 0.0 for line in lines)
-    picked = sum(line.picked_qty or 0.0 for line in lines)
-    today = datetime.date.today()
-    docks = _mine(
-        env,
-        "fix.wms.dock",
-        [("slot_start", ">=", datetime.datetime.combine(today, datetime.time.min))],
+    exact = len(
+        lines.filtered(
+            lambda ln: abs((ln.picked_qty or 0.0) - _requested(ln)) <= EPS
+            and not ln.resourced_from_id
+        )
     )
-    capacity = sum(bins.mapped("capacity_qty"))
-    slotted = sum(slots.mapped("qty"))
+    today = (fields.Datetime.now() + DHAKA).date()
+    docks = _mine(env, "fix.wms.dock", _period("slot_start", today, today))
+    constrained = bins.filtered(lambda b: (b.capacity_qty or 0.0) > 0)
+    capacity = sum(constrained.mapped("capacity_qty"))
+    slotted = sum(slots.filtered(lambda s: s.bin_id in constrained).mapped("qty"))
     return {
         "open_tasks": len(tasks.filtered(lambda t: t.state in ("open", "assigned"))),
         "waves_in_progress": len(
             waves.filtered(lambda w: w.state in ("released", "picking", "packed", "staged"))
         ),
         "bins_slotted": len(slots.filtered(lambda s: (s.qty or 0.0) > 0)),
-        "pick_accuracy_pct": round((picked / total_qty) * 100.0, 1) if total_qty else 0.0,
+        "pick_accuracy_pct": round((exact / len(lines)) * 100.0, 1) if lines else 0.0,
         "docks_today": len(docks),
         "bin_utilisation_pct": round((slotted / capacity) * 100.0, 1) if capacity else 0.0,
     }

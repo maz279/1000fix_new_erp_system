@@ -35,6 +35,25 @@ def may_configure(env) -> bool:
     return env.su or env.user.has_group(SUPERVISOR) or env.user.has_group("base.group_system")
 
 
+def _require_configurator(records, vals, names, what):
+    """F06 (A06 ERP audit): the fields that tie a warehouse, zone or bin to the
+    M15 ledger are a Warehouse Supervisor's or the IT administrator's (R33):
+    changing them re-attributes the stock the bins hold."""
+    if not records or may_configure(records.env):
+        return
+    for name in names:
+        if name not in vals:
+            continue
+        field = records._fields[name]
+        for rec in records:
+            current = rec[name].id if field.type == "many2one" else rec[name]
+            if (current or False) != (vals[name] or False):
+                raise AccessError(
+                    "Only a Warehouse Supervisor or the IT administrator changes a %s's %s "
+                    "(F06)." % (what, field.string or name)
+                )
+
+
 class FixWarehouseWms(models.Model):
     _inherit = "fix.warehouse"
 
@@ -87,6 +106,7 @@ class FixWarehouseWms(models.Model):
                 "Only a Warehouse Supervisor or the IT administrator enables or disables "
                 "warehouse execution (BRU-WMS-02)."
             )
+        _require_configurator(self, vals, ("company_id", "operating_unit_id"), "warehouse")
         return super().write(vals)
 
 
@@ -133,6 +153,10 @@ class FixWarehouseZoneWms(models.Model):
                     "with no zones or bins (FR-WMS-003, BRU-WMS-02)." % warehouse.name
                 )
         return super().create(vals_list)
+
+    def write(self, vals):
+        _require_configurator(self, vals, ("warehouse_id", "zone_type", "ownership_class"), "zone")
+        return super().write(vals)
 
     @api.constrains("ownership_class")
     def _check_bin_classes(self):
@@ -206,6 +230,10 @@ class FixWarehouseBinWms(models.Model):
                 raise ValidationError(
                     "Bin %s: a coordinate, dimension or limit cannot be negative." % rec.name
                 )
+
+    def write(self, vals):
+        _require_configurator(self, vals, ("zone_id", "ownership_class", "storage_class"), "bin")
+        return super().write(vals)
 
     @api.constrains("ownership_class", "zone_id")
     def _check_zone_class(self):

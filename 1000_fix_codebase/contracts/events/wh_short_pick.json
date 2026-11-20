@@ -59,7 +59,7 @@
           "type": "number"
         },
         "picked": {
-          "description": "Type not statically derivable from `picked` (addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops.py:826)."
+          "description": "Type not statically derivable from `picked` (addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops.py:1235)."
         },
         "shortfall": {
           "type": "number"
