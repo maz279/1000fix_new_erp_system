@@ -9,7 +9,7 @@
         <field name="name">fix.stock.location.list</field>
         <field name="model">fix.stock.location</field>
         <field name="arch" type="xml">
-            <list decoration-info="is_van_location" decoration-success="state == 'active'" decoration-muted="state == 'inactive'">
+            <list decoration-info="is_van_location" decoration-muted="not active">
                 <field name="code"/>
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
@@ -18,7 +18,7 @@
                 <field name="is_van_location" widget="boolean_toggle"/>
                 <field name="technician_id" optional="show"/>
                 <field name="van_plate" optional="show"/>
-                <field name="state" widget="badge"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
             </list>
         </field>
     </record>
@@ -30,7 +30,6 @@
             <form>
                 <header>
                     <button name="action_audit_van_stock" string="Audit Van Stock" type="object" class="btn-primary" invisible="not is_van_location"/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,active,inactive"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
@@ -87,7 +86,7 @@
                 <field name="unit_cost"/>
                 <field name="sales_price"/>
                 <field name="warranty_months"/>
-                <field name="state" widget="badge"/>
+                <field name="active" widget="boolean_toggle" optional="show"/>
             </list>
         </field>
     </record>
@@ -98,7 +97,6 @@
         <field name="arch" type="xml">
             <form>
                 <header>
-                    <field name="state" widget="statusbar" statusbar_visible="active,discontinued,obsolete"/>
                 </header>
                 <sheet>
                     <div class="oe_title">
