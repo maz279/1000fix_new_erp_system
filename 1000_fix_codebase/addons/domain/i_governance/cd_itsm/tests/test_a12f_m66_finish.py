@@ -1669,6 +1669,15 @@ def test_a12f_handoff_a_late_allocation_blocks_action_clear(c):
     ex = _exit(c, emp)
     ex._fix_tick("clearance_assets")
     a = allocated(c, emp)
+    # M21 capture pass 2 (FR-HCM-036): HR's clearance waits for the leaver's
+    # knowledge handover, accepted by the successor - arranged as M21's own
+    # tests do, so this test reaches the asset rule it is about
+    successor = c.env["hr.employee"].sudo().create({"name": "M66F Successor 4"})
+    handover = c.env["fix.hr.exit.handover"].create(
+        {"exit_id": ex.id, "successor_id": successor.id, "open_work": "none"}
+    )
+    handover.action_hand_over()
+    handover.action_accept()
     for tick in ("clearance_it", "clearance_finance", "clearance_hr"):
         ex._fix_tick(tick)
     message = refused(c.env, lambda: ex.action_clear())

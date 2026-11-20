@@ -154,8 +154,26 @@ def odoo_registry():
     return registry
 
 
+def _mark_seed_backlog_relayed(cr):
+    """The test database carries a seed backlog of ~53,000 unrelayed events
+    (fix_test is built from seeds; nothing relays them). cron_relay walks the
+    OLDEST events first, a batch at a time, so a test that publishes an event
+    and relays it never reached its own event: every relay-driven test failed
+    on the test database while the live estate, whose relay cron drains the
+    outbox, holds none. Mark the earlier backlog relayed at the start of the
+    test, inside its rolled-back transaction. The test's own events carry the
+    transaction's timestamp and are left alone. A test ABOUT an existing
+    backlog opts out with @pytest.mark.relay_backlog."""
+    cr.execute("SELECT to_regclass('fix_event_outbox')")
+    if cr.fetchone()[0]:
+        cr.execute(
+            "UPDATE fix_event_outbox SET relayed_at = now() AT TIME ZONE 'UTC' "
+            "WHERE relayed_at IS NULL AND create_date < now() AT TIME ZONE 'UTC'"
+        )
+
+
 @pytest.fixture
-def odoo_env(odoo_registry):
+def odoo_env(odoo_registry, request):
     """A superuser Environment whose transaction is rolled back afterwards.
 
     `cr.commit()` is neutralised for the duration (a test must never persist
@@ -165,6 +183,8 @@ def odoo_env(odoo_registry):
 
     cr = odoo_registry.cursor()
     cr.commit = lambda: None  # type: ignore[method-assign]
+    if not request.node.get_closest_marker("relay_backlog"):
+        _mark_seed_backlog_relayed(cr)
     env = api.Environment(cr, SUPERUSER_ID, {"lang": "en_US", "tz": "Asia/Dhaka"})
     try:
         yield env
@@ -198,6 +218,11 @@ LINKED_CHART_SUITES = (
 
 
 def pytest_configure(config):
+    config.addinivalue_line(
+        "markers",
+        "relay_backlog: this test is about an existing outbox backlog, so the seed "
+        "backlog is not marked relayed",
+    )
     config.addinivalue_line(
         "markers", "unlinked_chart: this test is about the statutory chart, so it starts without it"
     )
