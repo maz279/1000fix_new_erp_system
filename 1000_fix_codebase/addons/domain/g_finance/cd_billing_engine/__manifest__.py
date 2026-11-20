@@ -67,6 +67,8 @@ CD-M20-01: the M20 accounts-receivable core.
         "data/fix_party_merge_consumers.xml",
         # A04 report §6 C7: warranty_claim.decided -> draft M20 OEM invoice.
         "data/fix_a04_consumers.xml",
+        # A02 ERP pass 2 X5-05 (D24): warranty_claim.written_off -> AR write-off.
+        "data/fix_a02r2_claim_writeoff_consumer.xml",
         # A04 report C10: the contract billing walker (switch:
         # cd_billing_engine.contract_auto_billing).
         "data/fix_a04_contract_cron.xml",

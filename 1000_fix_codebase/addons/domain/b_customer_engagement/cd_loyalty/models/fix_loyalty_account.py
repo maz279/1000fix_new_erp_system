@@ -488,15 +488,46 @@ class FixLoyaltyAccount(models.Model):
 
     @api.model
     def _order_earn_amount(self, order) -> float:
-        """What the customer paid for the order, in BDT.
+        """What the customer PAID for the order, excluding VAT, in BDT.
 
-        The settled amount when one is recorded, else the approved estimates.
-        A warranty, AMC or goodwill order settles at zero and earns nothing."""
-        if order.amount_settled_bdt:
-            return order.amount_settled_bdt
-        return sum(
-            order.estimate_ids.filtered(lambda e: e.state == "approved").mapped("grand_total")
-        )
+        A02 ERP pass 2 X5-09 (owner decision D25): points are earned on the
+        paid amount excluding VAT, and none on a warranty or zero-charge job.
+        The old rule earned on the VAT-inclusive settlement and, when nothing
+        was settled, on the approved estimates - so a warranty job the brand
+        paid for, or an unpaid order, earned the customer points; VAT, which
+        is the government's money, earned them too."""
+        if order.payment_settlement_state == "covered_zero_charge":
+            return 0.0
+        basis = getattr(order, "_fix_zero_charge_basis", None)
+        if basis and basis():
+            return 0.0
+        paid = order.amount_settled_bdt or 0.0
+        if paid <= 0.005:
+            return 0.0
+        return round(paid * (1.0 - self._order_vat_share(order)), 2)
+
+    @api.model
+    def _order_vat_share(self, order) -> float:
+        """The VAT part of what the order was billed (0..1): the M20 invoice
+        when one exists, else the governing estimate; 0 when neither says."""
+        Invoice = self.env.get("fix.ar.invoice")
+        if Invoice is not None:
+            invoice = Invoice.sudo().search(
+                [
+                    ("source_model", "=", order._name),
+                    ("source_id", "=", order.id),
+                    ("state", "not in", ("draft", "cancelled")),
+                ],
+                order="id desc",
+                limit=1,
+            )
+            gross = (invoice.taxable_amount or 0.0) + (invoice.vat_amount or 0.0)
+            if invoice and gross > 0.005:
+                return min(max((invoice.vat_amount or 0.0) / gross, 0.0), 1.0)
+        estimate = order._fix_governing_estimate() if order.estimate_ids else None
+        if estimate and (estimate.grand_total or 0.0) > 0.005:
+            return min(max((estimate.vat_amount or 0.0) / estimate.grand_total, 0.0), 1.0)
+        return 0.0
 
     @api.model
     def consume_service_order_closed(self, event: dict) -> dict:

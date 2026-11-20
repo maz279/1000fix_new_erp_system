@@ -25,6 +25,7 @@
 # - the stored overdue flag froze: it is computed at read time and searchable.
 import base64
 import hashlib
+import json
 import logging
 import uuid
 from datetime import timedelta
@@ -84,6 +85,17 @@ DECISION_STATE = {"approve": "approved", "partial": "partially_approved", "rejec
 # only from a closed job.
 AUTO_CLAIM_ORDER_STATES = ("delivered", "closed")
 CLAIM_ORDER_STATES = ("closed",)
+# A02 ERP pass 2 X5-22: the AUT-018 backup intake reads the outbox on from
+# this cursor (the last outbox id walked), a batch at a time.
+AUT018_CURSOR_PARAM = "cd_warranty_claims.aut018_outbox_cursor"
+AUT018_BATCH = 500
+# Review of X5-22: the cursor only moves past events (a) handled - done, or
+# failed AUT018_MAX_ATTEMPTS times - and (b) older than the lag, so a lower
+# outbox id whose transaction commits after a higher one is still read.
+AUT018_LAG_PARAM = "cd_warranty_claims.aut018_cursor_lag_minutes"
+AUT018_LAG_DEFAULT = 10
+AUT018_FAILURES_PARAM = "cd_warranty_claims.aut018_failed_events"
+AUT018_MAX_ATTEMPTS = 5
 
 # Set once when the claim is raised and never edited by a user afterwards.
 _FIXED_AT_CREATE = {"claim_amount", "service_order_id", "operating_unit_id", "company_id"}
@@ -668,36 +680,91 @@ class FixWarrantyClaim(models.Model):
         service_order.closed events and auto-create claims for WARRANTY
         jobs. Same shape as the M20 AR billable-event intake: one row per
         event, savepointed, idempotent through consume_order_completed's own
-        per-order search — replays are free."""
+        per-order search — replays are free.
+
+        A02 ERP pass 2 X5-22: the search always took the OLDEST 500 events,
+        so once 500 had been seen the intake re-read them every hour and
+        never reached a newer close. It now reads on from a cursor (the last
+        outbox id it walked, a system parameter), 500 at a time.
+
+        The cursor is a low-water mark, not "the last row read": it moves
+        only over a contiguous run of events that are handled (claimed or
+        skipped; a failure is retried on later runs and given up, with an
+        error in the log, after AUT018_MAX_ATTEMPTS) and older than the lag
+        (cd_warranty_claims.aut018_cursor_lag_minutes, default 10), because
+        an outbox id is taken before its transaction commits: a lower id can
+        become visible after a higher one. Events past the mark are still
+        processed every run; re-reading them is free (one claim per order)."""
         outbox = self.env["fix.event.outbox"].sudo()
+        params = self.env["ir.config_parameter"].sudo()
+        try:
+            cursor = int(params.get_param(AUT018_CURSOR_PARAM) or 0)
+        except ValueError:
+            cursor = 0
+        try:
+            lag = float(params.get_param(AUT018_LAG_PARAM) or AUT018_LAG_DEFAULT)
+        except ValueError:
+            lag = AUT018_LAG_DEFAULT
+        aged_before = fields.Datetime.now() - timedelta(minutes=lag)
+        try:
+            failures = json.loads(params.get_param(AUT018_FAILURES_PARAM) or "{}")
+        except ValueError:
+            failures = {}
         events = outbox.search(
-            [("event_type", "=", "service_order.closed"), ("aggregate", "=", "fix.service.order")],
+            [
+                ("event_type", "=", "service_order.closed"),
+                ("aggregate", "=", "fix.service.order"),
+                ("id", ">", cursor),
+            ],
             order="id asc",
-            limit=500,
+            limit=AUT018_BATCH,
         )
         created = 0
+        new_cursor, advancing = cursor, True
         for evt in events:
+            handled = True
             try:
                 with self.env.cr.savepoint():
                     # consume_order_completed returns the EXISTING claim on a
                     # replay — only genuinely new claims count as created
-                    if self.search([("service_order_id", "=", evt.aggregate_id)]):
-                        continue
-                    claim = self.consume_order_completed(
-                        {
-                            "aggregate_id": evt.aggregate_id,
-                            "payload": {"completed_at": evt.create_date},
-                        }
-                    )
-                    if claim:
-                        created += 1
+                    if not self.search([("service_order_id", "=", evt.aggregate_id)]):
+                        claim = self.consume_order_completed(
+                            {
+                                "aggregate_id": evt.aggregate_id,
+                                "payload": {"completed_at": evt.create_date},
+                            }
+                        )
+                        if claim:
+                            created += 1
+                failures.pop(str(evt.id), None)
             except Exception:
-                logger.warning(
-                    "AUT-018 intake skipped outbox event %s (order %s)",
-                    evt.event_id,
-                    evt.aggregate_id,
-                    exc_info=True,
-                )
+                attempts = int(failures.get(str(evt.id), 0)) + 1
+                failures[str(evt.id)] = attempts
+                if attempts >= AUT018_MAX_ATTEMPTS:
+                    failures.pop(str(evt.id), None)
+                    logger.error(
+                        "AUT-018 intake gave up on outbox event %s (order %s) after %d attempts",
+                        evt.event_id,
+                        evt.aggregate_id,
+                        attempts,
+                        exc_info=True,
+                    )
+                else:
+                    handled = False
+                    logger.warning(
+                        "AUT-018 intake failed on outbox event %s (order %s), attempt %d: "
+                        "retried on the next run",
+                        evt.event_id,
+                        evt.aggregate_id,
+                        attempts,
+                        exc_info=True,
+                    )
+            advancing = advancing and handled and evt.create_date <= aged_before
+            if advancing:
+                new_cursor = evt.id
+        if new_cursor != cursor:
+            params.set_param(AUT018_CURSOR_PARAM, str(new_cursor))
+        params.set_param(AUT018_FAILURES_PARAM, json.dumps(failures, sort_keys=True))
         if created:
             logger.info("AUT-018 intake created %d warranty claim(s)", created)
         return created

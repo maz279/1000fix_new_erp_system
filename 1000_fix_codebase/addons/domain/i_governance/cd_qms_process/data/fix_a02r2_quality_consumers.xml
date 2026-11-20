@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP pass 2 X5-14: the M01 quality events the M01 and M23 specs
+     route to M23 (service_order.qc_failed, rework.detected) raise their
+     nonconformity here, once per fact (fix.ncr.relay_key is UNIQUE). -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a02r2_service_order_qc_failed" model="fix.event.consumer">
+            <field name="name">M23: a failed final QC on an M01 order raises (or adds to) its NCR</field>
+            <field name="event_type">service_order.qc_failed</field>
+            <field name="model">fix.ncr</field>
+            <field name="method">consume_service_order_qc_failed</field>
+            <field name="module">cd_qms_process</field>
+        </record>
+
+        <record id="consumer_a02r2_rework_detected" model="fix.event.consumer">
+            <field name="name">M23: a rework under the repair warranty raises a major NCR</field>
+            <field name="event_type">rework.detected</field>
+            <field name="model">fix.ncr</field>
+            <field name="method">consume_rework_detected</field>
+            <field name="module">cd_qms_process</field>
+        </record>
+
+    </data>
+</odoo>
