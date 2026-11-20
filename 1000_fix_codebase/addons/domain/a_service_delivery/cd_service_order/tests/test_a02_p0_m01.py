@@ -413,10 +413,17 @@ def test_superuser_raise_voids_an_approval(w):
 
 
 def test_price_below_list_needs_the_discount_route(w):
-    prod = w.env["product.product"].create({"name": "A02 P0 LCD", "list_price": 5000.0})
+    # A04 ERP audit (M11-F1/F6): the floor is the M11 price floor, never the
+    # list_price placeholder; a price below it needs a line-bound override.
+    prod = w.env["product.product"].create(
+        {"name": "A02 P0 LCD", "default_code": "A02-P0-LCD", "list_price": 5000.0}
+    )
+    w.env["fix.price.floor"].create(
+        {"name": "A02 P0 LCD floor", "product_code": "A02-P0-LCD", "floor_price": 5000.0}
+    )
     o = order(w)
     part = {"line_type": "part", "product_id": prod.id, "description": "LCD", "quantity": 1}
-    assert "listed at BDT 5000" in attempt(
+    assert "floor is BDT 5000.00" in attempt(
         w,
         lambda: w.env["fix.estimate"]
         .with_user(w.clerk)

@@ -50,7 +50,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Realised Price vs Card', 'Discount Register by Approver', 'Rate-Card Utilisation', 'Margin by Service Line', 'Promotion Effectiveness', 'Brand Reimbursement Recovery', 'Floor vs Realised Rate'],
-  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate', 'Parts Pricing Scheme', 'Price Premium', 'Mass Price Change', 'Discount Reason Code'],
+  forms: ['Price Book', 'Rate Card', 'Discount Policy', 'Promotion', 'Price Simulation Request', 'Dynamic Price Rule', 'Discount Approval', 'Price Floor', 'Price Book Version', 'Price Change Request', 'Brand Reimbursement Rate', 'Parts Pricing Scheme', 'Price Premium', 'Mass Price Change', 'Discount Reason Code', 'Below-Floor Override'],
   cross: ['M37 Catalogue', 'M36 Quotations', 'M20 AR', 'M09 Warranty Claims'],
   /* M11 capture audit (2026-11-13): pages 1 and 6 offered no button, 9 and 11
    * no form chip, and three pages captured the wrong record:
@@ -87,7 +87,7 @@ export const MODULE = {
     ['4', 'Parts Pricing', 9, { model: 'fix.parts.price.scheme', cols: ['name', 'method', 'category_id', 'brand_id', 'provenance_grade', 'markup_pct', 'valid_from', 'state'], screens: ['M11-parts-schemes', 'M11-parts', 'M11-floors'], reports: ['Margin by Service Line', 'Floor vs Realised Rate'], forms: ['Parts Pricing Scheme', 'Rate Card', 'Price Floor'] }],
     ['5', 'Customer/Contract Pricing', 8, { model: 'fix.rate.card', cols: ['contract_id', 'product_code', 'line_type', 'unit_price', 'valid_from', 'valid_to', 'state'], screens: ['M11-contract'], reports: ['Rate-Card Utilisation'], forms: ['Rate Card'], create: 'M11-form-card', domain: [['min_tier', '=', 99]] }],
     ['6', 'Brand Reimbursement', 7, { model: 'fix.brand.reimbursement.rate', cols: ['brand_id', 'repair_level', 'labour_rate', 'parts_markup_pct', 'valid_from', 'valid_to', 'version', 'state'], screens: ['M11-brand', 'M11-rpt-brand'], reports: ['Brand Reimbursement Recovery'], forms: ['Brand Reimbursement Rate'] }],
-    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-policies', 'M11-reasons', 'M11-floors', 'M11-rpt-discount'], reports: ['Discount Register by Approver', 'Floor vs Realised Rate'], forms: ['Discount Approval', 'Discount Reason Code', 'Discount Policy', 'Price Floor'] }],
+    ['7', 'Discount Governance', 10, { model: 'fix.discount.approval', cols: ['quotation_id', 'discount_pct', 'state', 'justification', 'approved_by'], screens: ['M11-discounts', 'M11-policies', 'M11-reasons', 'M11-floors', 'M11-overrides', 'M11-rpt-discount'], reports: ['Discount Register by Approver', 'Floor vs Realised Rate'], forms: ['Discount Approval', 'Discount Reason Code', 'Discount Policy', 'Price Floor', 'Below-Floor Override'] }],
     ['8', 'Promotions', 7, { model: 'fix.promotion', cols: ['code', 'name', 'discount_type', 'value', 'channel', 'state'], screens: ['M11-promos', 'M11-rpt-promo'], reports: ['Promotion Effectiveness'], forms: ['Promotion'] }],
     ['9', 'Adjustment Rules', 8, { model: 'fix.price.adjustment', cols: ['code', 'name', 'adjustment_type', 'basis', 'value', 'applies_to', 'valid_from', 'state'], screens: ['M11-premiums', 'M11-adjust'], reports: [], forms: ['Price Premium', 'Dynamic Price Rule'] }],
     ['10', 'Simulation & Trace', 7, { model: 'fix.price.simulation', cols: ['name', 'catalogue_item_id', 'rate_card_id', 'state', 'computed_at'], screens: ['M11-simulate', 'M11-price-explanation'], reports: [], forms: ['Price Simulation Request'] }],
@@ -181,6 +181,14 @@ export const SCREENS = {
       { m: 'action_recall_approval', l: 'Recall Override Request' },
       { m: 'action_request_floor_change', l: 'Request Floor Change (staged on the form)' },
       { m: 'action_request_retire', l: 'Request Floor Retirement', ask: 'Why is the floor retired?', kwarg: 'reason' }
+    ] },
+  /* A04 ERP audit (20 Nov 2026) M11-F7: a below-floor price is approved for
+   * ONE document line, used once, and lapses at its use-by date. */
+  'M11-overrides': { kind: 'model_list', model: 'fix.price.override', stateField: 'state',
+    cols: ['name', 'product_id', 'res_model', 'res_id', 'requested_price', 'floor_price', 'valid_until', 'dofa_tier_required', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Request Override Approval (DOFA)', states: ['draft'] },
+      { m: 'action_recall_approval', l: 'Recall Request', states: ['pending'] }
     ] },
   'M11-promos': { kind: 'model_list', model: 'fix.promotion', stateField: 'state',
     cols: ['code', 'name', 'discount_type', 'value', 'channel', 'valid_from', 'valid_until', 'state', 'approval_state'],
@@ -317,7 +325,9 @@ export const SCREENS = {
           { name: 'unit_price', required: true, label: 'Base Rate (VAT-exclusive BDT)' },
           { name: 'min_tier', label: 'Customer Tier (99 = contract rate)' },
           { name: 'contract_id', label: 'Contract (M08), contract rates only' },
-          { name: 'contract_no', label: 'Contract No.', readonly: true }
+          { name: 'contract_no', label: 'Contract No.', readonly: true },
+          { name: 'partner_id', label: 'Customer (customer-specific rate)' },
+          { name: 'version_id', label: 'Price-Book Version' }
         ] },
       { tab: 'validity', title: 'Effective Window',
         fields: [
@@ -613,7 +623,7 @@ export const SCREENS = {
           { name: 'proposed_floor_price', label: 'Proposed New Floor (staged)' },
           { name: 'floor_change_reason', label: 'Floor Change Reason', type: 'text' }
         ] },
-      { tab: 'dofa_override', title: 'Delegation of Financial Authority (DOFA)', note: 'A price below the floor needs a DOFA approval from the approver inbox; the tier follows how far below the floor the proposed price sits, and the approval covers only that price.',
+      { tab: 'dofa_override', title: 'Delegation of Financial Authority (DOFA)', note: 'A sale below the floor needs a Below-Floor Override approved for that one document line (Discount Governance > Below-Floor Overrides). An approval recorded here on the floor no longer clears any sale.',
         fields: [
           { name: 'proposed_override_price', label: 'Proposed Below-Floor Price' },
           { name: 'dofa_justification', label: 'Business Justification', type: 'text' },
@@ -623,6 +633,41 @@ export const SCREENS = {
           { name: 'dofa_override_user_id', label: 'DOFA Approver', readonly: true },
           { name: 'active', label: 'Active Floor Enforcement', readonly: true }
         ] }
+    ]
+  },
+  'M11-form-override': {
+    kind: 'model_form',
+    model: 'fix.price.override',
+    title: 'Below-Floor Price Override',
+    back: 'M11-overrides',
+    status: { field: 'state', labels: { draft: 'Draft', pending: 'Awaiting Approval', approved: 'Approved', consumed: 'Used', expired: 'Expired', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'line', label: '1. Line & Price', bn: '১. লাইন ও মূল্য', icon: '🏷️', badge: '6' },
+      { id: 'decision', label: '2. DOFA Decision', bn: '২. ডোফা সিদ্ধান্ত', icon: '🔐', badge: '6' },
+      { id: 'docs', label: '3. Documents', bn: '৩. নথি ও প্রমাণক' }
+    ],
+    sections: [
+      { tab: 'line', title: 'The One Line This Price Is For',
+        note: 'Name the estimate line (or the line type and id of another selling document). The override covers that line only, at or above the requested price, once, before its use-by date.',
+        fields: [
+          { name: 'estimate_line_id', label: 'Estimate Line (M01)' },
+          { name: 'res_model', label: 'Other Document Line Type' },
+          { name: 'res_id', label: 'Other Document Line ID' },
+          { name: 'product_id', label: 'Item', required: true },
+          { name: 'requested_price', label: 'Requested Unit Price (BDT, excl. VAT)', required: true },
+          { name: 'valid_until', label: 'Use By', required: true }
+        ] },
+      { tab: 'decision', title: 'Floor and Approval',
+        note: 'The tier follows how far below the floor the price sits; the requester never approves it (M63 inbox).',
+        fields: [
+          { name: 'floor_price', label: 'Floor When Requested', readonly: true },
+          { name: 'floor_basis', label: 'Floor Basis', readonly: true },
+          { name: 'cost', label: 'M15 Cost When Requested', readonly: true },
+          { name: 'dofa_justification', label: 'Business Justification', type: 'text' },
+          { name: 'dofa_tier_required', label: 'Required DOFA Tier', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true }
+        ] },
+      { tab: 'docs', title: 'Documents & Evidence', note: 'The competitor quote, customer letter or other evidence behind the below-floor price attaches here; the checksummed repository (fix.document, M24) is the estate evidence path.', fields: [] }
     ]
   },
   'M11-form-pricerule': {
@@ -687,6 +732,7 @@ export const SCREENS = {
           { name: 'rate_card_id', label: "Rate Card" },
           { name: 'floor_id', label: "Price Floor" },
           { name: 'proposed_value', label: "New Price (BDT)" },
+          { name: 'effective_from', label: "Effective From (new rate version)" },
           { name: 'reason', label: "Reason", type: 'text', required: true }
         ] },
       { tab: 'decision', title: 'Release Decision', fields: [
@@ -951,7 +997,8 @@ export const FORM_MODELS = {
   'M11:Parts Pricing Scheme': 'fix.parts.price.scheme',
   'M11:Price Premium': 'fix.price.adjustment',
   'M11:Mass Price Change': 'fix.price.mass.change',
-  'M11:Discount Reason Code': 'fix.discount.reason'
+  'M11:Discount Reason Code': 'fix.discount.reason',
+  'M11:Below-Floor Override': 'fix.price.override'
 };
 
 export const FORM_CHIPS = {
@@ -970,6 +1017,7 @@ export const FORM_CHIPS = {
   'M11:Price Premium': 'M11-form-premium',
   'M11:Mass Price Change': 'M11-form-mass',
   'M11:Discount Reason Code': 'M11-form-reason',
+  'M11:Below-Floor Override': 'M11-form-override',
   'M11:__by_model__': {
     'fix.parts.price.scheme': 'M11-form-parts-scheme',
     'fix.price.adjustment': 'M11-form-premium',
@@ -986,7 +1034,8 @@ export const FORM_CHIPS = {
     'fix.price.simulation': 'M11-form-simulation',
     'fix.price.version': 'M11-form-version',
     'fix.price.floor': 'M11-form-floor',
-    'fix.price.change': 'M11-form-change'
+    'fix.price.change': 'M11-form-change',
+    'fix.price.override': 'M11-form-override'
   },
   'M11:__by_screen__': {
     'M11-price-explanation': 'M11-form-price-explanation',
@@ -1006,7 +1055,8 @@ export const FORM_CHIPS = {
     'M11-parts-schemes': 'M11-form-parts-scheme',
     'M11-premiums': 'M11-form-premium',
     'M11-mass': 'M11-form-mass',
-    'M11-reasons': 'M11-form-reason'
+    'M11-reasons': 'M11-form-reason',
+    'M11-overrides': 'M11-form-override'
   }
 };
 

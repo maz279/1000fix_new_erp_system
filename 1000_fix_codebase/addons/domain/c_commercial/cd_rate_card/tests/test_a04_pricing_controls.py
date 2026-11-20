@@ -262,6 +262,8 @@ def test_change_is_refused_when_the_target_moved_meanwhile(odoo_env, ppl):
 
 
 def test_rate_card_release_and_change(odoo_env, ppl):
+    # A04 ERP audit M11-F20: a rate is released only for a code that exists
+    odoo_env["product.product"].create({"name": "%s RC" % TAG, "default_code": "%s-RC" % TAG})
     card = (
         odoo_env["fix.rate.card"]
         .with_user(ppl.officer)
@@ -284,7 +286,10 @@ def test_rate_card_release_and_change(odoo_env, ppl):
     # the officer who raised it cannot release it, even holding the role
     assert ppl.officer2 not in change.approval_request_id.task_ids.mapped("assigned_user_id")
     approve_via_inbox(change, ppl.releaser, requester=ppl.officer2)
-    assert card.unit_price == 950.0
+    # A04 ERP audit M11-F4: the new rate is a version from today; the old one
+    # keeps its window for documents dated before
+    assert Card._resolve(card.product_code).unit_price == 950.0
+    assert card.unit_price == 1000.0 and change.new_rate_card_id.unit_price == 950.0
     event = odoo_env["fix.event.outbox"].search(
         [("event_type", "=", "pricing.price_changed"), ("aggregate_id", "=", change.id)]
     )
@@ -374,17 +379,38 @@ def test_estimate_below_the_floor_is_refused(odoo_env, ppl):
         {"name": "%s floor product" % TAG, "default_code": code, "list_price": 500.0}
     )
     floor = _floor(odoo_env, ppl.officer, price=900.0, product_code=code)
-    with pytest.raises(UserError, match="below statutory price floor"), odoo_env.cr.savepoint():
+    with pytest.raises(UserError, match="floor is BDT 900.00"), odoo_env.cr.savepoint():
         _estimate(odoo_env, ppl.clerk, product, 600.0)
-    assert _estimate(odoo_env, ppl.clerk, product, 950.0)
-    # with an override approved for 850, 850 is accepted and 800 is not
+    estimate = _estimate(odoo_env, ppl.clerk, product, 950.0)
+    assert estimate
+    # A04 ERP audit (20 Nov 2026) M11-F7: an override approved on the FLOOR is
+    # no longer a standing permission for every sale ...
     floor.with_user(ppl.clerk).write(
         {"proposed_override_price": 850.0, "dofa_justification": "competitor match"}
     )
     approve_via_inbox(floor, ppl.t2, requester=ppl.clerk)
-    assert _estimate(odoo_env, ppl.clerk, product, 850.0)
-    with pytest.raises(UserError, match="Re-approval is required"), odoo_env.cr.savepoint():
-        _estimate(odoo_env, ppl.clerk, product, 800.0)
+    with pytest.raises(UserError, match="floor is BDT 900.00"), odoo_env.cr.savepoint():
+        _estimate(odoo_env, ppl.clerk, product, 850.0)
+    # ... an override approved for THIS line covers 850 on it, and not 800
+    line = estimate.line_ids
+    override = (
+        odoo_env["fix.price.override"]
+        .with_user(ppl.clerk)
+        .create(
+            {
+                "estimate_line_id": line.id,
+                "product_id": product.id,
+                "requested_price": 850.0,
+                "valid_until": _today(odoo_env) + timedelta(days=2),
+                "dofa_justification": "competitor match",
+            }
+        )
+    )
+    approve_via_inbox(override, ppl.t2, requester=ppl.clerk)
+    with pytest.raises(UserError, match="below the BDT 850.00"), odoo_env.cr.savepoint():
+        line.with_user(ppl.clerk).write({"unit_price": 800.0})
+    line.with_user(ppl.clerk).write({"unit_price": 850.0})
+    assert override.state == "consumed"
 
 
 # --- pr_01..pr_05: promotions --------------------------------------------------

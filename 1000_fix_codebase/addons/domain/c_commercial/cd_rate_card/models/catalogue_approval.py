@@ -108,15 +108,30 @@ class FixBrandApproval(models.Model):
 class ProductProductFloor(models.Model):
     _inherit = "product.product"
 
-    def _fix_check_sale(self, unit_price=None, channel=None):
-        """BRU-PRC-04 on every selling document: a price below an active M11
-        floor needs an approved DOFA override that covers that price
-        (A04 audit M11-4, pf_10: the floor was read by no sale)."""
+    def _fix_check_sale(self, unit_price=None, channel=None, line=None, partner=None):
+        """BRU-PRC-04 on every selling document: the M11 price gate
+        (fix.rate.card.check_sale_price). A price below the floor - the M11
+        price floor or the M15 cost margin floor - needs a below-floor
+        override approved for THIS document line (`line`); a customer
+        channel (storefront / marketplace) also needs a released price.
+
+        A04 ERP audit (20 Nov 2026) M11-F1/F7/F9: the floor's own override
+        was a standing permission and the floor ignored cost, so 1.00 and
+        even 0.01 passed on real items."""
         result = super()._fix_check_sale(unit_price=unit_price, channel=channel)
-        if unit_price is None:
-            return result
-        Floor = self.env["fix.price.floor"].sudo()
+        Card = self.env["fix.rate.card"]
         for product in self:
-            for floor in Floor._floors_for(product):
-                floor.validate_price_against_floor(unit_price)
+            if unit_price is None:
+                if (channel or "") in ("storefront", "marketplace", "web"):
+                    Card.check_sale_price(product, None, channel, partner=partner)
+                continue
+            company = getattr(line, "company_id", None) if line else None
+            Card.check_sale_price(
+                product,
+                unit_price,
+                channel or "quotation",
+                partner=partner,
+                company=company or None,
+                line=line,
+            )
         return result

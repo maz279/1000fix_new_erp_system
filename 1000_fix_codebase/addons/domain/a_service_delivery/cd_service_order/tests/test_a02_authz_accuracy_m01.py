@@ -196,13 +196,24 @@ def test_a_finished_orders_estimate_is_not_revised(w):
 
 # =========================================================================== 3c. floor
 def test_list_price_floor_applies_to_a_labour_line_with_a_product(w):
-    """The list-price floor reads the line's product, whatever the line type."""
+    """The price floor reads the line's product, whatever the line type.
+
+    A04 ERP audit (M11-F1/F6): the floor is the M11 price floor (or the M15
+    cost margin floor), never the list_price placeholder (1.00 on fix_real)."""
     service = w.env["product.product"].create(
-        {"name": "G3 board-level labour", "list_price": 4000.0, "type": "service"}
+        {
+            "name": "G3 board-level labour",
+            "default_code": "A02-G3-LABOUR",
+            "list_price": 4000.0,
+            "type": "service",
+        }
+    )
+    w.env["fix.price.floor"].create(
+        {"name": "G3 labour floor", "product_code": "A02-G3-LABOUR", "floor_price": 4000.0}
     )
     o = order(w)
     line = {"line_type": "labour", "product_id": service.id, "description": "x", "quantity": 1}
-    assert "listed at BDT 4000" in (
+    assert "floor is BDT 4000.00" in (
         attempt(
             w,
             lambda: w.env["fix.estimate"]

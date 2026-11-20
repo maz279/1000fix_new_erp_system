@@ -26,13 +26,13 @@
 import itertools
 import json
 from datetime import timedelta
-from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .pricing_money import money
 from .pricing_roles import ROLE_OFFICER, ROLE_RELEASER, require_releaser_not_author, require_role
 
 GROUP_CCO = "cd_entity_config.group_dofa_tier_4"
@@ -60,10 +60,8 @@ RELEASE_STATES = [
 
 def _money(value, step=0.01):
     """Round half-up to `step` (0.01 = the paisa; 1, 5, 10 = whole-taka
-    rounding per FR-PRC-008), in Decimal."""
-    step = Decimal(str(step or 0.01))
-    units = (Decimal(str(value)) / step).quantize(Decimal("1"), rounding=ROUND_HALF_UP)
-    return float(units * step)
+    rounding per FR-PRC-008): the one M11 rounding (pricing_money.money)."""
+    return money(value, step)
 
 
 class FixApprovalMatrixM11Capture(models.Model):
@@ -841,10 +839,11 @@ class FixPriceMassChange(models.Model):
             rec.line_ids.sudo().unlink()
             rows = []
             for card in rec._target_cards():
-                floors = Floor.search(
-                    [("product_code", "=", card.product_code), ("active", "=", True)]
-                )
-                floor = max(floors.mapped("floor_price") or [0.0])
+                # the item's floor: M11 price floors on code or item, and the
+                # M15 cost margin floor (A04 ERP audit M11-F9)
+                floor = Floor.env["fix.rate.card"]._floor_info(
+                    card.catalogue_item_id or card.product_code, company=card.company_id
+                )["floor"]
                 new = rec._new_price(card.unit_price)
                 rows.append(
                     {
@@ -969,8 +968,16 @@ class FixPriceMassChange(models.Model):
                 continue
             rec._check_preview()
             for line in rec.line_ids:
-                line.rate_card_id._guarded().write({"unit_price": line.new_price})
-                rec._publish(line.rate_card_id, line.current_price, line.new_price)
+                # A04 ERP audit (20 Nov 2026) M11-F4: the new price is a dated
+                # version from the effective date; the rate in force keeps its
+                # history (fix.rate.card._supersede_price).
+                card = line.rate_card_id
+                old_to = card.valid_to
+                new = card._supersede_price(line.new_price, rec.effective_date)
+                line.sudo().write(
+                    {"new_rate_card_id": new.id if new != card else False, "old_valid_to": old_to}
+                )
+                rec._publish(new, line.current_price, line.new_price)
             rec.line_ids.sudo().write({"applied": True})
             rec._guarded().write({"state": "applied", "applied_at": fields.Datetime.now()})
             rec.message_post(body="Applied to %d rate(s)." % len(rec.line_ids))
@@ -999,7 +1006,10 @@ class FixPriceMassChange(models.Model):
             if rec.state != "applied":
                 raise UserError("Only an applied mass change is rolled back.")
             moved = rec.line_ids.filtered(
-                lambda line: abs(line.rate_card_id.unit_price - line.new_price) > 0.005
+                lambda line: abs(
+                    (line.new_rate_card_id or line.rate_card_id).unit_price - line.new_price
+                )
+                > 0.005
             )
             if moved:
                 raise UserError(
@@ -1007,8 +1017,14 @@ class FixPriceMassChange(models.Model):
                     % moved[0].rate_card_id.name
                 )
             for line in rec.line_ids:
-                line.rate_card_id._guarded().write({"unit_price": line.current_price})
-                rec._publish(line.rate_card_id, line.new_price, line.current_price)
+                card = line.rate_card_id
+                if line.new_rate_card_id:
+                    # the dated version goes; the rate it split keeps its window
+                    line.new_rate_card_id._guarded().write({"state": "retired", "active": False})
+                    card._guarded().write({"valid_to": line.old_valid_to or False})
+                else:
+                    card._guarded().write({"unit_price": line.current_price})
+                rec._publish(card, line.new_price, line.current_price)
             rec._guarded().write(
                 {
                     "state": "rolled_back",
@@ -1040,6 +1056,10 @@ class FixPriceMassChangeLine(models.Model):
     floor_price = fields.Monetary(string="Floor")
     below_floor = fields.Boolean(compute="_compute_below", store=True)
     applied = fields.Boolean(readonly=True)
+    # M11-F4: the dated version the change created, and the window the rate
+    # in force had before it (for the rollback)
+    new_rate_card_id = fields.Many2one("fix.rate.card", readonly=True, ondelete="set null")
+    old_valid_to = fields.Date(readonly=True)
 
     @api.depends("new_price", "floor_price")
     def _compute_below(self):
@@ -1135,11 +1155,13 @@ class FixRateCardContract(models.Model):
                 )
 
     @api.model
-    def _resolve(self, product_code, tier=0, contract_no=None, on_date=None):
+    def _resolve(self, product_code, tier=0, contract_no=None, on_date=None, **kw):
         """The contract lane lapses with its contract (AC-08): a rate whose
         contract is not in force on the day is skipped, and the customer falls
-        back to the tier rate."""
-        card = super()._resolve(product_code, tier=tier, contract_no=contract_no, on_date=on_date)
+        back to the customer / tier rate."""
+        card = super()._resolve(
+            product_code, tier=tier, contract_no=contract_no, on_date=on_date, **kw
+        )
         if card and card.min_tier == 99 and card.contract_id:
             day = on_date or fields.Date.context_today(self)
             contract = card.contract_id.sudo()
@@ -1147,7 +1169,9 @@ class FixRateCardContract(models.Model):
                 contract.date_start <= day <= contract.date_end
             )
             if not live:
-                return super()._resolve(product_code, tier=tier, contract_no=None, on_date=on_date)
+                return super()._resolve(
+                    product_code, tier=tier, contract_no=None, on_date=on_date, **kw
+                )
         return card
 
 
