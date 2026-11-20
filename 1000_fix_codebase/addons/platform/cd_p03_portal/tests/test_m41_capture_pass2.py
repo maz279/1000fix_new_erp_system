@@ -53,6 +53,8 @@ SPEC_CAPTURES = {
         "M41-form-return",
     ],
     "4": ["M41-form-wave", "M41-form-demand", "M41-form-template"],
+    # part 2 (2026-11-20): substitute pick (FR-WMS-023)
+    "5": ["M41-form-scan-pick", "M41-form-short-pick", "M41-form-substitution"],
     "6": ["M41-form-carton", "M41-form-stage", "M41-form-hu", "M41-form-station"],
     "9": [
         "M41-form-operative",
@@ -128,7 +130,6 @@ NEVER_TYPED = {
     "fix.wms.handling.unit": {"state", "current_bin_id", "closed_by_id"},
     "fix.wms.crossdock": {"state", "staged_by_id", "dispatched_by_id", "load_ref", "wave_id"},
     "fix.wms.return.receipt": {"state", "received_by_id", "disposed_by_id", "putaway_id"},
-    "fix.wms.outbound.demand": {"state", "wave_id"},
     "fix.wms.count.plan": {"state", "generated_by_id"},
     "fix.wms.productivity.run": {"state", "computed_by_id", "computed_at", "line_ids"},
     "fix.wms.dock": {"state", "arrived_at", "unload_started_at", "completed_at"},
@@ -138,6 +139,12 @@ NEVER_TYPED = {
     "fix.wms.bin.block.log": {"event", "reason", "user_id"},
     "fix.wms.productivity": {"units", "tasks_completed"},
     "fix.wms.putaway.exception": {"cause"},
+    # part 2
+    "fix.wms.substitution": {"state", "qty", "crossref_id", "decided_by_id", "new_line_id"},
+    "fix.wms.slot.proposal": {"state", "move_id", "decided_by_id", "qty", "to_bin_id"},
+    "fix.wms.scan.event": {"accepted", "rule", "user_ref"},
+    "fix.wms.rf.journal": {"ok", "result", "key"},
+    "fix.wms.outbound.demand": {"state", "wave_id", "transfer_line_id", "rtv_id", "short_note"},
 }
 
 NEW_MODELS = (
@@ -153,6 +160,10 @@ NEW_MODELS = (
     "fix.wms.time.standard",
     "fix.wms.productivity.run",
     "fix.wms.productivity",
+    "fix.wms.substitution",
+    "fix.wms.slot.proposal",
+    "fix.wms.scan.event",
+    "fix.wms.rf.journal",
 )
 
 
@@ -250,15 +261,30 @@ def test_new_registers_are_served_and_secured(model):
     rows = [r.split(",") for r in acl.splitlines() if (",%s," % xmlid) in r]
     assert rows, model
     plain = [r for r in rows if r[3] == "base.group_user"]
-    assert plain and plain[0][4:8] == ["1", "0", "0", "0"], model
+    if model == "fix.wms.rf.journal":  # scan payloads: supervisors and IT only
+        assert not plain, "a plain employee reads the RF journal"
+    else:
+        assert plain and plain[0][4:8] == ["1", "0", "0", "0"], model
     if model != "fix.wms.handling.unit.line":  # an open unit's content line may be removed
         assert all(r[-1].strip() == "0" for r in rows), "%s may be deleted" % model
     assert 'ref="%s"' % xmlid in rules, "%s has no company rule" % model
 
 
+def test_part2_lists_and_report_are_placed(m41):
+    """The scan log, RF journal, substitutions and proposals sit on their pages,
+    and the Attempted Violations report has its route (section 14)."""
+    placed = {sid for s in m41["subs"] for sid in s["screens"]}
+    for sid in ("M41-scan-log", "M41-rf-journal", "M41-substitutions", "M41-proposals"):
+        assert sid in placed and sid in m41["labelled"], sid
+    rf = _p1._sub(m41, "8")
+    assert {"r": "Attempted Violations", "route": "M41-rpt-violations"} in rf["reports"]
+    assert "action_propose_slotting" in _p1._surfaces()["fix.warehouse"]
+
+
 def test_load_order():
     init = (INVENTORY / "models" / "__init__.py").read_text(encoding="utf-8")
     assert init.index("fix_wms_ops_floor,") < init.index("fix_wms_ops_spec,")
+    assert init.index("fix_wms_ops_spec,") < init.index("fix_wms_ops_spec_flow,")
     sinit = (STRUCTURE / "models" / "__init__.py").read_text(encoding="utf-8")
     assert sinit.index("import fix_wms_structure") < sinit.index("import fix_wms_layout")
     manifest = (INVENTORY / "__manifest__.py").read_text(encoding="utf-8")

@@ -1709,11 +1709,12 @@ class FixWmsOutboundDemand(models.Model):
         default="queued",
     )
     wave_id = fields.Many2one("fix.wms.wave", string="Wave", readonly=True, copy=False)
+    short_note = fields.Char(string="Waiting Because", readonly=True, copy=False)
 
     _qty_positive = models.Constraint("CHECK (qty > 0)", "Demand is for a positive quantity")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "wave_id"}
+        return super()._fix_guarded_fields() | {"state", "wave_id", "short_note"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1772,11 +1773,15 @@ class FixWmsOutboundDemand(models.Model):
             rec._guarded().write({"state": "cancelled"})
         return True
 
-    def action_build_wave(self):
+    def action_build_wave(self, skip_short=False):
         """FR-WMS-020: group the queued demand into one draft wave per warehouse
         and template; each line picks from the bins that hold it free (pick faces
         first, then walk order), split across bins when one is not enough. The
-        supervisor then releases the wave (BRU-WMS-13)."""
+        supervisor then releases the wave (BRU-WMS-13).
+
+        skip_short (the automatic release, AUT-WMS-07): demand the bins cannot
+        cover stays queued with the reason, and the rest is waved; nothing is
+        ever half-waved."""
         queued = self.filtered(lambda r: r.state == "queued")
         if not queued:
             raise UserError("Choose queued demand to wave.")
@@ -1796,6 +1801,7 @@ class FixWmsOutboundDemand(models.Model):
                 lambda d: (-_PRIO_RANK[d.priority], d.cutoff_at or datetime.max, d.id)
             ):
                 need = rec.qty
+                mine = []
                 for slot in Line._fix_pick_slots(rec.part_id, warehouse):
                     free = round(
                         (slot.qty or 0.0) - (slot.reserved_qty or 0.0) - planned[slot.id], 4
@@ -1806,10 +1812,25 @@ class FixWmsOutboundDemand(models.Model):
                     if take <= EPS:
                         continue
                     planned[slot.id] += take
-                    plan.append((rec, slot.bin_id, take))
+                    mine.append((rec, slot.bin_id, take, slot.id))
                     need = round(need - take, 4)
                     if need <= EPS:
                         break
+                if need > EPS and skip_short:
+                    for _rec, _bin, take, slot_id in mine:
+                        planned[slot_id] -= take
+                    rec._guarded().write(
+                        {
+                            "short_note": "%s: only %s of %s free in the bins"
+                            % (
+                                fields.Datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
+                                round(rec.qty - need, 4),
+                                rec.qty,
+                            )
+                        }
+                    )
+                    continue
+                plan.extend((r, b, t) for r, b, t, _s in mine)
                 if need > EPS:
                     raise UserError(
                         "%s: the bins of %s hold only %s of %s free; %s asks for %s."
@@ -1822,6 +1843,9 @@ class FixWmsOutboundDemand(models.Model):
                             rec.qty,
                         )
                     )
+            if not plan:
+                continue
+            demands = self.browse(list(dict.fromkeys(r.id for r, _b, _t in plan)))
             wave_vals = {"warehouse_id": warehouse.id, "company_id": demands[0].company_id.id}
             if tpl_id:
                 wave_vals["template_id"] = tpl_id
@@ -1838,7 +1862,7 @@ class FixWmsOutboundDemand(models.Model):
                         "qty": take,
                         "source_type": rec.source_type,
                         "source_ref": rec.source_ref,
-                        "dest_location_id": rec.dest_location_id.id,
+                        "dest_location_id": rec.dest_location_id.id or False,
                         "priority": rec.priority,
                     }
                     for rec, bin_record, take in plan
@@ -1846,7 +1870,7 @@ class FixWmsOutboundDemand(models.Model):
             )
             for line, (rec, _bin, _take) in zip(wave.line_ids.sorted("id"), plan, strict=True):
                 line._guarded().write({"demand_id": rec.id})
-            demands._guarded().write({"state": "waved", "wave_id": wave.id})
+            demands._guarded().write({"state": "waved", "wave_id": wave.id, "short_note": False})
             waves |= wave
         return waves.ids
 

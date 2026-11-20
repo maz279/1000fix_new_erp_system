@@ -96,7 +96,7 @@ SURFACES = {
             "action_set_standard_cost",
         },
     },
-    "fix.warehouse": {"order": "id desc", "limit": 400, "actions": set()},
+    "fix.warehouse": {"order": "id desc", "limit": 400, "actions": {"action_propose_slotting"}},
     # capture audit 2026-11-14: internal moves, RF devices, operatives, equipment
     "fix.wms.move": {
         "order": "create_date desc, id desc",
@@ -159,6 +159,19 @@ SURFACES = {
         "limit": 400,
         "actions": set(),
     },
+    # part 2 (2026-11-20): substitution, slotting proposals, scan log, RF journal
+    "fix.wms.substitution": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_approve", "action_reject"},
+    },
+    "fix.wms.slot.proposal": {
+        "order": "create_date desc, id desc",
+        "limit": 300,
+        "actions": {"action_accept", "action_reject"},
+    },
+    "fix.wms.scan.event": {"order": "occurred_at desc, id desc", "limit": 500, "actions": set()},
+    "fix.wms.rf.journal": {"order": "processed_at desc, id desc", "limit": 400, "actions": set()},
 }
 
 
@@ -482,6 +495,44 @@ def rf_queue(env, date_from=None, date_to=None, **params):
     )
 
 
+def scan_violations(env, date_from=None, date_to=None, **params):
+    """Spec section 14 "Ownership-class segregation": the scans the floor
+    REFUSED, by rule and operative (BRU-WMS-03 class, -05 wrong bin or item,
+    -11 hazard, -12 blocked bin ...), from the scan log."""
+    events = _mine(env, "fix.wms.scan.event", [("accepted", "=", False)])
+    buckets = {}
+    for ev in events:
+        key = (ev.rule or "refused", ev.user_name or "-")
+        row = buckets.setdefault(
+            key,
+            {"rule": key[0], "operative": key[1], "attempts": 0, "last": "", "example": ""},
+        )
+        row["attempts"] += 1
+        stamp = str(ev.occurred_at or "")
+        if stamp > row["last"]:
+            row["last"], row["example"] = stamp, (ev.message or "")[:120]
+    rows = sorted(buckets.values(), key=lambda r: (-r["attempts"], r["rule"], r["operative"]))
+    return _pack(
+        "Attempted Violations - scans the floor refused",
+        ["rule", "operative", "attempts", "last", "example"],
+        {
+            "rule": "Rule",
+            "operative": "Operative",
+            "attempts": "Attempts",
+            "last": "Last Attempt (UTC)",
+            "example": "Last Reason",
+        },
+        rows,
+        [
+            "BRU-WMS-03 is the ownership-class segregation the spec's report counts; "
+            "BRU-WMS-05 a wrong bin or item scan; BRU-WMS-11 hazard; BRU-WMS-12 a blocked bin.",
+            "Refused attempts are logged in their own transaction, so they survive the refusal.",
+        ],
+        totals={"rule": "Total", "attempts": sum(r["attempts"] for r in rows)},
+        empty="No refused scan.",
+    )
+
+
 REPORTS = {
     "throughput_by_shift": throughput_by_shift,
     "pick_accuracy": pick_accuracy,
@@ -490,6 +541,7 @@ REPORTS = {
     "bin_utilisation": bin_utilisation,
     "pick_strategy": pick_strategy,
     "rf_queue": rf_queue,
+    "scan_violations": scan_violations,
 }
 
 

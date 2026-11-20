@@ -1229,6 +1229,8 @@ WRITABLE = {
             "warehouse_id",
         }
     ),
+    "fix.wms.rf.journal": frozenset(),
+    "fix.wms.scan.event": frozenset(),
     "fix.wms.slot": frozenset(
         {
             "bin_id",
@@ -1239,11 +1241,20 @@ WRITABLE = {
             "velocity",
         }
     ),
+    "fix.wms.slot.proposal": frozenset(),
     "fix.wms.stage": frozenset(
         {
             "lane",
             "load_ref",
             "wave_id",
+        }
+    ),
+    "fix.wms.substitution": frozenset(
+        {
+            "bin_id",
+            "reason",
+            "substitute_part_id",
+            "wave_line_id",
         }
     ),
     "fix.wms.task": frozenset(
