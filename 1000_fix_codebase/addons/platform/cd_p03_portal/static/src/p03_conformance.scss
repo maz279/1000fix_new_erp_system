@@ -880,6 +880,9 @@ body:has(.p03-workspace-root) .o_action_manager {
     background: var(--surface-2);
     cursor: pointer;
     &:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-wash); }
+    // A form with no backing model yet: says so on click, never opens another form.
+    &.is-gap { color: var(--ink-500); border-color: var(--warn-border); background: var(--warn-bg);
+      &:hover { color: var(--warn); border-color: var(--warn); background: var(--warn-bg); } }
   }
 
   // Chips & Badges

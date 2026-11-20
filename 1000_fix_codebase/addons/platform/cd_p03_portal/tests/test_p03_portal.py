@@ -418,8 +418,10 @@ if __name__ == "__main__":
 
 class TestP03CaptureMap(unittest.TestCase):
     """Every workspace sub-module and screen of a module that declares a
-    `captures` map opens a REAL capture form (M43 first, CD-M43-01). A
-    module without a map keeps the intake modal — never a wrong form."""
+    `captures` map opens a REAL capture form (M43 first, CD-M43-01; then
+    the rest of A06 Supply Chain), or is a declared `gap` whose button says
+    no backing model exists yet. A module without a map keeps the intake
+    modal — never a wrong form."""
 
     def _meta(self):
         import shutil
@@ -448,37 +450,122 @@ class TestP03CaptureMap(unittest.TestCase):
             names.update(re.findall(r'_name\s*=\s*"([\w.]+)"', py.read_text(encoding="utf-8", errors="ignore")))
         return names
 
-    def test_m43_matches_the_nav_registry(self):
-        meta = self._meta()["M43"]
-        reg = next(m for m in self.registry_modules() if m["id"] == "M43")
-        self.assertEqual([g["en"] for g in meta["groups"]], [g["en"] for g in reg["groups"]])
-        self.assertEqual([s["id"] for g in meta["groups"] for s in g["screens"]],
-                         [s["id"] for g in reg["groups"] for s in g["screens"]])
-        self.assertEqual(meta["reports"], reg["reports"])
-        self.assertEqual([s[:2] for s in meta["freg"]["sub"]], [s[:2] for s in reg["freg"]["sub"]])
-        self.assertEqual([k["l"] for k in meta["kpis"]], reg["kpis"])
-        for f in reg["forms"]:
-            self.assertIn(f, meta["forms"], f"registry form {f!r} lost from M43")
+    # Modules realigned to contracts/nav/registry.json with a captures map:
+    # M43 (CD-M43-01) and the rest of A06 Supply Chain.
+    REALIGNED = ("M15", "M41", "M16", "M42", "M43", "M44")
+    # Modules whose cross-links are curated rather than copied from the registry.
+    CURATED_CROSS = ("M43",)
+
+    def _meta_cached(self):
+        cls = type(self)
+        if getattr(cls, "_meta_json", None) is None:
+            cls._meta_json = self._meta()
+        return cls._meta_json
 
     def registry_modules(self):
         reg = json.loads((REPO / "contracts" / "nav" / "registry.json").read_text(encoding="utf-8"))
         mods = reg["modules"]
         return mods if isinstance(mods, list) else list(mods.values())
 
-    def test_every_m43_sub_module_and_screen_has_a_capture(self):
-        meta = self._meta()["M43"]
-        caps = meta["captures"]
-        for sub in meta["freg"]["sub"]:
-            self.assertTrue([c for c in caps if sub[0] in c["freg"]],
-                            f"M43 sub-module {sub[1]!r} has no data-capture form")
-        for g in meta["groups"]:
-            for sc in g["screens"]:
-                self.assertTrue([c for c in caps if sc["id"] in c["screens"]],
-                                f"M43 screen {sc['en']!r} has no data-capture form")
+    def _registry(self, mid):
+        return next(m for m in self.registry_modules() if m["id"] == mid)
+
+    def test_realigned_modules_match_the_nav_registry(self):
+        meta_all = self._meta_cached()
+        for mid in self.REALIGNED:
+            with self.subTest(module=mid):
+                meta, reg = meta_all[mid], self._registry(mid)
+                for key in ("en", "bn", "icon", "desc", "reports"):
+                    self.assertEqual(meta[key], reg[key], f"{mid} {key} drifted from the registry")
+                self.assertEqual([g["en"] for g in meta["groups"]], [g["en"] for g in reg["groups"]])
+                self.assertEqual([(s["id"], s["en"], s["bn"], s["t"]) for g in meta["groups"] for s in g["screens"]],
+                                 [(s["id"], s["en"], s["bn"], s["t"]) for g in reg["groups"] for s in g["screens"]])
+                self.assertEqual(meta["freg"]["src"], reg["freg"]["src"])
+                self.assertEqual([list(s) for s in meta["freg"]["sub"]], [list(s) for s in reg["freg"]["sub"]])
+                self.assertEqual([k["l"] for k in meta["kpis"]], reg["kpis"])
+                if mid not in self.CURATED_CROSS:
+                    self.assertEqual(meta["cross"], reg["cross"])
+                for f in reg["forms"]:
+                    self.assertIn(f, meta["forms"], f"registry form {f!r} lost from {mid}")
+
+    def test_every_sub_module_and_screen_has_a_capture_or_a_declared_gap(self):
+        meta_all = self._meta_cached()
+        for mid in self.REALIGNED:
+            with self.subTest(module=mid):
+                mod = meta_all[mid]
+                caps, gaps = mod["captures"], mod.get("gaps", [])
+                subs = {s[0] for s in mod["freg"]["sub"]}
+                screens = {sc["id"] for g in mod["groups"] for sc in g["screens"]}
+                for entry in caps + gaps:
+                    self.assertLessEqual(set(entry["freg"]), subs, f"{mid} {entry['en']!r}: unknown sub-module")
+                    self.assertLessEqual(set(entry["screens"]), screens, f"{mid} {entry['en']!r}: unknown screen")
+                for sub in mod["freg"]["sub"]:
+                    self.assertTrue([e for e in caps + gaps if sub[0] in e["freg"]],
+                                    f"{mid} sub-module {sub[1]!r} has neither a capture form nor a declared gap")
+                for sc_id in screens:
+                    self.assertTrue([e for e in caps + gaps if sc_id in e["screens"]],
+                                    f"{mid} screen {sc_id!r} has neither a capture form nor a declared gap")
+                for gap in gaps:
+                    self.assertTrue(gap.get("note"), f"{mid} gap {gap['en']!r} does not say what is missing")
+        # The reference module stays fully captured.
+        self.assertEqual(meta_all["M43"].get("gaps", []), [])
+
+    def test_every_form_chip_is_a_capture_or_a_gap(self):
+        """No form chip of a mapped module can fall back to the intake."""
+        meta_all = self._meta_cached()
+        for mid in self.REALIGNED:
+            with self.subTest(module=mid):
+                mod = meta_all[mid]
+                captured = {c["en"] for c in mod["captures"]}
+                gapped = {g["en"] for g in mod.get("gaps", [])}
+                self.assertFalse(captured & gapped, f"{mid}: a label is both captured and a gap")
+                for f in mod["forms"]:
+                    self.assertIn(f, captured | gapped, f"{mid} form {f!r} is neither captured nor a declared gap")
+                for f in self._registry(mid)["forms"]:
+                    self.assertIn(f, captured | gapped)
+
+    def test_capture_context_defaults_are_real_fields(self):
+        import re
+        sources = {}
+        for py in (REPO / "addons").rglob("*.py"):
+            text = py.read_text(encoding="utf-8", errors="ignore")
+            for name in re.findall(r'_name\s*=\s*"([\w.]+)"', text):
+                sources.setdefault(name, "")
+                sources[name] += text
+        for mid, mod in self._meta_cached().items():
+            for cap in mod.get("captures", []):
+                for key, value in (cap.get("ctx") or {}).items():
+                    self.assertTrue(key.startswith("default_"), f"{mid} {cap['en']!r}: ctx {key!r} is not a default")
+                    field = key[len("default_"):]
+                    src = sources.get(cap["model"], "")
+                    self.assertRegex(src, rf"\b{field}\s*=\s*fields\.",
+                                     f"{mid} {cap['en']!r}: {cap['model']} has no field {field!r}")
+                    self.assertIn(f'("{value}"', src,
+                                  f"{mid} {cap['en']!r}: {value!r} is not a {cap['model']}.{field} option")
+
+    def test_a06_screen_links_resolve(self):
+        """Hard-coded A06 screen ids in the workspace exist in the metadata."""
+        import re
+        ids = {sc["id"] for m in self._meta_cached().values() for g in m["groups"] for sc in g["screens"]}
+        src = "".join((MODULE / "static" / "src" / f).read_text(encoding="utf-8")
+                      for f in ("p03_workspace.js", "p03_workspace.xml"))
+        for sc_id in re.findall(r"openScreen\(\s*[\"'](M(?:15|16|41|42|43|44)-[\w-]+)[\"']", src):
+            self.assertIn(sc_id, ids, f"workspace links to a screen that no longer exists: {sc_id}")
+
+    def test_cross_links_name_the_right_module(self):
+        meta_all = self._meta_cached()
+        for mid, mod in meta_all.items():
+            for term in mod.get("cross", []):
+                code = term.split(" ")[0]
+                if code[:1] == "M" and code[1:].isdigit():
+                    self.assertIn(code, meta_all, f"{mid} cross-link {term!r} names no module")
+        # M43 is Demand Planning; transit/custody tracking is M03 logistics.
+        self.assertNotIn("M43 Transit Tracking", meta_all["M04"]["cross"])
+        self.assertIn("M03 Collection & Delivery", meta_all["M04"]["cross"])
 
     def test_capture_targets_are_real_models(self):
         defined = self._defined_models()
-        for mid, mod in self._meta().items():
+        for mid, mod in self._meta_cached().items():
             for cap in mod.get("captures", []):
                 self.assertIn(cap["model"], defined, f"{mid} capture {cap['en']!r} targets a missing model")
                 self.assertIn(cap["en"], mod["forms"], f"{mid} capture {cap['en']!r} is not listed as a form")
@@ -495,3 +582,10 @@ class TestP03CaptureMap(unittest.TestCase):
         self.assertIn('t-on-click="openScreenCapture"', xml)
         self.assertIn('res_model: cap.model', js)
         self.assertIn('target: "new"', js)
+        self.assertIn("context: { ...(cap.ctx || {}) }", js)
+        # A mapped module's unknown label / gap says so — never the intake modal.
+        self.assertIn("if (mod && mod.captures) return this.showGap(", js)
+        self.assertIn('return f.forms.length ? `+ New ${f.forms[0]}` : "No capture form yet";', js)
+        self.assertIn("if (sc && sc.mapped) return this.showGap(", js)
+        self.assertIn("isGapForm(f)", ws)
+        self.assertIn('t-foreach="state.activeFreg.gaps"', xml)
