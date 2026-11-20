@@ -37,6 +37,20 @@ SELF_SERVICE = [
     # the knowledge handover (global rule; server-side party check); the
     # successor accepts it.
     "fix.hr.exit.handover",
+    # M59 capture audit (2026-11-18, fix_hse_capture_rules.xml): a worker
+    # requests a permit to work (global rule: requester, performer or an HSE
+    # role); stops unsafe work (global rule: own, recorded by you, your direct
+    # report's, or HSE; nobody else learns who refused); reports a customer
+    # site hazard (global rule: the reporter only while it is 'reported').
+    "fix.hse.permit",
+    "fix.hse.work.refusal",
+    "fix.hse.location.hazard",
+    # M58 capture: the induction's conductor records the session (write only,
+    # no create; global rule: sessions they conduct).
+    "fix.onboarding.induction",
+    # M22 capture pass 2 (FR-LMS-036, fix_a09_m22_capture2_rules.xml): a
+    # participant gives feedback on their own training (create only).
+    "fix.training.feedback",
 ]
 
 # Models a plain internal user must NOT be able to write, grouped by why.
