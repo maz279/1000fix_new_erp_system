@@ -122,7 +122,8 @@ def test_spare_part_defaults_and_related_fields(ctx):
     )
     part.device_brand = "Samsung"
     assert part.brand == "Samsung"
-    assert (part.min_qty, part.max_qty, part.warranty_months) == (5.0, 25.0, 6)
+    # A06 ERP audit A23: no default min 5 / max 25 (unset means unset)
+    assert (part.min_qty, part.max_qty, part.warranty_months) == (0.0, 0.0, 6)
 
 
 @pytest.mark.parametrize(("min_qty", "max_qty"), [(-1.0, 10.0), (0.0, -1.0)])
@@ -397,11 +398,15 @@ def test_insufficient_stock_is_refused(ctx):
 
 def test_consume_survives_an_outbox_failure(ctx, monkeypatch, caplog):
     rec = _consumption(ctx)  # the job exists before the outbox goes down
+    from odoo.addons.cd_inventory.models import fix_stock_consumption as cons
+
     monkeypatch.setattr(fix_events, "publish", _failing_publish)
-    with caplog.at_level(logging.ERROR):
-        out = rec.action_scan_and_consume()
-    assert (out["status"], ctx.part.qty_available) == ("consumed", 8.0)
-    assert "stock.consumed event publish failed" in caplog.text
+    monkeypatch.setattr(cons, "publish", _failing_publish)
+    # A06 ERP audit A33: the event is part of the issue; a failed publish
+    # fails the issue (nothing is silently dropped) and no stock moves
+    with pytest.raises(RuntimeError, match="outbox unavailable"), ctx.env.cr.savepoint():
+        rec.action_scan_and_consume()
+    assert ctx.part.qty_available == 10.0
 
 
 def test_return_restores_stock_and_reverses_valuation(ctx):
@@ -444,12 +449,14 @@ def test_only_consumed_parts_are_returned(ctx):
 def test_return_survives_an_outbox_failure(ctx, monkeypatch, caplog):
     rec = _consumption(ctx)
     rec.action_scan_and_consume()
+    from odoo.addons.cd_inventory.models import fix_stock_consumption as cons
+
     monkeypatch.setattr(fix_events, "publish", _failing_publish)
-    with caplog.at_level(logging.ERROR):
-        out = rec.action_return_part("excess_draw")
-    assert out["restored_qty"] == 10.0
-    assert not rec.return_notes  # notes default to ""
-    assert "stock.returned event publish failed" in caplog.text
+    monkeypatch.setattr(cons, "publish", _failing_publish)
+    # A06 ERP audit A33: a failed publish fails the return; nothing comes back
+    with pytest.raises(RuntimeError, match="outbox unavailable"), ctx.env.cr.savepoint():
+        rec.action_return_part("excess_draw")
+    assert ctx.part.qty_available == 8.0 and rec.state == "consumed"
 
 
 # --- reorder engine + M43 seam ----------------------------------------------------------
@@ -544,6 +551,9 @@ def test_trigger_reorder_alerts_and_publishes(ctx):
         "branch_id": ctx.branch.id,
         "branch_name": ctx.branch.name,
         "current_stock": 3.0,
+        # D7: the position nets what is on order and in transit
+        "on_order_qty": 0.0,
+        "in_transit_qty": 0.0,
         "min_qty": 5.0,
         "suggested_order_qty": 17.0,
         "m43_dynamic_reorder_point": 7.0,

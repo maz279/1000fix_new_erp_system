@@ -118,7 +118,7 @@ def test_m15_09c_no_receiving_location_is_refused(po_world):
     )
     w.po.write({"state": "sent"})
     w.receiver.write({"assigned_operating_unit_ids": [(4, ou2.id)]})
-    refused(w, lambda: _receive(w, {w.prod: 1}), "no M15 receiving location")
+    refused(w, lambda: _receive(w, {w.prod: 1}), "no active receiving store")
 
 
 def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
@@ -264,7 +264,7 @@ def _credited_rtv(inv, qty=2.0):
     r = inv.rtv(inv.keeper, qty=qty, rtv_ref="RMA-AP-" + inv.tag)
     r.with_user(inv.controller).action_approve()
     r.with_user(inv.keeper).action_ship()
-    r.with_user(inv.keeper).action_mark_credited("MUSHAK-67-" + inv.tag)
+    r.with_user(inv.controller).action_mark_credited("MUSHAK-67-" + inv.tag)
     return r
 
 

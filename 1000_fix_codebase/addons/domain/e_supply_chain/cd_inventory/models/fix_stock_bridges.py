@@ -321,6 +321,11 @@ class FixPurchaseReceiptM15(models.Model):
         self.ensure_one()
         order = self.purchase_order_id.sudo()
         company = order.company_id
+        # A06 ERP audit X25 (agreed with the A07 session): a capital purchase
+        # (the order spends an approved capex request) is capitalised through
+        # CWIP / the fixed-asset register; it never becomes M15 stock as well
+        if "capex_request_id" in order._fields and order.capex_request_id:
+            return self.env["fix.stock.receipt"]
         # one receipt pair per receiving store (a consolidated order delivers
         # each line to its own branch, A06 ERP audit A06)
         plain_by, serial_by = {}, {}

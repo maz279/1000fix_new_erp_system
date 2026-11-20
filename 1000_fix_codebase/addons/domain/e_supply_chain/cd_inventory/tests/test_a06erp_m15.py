@@ -8,6 +8,7 @@ from odoo import fields
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from .conftest import BRANCH, make_service_order
+from .test_a06_m15_handoffs import po_world  # noqa: F401 (fixture)
 
 REFUSED = (UserError, AccessError, ValidationError)
 
@@ -690,3 +691,28 @@ def test_deployment_ledger_and_rules_are_installed(inv):
     assert env.ref("cd_inventory.ir_cron_replenishment_sweep").active
     sel = dict(env["fix.inventory.valuation.suspense"]._fields["entry_type"].selection)
     assert "transfer" in sel
+
+
+# ============================================================ X25 (with A07)
+def test_x25_a_capital_purchase_never_becomes_m15_stock(po_world):  # noqa: F811
+    """A PO that spends an approved capex request is capitalised (CWIP /
+    fixed assets); its goods receipt posts nothing into the M15 ledger."""
+    from .test_a06_m15_handoffs import _no_inspection, _receive
+
+    w = po_world
+    if "capex_request_id" not in w.po._fields:
+        pytest.skip("cd_fixed_asset_ext is not installed")
+    _no_inspection(w)
+    capex = (
+        w.env["fix.capex.request"]
+        .sudo()
+        .create({"title": "A06E bench " + w.tag, "amount": 1000.0, "justification": "test"})
+    )
+    # trusted set-up: the capex approval is M49's suite
+    w.env.flush_all()
+    w.env.cr.execute("UPDATE fix_capex_request SET state = 'approved' WHERE id = %s", [capex.id])
+    capex.invalidate_recordset(["state"])
+    w.po.sudo().write({"capex_request_id": capex.id})
+    grn = _receive(w, {w.prod: 3})
+    assert not grn.stock_receipt_ids
+    assert w.qty(w.part, w.central) == 10.0

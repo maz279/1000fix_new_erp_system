@@ -616,10 +616,12 @@ def test_b17_the_requisition_can_be_converted(inv):
     rule = inv.env["fix.reorder.rule"].create(
         {
             "spare_part_id": inv.part.id,
-            "location_id": inv.hub.id,
+            # D7 (20 Nov 2026): only a warehouse buys
+            "location_id": inv.central.id,
             "branch_id": inv.branch().id,
             "operating_unit_id": inv.ou.id,
             "requester_id": inv.tech1.id,
+            "min_qty": 12.0,
             "max_qty": 20.0,
         }
     )
@@ -627,7 +629,7 @@ def test_b17_the_requisition_can_be_converted(inv):
     requisition = rule.requisition_id
     assert requisition, "the sweep drafts a requisition"
     assert requisition.product_id == product
-    assert requisition.qty == 20.0
+    assert requisition.qty == 10.0  # max 20 less the 10 on hand
 
 
 # ======================================================== B18 cost is restricted
@@ -680,7 +682,8 @@ def test_b18_reports_leave_cost_out_for_a_storekeeper(inv):
     assert m15.kpis(boss_env)["stock_value"] > 0
     pack = m15.availability(keeper_env)
     assert "unit_cost" not in pack["cols"] and all("unit_cost" not in r for r in pack["rows"])
-    assert "unit_cost" in m15.availability(boss_env)["cols"]
+    # A06 ERP audit A24: the network search shows quantities only, to anyone
+    assert "unit_cost" not in m15.availability(boss_env)["cols"]
     assert "value" not in m15.ownership_classes(keeper_env)["cols"]
     assert m15.valuation_by_class(keeper_env)["rows"] == []
     assert m15.valuation_by_class(boss_env)["rows"]

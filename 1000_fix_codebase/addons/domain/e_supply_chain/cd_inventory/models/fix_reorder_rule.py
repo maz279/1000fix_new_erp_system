@@ -236,6 +236,7 @@ class FixReorderRule(models.Model):
             else:
                 rec.current_stock = 0.0
 
+    @api.depends("current_stock", "spare_part_id", "location_id")
     def _compute_position(self):
         for rec in self:
             on_order = rec._fix_on_order_qty()
@@ -247,7 +248,13 @@ class FixReorderRule(models.Model):
     @api.depends("current_stock", "max_qty", "min_qty")
     def _compute_suggested_order_qty(self):
         for rec in self:
-            position = rec.position_qty
+            # the position read fresh: on-order and in-transit live in other
+            # documents, so a cached value could be stale
+            position = (
+                (rec.current_stock or 0.0) + rec._fix_on_order_qty() + rec._fix_in_transit_qty()
+                if rec.id
+                else (rec.current_stock or 0.0)
+            )
             if position <= rec.min_qty + EPS:
                 rec.suggested_order_qty = max(0.0, rec.max_qty - position)
             else:

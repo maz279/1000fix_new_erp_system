@@ -2388,6 +2388,13 @@ class FixStockVanRecon(models.Model):
         self.ensure_one()
         buckets = self._fix_van_buckets()
         Line = self.env["fix.stock.van.recon.line"].sudo()
+        if not self.line_ids and (self.counted_qty or 0.0) > EPS and len(buckets) == 1:
+            # one part on the van: its total count IS that part's count
+            only = next(iter(buckets))
+            Line._guarded().create(
+                {"recon_id": self.id, "part_id": only.id, "counted_qty": self.counted_qty}
+            )
+            self.invalidate_recordset(["line_ids"])
         if not self.line_ids:
             if (self.counted_qty or 0.0) > EPS and buckets:
                 raise UserError(
