@@ -279,7 +279,7 @@ def test_f9_a_purged_case_closes_only_once_its_media_left_the_lab(m6):
     case = _ready_for_handover(m6)
     _waive(m6, case)
     case.action_handover(verification=m6.code_for(case)["code"])
-    unit = _unit(m6, case)
+    unit = case.media_unit_ids[:1]  # the sealed bag custody was taken on (A02 pass 2)
     serial = case.media_serial_number
     req = _request(m6, serial)
     cert = _cert(m6, serial, method="physical_destruction", request=req)

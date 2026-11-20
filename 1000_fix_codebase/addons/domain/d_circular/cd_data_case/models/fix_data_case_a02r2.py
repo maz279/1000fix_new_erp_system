@@ -862,6 +862,9 @@ class FixDataWipeCertificateA02R2(models.Model):
                 vals["serial_number"] = ref
                 vals.pop("device_id", None)
         records = super(FixDataWipeCertificateA02R2, self._guarded()).create(vals_list)
+        # the guard token opened the stamps for this create only: the caller
+        # gets the records in its own environment, not a guard-open one
+        records = records.with_env(self.env)
         records._m06_check_matrix()
         return records
 
