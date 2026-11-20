@@ -334,7 +334,7 @@
                                 <p class="pg-sub"><t t-esc="state.activeModule.desc"/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Service Order</button>
+                                <button class="btn btn-primary" t-on-click="openHeaderCapture"><t t-esc="headerCaptureLabel"/></button>
                                 <button class="btn" t-on-click="openReportCenter">▤ Reports (<t t-esc="state.activeModule.reports.length"/>)</button>
                             </div>
                         </div>
@@ -407,7 +407,7 @@
                             <div class="fx-card">
                                 <h3>⛁ Data-Entry Forms</h3>
                                 <t t-foreach="state.activeModule.forms" t-as="f" t-key="f">
-                                    <button class="form-chip" t-on-click="openNewForm" t-att-title="'Open ' + f">
+                                    <button class="form-chip" t-on-click="() => this.openCapture(f)" t-att-title="'Open ' + f">
                                         ⛁ <t t-esc="f"/>
                                     </button>
                                 </t>
@@ -448,7 +448,7 @@
                                 <p class="pg-sub">Sub-module <t t-esc="state.activeFreg.subModuleNo"/> of <t t-esc="state.activeFreg.mid"/> — <t t-esc="state.activeFreg.functionCount"/> automated functions mapped to production screens below</p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Entry</button>
+                                <button class="btn btn-primary" t-on-click="openFregCapture"><t t-esc="fregCaptureLabel"/></button>
                                 <button class="btn" t-on-click="() => this.openModule(state.activeFreg.mid)">‹ Back to Workspace</button>
                             </div>
                         </div>
@@ -479,7 +479,7 @@
                                 <div class="group-block">
                                     <h4>Forms Capturing It</h4>
                                     <t t-foreach="state.activeFreg.forms" t-as="f" t-key="f">
-                                        <button class="form-chip" t-on-click="openNewForm">
+                                        <button class="form-chip" t-on-click="() => this.openCapture(f, state.activeFreg.mid)" t-att-title="'Open ' + f">
                                             ⛁ <t t-esc="f"/>
                                         </button>
                                     </t>
@@ -553,7 +553,7 @@
                                 <p class="pg-sub"><t t-esc="state.activeScreen.groupTitle"/> · <t t-esc="state.activeScreen.moduleTitle"/> · Screen ID: <t t-esc="state.activeScreen.id"/></p>
                             </div>
                             <div class="pg-actions">
-                                <button class="btn btn-primary" t-on-click="openNewForm">+ New Record</button>
+                                <button class="btn btn-primary" t-on-click="openScreenCapture"><t t-esc="screenCaptureLabel"/></button>
                                 <button class="btn" t-on-click="exportGridCsv">⤓ Export CSV</button>
                                 <button class="btn" t-on-click="() => this.openModule(state.activeScreen.mid)">‹ Module Workspace</button>
                             </div>

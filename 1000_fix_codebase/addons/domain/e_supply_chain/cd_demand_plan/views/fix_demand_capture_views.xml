@@ -1,0 +1,911 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_demand_plan capture views (CD-M43-01). One list + form + action per
+     M43 capture model; menus sit under the P03 workspace sections
+     Forecasting / Policies / Execution / Simulation. -->
+<odoo>
+
+    <!-- fix.demand.adjustment -->
+    <record id="view_fix_demand_adjustment_list" model="ir.ui.view">
+        <field name="name">fix.demand.adjustment.list</field>
+        <field name="model">fix.demand.adjustment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="spare_part_id"/>
+                <field name="location_id"/>
+                <field name="demand_stream"/>
+                <field name="period"/>
+                <field name="adjustment_type"/>
+                <field name="original_value"/>
+                <field name="adjusted_value"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_demand_adjustment_form" model="ir.ui.view">
+        <field name="name">fix.demand.adjustment.form</field>
+        <field name="model">fix.demand.adjustment</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_apply" type="object" string="Apply" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="not (state == 'draft')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,applied"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="location_id"/>
+                            <field name="demand_stream"/>
+                            <field name="period"/>
+                        </group>
+                        <group>
+                            <field name="adjustment_type"/>
+                            <field name="treatment"/>
+                            <field name="target_stream"/>
+                            <field name="original_value"/>
+                            <field name="adjusted_value"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="actor_id"/>
+                        <field name="applied_at"/>
+                    </group>
+                    <group string="Reason"><field name="reason" nolabel="1" colspan="2"/></group>
+                    <group string="Reason (Bengali)"><field name="reason_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_demand_adjustment" model="ir.actions.act_window">
+        <field name="name">History Adjustments</field>
+        <field name="res_model">fix.demand.adjustment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_demand_adjustment" name="History Adjustments" parent="cd_p03_portal.menu_p03_ws_demand_plan_s1"
+              action="action_fix_demand_adjustment" sequence="15"/>
+
+    <!-- fix.planning.run -->
+    <record id="view_fix_planning_run_list" model="ir.ui.view">
+        <field name="name">fix.planning.run.list</field>
+        <field name="model">fix.planning.run</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="run_type"/>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="horizon_months"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_planning_run_form" model="ir.ui.view">
+        <field name="name">fix.planning.run.form</field>
+        <field name="model">fix.planning.run</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_start" type="object" string="Start Cycle" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_to_review" type="object" string="Move to Review" class="oe_highlight" invisible="not (state == 'running')"/>
+                    <button name="action_sign_procurement" type="object" string="Sign: Procurement" invisible="not (state == 'review')"/>
+                    <button name="action_sign_operations" type="object" string="Sign: Operations" invisible="not (state == 'review')"/>
+                    <button name="action_sign_finance" type="object" string="Sign: Finance" invisible="not (state == 'review')"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="not (state in ('draft','running','review'))"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,running,review,signed_off"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="Review Cycle"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="name_bn"/>
+                            <field name="run_type"/>
+                            <field name="scope"/>
+                            <field name="horizon_months"/>
+                        </group>
+                        <group>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                            <field name="started_at"/>
+                            <field name="completed_at"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="parts_processed"/>
+                        <field name="forecasts_generated"/>
+                        <field name="degraded_count"/>
+                        <field name="procurement_signoff_id"/>
+                        <field name="operations_signoff_id"/>
+                        <field name="finance_signoff_id"/>
+                    </group>
+                    <group string="Review Notes"><field name="notes" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_planning_run" model="ir.actions.act_window">
+        <field name="name">Review Cycles</field>
+        <field name="res_model">fix.planning.run</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_planning_run" name="Review Cycles" parent="cd_p03_portal.menu_p03_ws_demand_plan_s1"
+              action="action_fix_planning_run" sequence="20"/>
+
+    <!-- fix.forecast.override -->
+    <record id="view_fix_forecast_override_list" model="ir.ui.view">
+        <field name="name">fix.forecast.override.list</field>
+        <field name="model">fix.forecast.override</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="demand_plan_id"/>
+                <field name="original_value"/>
+                <field name="override_value"/>
+                <field name="driver_type"/>
+                <field name="planner_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_forecast_override_form" model="ir.ui.view">
+        <field name="name">fix.forecast.override.form</field>
+        <field name="model">fix.forecast.override</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_apply" type="object" string="Apply Override" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_withdraw" type="object" string="Withdraw" invisible="not (state in ('draft','applied'))"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,applied"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="demand_plan_id"/>
+                            <field name="driver_type"/>
+                        </group>
+                        <group>
+                            <field name="original_value"/>
+                            <field name="override_value"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="planner_id"/>
+                        <field name="applied_at"/>
+                    </group>
+                    <group string="Rationale"><field name="rationale" nolabel="1" colspan="2"/></group>
+                    <group string="Rationale (Bengali)"><field name="rationale_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_forecast_override" model="ir.actions.act_window">
+        <field name="name">Forecast Overrides</field>
+        <field name="res_model">fix.forecast.override</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_forecast_override" name="Forecast Overrides" parent="cd_p03_portal.menu_p03_ws_demand_plan_s1"
+              action="action_fix_forecast_override" sequence="30"/>
+
+    <!-- fix.demand.driver -->
+    <record id="view_fix_demand_driver_list" model="ir.ui.view">
+        <field name="name">fix.demand.driver.list</field>
+        <field name="model">fix.demand.driver</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="driver_type"/>
+                <field name="source_module"/>
+                <field name="spare_part_id"/>
+                <field name="location_id"/>
+                <field name="date_from"/>
+                <field name="date_to"/>
+                <field name="expected_impact_pct"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_demand_driver_form" model="ir.ui.view">
+        <field name="name">fix.demand.driver.form</field>
+        <field name="model">fix.demand.driver</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="Demand Driver"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="name_bn"/>
+                            <field name="driver_type"/>
+                            <field name="source_module"/>
+                            <field name="source_ref"/>
+                        </group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="location_id"/>
+                            <field name="date_from"/>
+                            <field name="date_to"/>
+                            <field name="expected_impact_pct"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_demand_driver" model="ir.actions.act_window">
+        <field name="name">Demand Drivers</field>
+        <field name="res_model">fix.demand.driver</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_demand_driver" name="Demand Drivers" parent="cd_p03_portal.menu_p03_ws_demand_plan_s1"
+              action="action_fix_demand_driver" sequence="40"/>
+
+    <!-- fix.forecast.accuracy.review -->
+    <record id="view_fix_forecast_accuracy_review_list" model="ir.ui.view">
+        <field name="name">fix.forecast.accuracy.review.list</field>
+        <field name="model">fix.forecast.accuracy.review</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="period_start"/>
+                <field name="period_end"/>
+                <field name="segment"/>
+                <field name="forecast_method"/>
+                <field name="measured_mape"/>
+                <field name="measured_bias"/>
+                <field name="corrective_action"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_forecast_accuracy_review_form" model="ir.ui.view">
+        <field name="name">fix.forecast.accuracy.review.form</field>
+        <field name="model">fix.forecast.accuracy.review</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_close" type="object" string="Close" invisible="not (state == 'submitted')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,submitted,closed"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="period_start"/>
+                            <field name="period_end"/>
+                            <field name="segment"/>
+                            <field name="forecast_method"/>
+                            <field name="planner_id"/>
+                            <field name="horizon_months"/>
+                        </group>
+                        <group>
+                            <field name="measured_mape"/>
+                            <field name="measured_bias"/>
+                            <field name="corrective_action"/>
+                            <field name="reviewer_id"/>
+                        </group>
+                    </group>
+                    <group string="Finding"><field name="finding" nolabel="1" colspan="2"/></group>
+                    <group string="Finding (Bengali)"><field name="finding_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_forecast_accuracy_review" model="ir.actions.act_window">
+        <field name="name">Accuracy Review Notes</field>
+        <field name="res_model">fix.forecast.accuracy.review</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_forecast_accuracy_review" name="Accuracy Review Notes" parent="cd_p03_portal.menu_p03_ws_demand_plan_s1"
+              action="action_fix_forecast_accuracy_review" sequence="50"/>
+
+    <!-- fix.part.segment -->
+    <record id="view_fix_part_segment_list" model="ir.ui.view">
+        <field name="name">fix.part.segment.list</field>
+        <field name="model">fix.part.segment</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="spare_part_id"/>
+                <field name="scope"/>
+                <field name="location_id"/>
+                <field name="nine_box"/>
+                <field name="criticality"/>
+                <field name="intermittency_class"/>
+                <field name="forecast_method"/>
+                <field name="default_policy"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_part_segment_form" model="ir.ui.view">
+        <field name="name">fix.part.segment.form</field>
+        <field name="model">fix.part.segment</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_publish" type="object" string="Publish to M15 / M41" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,published"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="scope"/>
+                            <field name="location_id"/>
+                            <field name="currency_id"/>
+                            <field name="consumption_value_12m"/>
+                            <field name="lifecycle_stage"/>
+                        </group>
+                        <group>
+                            <field name="abc_class"/>
+                            <field name="xyz_class"/>
+                            <field name="criticality"/>
+                            <field name="adi"/>
+                            <field name="cv_squared"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="nine_box"/>
+                        <field name="intermittency_class"/>
+                        <field name="forecast_method"/>
+                        <field name="default_policy"/>
+                        <field name="computed_at"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_part_segment" model="ir.actions.act_window">
+        <field name="name">Part Segments</field>
+        <field name="res_model">fix.part.segment</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_part_segment" name="Part Segments" parent="cd_p03_portal.menu_p03_ws_demand_plan_s2"
+              action="action_fix_part_segment" sequence="10"/>
+
+    <!-- fix.service.level.target -->
+    <record id="view_fix_service_level_target_list" model="ir.ui.view">
+        <field name="name">fix.service.level.target.list</field>
+        <field name="model">fix.service.level.target</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="abc_class"/>
+                <field name="criticality"/>
+                <field name="location_type"/>
+                <field name="target_cycle_service"/>
+                <field name="target_fill_rate"/>
+                <field name="z_value"/>
+                <field name="effective_from"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_service_level_target_form" model="ir.ui.view">
+        <field name="name">fix.service.level.target.form</field>
+        <field name="model">fix.service.level.target</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="Service-Level Target"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="name_bn"/>
+                            <field name="abc_class"/>
+                            <field name="criticality"/>
+                            <field name="location_type"/>
+                        </group>
+                        <group>
+                            <field name="target_cycle_service"/>
+                            <field name="target_fill_rate"/>
+                            <field name="z_value"/>
+                            <field name="effective_from"/>
+                            <field name="set_by"/>
+                        </group>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_service_level_target" model="ir.actions.act_window">
+        <field name="name">Service-Level Targets</field>
+        <field name="res_model">fix.service.level.target</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_service_level_target" name="Service-Level Targets" parent="cd_p03_portal.menu_p03_ws_demand_plan_s2"
+              action="action_fix_service_level_target" sequence="20"/>
+
+    <!-- fix.lead.time.model -->
+    <record id="view_fix_lead_time_model_list" model="ir.ui.view">
+        <field name="name">fix.lead.time.model.list</field>
+        <field name="model">fix.lead.time.model</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="spare_part_id"/>
+                <field name="supplier_id"/>
+                <field name="source"/>
+                <field name="quoted_days"/>
+                <field name="sample_count"/>
+                <field name="mean_days"/>
+                <field name="std_dev_days"/>
+                <field name="p95_days"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_lead_time_model_form" model="ir.ui.view">
+        <field name="name">fix.lead.time.model.form</field>
+        <field name="model">fix.lead.time.model</field>
+        <field name="arch" type="xml">
+            <form>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="supplier_id"/>
+                            <field name="source"/>
+                            <field name="quoted_days"/>
+                        </group>
+                        <group>
+                            <field name="sample_count"/>
+                            <field name="mean_days"/>
+                            <field name="std_dev_days"/>
+                            <field name="p95_days"/>
+                            <field name="quote_variance_days"/>
+                        </group>
+                    </group>
+                    <field name="observation_ids">
+                        <list editable="bottom">
+                            <field name="order_ref"/>
+                            <field name="ordered_on"/>
+                            <field name="received_on"/>
+                            <field name="lead_days"/>
+                        </list>
+                    </field>
+                    <group string="Notes (Bengali)"><field name="notes_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_lead_time_model" model="ir.actions.act_window">
+        <field name="name">Lead-Time Profiles</field>
+        <field name="res_model">fix.lead.time.model</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_lead_time_model" name="Lead-Time Profiles" parent="cd_p03_portal.menu_p03_ws_demand_plan_s2"
+              action="action_fix_lead_time_model" sequence="30"/>
+
+    <!-- fix.replenishment.parameter -->
+    <record id="view_fix_replenishment_parameter_list" model="ir.ui.view">
+        <field name="name">fix.replenishment.parameter.list</field>
+        <field name="model">fix.replenishment.parameter</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="spare_part_id"/>
+                <field name="location_id"/>
+                <field name="version"/>
+                <field name="policy_type"/>
+                <field name="safety_stock"/>
+                <field name="reorder_point"/>
+                <field name="min_qty"/>
+                <field name="max_qty"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_replenishment_parameter_form" model="ir.ui.view">
+        <field name="name">fix.replenishment.parameter.form</field>
+        <field name="model">fix.replenishment.parameter</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_submit" type="object" string="Submit" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_approve" type="object" string="Approve" class="oe_highlight" invisible="not (state == 'pending_review')"/>
+                    <button name="action_reject" type="object" string="Send Back" invisible="not (state == 'pending_review')"/>
+                    <button name="action_publish" type="object" string="Publish to M15" class="oe_highlight" invisible="not (state == 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,pending_review,approved,published"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="location_id"/>
+                            <field name="policy_type"/>
+                            <field name="abc_class"/>
+                            <field name="criticality"/>
+                            <field name="service_level_target_id"/>
+                            <field name="lead_time_model_id"/>
+                            <field name="provisional"/>
+                            <field name="effective_from"/>
+                        </group>
+                        <group>
+                            <field name="mean_daily_demand"/>
+                            <field name="std_daily_demand"/>
+                            <field name="mean_lead_days"/>
+                            <field name="std_lead_days"/>
+                            <field name="review_period_days"/>
+                            <field name="annual_order_cost"/>
+                            <field name="unit_holding_cost"/>
+                            <field name="supplier_moq"/>
+                            <field name="pack_size"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="version"/>
+                        <field name="safety_stock"/>
+                        <field name="reorder_point"/>
+                        <field name="eoq"/>
+                        <field name="reorder_qty"/>
+                        <field name="min_qty"/>
+                        <field name="max_qty"/>
+                        <field name="needs_review"/>
+                        <field name="approved_by"/>
+                        <field name="effective_to"/>
+                    </group>
+                    <group string="Constraints Applied"><field name="constraints_applied" nolabel="1" colspan="2"/></group>
+                    <group string="Rationale (Bengali)"><field name="rationale_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_replenishment_parameter" model="ir.actions.act_window">
+        <field name="name">Policy Assignments</field>
+        <field name="res_model">fix.replenishment.parameter</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_replenishment_parameter" name="Policy Assignments" parent="cd_p03_portal.menu_p03_ws_demand_plan_s2"
+              action="action_fix_replenishment_parameter" sequence="40"/>
+
+    <!-- fix.planned.order -->
+    <record id="view_fix_planned_order_list" model="ir.ui.view">
+        <field name="name">fix.planned.order.list</field>
+        <field name="model">fix.planned.order</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="name"/>
+                <field name="spare_part_id"/>
+                <field name="location_id"/>
+                <field name="quantity"/>
+                <field name="required_by"/>
+                <field name="source"/>
+                <field name="suggested_supplier_id"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_planned_order_form" model="ir.ui.view">
+        <field name="name">fix.planned.order.form</field>
+        <field name="model">fix.planned.order</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="oe_highlight" invisible="not (state in ('planned','consolidated'))"/>
+                    <button name="action_release" type="object" string="Release to M16" class="oe_highlight" invisible="not (state == 'approved')"/>
+                    <button name="action_mark_converted" type="object" string="Mark Converted" invisible="not (state == 'released')"/>
+                    <button name="action_close" type="object" string="Close on Receipt" invisible="not (state == 'converted')"/>
+                    <button name="action_cancel" type="object" string="Cancel" invisible="not (state in ('projected','planned','consolidated','approved','released'))"/>
+                    <field name="state" widget="statusbar" statusbar_visible="planned,consolidated,approved,released,converted,closed"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="Planned Order"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="location_id"/>
+                            <field name="quantity"/>
+                            <field name="required_by"/>
+                            <field name="source"/>
+                            <field name="suggested_supplier_id"/>
+                        </group>
+                        <group>
+                            <field name="abc_class"/>
+                            <field name="criticality"/>
+                            <field name="parameter_id"/>
+                            <field name="po_ref"/>
+                            <field name="actual_lead_time_days"/>
+                            <field name="approved_by"/>
+                            <field name="requisition_ref"/>
+                        </group>
+                    </group>
+                    <group string="Cancellation Reason"><field name="cancel_reason" nolabel="1" colspan="2"/></group>
+                    <group string="Note (Bengali)"><field name="note_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_planned_order" model="ir.actions.act_window">
+        <field name="name">Planned Orders</field>
+        <field name="res_model">fix.planned.order</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_planned_order" name="Planned Orders" parent="cd_p03_portal.menu_p03_ws_demand_plan_s3"
+              action="action_fix_planned_order" sequence="10"/>
+
+    <!-- fix.rebalance.proposal -->
+    <record id="view_fix_rebalance_proposal_list" model="ir.ui.view">
+        <field name="name">fix.rebalance.proposal.list</field>
+        <field name="model">fix.rebalance.proposal</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="spare_part_id"/>
+                <field name="from_location_id"/>
+                <field name="to_location_id"/>
+                <field name="quantity"/>
+                <field name="benefit_value"/>
+                <field name="transfer_cost"/>
+                <field name="net_benefit"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_rebalance_proposal_form" model="ir.ui.view">
+        <field name="name">fix.rebalance.proposal.form</field>
+        <field name="model">fix.rebalance.proposal</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_propose" type="object" string="Propose" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_approve" type="object" string="Approve" class="oe_highlight" invisible="not (state == 'proposed')"/>
+                    <button name="action_mark_transferred" type="object" string="Mark Transferred" invisible="not (state == 'approved')"/>
+                    <button name="action_reject" type="object" string="Reject" invisible="not (state in ('draft','proposed'))"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,proposed,approved,transferred"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="from_location_id"/>
+                            <field name="to_location_id"/>
+                            <field name="quantity"/>
+                        </group>
+                        <group>
+                            <field name="currency_id"/>
+                            <field name="benefit_value"/>
+                            <field name="transfer_cost"/>
+                            <field name="net_benefit"/>
+                        </group>
+                    </group>
+                    <group string="Rationale (Bengali)"><field name="rationale_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_rebalance_proposal" model="ir.actions.act_window">
+        <field name="name">Rebalance Proposals</field>
+        <field name="res_model">fix.rebalance.proposal</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_rebalance_proposal" name="Rebalance Proposals" parent="cd_p03_portal.menu_p03_ws_demand_plan_s3"
+              action="action_fix_rebalance_proposal" sequence="20"/>
+
+    <!-- fix.network.policy -->
+    <record id="view_fix_network_policy_list" model="ir.ui.view">
+        <field name="name">fix.network.policy.list</field>
+        <field name="model">fix.network.policy</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="spare_part_id"/>
+                <field name="central_stock"/>
+                <field name="van_stock"/>
+                <field name="approved_by"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_network_policy_form" model="ir.ui.view">
+        <field name="name">fix.network.policy.form</field>
+        <field name="model">fix.network.policy</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="spare_part_id"/>
+                            <field name="central_stock"/>
+                            <field name="van_stock"/>
+                        </group>
+                        <group>
+                            <field name="branch_location_ids"/>
+                            <field name="approved_by"/>
+                        </group>
+                    </group>
+                    <group string="Rationale"><field name="rationale" nolabel="1" colspan="2"/></group>
+                    <group string="Rationale (Bengali)"><field name="rationale_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_network_policy" model="ir.actions.act_window">
+        <field name="name">Network Stocking Policies</field>
+        <field name="res_model">fix.network.policy</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_network_policy" name="Network Stocking Policies" parent="cd_p03_portal.menu_p03_ws_demand_plan_s3"
+              action="action_fix_network_policy" sequence="30"/>
+
+    <!-- fix.van.par.recommendation -->
+    <record id="view_fix_van_par_recommendation_list" model="ir.ui.view">
+        <field name="name">fix.van.par.recommendation.list</field>
+        <field name="model">fix.van.par.recommendation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="van_location_id"/>
+                <field name="spare_part_id"/>
+                <field name="min_qty"/>
+                <field name="max_qty"/>
+                <field name="computed_at"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_van_par_recommendation_form" model="ir.ui.view">
+        <field name="name">fix.van.par.recommendation.form</field>
+        <field name="model">fix.van.par.recommendation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_approve" type="object" string="Approve" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_apply" type="object" string="Apply to M15" class="oe_highlight" invisible="not (state == 'approved')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,approved,applied"/>
+                </header>
+                <sheet>
+                    <group>
+                        <group>
+                            <field name="van_location_id"/>
+                            <field name="spare_part_id"/>
+                        </group>
+                        <group>
+                            <field name="min_qty"/>
+                            <field name="max_qty"/>
+                            <field name="computed_at"/>
+                            <field name="approved_by"/>
+                            <field name="applied_at"/>
+                        </group>
+                    </group>
+                    <group string="Basis"><field name="basis" nolabel="1" colspan="2"/></group>
+                    <group string="Basis (Bengali)"><field name="basis_bn" nolabel="1" colspan="2"/></group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_van_par_recommendation" model="ir.actions.act_window">
+        <field name="name">Van Par Recommendations</field>
+        <field name="res_model">fix.van.par.recommendation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_van_par_recommendation" name="Van Par Recommendations" parent="cd_p03_portal.menu_p03_ws_demand_plan_s3"
+              action="action_fix_van_par_recommendation" sequence="40"/>
+
+    <!-- fix.planning.simulation -->
+    <record id="view_fix_planning_simulation_list" model="ir.ui.view">
+        <field name="name">fix.planning.simulation.list</field>
+        <field name="model">fix.planning.simulation</field>
+        <field name="arch" type="xml">
+            <list>
+                <field name="currency_id" column_invisible="1"/>
+                <field name="name"/>
+                <field name="scope"/>
+                <field name="base_service_level"/>
+                <field name="new_service_level"/>
+                <field name="resulting_investment"/>
+                <field name="resulting_stockout_risk"/>
+                <field name="state" widget="badge"/>
+            </list>
+        </field>
+    </record>
+    <record id="view_fix_planning_simulation_form" model="ir.ui.view">
+        <field name="name">fix.planning.simulation.form</field>
+        <field name="model">fix.planning.simulation</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <button name="action_run" type="object" string="Run Simulation" class="oe_highlight" invisible="not (state == 'draft')"/>
+                    <button name="action_reset" type="object" string="Reset" invisible="not (state == 'run')"/>
+                    <field name="state" widget="statusbar" statusbar_visible="draft,run"/>
+                </header>
+                <sheet>
+                    <div class="oe_title"><h1><field name="name" placeholder="What-If Simulation"/></h1></div>
+                    <group>
+                        <group>
+                            <field name="name_bn"/>
+                            <field name="scope"/>
+                            <field name="base_snapshot_ref"/>
+                            <field name="currency_id"/>
+                            <field name="base_service_level"/>
+                            <field name="new_service_level"/>
+                        </group>
+                        <group>
+                            <field name="demand_change_pct"/>
+                            <field name="lead_time_change_pct"/>
+                            <field name="base_safety_value"/>
+                            <field name="base_cycle_value"/>
+                        </group>
+                    </group>
+                    <group string="Computed &amp; Audit">
+                        <field name="resulting_investment"/>
+                        <field name="resulting_service_level"/>
+                        <field name="resulting_stockout_risk"/>
+                        <field name="run_by"/>
+                        <field name="run_at"/>
+                    </group>
+                </sheet>
+                <div class="oe_chatter">
+                    <field name="message_follower_ids"/>
+                    <field name="activity_ids"/>
+                    <field name="message_ids"/>
+                </div>
+            </form>
+        </field>
+    </record>
+    <record id="action_fix_planning_simulation" model="ir.actions.act_window">
+        <field name="name">What-If Simulations</field>
+        <field name="res_model">fix.planning.simulation</field>
+        <field name="view_mode">list,form</field>
+    </record>
+    <menuitem id="menu_fix_planning_simulation" name="What-If Simulations" parent="cd_p03_portal.menu_p03_ws_demand_plan_s4"
+              action="action_fix_planning_simulation" sequence="10"/>
+
+</odoo>

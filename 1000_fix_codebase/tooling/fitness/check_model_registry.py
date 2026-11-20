@@ -81,6 +81,9 @@ EXEMPT_MODELS = {
     # P07 M27 line/register models: transcript turns belong to their
     # conversation; the intent register is estate-wide AI configuration
     "fix.conversation.turn", "fix.assistant.intent",
+    # P09 M43 line model: an actual-receipt observation belongs to its
+    # lead-time profile (company/OU and chatter come from the parent)
+    "fix.lead.time.observation",
 }
 
 
