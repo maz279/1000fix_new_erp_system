@@ -264,7 +264,7 @@ def _protocol_passed(m, job, burn_in_minutes=0):
             "step_ids": [(0, 0, {"name": "Boots and charges", "has_limits": False})],
         }
     )
-    job.sudo().write({"protocol_id": proto.id})
+    job.sudo()._guarded().write({"protocol_id": proto.id})
     m.env["fix.workshop.test.result"].with_user(m.tech).create(
         {"job_id": job.id, "step_id": proto.step_ids.id, "observed_pass": True}
     )
@@ -527,6 +527,7 @@ def test_l2_release_also_needs_the_burn_in_log(m31):
     job.action_start_burn_in()
     job.sudo().write({"burn_in_started_at": fields.Datetime.now() - timedelta(minutes=245)})
     job.action_pass_burn_in()
+    _protocol_passed(m31, job)  # A02 pass 2 M31-04: tested after the burn-in
     _evidence(m31, job, "post_repair_photo", "test_log")
     _passed_checklist(m31, job.order_id)
     with refused(m31.env, UserError, "Telemetry Log"):

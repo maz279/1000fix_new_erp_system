@@ -463,11 +463,8 @@ def test_H1_unrecoverable_and_closed_are_reachable(m6):
         case.action_start_recovery()
     out = m6.p03_action(m6.tech, CASE, case, "action_mark_unrecoverable", {"reason": "PCB burnt"})
     assert out["success"], out
-    unit = (
-        m6.env["fix.data.media.unit"]
-        .with_user(m6.tech)
-        .create({"case_id": case.id, "seal_number": "SEAL-H1-%d" % m6.n})
-    )
+    # A02 pass 2 M06-03: the sealed bag custody was taken on
+    unit = case.media_unit_ids[:1].with_user(m6.tech)
     with pytest.raises(UserError, match="return the customer's media"):
         case.action_close()
     # A02 pass 2 M06-03: the return is confirmed by a second person
