@@ -54,14 +54,38 @@ Branch `fix/a02-erp-audit` (worktree `1000 fix/a02erp-wt`), base e6d7a9b1.
 
 Full per-finding status: `A02_ERP_AUDIT_LEDGER_2026-11-19.md` (≈105 findings).
 
-## Owner decisions — status 20 Nov 2026 11:00
-Decided and applied: O1 damage-claim account = 500033 Courier Expense (fix_real); O2 invoice numbering
-reset to 1 (fix_real, 0 invoices); O3 warranty exclusion ON; O4 loyalty priority = urgent; O7 fenceless
-arrivals record GPS (strict by parameter); O9 own-fleet SLA = 24 h (both DBs); O13 M06 quotes VAT-exclusive;
-O14 MSP uplift now billed through M39 (a58b167d range); O15 five fix_real users already hold Finance Manager.
-The finance bridge is installed on fix_dev (owner approved). Still the business's to supply (fail-closed
-until then): O5 passcode reader roles (as built), O6 warranty days per category, O8 depot coordinates,
-O10 payroll-deduction account, O11 workshop labour rates, O12 products needing terms acceptance.
+## Owner decisions — status 20 Nov 2026 (final)
+All fifteen are decided and applied.
+- O1 damage-claim account = 500033 Courier Expense (fix_real); O2 invoice numbering reset to 1
+  (fix_real, 0 invoices); O3 warranty exclusion ON; O4 loyalty priority = urgent; O7 fenceless arrivals
+  record GPS (strict by parameter); O9 own-fleet SLA = 24 h (both DBs); O13 M06 quotes VAT-exclusive;
+  O14 MSP uplift billed through M39 (1008eeee); O15 five fix_real users hold Finance Manager.
+- Code (2ed13e31): O5 workshop and field repair technicians read a captured passcode (counter clerks
+  still cannot; purged at hand-over); O6 90 days' repair warranty on every category; O8 routes start at
+  the default depot Shewrapara HQ 23.7905, 90.3735 (`cd_field_service.default_depot`).
+- Data (both DBs unless stated): O10 rider-shortage payroll account 2001821 (fix_real only — fix_dev's
+  chart has no 2001821, so payroll recovery stays refused there); O11 labour rate BDT 500/h on all 3
+  workshops; O12 terms acceptance on Extended Warranty and AMC / Maintenance Contract Charge.
+- Workshops draw parts from Warranty HO/Stock (fix_real, all 3 workshops). fix_dev has no such store:
+  its workshops stay unlinked and a bench part issue there is refused until a store is set.
+- Chattogram Central Depot: benches BENCH-CTG-L1-01, BENCH-CTG-L1-02 (L1) and BENCH-CTG-L2-01 (L2).
+- The finance bridge is installed on fix_dev (owner approved).
+
+## End-to-end walk on a fix_real copy (20 Nov, 18/18 OK)
+Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
+`evidence_a02_erp/a02_e2e_walk_fix_real_copy_2026-11-20.txt` (output). Staff steps only, real chart.
+1. Walk-in counter repair: cash diagnostic advance → estimate 3,450 → due 3,150 → counter cash →
+   INV/2026/00001 paid, AR 0; revenue 3,000 and VAT 450 posted; the deposit leaves the drawer net 0.
+2. Depot repair: part issued from stock (60.01), **bench QC carries the order to Ready** (defect found by
+   the walk and fixed in 9822e75e — before it, a passed bench QC left the order in qc_pending) → bKash
+   posts to 100111 → invoice paid → 90-day warranty.
+3. On-site repair: dispatch, GPS arrival recorded, cash 1,725 accepted by a separate cashier as a
+   receipt Dr 100108.
+
+## Still the business's to supply
+- **Technician certifications: fix_real has 0.** Field dispatch checks certification, so no fix_real
+  job can be dispatched until HR records them (M21/M22). Not fabricated here.
+- fix_dev: no Warranty HO/Stock store and no account 2001821 (see above).
 
 ## Owner decisions (original list)
 | # | Decision | Effect until decided |
