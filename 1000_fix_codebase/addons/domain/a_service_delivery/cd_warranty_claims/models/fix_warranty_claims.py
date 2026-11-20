@@ -84,6 +84,10 @@ DECISION_STATE = {"approve": "approved", "partial": "partially_approved", "rejec
 # only from a closed job.
 AUTO_CLAIM_ORDER_STATES = ("delivered", "closed")
 CLAIM_ORDER_STATES = ("closed",)
+# A02 ERP pass 2 X5-22: the AUT-018 backup intake reads the outbox on from
+# this cursor (the last outbox id walked), a batch at a time.
+AUT018_CURSOR_PARAM = "cd_warranty_claims.aut018_outbox_cursor"
+AUT018_BATCH = 500
 
 # Set once when the claim is raised and never edited by a user afterwards.
 _FIXED_AT_CREATE = {"claim_amount", "service_order_id", "operating_unit_id", "company_id"}
@@ -668,13 +672,29 @@ class FixWarrantyClaim(models.Model):
         service_order.closed events and auto-create claims for WARRANTY
         jobs. Same shape as the M20 AR billable-event intake: one row per
         event, savepointed, idempotent through consume_order_completed's own
-        per-order search — replays are free."""
+        per-order search — replays are free.
+
+        A02 ERP pass 2 X5-22: the search always took the OLDEST 500 events,
+        so once 500 had been seen the intake re-read them every hour and
+        never reached a newer close. It now reads on from a cursor (the last
+        outbox id it walked, a system parameter), 500 at a time."""
         outbox = self.env["fix.event.outbox"].sudo()
+        params = self.env["ir.config_parameter"].sudo()
+        try:
+            cursor = int(params.get_param(AUT018_CURSOR_PARAM) or 0)
+        except ValueError:
+            cursor = 0
         events = outbox.search(
-            [("event_type", "=", "service_order.closed"), ("aggregate", "=", "fix.service.order")],
+            [
+                ("event_type", "=", "service_order.closed"),
+                ("aggregate", "=", "fix.service.order"),
+                ("id", ">", cursor),
+            ],
             order="id asc",
-            limit=500,
+            limit=AUT018_BATCH,
         )
+        if events:
+            params.set_param(AUT018_CURSOR_PARAM, str(events[-1].id))
         created = 0
         for evt in events:
             try:
