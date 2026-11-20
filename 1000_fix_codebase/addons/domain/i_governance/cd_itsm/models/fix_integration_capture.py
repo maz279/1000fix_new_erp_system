@@ -157,7 +157,10 @@ class FixConnectorRegister(models.Model):
 
     def _fix_apply_go_live(self):
         # The fallback's test may have been superseded by a failed one since the
-        # request: the decision is taken on the register as it is now.
+        # request: the decision is taken on the register as it is now. Who may
+        # approve is decided first: pressed outside the approver's inbox, the
+        # routing refusal answers before any content check.
+        self._approval_assert_routed()
         self._fix_assert_register()
         return super()._fix_apply_go_live()
 
