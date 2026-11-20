@@ -1372,7 +1372,10 @@ class FixDemandPolicyCapture(models.Model):
         Target = self.env["fix.demand.service.target"]
         for rec in self:
             target = Target._for_policy(rec)
-            rec.segment_target = "%s%% (%s)" % (target.target_pct, target.name) if target else False
+            # target_pct is a float since M43-08 (any level): 98.0 reads "98%"
+            rec.segment_target = (
+                "%g%% (%s)" % (float(target.target_pct or 0.0), target.name) if target else False
+            )
 
     def action_activate(self):
         Target = self.env["fix.demand.service.target"]

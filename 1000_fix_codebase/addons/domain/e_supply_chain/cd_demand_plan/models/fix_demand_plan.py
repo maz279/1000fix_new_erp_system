@@ -494,7 +494,12 @@ class FixDemandPlan(models.Model):
             vals = {"state": "released", "budget_check": budget_note}
             if requisition:
                 vals["pr_requisition_id"] = requisition.id
-                requisition.sudo().write({"demand_plan_id": plan.id})
+                link = {"demand_plan_id": plan.id}
+                # B14: M15 drafts with no supplier; the plan's sourcing (its
+                # vendor, else the last PO's supplier) is the buyer's suggestion
+                if vendor and not requisition.sudo().vendor_id:
+                    link["vendor_id"] = vendor.id
+                requisition.sudo().write(link)
             plan._guarded().write(vals)
             plan.message_post(
                 body="Published to M15 reorder rule %s (min %.2f / max %.2f); M15's sweep %s. "
