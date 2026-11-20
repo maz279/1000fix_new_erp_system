@@ -582,6 +582,11 @@ class FixWmsSlot(models.Model):
         self.mapped("bin_id").action_block(reason)
         return True
 
+    def action_report_block(self, reason=None):
+        """O5: the button on a slot row reports its bin's problem (BRU-WMS-12)."""
+        self.mapped("bin_id").action_report_block(reason)
+        return True
+
     def action_unblock(self, note=None):
         for slot in self:
             if slot.state != "blocked":

@@ -538,7 +538,7 @@ export const SCREENS = {
   'M41-form-putaway-exception': {
     kind: 'model_form', model: 'fix.wms.putaway',
     title: 'Report a Put-Away Exception', newLabel: 'Report a Put-Away Exception', back: 'M41-putaway-exceptions',
-    status: { field: 'state', labels: { pending: 'Pending', done: 'Done' } },
+    status: { field: 'state', labels: { pending: 'Pending', done: 'Done', cancelled: 'Cancelled' } },
     pickRecord: {
       label: 'Step 1 of 2: choose the pending put-away',
       search: 'Search put-away', choose: 'Report on this put-away',
@@ -703,8 +703,12 @@ export const SCREENS = {
     kind: 'model_form', model: 'fix.wms.outbound.demand',
     title: 'Outbound Demand', newLabel: 'Queue Outbound Demand', back: 'M41-demand',
     status: { field: 'state', labels: { queued: 'Queued', waved: 'Waved', crossdocked: 'Cross-Docked', shipped: 'Shipped', cancelled: 'Cancelled' } },
+    tabs: [
+      { id: 'demand', label: '1. Demand', bn: '১. চাহিদা', icon: '📦', badge: '11' },
+      { id: 'document', label: '2. M15 Document', bn: '২. M15 নথি', icon: '🧾', badge: '5' }
+    ],
     sections: [
-      { title: 'Demand', note: 'FR-WMS-018: an approved M15 transfer, van replenishment or RTV out of this warehouse queues here by itself, and the wave that picks it dispatches it when it ships; refurbishment, job and manual demand is typed here. It queues with its priority and cut-off. "Build Wave" (Outbound Demand Queue) groups the chosen demand into a draft wave per warehouse and template, picking from free bin stock (pick faces first); a supervisor releases it.',
+      { tab: 'demand', title: 'Demand', note: 'FR-WMS-018: an approved M15 transfer, van replenishment or RTV out of this warehouse queues here by itself, and the wave that picks it dispatches it when it ships; refurbishment, job and manual demand is typed here. It queues with its priority and cut-off. "Build Wave" (Outbound Demand Queue) groups the chosen demand into a draft wave per warehouse and template, picking from free bin stock (pick faces first); a supervisor releases it.',
         fields: [
           { name: 'warehouse_id', required: true, label: 'Warehouse', domain: [['wms_enabled', '=', true]] },
           { name: 'source_type', required: true, label: 'Source' },
@@ -716,7 +720,10 @@ export const SCREENS = {
           { name: 'technician_id', label: 'Technician (job demand: the M15 job issue)' },
           { name: 'priority', required: true, label: 'Priority' },
           { name: 'cutoff_at', label: 'Needed By (cut-off)' },
-          { name: 'template_id', label: 'Wave Template (filled from the warehouse template)' },
+          { name: 'template_id', label: 'Wave Template (filled from the warehouse template)' }
+        ] },
+      { tab: 'document', title: 'The M15 Document That Ships It', note: 'A06 ERP audit O1: nothing leaves the warehouse without an M15 document. An approved transfer or RTV brings its own; typed demand gets an M15 transfer from the warehouse (raised in the builder name, approved by another person) and job demand an M15 job issue when its wave is built.',
+        fields: [
           { name: 'wave_id', label: 'Wave', readonly: true },
           { name: 'transfer_id', label: 'From Transfer (M15)', readonly: true },
           { name: 'rtv_id', label: 'From Return to Vendor (M15)', readonly: true },
