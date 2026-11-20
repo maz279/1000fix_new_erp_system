@@ -13,9 +13,9 @@ repos:
       - { id: ruff-format }                # PYS-01 format
 
   - repo: https://github.com/OCA/pylint-odoo
-    rev: v8.0.28
+    rev: v10.0.12          # v8.0.28 never existed upstream; v10 knows the Odoo 19 checks
     hooks:
-      - { id: pylint-odoo, files: ^addons/ }   # Odoo defect classes (SQL-02, XS-08)
+      - { id: pylint_odoo, files: ^addons/ }   # Odoo defect classes (SQL-02, XS-08)
 
   - repo: https://github.com/gitleaks/gitleaks
     rev: v8.24.0
