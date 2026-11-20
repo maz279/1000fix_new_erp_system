@@ -2,10 +2,15 @@
 # fix.warranty (55) / .claim (3) / .evidence / .product / .provision and the
 # new transfer, recall and appeal models. Every cycle/latency figure is read
 # from recorded timestamps; an unmeasurable ratio stays declared.
+import logging
+
 from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from ._scope import company_domain, period_domain
+
+_logger = logging.getLogger(__name__)
 
 SURFACES = {
     # fix.warranty is owned by M01 (a02 surface) — read through the merged
@@ -34,6 +39,9 @@ SURFACES = {
             # was reachable, so an approved claim could never be remitted.
             "action_record_remittance",
             "action_record_remittance_advice",
+            # A04 ERP M09-F5 / F10: withdraw a claim; extend a lapsed window
+            "action_cancel",
+            "action_extend_deadline",
         },
     },
     "fix.warranty.evidence": {
@@ -149,10 +157,16 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _claims(env):
+def _claims(env, date_from=None, date_to=None, domain=None):
     # A04 M09-14: read in the user's environment, so the operating-unit
     # isolation rule applies to the packs and KPIs too (it used sudo()).
-    return env["fix.warranty.claim"].search([])
+    # A04 ERP M09-F11/X2 (20 Nov 2026): and only the caller's companies and
+    # the requested period (claims raised in it) - the period was ignored.
+    Claim = env["fix.warranty.claim"]
+    dom = list(domain or [])
+    dom += company_domain(env, Claim)
+    dom += period_domain(Claim, "created_at", date_from, date_to)
+    return Claim.search(dom)
 
 
 def _today(env):
@@ -160,8 +174,21 @@ def _today(env):
     return fields.Date.context_today(env["fix.warranty.claim"])
 
 
+def _outstanding(claim):
+    """Approved by the brand, not yet received nor written off."""
+    return max(
+        (claim.approved_amount or 0.0)
+        - (claim.remittance_amount or 0.0)
+        - (claim.written_off_amount or 0.0 if "written_off_amount" in claim._fields else 0.0),
+        0.0,
+    )
+
+
+AGE_BUCKETS = (("b0_30", 30), ("b31_60", 60), ("b61_90", 90), ("b90", None))
+
+
 def claim_ageing_by_brand(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
+    claims = _claims(env, date_from, date_to)
     today = _today(env)
     by_brand = {}
     for claim in claims:
@@ -173,12 +200,22 @@ def claim_ageing_by_brand(env, date_from=None, date_to=None, **params):
                 "claims": 0,
                 "amount": 0.0,
                 "age_days": [],
+                **{key: 0.0 for key, _limit in AGE_BUCKETS},
             },
         )
         row["claims"] += 1
         row["amount"] += claim.claim_amount or 0.0
         if claim.created_at:
             row["age_days"].append((today - claim.created_at.date()).days)
+        # A04 ERP M09-F12: what the brand still owes, aged from its decision
+        owed = _outstanding(claim) if claim.state in RECOVERED else 0.0
+        if owed > 0.005:
+            since = claim.decided_at or claim.created_at
+            age = (today - since.date()).days if since else 0
+            for key, limit in AGE_BUCKETS:
+                if limit is None or age <= limit:
+                    row[key] += owed
+                    break
     rows = []
     for row in by_brand.values():
         ages = row["age_days"]
@@ -189,23 +226,39 @@ def claim_ageing_by_brand(env, date_from=None, date_to=None, **params):
                 "amount": round(row["amount"], 2),
                 "avg_age_days": round(sum(ages) / len(ages), 1) if ages else 0.0,
                 "oldest_days": max(ages) if ages else 0,
+                **{key: round(row[key], 2) for key, _limit in AGE_BUCKETS},
             }
         )
     rows.sort(key=lambda r: -r["avg_age_days"])
     return _pack(
         "Claim Ageing by Brand",
-        ["brand", "claims", "amount", "avg_age_days", "oldest_days"],
+        [
+            "brand",
+            "claims",
+            "amount",
+            "avg_age_days",
+            "oldest_days",
+            "b0_30",
+            "b31_60",
+            "b61_90",
+            "b90",
+        ],
         {
             "brand": "Brand",
             "claims": "Claims",
             "amount": "Claim Amount",
             "avg_age_days": "Avg Age (days)",
             "oldest_days": "Oldest (days)",
+            "b0_30": "Owed 0-30d",
+            "b31_60": "Owed 31-60d",
+            "b61_90": "Owed 61-90d",
+            "b90": "Owed 90d+",
         },
         rows,
         [
             "Age is calendar days since the claim was created — open claims age, "
-            "decided ones are still shown for the brand's full picture."
+            "decided ones are still shown for the brand's full picture. The owed buckets age "
+            "what the brand approved and has not paid (nor was written off) from its decision."
         ],
         totals={
             "brand": "Total",
@@ -219,7 +272,7 @@ def claim_ageing_by_brand(env, date_from=None, date_to=None, **params):
 
 
 def reimbursement_cycle(env, date_from=None, date_to=None, **params):
-    claims = _claims(env).filtered(lambda c: c.submitted_at and c.decided_at)
+    claims = _claims(env, date_from, date_to).filtered(lambda c: c.submitted_at and c.decided_at)
     by_brand = {}
     for claim in claims:
         hours = (claim.decided_at - claim.submitted_at).total_seconds() / 3600.0
@@ -260,7 +313,7 @@ def reimbursement_cycle(env, date_from=None, date_to=None, **params):
 
 
 def claim_rejection(env, date_from=None, date_to=None, **params):
-    rejected = _claims(env).filtered(lambda c: c.state == "rejected")
+    rejected = _claims(env, date_from, date_to).filtered(lambda c: c.state == "rejected")
     reasons = {}
     for claim in rejected:
         key = (claim.rejection_reason or "unspecified").strip() or "unspecified"
@@ -295,7 +348,7 @@ def claim_rejection(env, date_from=None, date_to=None, **params):
 
 
 def evidence_completeness(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
+    claims = _claims(env, date_from, date_to)
     rows = []
     for claim in claims:
         rows.append(
@@ -332,7 +385,15 @@ def loss_ratio(env, date_from=None, date_to=None, **params):
     """FR-WTY-037: settled protection claims over the premium of the policies
     sold, per product (M09 capture audit, second pass: policies now record
     their premium, so the ratio is measured instead of declared a gap)."""
-    policies = env["fix.protection.policy"].search([("state", "not in", ("declined",))])
+    Policy = env["fix.protection.policy"]
+    policies = Policy.search(
+        [
+            ("state", "not in", ("declined", "sold")),
+            *company_domain(env, Policy),
+            *period_domain(Policy, "term_start", None, date_to),
+        ]
+    )
+    as_of = fields.Date.to_date(date_to) if date_to else _today(env)
     by_product = {}
     for policy in policies:
         row = by_product.setdefault(
@@ -346,7 +407,7 @@ def loss_ratio(env, date_from=None, date_to=None, **params):
             },
         )
         row["policies"] += 1
-        row["premium"] += policy.premium or 0.0
+        row["premium"] += _earned_premium(policy, as_of)
         row["paid"] += policy.claimed_amount or 0.0
         row["reserve"] += policy.reserve_balance or 0.0
     rows = []
@@ -366,19 +427,31 @@ def loss_ratio(env, date_from=None, date_to=None, **params):
         {
             "product": "Protection Product",
             "policies": "Policies",
-            "premium": "Premium Written",
+            "premium": "Premium Earned",
             "paid": "Claims Settled",
             "reserve": "Reserve Held",
             "loss_ratio": "Loss Ratio %",
         },
         rows,
         [
-            "Loss ratio = protection claims settled / premium written, per product, over "
-            "policies not declined. The industry band for a solvent programme is 30-50%.",
+            "Loss ratio = protection claims settled / premium EARNED to the period end (the "
+            "premium straight-line over the cover term; a cancelled policy earns what it did "
+            "not refund), per product (A04 ERP M09-F18: it used premium written).",
             "Reserve Held is the balance of each policy's append-only reserve ledger.",
         ],
         empty="No protection policy sold yet. Sell one on Protection Products (+ New Protection Policy).",
     )
+
+
+def _earned_premium(policy, as_of):
+    premium = policy.premium or 0.0
+    if policy.state == "cancelled":
+        return max(premium - (policy.refund_amount or 0.0), 0.0)
+    if not policy.term_start or not policy.term_end or as_of < policy.term_start:
+        return 0.0
+    term = (policy.term_end - policy.term_start).days + 1
+    used = min((as_of - policy.term_start).days + 1, term)
+    return premium * used / term if term > 0 else premium
 
 
 def recall_coverage(env, date_from=None, date_to=None, **params):
@@ -512,7 +585,7 @@ def warranty_repairs(env, date_from=None, date_to=None, **params):
 
 
 def brand_claim_stats(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
+    claims = _claims(env, date_from, date_to)
     by_brand = {}
     for claim in claims:
         row = by_brand.setdefault(
@@ -568,7 +641,9 @@ def brand_claim_stats(env, date_from=None, date_to=None, **params):
 
 
 def claim_reconciliation(env, date_from=None, date_to=None, **params):
-    claims = _claims(env).filtered(lambda c: c.state in RECOVERED and c.approved_amount)
+    claims = _claims(env, date_from, date_to).filtered(
+        lambda c: c.state in RECOVERED and c.approved_amount
+    )
     rows = []
     for claim in claims:
         # reconciled against what the OEM APPROVED (a partial approval is not
@@ -607,7 +682,7 @@ def claim_reconciliation(env, date_from=None, date_to=None, **params):
 
 
 def warranty_fraud(env, date_from=None, date_to=None, **params):
-    claims = _claims(env)
+    claims = _claims(env, date_from, date_to)
     by_device = {}
     for claim in claims:
         if claim.device_id:
@@ -681,34 +756,57 @@ REPORTS = {
 }
 
 
-def kpis(env):
-    claims = _claims(env)
-    today = _today(env)
-    month_start = today.replace(day=1)
-    mtd = claims.filtered(lambda c: c.created_at and c.created_at.date() >= month_start)
-    decided = claims.filtered(lambda c: c.state in DECIDED)
-    approved = claims.filtered(lambda c: c.state in RECOVERED and c.approved_amount)
-    with_both = claims.filtered(lambda c: c.submitted_at and c.decided_at)
-    cycle_days = [(c.decided_at - c.submitted_at).total_seconds() / 86400.0 for c in with_both]
-    leakage = sum(
-        (c.approved_amount or 0.0) - (c.remittance_amount or 0.0)
-        for c in approved
-        if c.remittance_amount
-    )
-    under_72h = claims.filtered(
-        lambda c: c.submission_latency_hours is not None and c.submission_latency_hours <= 72
-    )
-    appeals = env["fix.claim.appeal"].search([("decision", "=", "pending")])
-    return {
-        "claims_submitted_mtd": len(mtd.filtered(lambda c: c.state != "draft")),
-        "first_submission_approval": round(len(approved) / len(decided) * 100.0, 1)
-        if decided
-        else None,
-        "reimbursement_days": round(sum(cycle_days) / len(cycle_days), 1) if cycle_days else None,
-        "revenue_leakage": round(leakage, 2),
-        "claims_under_72h": round(len(under_72h) / len(claims) * 100.0, 1) if claims else None,
-        "appeals_open": len(appeals),
+def kpis(env, date_from=None, date_to=None):
+    """A04 ERP M09-F11/F12: the period's claims (default: this month).
+    claims_under_72h is measured on SUBMITTED claims only (an unsubmitted
+    claim counted as on time); revenue leakage includes what the brand
+    approved and has not paid, and what was written off."""
+    out = {
+        "claims_submitted_mtd": None,
+        "first_submission_approval": None,
+        "reimbursement_days": None,
+        "revenue_leakage": None,
+        "claims_under_72h": None,
+        "appeals_open": None,
     }
+    try:
+        today = _today(env)
+        start = date_from or today.replace(day=1)
+        claims = _claims(env, start, date_to or today)
+        submitted = claims.filtered("submitted_at")
+        decided = claims.filtered(lambda c: c.state in DECIDED)
+        approved = claims.filtered(lambda c: c.state in RECOVERED and c.approved_amount)
+        with_both = claims.filtered(lambda c: c.submitted_at and c.decided_at)
+        cycle_days = [(c.decided_at - c.submitted_at).total_seconds() / 86400.0 for c in with_both]
+        leaked = claims.filtered(
+            lambda c: c.state in (*RECOVERED, "written_off") and c.approved_amount
+        )
+        leakage = sum(_outstanding(c) for c in leaked) + sum(
+            leaked.mapped("written_off_amount") if "written_off_amount" in claims._fields else []
+        )
+        under_72h = submitted.filtered(lambda c: c.submission_latency_hours <= 72)
+        appeals = env["fix.claim.appeal"].search(
+            [("decision", "=", "pending"), ("claim_id", "in", claims.ids)]
+        )
+        out.update(
+            {
+                "claims_submitted_mtd": len(submitted),
+                "first_submission_approval": round(len(approved) / len(decided) * 100.0, 1)
+                if decided
+                else None,
+                "reimbursement_days": round(sum(cycle_days) / len(cycle_days), 1)
+                if cycle_days
+                else None,
+                "revenue_leakage": round(leakage, 2),
+                "claims_under_72h": round(len(under_72h) / len(submitted) * 100.0, 1)
+                if submitted
+                else None,
+                "appeals_open": len(appeals),
+            }
+        )
+    except Exception:  # a KPI tile must not break the screen, but is never silent
+        _logger.exception("M09 KPIs failed")
+    return out
 
 
 class P03WarrantyApi(http.Controller):

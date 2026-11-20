@@ -82,7 +82,9 @@ def _sub(c, **kw):
 
 
 def _bill(c, sub):
-    sub.with_user(c.billing).action_generate_charge()
+    # A04 ERP M39-F9: a cycle is billed with a reviewed run's authority (the
+    # guard token the run's commit carries), never from the plain button
+    sub.with_user(c.billing)._guarded().action_generate_charge()
     return sub.charge_ids.sorted("period_start")[-1]
 
 
@@ -560,7 +562,7 @@ def test_a_pause_needs_a_finance_manager_and_stops_billing(c):
     req.with_user(c.fm).action_approve()
     sub.invalidate_recordset()
     assert sub.state == "paused"
-    sub.with_user(c.billing).action_generate_charge()
+    sub.with_user(c.billing)._guarded().action_generate_charge()
     assert not sub.charge_ids, "BRU-SUB-12: a paused subscription is not charged"
 
 

@@ -50,17 +50,34 @@ class FixArInvoiceDeferral(models.Model):
         )
         if existing:
             return existing
-        basis_field = _DEFERRAL_BASIS.get(self.source_model)
         amount = self._fix_deferred_amount()
-        if not basis_field or amount <= 0.0:
+        if amount <= 0.0 or self.source_model not in self.env:
             return Schedule
         source = self.env[self.source_model].sudo().browse(self.source_id).exists()
         if not source:
             return Schedule
-        start, end = source.period_start, source.period_end
+        basis_field = _DEFERRAL_BASIS.get(self.source_model)
+        basis = {}
+        if basis_field:
+            start, end = source.period_start, source.period_end
+            basis = {basis_field: source[basis_field].id}
+            unit = self.operating_unit_id or source[basis_field].operating_unit_id
+        elif hasattr(source, "_fix_deferral_period"):
+            # A04 ERP M09-F2: a protection premium defers over its cover term
+            start, end = source._fix_deferral_period()
+            unit = self.operating_unit_id
+        else:
+            return Schedule
+        if self.source_model == "fix.subscription.charge":
+            sub = source.subscription_id
+            # A04 ERP M39-F1: one basis per subscription. Its scheduled
+            # contract obligations already recognise this period's revenue.
+            if sub._fix_recognition_basis() == "contract":
+                return Schedule
+        if not start or not end:
+            return Schedule
         if end <= start:  # a one-day period still needs a positive term
             end = start + timedelta(days=1)
-        unit = self.operating_unit_id or source[basis_field].operating_unit_id
         return Schedule.create(
             {
                 "company_id": self.company_id.id,
@@ -72,6 +89,6 @@ class FixArInvoiceDeferral(models.Model):
                 "total_amount": amount,
                 "start_date": start,
                 "end_date": end,
-                basis_field: source[basis_field].id,
+                **basis,
             }
         )

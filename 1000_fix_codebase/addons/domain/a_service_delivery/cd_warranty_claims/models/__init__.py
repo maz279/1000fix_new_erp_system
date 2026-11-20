@@ -12,3 +12,8 @@ from . import fix_warranty_recall_consumer  # A10 P1-7: bulletin.distributed con
 # M09 capture audit, second pass (2026-11-18): imported last - it extends
 # fix.warranty.claim, .product and fix.claim.appeal defined above.
 from . import fix_m09_capture
+
+# isort: split
+
+# A04 ERP audit (20 Nov 2026): claim valuation / cancel / lapse, protection limits.
+from . import fix_a04_erp_claims

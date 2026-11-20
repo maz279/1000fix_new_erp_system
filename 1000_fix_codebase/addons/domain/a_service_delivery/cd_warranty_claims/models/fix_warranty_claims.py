@@ -1188,18 +1188,30 @@ class FixWarrantyClaim(models.Model):
         self.ensure_one()
         if "fix.ar.invoice" not in self.env:
             return None
-        return (
+        # A04 ERP M09-F7: a re-decision after an appeal may raise a
+        # supplementary invoice on the decision record; the open one (money
+        # still owed) is the receivable a remittance is collected against.
+        invoices = (
             self.env["fix.ar.invoice"]
             .sudo()
             .search(
                 [
+                    "|",
+                    "&",
                     ("source_model", "=", self._name),
                     ("source_id", "=", self.id),
+                    "&",
+                    ("source_model", "=", "fix.warranty.claim.decision"),
+                    ("source_id", "in", self.decision_ids.ids or [0]),
                     ("state", "!=", "cancelled"),
                 ],
-                limit=1,
+                order="id",
             )
         )
+        open_ = invoices.filtered(
+            lambda i: i.state == "issued" and (i.amount_residual or 0.0) > 0.005
+        )
+        return (open_ or invoices)[:1]
 
     def _check_receivable_raised(self):
         """E3-07: a claim the brand agreed to pay is closed only once the

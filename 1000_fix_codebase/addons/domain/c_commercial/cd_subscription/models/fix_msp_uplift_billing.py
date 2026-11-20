@@ -36,14 +36,32 @@ class FixSubscriptionMspUplift(models.AbstractModel):
         if not msp:
             raise UserError("MSP uplift refused: MSP contract %s does not exist." % msp_id)
         added = int(payload.get("added_devices") or 0)
-        if added <= 0:
-            return {"skipped": "no devices added"}
-        # the claim must match the record: a forged count bills nothing
-        if int(payload.get("new_device_count") or -1) != (msp.device_count or 0):
-            raise UserError(
-                "MSP uplift refused: the event says %s devices, %s holds %s."
-                % (payload.get("new_device_count"), msp.name, msp.device_count)
+        if not added:
+            return {"skipped": "no device change"}
+        # the claim must match the record: a forged count bills nothing.
+        # A04 ERP M39-F18: a count changed AGAIN before this event was relayed
+        # is accepted when a later change event of the same contract exists
+        # (each event bills its own step); a reduction lowers the bill.
+        new_count = int(payload.get("new_device_count") or -1)
+        if new_count != (msp.device_count or 0):
+            Outbox = self.env["fix.event.outbox"].sudo()
+            row = Outbox.search([("event_id", "=", event.get("event_id") or "")], limit=1)
+            later = (
+                Outbox.search_count(
+                    [
+                        ("event_type", "=", row.event_type),
+                        ("aggregate_id", "=", msp.id),
+                        ("id", ">", row.id),
+                    ]
+                )
+                if row
+                else 0
             )
+            if not later:
+                raise UserError(
+                    "MSP uplift refused: the event says %s devices, %s holds %s."
+                    % (payload.get("new_device_count"), msp.name, msp.device_count)
+                )
         rate = msp.per_device_monthly or 0.0
         if rate <= 0:
             msp.message_post(
@@ -76,7 +94,7 @@ class FixSubscriptionMspUplift(models.AbstractModel):
         if seen:
             return {"model": sub._name, "id": sub.id, "created": False}
         months = CYCLE_MONTHS.get(sub.billing_cycle, 1)
-        new_amount = round((sub.recurring_amount or 0.0) + added * rate * months, 2)
+        new_amount = round(max((sub.recurring_amount or 0.0) + added * rate * months, 0.0), 2)
         reason = "%s: %s from %s to %s devices at BDT %.2f per device a month" % (
             marker,
             msp.name,

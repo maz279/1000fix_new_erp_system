@@ -20,7 +20,7 @@ CD-M39-01 + M53's W4 slice (P07-M03):
   liability / Cr revenue)
 - Events: subscription.charged/cancelled, revenue.recognized (AS-08)
 """,
-    "version": "19.0.1.4.1",
+    "version": "19.0.1.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Subscriptions",
@@ -51,6 +51,8 @@ CD-M39-01 + M53's W4 slice (P07-M03):
         "data/fix_m39_capture_cron.xml",
         # A02 ERP audit M05-F4: an MSP device uplift becomes a price change
         "data/fix_msp_uplift_consumer.xml",
+        # A04 ERP M39-F4: autopay success -> M20 receipt
+        "data/fix_autopay_receipt_consumer.xml",
         "views/fix_subscription_views.xml",
     ],
     "installable": True,
