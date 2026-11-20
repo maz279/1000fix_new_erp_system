@@ -43,7 +43,6 @@
                             <field name="code"/>
                             <field name="location_type"/>
                             <field name="branch_id"/>
-                            <field name="parent_id"/>
                             <field name="company_id" groups="base.group_multi_company"/>
                         </group>
                         <group string="Mobile Van Configuration">
@@ -80,12 +79,11 @@
                 <field name="part_number"/>
                 <field name="name"/>
                 <field name="name_bn" optional="show"/>
-                <field name="category"/>
-                <field name="brand"/>
+                <field name="part_category"/>
+                <field name="device_brand"/>
                 <field name="barcode" optional="show"/>
                 <field name="is_serialized" optional="show"/>
                 <field name="qty_available"/>
-                <field name="uom"/>
                 <field name="unit_cost"/>
                 <field name="sales_price"/>
                 <field name="warranty_months"/>
@@ -111,12 +109,11 @@
                     </div>
                     <group>
                         <group string="Categorization &amp; Identification">
-                            <field name="category"/>
-                            <field name="brand"/>
+                            <field name="part_category"/>
+                            <field name="device_brand"/>
                             <field name="barcode"/>
                             <field name="qr_code"/>
                             <field name="is_serialized"/>
-                            <field name="uom"/>
                         </group>
                         <group string="Inventory &amp; Pricing">
                             <field name="qty_available" readonly="1"/>
