@@ -67,7 +67,9 @@ jobs:
     timeout-minutes: 8
     services:
       postgres:
-        image: ${{ env.PGIMAGE }}
+        # GitHub allows no `env` context in services.image (the whole workflow
+        # was rejected, 0 jobs); keep this literal in step with env.PGIMAGE.
+        image: postgres:17.4
         env: { POSTGRES_USER: fix, POSTGRES_PASSWORD: ci, POSTGRES_DB: fix_ci }
         options: >-
           --health-cmd "pg_isready -U fix" --health-interval 5s

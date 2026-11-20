@@ -13,6 +13,24 @@ dependencies = [
     "coverage>=7.5.0",
 ]
 
+# The repository is an application (Odoo addons + services), not a
+# distributable package: uv installs the dependencies and builds nothing.
+# Without this, `uv sync` asks hatchling to build a wheel and fails
+# ("Unable to determine which files to ship") - the CI precommit job did.
+[tool.uv]
+package = false
+
+# Tools the CI pipeline runs through `uv run` (precommit, lint-type,
+# security stages). uv installs the dev group by default on `uv sync`.
+# ruff matches the .pre-commit-config.yaml pin.
+[dependency-groups]
+dev = [
+    "pre-commit>=4.0",
+    "ruff==0.8.4",
+    "mypy>=1.13",
+    "pip-audit>=2.7",
+]
+
 # =============================================================================
 # Root Python configuration - P02-M08-T02/T03 (BE-002 4.1-4.6)
 # Ruff (format + lint, PYS-01) and mypy --strict (PYS-07/10/11) for everything;
