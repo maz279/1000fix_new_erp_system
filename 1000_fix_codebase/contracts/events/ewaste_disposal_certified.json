@@ -1,0 +1,82 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ewaste.disposal_certified",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "ewaste.disposal_certified"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "batch",
+        "certificate",
+        "certificate_no",
+        "partner_id",
+        "item_ids",
+        "hazmat_ids",
+        "weight_kg",
+        "company_id"
+      ],
+      "properties": {
+        "batch": {
+          "type": "string"
+        },
+        "certificate": {
+          "type": "string"
+        },
+        "certificate_no": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "item_ids": {
+          "type": "array"
+        },
+        "hazmat_ids": {
+          "type": "array"
+        },
+        "weight_kg": {
+          "type": "number"
+        },
+        "company_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ewaste",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_ewaste/models/fix_ewaste_ops.py"
+  ],
+  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+}

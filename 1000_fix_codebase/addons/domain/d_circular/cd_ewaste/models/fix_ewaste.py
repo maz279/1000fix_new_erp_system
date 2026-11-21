@@ -46,8 +46,12 @@ TRANSITIONS = {
     # a revoked recycler certificate returns the item to 'recycled'
     "certified": {"recycled"},
     "hazmat": {"disposed"},
-    "routed": set(),
-    "disposed": set(),
+    # A05 S3 M18-13: a unit M14 rejects (harvested for recycling) comes back
+    # to its ORIGINAL collection, re-opened for a superseding triage. Only
+    # the M14 hand-off consumer (trusted) moves it.
+    "routed": {"collected"},
+    # A05 S3 M18-07: a revoked certificate returns a disposed hazmat item
+    "disposed": {"hazmat"},
     "donated": set(),
 }
 OPEN_STATES = ("collected", "triaged", "destruction", "recycled", "hazmat")
@@ -78,6 +82,7 @@ _GUARDED = frozenset(
         "source_model",
         "source_res_id",
         "source_ref",
+        "reopened_count",
     }
 )
 # The item as received: frozen once it leaves triage (M18-5: CO2 derives
@@ -147,10 +152,26 @@ class FixEwasteCollection(models.Model):
         required=True,
         default="phone",
     )
-    weight_kg = fields.Float(string="Weight (kg)")
+    weight_kg = fields.Float(
+        string="Weight (kg)",
+        help="Weighed on receipt. Required: a user records it with the item; an item "
+        "handed over by another module is weighed in before triage (M18-14).",
+    )
+    weight_pending = fields.Boolean(
+        string="Awaiting Weigh-in",
+        compute="_compute_weight_pending",
+        store=True,
+        help="Received without a weight (a hand-off): it is weighed in before triage.",
+    )
     item_count = fields.Integer(string="Items", default=1)
     collected_on = fields.Date(
-        string="Received On", default=fields.Date.context_today, index=True, copy=False
+        string="Received On", default=c.default_today, index=True, copy=False
+    )
+    reopened_count = fields.Integer(
+        string="Times Re-opened",
+        readonly=True,
+        copy=False,
+        help="Times a unit routed to M14 came back for a superseding triage (M18-13).",
     )
     state = fields.Selection(EWASTE_STATES, default="collected", required=True, tracking=True)
     triage_grade = fields.Selection(
@@ -235,6 +256,11 @@ class FixEwasteCollection(models.Model):
     def _fix_guarded_fields(self) -> set:
         return set(super()._fix_guarded_fields()) | _GUARDED
 
+    @api.depends("weight_kg")
+    def _compute_weight_pending(self):
+        for rec in self:
+            rec.weight_pending = (rec.weight_kg or 0.0) <= 0.0
+
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
         if self:
@@ -316,6 +342,13 @@ class FixEwasteCollection(models.Model):
         grade = vals.get("triage_grade", self.triage_grade)
         if new_state == "triaged" and not grade:
             raise UserError("%s: triage needs the assessor's grade." % self.name)
+        if new_state == "triaged" and (vals.get("weight_kg", self.weight_kg) or 0.0) <= 0.0:
+            # M18-14: no 0 kg item is assessed (it would vanish from the mass
+            # balance and the ESG figures): weigh it in first
+            raise UserError(
+                "%s has no weight: weigh it in before triage (a hand-off arrives unweighed)."
+                % self.name
+            )
         if new_state == "destruction" and grade != "recycle":
             raise UserError(
                 "%s is graded '%s': only a 'recycle' item goes to secure destruction. "
@@ -354,12 +387,27 @@ class FixEwasteCollection(models.Model):
                     "that lists it (M18-4/10)." % self.name
                 )
         if new_state == "disposed":
-            open_hazmat = self.sudo().battery_ids.filtered(lambda b: b.state != "processed")
-            if not self.sudo().battery_ids or open_hazmat:
+            hazmat = self.sudo().battery_ids
+            open_hazmat = hazmat.filtered(lambda b: b.state != "processed")
+            if not hazmat or open_hazmat:
                 raise UserError(
                     "%s is disposed only when its hazmat records are processed by the "
                     "recycler." % self.name
                 )
+            # M18-07: and certified - a hazmat item is in the disposal
+            # certificate's scope like any other item
+            uncertified = hazmat.filtered(
+                lambda b: not b.disposal_certificate_id
+                or b.disposal_certificate_id.state != "issued"
+            )
+            if uncertified:
+                raise UserError(
+                    "%s is disposed only under an issued recycler disposal certificate that "
+                    "covers its hazmat records (%s)."
+                    % (self.name, ", ".join(uncertified.mapped("name")))
+                )
+        if new_state == "collected" and old == "routed" and not self._fix_guard_open():
+            raise UserError("%s is re-opened only by M14 sending the unit back." % self.name)
 
     # ------------------------------------------------------------ ORM
     @api.model_create_multi
@@ -367,6 +415,14 @@ class FixEwasteCollection(models.Model):
         targets = [vals.get("state") or "collected" for vals in vals_list]
         if not self._fix_guard_open() and any(t != "collected" for t in targets):
             self._fix_guard_refuse(["state"])
+        if not self._fix_guard_open():
+            for vals in vals_list:
+                if (vals.get("weight_kg") or 0.0) <= 0.0:
+                    # M18-14: an item received at the counter is weighed there
+                    raise UserError(
+                        "Record the item's weight (kg) on receipt: it drives the mass balance, "
+                        "the DoE return and the ESG figures."
+                    )
         for vals in vals_list:
             vals.pop("state", None)
             vals["name"] = self.env["ir.sequence"].next_by_code("fix.ewaste.collection") or "EW/New"
@@ -411,13 +467,42 @@ class FixEwasteCollection(models.Model):
             )
 
     # ------------------------------------------------------------ actions
-    def action_triage(self, grade):
-        """The assessor's decision, recorded as a triage record (write-once)."""
+    _ASSESSMENT_KEYS = (
+        "functional_result",
+        "cosmetic_result",
+        "market_value_estimate",
+        "data_bearing",
+        "notes",
+        "evidence_file",
+        "evidence_filename",
+    )
+
+    def action_triage(self, grade, **assessment):
+        """The assessor's decision, recorded as a triage record (write-once).
+
+        M18-28: the quick buttons honour the criteria in force - the
+        assessment (functional test, photo...) is passed through to the
+        decision, and when the criteria need what a button cannot give, the
+        refusal says where to record it instead of a bare failure."""
         Triage = self.env["fix.ewaste.triage"]
+        extra = {k: v for k, v in assessment.items() if k in self._ASSESSMENT_KEYS and v}
         for rec in self:
             if rec.state != "collected":
                 raise UserError("Triage from collected state")
-            Triage.create({"collection_id": rec.id, "decision": grade})
+            criteria = self.env["fix.ewaste.triage.criteria"]._fix_in_force(rec.company_id)
+            if criteria and not self._fix_guard_open():
+                missing = []
+                if not extra.get("functional_result"):
+                    missing.append("the functional test result")
+                if criteria.evidence_required and not extra.get("evidence_file"):
+                    missing.append("the assessment photo")
+                if missing:
+                    raise UserError(
+                        "Triage criteria %s are in force: %s needs %s. Record the decision on "
+                        "the Triage & Sanitization Record form (FR-ESG-006/007, BRU-ESG-09)."
+                        % (criteria.name, rec.name, " and ".join(missing))
+                    )
+            Triage.create({"collection_id": rec.id, "decision": grade, **extra})
 
     def _fix_apply_triage(self, triage):
         """Called by the triage record: apply the grade and route the item."""
@@ -504,9 +589,20 @@ class FixEwasteCollection(models.Model):
                 )
             rec._guarded().write({"state": "hazmat"})
 
+    def _fix_require_operator(self, doing):
+        """M18-28: destruction and release are the e-waste floor's (a
+        dispatcher or an assessor), not any user's."""
+        if not (
+            self.env.su
+            or self.env.user.has_group(c.G_DISPATCH)
+            or self.env.user.has_group(c.G_ASSESSOR)
+        ):
+            raise UserError("Only an E-Waste Dispatcher or Triage Assessor may %s." % doing)
+
     def action_secure_destruction(self):
         """Secure destruction through M06 — the wipe certificate must
         exist before destruction begins (journey 10's gate)."""
+        self._fix_require_operator("start secure destruction")
         for rec in self:
             if rec.state != "triaged":
                 raise UserError("Destruction from triaged state")
@@ -544,6 +640,7 @@ class FixEwasteCollection(models.Model):
     def action_recycle(self, co2_saved=None):
         """Release the destroyed item for the recycler. The M06 gate runs in
         write() (every path). CO2 avoided is computed, never typed (M18-5)."""
+        self._fix_require_operator("release an item for the recycler")
         for rec in self:
             if rec.state != "destruction":
                 raise UserError("Recycle from destruction state")
@@ -585,17 +682,17 @@ class FixEwasteCollection(models.Model):
             elif rec not in cert.collection_ids:
                 raise UserError("Certificate %s does not list %s." % (cert.name, rec.name))
 
-    def action_triage_reuse(self):
-        self.action_triage("reuse")
+    def action_triage_reuse(self, **assessment):
+        self.action_triage("reuse", **assessment)
 
-    def action_triage_refurbish(self):
-        self.action_triage("refurbish")
+    def action_triage_refurbish(self, **assessment):
+        self.action_triage("refurbish", **assessment)
 
-    def action_triage_recycle(self):
-        self.action_triage("recycle")
+    def action_triage_recycle(self, **assessment):
+        self.action_triage("recycle", **assessment)
 
-    def action_triage_hazardous(self):
-        self.action_triage("hazardous")
+    def action_triage_hazardous(self, **assessment):
+        self.action_triage("hazardous", **assessment)
 
     def action_recycle_estimated(self):
         """Recycle with the CO2 avoided computed from the configured factor."""
@@ -654,6 +751,12 @@ class FixEwasteCollection(models.Model):
         )
         if existing:
             return existing
+        original = self._fix_original_of(tradein)
+        if original:
+            # M18-13: the unit came from M18 in the first place - it returns
+            # to its own collection (weight, customer, intake history intact)
+            # for a superseding triage, never as a new 0 kg item
+            return original._fix_reopen_from_m14(tradein, harvest)
         device = tradein.device_id
         cert = tradein.wipe_certificate_id
         if cert and self.sudo().search_count([("wipe_certificate_id", "=", cert.id)]):
@@ -684,6 +787,46 @@ class FixEwasteCollection(models.Model):
         )
         # never hand back a record that still carries the guard token
         return self.browse(col.id)
+
+    @api.model
+    def _fix_original_of(self, tradein):
+        """The e-waste collection a trade-in intake was opened from (M14
+        records it as ewaste_collection_id when it consumes reuse routing)."""
+        coll_id = tradein.ewaste_collection_id if "ewaste_collection_id" in tradein._fields else 0
+        if not coll_id:
+            return self.browse()
+        return self.sudo().browse(int(coll_id)).exists()
+
+    def _fix_reopen_from_m14(self, tradein, harvest=None):
+        """Re-open this routed collection for a superseding triage: back to
+        'collected', the earlier grade cleared (its triage record stays, write-
+        once, as history). Trusted path (the M14 hand-off relay)."""
+        self.ensure_one()
+        if self.state != "routed" and self.reopened_count:
+            return self.browse(self.id)  # a repeat delivery: already re-opened
+        if self.state != "routed":
+            raise UserError(
+                "%s is %s, not routed to M14: M14 cannot send it back." % (self.name, self.state)
+            )
+        previous = self.triage_id
+        self.sudo()._guarded().write({"state": "collected"})
+        self.sudo()._guarded().write(
+            {
+                "triage_grade": False,
+                "triage_id": False,
+                "reopened_count": self.reopened_count + 1,
+                "channel": "refurb_failed",
+            }
+        )
+        self.sudo().message_post(
+            body="Returned by M14 trade-in %s%s: re-opened for a new triage that supersedes %s."
+            % (
+                tradein.name,
+                " (harvest %s, %s)" % (harvest.name, harvest.component) if harvest else "",
+                previous.name or "the earlier decision",
+            )
+        )
+        return self.browse(self.id)
 
     @api.model
     def consume_stock_written_off(self, event):
@@ -747,6 +890,13 @@ class FixEwasteCollection(models.Model):
                 ("batch_id", "=", False),
                 ("batch_id.state", "=", "draft"),
             ]
+        )
+        # M18-27: a hazmat item whose cells have all left storage (batched and
+        # dispatched) is no longer held, whatever its own state says
+        held = held.filtered(
+            lambda r: r.state != "hazmat"
+            or not r.battery_ids
+            or any(b.state == "stored" for b in r.battery_ids)
         )
         overdue = held.filtered(lambda r: r.storage_deadline < today)
         for rec in overdue.filtered(lambda r: not r.storage_overdue):

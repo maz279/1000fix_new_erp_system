@@ -12,6 +12,7 @@
 #  - fix.ewaste.settlement: incentive / recycler fee / recovery income, routed
 #    through M63 to the finance approver and handed to finance by event.
 from odoo import api, fields, models
+from odoo.addons.cd_workflow_engine.models.fix_approval_engine import TIER_GROUP
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -57,6 +58,10 @@ class FixEwasteManifest(models.Model):
     basel_pic_id = fields.Many2one("fix.ewaste.basel.pic", readonly=True)
     line_ids = fields.One2many("fix.ewaste.manifest.line", "manifest_id", readonly=True)
     total_weight_kg = fields.Float(readonly=True)
+    # A05 S3 M18-16: what our weighbridge weighed out (reconciled to the
+    # item sum before this manifest was issued)
+    outbound_net_kg = fields.Float(string="Outbound Weighbridge Net (kg)", readonly=True)
+    outbound_ticket_ref = fields.Char(string="Outbound Weighbridge Ticket", readonly=True)
     item_count = fields.Integer(readonly=True)
     hazardous = fields.Boolean(readonly=True)
     hazmat_declaration = fields.Text(readonly=True)
@@ -142,6 +147,8 @@ class FixEwasteManifest(models.Model):
                     "basel_pic_id": batch.basel_pic_id.id or False,
                     "line_ids": lines,
                     "total_weight_kg": batch.weight_kg,
+                    "outbound_net_kg": batch.outbound_net_kg,
+                    "outbound_ticket_ref": batch.outbound_ticket_ref,
                     "item_count": len(lines),
                     "hazardous": hazardous,
                     "hazmat_declaration": declaration,
@@ -432,11 +439,29 @@ class FixEwasteRegistration(models.Model):
         )
 
 
+# The M50 method each settlement payment method maps to (I2).
+PAY_METHOD = {"bank_transfer": "bank_transfer", "mfs": "mobile_fs", "cash": "cash"}
+PAY_KINDS = ("incentive", "recycler_fee")
+
+
 class FixEwasteSettlement(models.Model):
     """Money in M18 (M18-13 / E10): a customer buy-back incentive, a recycler
-    fee, or material-recovery income. Approved through M63 by the finance
-    approver (amount and payee pinned), then handed to finance by event: the
-    GL posting is finance's (cd_gl_ext is being changed by A08)."""
+    fee, or material-recovery income. Approved through M63 (amount, payee,
+    operating unit, branch, payment method and payee account pinned), then
+    handed to finance by event (cd_cash_position's settlement consumer).
+
+    A05 ERP build S3 (20 Nov 2026):
+      * M18-04 / FIN-11 / I2: the settlement carries its operating unit (the
+        collection's or batch's), branch, payment method and payee account;
+        the approval pins them and the money documents use them;
+      * M18-05: recovery income is raised only from the batch's recovery
+        lines (never typed): one live income settlement per batch, its amount
+        the lines' total, locked;
+      * M18-06: the payee of a recycler fee or income is the recycler's
+        contact, failing closed when the recycler has none;
+      * XC-24: an amount ladder - above BDT 50,000 a DOFA tier decides;
+      * M18-30: amounts are read by the M18 money roles only (ACL);
+      * M18-31: no incentive to the company itself (internal hand-offs)."""
 
     _name = "fix.ewaste.settlement"
     _description = "E-Waste Incentive / Recycler Fee / Recovery Income"
@@ -469,6 +494,33 @@ class FixEwasteSettlement(models.Model):
     )
     amount = fields.Monetary(currency_field="currency_id", required=True)
     rate_per_kg = fields.Monetary(currency_field="currency_id")
+    # I2 (S3 <-> S5): the dimensions and the payment terms, pinned by approval
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Operating Unit",
+        index=True,
+        help="The collection's or batch's operating unit: the money posts there.",
+    )
+    branch_id = fields.Many2one(
+        "fix.branch",
+        string="Branch",
+        index=True,
+        help="The branch the money posts to; it belongs to the operating unit.",
+    )
+    payment_method = fields.Selection(
+        [
+            ("bank_transfer", "Bank Transfer"),
+            ("mfs", "Mobile Wallet (bKash / Nagad)"),
+            ("cash", "Cash"),
+        ],
+        string="Payment Method",
+        help="How an incentive or recycler fee is paid (money out only).",
+    )
+    partner_bank_id = fields.Many2one(
+        "res.partner.bank",
+        string="Payee Account / Wallet",
+        help="The payee's bank account or wallet; required for a bank or wallet payment.",
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -492,7 +544,15 @@ class FixEwasteSettlement(models.Model):
             "amount",
             "rate_per_kg",
             "company_id",
+            "operating_unit_id",
+            "branch_id",
+            "payment_method",
+            "partner_bank_id",
         }
+    )
+    # recovery income is the lines' total: never typed, even in draft
+    _INCOME_LOCKED = frozenset(
+        {"kind", "batch_id", "partner_id", "amount", "rate_per_kg", "currency_id", "company_id"}
     )
 
     _amount_positive = models.Constraint("CHECK (amount > 0)", "An amount is positive")
@@ -504,8 +564,11 @@ class FixEwasteSettlement(models.Model):
         locked = set(super()._fix_form_locked_fields())
         if self and any(r.state != "draft" for r in self):
             locked |= self._TERMS
+        if self and any(r.kind == "recovery_income" for r in self):
+            locked |= self._INCOME_LOCKED
         return locked
 
+    # ------------------------------------------------------------ approval
     def _approval_amount(self) -> float:
         return abs(self.amount or 0.0) if len(self) == 1 else 0.0
 
@@ -514,19 +577,85 @@ class FixEwasteSettlement(models.Model):
         return self.state == "draft"
 
     def _approval_pinned_fields(self) -> set:
-        return set(super()._approval_pinned_fields()) | {"kind", "collection_id", "batch_id"}
+        return set(super()._approval_pinned_fields()) | {
+            "kind",
+            "collection_id",
+            "batch_id",
+            "operating_unit_id",
+            "branch_id",
+            "payment_method",
+            "partner_bank_id",
+        }
 
+    def _fix_ladder(self):
+        """The ruled DoA ladder for settlements, else the module default."""
+        ruled = None
+        if "fix.dofa.ladder" in self.env:
+            try:
+                ruled = self.env["fix.dofa.ladder"].thresholds_for(
+                    self._name, company=self[:1].company_id or self.env.company
+                )
+            except Exception:  # the ladder table may not exist yet (install)
+                ruled = None
+        return ruled or c.SETTLEMENT_TIERS
+
+    def _approval_tier(self):
+        """XC-24: the DOFA tier the amount needs, False at or below the first
+        bound (the E-Waste Finance Approver decides alone)."""
+        if len(self) != 1:
+            return False
+        amount = abs(self.amount or 0.0)
+        for bound, tier in self._fix_ladder():
+            if amount <= bound:
+                return tier if tier in TIER_GROUP else False
+        return False
+
+    # ------------------------------------------------------------ ORM
     @api.model_create_multi
     def create(self, vals_list):
+        trusted = self._fix_guard_open()
+        if not trusted and not (
+            self.env.su
+            or self.env.user.has_group(c.G_DISPATCH)
+            or self.env.user.has_group(c.G_COMPLIANCE)
+        ):
+            raise UserError(
+                "Only an E-Waste Dispatcher or Compliance Officer raises an e-waste "
+                "incentive or recycler fee (M18-22)."
+            )
         for vals in vals_list:
+            if not trusted and vals.get("kind") == "recovery_income":
+                raise UserError(
+                    "Material-recovery income is raised from the batch's recovery lines "
+                    "(Raise Batch Income), never typed (M18-05)."
+                )
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].sudo().next_by_code("fix.ewaste.settlement")
                     or "ESET/New"
                 )
+            self._fix_default_dimensions(vals)
         recs = super().create(vals_list)
         recs._check_basis()
         return recs
+
+    @api.model
+    def _fix_default_dimensions(self, vals):
+        """OU from the collection / batch; a branch's OU when only the branch
+        is given. Never the company's first OU (FIN-11)."""
+        if not vals.get("operating_unit_id"):
+            basis = None
+            if vals.get("collection_id"):
+                basis = self.env["fix.ewaste.collection"].sudo().browse(vals["collection_id"])
+            elif vals.get("batch_id"):
+                basis = self.env["fix.ewaste.batch"].sudo().browse(vals["batch_id"])
+            if basis and basis.exists() and basis.operating_unit_id:
+                vals["operating_unit_id"] = basis.operating_unit_id.id
+            elif vals.get("branch_id"):
+                branch = self.env["fix.branch"].sudo().browse(vals["branch_id"])
+                if branch.exists() and branch.operating_unit_id:
+                    vals["operating_unit_id"] = branch.operating_unit_id.id
+        return vals
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -535,6 +664,10 @@ class FixEwasteSettlement(models.Model):
                     changed = c.changed_fields(rec, vals, self._TERMS)
                     if changed:
                         c.frozen_refuse(rec, changed, "is %s" % rec.state)
+                elif rec.kind == "recovery_income":
+                    changed = c.changed_fields(rec, vals, self._INCOME_LOCKED)
+                    if changed:
+                        c.frozen_refuse(rec, changed, "is raised from its batch's recovery lines")
         res = super().write(vals)
         if self._TERMS & set(vals):
             self._check_basis()
@@ -543,38 +676,188 @@ class FixEwasteSettlement(models.Model):
     def _check_basis(self):
         for rec in self:
             if rec.kind == "incentive":
-                if not rec.collection_id or rec.batch_id:
+                col = rec.collection_id.sudo()
+                if not col or rec.batch_id:
                     raise ValidationError("An incentive is paid for one collection.")
-                if rec.partner_id != rec.collection_id.customer_id:
+                if rec.partner_id != col.customer_id:
                     raise ValidationError("An incentive is paid to the collection's customer.")
+                own = rec.company_id.partner_id | col.company_id.partner_id
+                if col.customer_id in own or col.source_model:
+                    # M18-31: an internal hand-off (M13/M14/M15/M49) is the
+                    # company's own stock: nobody to pay
+                    raise ValidationError(
+                        "Collection %s is the company's own stock (an internal hand-off): "
+                        "no incentive is paid on it." % col.name
+                    )
                 others = self.sudo().search_count(
                     [
                         ("id", "!=", rec.id),
                         ("kind", "=", "incentive"),
-                        ("collection_id", "=", rec.collection_id.id),
+                        ("collection_id", "=", col.id),
                         ("state", "!=", "cancelled"),
                     ]
                 )
                 if others:
-                    raise ValidationError(
-                        "Collection %s already has an incentive." % rec.collection_id.name
-                    )
+                    raise ValidationError("Collection %s already has an incentive." % col.name)
             else:
-                if not rec.batch_id or rec.collection_id:
+                batch = rec.batch_id.sudo()
+                if not batch or rec.collection_id:
                     raise ValidationError("A recycler fee or income belongs to one batch.")
-                contact = rec.batch_id.partner_id.partner_id
-                if contact and rec.partner_id != contact:
+                contact = batch.partner_id.partner_id
+                if not contact:
+                    # M18-06: fail closed - the payee is checked, always
+                    raise ValidationError(
+                        "Recycler %s has no business contact: link one on the recycler before "
+                        "a fee or income is raised with it." % (batch.partner_id.name or "-")
+                    )
+                if rec.partner_id.commercial_partner_id != contact.commercial_partner_id:
                     raise ValidationError(
                         "The recycler fee or income is with the batch's recycler (%s)."
                         % contact.name
                     )
+                if rec.kind == "recovery_income" and rec.state != "cancelled":
+                    others = self.sudo().search_count(
+                        [
+                            ("id", "!=", rec.id),
+                            ("kind", "=", "recovery_income"),
+                            ("batch_id", "=", batch.id),
+                            ("state", "!=", "cancelled"),
+                        ]
+                    )
+                    if others:
+                        raise ValidationError(
+                            "Batch %s already has a live recovery-income settlement: one per "
+                            "batch (M18-05)." % batch.name
+                        )
+            if rec.payment_method == "cash" and rec.partner_bank_id:
+                raise ValidationError("A cash payment names no payee account.")
+            if rec.partner_bank_id:
+                holder = rec.partner_bank_id.sudo().partner_id.commercial_partner_id
+                if holder != rec.partner_id.commercial_partner_id:
+                    raise ValidationError(
+                        "Account %s belongs to %s, not to the payee %s."
+                        % (
+                            rec.partner_bank_id.sudo().display_name,
+                            holder.name,
+                            rec.partner_id.name,
+                        )
+                    )
+            if (
+                rec.branch_id
+                and rec.operating_unit_id
+                and rec.branch_id.sudo().operating_unit_id != rec.operating_unit_id
+            ):
+                raise ValidationError(
+                    "Branch %s does not belong to operating unit %s."
+                    % (rec.branch_id.sudo().name, rec.operating_unit_id.sudo().name)
+                )
+
+    def _fix_check_money_terms(self):
+        """What the approval pins must be complete and consistent (I2), and the
+        income must be its lines' total (M18-05). Runs at request and at
+        approval; the consumer re-reads the same record."""
+        methods = dict(self._fields["payment_method"].selection)
+        for rec in self:
+            basis = rec.sudo().collection_id or rec.sudo().batch_id
+            if not rec.operating_unit_id:
+                raise UserError(
+                    "%s has no operating unit: set the operating unit of %s first (the money "
+                    "posts to its unit, never the company's first one)."
+                    % (rec.name, basis.name or "its collection or batch")
+                )
+            if basis.operating_unit_id and basis.operating_unit_id != rec.operating_unit_id:
+                raise UserError(
+                    "%s is on operating unit %s but %s belongs to %s."
+                    % (
+                        rec.name,
+                        rec.operating_unit_id.sudo().name,
+                        basis.name,
+                        basis.operating_unit_id.name,
+                    )
+                )
+            if not rec.branch_id:
+                raise UserError("%s: name the branch the money posts to." % rec.name)
+            if rec.kind == "incentive":
+                paid = rec._fix_tradein_paid()
+                if paid:
+                    # mirror of S2's M14 rule: the seller is paid once - as a
+                    # trade-in or as an e-waste incentive, never both
+                    raise UserError(
+                        "%s: the item of collection %s was already paid for as trade-in %s: "
+                        "no e-waste incentive is paid on it."
+                        % (rec.name, rec.collection_id.name, paid.name)
+                    )
+            if rec.kind in PAY_KINDS:
+                if not rec.payment_method:
+                    raise UserError("%s: choose how it is paid (bank, wallet or cash)." % rec.name)
+                if rec.payment_method in ("bank_transfer", "mfs") and not rec.partner_bank_id:
+                    raise UserError(
+                        "%s is paid by %s: name the payee's account or wallet."
+                        % (rec.name, methods[rec.payment_method])
+                    )
+            else:
+                lines = rec.sudo().recovery_ids
+                if not lines:
+                    raise UserError(
+                        "%s has no recovery lines: income is raised from the batch's recovered "
+                        "material (M18-05)." % rec.name
+                    )
+                total = round(sum(lines.mapped("income_amount")), 2)
+                if abs(total - (rec.amount or 0.0)) > 0.005:
+                    raise UserError(
+                        "%s says BDT %.2f but its recovery lines total BDT %.2f."
+                        % (rec.name, rec.amount, total)
+                    )
+            rec._check_basis()
+
+    def _fix_tradein_paid(self):
+        """The paid M14 trade-in opened from this incentive's collection, if
+        any (read by name: cd_ewaste does not depend on cd_tradein)."""
+        self.ensure_one()
+        if "fix.tradein.request" not in self.env or not self.collection_id:
+            return None
+        Tradein = self.env["fix.tradein.request"].sudo()
+        if not {"ewaste_collection_id", "paid_at"} <= set(Tradein._fields):
+            return None
+        return (
+            Tradein.search(
+                [("ewaste_collection_id", "=", self.collection_id.id), ("paid_at", "!=", False)],
+                limit=1,
+            )
+            or None
+        )
+
+    def action_request_approval(self, justification=None):
+        self._fix_check_money_terms()
+        return super().action_request_approval(justification=justification)
+
+    def _fix_money_account(self, role):
+        """The D1 GL account of a role for this settlement's company (fails
+        closed): 'recovery_income' (400109) or 'recycling_cost' (the NEW
+        e-waste collection & recycling cost expense)."""
+        self.ensure_one()
+        return c.account(self.env, self.company_id, role)
+
+    def _fix_pay_method(self):
+        self.ensure_one()
+        return PAY_METHOD[self.payment_method]
 
     def action_approve_settlement(self):
         """Apply the routed approval (M63) and hand the money to finance."""
         self._approval_assert_routed()
-        c.require_group(
-            self.env, c.G_FINANCE, "E-Waste Finance Approver (CFO)", "approve e-waste money"
-        )
+        for rec in self:
+            tier = rec._approval_tier()
+            if tier:
+                c.require_group(
+                    self.env,
+                    TIER_GROUP[tier],
+                    "DOFA %s approver" % tier.replace("_", " ").title(),
+                    "approve e-waste money of BDT %.2f" % rec.amount,
+                )
+            else:
+                c.require_group(
+                    self.env, c.G_FINANCE, "E-Waste Finance Approver (CFO)", "approve e-waste money"
+                )
         for rec in self:
             if rec.state != "draft":
                 raise UserError("%s is not a draft." % rec.name)
@@ -590,6 +873,7 @@ class FixEwasteSettlement(models.Model):
                     "Batch %s has not reached the recycler: its fee or income is approved "
                     "on the recycler's receipt." % rec.batch_id.name
                 )
+            rec._fix_check_money_terms()
             rec._guarded().write(
                 {
                     "state": "approved",
@@ -622,4 +906,8 @@ class FixEwasteSettlement(models.Model):
             if rec.approval_state == "pending":
                 rec.action_recall_approval()
             rec._guarded().write({"state": "cancelled"})
+            lines = rec.sudo().recovery_ids
+            if lines:
+                # the batch's recovery lines are free to be raised again
+                lines._guarded().write({"state": "draft", "settlement_id": False})
         return True

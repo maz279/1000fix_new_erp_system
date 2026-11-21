@@ -66,9 +66,10 @@ def test_wipe_gate_runs_on_every_path(m):
         .with_user(m.clerk)
         .create({"method": "physical_destruction", "serial_number": dev.serial_number}),
     )
-    col.action_secure_destruction()
+    # A05 ERP M18-28: destruction is the dispatcher's
+    col.with_user(m.dispatcher).action_secure_destruction()
     assert col.wipe_certificate_id.sanitization_status == "pending_verification"
-    assert refused(m.env, lambda: col.action_recycle())
+    assert refused(m.env, lambda: col.with_user(m.dispatcher).action_recycle())
     # trusted code too: the gate is in the state change, not in the action
     assert refused(m.env, lambda: col.sudo()._guarded().write({"state": "recycled"}))
     # the legitimate path: the lab's evidence and witness, then the verifier
@@ -136,7 +137,7 @@ def test_the_lab_person_who_destroys_certifies_and_never_witnesses(m):
     assert refused(m.env, lambda: cert.with_user(m.wipe_tech).action_witness_destruction())
     cert.with_user(m.wipe_witness).action_witness_destruction()
     cert.with_user(m.verifier).action_verify()
-    col.action_recycle()
+    col.with_user(m.dispatcher).action_recycle()
     assert col.state == "recycled"
 
 
@@ -166,8 +167,8 @@ def test_one_wipe_certificate_releases_one_item(m):
     cert = m.verified_cert(dev.serial_number, a)
     m.triage(a, "recycle")
     a.write({"wipe_certificate_id": cert.id})
-    a.action_secure_destruction()
-    a.action_recycle()
+    a.with_user(m.dispatcher).action_secure_destruction()
+    a.with_user(m.dispatcher).action_recycle()
     b = m.collection(device_id=m.device().id)
     m.triage(b, "recycle")
     assert refused(m.env, lambda: b.write({"wipe_certificate_id": cert.id}))
@@ -248,8 +249,8 @@ def test_co2_is_computed_and_frozen_with_the_weight(m):
     other = m.collection(device_id=m.device().id)
     m.triage(other, "recycle")
     other.write({"wipe_certificate_id": m.verified_cert(other.device_id.serial_number, other).id})
-    other.action_secure_destruction()
-    assert refused(m.env, lambda: other.action_recycle(9000.0))
+    other.with_user(m.dispatcher).action_secure_destruction()
+    assert refused(m.env, lambda: other.with_user(m.dispatcher).action_recycle(9000.0))
 
 
 def test_weight_is_bounded_per_item(m):
@@ -399,10 +400,12 @@ def test_recycler_registration_needs_another_persons_approval(m):
     # a direct press is refused: it is approved from the approver's inbox
     assert refused(m.env, lambda: p.with_user(m.approver).action_approve_partner())
     # the registrant never decides, even holding the role
-    m.clerk.write({"group_ids": [(4, m.env.ref("cd_ewaste.group_ewaste_recycler_approver").id)]})
+    m.dispatcher.write(
+        {"group_ids": [(4, m.env.ref("cd_ewaste.group_ewaste_recycler_approver").id)]}
+    )
     p.action_request_approval()
-    assert not inbox_task(p, m.clerk)
-    approve_via_inbox(p, m.approver, requester=m.clerk)
+    assert not inbox_task(p, m.dispatcher)
+    approve_via_inbox(p, m.approver, requester=m.dispatcher)
     assert p.state == "active" and p.approved_by_id == m.approver
     # the licence is frozen once approved
     assert refused(m.env, lambda: p.write({"valid_to": m.today + timedelta(days=5000)}))
@@ -422,6 +425,7 @@ def test_dispatch_rechecks_the_licence_on_every_path(m):
     m.ready_item()
     b = m.batch(partner=p)
     b.action_load_ready_items()
+    m.weigh_out(b)  # A05 S3 M18-16: weighed out, so only the licence can refuse
     # suspended
     p.with_user(m.approver).action_suspend()
     assert refused(m.env, lambda: b.action_dispatch())
@@ -489,6 +493,7 @@ def test_batch_dispatch_and_processing_cannot_be_forged(m):
     item = m.ready_item(weight=0.5)
     b.action_load_ready_items()
     assert item.batch_id == b and b.weight_kg == pytest.approx(0.5)
+    m.weigh_out(b)  # A05 S3 M18-16
     b.action_dispatch()
     # receive and process have their own steps and evidence
     assert refused(m.env, lambda: b.action_process())
@@ -577,24 +582,51 @@ def test_collection_certify_button_uses_the_batch_certificate(m):
 
 
 # ===================================================== E8 / M18-8: batteries
-def test_battery_inspection_is_recorded_by_an_hse_inspector(m):
-    bat = (
-        m.env["fix.ewaste.battery"]
+def _hazmat_point(m, classes=("li_sound", "li_damaged"), ceiling=50.0):
+    """A05 S3 M18-12: hazmat is accepted only at a point with a ceiling for
+    its class, activated by an HSE officer who did not register it."""
+    p = (
+        m.env["fix.ewaste.collection.point"]
         .with_user(m.clerk)
-        .create({"swollen_cell": True, "weight_kg": 0.3})
+        .create(
+            {
+                "name": "Hazmat Store %s" % m.today,
+                "kind": "hazmat_store",
+                "capacity_kg": 1000.0,
+                "responsible_id": m.env["hr.employee"].create({"name": "Store Lead"}).id,
+                "limit_ids": [(0, 0, {"hazard_class": k, "max_kg": ceiling}) for k in classes],
+            }
+        )
     )
+    p.with_user(m.hse).action_activate()
+    return p
+
+
+def _hazmat_item(m, point, weight=0.3, **vals):
+    col = m.collection(
+        material_type="battery", weight_kg=weight, collection_point_id=point.id, **vals
+    )
+    m.triage(col, "hazardous")
+    return col
+
+
+def test_battery_inspection_is_recorded_by_an_hse_inspector(m):
+    point = _hazmat_point(m)
+    col = _hazmat_item(m, point, condition="swollen")
+    bat = col.battery_ids.with_user(m.clerk)
+    assert bat.swollen_cell and bat.collection_point_id == point
     assert refused(m.env, lambda: bat.action_inspect_and_quarantine())
     assert not bat.terminal_taped
     assert refused(m.env, lambda: bat.write({"terminal_taped": True}))
     assert m.p03_write(m.clerk, "fix.ewaste.battery", bat.id, {"terminal_taped": True}).get("error")
     hse_bat = bat.with_user(m.hse)
     assert refused(m.env, lambda: hse_bat.action_inspect_and_quarantine())  # no evidence
-    bat.write({"inspection_evidence_id": attachment(m.env, "photo.jpg").id})
+    hse_bat.write({"inspection_evidence_id": attachment(m.env, "photo.jpg").id})
     hse_bat.action_inspect_and_quarantine()
     assert bat.terminal_taped and bat.inspected_by_id == m.hse
-    assert bat.quarantine_barrel_ref and "Quarantine" in bat.storage_location
+    assert bat.quarantine_barrel_ref and bat.storage_location == point.name
     # what was inspected is frozen
-    assert refused(m.env, lambda: bat.write({"swollen_cell": False}))
+    assert refused(m.env, lambda: hse_bat.write({"swollen_cell": False}))
     # state jumps
     assert refused(m.env, lambda: bat.with_user(m.dispatcher).action_process())
     assert refused(m.env, lambda: bat.action_dispatch())  # no batch
@@ -603,46 +635,48 @@ def test_battery_inspection_is_recorded_by_an_hse_inspector(m):
 
 
 def test_battery_stream_dispatch_process_and_hazmat_disposal(m):
-    col = m.collection(material_type="battery", weight_kg=0.4)
-    m.triage(col, "hazardous")
+    point = _hazmat_point(m)
+    col = _hazmat_item(m, point, weight=0.4)
     assert col.state == "hazmat" and len(col.battery_ids) == 1
-    assert refused(m.env, lambda: col.action_secure_destruction())
+    assert refused(m.env, lambda: col.with_user(m.dispatcher).action_secure_destruction())
     bat = col.battery_ids
-    bat.write({"inspection_evidence_id": attachment(m.env, "photo.jpg").id})
+    bat.with_user(m.hse).write({"inspection_evidence_id": attachment(m.env, "photo.jpg").id})
     bat.with_user(m.hse).action_inspect_and_quarantine()
-    sound = (
-        m.env["fix.ewaste.battery"]
-        .with_user(m.clerk)
-        .create(
-            {
-                "swollen_cell": True,
-                "weight_kg": 0.2,
-                "inspection_evidence_id": attachment(m.env, "p2.jpg").id,
-            }
-        )
-    )
-    sound.with_user(m.hse).action_inspect_and_quarantine()
+    swollen = _hazmat_item(m, point, weight=0.2, condition="swollen").battery_ids
+    swollen.with_user(m.hse).write({"inspection_evidence_id": attachment(m.env, "p2.jpg").id})
+    swollen.with_user(m.hse).action_inspect_and_quarantine()
     b = m.batch(material="battery")
     b.action_load_ready_items()
     assert bat in b.battery_ids
     # swollen and sound cells are never shipped together (BRU-ESG-08)
     if len(set(b.battery_ids.mapped("swollen_cell"))) > 1:
+        m.weigh_out(b)
         assert refused(m.env, lambda: b.action_dispatch())
-        sound.sudo()._guarded().write({"batch_id": False})
+        swollen.sudo()._guarded().write({"batch_id": False})
+    m.weigh_out(b)
     b.action_dispatch()
     assert bat.state == "dispatched" and b.manifest_id.hazardous
     b.write({"received_weight_kg": b.weight_kg, "recycler_receipt_ref": "R-B"})
     b.action_receive()
     b.write({"processing_evidence_id": attachment(m.env).id})
     b.action_process()
-    assert bat.state == "processed" and col.state == "disposed"
+    # A05 S3 M18-07: processed is not disposed - the certificate disposes it
+    assert bat.state == "processed" and col.state == "hazmat"
+    m.issued_certificate(b)
+    assert col.state == "disposed"
 
 
 def test_battery_location_ceiling(m):
-    m.env["ir.config_parameter"].sudo().set_param("cd_ewaste.battery_location_ceiling_kg", "1")
-    Bat = m.env["fix.ewaste.battery"].with_user(m.clerk)
-    Bat.create({"weight_kg": 0.8, "storage_location": "Shelf Z-1"})
-    assert refused(m.env, lambda: Bat.create({"weight_kg": 0.5, "storage_location": "Shelf Z-1"}))
+    point = _hazmat_point(m, ceiling=1.0)
+    first = _hazmat_item(m, point, weight=0.8)
+    assert first.battery_ids.collection_point_id == point
+    over = _hazmat_item(m, point, weight=0.5)
+    # over the class ceiling: not accepted there (and HSE alerted)
+    assert not over.battery_ids.collection_point_id
+    assert refused(
+        m.env,
+        lambda: over.battery_ids.with_user(m.hse).write({"collection_point_id": point.id}),
+    )
 
 
 # ===================================================== P2: triage by assessor
@@ -684,7 +718,7 @@ def test_reuse_item_routes_to_m14_not_the_shredder(m):
     assert res.get("success"), res
     assert col.state == "routed" and col.triage_grade == "reuse"
     assert events(m.env, "ewaste.reuse_routed", col.id) == 1
-    assert refused(m.env, lambda: col.action_secure_destruction())
+    assert refused(m.env, lambda: col.with_user(m.dispatcher).action_secure_destruction())
     assert refused(m.env, lambda: col.sudo().write({"state": "destruction"}))
 
 
@@ -754,6 +788,7 @@ def test_cross_border_transfer_needs_a_basel_consent(m):
     assert pic.state == "consented"
     assert refused(m.env, lambda: pic.with_user(m.compliance).write({"max_weight_kg": 1e6}))
     b.write({"basel_pic_id": pic.id})
+    m.weigh_out(b)
     b.action_dispatch()
     assert b.state == "dispatched" and b.manifest_id.basel_pic_id == pic
 
@@ -780,10 +815,26 @@ def test_doe_return_is_filed_under_an_active_registration(m):
 
 # ================================================ E10 / P2: money with approval
 def test_incentive_and_recycler_money_are_routed_approvals(m):
-    Settlement = m.env["fix.ewaste.settlement"].with_user(m.clerk)
-    col = m.collection(weight_kg=0.5)
+    # A05 S3: raised by the e-waste floor (M18-22), on the collection's OU,
+    # with its branch and payment terms (I2)
+    Settlement = m.env["fix.ewaste.settlement"].with_user(m.dispatcher)
+    ou = m.env["operating.unit"].search([("company_id", "=", m.env.company.id)], limit=1)
+    entity = m.env["fix.entity"].search([("company_id", "=", m.env.company.id)], limit=1) or m.env[
+        "fix.entity"
+    ].create({"code": "M18CTL", "legal_name": "M18 Entity", "company_id": m.env.company.id})
+    branch = m.env["fix.branch"].create(
+        {"name": "M18 Branch", "code": "M18BR", "entity_id": entity.id, "operating_unit_id": ou.id}
+    )
+    terms = {"branch_id": branch.id, "payment_method": "cash"}
+    col = m.collection(weight_kg=0.5, operating_unit_id=ou.id)
     inc = Settlement.create(
-        {"kind": "incentive", "collection_id": col.id, "partner_id": m.customer.id, "amount": 200.0}
+        {
+            "kind": "incentive",
+            "collection_id": col.id,
+            "partner_id": m.customer.id,
+            "amount": 200.0,
+            **terms,
+        }
     )
     assert refused(
         m.env,
@@ -793,6 +844,7 @@ def test_incentive_and_recycler_money_are_routed_approvals(m):
                 "collection_id": col.id,
                 "partner_id": m.clerk.partner_id.id,
                 "amount": 200.0,
+                **terms,
             }
         ),
     )  # the payee is the collection's customer
@@ -804,19 +856,23 @@ def test_incentive_and_recycler_money_are_routed_approvals(m):
     assert task
     assert refused(m.env, lambda: task.with_user(m.cfo).action_approve())
     m.triage(col, "recycle")
-    approve_via_inbox(inc, m.cfo, requester=m.clerk)
+    approve_via_inbox(inc, m.cfo, requester=m.dispatcher)
     assert inc.state == "approved" and inc.approved_by_id == m.cfo
     assert events(m.env, "ewaste.settlement_approved", inc.id) == 1
     assert refused(m.env, lambda: inc.write({"amount": 9000.0}))
-    assert m.p03_write(m.clerk, "fix.ewaste.settlement", inc.id, {"amount": 9000.0}).get("error")
+    assert m.p03_write(m.dispatcher, "fix.ewaste.settlement", inc.id, {"amount": 9000.0}).get(
+        "error"
+    )
     # a recycler fee waits for the recycler's receipt
     batch = m.dispatched_batch()
+    batch.sudo()._guarded().write({"operating_unit_id": ou.id})
     fee = Settlement.create(
         {
             "kind": "recycler_fee",
             "batch_id": batch.id,
-            "partner_id": m.env["res.partner"].create({"name": "R"}).id,
+            "partner_id": batch.partner_id.partner_id.id,
             "amount": 1500.0,
+            **terms,
         }
     )
     fee.action_request_approval()

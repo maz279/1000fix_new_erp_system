@@ -57,6 +57,12 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <record id="rule_fix_ewaste_collection_point_operating_unit" model="ir.rule">
+        <field name="name">fix.ewaste.collection.point: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ewaste_collection_point"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_ewaste_event_company" model="ir.rule">
         <field name="name">fix.ewaste.event: allowed companies</field>
         <field name="model_id" ref="model_fix_ewaste_event"/>
@@ -77,6 +83,12 @@
         <field name="name">fix.ewaste.return: allowed companies</field>
         <field name="model_id" ref="model_fix_ewaste_return"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ewaste_settlement_operating_unit" model="ir.rule">
+        <field name="name">fix.ewaste.settlement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ewaste_settlement"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
     <record id="rule_fix_ewaste_triage_company" model="ir.rule">
         <field name="name">fix.ewaste.triage: allowed companies</field>

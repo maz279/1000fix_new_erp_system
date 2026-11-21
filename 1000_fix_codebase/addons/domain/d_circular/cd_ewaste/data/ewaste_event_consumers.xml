@@ -43,5 +43,16 @@
             <field name="method">consume_stock_written_off</field>
             <field name="module">cd_ewaste</field>
         </record>
+        <!-- I1 (A05 ERP build, S1 -> S3): a rental unit retired on the
+             'recycle' route enters the e-waste stream with its device,
+             serial, weight, material and operating unit (one collection per
+             retired asset; 'resale' is M14's). -->
+        <record id="consumer_rental_asset_retired_recycle" model="fix.event.consumer">
+            <field name="name">M13/M18: retired rental unit routed to recycling</field>
+            <field name="event_type">rental.asset_retired</field>
+            <field name="model">fix.ewaste.collection</field>
+            <field name="method">consume_rental_asset_retired</field>
+            <field name="module">cd_ewaste</field>
+        </record>
     </data>
 </odoo>

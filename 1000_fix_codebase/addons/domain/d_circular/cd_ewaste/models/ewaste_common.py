@@ -120,7 +120,85 @@ def employee_of(env, user=None):
 
 
 def today(env):
-    return fields.Date.context_today(env["res.users"])
+    """The business day: Asia/Dhaka (UTC+6), whoever runs the code (A05
+    M18-25). Odoo forces TZ=UTC and the cron user has no tz, so the user's
+    own context_today put a 01:00 Dhaka job on yesterday."""
+    return fields.Date.context_today(env["res.users"].with_context(tz=DHAKA_TZ))
+
+
+def default_today(record):
+    """Field default: the Dhaka business day."""
+    return today(record.env)
+
+
+# ------------------------------------------------------- A05 build (S3)
+DHAKA_TZ = "Asia/Dhaka"
+# D1 (owner, 20 Nov 2026): the GL accounts of e-waste money, by code, set by
+# the deploy data. FAIL CLOSED when unset or unknown in the company's chart.
+P_ACCOUNT = "cd_ewaste.account_code.%s"
+ACCOUNT_ROLES = {
+    # 400109 Other Income
+    "recovery_income": "e-waste recovered-material (scrap) income",
+    # NEW 'E-waste Collection & Recycling Cost' (expense)
+    "recycling_cost": "e-waste collection incentives and recycler fees (expense)",
+}
+# AUT-ESG-11: the recycler's certificate is due this many days after the
+# transfer unless the recycler's own agreed window says otherwise.
+P_CERT_DUE_DAYS = "cd_ewaste.certificate_due_days"
+DEFAULT_CERT_DUE_DAYS = 30
+# ... and transfers to it are suspended at this many overdue batches.
+P_SUSPEND_AFTER = "cd_ewaste.certificate_overdue_suspend_after"
+DEFAULT_SUSPEND_AFTER = 2
+# AUT-ESG-12: licence warnings at T-60, T-30 and T-7 days.
+P_LICENCE_STAGES = "cd_ewaste.licence_warning_stages"
+DEFAULT_LICENCE_STAGES = "60,30,7"
+# XC-24: the amount ladder of an e-waste settlement until DoA rules one
+# (fix.dofa.ladder for fix.ewaste.settlement): at or below the first bound the
+# E-Waste Finance Approver decides alone, above it a DOFA tier.
+SETTLEMENT_TIERS = [
+    (50000.0, False),
+    (250000.0, "tier_2"),
+    (1000000.0, "tier_3"),
+    (float("inf"), "tier_4"),
+]
+
+
+def account(env, company, role):
+    """The company's GL account for an e-waste money role. Refuses, never
+    guesses (D1: deploy data sets cd_ewaste.account_code.<role>)."""
+    key = P_ACCOUNT % role
+    code = (param(env, key, "") or "").strip()
+    label = ACCOUNT_ROLES.get(role, role)
+    if not code:
+        raise UserError(
+            "E-waste money refused: system parameter %s (the GL account for %s) is not set."
+            % (key, label)
+        )
+    acc = (
+        env["account.account"]
+        .sudo()
+        .with_company(company)
+        .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+    )
+    if not acc:
+        raise UserError(
+            "E-waste money refused: system parameter %s names account %s (%s), which is not "
+            "in the chart of %s." % (key, code, label, company.name)
+        )
+    return acc
+
+
+def licence_stages(env):
+    raw = param(env, P_LICENCE_STAGES, DEFAULT_LICENCE_STAGES) or DEFAULT_LICENCE_STAGES
+    out = set()
+    for part in str(raw).split(","):
+        try:
+            days = int(part.strip())
+        except ValueError:
+            continue
+        if days > 0:
+            out.add(days)
+    return sorted(out, reverse=True) or [60, 30, 7]
 
 
 _PERIOD = re.compile(r"^(\d{4})(?:-(?:(\d{2})|[Qq]([1-4])))?$")
@@ -215,6 +293,18 @@ def lock_uploads(locked, uploads):
         if link in locked:
             locked |= set(pair)
     return locked
+
+
+def months_between(first, last):
+    """The 'YYYY-MM' periods from first to last (dates), inclusive."""
+    out = []
+    if not first or not last or first > last:
+        return out
+    y, m = first.year, first.month
+    while (y, m) <= (last.year, last.month):
+        out.append("%04d-%02d" % (y, m))
+        y, m = (y + 1, 1) if m == 12 else (y, m + 1)
+    return out
 
 
 def notify(record, summary, note, group_xmlid=None):
