@@ -395,6 +395,40 @@ class FixVatReturn(models.Model):
                     "Return %s has no per-treatment breakdown matching its totals — "
                     "prepare it from the Mushak register before filing." % ret.period
                 )
+            # The register is re-read at filing (BRU-TAX-12): rows written
+            # after the last Prepare — Mushak 6.7/6.8 notes, event-driven
+            # adoptions — change the period's declaration without touching
+            # the stored snapshot or (for GL-less writes) the GL, so the
+            # preparation snapshot alone can never prove fileability.
+            start, next_start = _period_bounds(ret.period)
+            live_rows = self.env["fix.mushak.register"].search(
+                [
+                    ("company_id", "=", ret.company_id.id),
+                    ("invoice_date", ">=", start),
+                    ("invoice_date", "<", next_start),
+                ]
+            )
+            live_totals = return_logic.aggregate_register(
+                [(r.taxable_amount, r.vat_amount, r.treatment_summary or "") for r in live_rows]
+            )
+            live_unclassified = sorted(
+                k for k in live_totals if k.startswith(return_logic.UNCLASSIFIED_PREFIX)
+            )
+            if live_unclassified:
+                raise UserError(
+                    "The Mushak register for %s now holds supplies with no determinable "
+                    "VAT treatment (%s) — classify them and re-prepare before filing."
+                    % (ret.period, ", ".join(live_unclassified))
+                )
+            live_taxable = sum((t for t, _ in live_totals.values()), Decimal("0"))
+            live_vat = sum((v for _, v in live_totals.values()), Decimal("0"))
+            if live_taxable.quantize(Decimal("0.01")) != line_taxable.quantize(
+                Decimal("0.01")
+            ) or live_vat.quantize(Decimal("0.01")) != line_vat.quantize(Decimal("0.01")):
+                raise UserError(
+                    "The Mushak register for %s changed after this return was prepared — "
+                    "re-prepare it from the register before filing." % ret.period
+                )
             ret.sudo().action_subledger_reconciliation()
             if ret.subledger_status != "reconciled":
                 raise UserError(

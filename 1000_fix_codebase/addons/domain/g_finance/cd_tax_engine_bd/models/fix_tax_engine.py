@@ -723,6 +723,13 @@ class FixMushakRegister(models.Model):
                 out.append("%s: standard_15 @ %g%%" % (code, pct))
             elif Decimal(str(pct)) in rates.reduced:
                 out.append("%s: reduced @ %g%%" % (code, pct))
+            elif Decimal(str(pct)) == tax_logic.ZERO:
+                # A 0% line (export / exempt) is never dropped: dropping it
+                # left the row summarised as pure standard_15, silently
+                # declaring the 0% value on the 15% line of the Mushak 9.1.
+                # The kind is not derivable from the tax amount alone, so the
+                # row is flagged for classification instead of guessed.
+                out.append("%s: zero_or_exempt @ 0%%" % code)
         return "\n".join(out)
 
     @api.model

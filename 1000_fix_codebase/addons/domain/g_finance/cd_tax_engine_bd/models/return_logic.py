@@ -170,12 +170,32 @@ def _summary_treatments(summary: str) -> set[str]:
     return keys
 
 
+def _treatment_rate(key: str) -> Decimal | None:
+    """The VAT rate a treatment key itself declares, when it names one —
+    ``standard_15`` 15, ``reduced_<r>`` r, the 0% treatments 0; anything else
+    (``zero_or_exempt`` and unknown keys) names no rate."""
+    if key == "standard_15":
+        return Decimal("15")
+    if key.startswith("reduced_"):
+        try:
+            return Decimal(key[len("reduced_") :])
+        except ArithmeticError:
+            return None
+    if key in ("zero_rated", "exempt", "truncated"):
+        return Decimal("0")
+    return None
+
+
 def classify_register_row(taxable: Decimal | float, vat: Decimal | float, summary: str = "") -> str:
     """The Mushak 9.1 line a register row belongs to — never a silent default.
 
     1. The row's own ``treatment_summary``: when every line names the same
-       treatment, the row is that treatment (``standard_15``, ``reduced_<rate>``,
-       ``zero_rated``, ``exempt``, ``truncated``).
+       treatment AND the row's amounts agree with that treatment's rate
+       (within a paisa of rounding), the row is that treatment
+       (``standard_15``, ``reduced_<rate>``, ``zero_rated``, ``exempt``,
+       ``truncated``). A named treatment whose amounts disagree — e.g. a
+       summary that omits a 0% line while the row's VAT is short of the
+       standard rate — is NOT trusted: the row is flagged, never folded.
     2. A row WITHOUT a summary: its effective rate, when that identifies
        exactly one treatment (15 / 10 / 7.5 / 5 %, within a paisa of rounding).
     3. Anything else is summed per actual rate and visibly flagged, NOT folded
@@ -189,7 +209,13 @@ def classify_register_row(taxable: Decimal | float, vat: Decimal | float, summar
     vat_d = Decimal(str(vat or 0))
     named = _summary_treatments(summary)
     if len(named) == 1:
-        return named.pop()
+        only = next(iter(named))
+        rate = _treatment_rate(only)
+        if rate is not None and abs(vat_d - taxable_d * rate / 100) <= TWO:
+            return only
+        # The amounts disagree with the named treatment, or the key names no
+        # rate (zero_or_exempt: the 0% kind is unknown): fall through to the
+        # flagged paths — a summary is corroborated, never blindly trusted.
     if taxable_d == 0:
         return f"{UNCLASSIFIED_PREFIX}_rate_0" if vat_d == 0 else f"{UNCLASSIFIED_PREFIX}_vat_only"
     effective = (vat_d * 100 / taxable_d).quantize(TWO, ROUND_HALF_UP)
