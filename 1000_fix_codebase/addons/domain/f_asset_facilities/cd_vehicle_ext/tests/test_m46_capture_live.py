@@ -59,7 +59,7 @@ def f(odoo_env):
         )
         return u
 
-    x = types.SimpleNamespace(env=env)
+    x = types.SimpleNamespace(env=env, ou=ou)
     x.today = dhaka_today(env["fix.vehicle.check"])
     x.clerk = user("m46cap_clerk")
     x.officer, x.officer2 = user("m46cap_off", [OFFICER]), user("m46cap_off2", [OFFICER])
@@ -82,6 +82,7 @@ def f(odoo_env):
         return env["fix.vehicle.document"].with_user(user or x.officer).create(vals)
 
     def vehicle(plate, **kw):
+        kw.setdefault("operating_unit_id", ou.id)  # A07 ERP audit M46-04
         v = env["fleet.vehicle"].create({"model_id": x.model.id, "license_plate": plate, **kw})
         for doc_type in ("fitness", "insurance", "tax"):
             doc(v, doc_type, x.today + timedelta(days=200))
@@ -112,13 +113,37 @@ def f(odoo_env):
 
 
 # ------------------------------------------------------------------ renewal
+@pytest.fixture
+def m52(f, monkeypatch):
+    """A07 ERP audit: capture the M52 hand-off (the cost types are stream S6's)."""
+    from odoo.addons.cd_vehicle_ext.models import fix_vehicle_ops as ops
+
+    calls = []
+    real = ops.m52_cost_types
+    monkeypatch.setattr(
+        type(f.env["fix.asset.cost.entry"]),
+        "_m52_queue",
+        lambda self, record, vals: calls.append((record, dict(vals))) or self.browse(),
+    )
+    monkeypatch.setattr(
+        ops,
+        "m52_cost_types",
+        lambda env: real(env) | {"vehicle_renewal", "vehicle_fine", "vehicle_insurance_excess"},
+    )
+    return calls
+
+
 def _renewal(f, user=None, **kw):
     fitness = f.van.document_ids.filtered(lambda d: d.doc_type == "fitness")[:1]
     vals = {"document_id": fitness.id, "responsible_employee_id": f.runner.id, **kw}
+    # A07 ERP audit (money contract): the fees name how they were paid
+    vals.setdefault("payment_method", "vendor_bill")
+    vals.setdefault("vendor_id", f.garage.id)
+    vals.setdefault("invoice_ref", "BRTA-RCPT-1")
     return f.env["fix.vehicle.document.renewal"].with_user(user or f.officer).create(vals)
 
 
-def test_a_renewal_completes_only_on_the_new_scanned_certificate(f):
+def test_a_renewal_completes_only_on_the_new_scanned_certificate(f, m52):
     assert refused(f.env, lambda: _renewal(f, user=f.clerk)), "a plain employee opened a renewal"
     ren = _renewal(f, government_fee=1200.0, agent_fee=300.0)
     assert ren.vehicle_id == f.van and ren.doc_type == "fitness" and ren.total_cost == 1500.0
@@ -143,7 +168,7 @@ def test_a_renewal_completes_only_on_the_new_scanned_certificate(f):
     assert refused(f.env, lambda: ren.unlink())
 
 
-def test_a_lapse_penalty_needs_its_reason_and_a_second_officer(f):
+def test_a_lapse_penalty_needs_its_reason_and_a_second_officer(f, m52):
     ren = _renewal(f, government_fee=1200.0, penalty=500.0)
     ren.action_submit()
     ren.write({"new_document_id": f.doc(f.van, "fitness", f.today + timedelta(days=565)).id})
@@ -155,7 +180,7 @@ def test_a_lapse_penalty_needs_its_reason_and_a_second_officer(f):
     assert ren.state == "completed" and ren.completed_by_id == f.officer2
 
 
-def test_renewal_fees_are_running_cost(f):
+def test_renewal_fees_are_running_cost(f, m52):
     ren = _renewal(f, government_fee=1200.0, agent_fee=300.0)
     ren.action_submit()
     ren.write({"new_document_id": f.doc(f.van, "fitness", f.today + timedelta(days=565)).id})
@@ -219,6 +244,7 @@ def test_a_garage_service_names_its_invoice_and_opens_the_next(f):
                 "odometer": 12000,
                 "cost": 3500.0,
                 "provider_id": f.garage.id,
+                "payment_method": "vendor_bill",
                 "work_performed": "oil and filter",
                 "next_due_odometer": 17000,
                 "next_due_date": f.today + timedelta(days=90),
@@ -278,10 +304,18 @@ def test_a_snapshot_belongs_to_the_fitted_device(f):
 
 
 # ------------------------------------------------------------------ penalty
-def test_a_fine_is_the_driver_on_duty_and_decided_by_another_manager(f):
+def test_a_fine_is_the_driver_on_duty_and_decided_by_another_manager(f, m52):
     drv = f.driver("M46CAP Driver")
     Pen = f.env["fix.vehicle.penalty"]
-    vals = {"vehicle_id": f.van.id, "offence": "wrong-way driving", "amount": 2000.0}
+    vals = {
+        "vehicle_id": f.van.id,
+        "offence": "wrong-way driving",
+        "amount": 2000.0,
+        # A07 ERP audit M46-14: paid through AP to the authority
+        "payment_method": "vendor_bill",
+        "vendor_id": f.garage.id,
+        "case_ref": "DMP-1",
+    }
     assert refused(f.env, lambda: Pen.with_user(f.clerk).create(vals)), "a clerk recorded a fine"
     assert "driver on duty" in refused(f.env, lambda: Pen.with_user(f.lm).create(vals))
     f.env["fix.vehicle.assignment"].with_user(f.officer).create(
@@ -303,7 +337,12 @@ def test_only_an_owned_vehicle_is_capitalised(f):
     assert "names its contract" in refused(
         f.env,
         lambda: V.with_user(f.lm).create(
-            {"model_id": f.model.id, "license_plate": "M46CAP-L1", "fix_ownership_basis": "leased"}
+            {
+                "model_id": f.model.id,
+                "license_plate": "M46CAP-L1",
+                "fix_ownership_basis": "leased",
+                "operating_unit_id": f.ou.id,
+            }
         ),
     )
     assert refused(
@@ -312,6 +351,7 @@ def test_only_an_owned_vehicle_is_capitalised(f):
             {
                 "model_id": f.model.id,
                 "license_plate": "M46CAP-L2",
+                "operating_unit_id": f.ou.id,
                 "fix_ownership_basis": "leased",
                 "fix_contract_ref": "LEASE-1",
                 "fix_contract_end": f.today + timedelta(days=700),
@@ -322,6 +362,7 @@ def test_only_an_owned_vehicle_is_capitalised(f):
         {
             "model_id": f.model.id,
             "license_plate": "M46CAP-L3",
+            "operating_unit_id": f.ou.id,
             "fix_ownership_basis": "leased",
             "fix_contract_ref": "LEASE-1",
             "fix_contract_end": f.today + timedelta(days=700),
@@ -329,7 +370,12 @@ def test_only_an_owned_vehicle_is_capitalised(f):
         }
     )
     owned = V.with_user(f.lm).create(
-        {"model_id": f.model.id, "license_plate": "M46CAP-O1", "net_car_value": 2500000.0}
+        {
+            "model_id": f.model.id,
+            "license_plate": "M46CAP-O1",
+            "net_car_value": 2500000.0,
+            "operating_unit_id": f.ou.id,
+        }
     )
     Req = f.env["fix.asset.finance.request"].sudo()
 

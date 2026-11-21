@@ -24,3 +24,9 @@ access_fix_telematics_device,fix.telematics.device,model_fix_telematics_device,b
 access_fix_telematics_device_officer,fix.telematics.device fleet officer,model_fix_telematics_device,fleet.fleet_group_user,1,1,1,0
 access_fix_vehicle_penalty,fix.vehicle.penalty,model_fix_vehicle_penalty,base.group_user,1,0,0,0
 access_fix_vehicle_penalty_officer,fix.vehicle.penalty fleet officer,model_fix_vehicle_penalty,fleet.fleet_group_user,1,1,1,0
+access_fix_vehicle_penalty_dofa,fix.vehicle.penalty DOFA approver,model_fix_vehicle_penalty,cd_entity_config.group_dofa_tier_3,1,1,0,0
+access_fix_vehicle_disposal,fix.vehicle.disposal fleet officer,model_fix_vehicle_disposal,fleet.fleet_group_user,1,0,0,0
+access_fix_vehicle_disposal_lm,fix.vehicle.disposal logistics manager,model_fix_vehicle_disposal,group_logistics_manager,1,1,1,0
+access_fix_vehicle_disposal_cfo,fix.vehicle.disposal CFO approver,model_fix_vehicle_disposal,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_vehicle_class_profile,fix.vehicle.class.profile,model_fix_vehicle_class_profile,base.group_user,1,0,0,0
+access_fix_vehicle_class_profile_officer,fix.vehicle.class.profile fleet officer,model_fix_vehicle_class_profile,fleet.fleet_group_user,1,1,1,0

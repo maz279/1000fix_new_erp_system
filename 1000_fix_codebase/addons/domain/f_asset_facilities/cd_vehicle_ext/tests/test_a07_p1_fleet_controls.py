@@ -94,6 +94,8 @@ def f(odoo_env):
         return env["fix.vehicle.document"].with_user(user or x.officer).create(vals)
 
     def vehicle(plate, model=None, days=200, **kw):
+        # A07 ERP audit M46-04: a vehicle is costed on its operating unit
+        kw.setdefault("operating_unit_id", ou.id)
         v = env["fleet.vehicle"].create(
             {"model_id": (model or x.van_model).id, "license_plate": plate, **kw}
         )
@@ -134,6 +136,9 @@ def f(odoo_env):
             "amount": amount,
         }
         vals.update(kw)
+        # A07 ERP audit (money contract): a fill names how it was paid
+        vals.setdefault("payment_method", "fuel_card")
+        vals.setdefault("fuel_card_ref", "CARD-TEST")
         return env["fix.vehicle.fuel"].with_user(user or x.clerk).create(vals)
 
     def events(event_type, record):

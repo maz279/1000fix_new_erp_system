@@ -78,8 +78,14 @@ def c(odoo_env):
     x.approver = _user(env, f"{TAG.lower()}_appr", [TIER_2])
     brand = env["fleet.vehicle.model.brand"].create({"name": f"{TAG} Brand"})
     model = env["fleet.vehicle.model"].create({"name": f"{TAG} Van", "brand_id": brand.id})
-    x.van = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-1"})
-    x.van2 = env["fleet.vehicle"].create({"model_id": model.id, "license_plate": f"{TAG}-2"})
+    # A07 ERP audit M46-04: a vehicle is costed on its operating unit
+    ou = env["operating.unit"].search([], limit=1)
+    x.van = env["fleet.vehicle"].create(
+        {"model_id": model.id, "license_plate": f"{TAG}-1", "operating_unit_id": ou.id}
+    )
+    x.van2 = env["fleet.vehicle"].create(
+        {"model_id": model.id, "license_plate": f"{TAG}-2", "operating_unit_id": ou.id}
+    )
     x.insurer = env["res.partner"].create({"name": f"{TAG} Insurer", "is_insurer": True})
     emp = env["hr.employee"].create({"name": f"{TAG} Driver"})
     x.driver = env["fix.driver"].create(
@@ -139,6 +145,9 @@ def fill(c, odometer, litres=40.0, amount=4500.0, user=None, vehicle=None, **kw)
         "amount": amount,
     }
     vals.update(kw)
+    # A07 ERP audit (money contract): a fill names how it was paid
+    vals.setdefault("payment_method", "fuel_card")
+    vals.setdefault("fuel_card_ref", "CARD-TEST")
     return c.env["fix.vehicle.fuel"].with_user(user or c.clerk).create(vals)
 
 

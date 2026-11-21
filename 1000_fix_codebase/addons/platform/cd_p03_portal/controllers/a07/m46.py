@@ -6,14 +6,35 @@ import itertools
 
 from odoo import fields
 
-from ..p03_service_order_api import _company_domain
+from .writable import WRITABLE
 
 SURFACES = {
     "fleet.vehicle": {
         "order": "name",
         "limit": 300,
-        # Retire: a Logistics Manager's decision, with a reason (M49 reads it).
-        "actions": {"action_assert_dispatchable", "action_retire"},
+        # A07 ERP audit M46-10: a vehicle leaves only through a CFO-approved
+        # disposal (Vehicle Disposals); M46-25: a registered vehicle is
+        # commissioned by a Fleet Officer.
+        "actions": {"action_assert_dispatchable", "action_commission"},
+        "pickers": {"branch_id": [], "fix_class_profile_id": []},
+    },
+    # A07 ERP audit M46-10 (BRU-FLT-20, D10): route, proceeds, buyer, CFO.
+    "fix.vehicle.disposal": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {
+            "action_request_approval",
+            "action_recall_approval",
+            "action_complete",
+            "action_cancel",
+        },
+        "pickers": {"vehicle_id": [("active", "=", True)]},
+    },
+    # A07 ERP audit M46-19: class profiles (documents, licence, tank, baseline).
+    "fix.vehicle.class.profile": {
+        "order": "name",
+        "limit": 200,
+        "actions": set(),
     },
     # The catalogue a vehicle's required model comes from.
     "fleet.vehicle.model": {
@@ -58,7 +79,7 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_done"},
         # the garage that did the work (FR-FLT-027)
-        "pickers": {"provider_id": [("is_company", "=", True)]},
+        "pickers": {"provider_id": [("is_company", "=", True)], "paid_by_employee_id": []},
     },
     # A07 P0 recipe M46-9: a held fill is reviewed by someone other than
     # its recorder.
@@ -66,6 +87,8 @@ SURFACES = {
         "order": "filled_on desc, id desc",
         "limit": 400,
         "actions": {"action_clear_exception", "action_reject_fill", "action_correct_odometer"},
+        # A07 ERP audit M46-02/03: the station billed, or the employee who paid
+        "pickers": {"vendor_id": [("is_company", "=", True)], "paid_by_employee_id": []},
     },
     "fix.vehicle.telemetry": {
         "order": "last_ping desc, id desc",
@@ -85,7 +108,11 @@ SURFACES = {
             "action_add_insurer",
         },
         # An insurer is not every partner of 15,000.
-        "pickers": {"insurer_id": [("is_insurer", "=", True)]},
+        "pickers": {
+            "insurer_id": [("is_insurer", "=", True)],
+            "excess_vendor_id": [("is_company", "=", True)],
+            "repair_pm_id": [],
+        },
     },
     # Capture audit 2026-11-17: the four registers the sub-module pages had
     # no record for (models/fix_vehicle_capture.py in cd_vehicle_ext).
@@ -94,7 +121,10 @@ SURFACES = {
         "limit": 300,
         "actions": {"action_submit", "action_complete", "action_cancel"},
         # the renewed certificate is one already recorded with its scan
-        "pickers": {"new_document_id": [("has_evidence", "=", True)]},
+        "pickers": {
+            "new_document_id": [("has_evidence", "=", True)],
+            "vendor_id": [("is_company", "=", True)],
+        },
     },
     "fix.vehicle.defect": {
         "order": "raised_on desc, id desc",
@@ -110,9 +140,21 @@ SURFACES = {
     "fix.vehicle.penalty": {
         "order": "issued_on desc, id desc",
         "limit": 300,
-        "actions": {"action_recover", "action_absorb"},
+        # A07 ERP audit M46-14 (D11): above the LM limit the decision is
+        # routed to the Operations Director / CFO (M63); a pending one can be
+        # recalled.
+        "actions": {"action_recover", "action_absorb", "action_recall_approval"},
+        "pickers": {"vendor_id": [("is_company", "=", True)]},
     },
 }
+
+
+# A surface added by the A07 ERP audit is served once writable.py (generated
+# from the workspace forms) lists it; until it is regenerated the package
+# would refuse to load (a07/__init__.py reads WRITABLE[model] for each).
+for _new in ("fix.vehicle.disposal", "fix.vehicle.class.profile"):
+    if _new not in WRITABLE:
+        SURFACES.pop(_new)
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -132,8 +174,31 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 # read. sudo() stays (the packs aggregate over models a plain user may not
 # list), and the company fence is re-applied: on fleet.vehicle directly, and
 # on the M46 ops models (no company_id) through their vehicle.
-def _vehicles(env):
-    return env["fleet.vehicle"].sudo().search(_company_domain(env, "fleet.vehicle"))
+# A07 ERP audit (2026-11-20) M46-17: the fence is the companies SELECTED in
+# the session (env.companies), not every company the user may switch to, and
+# the user's operating units (T-13: a branch sees its own fleet; a vehicle
+# with no unit stays visible, as in the record rules). M46-16: a pack over a
+# period includes the vehicles retired since, so a past period's figures do
+# not change when a van is disposed of later.
+def _ou_domain(env, field="operating_unit_id"):
+    user = env.user
+    # the superuser (crons, data checks) is not a branch user
+    if env.su or "operating_unit_ids" not in user._fields:
+        return []
+    return ["|", (field, "=", False), (field, "in", user.operating_unit_ids.ids)]
+
+
+def _vehicles(env, with_retired=False):
+    domain = [
+        "|",
+        ("company_id", "=", False),
+        ("company_id", "in", env.companies.ids),
+        *_ou_domain(env),
+    ]
+    Vehicle = env["fleet.vehicle"].sudo()
+    if with_retired:
+        Vehicle = Vehicle.with_context(active_test=False)
+    return Vehicle.search(domain)
 
 
 def _scoped(env, model, vehicles, extra=None):
@@ -141,11 +206,12 @@ def _scoped(env, model, vehicles, extra=None):
 
 
 def _vehicle_name(vehicle):
-    return getattr(vehicle, "name", None) or vehicle.license_plate or "—"
+    name = getattr(vehicle, "name", None) or vehicle.license_plate or "—"
+    return name if vehicle.active else "%s (retired)" % name
 
 
 def _drivers(env):
-    ids = env.user.company_ids.ids
+    ids = env.companies.ids
     return (
         env["fix.driver"]
         .sudo()
@@ -243,9 +309,14 @@ def _measure(fills):
 
 
 def driver_behaviour(env, date_from=None, date_to=None, **params):
-    vehicles = _vehicles(env)
-    checks = _scoped(env, "fix.vehicle.check", vehicles)
-    accidents = _scoped(env, "fix.vehicle.accident", vehicles)
+    date_from, date_to = _day(date_from), _day(date_to)
+    vehicles = _vehicles(env, with_retired=True)
+    checks = _scoped(env, "fix.vehicle.check", vehicles).filtered(
+        lambda c: _in_period(c.checked_on, date_from, date_to)
+    )
+    accidents = _scoped(env, "fix.vehicle.accident", vehicles).filtered(
+        lambda a: _in_period(a.occurred_on, date_from, date_to)
+    )
     rows = []
     for driver in _drivers(env):
         driver_checks = checks.filtered(lambda c, d=driver.id: c.driver_id.id == d)
@@ -276,7 +347,11 @@ def driver_behaviour(env, date_from=None, date_to=None, **params):
             "damage": "Damage Cost",
         },
         rows,
-        ["Recorded pre-use checks and recorded accidents only; no telematics scoring is claimed."],
+        [
+            _period_note(date_from, date_to),
+            "Recorded pre-use checks and recorded accidents only; no telematics scoring is "
+            "claimed.",
+        ],
         empty="No drivers registered yet.",
     )
 
@@ -292,9 +367,41 @@ def _period_note(date_from, date_to):
     return "Period %s → %s." % (date_from or "…", date_to or "…")
 
 
+# FIN-20 (R2a, 2026-11-21): what the ledger knows about a vehicle beyond its
+# fuel, PM and renewals (vehicle._fix_tco, cd_asset_finance_hse_bridge): M49
+# book depreciation, insurance premium and excess, fines absorbed, lease rent,
+# repairs through a facility work order not tied to a PM, less insurer
+# settlements. Fuel / PM / renewals stay read from their source records (their
+# posted cost entries are the same money), so nothing is counted twice.
+TCO_EXTRA = {
+    "depreciation": ("depreciation",),
+    "insurance": ("vehicle_insurance", "vehicle_insurance_excess"),
+    "fines": ("vehicle_fine",),
+    "lease_rent": ("vehicle_lease_rent",),
+    "repairs": ("facility_work_order",),
+    "insurance_recovered": ("insurance_recovered",),
+}
+
+
+def _vehicle_tco(vehicle, date_from, date_to):
+    """The ledger costs of TCO_EXTRA for the period (zeros without the bridge)."""
+    out = dict.fromkeys(TCO_EXTRA, 0.0)
+    out["provisional"] = 0.0
+    tco = getattr(vehicle, "_fix_tco", None)
+    if not tco:
+        return out
+    start = date_from or datetime.date(2000, 1, 1)
+    end = date_to or fields.Date.context_today(vehicle.with_context(tz="Asia/Dhaka"))
+    figures = tco(start, end)
+    for column, keys in TCO_EXTRA.items():
+        out[column] = round(sum(figures.get(k, 0.0) for k in keys), 2)
+    out["provisional"] = figures.get("provisional", 0.0)
+    return out
+
+
 def cost_per_km(env, date_from=None, date_to=None, **params):
     date_from, date_to = _day(date_from), _day(date_to)
-    vehicles = _vehicles(env)
+    vehicles = _vehicles(env, with_retired=True)
     fuels = _period_fills(env, vehicles, date_from, date_to)
     # a PM job belongs to the day it was done, else the day it was scheduled;
     # an open job's cost is an estimate, not a cost
@@ -320,8 +427,10 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             ),
             2,
         )
+        tco = _vehicle_tco(vehicle, date_from, date_to)
+        ledger = round(sum(tco[k] for k in TCO_EXTRA), 2)
         pm_cost_only = pm_cost
-        pm_cost = round(pm_cost + doc_cost, 2)  # the running cost beside fuel
+        pm_cost = round(pm_cost + doc_cost + ledger, 2)  # the running cost beside fuel
         km = f2f["km"]
         rows.append(
             {
@@ -333,18 +442,23 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
                 "fuel_in_range": f2f["fuel_in_range"],
                 "pm_cost": pm_cost_only,
                 "document_cost": doc_cost,
+                **{k: tco[k] for k in TCO_EXTRA},
                 "total_cost": round(f2f["spend"] + pm_cost, 2),
                 "cost_per_km": round((f2f["fuel_in_range"] + pm_cost) / km, 2) if km else None,
+                "unposted": tco["provisional"],
                 "basis": f2f["basis"],
             }
         )
     rows.sort(key=lambda r: (r["cost_per_km"] is None, -(r["cost_per_km"] or 0)))
     measured = [r for r in rows if r["km"]]
     return _pack(
-        "Cost per Kilometre — fuel, PM and document renewals over the measured distance",
+        "Cost per Kilometre — fuel, PM, renewals and the ledger's vehicle costs over the "
+        "measured distance",
         [
             "vehicle", "plate", "fills", "km", "fuel_cost", "fuel_in_range",
-            "pm_cost", "document_cost", "total_cost", "cost_per_km", "basis",
+            "pm_cost", "document_cost", "depreciation", "insurance", "fines",
+            "lease_rent", "repairs", "insurance_recovered", "total_cost",
+            "cost_per_km", "unposted", "basis",
         ],
         {
             "vehicle": "Vehicle",
@@ -355,22 +469,34 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             "fuel_in_range": "Fuel in Range",
             "pm_cost": "PM Cost",
             "document_cost": "Document Renewals",
+            "depreciation": "Depreciation",
+            "insurance": "Insurance",
+            "fines": "Fines Absorbed",
+            "lease_rent": "Lease Rent",
+            "repairs": "Other Repairs",
+            "insurance_recovered": "Insurer Recovered",
             "total_cost": "Total Spend",
             "cost_per_km": "Cost / km",
+            "unposted": "Not Yet Posted",
             "basis": "Basis",
         },
         rows,
         [
             _period_note(date_from, date_to),
             "Measured km = last − first fuel odometer in the period. Cost / km = "
-            "(fuel of the fills after the first + PM cost + document renewals) / measured "
-            "km: the first fill's fuel was burnt before the range began. PM cost counts "
-            "completed services only; document renewals count the government fee, agent "
-            "fee and penalty of renewals completed in the period.",
+            "(fuel of the fills after the first + PM cost + document renewals + the ledger's "
+            "vehicle costs) / measured km: the first fill's fuel was burnt before the range "
+            "began. PM cost counts completed services only; document renewals count the "
+            "government fee, agent fee and penalty of renewals completed in the period.",
+            "Ledger vehicle costs (FIN-20) are POSTED amounts: M49 book depreciation of the "
+            "vehicle's fixed asset, insurance premium and excess, traffic fines the company "
+            "absorbed, lease rent, repairs through a work order not tied to a PM, less "
+            "insurer settlements. Cost entries not yet posted are shown apart (Not Yet "
+            "Posted) and left out of the figure.",
             "Provisional (no figure) where the period has fewer than two fills or the "
             "odometer goes backwards. A fill held by a fuel exception rule is left out "
             "until the Logistics Manager reviews it, and the row is provisional. "
-            "Depreciation, insurance premium and downtime are not included.",
+            "Downtime is not included.",
         ],
         totals={
             "vehicle": "Total",
@@ -378,7 +504,9 @@ def cost_per_km(env, date_from=None, date_to=None, **params):
             "fuel_cost": round(sum(r["fuel_cost"] for r in rows), 2),
             "pm_cost": round(sum(r["pm_cost"] for r in rows), 2),
             "document_cost": round(sum(r["document_cost"] for r in rows), 2),
+            **{k: round(sum(r[k] for r in rows), 2) for k in TCO_EXTRA},
             "total_cost": round(sum(r["total_cost"] for r in rows), 2),
+            "unposted": round(sum(r["unposted"] for r in rows), 2),
         },
         empty="No vehicles registered yet.",
     )  # fmt: skip
@@ -452,14 +580,28 @@ def fleet_availability(env, date_from=None, date_to=None, **params):
     )
 
 
+def _efficiency_flag(km_per_litre, baseline, pct):
+    """A07 ERP audit M46-19 (FR-FLT-033): measured km/l this far below the
+    vehicle's baseline is deterioration. No baseline or no threshold: no flag
+    (nothing is invented)."""
+    if km_per_litre is None or not baseline:
+        return "—"
+    if not pct:
+        return "no threshold set"
+    floor = baseline * (1 - pct / 100.0)
+    return "DETERIORATED" if km_per_litre < floor else "ok"
+
+
 def fuel_efficiency(env, date_from=None, date_to=None, **params):
     date_from, date_to = _day(date_from), _day(date_to)
-    vehicles = _vehicles(env)
+    vehicles = _vehicles(env, with_retired=True)
     fuels = _period_fills(env, vehicles, date_from, date_to)
     rows = []
     for vehicle in vehicles:
         f2f = _fill_to_fill(fuels.filtered(lambda f, vid=vehicle.id: f.vehicle_id.id == vid))
         km, litres = f2f["km"], f2f["litres_in_range"]
+        kml = round(km / litres, 2) if km and litres else None
+        baseline, pct = vehicle._fix_fuel_baseline()
         rows.append(
             {
                 "vehicle": _vehicle_name(vehicle),
@@ -467,7 +609,9 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
                 "litres": f2f["litres"],
                 "km": km,
                 "litres_in_range": litres,
-                "km_per_litre": round(km / litres, 2) if km and litres else None,
+                "km_per_litre": kml,
+                "baseline": round(baseline, 2) if baseline else None,
+                "flag": _efficiency_flag(kml, baseline, pct),
                 "spend": f2f["spend"],
                 "basis": f2f["basis"],
             }
@@ -476,7 +620,18 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
     measured = [r for r in rows if r["km"]]
     return _pack(
         "Fuel Efficiency Trend — km per litre, fill to fill",
-        ["vehicle", "records", "litres", "km", "litres_in_range", "km_per_litre", "spend", "basis"],
+        [
+            "vehicle",
+            "records",
+            "litres",
+            "km",
+            "litres_in_range",
+            "km_per_litre",
+            "baseline",
+            "flag",
+            "spend",
+            "basis",
+        ],
         {
             "vehicle": "Vehicle",
             "records": "Fills",
@@ -484,6 +639,8 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
             "km": "Measured km",
             "litres_in_range": "Litres in Range",
             "km_per_litre": "km/l",
+            "baseline": "Baseline km/l",
+            "flag": "Deterioration",
             "spend": "Spend",
             "basis": "Basis",
         },
@@ -494,6 +651,9 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
             "first; provisional (no figure) with fewer than two fills or a backwards "
             "odometer. Fills held for review are left out until reviewed. Fuel-card "
             "imports are M52's; these are recorded transactions.",
+            "Baseline = the vehicle's own baseline km/l, else its class profile's. "
+            "DETERIORATED = km/l below the baseline by more than the class profile's "
+            "threshold (%).",
         ],
         totals={
             "vehicle": "Total",
@@ -506,8 +666,12 @@ def fuel_efficiency(env, date_from=None, date_to=None, **params):
 
 
 def maintenance_cost(env, date_from=None, date_to=None, **params):
-    vehicles = _vehicles(env)
-    pms = _scoped(env, "fix.vehicle.pm", vehicles)
+    date_from, date_to = _day(date_from), _day(date_to)
+    vehicles = _vehicles(env, with_retired=True)
+    # a job belongs to the day it was done, else the day it was scheduled
+    pms = _scoped(env, "fix.vehicle.pm", vehicles).filtered(
+        lambda p: _in_period(p.done_on or p.scheduled_on, date_from, date_to)
+    )
     rows = []
     for vehicle in vehicles:
         records = pms.filtered(lambda p, vid=vehicle.id: p.vehicle_id.id == vid)
@@ -534,8 +698,9 @@ def maintenance_cost(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
+            _period_note(date_from, date_to),
             "Recorded PM/repair jobs only; parts drawn from M15 are not double-counted here. "
-            "Cost counts completed jobs: the figure on an open job is an estimate."
+            "Cost counts completed jobs: the figure on an open job is an estimate.",
         ],
         totals={
             "vehicle": "Total",
@@ -622,7 +787,10 @@ def statutory_compliance(env, date_from=None, date_to=None, **params):
 
 
 def incident_summary(env, date_from=None, date_to=None, **params):
-    accidents = _scoped(env, "fix.vehicle.accident", _vehicles(env))
+    date_from, date_to = _day(date_from), _day(date_to)
+    accidents = _scoped(env, "fix.vehicle.accident", _vehicles(env, with_retired=True)).filtered(
+        lambda a: _in_period(a.occurred_on, date_from, date_to)
+    )
     rows = []
     for record in accidents:
         rows.append(
@@ -650,7 +818,10 @@ def incident_summary(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Reported → claimed → closed; the claim reference is recorded when filed."],
+        [
+            _period_note(date_from, date_to),
+            "Reported → claimed → closed; the claim reference is recorded when filed.",
+        ],
         totals={"accident": "Total", "damage_cost": round(sum(r["damage_cost"] for r in rows), 2)},
         empty="No incidents recorded.",
     )
@@ -700,6 +871,254 @@ def insurers(env, date_from=None, date_to=None, **params):
     )
 
 
+# ------------------------------------------------------------------ documents
+# A07 ERP audit (2026-11-20) M46-22 / D18: the printable fleet documents. Each
+# is a pack with its own filter; the report bar's PDF is the company document
+# (letterhead, meta, notes), so the screen and the print never differ.
+def _pick(options, chosen):
+    return chosen if chosen in options else None
+
+
+def vehicle_logbook(env, date_from=None, date_to=None, vehicle=None, **params):
+    """The vehicle's history card: every recorded event, oldest first."""
+    date_from, date_to = _day(date_from), _day(date_to)
+    vehicles = _vehicles(env, with_retired=True)
+    options = sorted(v.license_plate for v in vehicles if v.license_plate)
+    filters = [{"key": "vehicle", "label": "Vehicle (plate)", "options": options[:500]}]
+    plate = _pick(options, vehicle)
+    cols = ["day", "kind", "ref", "detail", "odometer", "amount", "by"]
+    labels = {
+        "day": "Date",
+        "kind": "Event",
+        "ref": "Record",
+        "detail": "Detail",
+        "odometer": "Odometer (km)",
+        "amount": "Amount (BDT)",
+        "by": "Recorded / Decided By",
+    }
+    if not plate:
+        out = _pack(
+            "Vehicle Logbook",
+            cols,
+            labels,
+            [],
+            ["Choose the vehicle in the filter above."],
+            empty="Pick a vehicle in the filter above.",
+        )
+        out["filters"] = filters
+        return out
+    v = vehicles.filtered(lambda x: x.license_plate == plate)[:1]
+    rows = []
+
+    def add(day, kind, rec, detail, odometer=None, amount=None, by=None):
+        if _in_period(day, date_from, date_to) or (not date_from and not date_to and day):
+            rows.append(
+                {
+                    "day": str(day),
+                    "kind": kind,
+                    "ref": rec.display_name,
+                    "detail": detail,
+                    "odometer": odometer or None,
+                    "amount": round(amount, 2) if amount else None,
+                    "by": by or "—",
+                }
+            )
+
+    for d in _scoped(env, "fix.vehicle.document", v):
+        add(
+            d.valid_from or d.create_date.date(),
+            "Document",
+            d,
+            "%s %s valid to %s (%s)"
+            % (d.doc_type, d.number or "-", d.valid_to or "-", d.evidence_status),
+        )
+    for c in _scoped(env, "fix.vehicle.check", v):
+        add(
+            c.checked_on,
+            "Pre-use check",
+            c,
+            "passed" if c.passed else "FAILED: %s" % (c.defects or "-"),
+            c.odometer,
+            by=c.create_uid.name,
+        )
+    for f in _scoped(env, "fix.vehicle.fuel", v):
+        add(
+            f.filled_on,
+            "Fuel",
+            f,
+            "%s L at %s (%s)" % (f.litres, f.station or "-", f.review_state),
+            f.odometer,
+            f.amount,
+            f.create_uid.name,
+        )
+    for p in _scoped(env, "fix.vehicle.pm", v, [("state", "=", "done")]):
+        add(
+            p.done_on,
+            "Service",
+            p,
+            "%s at %s" % (p.pm_type, p.provider_id.name or "-"),
+            p.odometer,
+            p.cost,
+            p.done_by_id.name,
+        )
+    for o in _scoped(env, "fix.vehicle.offroad", v):
+        add(o.started_on, "Off road", o, o.reason or "-", by=o.raised_by_id.name)
+        if o.ended_on:
+            add(o.ended_on, "Returned to service", o, o.name, by=o.returned_by_id.name)
+    for a in _scoped(env, "fix.vehicle.accident", v):
+        add(
+            a.occurred_on,
+            "Accident",
+            a,
+            "%s (%s)" % ((a.description or "")[:80], a.state),
+            amount=a.damage_cost,
+            by=a.create_uid.name,
+        )
+    for r in _scoped(env, "fix.vehicle.document.renewal", v, [("state", "=", "completed")]):
+        add(
+            r.completed_on,
+            "Document renewal",
+            r,
+            r.doc_type,
+            amount=r.total_cost,
+            by=r.completed_by_id.name,
+        )
+    for p in _scoped(env, "fix.vehicle.penalty", v):
+        add(
+            p.issued_on,
+            "Traffic fine",
+            p,
+            "%s (%s)" % (p.offence, p.recovery_decision or p.state),
+            amount=p.amount,
+            by=p.decided_by_id.name or p.recorded_by_id.name,
+        )
+    for d in _scoped(env, "fix.vehicle.disposal", v, [("state", "=", "done")]):
+        add(
+            d.done_on,
+            "Disposal",
+            d,
+            "%s to %s" % (d.route, d.buyer_id.name or "-"),
+            amount=d.proceeds,
+            by=d.done_by_id.name,
+        )
+    rows.sort(key=lambda r: (r["day"], r["kind"]))
+    out = _pack(
+        "Vehicle Logbook — %s" % _vehicle_name(v),
+        cols,
+        labels,
+        rows,
+        [
+            _period_note(date_from, date_to),
+            "Branch: %s. Ownership: %s. Every event recorded in M46 for this vehicle."
+            % (v.branch_id.display_name or "—", v.fix_ownership_basis),
+        ],
+        empty="Nothing recorded for this vehicle in the period.",
+    )
+    out["filters"] = filters
+    return out
+
+
+def disposal_gate_pass(env, date_from=None, date_to=None, disposal=None, **params):
+    """The gate pass a disposed vehicle leaves the premises on (BRU-FLT-20)."""
+    vehicles = _vehicles(env, with_retired=True)
+    done = _scoped(env, "fix.vehicle.disposal", vehicles, [("state", "=", "done")])
+    options = sorted(done.mapped("name"))
+    filters = [{"key": "disposal", "label": "Disposal", "options": options[:500]}]
+    name = _pick(options, disposal)
+    cols = ["field", "value"]
+    labels = {"field": "", "value": ""}
+    if not name:
+        out = _pack(
+            "Vehicle Disposal Gate Pass",
+            cols,
+            labels,
+            [],
+            ["Choose a completed disposal in the filter above."],
+            empty="Pick a completed disposal in the filter above.",
+        )
+        out["filters"] = filters
+        return out
+    d = done.filtered(lambda x: x.name == name)[:1]
+    routes = dict(d._fields["route"].selection)
+    rows = [
+        {"field": f, "value": val}
+        for f, val in (
+            ("Disposal", d.name),
+            ("Vehicle", _vehicle_name(d.vehicle_id)),
+            ("Licence plate", d.vehicle_id.license_plate or "—"),
+            ("Route", routes.get(d.route, d.route)),
+            ("Buyer / receiver", d.buyer_id.name or "—"),
+            ("Proceeds (BDT)", "%.2f" % (d.proceeds or 0.0)),
+            ("Disposal date", str(d.disposal_date)),
+            ("Approved by (CFO)", d.dofa_approved_by.name or "—"),
+            ("Completed by", d.done_by_id.name or "—"),
+            ("Reason", d.reason or "—"),
+        )
+    ]
+    out = _pack(
+        "Vehicle Disposal Gate Pass — %s" % d.name,
+        cols,
+        labels,
+        rows,
+        ["The vehicle may leave the premises on this pass, signed at the gate."],
+    )
+    out["filters"] = filters
+    return out
+
+
+def fine_notice(env, date_from=None, date_to=None, penalty=None, **params):
+    """The fine slip / recovery notice of a decided traffic fine (FR-FLT-043)."""
+    fines = _scoped(
+        env, "fix.vehicle.penalty", _vehicles(env, with_retired=True), [("state", "=", "decided")]
+    )
+    options = sorted(fines.mapped("name"))
+    filters = [{"key": "penalty", "label": "Traffic fine", "options": options[:500]}]
+    name = _pick(options, penalty)
+    cols = ["field", "value"]
+    labels = {"field": "", "value": ""}
+    if not name:
+        out = _pack(
+            "Traffic Fine Notice",
+            cols,
+            labels,
+            [],
+            ["Choose a decided fine in the filter above."],
+            empty="Pick a decided fine in the filter above.",
+        )
+        out["filters"] = filters
+        return out
+    p = fines.filtered(lambda x: x.name == name)[:1]
+    recover = p.recovery_decision == "recover"
+    rows = [
+        {"field": f, "value": val}
+        for f, val in (
+            ("Fine", p.name),
+            ("Vehicle", _vehicle_name(p.vehicle_id)),
+            ("Driver on duty", p.driver_id.name or "—"),
+            ("Issued on", str(p.issued_on)),
+            ("Authority / case", "%s / %s" % (p.authority or "—", p.case_ref or "—")),
+            ("Offence", p.offence),
+            ("Amount (BDT)", "%.2f" % p.amount),
+            ("Decision", "Recovered from the driver" if recover else "Absorbed by the company"),
+            ("Reason", p.decision_reason or "—"),
+            ("Decided by", p.decided_by_id.name or "—"),
+            ("Approved by", p.dofa_approved_by.name or "within the Logistics Manager limit"),
+            ("Paid on / ref", "%s / %s" % (p.paid_on or "not yet", p.payment_ref or "—")),
+        )
+    ]
+    notes = (
+        [
+            "Recovery notice: the amount is recovered through payroll (M56) within the "
+            "statutory deduction limit, once HR approves the recovery."
+        ]
+        if recover
+        else ["The fine is a company cost, paid through AP or petty cash."]
+    )
+    out = _pack("Traffic Fine Notice — %s" % p.name, cols, labels, rows, notes)
+    out["filters"] = filters
+    return out
+
+
 REPORTS = {
     "insurers": insurers,
     "driver_behaviour": driver_behaviour,
@@ -709,6 +1128,10 @@ REPORTS = {
     "maintenance_cost": maintenance_cost,
     "statutory_compliance": statutory_compliance,
     "incident_summary": incident_summary,
+    # A07 ERP audit M46-22: the printable fleet documents
+    "vehicle_logbook": vehicle_logbook,
+    "disposal_gate_pass": disposal_gate_pass,
+    "fine_notice": fine_notice,
 }
 
 
