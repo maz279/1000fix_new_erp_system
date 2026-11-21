@@ -22,9 +22,21 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
+from .ap_gl import ap_account
 from .fix_ap_controls import require_finance
 
 SOURCE = "fix.purchase.advance"
+
+
+def _advance_bdt_today(adv):
+    """A06 D5: what paying `adv` costs in BDT today (a BDT advance: itself).
+    The payment entry debits the advance account with it, and the bill takes
+    the advance back at that BDT (_fix_advance_bdt)."""
+    from odoo.addons.cd_requisition.models.fix_requisition import bdt_rate
+
+    if adv.currency_id == adv.company_id.currency_id:
+        return adv.amount
+    return round(adv.amount * bdt_rate(adv.env, adv.currency_id, adv.company_id), 2)
 
 
 def _q(value):
@@ -95,8 +107,11 @@ class FixPurchaseAdvancePayment(models.Model):
                 adv.id,
                 {
                     "vendor_id": adv.vendor_id.id,
-                    "amount": adv.amount,
-                    "currency": adv.currency_id.name,
+                    # A06 D5: treasury pays BDT, a foreign advance at the day's rate
+                    "amount": _advance_bdt_today(adv),
+                    "currency": adv.company_id.currency_id.name,
+                    "advance_currency": adv.currency_id.name,
+                    "advance_amount_currency": adv.amount,
                     "invoice_ref": adv.name,
                     "operating_unit_id": adv.operating_unit_id.id,
                     "company_id": adv.company_id.id,
@@ -178,6 +193,33 @@ class FixVendorInvoiceSupplierAdvance(models.Model):
         total = _q(sum(self.advance_application_ids.mapped("amount")))
         self._guarded().write({"advance_applied": total})
 
+    def _fix_advance_bdt(self):
+        """A06 D5: an M16 advance is taken back at the BDT it was paid at:
+        the debit its payment posted on the advance account, pro rata; a BDT
+        advance at its own figure. An unpaid-in-BDT foreign advance (no
+        payment entry) is refused rather than guessed."""
+        total = super()._fix_advance_bdt()
+        account = None
+        for app in self.advance_application_ids.sudo():
+            adv = app.advance_id
+            if adv.currency_id == self.company_id.currency_id:
+                total += app.amount
+                continue
+            account = account or ap_account(self.env, self.company_id, "supplier_advance")
+            paid = sum(
+                adv.payment_move_id.line_ids.filtered(
+                    lambda ml, a=account: ml.account_id == a
+                ).mapped("debit")
+            )
+            if not paid or not adv.amount:
+                raise UserError(
+                    "Advance %s is in %s and has no payment entry on the advance account: the BDT "
+                    "it was paid at is unknown, so bill %s cannot take it back."
+                    % (adv.display_name, adv.currency_id.name, self.invoice_ref)
+                )
+            total += app.amount * paid / adv.amount
+        return total
+
 
 class FixPaymentExecutionSupplierAdvance(models.Model):
     _inherit = "fix.payment.execution"
@@ -199,8 +241,8 @@ class FixPaymentExecutionSupplierAdvance(models.Model):
             "source_id": adv.id,
             "partner": partner,
             "bank": banks if len(banks) == 1 else self.env["res.partner.bank"],
-            "amount": adv.amount,
-            "currency": adv.currency_id,
+            "amount": _advance_bdt_today(adv),
+            "currency": adv.company_id.currency_id,
             "approver": adv.decided_by_id,
             "ref": payload.get("invoice_ref") or adv.name,
             "options": {

@@ -273,6 +273,17 @@ class FixVendorNote(models.Model):
     def _post(self):
         self.ensure_one()
         inv, env = self.invoice_id, self.env
+        if inv._is_foreign():
+            # A06 P01 / D5: a note's figures are in the bill's currency and the
+            # note posting has no conversion yet: refused, never posted as BDT
+            raise UserError(
+                "Bill %s is in %s: a debit or credit note on a foreign-currency bill is not "
+                "posted automatically yet. Finance books it by journal."
+                % (
+                    inv.invoice_ref,
+                    inv.currency_id.name,
+                )
+            )
         company = inv.company_id
         partner = inv.vendor_id.commercial_partner_id
         label = "%s %s" % (self.name, partner.name)

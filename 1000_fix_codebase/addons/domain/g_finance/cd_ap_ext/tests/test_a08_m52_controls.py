@@ -15,6 +15,7 @@ from datetime import date
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_ap_ext.tests.p2p_fixtures import register_supplier
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 pytestmark = [pytest.mark.financial]
@@ -145,6 +146,9 @@ def c(odoo_env):
         "employee_advance": acc("990141", "Test employee advances", "asset_current"),
         "salary_payable": acc("990231", "Test salaries payable", "liability_current"),
         "expense": acc("990600", "Test expense", "expense"),
+        # A06 D2 / D5: price variance and FX gain/loss of a bill vs its receipt
+        "ppv": acc("990007", "Test purchase price variance", "expense"),
+        "fx_gain_loss": acc("990030", "Test FX gain / loss", "expense"),
     }
     icp = env["ir.config_parameter"].sudo()
     for param, code in (
@@ -155,6 +159,8 @@ def c(odoo_env):
         ("cd_ap_ext.account_code.employee_advance", "990141"),
         ("cd_ap_ext.account_code.salary_payable", "990231"),
         ("cd_ap_ext.account_code.expense", "990600"),
+        ("cd_ap_ext.account_code.ppv", "990007"),
+        ("cd_ap_ext.account_code.fx_gain_loss", "990030"),
     ):
         icp.set_param(param, code)
     x.bank = env["account.journal"].search(
@@ -220,6 +226,24 @@ def c(odoo_env):
 
 
 def bill(c, price, by=None, qty=1.0, ref=None, po=None, vendor=None, **vals):
+    b = _bill(c, price, by=by, qty=qty, ref=ref, po=po, vendor=vendor, **vals)
+    # A06 P09: these suites pay vendors that are not M42 suppliers (their payee
+    # bank path is under test); a non-PO bill from such a payee needs an
+    # Accounting Administrator's recorded exception, given here as the system
+    if b.bill_type == "non_po" and not b.non_po_exception_by_id:
+        supplier = (
+            c.env["fix.supplier"].sudo().search([("partner_id", "=", b.vendor_id.id)], limit=1)
+            if "fix.supplier" in c.env
+            else None
+        )
+        if supplier is not None and not supplier:
+            b.sudo().action_approve_non_po_exception(
+                reason="Test payee outside the M42 register (A08 suite)"
+            )
+    return b
+
+
+def _bill(c, price, by=None, qty=1.0, ref=None, po=None, vendor=None, **vals):
     return (
         c.env["fix.vendor.invoice"]
         .with_user(by or c.acc1)
@@ -436,7 +460,11 @@ def test_bill_payment_requested_payload(c):
     assert payload == {
         "vendor_id": c.vendor.id,
         "amount": 4500.0,  # 5,000.00 - 10% TDS 500.00
-        "currency": "BDT",
+        # A06 D5: treasury pays in the company's currency; the bill's own
+        # currency and figure travel with it
+        "currency": c.company.currency_id.name,
+        "bill_currency": b.currency_id.name,
+        "bill_amount_currency": 4500.0,
         "invoice_ref": b.invoice_ref,
         "operating_unit_id": c.ou.id,
         "company_id": c.company.id,
@@ -678,7 +706,7 @@ def test_m52_15_blocked_bill_not_payable(c):
     """Blocked: not submitted (G3-06 at submission), and not paid even when
     approved, as a bill approved before that gate is (system code sets it)."""
     p = issued_po(c, 1.0, 1000.0, received=1.0)
-    b = bill(c, 1500.0, po=p)
+    b = bill(c, 1600.0, po=p)  # beyond the A06 D8 default tolerance (+BDT 500)
     assert b.match_state == "blocked"
     assert "G3-06" in str(refused(c.env, lambda: b.with_user(c.acc1).action_submit_approval()))
     b.sudo()._guarded().write({"approval_state": "approved"})
@@ -1350,9 +1378,7 @@ def test_s1_cooling_off_before_first_payment(c):
 def test_s1_supplier_accounts_go_through_m42(c):
     if "fix.supplier" not in c.env:
         pytest.skip("cd_vendor_portal not installed")
-    c.env["fix.supplier"].create(
-        {"name": c.vendor.name, "partner_id": c.vendor.id, "status": "active"}
-    )
+    register_supplier(c.env, c.vendor)
     change = (
         c.env["fix.payee.bank.change"]
         .with_user(c.acc3)

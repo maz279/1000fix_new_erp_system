@@ -145,7 +145,9 @@ def test_match_follows_a_vendor_change_on_the_draft(c):  # noqa: F811
 # ============================================================ 3. match before approval
 def test_blocked_po_bill_cannot_be_submitted(c):  # noqa: F811
     po = issued_po(c, 1.0, 1000.0, received=1.0)
-    b = bill(c, 1500.0, po=po)  # 1,500 billed against a PO price of 1,000
+    # 1,600 billed against a PO price of 1,000: beyond the A06 D8 default
+    # tolerance (+2 % or +BDT 500 a unit)
+    b = bill(c, 1600.0, po=po)
     assert b.match_state == "blocked"
     err = refused(c.env, lambda: b.with_user(c.acc1).action_submit_approval())
     assert err and "G3-06" in str(err) and "price above PO" in str(err)

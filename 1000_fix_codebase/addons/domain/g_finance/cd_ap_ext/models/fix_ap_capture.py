@@ -44,7 +44,18 @@ from odoo.addons.cd_cash_position.models.treasury_common import require_other_pe
 
 from .ap_gl import ap_account
 from .fix_ap_controls import require_finance
-from .fix_ap_ext import PAYABLE_MATCH_STATES, _q
+from .fix_ap_grni import grni_rows_as_of
+from .fix_ap_ext import (
+    DEFAULT_TOL_PRICE_ABS,
+    DEFAULT_TOL_PRICE_PCT,
+    DEFAULT_TOL_QTY_PCT,
+    PARAM_TOL_PRICE_ABS,
+    PARAM_TOL_PRICE_PCT,
+    PARAM_TOL_QTY_PCT,
+    PAYABLE_MATCH_STATES,
+    _q,
+    float_param,
+)
 
 LOCK_EXEMPT = {"message_main_attachment_id"}
 
@@ -179,45 +190,18 @@ def receipt_dates(env, po_line_ids):
 
 
 def grni_rows(env, as_of, company=None):
-    """Goods received not invoiced, read as the caller: per PO line, the
-    received quantity less the quantity on live vendor bills for that PO and
-    product, at the PO price (excluding VAT)."""
-    domain = [("qty_received", ">", 0), ("order_id.state", "!=", "cancelled")]
-    if company:
-        domain.append(("order_id.company_id", "=", company.id))
-    po_lines = env["fix.purchase.order.line"].search(domain)
-    bills = env["fix.vendor.invoice"].search(
-        [("requisition_id", "in", po_lines.order_id.ids), ("approval_state", "!=", "rejected")]
-    )
-    invoiced = defaultdict(float)
-    for bill in bills:
-        for line in bill.line_ids:
-            invoiced[(bill.requisition_id.id, line.product_id.id)] += line.quantity
-    received_on = receipt_dates(env, po_lines.ids)
-    rows = []
-    for pol in po_lines:
-        key = (pol.order_id.id, pol.product_id.id)
-        # bills reference the PO and product: consume the invoiced quantity
-        # across the PO's lines of that product in order
-        consumed = min(invoiced.get(key, 0.0), pol.qty_received)
-        invoiced[key] = invoiced.get(key, 0.0) - consumed
-        open_qty = pol.qty_received - consumed
-        if open_qty <= 0.0001:
-            continue
-        recd = received_on.get(pol.id)
-        rows.append(
-            {
-                "po_line": pol,
-                "received": pol.qty_received,
-                "invoiced": pol.qty_received - open_qty,
-                "open_qty": open_qty,
-                "unit_price": pol.unit_price,
-                "accrual": open_qty * pol.unit_price,
-                "received_on": recd,
-                "age_days": (as_of - recd).days if recd else None,
-            }
-        )
-    return rows
+    """Goods received not invoiced at `as_of` per received PO line (A06 X26 /
+    P13: the one as-at basis the GRNI accrual and the GR/IR report share, at the
+    receipt value in BDT; fix_ap_grni.grni_rows_as_of), limited to the caller's
+    companies. Import rows (no PO line) are left to the accrual."""
+    from .fix_ap_grni import grni_rows_as_of
+
+    allowed = set(env.companies.ids)
+    return [
+        r
+        for r in grni_rows_as_of(env, as_of, company)
+        if r["po_line"] and r["po_line"].order_id.company_id.id in allowed
+    ]
 
 
 # ============================================================ tolerances
@@ -263,7 +247,8 @@ class FixApMatchTolerance(models.Model):
     price_abs = fields.Monetary(
         string="Unit Price Over PO (amount)",
         currency_field="currency_id",
-        help="The same as an amount per unit. With both set, the smaller one applies.",
+        help="The same as an amount per unit, in BDT. With both set, the larger one applies "
+        "(A06 D8: +2 % or +BDT 500, whichever is larger).",
     )
     effective_from = fields.Date(required=True, default=fields.Date.context_today)
     reason = fields.Text(required=True)
@@ -435,20 +420,34 @@ class FixApMatchTolerance(models.Model):
             bills.flush_recordset(["match_state", "match_detail"])
 
     @api.model
+    def _fix_default_limits(self):
+        """A06 D8 (owner decision 20 Nov 2026): no approved row -> price +2 % or
+        +BDT 500 a unit (the larger), quantity exact; config parameters."""
+        env = self.env
+        return (
+            max(float_param(env, PARAM_TOL_QTY_PCT, DEFAULT_TOL_QTY_PCT), 0.0),
+            max(float_param(env, PARAM_TOL_PRICE_PCT, DEFAULT_TOL_PRICE_PCT), 0.0),
+            max(float_param(env, PARAM_TOL_PRICE_ABS, DEFAULT_TOL_PRICE_ABS), 0.0),
+            self.browse(),
+        )
+
+    @api.model
     def _fix_for(self, invoice, product):
-        """(qty %, price %, price amount, row) for one product on one bill."""
+        """(qty %, price %, price amount in BDT, row) for one product on one
+        bill. With no approved row the D8 defaults apply."""
         if not invoice.company_id or not invoice.invoice_date:
-            return 0.0, 0.0, 0.0, self.browse()
+            return self._fix_default_limits()
         rows = self.sudo().search(
             [
                 ("company_id", "=", invoice.company_id.id),
                 ("state", "=", "active"),
                 ("effective_from", "<=", invoice.invoice_date),
-                ("amount_from", "<=", invoice.gross_amount or 0.0),
+                # A06 P01: the value band is read in BDT
+                ("amount_from", "<=", invoice.gross_amount_bdt or 0.0),
             ]
         )
         if not rows:
-            return 0.0, 0.0, 0.0, rows
+            return self._fix_default_limits()
         path = product.categ_id.parent_path or ""
 
         def rank(row):
@@ -463,7 +462,7 @@ class FixApMatchTolerance(models.Model):
         ranked = [(rank(r), r) for r in rows]
         ranked = [x for x in ranked if x[0] is not None]
         if not ranked:
-            return 0.0, 0.0, 0.0, self.browse()
+            return self._fix_default_limits()
         best = max(ranked, key=lambda x: x[0])[1]
         return best.qty_pct, best.price_pct, best.price_abs, best
 
@@ -1457,7 +1456,8 @@ class FixApGrniAccrual(models.Model):
         for a in self:
             if a.state == "confirmed":
                 raise UserError("%s is confirmed." % a.name)
-            rows = grni_rows(self.env, a.period_end, a.company_id)
+            # A06 X26: one as-at basis, PO receipts and imports without a PO
+            rows = grni_rows_as_of(self.env, a.period_end, a.company_id)
             clearing, label = a._fix_clearing()
             lines = [(5, 0, 0)]
             for r in rows:
@@ -1467,10 +1467,10 @@ class FixApGrniAccrual(models.Model):
                         0,
                         0,
                         {
-                            "po_line_id": pol.id,
-                            "order_ref": pol.order_id.name or "",
-                            "vendor_id": pol.order_id.vendor_id.id or False,
-                            "product_id": pol.product_id.id or False,
+                            "po_line_id": pol.id if pol else False,
+                            "order_ref": r["order_ref"],
+                            "vendor_id": r["vendor"].id or False,
+                            "product_id": r["product"].id or False,
                             "received": r["received"],
                             "invoiced": r["invoiced"],
                             "open_qty": r["open_qty"],
@@ -1533,7 +1533,11 @@ class FixApGrniAccrualLine(models.Model):
     received = fields.Float()
     invoiced = fields.Float()
     open_qty = fields.Float(string="Not Invoiced")
-    unit_price = fields.Monetary(string="PO Price", currency_field="currency_id")
+    unit_price = fields.Monetary(
+        string="Receipt Value (BDT)",
+        currency_field="currency_id",
+        help="A06 X26: the unit value at which the receipt entered GRNI.",
+    )
     accrual = fields.Monetary(currency_field="currency_id")
     received_on = fields.Date(string="Last Receipt")
 

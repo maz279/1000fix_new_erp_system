@@ -208,10 +208,11 @@ def test_m16_qty_variance_blocks_and_refuses_payment(m):
 
 
 def test_m16_price_variance_blocks_and_refuses_payment(m):
-    """Replaces the MagicMock test of test_ap_ext.py: 3,500 invoiced, PO 3,000."""
+    """Replaces the MagicMock test of test_ap_ext.py: 3,600 invoiced, PO 3,000
+    (beyond the A06 D8 default tolerance of +2 % or +BDT 500 a unit)."""
     po = _sent_po(m, [(m["screen"], 1, 3000)])
     _receive(po, po.line_ids, 1, accept=1)
-    inv = _bill(m, po, [(m["screen"], "Display Panel", 1, 3500)], "A06-MATCH-12")
+    inv = _bill(m, po, [(m["screen"], "Display Panel", 1, 3600)], "A06-MATCH-12")
     assert inv.match_state == "blocked" and "price above PO" in inv.match_detail
     with pytest.raises(UserError, match="G3-06: an unmatched vendor invoice cannot be paid"):
         inv.action_request_payment()

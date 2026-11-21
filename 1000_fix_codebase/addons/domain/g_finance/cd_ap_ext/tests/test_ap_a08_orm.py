@@ -11,6 +11,7 @@ import json
 from datetime import date
 
 import pytest
+from odoo.addons.cd_ap_ext.tests.p2p_fixtures import register_supplier
 from odoo.exceptions import UserError, ValidationError
 
 pytestmark = [pytest.mark.financial, pytest.mark.tax]
@@ -149,6 +150,7 @@ def a08(odoo_env):
     )
     icp.set_param("cd_ap_ext.payment_journal_code", bank.code)
     vendor = env["res.partner"].create({"name": "Padma Spares Ltd."})
+    register_supplier(env, vendor)  # A06 P09: non-PO bills only to active suppliers
     profile = env["fix.vendor.tax.profile"].create(
         {
             "partner_id": vendor.id,

@@ -18,6 +18,7 @@ import itertools
 from datetime import date
 
 import pytest
+from odoo.addons.cd_ap_ext.tests.p2p_fixtures import register_supplier
 from odoo.exceptions import AccessError, UserError
 
 pytestmark = [pytest.mark.financial]
@@ -94,6 +95,7 @@ def e3(odoo_env):
     icp.set_param("cd_ap_ext.bill_journal_code", purchase.code)
     # a supplier with NO tax profile: the D-05 case
     vendor = env["res.partner"].create({"name": "E3 Lucid Computer", "is_company": True})
+    register_supplier(env, vendor)  # A06 P09: non-PO bills only to active suppliers
     return {
         "env": env,
         "company": company,
