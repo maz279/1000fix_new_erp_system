@@ -16,6 +16,7 @@ starting just before the test transaction.
 from datetime import timedelta
 
 import pytest
+from odoo.addons.cd_partner.tests.m40_fixtures import make_onboardable
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
     approve_via_inbox,
     assigned,
@@ -625,7 +626,9 @@ def parties(env):
     return {
         "draft individual": env["res.partner"].create({"name": "W5 Walk-in"}),
         "pending dealer": env["res.partner"].create(
-            {"name": "W5 Dealer Ltd", "party_class": "dealer"}
+            # Test BIN: a dealer invoice must state the buyer's BIN before
+            # the party gate is reached (commercial document standard).
+            {"name": "W5 Dealer Ltd", "party_class": "dealer", "vat": "000000000013"}
         ),
     }
 
@@ -720,6 +723,9 @@ def sites(env, make_user):
         biz = env["fix.partner"].create(
             {"name": "W5 Referral", "partner_id": partner.id, "partner_type": "referral"}
         )
+        # A04 M40-F11: onboarding needs a published programme, an agreement
+        # in force and a done checklist; the party gate is what is probed.
+        make_onboardable(env, biz)
         biz.with_user(channel_manager).action_onboard()
 
     def invoice(partner):

@@ -16,6 +16,7 @@ from __future__ import annotations
 from datetime import timedelta
 
 from odoo import fields
+from odoo.addons.cd_workshop.models.fix_workshop_bench import dhaka_today
 from odoo.exceptions import UserError, ValidationError
 
 from . import test_a02_p0_m31 as a02
@@ -147,7 +148,9 @@ def test_an_esd_check_feeds_the_bench_interlock(m31, ui):  # noqa: F811
         )
     )
     bench.invalidate_recordset()
-    assert bench.is_esd_safe and bench.esd_last_verified_date == fields.Date.today()
+    assert (
+        bench.is_esd_safe and bench.esd_last_verified_date == dhaka_today()
+    )  # the Dhaka day, as stamped
     res = _ok(
         ui.write(
             m31.tech,
