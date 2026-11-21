@@ -870,17 +870,33 @@ def test_f26_the_spec_events_are_published(wms):
 
 
 def test_f32_no_cost_on_the_m41_surface(wms):
-    from odoo.addons.cd_p03_portal.controllers.a06 import m41
+    from odoo.addons.cd_p03_portal.controllers.a06 import m15, m41
 
     assert "fix.inventory.valuation.suspense" not in m41.SURFACES
-    assert "action_set_standard_cost" not in m41.SURFACES["fix.spare.part"]["actions"]
-    res = wms.p03(wms.controller).action(
+    # The item master (with its standard-cost action) is served by M15's
+    # controller on purpose; M41's surface carries no part master and no cost.
+    assert "fix.spare.part" not in m41.SURFACES
+    assert not any(
+        "action_set_standard_cost" in s.get("actions", {}) for s in m41.SURFACES.values()
+    )
+    assert "action_set_standard_cost" in m15.SURFACES["fix.spare.part"]["actions"]
+    # the warehouse floor cannot set a cost through the screens ...
+    res = wms.p03(wms.operator).action(
         model="fix.spare.part",
         ids=wms.wpart.ids,
         method="action_set_standard_cost",
         kwargs={"cost": 1.0},
     )
     assert not res.get("success")
+    assert wms.wpart.unit_cost != 1.0
+    # ... an Inventory Controller sets it on M15's item master
+    res = wms.p03(wms.controller).action(
+        model="fix.spare.part",
+        ids=wms.wpart.ids,
+        method="action_set_standard_cost",
+        kwargs={"cost": 1.0},
+    )
+    assert res.get("success"), res
     js = Path(m41.__file__).resolve().parents[2] / "static" / "src" / "a06" / "m41.js"
     text = js.read_text(encoding="utf-8")
     assert "action_set_standard_cost" not in text and "valuation.suspense" not in text
