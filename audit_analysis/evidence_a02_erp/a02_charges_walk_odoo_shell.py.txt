@@ -1,0 +1,271 @@
+# A02 D21/D22 charges and the courier COD rule on a copy of fix_real, upgraded
+# to the shared tip. The tariff band and the wasted-visit fee are set ON THE
+# COPY only (both are empty / 0 on the live estate). Commits nothing.
+import base64
+import traceback
+
+from odoo import fields
+from odoo.addons.cd_service_order.models import fix_otp_util
+
+env = env(user=env.ref("base.user_admin").id, su=True)  # noqa: F821
+P = env["ir.config_parameter"].sudo()
+sent = {}
+fix_otp_util.dispatch_otp = lambda phone, code, ttl, language="bn": sent.update({phone: code})
+results, ctx = [], {}
+
+
+def step(name):
+    def deco(fn):
+        try:
+            with env.cr.savepoint():
+                out = fn()
+            results.append(("OK  ", name, out))
+        except Exception as e:  # noqa: BLE001
+            results.append(("FAIL", name, "%s: %s" % (type(e).__name__, str(e)[:400])))
+            ctx["tb_" + name] = traceback.format_exc()[-1800:]
+    return deco
+
+
+def acc(code):
+    return env["account.account"].search([("code", "=", code)], limit=1)
+
+
+def bal(account, partner=None):
+    env.flush_all()
+    dom = [("account_id", "=", account.id), ("parent_state", "=", "posted")]
+    if partner:
+        dom.append(("partner_id", "=", partner.id))
+    return round(sum(env["account.move.line"].search(dom).mapped("balance")), 2)
+
+
+company = env.company
+branch = env["fix.branch"].search(
+    [("operating_unit_id", "!=", False), ("name", "ilike", "Shewrapara")], limit=1
+)
+ar = acc(P.get_param("cd_billing_engine.account_code.ar"))
+rev = acc(P.get_param("cd_billing_engine.account_code.revenue"))
+vat = acc(P.get_param("cd_billing_engine.account_code.vat_output"))
+cust = env["res.partner"].create({"name": "Charges Walk Customer", "phone": "01711999877"})
+brand = env["fix.brand"].search([], limit=1)
+model = env["fix.device.model"].search([("brand_id", "=", brand.id)], limit=1) or env[
+    "fix.device.model"].create({"brand_id": brand.id, "name": "Walk Laptop 15", "device_type": "laptop"})
+emp = env["hr.employee"].search([("company_id", "=", company.id)], limit=1)
+tech = env["hr.employee"].search(
+    [("company_id", "=", company.id), ("user_id", "!=", False)], limit=1
+)
+for comp in env["fix.competency"].search([("required_for_dispatch", "=", True)]):
+    cert = env["fix.certification"].create({
+        "employee_id": tech.id, "competency_id": comp.id,
+        "brand_id": comp.brand_id.id or False, "repair_tier": "l3",
+        "issued_on": fields.Date.today(),
+        "expires_on": fields.Date.add(fields.Date.today(), years=1)})
+    if cert.state != "valid":
+        cert._guarded().write({"state": "valid"})
+Shift = env["fix.cash.shift"]
+shift = Shift._fd_open_shift_for(branch, company) or Shift.create({
+    "branch_id": branch.id, "company_id": company.id,
+    "operating_unit_id": branch.operating_unit_id.id, "operator_id": emp.id,
+    "opening_float": 0.0})
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
+n = [0]
+
+
+def depot_order(price=1000.0):
+    n[0] += 1
+    dev = env["fix.device"].create({"device_model_id": model.id, "owner_id": cust.id,
+                                    "serial_number": "CHG-SN-%d" % n[0]})
+    o = env["fix.service.order"].create({
+        "device_id": dev.id, "customer_id": cust.id, "branch_id": branch.id,
+        "operating_unit_id": branch.operating_unit_id.id, "fault_description": "No power",
+        "order_category": "standard"})
+    o.action_intake()
+    o.action_start_diagnostic()
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [(0, 0, {
+        "description": "Board repair labour", "quantity": 1, "unit_price": price,
+        "line_type": "labour"})]})
+    if o.state == "diagnostic":
+        o.action_request_estimate()
+    est.action_send()
+    est.action_approve()
+    return o
+
+
+def make_ready(o):
+    if o.state == "approved":
+        o.action_start_repair()
+    o.action_submit_qc()
+    chk = env["fix.qc.checklist"].create({"order_id": o.id, "item_ids": [
+        (0, 0, {"name": x, "passed": True}) for x in ("Power on", "Charging")]})
+    if hasattr(chk, "action_complete"):
+        chk.action_complete()
+    o.action_ready()
+
+
+def leg(o, ctype, **kw):
+    vals = {"consignment_type": ctype, "service_order_id": o.id, "declared_value_bdt": 1000.0,
+            "scheduled_date": fields.Datetime.now(),
+            "actual_weight_kg": 1.5, "company_id": company.id}
+    vals.update(kw)
+    return env["fix.consignment"].create(vals)
+
+
+def invoice_of(o):
+    return env["fix.ar.invoice"].search([("source_model", "=", o._name), ("source_id", "=", o.id)])
+
+
+def lines_of(inv):
+    return "; ".join("%s %s %.2f" % (ln.line_type, ln.product_id.default_code or "-", ln.line_total)
+                     for ln in inv.line_ids)
+
+
+@step("setup (copy only): D22 tariff BDT 120 any leg 0-20 kg; D21 wasted-visit fee BDT 300")
+def _():
+    env["fix.logistics.tariff"].create({"company_id": company.id, "consignment_type": "any",
+                                        "weight_from_kg": 0, "weight_to_kg": 20,
+                                        "charge_bdt": 120.0})
+    P.set_param("cd_field_service.wasted_visit_fee_bdt", "300")
+    return "tariff + fee set on this copy"
+
+
+@step("D22 M03 pickup leg confirmed -> priced, one charge on the order")
+def _():
+    o = depot_order(1000.0)
+    pk = leg(o, "pickup")
+    pk.action_confirm()
+    ctx.update(o1=o, pk=pk)
+    ch = o._fix_extra_charges()
+    return "leg %s %s charge %.2f (%s); order charges %s" % (
+        pk.name, pk.state, pk.logistics_charge_bdt, pk.logistics_charge_note,
+        [(c["code"], c["net"]) for c in ch])
+
+
+@step("D22 M04 counter collects estimate + pick-up charge with VAT")
+def _():
+    o = ctx["o1"]
+    make_ready(o)
+    due = o._fix_amount_due()
+    assert abs(due - 1288.0) < 0.01, due  # (1000 + 120) x 1.15
+    o.action_mark_settled(amount_bdt=due, reference="CHG-CTR-1", source="counter", tender="cash")
+    return "due %.2f paid, receipt %s" % (due, o.settlement_receipt_id.name)
+
+
+@step("D22 M01 hand-over -> tax invoice bills the transport line, paid, revenue + VAT")
+def _():
+    o = ctx["o1"]
+    r0, v0 = bal(rev), bal(vat)
+    o.action_send_delivery_otp()
+    o.action_verify_delivery_otp(otp=sent[fix_otp_util.bd_mobile(cust)])
+    rep = env["ir.attachment"].create({"name": "report.pdf",
+                                       "datas": base64.b64encode(b"%PDF-1.4 walk"),
+                                       "res_model": o._name, "res_id": o.id})
+    o.write({"recipient_name": cust.name, "service_report_attachment_id": rep.id})
+    o.action_deliver()
+    inv = invoice_of(o)
+    assert inv.state == "paid" and abs(inv.total_payable - 1288.0) < 0.01, (inv.state, inv.total_payable)
+    return "invoice %s %s total %.2f residual %.2f lines [%s]; revenue %+.2f VAT %+.2f; AR %.2f" % (
+        inv.name, inv.state, inv.total_payable, inv.amount_residual, lines_of(inv),
+        bal(rev) - r0, bal(vat) - v0, bal(ar, cust))
+
+
+@step("D22/D1 courier COD leg: its own charge is in its COD; a stale booking holds it")
+def _():
+    o = depot_order(2000.0)
+    make_ready(o)
+    courier = env["fix.courier.partner"].search([("cod_supported", "=", True)], limit=1) or env[
+        "fix.courier.partner"].create({"name": "Walk Courier", "code": "WLKC", "cod_supported": True})
+    dl = leg(o, "delivery", courier_partner_id=courier.id, rider_id=False)
+    before = dl.cod_amount
+    bk = env["fix.courier.booking"].create({"partner_id": courier.id, "consignment_id": dl.id})
+    # the customer pays BDT 500 at the counter while the booking waits
+    o._fix_record_settlement(500.0, "CHG-PART-1", source="field_collection")
+    try:
+        with env.cr.savepoint():
+            dl.action_confirm()
+        held = "NOT HELD"
+    except Exception as e:  # noqa: BLE001
+        held = str(e)[:170]
+    assert "cancel the booking and book again" in held, held
+    bk.action_cancel(reason="COD changed after a counter payment")
+    dl.action_confirm()
+    bk2 = env["fix.courier.booking"].create({"partner_id": courier.id, "consignment_id": dl.id})
+    want = round((2000 + 120) * 1.15 - 500, 2)
+    assert abs(dl.cod_amount - want) < 0.01 and abs(bk2.cod_amount - want) < 0.01, (
+        dl.cod_amount, bk2.cod_amount, want)
+    return "draft COD %.2f; booking %s held: '%s'; re-booked %s COD %.2f = leg COD %.2f (leg charge %.2f)" % (
+        before, bk.name, held, bk2.name, bk2.cod_amount, dl.cod_amount, dl.logistics_charge_bdt)
+
+
+@step("D21 M02 failed visit carries the fee; re-dispatch, on-site cash, invoice bills it")
+def _():
+    lap = env["fix.competency"].search([("device_type", "=", "laptop")], limit=1)
+    m3 = env["fix.device.model"].search(
+        [("brand_id", "=", lap.brand_id.id), ("device_type", "=", "laptop")], limit=1) or env[
+        "fix.device.model"].create({"brand_id": lap.brand_id.id, "name": "Walk Brand Laptop",
+                                    "device_type": "laptop"})
+    dev = env["fix.device"].create({"device_model_id": m3.id, "owner_id": cust.id,
+                                    "serial_number": "CHG-SN-FV"})
+    o = env["fix.service.order"].create({
+        "device_id": dev.id, "customer_id": cust.id, "branch_id": branch.id,
+        "fault_description": "AC not cooling", "service_type": "onsite",
+        "order_category": "standard"})
+    o.action_intake()
+    o.action_start_diagnostic()
+    est = env["fix.estimate"].create({"order_id": o.id, "line_ids": [(0, 0, {
+        "description": "Gas refill", "quantity": 1, "unit_price": 1500.0, "line_type": "labour"})]})
+    if o.state == "diagnostic":
+        o.action_request_estimate()
+    est.action_send()
+    est.action_approve()
+    o.action_create_field_order()
+    fo = env["fix.field.order"].search([("order_id", "=", o.id)], limit=1)
+    fo.action_request_dispatch()
+    fo.action_dispatch(technician_id=tech.id)
+    fo.action_accept()
+    fo.action_start_travel()
+    fo.action_arrive(position="23.7905, 90.3735")
+    visit = env["fix.field.visit.exception"].create({
+        "field_order_id": fo.id, "exception_type": "customer_absent", "reason": "Nobody home",
+        "evidence_photo": base64.b64encode(PNG), "latitude": 23.79, "longitude": 90.37})
+    due = o._fix_amount_due()
+    assert abs(due - (1500 + 300) * 1.15) < 0.01, due
+    # second visit: re-dispatched, the job is done, the customer pays on site
+    fo.invalidate_recordset()
+    fo.action_dispatch(technician_id=tech.id)
+    fo.action_accept()
+    fo.action_start_travel()
+    fo.action_arrive(position="23.7905, 90.3735")
+    fo.action_start_work()
+    fo.action_record_collection(amount=due, method="cash")
+    sig = env["ir.attachment"].create({"name": "s.png", "raw": PNG, "mimetype": "image/png",
+                                       "res_model": fo._name, "res_id": fo.id})
+    fo._fix_attach_field_evidence(sig, "signature", signer=cust.name)
+    pic = env["ir.attachment"].create({"name": "a.jpg", "raw": b"JPEG after",
+                                       "mimetype": "image/jpeg", "res_model": fo._name,
+                                       "res_id": fo.id})
+    fo._fix_attach_field_evidence(pic, "post_work_photo")
+    fo.write({"work_summary": "Gas refilled, cooling tested"})
+    fo.action_complete()
+    # the outbox relay hands the completion back to M01 (D4: delivered and
+    # invoiced in the field); the walk calls the relay's consumer directly
+    env["fix.service.order"].consume_field_order_completed(
+        {"aggregate_id": fo.id, "payload": {"field_order_id": fo.id, "service_order_id": o.id}})
+    o.invalidate_recordset()
+    inv = invoice_of(o)
+    assert "callout" in inv.line_ids.mapped("line_type"), "order %s fo %s inv %r [%s] charges %s due-now %.2f settled %s" % (
+        o.state, fo.state, inv.mapped("name"), lines_of(inv), o._fix_extra_charges(), o._fix_amount_due(),
+        o.payment_settlement_state)
+    return "visit %s fee %.2f; due %.2f collected on site; order %s; invoice %s total %.2f [%s]" % (
+        visit.name, visit.wasted_fee_bdt, due, o.state, inv.name, inv.total_payable, lines_of(inv))
+
+
+print("\n=== A02 D21/D22 CHARGES WALK (fix_real copy, shared tip) ===")
+for status, name, out in results:
+    print(status, name, "->", out)
+print("SUMMARY %d / %d" % (sum(1 for r in results if r[0] == "OK  "), len(results)))
+for k, v in ctx.items():
+    if k.startswith("tb_"):
+        print("\n---", k, "\n", v)
+env.cr.rollback()
+print("ROLLED BACK")

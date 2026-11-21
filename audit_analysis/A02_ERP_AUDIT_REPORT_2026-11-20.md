@@ -167,6 +167,17 @@ re-checked on the merged code. Each was traced to its fix and test, or fixed now
 | s5 handover_recipient_id routable | Fixed 8ba8900d + 4e735862 (verified contacts only, steward vouch) |
 | s6 AUT-018 cursor | Fixed 218c6af1, its 4 tests pass |
 
+Proven on a fresh copy of fix_real upgraded to the shared tip (tariff BDT 120 and fee BDT 300 set on
+the copy only): a pick-up leg is priced at confirm, the counter collects 1,288.00 (1,000 + 120, VAT
+15%), the delivery invoice bills labour 1,150.00 + CHG-TRANSPORT 138.00, paid, revenue -1,120 / VAT
+-168; a courier booking made before a part payment holds the leg ("collects BDT 2300.00 but the leg
+collects BDT 1938.00 now"), the re-booking carries 1,938.00 including the leg's own charge; a failed
+visit (customer absent) adds 345.00, the technician collects 2,070.00 on the second visit and the
+field-delivered invoice bills CHG-CALLOUT 345.00. Charges walk 6/6; repair journey 18/18, declined
+fee 9/9, dispatch 6/6 on the same copy (`evidence_a02_erp/a02_*_fix_real_copy_shared_tip_2026-11-22.txt`).
+A03's re-check found one edge (a BDT 0 estimate skipped the charges in the amount due while the
+invoice billed them): a free repair now owes its charges unless the order is zero-charge.
+
 The tariff table and the wasted-visit fee are still at their D22/D21 defaults (empty / BDT 0), so no
 charge arises until the business sets them.
 
