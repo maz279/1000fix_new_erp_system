@@ -133,11 +133,11 @@ def test_9_a_held_order_is_not_handed_over_until_the_flag_is_cleared(w, ui):  # 
 
 def test_9_a_flag_not_yet_relayed_still_stops_the_hand_over(w):  # noqa: F811
     """The relay runs on a schedule: between the flag and the hold there is a
-    window, and an order opened after the flag gets no hold at all. The device's
-    own state decides too."""
+    window. A07 ERP audit M17-01: the order reads as held at once (the device's
+    own flag counts), and the device's own state stops the hand-over too."""
     o = _ready_to_hand_over(w)
     o.device_id.with_user(w.clerk).action_mark_lost(reason="Reported at the counter")
-    assert not o.device_flag_hold
+    assert o.device_flag_hold
     with pytest.raises(UserError, match="lost"), w.env.cr.savepoint():
         o.with_user(w.clerk).action_deliver()
     assert o.state == "ready"
@@ -271,8 +271,9 @@ def test_14_the_component_form_picks_the_job_and_the_lot(w, ui, js):  # noqa: F8
     }
     assert {"causing_order_id", "stock_lot_ref_id"} <= offered
     o = order(w)
-    product = w.env["product.product"].create({"name": "M17 Panel", "tracking": "lot"})
-    lot = w.env["stock.lot"].create({"name": "M17-LOT-1", "product_id": product.id})
+    # A07 ERP audit (2026-11-20) LEAD-01: the lot is the M15 lot of the part
+    spare = w.env["fix.spare.part"].create({"name": "M17 Panel", "part_number": "M17-PNL-1"})
+    lot = w.env["fix.stock.lot"].create({"name": "M17-LOT-1", "part_id": spare.id})
     out = ui.form(
         w.clerk,
         model="fix.device.component",
@@ -288,6 +289,7 @@ def test_14_the_component_form_picks_the_job_and_the_lot(w, ui, js):  # noqa: F8
         values={
             "device_id": o.device_id.id,
             "part_name": "Panel",
+            "part_number": "M17-PNL-1",
             "causing_order_id": o.id,
             "stock_lot_ref_id": lot.id,
         },
@@ -295,7 +297,7 @@ def test_14_the_component_form_picks_the_job_and_the_lot(w, ui, js):  # noqa: F8
     assert "error" not in res, res
     part = w.env["fix.device.component"].browse(res["id"])
     # the reference the genealogy and its events read
-    assert (part.service_order_id, part.lot_id) == (o.id, lot.id)
+    assert (part.service_order_id, part.lot_id, part.lot_model) == (o.id, lot.id, "fix.stock.lot")
     assert (part.causing_order_id, part.stock_lot_ref_id) == (o, lot)
     read = ui.form(
         w.clerk,

@@ -865,7 +865,14 @@ def test_an_officer_with_no_evidence_records_a_pending_consent(c, ui):
 
 
 def test_preventive_wo_needs_the_role_and_the_confidence(c, ui):
-    call = {"model": "fix.predictive.maintenance", "method": "action_create_preventive_wo"}
+    # A07 ERP audit (2026-11-20) M48-03: the request carries its reason and goes
+    # to the Operations Director
+    call = {
+        "model": "fix.predictive.maintenance",
+        "method": "action_create_preventive_wo",
+        "kwargs": {"justification": "vibration rising"},
+    }
+    c.user(DIRECTOR)
     good = pred(c)
     res = ui.action(c.clerk, **call, ids=[good.id])
     assert not res["success"] and "IoT Operator" in res["error"]
@@ -895,6 +902,13 @@ def test_the_minimum_confidence_is_a_setting(c):
 
 def _done(c, action):
     action._guarded().write({"state": "dispatched", "outcome_evidence_ref": "JC-1"})
+    # A07 ERP audit (2026-11-20) M48-08: the action's order (raised by the spine at
+    # dispatch) is settled first; here it waits for a site and is settled as done
+    Demand = c.env["fix.maintenance.demand"]
+    Demand.consume_iot_action_dispatched({"aggregate_id": action.id})
+    Demand.search([("iot_action_id", "=", action.id), ("state", "=", "pending")]).action_dismiss(
+        "done under job card JC-1"
+    )
     action.with_user(c.operator2).action_done(outcome="confirmed", note="found it")
 
 

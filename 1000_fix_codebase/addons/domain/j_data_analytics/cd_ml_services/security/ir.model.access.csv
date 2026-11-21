@@ -43,3 +43,5 @@ access_fix_ml_performance_user,fix.ml.performance.observation.user,model_fix_ml_
 access_fix_ml_performance_system,fix.ml.performance.observation.system,model_fix_ml_performance_observation,base.group_system,1,1,1,1
 access_fix_ml_performance_scientist,fix.ml.performance.observation.scientist,model_fix_ml_performance_observation,group_ml_data_scientist,1,0,1,0
 access_fix_ml_performance_owner,fix.ml.performance.observation.owner,model_fix_ml_performance_observation,group_ml_model_owner,1,0,1,0
+access_fix_ml_m48_precision_user,fix.ml.m48.precision.user,model_fix_ml_m48_precision,base.group_user,1,0,0,0
+access_fix_ml_m48_precision_system,fix.ml.m48.precision.system,model_fix_ml_m48_precision,base.group_system,1,0,0,0

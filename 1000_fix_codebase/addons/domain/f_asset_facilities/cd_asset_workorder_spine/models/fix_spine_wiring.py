@@ -150,15 +150,11 @@ class FixMaintenanceDemandWiring(models.Model):
             host[0]._spine_log(marker, "Also %s." % what)
             return True
         equipment = device.equipment_id
+        # A07 ERP audit (2026-11-20) M48-05: a vehicle's tracker goes to its M46
+        # work order, a customer's device to its M01 order (entitlement, M48-04).
         vals = {
-            "company_id": device.company_id.id,
-            "operating_unit_id": device.operating_unit_id.id,
-            "target": "service_order" if device.partner_id else "work_order",
+            **self._spine_m48_device_vals(device),
             "work_type": "inspection",
-            "equipment_id": equipment.id,
-            "iot_device_id": device.id,
-            "site_id": device.site_id.id,
-            "partner_id": device.partner_id.id,
             "scheduled_date": _today(self.env),
             "description": "IoT device %s (%s) stopped reporting: %s. Inspect the device, its "
             "power and its connection%s. The missed readings are a gap, never zeros."
@@ -175,6 +171,7 @@ class FixMaintenanceDemandWiring(models.Model):
             "m48_silent", gap, vals, label="%s silent (%s)" % (device.device_id, gap.name)
         )
         demand._spine_log(marker, "Raised for %s." % what)
+        demand._spine_m48_opportunity()
         return True
 
     # ------------------------------------------------------------ M47 reopen

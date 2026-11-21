@@ -85,15 +85,21 @@ def _refused(fn, *args, match=None, **kw):
 
 def _make_ready(c, site):
     """Everything the readiness gate reads, recorded by the Facility Manager."""
-    c.env["fix.site.lease"].with_user(c.fm).create(
-        {
-            "site_id": site.id,
-            "lessor_id": c.landlord.id,
-            "start_date": c.today,
-            "end_date": c.today + timedelta(days=3 * 365),
-            "monthly_rent": 80000.0,
-        }
+    lease = (
+        c.env["fix.site.lease"]
+        .with_user(c.fm)
+        .create(
+            {
+                "site_id": site.id,
+                "lessor_id": c.landlord.id,
+                "start_date": c.today,
+                "end_date": c.today + timedelta(days=3 * 365),
+                "monthly_rent": 80000.0,
+            }
+        )
     )
+    # D6 (A07 ERP audit 2026-11-20): recorded once its commitment is approved
+    lease.sudo()._guarded().write({"state": "active"})
     for ltype in ("trade", "fire"):
         c.env["fix.site.licence"].with_user(c.fm).create(
             {
@@ -123,7 +129,8 @@ def _make_ready(c, site):
 def _new_site(c, user=None):
     return (
         c.env["fix.site"]
-        .with_user(user or c.clerk)
+        # A07 ERP audit (2026-11-20) M47-18: a Facility Manager registers a site
+        .with_user(user or c.fm)
         .create({"name": "A07P1S New Branch", "company_id": c.co.id, "operating_unit_id": c.ou.id})
     )
 
@@ -333,7 +340,7 @@ def test_closure_project_completes_only_after_the_site_closed(c):
     )
     project = (
         c.env["fix.site.project"]
-        .with_user(c.clerk)
+        .with_user(c.fm)
         .create({"site_id": site.id, "project_type": "close"})
     )
     project.action_start()

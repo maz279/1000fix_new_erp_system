@@ -153,8 +153,23 @@ def test_prediction_creates_one_work_order(ctx):
         }
     )
     assert prediction.name == f"PDM-{TAG}"
+    # A07 ERP audit (2026-11-20) M48-03: the request is a prescriptive action the
+    # Operations Director approves (someone must hold the role)
+    director = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": f"PDM Director {TAG}",
+                "login": f"pdm_director_{TAG}",
+                "group_ids": [(6, 0, [env.ref("cd_facility.group_operations_director").id])],
+            }
+        )
+    )
+    assert director
     prediction.action_create_preventive_wo()
     assert prediction.work_order_created is True
+    assert prediction.preventive_action_id.approval_state == "pending"
     with pytest.raises(UserError, match="already requested"), env.cr.savepoint():
         prediction.action_create_preventive_wo()
     healthy = env["fix.predictive.maintenance"].create(
@@ -184,6 +199,12 @@ def test_prescriptive_action_lifecycle(ctx):
     action.action_approve()
     action.action_dispatch()
     action.outcome_evidence_ref = "JC-OPS-1"  # A07 P1: completion needs evidence
+    # A07 ERP audit (2026-11-20) M48-08: the order raised at dispatch comes first;
+    # here its demand waits for a site and is settled under the job card
+    demand = env["fix.maintenance.demand"].search([("iot_action_id", "=", action.id)])
+    with pytest.raises(UserError, match="no order yet"), env.cr.savepoint():
+        action.action_done(outcome="confirmed", note="worn bearing")
+    demand.action_dismiss("done under job card JC-OPS-1")
     action.action_done(outcome="confirmed", note="worn bearing")
     assert action.state == "done"
     assert prediction.outcome == "confirmed"
@@ -220,8 +241,11 @@ def test_report_packs_and_kpis(ctx):
     assert any(r["device"] == device.name for r in coverage["rows"])
     health = m48.asset_health(env)
     row = next(r for r in health["rows"] if r["device"] == device.name)
-    assert row["open_alerts"] >= 1
-    assert 0 <= row["score"] <= 100
+    # A07 ERP audit (2026-11-20) M48-13: the pack shows the STORED index
+    assert row["band"] == "Not scored" and row["score"] == "—"
+    env["fix.iot.health"]._fix_score(device)
+    row = next(r for r in m48.asset_health(env)["rows"] if r["device"] == device.name)
+    assert 0 <= row["score"] <= 100 and "open alert" in row["factors"]
     pipeline = m48.pipeline_health(env)
     assert any(r["adapter"] == adapter.name for r in pipeline["rows"])
     storm = m48.alert_storm(env)

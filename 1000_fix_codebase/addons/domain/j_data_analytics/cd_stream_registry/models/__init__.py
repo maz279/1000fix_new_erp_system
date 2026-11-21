@@ -5,4 +5,5 @@ from . import (
     fix_iot_ops,
     fix_stream_registry,
     fix_iot_capture,
+    fix_iot_a07erp,
 )

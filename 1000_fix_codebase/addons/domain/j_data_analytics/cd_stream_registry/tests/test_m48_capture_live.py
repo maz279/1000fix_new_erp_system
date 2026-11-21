@@ -204,7 +204,9 @@ def new_id(out):
     return out.get("id") or out.get("record_id") or (out.get("record") or {}).get("id")
 
 
-def pred(c, **kw):
+def pred(c, engine=False, **kw):
+    """Recorded by the IoT Operator, or (engine=True) by the M26 inference path:
+    A07 ERP audit (2026-11-20) M48-02, only an engine score drives work."""
     vals = {
         "name": f"M48CAP-PDM-{uuid.uuid4().hex[:5]}",
         "equipment_id": c.equipment.id,
@@ -214,7 +216,8 @@ def pred(c, **kw):
         "model_name": MODEL,
     }
     vals.update(kw)
-    return c.env["fix.predictive.maintenance"].with_user(c.operator).create(vals)
+    Pred = c.env["fix.predictive.maintenance"]
+    return (Pred if engine else Pred.with_user(c.operator)).create(vals)
 
 
 # ================================================ page 1: onboarding
@@ -823,7 +826,7 @@ def test_14_an_intervention_names_its_parts_and_skill(c, ui, js):
     c.user("cd_facility.group_operations_director")  # the approver exists
     part = c.env["product.product"].create({"name": f"Bearing 6204 {TAG}"})
     comp = c.env["fix.competency"].create({"code": f"HVAC-{TAG}", "name": "HVAC compressor"})
-    p = pred(c)
+    p = pred(c, engine=True)
     base = {
         "prediction_id": p.id,
         "action_type": "replace",

@@ -28,6 +28,20 @@ HELD = (UserError, ValidationError)
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 @contextmanager
 def refused(env, exc=HELD, match=None):
     with pytest.raises(exc, match=match), env.cr.savepoint():
@@ -62,6 +76,10 @@ class M45:
         self.qm, self.qm_emp = _user(
             env, "qm", groups=("cd_equipment_register.group_quality_manager",)
         )
+        # A07 ERP audit (2026-11-20) M45-15: a store keeper issues equipment
+        keeper = ("cd_equipment_register.group_equipment_custodian",)
+        self.keeper, self.keeper_emp = _user(env, "keeper", groups=keeper)
+        self.keeper2, self.keeper2_emp = _user(env, "keeper2", groups=keeper)
         self.n = 0
 
     def eq(self, **kw):
@@ -84,6 +102,7 @@ class M45:
                     # P0 recipe (M45-2): a pass names its certificate and performer
                     "certificate_ref": "CERT-A7P0",
                     "performed_by": "A7P0 Lab",
+                    **d7a_evidence(self.env),
                 }
             )
         )
@@ -100,7 +119,7 @@ class M45:
             "due_on": self.today + timedelta(days=3),
         }
         vals.update(kw)
-        return self.env["fix.equipment.issue"].with_user(user or self.clerk).create(vals)
+        return self.env["fix.equipment.issue"].with_user(user or self.keeper).create(vals)
 
     def usage(self, e, user=None, **kw):
         vals = {"equipment_id": e.id, "job_ref": "A7P0-JOB", "qc_result": "pass"}
@@ -223,12 +242,12 @@ def test_fit_instrument_is_issued(m):
 def test_issue_cannot_be_repointed_to_an_unfit_instrument(m):
     good, bad = m.fit(), m.eq()
     i = m.issue(good)
-    with refused(m.env, UserError, "Cannot issue"):
-        i.with_user(m.clerk).write({"equipment_id": bad.id})
+    # A07 ERP audit M45-01: an open issue is not re-pointed at all, to an
+    # unfit instrument or a fit one: a change is a return and a new issue
+    for target in (bad, m.fit()):
+        with refused(m.env, UserError, "cannot be set directly"):
+            i.with_user(m.keeper).write({"equipment_id": target.id})
     assert (i.equipment_id, good.operational_status) == (good, "issued")
-    other = m.fit()
-    i.with_user(m.clerk).write({"equipment_id": other.id})  # the proper re-point
-    assert (other.operational_status, good.operational_status) == ("issued", "available")
 
 
 @pytest.mark.parametrize("kind", ["never", "failed", "overdue", "out_of_service", "retired"])
@@ -288,7 +307,7 @@ def test_one_open_issue_per_item(m):
     e = m.fit()
     first = m.issue(e)
     with refused(m.env, ValidationError, "already issued"):
-        m.issue(e, user=m.clerk2, custodian=m.clerk2_emp)
+        m.issue(e, user=m.keeper2, custodian=m.clerk2_emp)
     assert (
         m.env["fix.equipment.issue"].search_count(
             [("equipment_id", "=", e.id), ("state", "=", "issued")]
@@ -297,7 +316,7 @@ def test_one_open_issue_per_item(m):
     )
     # a returned issue cannot be re-opened beside another open one
     first.action_return(condition="good")
-    second = m.issue(e, user=m.clerk2, custodian=m.clerk2_emp)
+    second = m.issue(e, user=m.keeper2, custodian=m.clerk2_emp)
     # P0 recipe (M45-5): the issue state is guarded, so the re-open is refused
     # before the one-open-issue constraint is even reached
     with refused(m.env, UserError, "cannot be set directly"):

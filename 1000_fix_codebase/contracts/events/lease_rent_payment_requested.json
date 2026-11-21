@@ -61,6 +61,22 @@
         },
         "lessor_id": {
           "type": "integer"
+        },
+        "rent": {
+          "type": "number"
+        },
+        "service_charge": {
+          "type": "number"
+        },
+        "advance_adjusted": {
+          "type": "number"
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

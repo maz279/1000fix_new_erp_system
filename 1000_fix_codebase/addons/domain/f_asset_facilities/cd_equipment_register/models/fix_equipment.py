@@ -1,4 +1,7 @@
 # fix_equipment — M45: test equipment + the deferred calibration (P08-M08).
+import base64
+import hashlib
+
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
@@ -33,6 +36,28 @@ MAX_INTERVAL_DEFAULT = 24
 DUE_ALERT_DAYS = (60, 30, 15, 7)
 # what a Calibration Technician may write on a profile: the change request
 PROFILE_REQUEST_FIELDS = {"proposed_interval_months", "interval_change_reason"}
+
+
+# A07 ERP audit (2026-11-20) M45-08 / decision D4: the business day is the
+# Dhaka day. The crons run as __system__ (Europe/Brussels on fix_real), so
+# "today" of the cron user was the previous Dhaka day from 18:00 to 23:00 UTC
+# and a lapse was held a day late. Every business date of M45 reads this.
+DHAKA_TZ = "Asia/Dhaka"
+# A07 ERP audit M45-02: once recorded, the acquisition cost (the write-off
+# basis) changes only by finance.
+ROLE_FINANCE = ("account.group_account_manager",)
+# M45-19: how a calibration provider's charge is paid (S6 posts it)
+CALIBRATION_PAYMENT_METHODS = [
+    ("vendor_bill", "Vendor Bill (AP)"),
+    ("petty_cash", "Petty Cash"),
+    ("employee_expense", "Employee Expense Claim"),
+    ("internal", "Internal (no external charge)"),
+]
+
+
+def m45_today(env):
+    """The Dhaka business day, whatever the acting user's time zone."""
+    return fields.Date.context_today(env["fix.equipment"].with_context(tz=DHAKA_TZ))
 
 
 def m45_param_on(env, key) -> bool:
@@ -99,6 +124,14 @@ CALIBRATION_EVIDENCE = {
     "operating_unit_id",
     "supersedes_id",
 }
+# M45-19: the cost facts are pinned with the record (the M52 entry keys on it)
+CALIBRATION_COST_FIELDS = {
+    "calibration_currency_id",
+    "calibration_cost",
+    "payment_method",
+    "invoice_ref",
+    "cost_employee_id",
+}
 
 
 class FixApprovalMatrixEquipment(models.Model):
@@ -111,8 +144,15 @@ class FixApprovalMatrixEquipment(models.Model):
             ("equipment_writeoff", "Equipment Write-Off / Retirement"),
             # A07 P2 (2026-11-04) BRU-EAM-13: an interval change is approved
             ("calibration_interval", "Calibration Interval Change"),
+            # A07 ERP audit (2026-11-20) M45-04: switching calibration control
+            # off on an equipment class (BRU-EAM-01 has no override)
+            ("calibration_control", "Calibration Control Switch-Off"),
         ],
-        ondelete={"equipment_writeoff": "cascade", "calibration_interval": "cascade"},
+        ondelete={
+            "equipment_writeoff": "cascade",
+            "calibration_interval": "cascade",
+            "calibration_control": "cascade",
+        },
     )
 
 
@@ -136,7 +176,19 @@ class FixEquipment(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    # A07 ERP audit (2026-11-20) M45-09: the OU was a plain field nobody set,
+    # so the OU record rules on the register and on every ops row (they take
+    # the equipment's OU) admitted everyone. It is the branch's OU now, and it
+    # moves with the branch when a transfer is received.
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Operating Unit",
+        compute="_compute_operating_unit",
+        store=True,
+        readonly=True,
+        index=True,
+        help="The operating unit of the item's branch: set and moved with the branch.",
+    )
     code = fields.Char(required=True)
     name = fields.Char(required=True)
     category = fields.Char(
@@ -216,6 +268,30 @@ class FixEquipment(models.Model):
         "res.users", string="Write-Off Approved By", readonly=True, copy=False
     )
 
+    @api.depends("branch_id", "branch_id.operating_unit_id")
+    def _compute_operating_unit(self):
+        for rec in self:
+            branch_ou = rec.sudo().branch_id.operating_unit_id
+            # an item with no branch keeps whatever OU it was loaded with
+            rec.operating_unit_id = branch_ou or rec.operating_unit_id
+
+    @api.model
+    def _m45_backfill_operating_unit(self):
+        """Upgrade hook (data/m45_backfill.xml): set the OU of every registered
+        item and calibration from its branch (M45-09). Idempotent."""
+        Equipment = self.sudo().with_context(active_test=False)
+        items = Equipment.search([("branch_id.operating_unit_id", "!=", False)])
+        stale = items.filtered(lambda e: e.operating_unit_id != e.branch_id.operating_unit_id)
+        if stale:
+            self.env.add_to_compute(Equipment._fields["operating_unit_id"], stale)
+        Calibration = self.env["fix.calibration"].sudo()
+        cals = Calibration.search([("equipment_id", "in", items.ids)])
+        cals = cals.filtered(lambda c: c.operating_unit_id != c.equipment_id.operating_unit_id)
+        if cals:
+            self.env.add_to_compute(Calibration._fields["operating_unit_id"], cals)
+        self.env.flush_all()
+        return len(stale) + len(cals)
+
     # ---- guard ----------------------------------------------------------------
     def _fix_guarded_fields(self) -> set:
         # A07 audit (2026-11-03) M45-6/M45-7: operational_status was writable by
@@ -236,13 +312,60 @@ class FixEquipment(models.Model):
             # M45-8: once registered, the branch and custodian move only on a
             # received transfer; a typed branch made the transfer decorative.
             guarded |= {"branch_id", "custodian_id"}
+            # M45-09: the OU is the branch's, moved only with it
+            guarded |= {"operating_unit_id"}
         if any(rec.approval_state in ("pending", "approved") for rec in self):
             # the approved terms are pinned: a change to them is refused while
             # the write-off is pending or once it is approved
             guarded |= {"acquisition_cost", "retirement_reason"}
         if any(rec.operational_status == "retired" for rec in self):
             guarded |= RETIRED_FROZEN
+        if any(rec._m45_fixed_asset() for rec in self):
+            # M45-02: once capitalised, M49 holds the cost (BRU-EAM-19)
+            guarded |= {"acquisition_cost"}
         return guarded
+
+    def write(self, vals):
+        # A07 ERP audit (2026-11-20) M45-02: any internal user rewrote the cost
+        # (80,000 -> 20,000) and moved the write-off from the CFO to tier 2.
+        # Recorded once at registration; afterwards finance changes it.
+        if (
+            "acquisition_cost" in vals
+            and not self.env.su
+            and not self._fix_guard_open()
+            and any(
+                (rec.sudo().acquisition_cost or 0.0)
+                and abs((rec.sudo().acquisition_cost or 0.0) - (vals["acquisition_cost"] or 0.0))
+                > 0.005
+                for rec in self
+            )
+        ):
+            m45_require_role(self.env, ROLE_FINANCE, "Changing a recorded acquisition cost")
+        return super().write(vals)
+
+    def _m45_fixed_asset(self):
+        """The M49 asset this item became (the A07 bridge adds the link), or
+        an empty value when it is not capitalised / the bridge is absent."""
+        self.ensure_one()
+        if "fixed_asset_id" not in self._fields:
+            return False
+        return self.sudo().fixed_asset_id
+
+    def _m45_writeoff_basis(self):
+        """(amount, label) a write-off is decided on. Decision D10 (M45-30):
+        the M49 net book value when the item is capitalised, otherwise the
+        acquisition cost."""
+        self.ensure_one()
+        asset = self._m45_fixed_asset()
+        if asset:
+            asset = asset.sudo()
+            if "book_nbv" in asset._fields:
+                return (asset.book_nbv or 0.0), "net book value of M49 asset %s" % (
+                    asset.display_name
+                )
+            if "gross" in asset._fields:
+                return (asset.gross or 0.0), "gross cost of M49 asset %s" % asset.display_name
+        return (self.sudo().acquisition_cost or 0.0), "acquisition cost written off"
 
     # ---- DOFA -------------------------------------------------------------------
     def _dofa_thresholds(self):
@@ -250,11 +373,12 @@ class FixEquipment(models.Model):
 
     def _dofa_amount(self) -> float:
         self.ensure_one()
-        return self.acquisition_cost or 0.0
+        return self._m45_writeoff_basis()[0]
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "BDT %.2f (acquisition cost written off)" % self._dofa_amount()
+        amount, label = self._m45_writeoff_basis()
+        return "BDT %.2f (%s)" % (amount, label)
 
     @api.depends("acquisition_cost")
     def _compute_dofa_tier_required(self):
@@ -264,7 +388,7 @@ class FixEquipment(models.Model):
         """A write-off is never below the lowest rung of its ladder (BRU-EAM-11):
         the mixin reads a nil amount as tier 0, "nothing to approve"."""
         tier = super()._dofa_current_tier()
-        if tier == "tier_0" and not (self.acquisition_cost or 0.0) > 0.0:
+        if tier == "tier_0" and not self._dofa_amount() > 0.0:
             return self._dofa_tier_for_amount(0.0)
         return tier
 
@@ -282,8 +406,9 @@ class FixEquipment(models.Model):
     )
     def _compute_calibration(self):
         # A07 P1: the business day (Asia/Dhaka), not the server's UTC date: the
-        # midnight job runs at 00:05 Dhaka, still "yesterday" in UTC
-        today = fields.Date.context_today(self)
+        # midnight job runs at 00:05 Dhaka, still "yesterday" in UTC.
+        # A07 ERP audit M45-08: explicitly Dhaka, whatever the cron user's tz.
+        today = m45_today(self.env)
         # A07 P2: with the switch on, a calibration certifies only once a
         # second person has accepted it (the usage decision)
         decision_required = m45_param_on(self.env, PARAM_USAGE_DECISION)
@@ -596,10 +721,11 @@ class FixEquipment(models.Model):
                 )
             rec.action_dofa_approve()
             rec._dofa_assert_approved("Equipment write-off")
+            basis, basis_label = rec._m45_writeoff_basis()
             rec._guarded().write(
                 {
                     "operational_status": "retired",
-                    "retired_on": fields.Date.context_today(self),
+                    "retired_on": m45_today(self.env),
                     "retired_by_id": self.env.user.id,
                 }
             )
@@ -609,7 +735,7 @@ class FixEquipment(models.Model):
             )._guarded().write(
                 {
                     "state": "resolved",
-                    "resolved_on": fields.Date.context_today(self),
+                    "resolved_on": m45_today(self.env),
                     "resolved_by_id": self.env.user.id,
                 }
             )
@@ -627,7 +753,10 @@ class FixEquipment(models.Model):
                     "equipment": rec.code,
                     "approver": self.env.user.name,
                     "approver_id": self.env.user.id,
-                    "value": rec.acquisition_cost or 0.0,
+                    # D10: the amount the write-off was decided on
+                    "value": basis,
+                    "value_basis": basis_label,
+                    "acquisition_cost": rec.acquisition_cost or 0.0,
                     "basis": rec.retirement_reason or "",
                     "was_missing": bool(rec.missing_verification_id),
                 },
@@ -690,21 +819,41 @@ class FixEquipment(models.Model):
         no override; and the 60/30/15/7-day due alerts go out (AUT-EAM-02).
         Idempotent: an open calibration hold is not opened twice and each alert
         is sent once per due date."""
-        today = fields.Date.context_today(self)
-        Equipment = self.sudo().with_context(active_test=False)
+        # A07 ERP audit M45-08: the Dhaka day, whatever the cron user's tz
+        today = m45_today(self.env)
+        Equipment = self.sudo().with_context(active_test=False, tz=DHAKA_TZ)
         held = 0
         for rec in Equipment.search([("operational_status", "!=", "retired")]):
             state = rec.calibration_state
-            if state in ("overdue", "failed", "rejected"):
+            # M45-25 / AC-19: a measurement-critical item with no calibration at
+            # all (registered or migrated without a certificate) is out of
+            # service until its baseline calibration, not "Available".
+            if state in ("overdue", "failed", "rejected", "never"):
                 reason = {
                     "overdue": "Calibration due %s has passed (automatic, AUT-EAM-03)"
                     % rec._m45_latest_calibration().next_due,
                     "failed": "Latest calibration failed (automatic)",
                     "rejected": "Latest calibration rejected at its usage decision (automatic)",
+                    "never": "No baseline calibration on record (automatic, AC-19)",
                 }[state]
                 if not rec._m45_has_calibration_hold():
                     rec._m45_open_calibration_hold(reason)
                     held += 1
+                    if state == "overdue":
+                        # M45-11 / AUT-EAM-03: the lapse reaches the Quality
+                        # Manager (the spine routes it to the QM alert list)
+                        publish(
+                            self.env,
+                            "equipment.calibration.overdue",
+                            "fix.equipment",
+                            rec.id,
+                            {
+                                "equipment": rec.code,
+                                "due_date": str(rec._m45_latest_calibration().next_due),
+                                "branch": rec.branch_id.name or None,
+                                "holder_id": rec.custodian_id.id or None,
+                            },
+                        )
                 continue
             if state != "current" or not rec.next_calibration:
                 continue
@@ -731,6 +880,11 @@ class FixEquipment(models.Model):
                     "branch": rec.branch_id.name or "",
                     "days_remaining": days,
                     "horizon_days": horizon,
+                    # M45-11: who must act at this horizon (AUT-EAM-02): the
+                    # Quality Manager from 15 days, the Ops Director from 7
+                    "escalate_to": "ops_director"
+                    if horizon <= 7
+                    else ("quality_manager" if horizon <= 15 else None),
                 },
             )
         return held
@@ -751,7 +905,9 @@ class FixCalibration(models.Model):
     # A07 P2 (2026-11-04) BRU-EAM-06: "cascade" let deleting the register row
     # delete every certificate; a calibrated item is never deleted.
     equipment_id = fields.Many2one("fix.equipment", required=True, ondelete="restrict", index=True)
-    calibrated_on = fields.Date(required=True, default=fields.Date.today)
+    # M45-27: the Dhaka day (fields.Date.today was the UTC date, yesterday
+    # between 00:00 and 06:00 Dhaka)
+    calibrated_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     standard_ref = fields.Char(
         string="Standard Reference",
         help="The traceable standard (ISO 9001 7.1.5: measurement traceability)",
@@ -835,6 +991,42 @@ class FixCalibration(models.Model):
     impact_id = fields.Many2one(
         "fix.calibration.impact", string="Impact Assessment", readonly=True, copy=False
     )
+    # ---- A07 ERP audit (2026-11-20) ------------------------------------------
+    # FR-EAM-024 / AC-08: the certificate is retrievable with a content hash
+    certificate_hash = fields.Char(
+        string="Certificate SHA-256",
+        readonly=True,
+        copy=False,
+        help="SHA-256 of the certificate file as recorded; a changed file would not match.",
+    )
+    # M45-24 / BRU-EAM-05: a certificate from an external provider that is not
+    # accredited is flagged; the instrument may not produce a QC result on it
+    non_accredited = fields.Boolean(
+        string="Non-Accredited Certificate",
+        readonly=True,
+        copy=False,
+        help="An external provider without accreditation issued this certificate: the "
+        "instrument is restricted to non-conformity work (no QC result) while it decides.",
+    )
+    # M45-19 / FR-EAM-046: what the calibration cost and how it is paid. The
+    # facts reach M52 as a cost entry (cost type calibration_service); S6 posts.
+    calibration_currency_id = fields.Many2one(
+        "res.currency",
+        string="Cost Currency",
+        default=lambda self: self.env.ref("base.BDT"),
+    )
+    calibration_cost = fields.Monetary(
+        string="Calibration Cost", currency_field="calibration_currency_id"
+    )
+    payment_method = fields.Selection(
+        CALIBRATION_PAYMENT_METHODS,
+        string="Paid By",
+        help="Vendor bill: the provider's invoice reference is required and the cost posts "
+        "when the matched bill posts. Employee expense: name the employee.",
+    )
+    invoice_ref = fields.Char(string="Provider Invoice Ref")
+    cost_employee_id = fields.Many2one("hr.employee", string="Paid by Employee")
+    cost_entry_ref = fields.Char(string="M52 Cost Entry", readonly=True, copy=False)
 
     @api.depends("equipment_id.name", "calibrated_on", "result")
     def _compute_display_name(self):
@@ -864,14 +1056,131 @@ class FixCalibration(models.Model):
             "decided_by_id",
             "decided_on",
             "impact_id",
+            "certificate_hash",
+            "non_accredited",
+            "cost_entry_ref",
         }
         if self:
-            guarded |= CALIBRATION_EVIDENCE | {"notes", "reading_ids"}
+            guarded |= CALIBRATION_EVIDENCE | CALIBRATION_COST_FIELDS | {"notes", "reading_ids"}
             if any(rec.decision_state != "pending" for rec in self):
                 guarded |= {"decision_note"}
         return guarded
 
     # ---- create-time evidence rules ---------------------------------------
+    @api.model
+    def _m45_in_house(self, vals) -> bool:
+        """The provider is the company itself: an in-house calibration."""
+        provider = self.env["res.partner"].sudo().browse(vals.get("provider_id") or [])
+        if not provider:
+            return False
+        company = self.env["res.company"].sudo().browse(vals.get("company_id") or [])
+        company = company or self.env.company
+        return provider.commercial_partner_id == company.partner_id.commercial_partner_id
+
+    @api.model
+    def _m45_check_cost_facts(self, vals):
+        """M45-19: a charged calibration carries what AP needs to pay it."""
+        cost = vals.get("calibration_cost") or 0.0
+        if cost < 0:
+            raise UserError("A calibration cost cannot be negative.")
+        if not cost:
+            return
+        method = vals.get("payment_method")
+        if not method:
+            raise UserError("State how the calibration cost of %.2f is paid (Paid By)." % cost)
+        if method == "internal":
+            raise UserError(
+                "An internal calibration has no external charge: leave the cost empty, or "
+                "choose how the provider is paid."
+            )
+        if method == "vendor_bill" and not (
+            vals.get("provider_id") and (vals.get("invoice_ref") or "").strip()
+        ):
+            raise UserError(
+                "A calibration paid by vendor bill names the provider and its invoice "
+                "reference, so AP matches the bill to it."
+            )
+        if method == "employee_expense" and not vals.get("cost_employee_id"):
+            raise UserError("Name the employee who paid the calibration (employee expense).")
+        equipment = self.env["fix.equipment"].sudo().browse(vals.get("equipment_id") or [])
+        if equipment and not equipment.operating_unit_id:
+            raise UserError(
+                "%s has no branch operating unit, so its calibration cost has no cost centre. "
+                "Register the item at its branch first." % equipment.name
+            )
+
+    def _m45_after_create_facts(self):
+        """Hash the certificate, flag a non-accredited one (M45-24), and hand a
+        charged calibration to M52 (M45-19)."""
+        for rec in self:
+            sealed = rec.sudo()
+            vals = {}
+            if sealed.certificate_file:
+                try:
+                    raw = base64.b64decode(sealed.certificate_file)
+                except (TypeError, ValueError):
+                    raw = bytes(sealed.certificate_file)
+                vals["certificate_hash"] = hashlib.sha256(raw).hexdigest()
+            in_house = self._m45_in_house(
+                {"provider_id": sealed.provider_id.id, "company_id": sealed.company_id.id}
+            )
+            if (
+                sealed.result in CERTIFYING_RESULTS
+                and sealed.provider_id
+                and not in_house
+                and not sealed.provider_accredited
+            ):
+                vals["non_accredited"] = True
+            if vals:
+                sealed._guarded().write(vals)
+            if (sealed.calibration_cost or 0.0) > 0:
+                rec._m45_queue_cost()
+
+    def _m45_cost_entry_vals(self):
+        self.ensure_one()
+        rec = self.sudo()
+        equipment = rec.equipment_id
+        return {
+            "cost_type": "calibration_service",
+            "company_id": rec.company_id.id,
+            "operating_unit_id": equipment.operating_unit_id.id,
+            "branch_id": equipment.branch_id.id or False,
+            "amount": rec.calibration_cost,
+            "currency_id": rec.calibration_currency_id.id or self.env.ref("base.BDT").id,
+            "cost_date": rec.calibrated_on,
+            "vendor_id": rec.provider_id.id or False,
+            "invoice_ref": rec.invoice_ref or False,
+            "payment_method": rec.payment_method,
+            "employee_id": rec.cost_employee_id.id or False,
+            "detail": "Calibration of %s (%s) on %s, certificate %s"
+            % (equipment.name, equipment.code, rec.calibrated_on, rec.certificate_ref or "-"),
+        }
+
+    def _m45_cost_entry_model(self):
+        """(model, None) when the M52 hand-off can take a calibration cost, or
+        (None, why not). fix.asset.cost.entry lives in the finance bridge, which
+        M45 does not depend on; S6 adds the calibration_service cost type."""
+        if "fix.asset.cost.entry" not in self.env:
+            return None, "the finance bridge is not installed"
+        Entry = self.env["fix.asset.cost.entry"].sudo()
+        if "calibration_service" not in dict(Entry._fields["cost_type"].selection):
+            return None, "the M52 cost entry does not know the calibration_service cost type"
+        return Entry, None
+
+    def _m45_queue_cost(self):
+        """The single A07 cost hand-off (fix.asset.cost.entry._m52_queue): only
+        the facts the entry model knows are passed. When the hand-off is not
+        available the record says so instead of silently dropping the cost."""
+        for rec in self:
+            Entry, why = rec._m45_cost_entry_model()
+            if Entry is None:
+                rec.sudo().message_post(body="Calibration cost not handed to AP: %s." % why)
+                continue
+            vals = {k: v for k, v in rec._m45_cost_entry_vals().items() if k in Entry._fields}
+            entry = Entry._m52_queue(rec.sudo(), vals)
+            if entry:
+                rec.sudo()._guarded().write({"cost_entry_ref": entry.display_name})
+
     def _m45_max_interval_months(self) -> int:
         raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_MAX_INTERVAL)
         try:
@@ -885,7 +1194,7 @@ class FixCalibration(models.Model):
         data loads) stays trusted. Runs after _m45_prepare_vals: a result left
         blank is derived from the readings there, and a derived pass needs this
         evidence as much as a typed one."""
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         if m45_param_on(self.env, PARAM_CALIBRATION_ROLE):
             m45_require_role(self.env, (ROLE_CALIBRATION, ROLE_QM), "Recording a calibration")
         for vals in vals_list:
@@ -895,19 +1204,44 @@ class FixCalibration(models.Model):
                     "A calibration cannot be dated in the future (%s): record it once it "
                     "has been performed." % on
                 )
+            self._m45_check_cost_facts(vals)
             if vals.get("result") in CERTIFYING_RESULTS:
+                # A07 ERP audit (2026-11-20) M45-03 / decision D7(a): a pass is
+                # evidence, always: the certificate FILE and the provider, and
+                # the accreditation reference when the provider is accredited
                 missing = [
                     label
                     for key, label in (
                         ("certificate_ref", "the certificate reference"),
                         ("performed_by", "who performed it"),
+                        ("certificate_file", "the certificate file"),
+                        ("provider_id", "the calibration provider"),
                     )
-                    if not (vals.get(key) or "").strip()
+                    if not (
+                        (vals.get(key) or "").strip()
+                        if isinstance(vals.get(key), str)
+                        else vals.get(key)
+                    )
                 ]
+                if (
+                    vals.get("provider_accredited")
+                    and not (vals.get("accreditation_ref") or "").strip()
+                ):
+                    missing.append("the provider's accreditation reference")
                 if missing:
                     raise UserError(
                         "A passing calibration certifies the instrument, so it must name "
                         "%s." % " and ".join(missing)
+                    )
+                # M45-07 / AC-06: an in-house calibration (the provider is the
+                # company itself) names the company standard it was made
+                # against, so the expired-standard block can see it
+                if self._m45_in_house(vals) and not vals.get("standard_equipment_id"):
+                    raise UserError(
+                        "An in-house calibration must name the company's reference standard "
+                        "it was made against (Reference Standard), not only a typed "
+                        "reference: a standard out of calibration makes it invalid "
+                        "(BRU-EAM-04)."
                     )
                 profile = (
                     self.env["fix.calibration.profile"].sudo().browse(vals.get("profile_id") or [])
@@ -932,7 +1266,7 @@ class FixCalibration(models.Model):
         su = self.env.su
         Equipment = self.env["fix.equipment"].sudo()
         Point = self.env["fix.calibration.profile.point"].sudo()
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         for vals in vals_list:
             equipment = Equipment.browse(vals.get("equipment_id") or []).exists()
             profile = equipment.calibration_profile_ids[:1] if equipment else None
@@ -1087,7 +1421,8 @@ class FixCalibration(models.Model):
                     "next_due": str(rec.next_due),
                 },
             )
-            if rec.next_due < fields.Date.today():
+            # M45-27: judged on the Dhaka day, not the UTC date
+            if rec.next_due < m45_today(self.env):
                 publish(
                     self.env,
                     "equipment.calibration.overdue",
@@ -1095,6 +1430,7 @@ class FixCalibration(models.Model):
                     rec.id,
                     {"equipment": rec.equipment_id.code},
                 )
+        recs._m45_after_create_facts()
         recs._m45_after_record()
         recs._m45_ask_for_decision()
         return recs
@@ -1113,7 +1449,14 @@ class FixCalibration(models.Model):
             if rec.next_due < rec.calibrated_on:
                 raise UserError("Next-due precedes the calibration date")
 
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    # A07 ERP audit M45-09: the instrument's OU (it was never set, so the OU
+    # record rule admitted every calibration to everyone)
+    operating_unit_id = fields.Many2one(
+        related="equipment_id.operating_unit_id",
+        store=True,
+        index=True,
+        string="Operating Unit",
+    )
 
     # ---- A07 P2: what a failure sets in motion -----------------------------
     def _m45_after_record(self):

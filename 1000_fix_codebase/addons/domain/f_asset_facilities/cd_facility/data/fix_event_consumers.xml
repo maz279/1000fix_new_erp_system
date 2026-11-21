@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 ERP audit (2026-11-20) M47-17: the M47 events nobody consumed.
+     Each consumer is idempotent (see its method). The fix.asset.alert ones route
+     through cd_asset_workorder_spine (installed wherever cd_facility runs on the estate). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_site_outage_sla_impact" model="fix.event.consumer">
+            <field name="name">M01/M02: a branch stopped by an outage flags its open orders for SLA impact</field>
+            <field name="event_type">site.outage</field>
+            <field name="model">fix.site.outage</field>
+            <field name="method">consume_site_outage</field>
+            <field name="module">cd_facility</field>
+        </record>
+
+        <record id="consumer_site_outage_alert" model="fix.event.consumer">
+            <field name="name">Asset alert: a branch stopped by an outage reaches the Operations Director</field>
+            <field name="event_type">site.outage</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_facility</field>
+        </record>
+
+        <record id="consumer_site_readiness_gate_passed" model="fix.event.consumer">
+            <field name="name">M67: a site that passed its readiness gate marks its opening project's milestone</field>
+            <field name="event_type">site.readiness_gate_passed</field>
+            <field name="model">fix.site.project</field>
+            <field name="method">consume_site_readiness_gate_passed</field>
+            <field name="module">cd_facility</field>
+        </record>
+
+        <record id="consumer_site_status_changed_alert" model="fix.event.consumer">
+            <field name="name">Asset alert: a site suspended or closed reaches the Branch Operations Lead</field>
+            <field name="event_type">site.status_changed</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_facility</field>
+        </record>
+
+        <record id="consumer_lease_terminated" model="fix.event.consumer">
+            <field name="name">M47: a terminated lease stops its rent and lapses its obligations</field>
+            <field name="event_type">lease.terminated</field>
+            <field name="model">fix.site.lease</field>
+            <field name="method">consume_lease_terminated</field>
+            <field name="module">cd_facility</field>
+        </record>
+    </data>
+</odoo>

@@ -115,7 +115,8 @@ def test_a_lost_capitalised_item_raises_one_risk_and_a_write_off_withdrawn_on_re
     _lost_events(c, found, "equipment.recovered")
     _lost_events(c, found, "equipment.recovered")
     assert req.state == "withdrawn" and found.name in req.decision_note
-    assert risk.state == "open" and risk.bridge_lapse_log.count("[rec:%s]" % found.id) == 1
+    key = "[rec:fix.equipment.verification:%s]" % found.id
+    assert risk.state == "open" and risk.bridge_lapse_log.count(key) == 1
     assert risk.bridge_trigger_count == 1
     # a withdrawn request is not decided by finance
     _refused(_as(c, c.acct, "fix.asset.finance.request").browse(req.id).action_accept)
@@ -158,6 +159,11 @@ def _branch(c, code, ou):
 def test_a_received_transfer_of_a_capitalised_item_raises_one_draft_m49_transfer(c):
     eq = _capitalised(c, "A7W-EQ3")
     asset = eq.fixed_asset_id
+    # A07 FIN-13: the acknowledged transfer moves the GL balances, on the
+    # category's journal (fail closed without it)
+    c.category.journal_id = c.env["account.journal"].search(
+        [("type", "=", "general"), ("company_id", "=", c.co.id)], limit=1
+    )
     asset.write({"state": "active"})  # as M49 Activate leaves it
     ou2 = c.env["operating.unit"].create(
         {
@@ -198,6 +204,7 @@ def test_a_received_transfer_of_a_capitalised_item_raises_one_draft_m49_transfer
     other.write({"assigned_operating_unit_ids": [(4, c.ou.id), (4, ou2.id)]})
     c.env["fix.asset.transfer"].with_user(other).browse(draft.id).action_acknowledge()
     assert draft.state == "done" and asset.operating_unit_id == ou2 and asset.custodian_id == keeper
+    assert draft.gl_move_id.state == "posted"  # cost reclassified to the receiving branch
 
 
 # ------------------------------------------------------------ M47 lease

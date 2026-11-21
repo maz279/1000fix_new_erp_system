@@ -24,7 +24,11 @@ export const MODULE = {
       { id: 'M46-drivers', en: 'Driver Register', bn: 'চালক রেজিস্টার', t: 'g' },
       { id: 'M46-assign', en: 'Assignment & Pool', bn: 'অ্যাসাইনমেন্ট', t: 'g' },
       { id: 'M46-models', en: 'Vehicle Models', bn: 'যানবাহনের মডেল', t: 'g' },
-      { id: 'M46-brands', en: 'Vehicle Makes', bn: 'যানবাহনের নির্মাতা', t: 'g' }
+      { id: 'M46-brands', en: 'Vehicle Makes', bn: 'যানবাহনের নির্মাতা', t: 'g' },
+      /* A07 ERP audit M46-19 / M46-10 */
+      { id: 'M46-class-profiles', en: 'Vehicle Class Profiles', bn: 'যানবাহন শ্রেণি প্রোফাইল', t: 'g' },
+      { id: 'M46-disposals', en: 'Vehicle Disposals', bn: 'যানবাহন নিষ্পত্তি', t: 'g' },
+      { id: 'M46-logbook', en: 'Vehicle Logbook', bn: 'যানবাহন লগবুক', t: 'r' }
     ]},
     { en: 'Statutory', screens: [
       { id: 'M46-docs', en: 'Documents & Expiry', bn: 'নথি ও মেয়াদ', t: 'g' },
@@ -45,6 +49,8 @@ export const MODULE = {
     { en: 'Safety & Cost', screens: [
       { id: 'M46-accidents', en: 'Accidents & Insurance', bn: 'দুর্ঘটনা ও বীমা', t: 'g' },
       { id: 'M46-penalties', en: 'Traffic Fines & Penalties', bn: 'ট্রাফিক জরিমানা', t: 'g' },
+      { id: 'M46-fine-notice', en: 'Fine / Recovery Notice', bn: 'জরিমানা নোটিশ', t: 'r' },
+      { id: 'M46-gate-pass', en: 'Disposal Gate Pass', bn: 'নিষ্পত্তি গেট পাস', t: 'r' },
       { id: 'M46-insurers', en: 'Insurers', bn: 'বিমাকারী', t: 'r' },
       { id: 'M46-behaviour', en: 'Driver Behaviour', bn: 'চালকের আচরণ', t: 'r' },
       { id: 'M46-cost', en: 'Cost per Kilometre', bn: 'প্রতি কিমি খরচ', t: 'r' }
@@ -55,17 +61,19 @@ export const MODULE = {
     /* capture audit 2026-11-17: every record a page lists has its capture */
     'Vehicle Model', 'Vehicle Make', 'Vehicle Document', 'Document Renewal', 'Off-Road Record',
     'Vehicle Booking', 'Pre-Use Check', 'Vehicle Defect', 'Telematics Device', 'Telemetry Snapshot',
-    'Traffic Penalty'],
+    'Traffic Penalty',
+    /* A07 ERP audit 2026-11-20 */
+    'Vehicle Disposal', 'Vehicle Class Profile'],
   cross: ['M03 rider fleet', 'M02 field vans', 'M52 fuel expenses', 'M47 site vehicles'],
   freg: { src: 62, sub: [
-    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles', 'M46-models', 'M46-brands'], reports: ['Fleet Availability', 'Maintenance Cost per Vehicle'], forms: ['Vehicle', 'Vehicle Model', 'Vehicle Make'] }],
+    ['1', 'Vehicle Register', 8, { model: 'fleet.vehicle', cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'fitness_expiry'], screens: ['M46-vehicles', 'M46-models', 'M46-brands', 'M46-class-profiles', 'M46-disposals', 'M46-logbook', 'M46-gate-pass'], reports: ['Fleet Availability', 'Maintenance Cost per Vehicle'], forms: ['Vehicle', 'Vehicle Model', 'Vehicle Make', 'Vehicle Class Profile', 'Vehicle Disposal'] }],
     ['2', 'Statutory Documents', 9, { model: 'fix.vehicle.document', cols: ['name', 'vehicle_id', 'doc_type', 'number', 'valid_to', 'state'], screens: ['M46-docs', 'M46-doc-renewals', 'M46-renewal'], reports: ['Statutory Compliance Register'], forms: ['Vehicle Document', 'Document Renewal', 'Off-Road Record'] }],
     ['3', 'Drivers', 8, { model: 'fix.driver', cols: ['name', 'employee_id', 'license_no', 'license_expiry', 'state'], screens: ['M46-drivers', 'M46-behaviour', 'M46-penalties'], reports: [], forms: ['Driver', 'Traffic Penalty'] }],
     ['4', 'Assignment & Pool', 6, { model: 'fix.vehicle.assignment', cols: ['name', 'vehicle_id', 'date', 'driver_id', 'technician_id', 'order_id', 'state'], screens: ['M46-assign'], reports: ['Fleet Availability'], forms: ['Vehicle Booking'] }],
     ['5', 'Pre-Use & PM', 9, { model: 'fix.vehicle.check', cols: ['name', 'vehicle_id', 'driver_id', 'checked_on', 'passed'], screens: ['M46-preuse', 'M46-defects', 'M46-pm'], reports: ['Maintenance Cost per Vehicle'], forms: ['Pre-Use Check', 'Vehicle Defect', 'PM Service'] }],
     ['6', 'Fuel & Odometer', 8, { model: 'fix.vehicle.fuel', cols: ['vehicle_id', 'filled_on', 'litres', 'odometer', 'amount'], screens: ['M46-fuel', 'M46-cost'], reports: ['Fuel Efficiency Trend'], forms: ['Fuel Transaction'] }],
     ['7', 'Telematics', 5, { model: 'fix.telematics.device', cols: ['name', 'vehicle_id', 'sim_number', 'health_state', 'last_report_at', 'state'], screens: ['M46-devices', 'M46-telematics'], reports: [], forms: ['Telematics Device', 'Telemetry Snapshot'] }],
-    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents', 'M46-insurers', 'M46-penalties'], reports: ['Incident Summary'], forms: ['Accident Report', 'Traffic Penalty'] }]
+    ['8', 'Accidents & Insurance', 9, { model: 'fix.vehicle.accident', cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'state'], screens: ['M46-accidents', 'M46-insurers', 'M46-penalties', 'M46-fine-notice'], reports: ['Incident Summary'], forms: ['Accident Report', 'Traffic Penalty'] }]
   ] }
 };
 
@@ -78,12 +86,30 @@ export const SCREENS = {
   /* A retired vehicle stays on the register: its history is still read. */
   'M46-vehicles': { kind: 'model_list', model: 'fleet.vehicle',
     domain: [['active', 'in', [true, false]]],
-    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'compliance_ok', 'dispatch_blockers', 'fix_position_unknown', 'fitness_expiry', 'insurance_expiry', 'active', 'fix_retire_reason'],
+    cols: ['name', 'license_plate', 'fix_driver_id', 'branch_id', 'operating_unit_id', 'fix_lifecycle_state', 'compliance_ok', 'dispatch_blockers', 'fix_position_unknown', 'fitness_expiry', 'insurance_expiry', 'active', 'fix_retire_reason'],
     actions: [
       { m: 'action_assert_dispatchable', l: 'Assert Dispatchable' },
-      /* A Fleet Logistics Manager's decision; it raises the disposal request to finance. */
-      { m: 'action_retire', l: 'Retire', ask: 'Why is this vehicle leaving the fleet?', kwarg: 'reason' }
+      /* A07 ERP audit M46-25: a registered vehicle is commissioned by a Fleet
+       * Officer (documents valid, a passed pre-use check). M46-10: a vehicle
+       * leaves the fleet only through Vehicle Disposals (CFO approval). */
+      { m: 'action_commission', l: 'Commission' }
     ] },
+  'M46-class-profiles': { kind: 'model_list', model: 'fix.vehicle.class.profile',
+    note: 'A class profile names the documents, licence class and tank a class of vehicle needs, and its fuel-efficiency baseline and deterioration threshold. Recorded by a Fleet Officer, changed by a Fleet Logistics Manager.',
+    cols: ['name', 'licence_class', 'mandatory_document_types', 'tank_capacity_l', 'baseline_km_per_litre', 'deterioration_pct'] },
+  /* A07 ERP audit M46-10 (BRU-FLT-20, D10) */
+  'M46-disposals': { kind: 'model_list', model: 'fix.vehicle.disposal', stateField: 'state',
+    note: 'A vehicle leaves the fleet only here. A Fleet Logistics Manager records the route, the reason and the evidence (a sale or auction names the buyer and the proceeds; a leased or hired vehicle goes back to its lessor). Every disposal is approved by the CFO from the approver inbox; changing the route, proceeds or buyer afterwards withdraws the approval. Complete Disposal retires the vehicle.',
+    cols: ['name', 'vehicle_id', 'route', 'book_value', 'proceeds', 'buyer_id', 'disposal_date', 'approval_state', 'state'],
+    actions: [
+      { m: 'action_request_approval', l: 'Request CFO Approval', ask: 'Justification for the CFO', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Request' },
+      { m: 'action_complete', l: 'Complete Disposal' },
+      { m: 'action_cancel', l: 'Cancel', ask: 'Why is the disposal cancelled?', kwarg: 'reason' }
+    ] },
+  'M46-logbook': { kind: 'table_report', module: 'M46', report: 'vehicle_logbook', title: 'Vehicle Logbook' },
+  'M46-gate-pass': { kind: 'table_report', module: 'M46', report: 'disposal_gate_pass', title: 'Disposal Gate Pass', period: false },
+  'M46-fine-notice': { kind: 'table_report', module: 'M46', report: 'fine_notice', title: 'Fine / Recovery Notice', period: false },
   'M46-models': { kind: 'model_list', model: 'fleet.vehicle.model',
     note: 'A Fleet Officer adds a model here before registering the first vehicle of that model. A bike needs a motorcycle licence; a car or van a light one.',
     cols: ['name', 'brand_id', 'vehicle_type', 'model_year', 'seats'] },
@@ -175,10 +201,14 @@ export const SCREENS = {
    * a Logistics Manager who did not record it decides recover or absorb. */
   'M46-penalties': { kind: 'model_list', model: 'fix.vehicle.penalty', stateField: 'state',
     note: 'A traffic fine is recorded against the vehicle and the driver on duty (if none is named: the driver booked that day, else the assigned driver). A Fleet Logistics Manager who did not record it decides to recover it from the driver or absorb it, with the reason. A fine is never a disciplinary input (BRU-FLT-17).',
-    cols: ['name', 'vehicle_id', 'driver_id', 'issued_on', 'offence', 'amount', 'paid_on', 'recovery_decision', 'decided_by_id', 'state'],
+    cols: ['name', 'vehicle_id', 'driver_id', 'issued_on', 'offence', 'amount', 'payment_method', 'proposed_decision', 'approval_state', 'recovery_decision', 'paid_on', 'state'],
+    /* A07 ERP audit M46-14 (D11): up to BDT 10,000 the Logistics Manager
+     * decides; above it the decision goes to the Operations Director (to
+     * 50,000) or the CFO from the approver inbox. Paid is recorded by finance. */
     actions: [
       { m: 'action_recover', l: 'Recover from Driver', ask: 'Reason for recovering the fine', kwarg: 'reason' },
-      { m: 'action_absorb', l: 'Absorb', ask: 'Reason for absorbing the fine', kwarg: 'reason' }
+      { m: 'action_absorb', l: 'Absorb', ask: 'Reason for absorbing the fine', kwarg: 'reason' },
+      { m: 'action_recall_approval', l: 'Recall Request' }
     ] },
   'M46-accidents': { kind: 'model_list', model: 'fix.vehicle.accident', stateField: 'state',
     cols: ['name', 'vehicle_id', 'driver_id', 'occurred_on', 'damage_cost', 'claim_ref', 'insurer_id', 'settlement_amount', 'approval_state', 'state'],
@@ -213,9 +243,9 @@ export const SCREENS = {
     title: 'Vehicle',
     back: 'M46-vehicles',
     tabs: [
-      { id: 'register', label: '1. Register', bn: '১. রেজিস্টার', icon: '🚐', badge: '10' },
-      { id: 'value', label: '2. Value & Retirement', bn: '২. মূল্য ও অবসর', icon: '💰', badge: '8' },
-      { id: 'ownership', label: '3. Ownership', bn: '৩. মালিকানা', icon: '📄', badge: '4' }
+      { id: 'register', label: '1. Register', bn: '১. রেজিস্টার', icon: '🚐', badge: '14' },
+      { id: 'value', label: '2. Value & Retirement', bn: '২. মূল্য ও অবসর', icon: '💰', badge: '9' },
+      { id: 'ownership', label: '3. Ownership', bn: '৩. মালিকানা', icon: '📄', badge: '6' }
     ],
     sections: [
       { tab: 'register', title: 'Vehicle', note: 'The display name is generated from the model and plate (Odoo fleet); a plate is registered to one active vehicle. The fitness and insurance dates are read from the statutory document register (record a renewal as a document with its scan); dispatch is decided from the register. The licence class required follows the model (bike = motorcycle, car/van = light); raise it for a medium or heavy vehicle.',
@@ -225,13 +255,17 @@ export const SCREENS = {
           { name: 'fix_driver_id', label: 'Assigned Driver' },
           { name: 'branch_id', label: 'Branch' },
           { name: 'operating_unit_id', label: 'Operating Unit' },
+          { name: 'fix_class_profile_id', label: 'Class Profile' },
           { name: 'fix_licence_class_required', label: 'Licence Class Required' },
           { name: 'fix_tank_capacity_l', label: 'Fuel Tank Capacity (L)' },
+          { name: 'fix_baseline_km_per_litre', label: 'Baseline km/l (this vehicle)' },
+          { name: 'fix_lifecycle_state', label: 'Lifecycle', readonly: true },
+          { name: 'fix_commissioned_on', label: 'Commissioned On', readonly: true },
           { name: 'fitness_expiry', label: 'Fitness Expiry (register)', readonly: true },
           { name: 'insurance_expiry', label: 'Insurance Expiry (register)', readonly: true },
           { name: 'fix_position_unknown', label: 'Position Unknown', readonly: true }
         ] },
-      { tab: 'value', title: 'Purchase, Cancellation & Retirement', note: 'The purchase value and the cancellation date are kept by a Fleet Logistics Manager. A value above the capitalisation floor raises a capitalisation request to finance; a cancellation date, or Retire on the Vehicle Register, raises a disposal request, and the dispatch gate refuses the vehicle. Retire takes the reason, and refuses while the vehicle is still booked.',
+      { tab: 'value', title: 'Purchase, Cancellation & Retirement', note: 'The purchase value and the cancellation date are kept by a Fleet Logistics Manager. A value above the capitalisation floor raises a capitalisation request to finance. The vehicle leaves the fleet only through Vehicle Disposals (route, proceeds, buyer, CFO approval); completing the disposal retires it, and refuses while it is still booked. The operating unit follows the branch: every cost of the vehicle is booked there.',
         fields: [
           { name: 'net_car_value', label: 'Purchase Value' },
           { name: 'acquisition_date', label: 'Registration Date' },
@@ -240,13 +274,16 @@ export const SCREENS = {
           { name: 'active', label: 'In the Fleet', readonly: true },
           { name: 'fix_retire_reason', label: 'Retirement Reason', readonly: true },
           { name: 'fix_retired_on', label: 'Retired On', readonly: true },
-          { name: 'fix_retired_by_id', label: 'Retired By', readonly: true }
+          { name: 'fix_retired_by_id', label: 'Retired By', readonly: true },
+          { name: 'fix_disposal_id', label: 'Disposal', readonly: true }
         ] },
       { tab: 'ownership', title: 'Ownership Basis', note: 'FR-FLT-003. Only an owned vehicle is capitalised in M49 from its purchase value. A leased, hired or employee-owned vehicle names its contract and the contract end; the basis is set by a Fleet Logistics Manager.',
         fields: [
           { name: 'fix_ownership_basis', required: true, label: 'Ownership Basis' },
           { name: 'fix_contract_ref', label: 'Lease / Hire / Reimbursement Contract' },
+          { name: 'fix_contract_start', label: 'Contract Start (IFRS 16 commencement)' },
           { name: 'fix_contract_end', label: 'Contract End' },
+          { name: 'fix_lease_monthly_rent', label: 'Lease Rent per Month (IFRS 16)' },
           { name: 'fix_end_of_term', label: 'End-of-Term Obligation' }
         ] }
     ]
@@ -334,7 +371,7 @@ export const SCREENS = {
     title: 'Fuel Transaction',
     back: 'M46-fuel',
     tabs: [
-      { id: 'fill', label: '1. Fill', bn: '১. জ্বালানি', icon: '⛽', badge: '11' },
+      { id: 'fill', label: '1. Fill', bn: '১. জ্বালানি', icon: '⛽', badge: '15' },
       { id: 'review', label: '2. Exception Review', bn: '২. ব্যতিক্রম পর্যালোচনা', icon: '🔍', badge: '5' }
     ],
     sections: [
@@ -350,6 +387,10 @@ export const SCREENS = {
           { name: 'receipt_no', label: 'Receipt No' },
           { name: 'receipt_file', label: 'Receipt (scan)', type: 'file' },
           { name: 'receipt_filename', label: 'Receipt File Name' },
+          { name: 'payment_method', required: true, label: 'Payment Method' },
+          { name: 'vendor_id', label: 'Fuel Station / Vendor (vendor bill)' },
+          { name: 'paid_by_employee_id', label: 'Paid By (employee expense; empty = the driver)' },
+          { name: 'fuel_card_ref', label: 'Fuel Card' },
           { name: 'exception_reason', label: 'Reason (if the fill is genuine)' }
         ] },
       { tab: 'review', title: 'Exception Review',
@@ -372,7 +413,8 @@ export const SCREENS = {
       reported: 'Reported', claimed: 'Claim Filed', closed: 'Closed' } },
     tabs: [
       { id: 'incident', label: '1. Incident', bn: '১. ঘটনা', icon: '🚨', badge: '14' },
-      { id: 'settlement', label: '2. Settlement & Close', bn: '২. নিষ্পত্তি ও বন্ধ', icon: '🔐', badge: '7' }
+      { id: 'claim', label: '2. Claim, Repair & Excess', bn: '২. দাবি, মেরামত ও এক্সেস', icon: '🧾', badge: '11' },
+      { id: 'settlement', label: '3. Settlement & Close', bn: '৩. নিষ্পত্তি ও বন্ধ', icon: '🔐', badge: '7' }
     ],
     sections: [
       { tab: 'incident', title: 'Incident', note: 'Reporting an accident takes the vehicle off-road until a passed re-check by someone else. Reported → claim filed (with the insurer claim reference, by the reporter or a Fleet Officer) → closed by a Fleet Logistics Manager who did not report it, once the insurer and the evidence are recorded. With no claim to make, the same person closes it from Reported with Close With No Claim and the reason. If the insurer is not offered, a Fleet Officer adds it with Add Insurer on the list. A settlement above Tier 0 needs a DOFA approval from the approver inbox, and changing the figure afterwards withdraws it. A closed accident is locked.',
@@ -391,6 +433,20 @@ export const SCREENS = {
           { name: 'settlement_amount', label: 'Settlement Amount' },
           { name: 'hse_case_ref', label: 'HSE Case', readonly: true },
           { name: 'state', label: 'State', readonly: true }
+        ] },
+      { tab: 'claim', title: 'Assessment, Repair, Excess and Cargo', note: 'The settlement approval covers the insurer, the assessed amount, the authorised repair and the excess: changing any of them withdraws it. An excess names who bears it and how it is paid; closing the claim raises it to M52 on the vehicle branch. List any customer devices or consignments on board (serial / IMEI per line).',
+        fields: [
+          { name: 'assessed_amount', label: 'Assessed Amount' },
+          { name: 'repair_pm_id', label: 'Authorised Repair' },
+          { name: 'excess_amount', label: 'Insurance Excess' },
+          { name: 'excess_borne_by', label: 'Excess Borne By' },
+          { name: 'excess_payment_method', label: 'Excess Paid By' },
+          { name: 'excess_vendor_id', label: 'Excess Paid To' },
+          { name: 'excess_invoice_ref', label: 'Excess Invoice / Receipt Ref' },
+          { name: 'excess_receipt_file', label: 'Excess Receipt (scan)', type: 'file' },
+          { name: 'cargo_affected', label: 'Customer Devices / Cargo Affected' },
+          { name: 'cargo_note', type: 'text', label: 'Affected Cargo (serial / IMEI per line)' },
+          { name: 'paid_on', label: 'Excess Paid On', readonly: true }
         ] },
       { tab: 'settlement', title: 'Settlement Approval',
         fields: [
@@ -413,7 +469,7 @@ export const SCREENS = {
     status: { field: 'state', labels: { open: 'Open', done: 'Done' } },
     tabs: [
       { id: 'schedule', label: '1. Schedule', bn: '১. সময়সূচি', icon: '🗓', badge: '12' },
-      { id: 'execution', label: '2. Execution', bn: '২. সম্পাদন', icon: '🔧', badge: '8' }
+      { id: 'execution', label: '2. Execution', bn: '২. সম্পাদন', icon: '🔧', badge: '12' }
     ],
     sections: [
       { tab: 'schedule', title: 'Service', note: 'A service is due on its due date or its due odometer, whichever comes first; the daily job flags it overdue. Mark Done (Fleet Officer) needs the odometer at service and a cost of zero or more; a completed PM is locked.',
@@ -440,7 +496,11 @@ export const SCREENS = {
           { name: 'downtime_hours', label: 'Downtime (hours)' },
           { name: 'next_due_date', label: 'Next Service Due (date)' },
           { name: 'next_due_odometer', label: 'Next Service Due (km)' },
-          { name: 'next_pm_id', label: 'Next Service', readonly: true }
+          { name: 'next_pm_id', label: 'Next Service', readonly: true },
+          { name: 'payment_method', label: 'Payment Method' },
+          { name: 'paid_by_employee_id', label: 'Paid By (employee expense)' },
+          { name: 'receipt_file', label: 'Receipt (scan)', type: 'file' },
+          { name: 'receipt_filename', label: 'Receipt File Name' }
         ] }
     ]
   },
@@ -545,7 +605,7 @@ export const SCREENS = {
     initiated: 'Initiated', submitted: 'Submitted', completed: 'Completed', cancelled: 'Cancelled' } },
   tabs: [
     { id: 'renewal', label: '1. Renewal', bn: '১. নবায়ন', icon: '📑', badge: '9' },
-    { id: 'fees', label: '2. Fees & Completion', bn: '২. ফি ও সমাপ্তি', icon: '💳', badge: '11' }
+    { id: 'fees', label: '2. Fees & Completion', bn: '২. ফি ও সমাপ্তি', icon: '💳', badge: '15' }
   ],
   sections: [
     { tab: 'renewal', title: 'Renewal', note: 'Opened by a Fleet Officer for a document that is due or lapsed; one renewal in progress per document. Initiated, then submitted (papers with BRTA or the insurer), then completed once the new certificate is recorded in Documents & Expiry with its scan and chosen as the Renewed Document.',
@@ -569,6 +629,10 @@ export const SCREENS = {
         { name: 'total_cost', label: 'Total Cost', readonly: true },
         { name: 'receipt_file', label: 'Fee Receipt (scan)', type: 'file' },
         { name: 'receipt_filename', label: 'Fee Receipt File Name' },
+        { name: 'payment_method', label: 'Payment Method' },
+        { name: 'vendor_id', label: 'Paid To (BRTA / agent / insurer)' },
+        { name: 'invoice_ref', label: 'Invoice / Receipt No' },
+        { name: 'paid_on', label: 'Paid On', readonly: true },
         { name: 'new_document_id', label: 'Renewed Document (recorded with its scan)' },
         { name: 'completed_by_id', label: 'Completed By', readonly: true },
         { name: 'completed_on', label: 'Completed On', readonly: true },
@@ -635,8 +699,8 @@ export const SCREENS = {
   back: 'M46-penalties',
   status: { field: 'state', labels: { recorded: 'Recorded', decided: 'Decided' } },
   tabs: [
-    { id: 'fine', label: '1. Fine', bn: '১. জরিমানা', icon: '🚓', badge: '11' },
-    { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '⚖', badge: '6' }
+    { id: 'fine', label: '1. Fine', bn: '১. জরিমানা', icon: '🚓', badge: '13' },
+    { id: 'decision', label: '2. Decision', bn: '২. সিদ্ধান্ত', icon: '⚖', badge: '10' }
   ],
   sections: [
     { tab: 'fine', title: 'Fine', note: 'Recorded by a Fleet Officer against the vehicle and the driver on duty. Leave the driver empty to use the driver booked on the vehicle that day, else its assigned driver.',
@@ -650,17 +714,70 @@ export const SCREENS = {
         { name: 'amount', required: true, label: 'Amount' },
         { name: 'evidence_file', label: 'Fine Slip (scan)', type: 'file' },
         { name: 'evidence_filename', label: 'Fine Slip File Name' },
-        { name: 'paid_on', label: 'Paid On' },
-        { name: 'payment_ref', label: 'Payment Ref' }
+        { name: 'payment_method', label: 'Paid Through (AP / petty cash)' },
+        { name: 'vendor_id', label: 'Payable To (authority)' },
+        { name: 'paid_on', label: 'Paid On (finance)', readonly: true },
+        { name: 'payment_ref', label: 'Payment Ref (finance)', readonly: true }
       ] },
-    { tab: 'decision', title: 'Recover or Absorb', note: 'Decided on the list by a Fleet Logistics Manager who did not record the fine (BRU-FLT-16).',
+    { tab: 'decision', title: 'Recover or Absorb', note: 'Decided on the list by a Fleet Logistics Manager who did not record the fine (BRU-FLT-16). Up to BDT 10,000 the decision stands; above it the Operations Director (to BDT 50,000) or the CFO approves it from the approver inbox. Deciding raises the fine to M52 on the vehicle branch; finance records the payment.',
       fields: [
         { name: 'state', label: 'State', readonly: true },
+        { name: 'proposed_decision', label: 'Proposed Decision', readonly: true },
+        { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
         { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
         { name: 'recovery_decision', label: 'Decision', readonly: true },
         { name: 'decision_reason', label: 'Decision Reason', readonly: true },
         { name: 'decided_by_id', label: 'Decided By', readonly: true },
         { name: 'decided_on', label: 'Decided On', readonly: true }
+      ] }
+  ]
+  }
+,
+
+  /* ============ A07 ERP audit 2026-11-20 ============ */
+  'M46-form-disposal': {
+  kind: 'model_form',
+  model: 'fix.vehicle.disposal',
+  title: 'Vehicle Disposal',
+  back: 'M46-disposals',
+  status: { field: 'state', labels: { draft: 'Draft', done: 'Disposed', cancelled: 'Cancelled' } },
+  sections: [
+    { title: 'Disposal', note: 'BRU-FLT-20: every disposal is approved by the CFO (DOFA Tier 4) from the approver inbox, by someone other than the requester. A sale or auction names the buyer and the proceeds; a leased, hired or employee-owned vehicle goes back to its owner (Return). The evidence is the sale agreement, the scrap certificate or the police report.',
+      fields: [
+        { name: 'vehicle_id', required: true, label: 'Vehicle' },
+        { name: 'route', required: true, label: 'Route' },
+        { name: 'reason', required: true, type: 'text', label: 'Reason' },
+        { name: 'disposal_date', required: true, label: 'Disposal Date' },
+        { name: 'book_value', label: 'Book Value', readonly: true },
+        { name: 'proceeds', label: 'Sale Proceeds' },
+        { name: 'buyer_id', label: 'Buyer' },
+        { name: 'evidence_file', label: 'Evidence', type: 'file' },
+        { name: 'evidence_filename', label: 'Evidence File Name' },
+        { name: 'dofa_justification', type: 'text', label: 'Justification for the CFO' },
+        { name: 'approval_state', label: 'Approval', readonly: true },
+        { name: 'dofa_approved_by', label: 'Approved By', readonly: true },
+        { name: 'done_by_id', label: 'Completed By', readonly: true },
+        { name: 'done_on', label: 'Completed On', readonly: true }
+      ] }
+  ]
+  },
+
+  'M46-form-class-profile': {
+  kind: 'model_form',
+  model: 'fix.vehicle.class.profile',
+  title: 'Vehicle Class Profile',
+  back: 'M46-class-profiles',
+  sections: [
+    { title: 'Class Profile', note: 'Empty mandatory documents = the fleet-wide list. Keys: fitness, insurance, tax, route_permit, registration. The deterioration threshold flags a vehicle on Fuel Efficiency when its km/l is that many percent below the baseline.',
+      fields: [
+        { name: 'name', required: true, label: 'Class' },
+        { name: 'licence_class', label: 'Licence Class Required' },
+        { name: 'mandatory_document_types', label: 'Mandatory Documents (comma-separated keys)' },
+        { name: 'tank_capacity_l', label: 'Fuel Tank Capacity (L)' },
+        { name: 'baseline_km_per_litre', label: 'Baseline km/l' },
+        { name: 'deterioration_pct', label: 'Deterioration Threshold (%)' }
       ] }
   ]
   }
@@ -699,6 +816,8 @@ export const FORM_CHIPS = {
   'M46:Telematics Device': 'M46-form-device',
   'M46:Telemetry Snapshot': 'M46-form-telemetry',
   'M46:Traffic Penalty': 'M46-form-penalty',
+  'M46:Vehicle Disposal': 'M46-form-disposal',
+  'M46:Vehicle Class Profile': 'M46-form-class-profile',
   'M46:__by_model__': {
     'fleet.vehicle': 'M46-form-vehicle',
     'fix.driver': 'M46-form-driver',
@@ -715,7 +834,9 @@ export const FORM_CHIPS = {
     'fix.vehicle.document.renewal': 'M46-form-renewal',
     'fix.vehicle.defect': 'M46-form-defect',
     'fix.telematics.device': 'M46-form-device',
-    'fix.vehicle.penalty': 'M46-form-penalty'
+    'fix.vehicle.penalty': 'M46-form-penalty',
+    'fix.vehicle.disposal': 'M46-form-disposal',
+    'fix.vehicle.class.profile': 'M46-form-class-profile'
   },
   'M46:__by_screen__': {
     'M46-vehicles': 'M46-form-vehicle',
@@ -733,7 +854,9 @@ export const FORM_CHIPS = {
     'M46-doc-renewals': 'M46-form-renewal',
     'M46-defects': 'M46-form-defect',
     'M46-devices': 'M46-form-device',
-    'M46-penalties': 'M46-form-penalty'
+    'M46-penalties': 'M46-form-penalty',
+    'M46-disposals': 'M46-form-disposal',
+    'M46-class-profiles': 'M46-form-class-profile'
   }
 };
 

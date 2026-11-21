@@ -48,6 +48,20 @@ PM_OFFROAD_PARAM = "cd_vehicle_ext.pm_overdue_takes_offroad"
 # carry none, and pumps do not all give one. A business decision.
 FUEL_RECEIPT_PARAM = "cd_vehicle_ext.require_fuel_receipt"
 
+# A07 ERP audit (2026-11-20) money contract (M46-01..04, S6 posts): every
+# vehicle cost names how it was paid, who was paid and the receipt or invoice,
+# and is costed on the vehicle's branch operating unit. A vendor bill posts
+# when AP matches the bill; the others post directly (S6, cd_asset_finance_
+# hse_bridge). A fuel card is a fill's own channel.
+PAYMENT_METHODS = [
+    ("vendor_bill", "Vendor Bill (AP)"),
+    ("petty_cash", "Petty Cash"),
+    ("employee_expense", "Employee Expense (reimbursed)"),
+    ("fuel_card", "Fuel Card"),
+]
+PAYMENT_METHODS_NO_CARD = [m for m in PAYMENT_METHODS if m[0] != "fuel_card"]
+COST_ENTRY_MODEL = "fix.asset.cost.entry"
+
 # BRTA driving-licence vehicle classes (Motor Vehicles / Road Transport Act
 # 2018 licence categories) and what each covers. A heavy licence covers medium
 # and light vehicles; a motorcycle licence covers motorcycles only.
@@ -170,6 +184,60 @@ ACCIDENT_SETTLEMENT_DOFA_THRESHOLDS = [
 def dhaka_today(record):
     """Today's date in Dhaka, whatever the caller's own timezone setting."""
     return fields.Date.context_today(record.with_context(tz=DHAKA_TZ))
+
+
+def dhaka_default(record):
+    """Field default: the Dhaka day (A07 ERP audit M46-24: the user's own
+    timezone, or none, dated a check recorded before 06:00 Dhaka yesterday)."""
+    return dhaka_today(record)
+
+
+def m52_cost_types(env):
+    """The cost types the M52 hand-off (fix.asset.cost.entry) accepts."""
+    if COST_ENTRY_MODEL not in env:
+        return set()
+    return set(env[COST_ENTRY_MODEL]._fields["cost_type"].get_values(env))
+
+
+def m52_raise(record, vals):
+    """Hand one vehicle cost to M52 (the A07 money contract): one entry per
+    source record, raised through fix.asset.cost.entry._m52_queue. Fails
+    closed: a cost with no operating unit, or of a type the finance bridge
+    does not know yet, refuses the transition that raised it rather than
+    leaving the money unrecorded. Facts the entry has no field for are left
+    out (the bridge names its own columns)."""
+    cost_type = vals.get("cost_type")
+    if cost_type not in m52_cost_types(record.env):
+        raise UserError(
+            "The M52 cost type %s is not installed: cd_asset_finance_hse_bridge must be "
+            "upgraded before %s can be recorded." % (cost_type, record.display_name)
+        )
+    if not vals.get("operating_unit_id"):
+        raise UserError("%s has no operating unit to cost it on." % record.display_name)
+    Entry = record.env[COST_ENTRY_MODEL]
+    known = {k: v for k, v in vals.items() if k in Entry._fields}
+    return Entry._m52_queue(record, known)
+
+
+def payment_problems(method, vendor, invoice_ref, receipt, employee=None):
+    """What a paid vehicle cost still lacks for its payment method (a list).
+    A vendor bill names the vendor and its invoice number; cash and an
+    employee's own money need the receipt scan, and an expense claim names
+    the employee who paid."""
+    out = []
+    if not method:
+        return ["how it was paid (Payment Method)"]
+    if method == "vendor_bill":
+        if not vendor:
+            out.append("the vendor who bills it")
+        if not (invoice_ref or "").strip():
+            out.append("the vendor's invoice number")
+    elif method in ("petty_cash", "employee_expense"):
+        if not receipt:
+            out.append("the receipt scan")
+        if method == "employee_expense" and not employee:
+            out.append("the employee who paid")
+    return out
 
 
 def like_exact(text):
@@ -916,7 +984,7 @@ class FixVehicleOffroad(models.Model):
         "fleet.vehicle", string="Vehicle", required=True, ondelete="cascade", index=True
     )
     reason = fields.Char(required=True)
-    started_on = fields.Date(required=True, default=fields.Date.context_today)
+    started_on = fields.Date(required=True, default=dhaka_default)
     ended_on = fields.Date()
     state = fields.Selection(
         [("offroad", "Off Road"), ("returned", "Returned to Service")],
@@ -1021,8 +1089,21 @@ class FixVehicleOffroad(models.Model):
         """The passed pre-use check that clears this record: same vehicle,
         dated on or after the off-road start AND recorded after the off-road
         record was opened (so the check that found the defect, or an older
-        one, never clears it). Superuser read: the gate decides on facts."""
+        one, never clears it). Superuser read: the gate decides on facts.
+
+        A07 ERP audit M46-05: a safety-critical defect reported later on the
+        same open record moves the baseline: the re-check must follow the
+        LATEST defect that joined this record, not only its opening."""
         self.ensure_one()
+        baseline = self.create_date
+        if "fix.vehicle.defect" in self.env:
+            latest = (
+                self.env["fix.vehicle.defect"]
+                .sudo()
+                .search([("offroad_id", "=", self.id)], order="create_date desc, id desc", limit=1)
+            )
+            if latest and latest.create_date and latest.create_date > baseline:
+                baseline = latest.create_date
         return (
             self.env["fix.vehicle.check"]
             .sudo()
@@ -1031,7 +1112,7 @@ class FixVehicleOffroad(models.Model):
                     ("vehicle_id", "=", self.vehicle_id.id),
                     ("passed", "=", True),
                     ("checked_on", ">=", self.started_on),
-                    ("create_date", ">=", self.create_date),
+                    ("create_date", ">=", baseline),
                 ],
                 order="create_date desc, id desc",
                 limit=1,
@@ -1057,6 +1138,15 @@ class FixVehicleOffroad(models.Model):
                 raise UserError(
                     "Segregation of duties: you took %s off the road; another person "
                     "must return it to service." % rec.name
+                )
+            # A07 ERP audit M46-05 (BRU-FLT-04): a van with an open
+            # safety-critical defect does not return, whatever record holds it.
+            open_defects = rec.vehicle_id._fix_open_safety_defects()
+            if open_defects:
+                raise UserError(
+                    "%s cannot return to service: safety-critical defect %s is still open. "
+                    "Clear it (Defects, after the repair and a passed pre-use check) first."
+                    % (rec.name, ", ".join(open_defects.mapped("name")))
                 )
             check = self.env["fix.vehicle.check"]
             if rec.cause == "document":
@@ -1087,7 +1177,7 @@ class FixVehicleOffroad(models.Model):
             rec._guarded().write(
                 {
                     "state": "returned",
-                    "ended_on": fields.Date.context_today(self),
+                    "ended_on": dhaka_today(self),
                     "returned_by_id": self.env.uid,
                     "return_check_id": check.id or False,
                 }
@@ -1121,7 +1211,7 @@ class FixVehicleCheck(models.Model):
         "fleet.vehicle", string="Vehicle", required=True, ondelete="cascade", index=True
     )
     driver_id = fields.Many2one("fix.driver", string="Driver", ondelete="set null")
-    checked_on = fields.Date(required=True, default=fields.Date.context_today)
+    checked_on = fields.Date(required=True, default=dhaka_default)
     odometer = fields.Integer(string="Odometer (km)")
     # A07 P0 recipe M46-7 (D4): the four items defaulted to True, so an
     # untouched check was `passed`. Each item must now be answered OK by the
@@ -1154,30 +1244,20 @@ class FixVehicleCheck(models.Model):
         full tank covers means a missing fill or a wrong reading: the fuel
         rule's own test, since a van cannot pass that distance without
         refuelling and every fill is recorded. The check itself is never
-        blocked: it saves with no reading. Data loading stays trusted."""
-        Fuel = self.env["fix.vehicle.fuel"]
+        blocked: it saves with no reading. Data loading stays trusted.
+        A07 ERP audit M46-08: the one cross-source validator (fleet log,
+        fills, checks, services, telemetry) on the check's own day."""
+        advice = (
+            "Read the odometer again. If the reading is right, the earlier reading or "
+            "a missing fuel fill is the problem: leave Odometer empty to save this "
+            "check, and tell the Fleet Logistics Manager."
+        )
         for rec in self.filtered("odometer"):
-            vehicle = rec.vehicle_id.sudo()
-            last = vehicle._fix_last_odometer(exclude=rec)
-            if not last:
-                continue
-            advice = (
-                "Read the odometer again. If the reading is right, the earlier reading or "
-                "a missing fuel fill is the problem: leave Odometer empty to save this "
-                "check, and tell the Fleet Logistics Manager."
+            problem = rec.vehicle_id.sudo()._fix_odometer_problem(
+                rec.odometer, rec.checked_on, exclude=rec
             )
-            if rec.odometer < last:
-                raise UserError(
-                    "Odometer %s is below the last recorded reading of %s km. %s"
-                    % (rec.odometer, last, advice)
-                )
-            ceiling = param_float(self.env, FUEL_KM_PER_LITRE_PARAM, FUEL_KM_PER_LITRE_DEFAULT)
-            jump = rec.odometer - last
-            if ceiling > 0 and jump > Fuel._fix_tank_capacity(vehicle) * ceiling:
-                raise UserError(
-                    "Odometer %s is %s km beyond the last recorded reading of %s km, further "
-                    "than a full tank covers. %s" % (rec.odometer, jump, last, advice)
-                )
+            if problem:
+                raise UserError("%s %s" % (problem, advice))
 
     def _fix_frozen_fields(self) -> set:
         # Saved = frozen; a new (unsaved) check is fully editable.
@@ -1187,6 +1267,32 @@ class FixVehicleCheck(models.Model):
     def _compute_passed(self):
         for rec in self:
             rec.passed = all([rec.tyres_ok, rec.lights_ok, rec.fluids_ok, rec.brakes_ok])
+
+    def _fix_superseded(self) -> bool:
+        """A07 ERP audit M46-15: a failed check stops the van for the day only
+        until it is put right. It no longer blocks once a later passed check of
+        the vehicle is on record AND the off-road record it opened has been
+        returned to service (by someone else, on that re-check)."""
+        self.ensure_one()
+        if self.passed:
+            return False
+        later = self.sudo().search(
+            [
+                ("vehicle_id", "=", self.vehicle_id.id),
+                ("passed", "=", True),
+                ("checked_on", ">=", self.checked_on),
+                "|",
+                ("create_date", ">", self.create_date),
+                "&",
+                ("create_date", "=", self.create_date),
+                ("id", ">", self.id),
+            ],
+            limit=1,
+        )
+        if not later:
+            return False
+        opened = self.env["fix.vehicle.offroad"].sudo().search([("check_id", "=", self.id)])
+        return all(off.state == "returned" for off in opened)
 
     def _fix_check_recorder(self, vals_list):
         """A07 decision B10 (8 Nov 2026): a PASSED check unblocks the van for
@@ -1306,7 +1412,7 @@ class FixVehiclePm(models.Model):
         compute="_compute_is_overdue", search="_search_is_overdue", string="Overdue"
     )
     due_notified = fields.Boolean(readonly=True, copy=False)
-    scheduled_on = fields.Date(required=True, default=fields.Date.context_today)
+    scheduled_on = fields.Date(required=True, default=dhaka_default)
     done_on = fields.Date()
     done_by_id = fields.Many2one("res.users", string="Completed By", readonly=True, copy=False)
     currency_id = fields.Many2one(
@@ -1394,10 +1500,21 @@ class FixVehiclePm(models.Model):
                 )
             if (rec.cost or 0.0) < 0:
                 raise UserError("A PM cost cannot be negative.")
+            # A07 ERP audit M46-08 [probe C: 999,999 accepted]: the reading at
+            # service is judged against every other reading of the vehicle.
+            if not self.env.su:
+                problem = rec.vehicle_id.sudo()._fix_odometer_problem(
+                    rec.odometer, dhaka_today(rec), exclude=rec
+                )
+                if problem:
+                    raise UserError(
+                        "%s: %s Correct the odometer at service before completing it."
+                        % (rec.name, problem)
+                    )
             rec._guarded().write(
                 {
                     "state": "done",
-                    "done_on": fields.Date.context_today(self),
+                    "done_on": dhaka_today(self),
                     "done_by_id": self.env.uid,
                 }
             )
@@ -1462,7 +1579,7 @@ class FixVehicleFuel(models.Model):
         "fleet.vehicle", string="Vehicle", required=True, ondelete="cascade", index=True
     )
     driver_id = fields.Many2one("fix.driver", string="Driver", ondelete="set null")
-    filled_on = fields.Date(required=True, default=fields.Date.context_today)
+    filled_on = fields.Date(required=True, default=dhaka_default)
     litres = fields.Float(string="Litres", required=True)
     odometer = fields.Integer(string="Odometer (km)", required=True)
     currency_id = fields.Many2one(
@@ -1475,6 +1592,21 @@ class FixVehicleFuel(models.Model):
     receipt_no = fields.Char(string="Receipt No", copy=False)
     receipt_file = fields.Binary(string="Receipt (scan)", attachment=True, copy=False)
     receipt_filename = fields.Char(string="Receipt File Name", copy=False)
+    # A07 ERP audit M46-02/03 (money contract): how the fill was paid and who
+    # was paid. A vendor bill names the station's partner and its invoice
+    # (Receipt No); cash and an employee's own money carry the receipt scan;
+    # a card fill names the card.
+    payment_method = fields.Selection(PAYMENT_METHODS, string="Payment Method")
+    vendor_id = fields.Many2one(
+        "res.partner", string="Fuel Station / Vendor", ondelete="restrict", index=True
+    )
+    paid_by_employee_id = fields.Many2one(
+        "hr.employee",
+        string="Paid By (employee)",
+        ondelete="restrict",
+        help="Employee expense: who paid and is reimbursed. Empty = the driver.",
+    )
+    fuel_card_ref = fields.Char(string="Fuel Card")
     # A07 P0 recipe M46-9 (FR-FLT-034, BRU-FLT-09/10): the exception rules are
     # computed by the server on every recorded change, never typed. A fill
     # that breaks one is HELD; someone other than its recorder reviews it.
@@ -1527,7 +1659,23 @@ class FixVehicleFuel(models.Model):
             "station",
             "receipt_no",
             "exception_reason",
+            "payment_method",
+            "vendor_id",
+            "paid_by_employee_id",
+            "fuel_card_ref",
         }
+    )
+    # What the money contract reads on a fill (re-checked when written).
+    _PAY_FIELDS = (
+        "driver_id",
+        "amount",
+        "receipt_file",
+        "payment_method",
+        "vendor_id",
+        "paid_by_employee_id",
+        "fuel_card_ref",
+        "receipt_no",
+        "vehicle_id",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -1673,6 +1821,15 @@ class FixVehicleFuel(models.Model):
         jump = self.odometer - previous.odometer if previous else 0
         if ceiling > 0 and jump > self._fix_tank_capacity(self.vehicle_id) * ceiling:
             flags.append("odometer_jump")
+        # A07 ERP audit M46-08 (BRU-FLT-10): the fill is judged against every
+        # accepted reading of the vehicle (checks, services, telemetry, the
+        # fleet log), not only the other fills.
+        kind, _text = self.vehicle_id.sudo()._fix_odometer_check(
+            self.odometer, self.filled_on, exclude=self
+        )
+        code = {"back": "odometer_back", "jump": "odometer_jump"}.get(kind)
+        if code and code not in flags:
+            flags.append(code)
         return flags
 
     def _fix_apply_exceptions(self):
@@ -1746,7 +1903,43 @@ class FixVehicleFuel(models.Model):
             missing.append("the amount paid")
         if not vals.get("receipt_file") and param_on(self.env, FUEL_RECEIPT_PARAM):
             missing.append("the receipt scan")
+        # A07 ERP audit M46-03 (money contract): how the fill was paid, and
+        # what that channel needs to settle it.
+        method = vals.get("payment_method")
+        if method == "fuel_card":
+            if not (vals.get("fuel_card_ref") or "").strip():
+                missing.append("the fuel card")
+        else:
+            employee = vals.get("paid_by_employee_id")
+            missing += payment_problems(
+                method,
+                vals.get("vendor_id"),
+                vals.get("receipt_no"),
+                vals.get("receipt_file"),
+                employee,
+            )
+        vehicle = self.env["fleet.vehicle"].sudo().browse(vals.get("vehicle_id"))
+        if vehicle and not (vehicle.operating_unit_id or vehicle.branch_id.operating_unit_id):
+            missing.append("a vehicle with its branch and operating unit (Vehicle Register)")
         return missing
+
+    def _m52_cost_facts(self):
+        """The money-contract facts of this fill, for the M52 cost entry the
+        finance bridge raises from vehicle.fuel_recorded (A07 ERP audit
+        M46-02/03/04): branch OU, vendor, receipt number, payment method and,
+        for an employee's own money, the employee."""
+        self.ensure_one()
+        rec = self.sudo()
+        return dict(
+            rec.vehicle_id._fix_cost_dimensions(),
+            payment_method=rec.payment_method or False,
+            vendor_id=rec.vendor_id.id or False,
+            invoice_ref=(rec.receipt_no or "").strip() or False,
+            employee_id=rec.paid_by_employee_id.id
+            if rec.payment_method == "employee_expense"
+            else False,
+            fuel_card_ref=rec.fuel_card_ref or False,
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1755,6 +1948,13 @@ class FixVehicleFuel(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.vehicle.fuel") or "VFUEL/New"
                 )
+            if (
+                vals.get("payment_method") == "employee_expense"
+                and not vals.get("paid_by_employee_id")
+                and vals.get("driver_id")
+            ):
+                driver = self.env["fix.driver"].sudo().browse(vals["driver_id"])
+                vals["paid_by_employee_id"] = driver.employee_id.id or False
             # BRU-FLT-08 [E 41]: every fill names the driver and the amount.
             # Users only: superuser data loading (and the legacy rows that
             # carry neither) stays loadable.
@@ -1769,15 +1969,14 @@ class FixVehicleFuel(models.Model):
         return recs
 
     def write(self, vals):
-        if not self.env.su and {"driver_id", "amount", "receipt_file"} & set(vals):
+        if not self.env.su and set(self._PAY_FIELDS) & set(vals):
             for rec in self:
-                missing = self._fix_missing_fill_facts(
-                    {
-                        "driver_id": vals.get("driver_id", rec.driver_id.id),
-                        "amount": vals.get("amount", rec.amount),
-                        "receipt_file": vals.get("receipt_file", rec.receipt_file),
-                    }
-                )
+                current = {}
+                for name in self._PAY_FIELDS:
+                    value = rec[name]
+                    current[name] = value.id if hasattr(value, "_name") else value
+                current.update({k: vals[k] for k in self._PAY_FIELDS if k in vals})
+                missing = self._fix_missing_fill_facts(current)
                 if missing:
                     raise UserError("A fuel transaction must record %s." % " and ".join(missing))
         res = super().write(vals)
@@ -1888,6 +2087,11 @@ class FixVehicleTelemetry(models.Model):
         required=True,
         default="offline",
     )
+    # A07 ERP audit M46-08: a device feed (superuser) whose odometer does not
+    # fit the vehicle's other readings is kept as reported but held: it is
+    # not a reading (no last odometer, no PM due) until a person confirms it.
+    odometer_held = fields.Boolean(string="Odometer Held", readonly=True, copy=False)
+    odometer_note = fields.Char(string="Odometer Check", readonly=True, copy=False)
 
     _fuel_range = models.Constraint(
         "CHECK (fuel_level_pct >= 0 AND fuel_level_pct <= 100)",
@@ -1895,7 +2099,27 @@ class FixVehicleTelemetry(models.Model):
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state"}
+        return super()._fix_guarded_fields() | {"state", "odometer_held", "odometer_note"}
+
+    def _fix_hold_implausible_odometer(self):
+        """A07 ERP audit M46-08: a user's snapshot with an odometer that does
+        not fit is refused; a feed's is held (see odometer_held)."""
+        for rec in self.filtered("odometer"):
+            day = (
+                fields.Datetime.context_timestamp(
+                    rec.with_context(tz=DHAKA_TZ), rec.last_ping
+                ).date()
+                if rec.last_ping
+                else dhaka_today(rec)
+            )
+            problem = rec.vehicle_id.sudo()._fix_odometer_problem(rec.odometer, day, exclude=rec)
+            if not problem:
+                continue
+            if not self.env.su:
+                raise UserError(
+                    "%s Enter the reading the device reported, or leave Odometer empty." % problem
+                )
+            rec._guarded().write({"odometer_held": True, "odometer_note": problem})
 
     def _fix_frozen_fields(self) -> set:
         # a snapshot is what the device reported; a newer one is recorded
@@ -1921,6 +2145,7 @@ class FixVehicleTelemetry(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.vehicle.telemetry") or "VTEL/New"
                 )
         recs = super().create(vals_list)
+        recs._fix_hold_implausible_odometer()
         # A device clock a few minutes ahead is normal; a ping hours ahead reads
         # Online until the future arrives. Data loading stays trusted.
         limit = fields.Datetime.now() + timedelta(minutes=TELEMETRY_CLOCK_SKEW_MINUTES)
@@ -1996,8 +2221,17 @@ class FixApprovalMatrixM46(models.Model):
     _inherit = "fix.approval.matrix"
 
     decision_domain = fields.Selection(
-        selection_add=[("vehicle_accident_settlement", "Vehicle Accident Claim Settlement")],
-        ondelete={"vehicle_accident_settlement": "cascade"},
+        selection_add=[
+            ("vehicle_accident_settlement", "Vehicle Accident Claim Settlement"),
+            # A07 ERP audit M46-14 / M46-10
+            ("vehicle_penalty_decision", "Traffic Fine Recover-or-Absorb Decision"),
+            ("vehicle_disposal", "Vehicle Disposal (CFO)"),
+        ],
+        ondelete={
+            "vehicle_accident_settlement": "cascade",
+            "vehicle_penalty_decision": "cascade",
+            "vehicle_disposal": "cascade",
+        },
     )
 
 
@@ -2027,7 +2261,7 @@ class FixVehicleAccident(models.Model):
         "fleet.vehicle", string="Vehicle", required=True, ondelete="cascade", index=True
     )
     driver_id = fields.Many2one("fix.driver", string="Driver", ondelete="set null")
-    occurred_on = fields.Date(required=True, default=fields.Date.context_today)
+    occurred_on = fields.Date(required=True, default=dhaka_default)
     description = fields.Text(required=True)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -2068,6 +2302,119 @@ class FixVehicleAccident(models.Model):
     closed_on = fields.Date(string="Closed On", readonly=True, copy=False)
     # Closed with no claim (action_close_no_claim): why no claim was made.
     no_claim_reason = fields.Char(string="Closed Without a Claim", readonly=True, copy=False)
+    # A07 ERP audit M46-13 (FR-FLT-042): the claim's assessment, the repair it
+    # authorises and the excess the company (or the driver) bears. The
+    # settlement approval covers these with the insurer: a change voids it.
+    assessed_amount = fields.Monetary(
+        string="Assessed Amount", currency_field="currency_id", tracking=True
+    )
+    repair_pm_id = fields.Many2one(
+        "fix.vehicle.pm",
+        string="Authorised Repair",
+        ondelete="restrict",
+        tracking=True,
+        help="The repair job the insurer's assessment authorises.",
+    )
+    excess_amount = fields.Monetary(
+        string="Insurance Excess", currency_field="currency_id", tracking=True
+    )
+    excess_borne_by = fields.Selection(
+        [("company", "The Company"), ("driver", "Recovered from the Driver")],
+        string="Excess Borne By",
+        tracking=True,
+    )
+    excess_payment_method = fields.Selection(
+        PAYMENT_METHODS_NO_CARD, string="Excess Paid By", tracking=True
+    )
+    excess_vendor_id = fields.Many2one(
+        "res.partner",
+        string="Excess Paid To",
+        ondelete="restrict",
+        help="The garage or insurer the excess is paid to.",
+    )
+    excess_invoice_ref = fields.Char(string="Excess Invoice / Receipt Ref")
+    excess_receipt_file = fields.Binary(string="Excess Receipt (scan)", attachment=True)
+    # A07 ERP audit M46-23 (BRU-FLT-14): what the vehicle carried.
+    cargo_affected = fields.Boolean(
+        string="Customer Devices / Cargo Affected",
+        help="The vehicle carried customer devices, parts or consignments that may be damaged.",
+    )
+    cargo_note = fields.Text(
+        string="Affected Cargo",
+        help="Serials / IMEIs of customer devices and consignment references, one per line.",
+    )
+    paid_on = fields.Date(string="Excess Paid On", readonly=True, copy=False)
+    payment_ref = fields.Char(string="Excess Payment Ref", readonly=True, copy=False)
+
+    def _approval_pinned_fields(self) -> set:
+        # M46-13: the approval is of a settlement from THIS insurer, on this
+        # assessment, repair and excess.
+        return super()._approval_pinned_fields() | {
+            "insurer_id",
+            "assessed_amount",
+            "repair_pm_id",
+            "excess_amount",
+            "excess_borne_by",
+        }
+
+    @api.constrains("assessed_amount", "excess_amount", "cargo_affected", "cargo_note")
+    def _check_claim_figures(self):
+        for rec in self:
+            if (rec.assessed_amount or 0.0) < 0 or (rec.excess_amount or 0.0) < 0:
+                raise ValidationError("Assessed and excess amounts cannot be negative.")
+            if rec.cargo_affected and not (rec.cargo_note or "").strip():
+                raise ValidationError(
+                    "List the affected customer devices or consignments (BRU-FLT-14)."
+                )
+
+    def _fix_excess_problems(self):
+        """What the excess still lacks before the claim can close (a list)."""
+        self.ensure_one()
+        if not (self.excess_amount or 0.0) > 0:
+            return []
+        out = []
+        if not self.excess_borne_by:
+            out.append("who bears the excess")
+        if self.excess_borne_by == "driver" and not self.driver_id.employee_id:
+            out.append("the driver (an employee) the excess is recovered from")
+        out += payment_problems(
+            self.excess_payment_method,
+            self.excess_vendor_id,
+            self.excess_invoice_ref,
+            self.excess_receipt_file,
+            self.driver_id.employee_id,
+        )
+        return out
+
+    def _fix_raise_excess_cost(self):
+        """M46-13 / money contract: the excess is a vehicle cost (cost type
+        vehicle_insurance_excess) on the vehicle's branch OU; recovered from
+        the driver, it names the employee (D9 recovery facts for S6)."""
+        for rec in self.filtered(lambda r: (r.excess_amount or 0.0) > 0):
+            vals = dict(
+                rec.vehicle_id._fix_cost_dimensions(),
+                cost_type="vehicle_insurance_excess",
+                amount=rec.excess_amount,
+                cost_date=rec.closed_on or dhaka_today(rec),
+                vendor_id=rec.excess_vendor_id.id or False,
+                invoice_ref=(rec.excess_invoice_ref or "").strip() or False,
+                payment_method=rec.excess_payment_method,
+                employee_id=rec.driver_id.employee_id.id
+                if rec.excess_payment_method == "employee_expense"
+                else False,
+                recovery_employee_id=rec.driver_id.employee_id.id
+                if rec.excess_borne_by == "driver"
+                else False,
+                detail="Insurance excess, %s (claim %s, insurer %s)"
+                % (rec.name, rec.claim_ref or "-", rec.insurer_id.name or "-"),
+            )
+            m52_raise(rec, vals)
+
+    def _m52_mark_paid(self, amount, date, ref):
+        """The M52 bridge calls this when the excess is paid (bill matched or
+        posted): the payment date and reference come from finance, never typed."""
+        for rec in self:
+            rec._guarded().write({"paid_on": date or False, "payment_ref": ref or False})
 
     # ---- DOFA (fix.dofa.mixin) --------------------------------------------
     def _dofa_thresholds(self):
@@ -2093,12 +2440,24 @@ class FixVehicleAccident(models.Model):
             "closed_by_id",
             "closed_on",
             "no_claim_reason",
+            "paid_on",
+            "payment_ref",
         }
 
     def _fix_frozen_fields(self) -> set:
         if self.state == "closed":
             # [E 49]: a closed incident's damage cost was edited 50,000 -> 1.
             return {
+                "assessed_amount",
+                "repair_pm_id",
+                "excess_amount",
+                "excess_borne_by",
+                "excess_payment_method",
+                "excess_vendor_id",
+                "excess_invoice_ref",
+                "excess_receipt_file",
+                "cargo_affected",
+                "cargo_note",
                 "vehicle_id",
                 "driver_id",
                 "occurred_on",
@@ -2169,6 +2528,9 @@ class FixVehicleAccident(models.Model):
                     "occurred_on": str(rec.occurred_on),
                     "injuries": bool(rec.injury),
                     "damage_cost": rec.damage_cost,
+                    # M46-23 (BRU-FLT-14): M03 / M17 learn what was on board
+                    "cargo_affected": bool(rec.cargo_affected),
+                    "cargo": rec.cargo_note or "",
                 },
             )
         return recs
@@ -2260,7 +2622,7 @@ class FixVehicleAccident(models.Model):
                         ("the evidence (photos or assessor report)", rec.evidence_file),
                     )
                     if not ok
-                ]
+                ] + rec._fix_excess_problems()
                 if missing:
                     raise UserError(
                         "Record %s on %s before closing its claim."
@@ -2273,9 +2635,10 @@ class FixVehicleAccident(models.Model):
                 {
                     "state": "closed",
                     "closed_by_id": self.env.uid,
-                    "closed_on": fields.Date.context_today(self),
+                    "closed_on": dhaka_today(self),
                 }
             )
+            rec._fix_raise_excess_cost()
             rec.message_post(
                 body="Claim closed by %s with a settlement of %s."
                 % (self.env.user.name, rec._dofa_amount_label())
@@ -2310,7 +2673,7 @@ class FixVehicleAccident(models.Model):
                 {
                     "state": "closed",
                     "closed_by_id": self.env.uid,
-                    "closed_on": fields.Date.context_today(self),
+                    "closed_on": dhaka_today(self),
                     "no_claim_reason": reason,
                 }
             )

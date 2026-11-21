@@ -32,6 +32,20 @@ REFUSED = (UserError, ValidationError, AccessError)
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 def _user(env, tag, groups=()):
     n = next(_SEQ)
     ou = env["operating.unit"].search([], limit=1)
@@ -96,6 +110,7 @@ def cal(c, e, user=None, on=None, due=None, result="pass", **kw):
         "standard_ref": "STD-%s" % TAG,
         "certificate_ref": "CERT-%s" % TAG,
         "performed_by": "%s Lab" % TAG,
+        **d7a_evidence(c.env),
         # a new profile accepts an accredited provider only (enforced since the
         # A07 operability build); the refusal has its own test
         "provider_accredited": True,

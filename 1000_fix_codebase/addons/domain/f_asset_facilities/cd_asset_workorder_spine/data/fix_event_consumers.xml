@@ -146,5 +146,66 @@
             <field name="module">cd_asset_workorder_spine</field>
         </record>
 
+
+        <!-- A07 ERP audit (2026-11-20) S5: M48 routing, entitlement and outcomes. -->
+        <record id="consumer_iot_rule_alert_inspection" model="fix.event.consumer">
+            <field name="name">Spine: a major or critical M48 rule alert raises an inspection by the asset's owner</field>
+            <field name="event_type">iot.rule_alert_raised</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_iot_rule_alert_inspection</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_asset_health_degraded" model="fix.event.consumer">
+            <field name="name">Spine: an M48 health index fallen to degraded or critical raises an inspection</field>
+            <field name="event_type">asset.health_degraded</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_asset_health_degraded</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_iot_proactive_opportunity" model="fix.event.consumer">
+            <field name="name">M07: proactive work the customer is not entitled to becomes an opportunity</field>
+            <field name="event_type">iot.proactive_opportunity</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_iot_proactive_opportunity</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_intervention_outcome_recorded" model="fix.event.consumer">
+            <field name="name">M26: a direct M48 prediction outcome becomes the model's ground-truth row</field>
+            <field name="event_type">intervention.outcome_recorded</field>
+            <field name="model">fix.ml.inference.run</field>
+            <field name="method">consume_iot_direct_outcome</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_alert_iot_alert_raised" model="fix.event.consumer">
+            <field name="name">Asset alert: an M48 device going offline or degraded reaches the asset's owner</field>
+            <field name="event_type">iot.alert_raised</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_alert_asset_alert_escalated" model="fix.event.consumer">
+            <field name="name">Asset alert: an unacknowledged M48 alert escalates to the asset's owner</field>
+            <field name="event_type">asset.alert_escalated</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+        <record id="consumer_alert_telemetry_model_suspended" model="fix.event.consumer">
+            <field name="name">Asset alert: a prediction model suspended from customer use reaches the IoT Manager</field>
+            <field name="event_type">telemetry.model_suspended</field>
+            <field name="model">fix.asset.alert</field>
+            <field name="method">consume_asset_alert</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
+        <!-- A07 ERP audit (2026-11-20) M46 (stream S3): an incident's cargo is recovered on the spine. -->
+        <record id="consumer_vehicle_incident_cargo" model="fix.event.consumer">
+            <field name="name">Spine: a vehicle incident with cargo raises the cargo recovery work</field>
+            <field name="event_type">vehicle.incident</field>
+            <field name="model">fix.maintenance.demand</field>
+            <field name="method">consume_vehicle_incident_cargo</field>
+            <field name="module">cd_asset_workorder_spine</field>
+        </record>
+
     </data>
 </odoo>

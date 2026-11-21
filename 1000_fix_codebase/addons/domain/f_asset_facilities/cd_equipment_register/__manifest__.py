@@ -18,7 +18,7 @@ CD-M45-01 (P08-M08):
   calibration profiles, as-found/as-left readings, usage decision,
   retrospective impact assessment; custody, loss and service events
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Inventory/Equipment",
@@ -40,6 +40,7 @@ CD-M45-01 (P08-M08):
         "security/ir.model.access.csv",
         "data/ir_sequence.xml",
         "data/ir_cron.xml",
+        "data/m45_backfill.xml",
         "views/fix_equipment_views.xml",
     ],
     "installable": True,

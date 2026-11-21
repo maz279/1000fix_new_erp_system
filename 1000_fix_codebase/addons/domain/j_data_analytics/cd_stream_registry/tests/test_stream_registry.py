@@ -34,6 +34,22 @@ def equipment(odoo_env):
     )
 
 
+def _director(env):
+    """A07 ERP audit (2026-11-20) M48-03: the preventive request is approved by the
+    Operations Director: someone must hold the role for it to be routed."""
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "PdM Director",
+                "login": "pdm_director_%s" % id(env),
+                "group_ids": [(6, 0, [env.ref("cd_facility.group_operations_director").id])],
+            }
+        )
+    )
+
+
 class TestIotDevice:
     @pytest.mark.parametrize("device_type", ["sensor", "gateway", "tracker", "meter"])
     def test_device_types(self, odoo_env, device_type):
@@ -104,9 +120,12 @@ class TestPredictiveMaintenance:
 
     def test_wo_not_duplicated_and_event(self, odoo_env, equipment):
         p = self._pred(odoo_env, equipment, confidence=0.8)
+        _director(odoo_env)
         p.action_create_preventive_wo()
         with pytest.raises(UserError, match="already requested"), odoo_env.cr.savepoint():
             p.action_create_preventive_wo()
-        assert _events(odoo_env, "predictive_maintenance.wo_created", p.id) == [
-            {"equipment": equipment.name, "days": 5}
-        ]
+        # A07 ERP audit (2026-11-20) M48-03: nothing is raised before the approval
+        assert _events(odoo_env, "predictive_maintenance.wo_created", p.id) == []
+        p.preventive_action_id.sudo().action_approve()
+        (event,) = _events(odoo_env, "predictive_maintenance.wo_created", p.id)
+        assert (event["equipment"], event["days"]) == (equipment.name, 5)

@@ -21,7 +21,13 @@ export const MODULE = {
     { l: 'Missing', m: 'missing' },
     { l: 'Open Losses', m: 'loss_open' },
     { l: 'Impact Assessments Open', m: 'impact_open' },
-    { l: 'Custody Overdue', m: 'custody_overdue' }
+    { l: 'Custody Overdue', m: 'custody_overdue' },
+    /* A07 ERP audit 2026-11-20 M45-17: the spec's measures (§14/§15) */
+    { l: 'Calibration Compliance %', m: 'calibration_compliance_pct' },
+    { l: 'Availability % (365 d)', m: 'availability_pct' },
+    { l: 'MTTR (h)', m: 'mttr_hours' },
+    { l: 'MTBF (item-days)', m: 'mtbf_days' },
+    { l: 'Custody Overdue %', m: 'custody_overdue_pct' }
   ],
   groups: [
     { en: 'Register', screens: [
@@ -58,7 +64,9 @@ export const MODULE = {
       { id: 'M45-usage', en: 'Usage per Job/QC', bn: 'ব্যবহার', t: 'g' }
     ]}
   ],
-  reports: ['Calibration Compliance Report', 'Equipment Utilisation', 'Tool Loss & Write-Off', 'Cost of Ownership', 'Register Completeness'],
+  reports: ['Calibration Compliance Report', 'Equipment Utilisation', 'Tool Loss & Write-Off', 'Cost of Ownership', 'Register Completeness',
+    /* A07 ERP audit 2026-11-20 M45-18: the printable documents (print from the report bar) */
+    'Calibration Certificate Register', 'Asset Tag Labels', 'Custody Hand-Over Slips', 'Write-Off & Disposal Memos'],
   forms: ['Equipment', 'Calibration Record', 'Issue/Return', 'Write-Off',
     'Equipment Class', 'Branch Equipment Profile', 'Return', 'Transfer', 'Kit',
     'Calibration Profile', 'Calibration Standard', 'Calibration Recall', 'Out of Service',
@@ -72,10 +80,10 @@ export const MODULE = {
    * and the class, branch profile, standard, recall, PM plan, loss report,
    * blind count and retirement had no record at all. */
   freg: { src: 64, sub: [
-    ['1', 'Register & Classification', 10, { model: 'fix.equipment', cols: ['code', 'name', 'category_id', 'asset_tag', 'custodian_id', 'operational_status'], screens: ['M45-register', 'M45-categories', 'M45-branch-profiles', 'M45-classes'], reports: ['Register Completeness', 'Cost of Ownership', 'Tool Loss & Write-Off'], forms: ['Equipment', 'Equipment Class', 'Branch Equipment Profile', 'Write-Off'] }],
-    ['2', 'Issue / Custody / Transfer', 11, { model: 'fix.equipment.issue', cols: ['name', 'equipment_id', 'custodian_id', 'issued_on', 'due_on', 'state'], screens: ['M45-issue', 'M45-transfer', 'M45-alerts'], reports: [], forms: ['Issue/Return', 'Return', 'Transfer'] }],
+    ['1', 'Register & Classification', 10, { model: 'fix.equipment', cols: ['code', 'name', 'category_id', 'asset_tag', 'custodian_id', 'operational_status'], screens: ['M45-register', 'M45-categories', 'M45-branch-profiles', 'M45-classes'], reports: ['Register Completeness', 'Cost of Ownership', 'Tool Loss & Write-Off', 'Asset Tag Labels', 'Write-Off & Disposal Memos'], forms: ['Equipment', 'Equipment Class', 'Branch Equipment Profile', 'Write-Off'] }],
+    ['2', 'Issue / Custody / Transfer', 11, { model: 'fix.equipment.issue', cols: ['name', 'equipment_id', 'custodian_id', 'issued_on', 'due_on', 'state'], screens: ['M45-issue', 'M45-transfer', 'M45-alerts'], reports: ['Custody Hand-Over Slips'], forms: ['Issue/Return', 'Return', 'Transfer'] }],
     ['3', 'Kit Management', 6, { model: 'fix.equipment.kit', cols: ['code', 'name', 'accountable_employee_id', 'state', 'active'], screens: ['M45-kits'], reports: [], forms: ['Kit'] }],
-    ['4', 'Calibration Management', 16, { model: 'fix.calibration', cols: ['equipment_id', 'calibrated_on', 'result', 'next_due', 'certificate_ref'], screens: ['M45-calibration', 'M45-certificates', 'M45-profiles', 'M45-standards', 'M45-oos', 'M45-impacts', 'M45-alerts'], reports: ['Calibration Compliance Report'], forms: ['Calibration Record', 'Calibration Profile', 'Calibration Standard', 'Calibration Recall', 'Out of Service'] }],
+    ['4', 'Calibration Management', 16, { model: 'fix.calibration', cols: ['equipment_id', 'calibrated_on', 'result', 'next_due', 'certificate_ref'], screens: ['M45-calibration', 'M45-certificates', 'M45-profiles', 'M45-standards', 'M45-oos', 'M45-impacts', 'M45-alerts'], reports: ['Calibration Compliance Report', 'Calibration Certificate Register'], forms: ['Calibration Record', 'Calibration Profile', 'Calibration Standard', 'Calibration Recall', 'Out of Service'] }],
     ['5', 'PM & Repair', 8, { model: 'fix.equipment.pm', cols: ['name', 'equipment_id', 'pm_type', 'scheduled_on', 'done_on', 'state'], screens: ['M45-pm', 'M45-pm-plans', 'M45-oos'], reports: ['Cost of Ownership'], forms: ['PM / Corrective Job', 'PM Plan', 'Report Fault'] }],
     ['6', 'Usage Capture', 6, { model: 'fix.equipment.usage', cols: ['equipment_id', 'job_ref', 'used_on', 'uses', 'qc_result'], screens: ['M45-usage', 'M45-retro', 'M45-impacts'], reports: ['Equipment Utilisation'], forms: ['Equipment Usage'] }],
     ['7', 'Verification & Loss', 7, { model: 'fix.equipment.audit', cols: ['name', 'branch_id', 'scheduled_for', 'counter_id', 'missing_count', 'state'], screens: ['M45-audit-runs', 'M45-audits', 'M45-losses', 'M45-writeoffs', 'M45-retirements'], reports: ['Tool Loss & Write-Off'], forms: ['Verification Count', 'Physical Verification', 'Loss / Damage Report', 'Write-Off', 'Retirement'] }]
@@ -100,8 +108,9 @@ export const SCREENS = {
     actions: [{ m: 'action_issue_kit', l: 'Issue Kit' },
       { m: 'action_return_kit', l: 'Return Kit' }] },
   'M45-issue': { kind: 'model_list', model: 'fix.equipment.issue', stateField: 'state',
-    cols: ['name', 'equipment_id', 'custodian_id', 'reference', 'kit_id', 'issued_on', 'due_on', 'is_overdue', 'overdue_level', 'state'],
-    actions: [{ m: 'action_return', l: 'Return Item' }] },
+    cols: ['name', 'equipment_id', 'custodian_id', 'reference', 'kit_id', 'issued_on', 'due_on', 'due_extension_count', 'is_overdue', 'overdue_level', 'handed_in_by_holder', 'state'],
+    actions: [{ m: 'action_return', l: 'Return Item' },
+      { m: 'action_extend_due', l: 'Extend Due', ask: 'Why is the return date extended? (set New Return Date on the issue first)', kwarg: 'reason' }] },
   'M45-transfer': { kind: 'model_list', model: 'fix.equipment.transfer', stateField: 'state',
     cols: ['name', 'equipment_id', 'from_branch_id', 'to_branch_id', 'from_custodian_id', 'to_custodian_id', 'transfer_date', 'dispatched_by_id', 'received_by_id', 'state'],
     actions: [{ m: 'action_dispatch', l: 'Dispatch' },
@@ -111,7 +120,7 @@ export const SCREENS = {
     cols: ['name', 'equipment_id', 'campaign_ref', 'verified_on', 'location', 'found', 'state'] },
   'M45-calibration': { kind: 'table_report', module: 'M45', report: 'calibration_schedule', title: 'Calibration Schedule', period: false },
   'M45-certificates': { kind: 'model_list', model: 'fix.calibration', stateField: 'decision_state',
-    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'provider_accredited', 'performed_by', 'trace_no', 'superseded_by_id', 'decision_state', 'decided_by_id', 'impact_id'],
+    cols: ['equipment_id', 'calibrated_on', 'standard_ref', 'result', 'next_due', 'certificate_ref', 'provider_id', 'provider_accredited', 'non_accredited', 'performed_by', 'calibration_cost', 'trace_no', 'superseded_by_id', 'decision_state', 'decided_by_id', 'impact_id'],
     actions: [{ m: 'action_accept_calibration', l: 'Accept (Usage Decision)' },
       { m: 'action_reject_calibration', l: 'Reject (Usage Decision)', ask: 'Why is this calibration rejected?', kwarg: 'decision_note' }] },
   'M45-oos': { kind: 'model_list', model: 'fix.equipment.oos', stateField: 'state',
@@ -124,7 +133,7 @@ export const SCREENS = {
   'M45-impacts': { kind: 'model_list', model: 'fix.calibration.impact', stateField: 'state', create: false,
     cols: ['name', 'equipment_id', 'calibration_id', 'period_from', 'period_to', 'affected_uses', 'ncr_ref', 'disposition', 'state'],
     actions: [{ m: 'action_close_impact', l: 'Close Assessment' }] },
-  'M45-retro': { kind: 'table_report', module: 'M45', report: 'retrospective_impact', title: 'Retrospective Impact', period: false },
+  'M45-retro': { kind: 'table_report', module: 'M45', report: 'retrospective_impact', title: 'Retrospective Impact', period: true },
   'M45-pm': { kind: 'model_list', model: 'fix.equipment.pm', stateField: 'state',
     cols: ['name', 'equipment_id', 'pm_type', 'scheduled_on', 'done_on', 'cost', 'state'],
     actions: [{ m: 'action_done', l: 'Mark Done' }] },
@@ -133,9 +142,14 @@ export const SCREENS = {
 
   /* Report chips -> their own computed pack */
   'M45-rpt-compliance': { kind: 'table_report', module: 'M45', report: 'calibration_compliance', title: 'Calibration Compliance Report', period: false },
-  'M45-rpt-utilisation': { kind: 'table_report', module: 'M45', report: 'utilisation', title: 'Equipment Utilisation', period: false },
-  'M45-rpt-loss': { kind: 'table_report', module: 'M45', report: 'loss_writeoff', title: 'Tool Loss & Write-Off', period: false },
-  'M45-rpt-cost': { kind: 'table_report', module: 'M45', report: 'cost_of_ownership', title: 'Cost of Ownership', period: false },
+  'M45-rpt-utilisation': { kind: 'table_report', module: 'M45', report: 'utilisation', period: true, title: 'Equipment Utilisation' },
+  'M45-rpt-loss': { kind: 'table_report', module: 'M45', report: 'loss_writeoff', period: true, title: 'Tool Loss & Write-Off' },
+  'M45-rpt-cost': { kind: 'table_report', module: 'M45', report: 'cost_of_ownership', title: 'Cost of Ownership', period: true },
+  /* A07 ERP audit 2026-11-20 M45-18: printable documents (PDF from the report bar) */
+  'M45-rpt-certificates': { kind: 'table_report', module: 'M45', report: 'certificate_register', title: 'Calibration Certificate Register', period: true },
+  'M45-rpt-tags': { kind: 'table_report', module: 'M45', report: 'asset_tags', title: 'Asset Tag Labels', period: false },
+  'M45-rpt-custody': { kind: 'table_report', module: 'M45', report: 'custody_slips', title: 'Custody Hand-Over Slips', period: true },
+  'M45-rpt-memos': { kind: 'table_report', module: 'M45', report: 'writeoff_memos', title: 'Write-Off & Disposal Memos', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M45-form-equipment': {
@@ -255,7 +269,7 @@ export const SCREENS = {
       { id: 'decision', label: '3. Usage Decision', bn: '৩. ব্যবহার সিদ্ধান্ত', icon: '✔', badge: '7' }
     ],
     sections: [
-      { tab: 'cal', title: 'Calibration', note: 'The latest calibration decides: only a pass whose next-due is not past keeps the equipment usable. A fail, an overdue date or no calibration at all blocks issue, usage and QC, and a fail puts the item out of service and raises the impact assessment. With a calibration profile, record the as-found reading of every point (and the as-left where adjusted): the result is derived from the profile\'s tolerance bands, and next-due from its interval. Without one the validity is capped. A pass needs the certificate and who performed it; the date cannot be in the future. If the instrument\'s profile accepts an accredited provider only, a pass also needs Provider Accredited ticked. The record is insert-only: to correct it, create a new one that names it under Corrects (a fail cannot be corrected into a pass). A Quality Manager other than the recorder can accept or reject it. While the second-person acceptance setting is off, a recorded pass certifies the instrument at once and a rejection withdraws it; when it is on, the instrument is not usable until the calibration is accepted. While the calibration role setting is off, anyone may record a calibration; when it is on, only a Calibration Technician or a Quality Manager can.',
+      { tab: 'cal', title: 'Calibration', note: 'The latest calibration decides: only a pass whose next-due is not past keeps the equipment usable. A fail, an overdue date or no calibration at all blocks issue, usage and QC, and a fail puts the item out of service and raises the impact assessment. With a calibration profile, record the as-found reading of every point (and the as-left where adjusted): the result is derived from the profile\'s tolerance bands, and next-due from its interval. Without one the validity is capped. A pass needs the certificate reference AND its file, the provider and who performed it, and the accreditation reference when the provider is accredited (decision D7a); the date cannot be in the future. An in-house calibration (the provider is 1000FiX itself) names the company reference standard it used. If the instrument\'s profile accepts an accredited provider only, a pass also needs Provider Accredited ticked; a pass from an external provider that is not accredited is flagged and the instrument cannot produce a QC result on it. The record is insert-only: to correct it, create a new one that names it under Corrects (a fail cannot be corrected into a pass). A Quality Manager other than the recorder can accept or reject it. While the second-person acceptance setting is off, a recorded pass certifies the instrument at once and a rejection withdraws it; when it is on, the instrument is not usable until the calibration is accepted. While the calibration role setting is off, anyone may record a calibration; when it is on, only a Calibration Technician or a Quality Manager can.',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'calibrated_on', required: true, label: 'Calibrated On' },
@@ -277,7 +291,17 @@ export const SCREENS = {
           { name: 'certificate_ref', label: 'Certificate Reference' },
           { name: 'certificate_file', type: 'file', label: 'Certificate File' },
           { name: 'certificate_filename', label: 'Certificate File Name' },
+          { name: 'certificate_hash', readonly: true, label: 'Certificate SHA-256' },
+          { name: 'non_accredited', readonly: true, label: 'Non-Accredited Certificate' },
           { name: 'trace_no', label: 'Trace Number' }
+        ] },
+      { tab: 'trace', title: 'Calibration Cost', note: 'What the provider charged and how it is paid (FR-EAM-046). A vendor bill names the provider and its invoice reference; AP matches the bill to the M52 cost entry raised on save. Leave the cost empty for an in-house calibration. Fixed once saved.',
+        fields: [
+          { name: 'calibration_cost', label: 'Calibration Cost (BDT)' },
+          { name: 'payment_method', label: 'Paid By' },
+          { name: 'invoice_ref', label: 'Provider Invoice Ref' },
+          { name: 'cost_employee_id', label: 'Paid by Employee' },
+          { name: 'cost_entry_ref', readonly: true, label: 'M52 Cost Entry' }
         ] },
       { tab: 'decision', title: 'Usage Decision', note: 'Accept or Reject from the Certificate list. Reject asks for the reason, and puts the instrument out of service when this is its latest calibration.',
         fields: [
@@ -313,13 +337,16 @@ export const SCREENS = {
     back: 'M45-issue',
     status: { field: 'state', labels: { issued: 'Issued', returned: 'Returned' } },
     sections: [
-      { title: 'Issue', note: 'Only an available, calibrated item can be issued, and to one custodian at a time. On return record the condition: a serviceable item goes back to Available (unless it went out of service meanwhile), a damaged one goes Out of Service; with no condition stated it waits Out of Service for a store keeper\'s condition check. Overdue is computed against the due date and escalated nightly.',
+      { title: 'Issue', note: 'Issued by a store keeper or Quality Manager (never to themselves), only an available, calibrated item, to one custodian at a time. Once issued, the item, the holder and the dates are fixed: a new holder is a return and a new issue, and the return date moves only by Extend Due (set New Return Date, then Extend Due with the reason). A store keeper records the condition on return: serviceable goes back to Available (unless it went out of service meanwhile), damaged goes Out of Service. A return by the holder is a hand-in: the item waits Out of Service for a store keeper\'s condition check. Overdue is escalated nightly: the holder, then the branch manager (+3 days), then the Quality Manager (+7).',
         fields: [
           { name: 'equipment_id', required: true, label: 'Equipment' },
           { name: 'custodian_id', required: true, label: 'Custodian' },
           { name: 'reference', label: 'Job / Ticket Ref' },
           { name: 'issued_on', required: true, label: 'Issued On' },
           { name: 'due_on', label: 'Due On' },
+          { name: 'proposed_due_on', label: 'New Return Date (for Extend Due)' },
+          { name: 'due_original_on', readonly: true, label: 'Originally Due' },
+          { name: 'due_extension_note', readonly: true, type: 'text', label: 'Extension History' },
           { name: 'condition_out', label: 'Condition Out' },
           { name: 'return_condition', label: 'Condition on Return' },
           { name: 'condition_in', label: 'Condition In (damage detail)' },
@@ -563,7 +590,9 @@ export const SCREENS = {
   /* ============ Capture audit 2026-11-16: the new registers ============ */
   'M45-categories': { kind: 'model_list', model: 'fix.equipment.category',
     note: 'The class decides the control: a calibration-controlled class needs a current calibration before any of its items is issued, used or put on a QC record; the other classes are registered, issued and counted without one. Classes are kept by the Quality Manager.',
-    cols: ['code', 'name', 'classification', 'requires_calibration', 'requires_verification', 'data_bearing', 'critical', 'equipment_count', 'active'] },
+    cols: ['code', 'name', 'classification', 'requires_calibration', 'requires_verification', 'data_bearing', 'critical', 'equipment_count', 'approval_state', 'active'],
+    actions: [{ m: 'action_request_approval', l: 'Request Control Switch-Off' },
+      { m: 'action_recall_approval', l: 'Recall Control Request' }] },
   'M45-branch-profiles': { kind: 'model_list', model: 'fix.branch.equipment.profile',
     note: 'What each branch should hold, per class. A critical class with no fit, available item at the branch is a capability exception (BRU-EAM-20).',
     cols: ['branch_id', 'category_id', 'minimum_quantity', 'held_count', 'fit_count', 'shortfall', 'capability_exception', 'critical'] },
@@ -577,15 +606,18 @@ export const SCREENS = {
     actions: [{ m: 'action_raise_due_jobs', l: 'Raise Due Jobs' }] },
   'M45-losses': { kind: 'model_list', model: 'fix.equipment.loss', stateField: 'state',
     note: 'A lost or stolen item is Lost / Missing until it is recovered or written off; a damaged one is out of service and goes to repair or write-off. The person who reported a loss never approves its write-off (BRU-EAM-12).',
-    cols: ['name', 'equipment_id', 'kind', 'occurred_on', 'custodian_at_loss_id', 'value_impact', 'reported_by_id', 'state'],
+    cols: ['name', 'equipment_id', 'kind', 'occurred_on', 'custodian_at_loss_id', 'value_impact', 'recharge_amount', 'recharge_hr_decision', 'reported_by_id', 'state'],
     actions: [{ m: 'action_recover', l: 'Recovered', ask: 'Where was it found?', kwarg: 'note' },
       { m: 'action_send_to_repair', l: 'Send to Repair' },
-      { m: 'action_request_writeoff', l: 'Request Write-Off' }] },
+      { m: 'action_request_writeoff', l: 'Request Write-Off' },
+      { m: 'action_hr_approve_recharge', l: 'HR: Approve Recharge', ask: 'HR note (optional)', kwarg: 'note' },
+      { m: 'action_hr_reject_recharge', l: 'HR: Reject Recharge', ask: 'Why does HR reject the recharge?', kwarg: 'note' }] },
   'M45-audit-runs': { kind: 'model_list', model: 'fix.equipment.audit', stateField: 'state',
     note: 'A blind count of a branch: the counter records what they find, and on completion every item the register expects in that store but nobody found is recorded missing. Items out on issue or in transit are accounted for by their custody.',
-    cols: ['name', 'branch_id', 'scope', 'scheduled_for', 'counter_id', 'expected_count', 'found_count', 'missing_count', 'variance_value', 'state'],
+    cols: ['name', 'branch_id', 'scope', 'scheduled_for', 'counter_id', 'expected_count', 'found_count', 'missing_count', 'variance_value', 'reviewed_by_id', 'state'],
     actions: [{ m: 'action_start', l: 'Start Count' },
-      { m: 'action_complete', l: 'Complete Count' }] },
+      { m: 'action_complete', l: 'Complete Count' },
+      { m: 'action_approve_count', l: 'Approve Discrepancy', ask: 'Why were the items not found?', kwarg: 'reason' }] },
   'M45-writeoffs': { kind: 'model_list', model: 'fix.equipment', stateField: 'approval_state', create: false,
     note: 'Items lost or missing, and every write-off requested or approved. Request one with the Write-Off chip; it is decided on the acquisition cost from the approver inbox.',
     domain: ['|', ['operational_status', '=', 'missing'], ['approval_state', 'in', ['pending', 'approved', 'rejected']]],
@@ -616,6 +648,12 @@ export const SCREENS = {
           { name: 'critical', label: 'Critical (work stops without it)' },
           { name: 'active', label: 'Active' },
           { name: 'equipment_count', readonly: true, label: 'Items' }
+        ] },
+      { title: 'Switch Calibration Control Off', note: 'Taking a class out of calibration control releases all its instruments from the fitness gate (BRU-EAM-01 has no override), so it is never a tick: state why, then Request Control Switch-Off. A Quality Manager other than you approves it from the inbox. Open calibration and recall holds stay open until each item passes a re-calibration. An item moves to an uncontrolled class only while it is in calibration.',
+        fields: [
+          { name: 'proposed_classification', label: 'Proposed Classification (optional)' },
+          { name: 'control_change_reason', type: 'text', label: 'Why Calibration Control Is Switched Off' },
+          { name: 'approval_state', readonly: true, label: 'Approval' }
         ] }
     ]
   },
@@ -798,6 +836,14 @@ export const SCREENS = {
           { name: 'decision_note', readonly: true, label: 'Decision Note' },
           { name: 'decided_by_id', readonly: true, label: 'Decided By' },
           { name: 'repair_job_id', readonly: true, label: 'Repair Job' }
+        ] },
+      { tab: 'decision', title: 'Staff Recharge (HR decision)', note: 'A recharge to an employee is recovered only on an HR-approved recovery decision, through payroll within the statutory deduction limit (decision D9). HR approves or rejects it from the Loss & Damage list; not the person who reported the loss. Employee and amount are fixed once HR decides. Payroll is told once the write-off is approved.',
+        fields: [
+          { name: 'recharge_hr_decision', readonly: true, label: 'HR Decision' },
+          { name: 'recharge_hr_decided_by_id', readonly: true, label: 'HR Decision By' },
+          { name: 'recharge_hr_decided_on', readonly: true, label: 'HR Decision On' },
+          { name: 'recharge_hr_note', readonly: true, label: 'HR Note' },
+          { name: 'recharge_requested_on', readonly: true, label: 'Sent to Payroll' }
         ] }
     ]
   },
@@ -808,9 +854,9 @@ export const SCREENS = {
     title: 'Verification Count',
     newLabel: 'Schedule Verification Count',
     back: 'M45-audit-runs',
-    status: { field: 'state', labels: { draft: 'Draft', counting: 'Counting', done: 'Done' } },
+    status: { field: 'state', labels: { draft: 'Draft', counting: 'Counting', review: 'Discrepancy Review', done: 'Done' } },
     sections: [
-      { title: 'Count', note: 'Scheduled by a store keeper or Quality Manager. The counter may not be the custodian of any item counted, and closes the count themself (Complete Count). The count is blind: list only what you find; what the register expects and nobody found is recorded missing on completion (AUT-EAM-12/13).',
+      { title: 'Count', note: 'Scheduled by a store keeper or Quality Manager. The counter may not be who scheduled it, the custodian of any item of the branch, or the branch\'s own store keeper, and closes the count themself once started (Complete Count). The count is blind: scan the tag of each item you find. If anything the register expects was not found, the count waits for a reviewer (not the counter or scheduler) to Approve Discrepancy with the reason; only then are the items recorded missing (AC-14, AUT-EAM-12/13).',
         fields: [
           { name: 'branch_id', required: true, label: 'Branch' },
           { name: 'scope', required: true, label: 'Scope' },
@@ -822,15 +868,18 @@ export const SCREENS = {
           { name: 'missing_count', readonly: true, label: 'Missing' },
           { name: 'unexpected_count', readonly: true, label: 'Registered Elsewhere' },
           { name: 'variance_value', readonly: true, label: 'Missing Value (BDT)' },
-          { name: 'completed_by_id', readonly: true, label: 'Completed By' }
+          { name: 'completed_by_id', readonly: true, label: 'Completed By' },
+          { name: 'discrepancy_reason', type: 'text', label: 'Discrepancy Reason' },
+          { name: 'reviewed_by_id', readonly: true, label: 'Discrepancy Approved By' }
         ] }
     ],
     lines: {
       field: 'line_ids',
       title: 'Items Found',
-      note: 'Scan or pick each item you find, once. The list is final once the count is complete.',
+      note: 'Scan the tag (or type the code or serial) of each item you find, once. The list is final once the count is closed.',
       fields: [
-        { name: 'equipment_id', required: true, label: 'Equipment Found' },
+        { name: 'scanned_code', label: 'Scanned Tag / Code / Serial' },
+        { name: 'equipment_id', label: 'Equipment Found' },
         { name: 'found_location', label: 'Found At' },
         { name: 'condition', label: 'Condition' }
       ]
@@ -855,12 +904,16 @@ export const SCREENS = {
           { name: 'state', readonly: true, label: 'State' },
           { name: 'requested_by_id', readonly: true, label: 'Requested By' }
         ] },
-      { title: 'Disposal', note: 'Recorded by a Quality Manager once the item is retired. A data-bearing item does not leave the company without its M06 erasure certificate (BRU-EAM-16); e-waste and resale need their batch or sale reference.',
+      { title: 'Disposal', note: 'Recorded by a Quality Manager once the item is retired. A data-bearing item gets its M06 erasure request when the retirement is approved and does not leave until M06 certifies the erasure (BRU-EAM-16); the certificate number is filled in from M06. E-waste and resale need their batch or sale reference; a resale needs the buyer and the sale proceeds, which M49 books the gain or loss against.',
         fields: [
           { name: 'data_bearing', readonly: true, label: 'Data-Bearing' },
           { name: 'disposal_route', label: 'Disposal Route' },
           { name: 'erasure_certificate_ref', label: 'M06 Erasure Certificate' },
+          { name: 'wipe_request_id', readonly: true, label: 'M06 Erasure Request' },
+          { name: 'wipe_state', readonly: true, label: 'Erasure Status' },
           { name: 'disposal_ref', label: 'E-Waste Batch / Sale Reference' },
+          { name: 'sale_amount', label: 'Sale Proceeds (BDT)' },
+          { name: 'buyer_partner_id', label: 'Buyer' },
           { name: 'disposed_by_id', readonly: true, label: 'Disposed By' },
           { name: 'disposed_on', readonly: true, label: 'Disposed On' }
         ] }
@@ -873,7 +926,11 @@ export const REPORT_ROUTES = {
   'M45:Equipment Utilisation': 'M45-rpt-utilisation',
   'M45:Tool Loss & Write-Off': 'M45-rpt-loss',
   'M45:Cost of Ownership': 'M45-rpt-cost',
-  'M45:Register Completeness': 'M45-rpt-completeness'
+  'M45:Register Completeness': 'M45-rpt-completeness',
+  'M45:Calibration Certificate Register': 'M45-rpt-certificates',
+  'M45:Asset Tag Labels': 'M45-rpt-tags',
+  'M45:Custody Hand-Over Slips': 'M45-rpt-custody',
+  'M45:Write-Off & Disposal Memos': 'M45-rpt-memos'
 };
 
 export const FORM_MODELS = {

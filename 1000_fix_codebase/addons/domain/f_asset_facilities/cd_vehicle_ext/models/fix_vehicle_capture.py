@@ -22,11 +22,16 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_vehicle_ops import (
     FLEET_OFFICER_GROUP,
     LOGISTICS_MANAGER_GROUP,
+    PAYMENT_METHODS_NO_CARD,
     _reason,
     _vehicle_label,
+    dhaka_default,
     dhaka_today,
     emit,
     like_exact,
+    m52_raise,
+    param_float,
+    payment_problems,
     require_role,
 )
 
@@ -133,7 +138,7 @@ class FixVehicleDocumentRenewal(models.Model):
         "hr.employee", string="Responsible Person", required=True, ondelete="restrict"
     )
     issuing_authority = fields.Char(string="Issuing Authority", help="e.g. BRTA Mirpur circle")
-    initiated_on = fields.Date(required=True, default=fields.Date.context_today)
+    initiated_on = fields.Date(required=True, default=dhaka_default)
     submitted_on = fields.Date(string="Submitted On", readonly=True, copy=False)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -147,6 +152,16 @@ class FixVehicleDocumentRenewal(models.Model):
     )
     receipt_file = fields.Binary(string="Fee Receipt (scan)", attachment=True, copy=False)
     receipt_filename = fields.Char(string="Fee Receipt File Name", copy=False)
+    # A07 ERP audit M46-01 (money contract): who was paid the fees and how.
+    payment_method = fields.Selection(PAYMENT_METHODS_NO_CARD, string="Payment Method")
+    vendor_id = fields.Many2one(
+        "res.partner",
+        string="Paid To (BRTA / agent / insurer)",
+        ondelete="restrict",
+    )
+    invoice_ref = fields.Char(string="Invoice / Receipt No")
+    paid_on = fields.Date(string="Paid On", readonly=True, copy=False)
+    payment_ref = fields.Char(string="Payment Ref", readonly=True, copy=False)
     new_document_id = fields.Many2one(
         "fix.vehicle.document",
         string="Renewed Document",
@@ -189,6 +204,8 @@ class FixVehicleDocumentRenewal(models.Model):
             "completed_by_id",
             "completed_on",
             "cancel_reason",
+            "paid_on",
+            "payment_ref",
         }
 
     def _fix_frozen_fields(self) -> set:
@@ -205,6 +222,9 @@ class FixVehicleDocumentRenewal(models.Model):
                 "new_document_id",
                 "receipt_file",
                 "receipt_filename",
+                "payment_method",
+                "vendor_id",
+                "invoice_ref",
             }
         if isinstance(self.id, int):
             return {"document_id"}
@@ -268,6 +288,21 @@ class FixVehicleDocumentRenewal(models.Model):
                 raise UserError("%s is not in date." % new.name)
             if rec.penalty and not (rec.penalty_reason or "").strip():
                 raise UserError("Say why a late penalty of %s was paid." % rec.penalty)
+            if not self.env.su and rec.total_cost > 0:
+                # A07 ERP audit M46-01: the fees are money: how they were
+                # paid, to whom, and the receipt or invoice.
+                problems = payment_problems(
+                    rec.payment_method,
+                    rec.vendor_id,
+                    rec.invoice_ref,
+                    rec.receipt_file,
+                    rec.responsible_employee_id,
+                )
+                if problems:
+                    raise UserError(
+                        "Record %s on %s: the fees of %.2f are paid through M52."
+                        % (" and ".join(problems), rec.name, rec.total_cost)
+                    )
             if (
                 not self.env.su
                 and rec.penalty
@@ -280,6 +315,7 @@ class FixVehicleDocumentRenewal(models.Model):
             rec._guarded().write(
                 {"state": "completed", "completed_by_id": self.env.uid, "completed_on": today}
             )
+            rec._fix_raise_renewal_cost()
             emit(
                 rec,
                 "vehicle.document_renewed",
@@ -294,6 +330,38 @@ class FixVehicleDocumentRenewal(models.Model):
                 },
             )
         return True
+
+    def _fix_raise_renewal_cost(self):
+        """M46-01 money contract: a completed renewal's government fee, agent
+        fee and penalty are one vehicle_renewal cost on the vehicle's branch
+        OU (D3: 5000110 Certifications & Registrations, resolved by S6)."""
+        for rec in self.filtered(lambda r: r.total_cost > 0):
+            vals = dict(
+                rec.vehicle_id._fix_cost_dimensions(),
+                cost_type="vehicle_renewal",
+                amount=rec.total_cost,
+                cost_date=rec.completed_on or dhaka_today(rec),
+                vendor_id=rec.vendor_id.id or False,
+                invoice_ref=(rec.invoice_ref or "").strip() or False,
+                payment_method=rec.payment_method or False,
+                employee_id=rec.responsible_employee_id.id
+                if rec.payment_method == "employee_expense"
+                else False,
+                detail="%s renewal %s: government %.2f, agent %.2f, penalty %.2f"
+                % (
+                    rec.doc_type,
+                    rec.name,
+                    rec.government_fee or 0.0,
+                    rec.agent_fee or 0.0,
+                    rec.penalty or 0.0,
+                ),
+            )
+            m52_raise(rec, vals)
+
+    def _m52_mark_paid(self, amount, date, ref):
+        """Finance (the M52 bridge) records the payment; never typed."""
+        for rec in self:
+            rec._guarded().write({"paid_on": date or False, "payment_ref": ref or False})
 
     def action_cancel(self, reason=None):
         require_role(self.env, FLEET_OFFICER_GROUP, "Cancelling a document renewal")
@@ -333,7 +401,7 @@ class FixVehicleDefect(models.Model):
     vehicle_id = fields.Many2one(
         "fleet.vehicle", string="Vehicle", required=True, ondelete="cascade", index=True
     )
-    raised_on = fields.Date(required=True, default=fields.Date.context_today)
+    raised_on = fields.Date(required=True, default=dhaka_default)
     raised_by_id = fields.Many2one("res.users", string="Raised By", readonly=True, copy=False)
     category = fields.Selection(DEFECT_CATEGORIES, required=True, default="other")
     safety_critical = fields.Boolean(
@@ -489,6 +557,13 @@ class FixVehiclePmExecution(models.Model):
     next_pm_id = fields.Many2one(
         "fix.vehicle.pm", string="Next Service", readonly=True, copy=False, ondelete="set null"
     )
+    # A07 ERP audit M46-01/02 (money contract): how the service was paid.
+    payment_method = fields.Selection(PAYMENT_METHODS_NO_CARD, string="Payment Method")
+    paid_by_employee_id = fields.Many2one(
+        "hr.employee", string="Paid By (employee)", ondelete="restrict"
+    )
+    receipt_file = fields.Binary(string="Receipt (scan)", attachment=True, copy=False)
+    receipt_filename = fields.Char(string="Receipt File Name", copy=False)
 
     @api.constrains("downtime_hours", "next_due_odometer", "odometer")
     def _check_execution(self):
@@ -515,8 +590,28 @@ class FixVehiclePmExecution(models.Model):
                 "downtime_hours",
                 "next_due_date",
                 "next_due_odometer",
+                "payment_method",
+                "paid_by_employee_id",
+                "receipt_file",
+                "receipt_filename",
             }
         return frozen
+
+    def _m52_cost_facts(self):
+        """The money-contract facts of this service for the M52 cost entry the
+        finance bridge raises from vehicle.service_completed (M46-02: the
+        garage and its invoice; M46-04: the vehicle's branch OU)."""
+        self.ensure_one()
+        rec = self.sudo()
+        return dict(
+            rec.vehicle_id._fix_cost_dimensions(),
+            payment_method=rec.payment_method or False,
+            vendor_id=rec.provider_id.id or False,
+            invoice_ref=(rec.invoice_ref or "").strip() or False,
+            employee_id=rec.paid_by_employee_id.id
+            if rec.payment_method == "employee_expense"
+            else False,
+        )
 
     def action_done(self):
         """FR-FLT-027: a service done at a garage names its invoice, the
@@ -530,6 +625,22 @@ class FixVehiclePmExecution(models.Model):
                     "%s was done by %s: record the invoice reference."
                     % (rec.name, rec.provider_id.name)
                 )
+            # A07 ERP audit M46-01/02/04: a paid service names how it was
+            # paid, the garage for a bill, and the vehicle's branch OU.
+            if not self.env.su and rec.state == "open" and (rec.cost or 0.0) > 0:
+                problems = payment_problems(
+                    rec.payment_method,
+                    rec.provider_id,
+                    rec.invoice_ref,
+                    rec.receipt_file,
+                    rec.paid_by_employee_id,
+                )
+                if problems:
+                    raise UserError(
+                        "Record %s on %s before completing it: its cost of %.2f is paid "
+                        "through M52." % (" and ".join(problems), rec.name, rec.cost)
+                    )
+                rec.vehicle_id._fix_cost_dimensions()
         res = super().action_done()
         Pm = self.env["fix.vehicle.pm"].sudo()
         for rec in self.filtered(lambda r: r.next_due_date or r.next_due_odometer):
@@ -652,12 +763,12 @@ class FixTelematicsDevice(models.Model):
             if vals.get("name"):
                 vals["name"] = vals["name"].strip()
             if vals.get("vehicle_id") and not vals.get("fitted_on"):
-                vals["fitted_on"] = fields.Date.context_today(self)
+                vals["fitted_on"] = dhaka_today(self)
         return super().create(vals_list)
 
     def write(self, vals):
         if vals.get("vehicle_id") and not vals.get("fitted_on"):
-            vals = dict(vals, fitted_on=fields.Date.context_today(self))
+            vals = dict(vals, fitted_on=dhaka_today(self))
         res = super().write(vals)
         if vals.get("vehicle_id"):
             for rec in self:
@@ -743,12 +854,29 @@ class FixVehicleTelemetryDevice(models.Model):
 # --------------------------------------------------------------------------
 # Accidents & Insurance: traffic fine / penalty (FR-FLT-043, BRU-FLT-16)
 # --------------------------------------------------------------------------
+# A07 ERP audit (2026-11-20) M46-14, owner decision D11: the recover-or-absorb
+# decision follows the estate DOFA ladder: up to BDT 10,000 the Logistics
+# Manager decides alone, up to BDT 50,000 the Operations Director (DOFA Tier 3)
+# approves it, above that the CFO (Tier 4). The two bounds are parameters
+# (the decision states the figures); the approval is routed by M63.
+FINE_LM_LIMIT_PARAM = "cd_vehicle_ext.fine_decision_lm_limit_bdt"
+FINE_LM_LIMIT_DEFAULT = 10000.0
+FINE_DIRECTOR_LIMIT_PARAM = "cd_vehicle_ext.fine_decision_director_limit_bdt"
+FINE_DIRECTOR_LIMIT_DEFAULT = 50000.0
+
+
 class FixVehiclePenalty(models.Model):
     _name = "fix.vehicle.penalty"
     _description = "Traffic Fine / Penalty"
-    _inherit = ["mail.thread", "fix.vehicle.lock.mixin"]
+    # fix.dofa.mixin after the chatter, as on fix.vehicle.accident: it
+    # carries the M63 routed approval (fix.approvable.mixin).
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin", "fix.vehicle.lock.mixin"]
     _order = "issued_on desc, id desc"
     _fix_insert_only = True
+
+    _approval_domain = "vehicle_penalty_decision"
+    _approval_apply_method = "action_dofa_approve"
+    _approval_routed = True
 
     name = fields.Char(required=True, default="New", copy=False)
     vehicle_id = fields.Many2one(
@@ -760,7 +888,7 @@ class FixVehiclePenalty(models.Model):
         ondelete="restrict",
         help="Empty = the driver booked on the vehicle that day, else its assigned driver.",
     )
-    issued_on = fields.Date(required=True, default=fields.Date.context_today)
+    issued_on = fields.Date(required=True, default=dhaka_default)
     authority = fields.Char(string="Issuing Authority", help="e.g. DMP Traffic Division")
     case_ref = fields.Char(string="Case / Slip No")
     offence = fields.Char(required=True)
@@ -770,8 +898,28 @@ class FixVehiclePenalty(models.Model):
     amount = fields.Monetary(currency_field="currency_id", required=True)
     evidence_file = fields.Binary(string="Fine Slip (scan)", attachment=True, copy=False)
     evidence_filename = fields.Char(string="Fine Slip File Name", copy=False)
-    paid_on = fields.Date(string="Paid On")
-    payment_ref = fields.Char(string="Payment Ref")
+    # A07 ERP audit M46-14 (D11): "paid" is recorded by finance when the fine
+    # is paid through AP or petty cash (_m52_mark_paid), never typed.
+    paid_on = fields.Date(string="Paid On", readonly=True, copy=False)
+    payment_ref = fields.Char(string="Payment Ref", readonly=True, copy=False)
+    payment_method = fields.Selection(
+        [("vendor_bill", "Vendor Bill (AP)"), ("petty_cash", "Petty Cash")],
+        string="Paid Through",
+    )
+    vendor_id = fields.Many2one(
+        "res.partner",
+        string="Payable To (authority)",
+        ondelete="restrict",
+        help="The authority the fine is paid to (e.g. DMP Traffic Division, BRTA).",
+    )
+    proposed_decision = fields.Selection(
+        [("recover", "Recover from the Driver"), ("absorb", "Absorb (company cost)")],
+        string="Proposed Decision",
+        readonly=True,
+        copy=False,
+        help="Above the Logistics Manager limit the decision waits for its DOFA approval.",
+    )
+    proposed_by_id = fields.Many2one("res.users", string="Proposed By", readonly=True, copy=False)
     recorded_by_id = fields.Many2one("res.users", string="Recorded By", readonly=True, copy=False)
     recovery_decision = fields.Selection(
         [("recover", "Recover from the Driver"), ("absorb", "Absorb (company cost)")],
@@ -803,6 +951,10 @@ class FixVehiclePenalty(models.Model):
             "decision_reason",
             "decided_by_id",
             "decided_on",
+            "paid_on",
+            "payment_ref",
+            "proposed_decision",
+            "proposed_by_id",
         }
 
     def _fix_frozen_fields(self) -> set:
@@ -815,8 +967,45 @@ class FixVehiclePenalty(models.Model):
                 "amount",
                 "authority",
                 "case_ref",
+                "payment_method",
+                "vendor_id",
+                "evidence_file",
+                "evidence_filename",
             }
         return set()
+
+    # ---- DOFA (fix.dofa.mixin, M63) ---------------------------------------
+    def _dofa_thresholds(self):
+        lm = param_float(self.env, FINE_LM_LIMIT_PARAM, FINE_LM_LIMIT_DEFAULT)
+        director = param_float(self.env, FINE_DIRECTOR_LIMIT_PARAM, FINE_DIRECTOR_LIMIT_DEFAULT)
+        return [(lm, "tier_0"), (max(director, lm), "tier_3"), (float("inf"), "tier_4")]
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        return self.amount or 0.0
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (traffic fine %s)" % (self._dofa_amount(), self.name)
+
+    @api.depends("amount")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _approval_pinned_fields(self) -> set:
+        # The approval covers this fine, this driver and this decision.
+        return super()._approval_pinned_fields() | {
+            "vehicle_id",
+            "driver_id",
+            "proposed_decision",
+            "payment_method",
+        }
+
+    def _fix_payment_problems(self):
+        self.ensure_one()
+        return payment_problems(
+            self.payment_method, self.vendor_id, self.case_ref, self.evidence_file
+        )
 
     @api.model
     def _fix_driver_on_duty(self, vehicle, day):
@@ -839,7 +1028,7 @@ class FixVehiclePenalty(models.Model):
                     self.env["ir.sequence"].next_by_code("fix.vehicle.penalty") or "VPEN/New"
                 )
             if not vals.get("driver_id") and vals.get("vehicle_id"):
-                day = fields.Date.to_date(vals.get("issued_on")) or fields.Date.context_today(self)
+                day = fields.Date.to_date(vals.get("issued_on")) or dhaka_today(self)
                 driver = self._fix_driver_on_duty(Vehicle.browse(vals["vehicle_id"]), day)
                 if not driver:
                     raise UserError(
@@ -867,6 +1056,13 @@ class FixVehiclePenalty(models.Model):
         return recs
 
     def _decide(self, decision, reason):
+        """The Logistics Manager decides recover or absorb (BRU-FLT-16), with
+        the reason, and is not the person who recorded the fine. A07 ERP audit
+        M46-14 (D11): within the LM limit the decision stands at once; above
+        it the decision is PROPOSED and routed through M63 to the Operations
+        Director (Tier 3) or the CFO (Tier 4), whose approval completes it.
+        Either way the fine names how it is paid (AP or petty cash) and its
+        vehicle has a branch OU, because deciding it raises the cost."""
         require_role(self.env, LOGISTICS_MANAGER_GROUP, "Deciding a traffic fine")
         reason = _reason(reason, "the decision")
         for rec in self:
@@ -877,15 +1073,65 @@ class FixVehiclePenalty(models.Model):
                     "Segregation of duties: you recorded %s; another Logistics Manager decides "
                     "it." % rec.name
                 )
+            if rec.approval_state == "pending":
+                raise UserError(
+                    "%s already waits for its DOFA approval (%s)."
+                    % (rec.name, rec.approval_request_id.name or "-")
+                )
+            if not self.env.su:
+                problems = rec._fix_payment_problems()
+                if decision == "recover" and not rec.driver_id.employee_id:
+                    problems.append("the driver (an employee) it is recovered from")
+                if problems:
+                    raise UserError("Record %s on %s first." % (" and ".join(problems), rec.name))
+            rec.vehicle_id._fix_cost_dimensions()
+            rec._guarded().write(
+                {
+                    "proposed_decision": decision,
+                    "proposed_by_id": self.env.uid,
+                    "decision_reason": reason,
+                }
+            )
+            if rec._dofa_current_tier() == "tier_0":
+                rec._fix_finalize_decision()
+            else:
+                rec.action_request_approval(justification=reason)
+        return True
+
+    def action_recall_approval(self):
+        """The Logistics Manager withdraws a decision waiting for its DOFA
+        approval; the proposal stays on record and can be decided again."""
+        return super().action_recall_approval()
+
+    def action_dofa_approve(self):
+        """The routed approval (M63 inbox) completes the proposed decision."""
+        res = super().action_dofa_approve()
+        for rec in self.filtered(lambda r: r.state == "recorded" and r.proposed_decision):
+            rec._fix_finalize_decision()
+        return res
+
+    def _fix_finalize_decision(self):
+        for rec in self:
+            rec._dofa_assert_approved("Deciding the fine")
+            decision = rec.proposed_decision
             rec._guarded().write(
                 {
                     "state": "decided",
                     "recovery_decision": decision,
-                    "decision_reason": reason,
-                    "decided_by_id": self.env.uid,
+                    "decided_by_id": rec.proposed_by_id.id or self.env.uid,
                     "decided_on": dhaka_today(rec),
                 }
             )
+            rec.message_post(
+                body="Decided: %s (%s), proposed by %s%s."
+                % (
+                    dict(rec._fields["recovery_decision"].selection).get(decision),
+                    rec.decision_reason or "-",
+                    rec.proposed_by_id.name or "-",
+                    ", approved by %s" % rec.dofa_approved_by.name if rec.dofa_approved_by else "",
+                )
+            )
+            rec._fix_raise_fine_cost()
             # M52/M21 act on a recovery; the score never feeds discipline
             # (BRU-FLT-17), and neither does this event.
             emit(
@@ -900,7 +1146,34 @@ class FixVehiclePenalty(models.Model):
                     "decision": decision,
                 },
             )
-        return True
+
+    def _fix_raise_fine_cost(self):
+        """Money contract (D3/D9/D11): the fine is paid to the authority
+        through AP or petty cash (cost type vehicle_fine, on the vehicle's
+        branch OU). Absorbed, it is the company's penalty expense; recovered,
+        the entry names the employee (recovery_employee_id) for the D9
+        employee-recovery receivable and the M56 deduction."""
+        for rec in self:
+            vals = dict(
+                rec.vehicle_id._fix_cost_dimensions(),
+                cost_type="vehicle_fine",
+                amount=rec.amount,
+                cost_date=rec.decided_on or dhaka_today(rec),
+                vendor_id=rec.vendor_id.id or False,
+                invoice_ref=(rec.case_ref or "").strip() or False,
+                payment_method=rec.payment_method or False,
+                recovery_employee_id=rec.driver_id.employee_id.id
+                if rec.recovery_decision == "recover"
+                else False,
+                detail="Traffic fine %s (%s): %s"
+                % (rec.name, rec.offence or "-", rec.recovery_decision),
+            )
+            m52_raise(rec, vals)
+
+    def _m52_mark_paid(self, amount, date, ref):
+        """Finance records the payment of the fine (AP or petty cash)."""
+        for rec in self:
+            rec._guarded().write({"paid_on": date or False, "payment_ref": ref or False})
 
     def action_recover(self, reason=None):
         return self._decide("recover", reason)

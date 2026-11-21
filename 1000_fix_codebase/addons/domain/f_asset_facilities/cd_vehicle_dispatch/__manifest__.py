@@ -18,7 +18,7 @@ that van for today or later for re-dispatch (a field and a dispatcher
 activity, never a state change) and marks the conflict on the van's
 assignments; vehicle.available clears those flags, recording who and when.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.1.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Fleet",

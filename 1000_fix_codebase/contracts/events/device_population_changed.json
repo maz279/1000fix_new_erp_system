@@ -1,0 +1,87 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "device.population_changed",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (A07 ERP audit 2026-11-20, hand-written).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "device.population_changed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_device_registry"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "device_id",
+        "change_id",
+        "to_population",
+        "reason_code"
+      ],
+      "properties": {
+        "device_id": {
+          "type": "integer"
+        },
+        "change_id": {
+          "type": "integer"
+        },
+        "from_population": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "to_population": {
+          "type": "string"
+        },
+        "reason_code": {
+          "type": "string"
+        },
+        "ownership_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "recorded_by": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "approved_by": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_device_registry",
+  "x-publishers": [
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device_capture.py"
+  ],
+  "x-derived-from": "hand-written (A07 ERP audit S1)"
+}

@@ -27,6 +27,8 @@ RECHECK_SYSTEM_FIELDS = {
     "activity_id",
 }
 DONE_DISPOSITIONS = ("valid", "retested")
+# M45-20: a claim the brand has finally decided is no longer "open"
+CLAIM_CLOSED_STATES = ("rejected", "closed")
 
 
 def _impact_dispositions(self):
@@ -204,11 +206,53 @@ class FixServiceOrderRecheck(models.Model):
                 )
                 line.write({"activity_id": activity.id})
             order.sudo().message_post(body=text)
+        self._recheck_warranty_claims(impact, found)
         if unmatched:
             note = "No service order found for use(s): %s." % ", ".join(unmatched)
             if note not in "\n".join(impact.message_ids.mapped("body")):
                 impact.message_post(body=note)
         return True
+
+    @api.model
+    def _recheck_warranty_claims(self, impact, found):
+        """A07 ERP audit (2026-11-20) M45-20 / AUT-EAM-05, AC-04: M09 is told of
+        every open warranty claim behind a suspect measurement. The claim is
+        listed on the impact assessment, and its people get a note and a to-do
+        before the claim goes (or goes further) to the brand."""
+        if "fix.warranty.claim" not in self.env or not found:
+            return False
+        orders = self.env["fix.service.order"].browse([o.id for o in found])
+        claims = (
+            self.env["fix.warranty.claim"]
+            .sudo()
+            .search(
+                [
+                    ("service_order_id", "in", orders.ids),
+                    ("state", "not in", list(CLAIM_CLOSED_STATES)),
+                ]
+            )
+        )
+        new = claims - impact.sudo().affected_claim_ids
+        if not new:
+            return claims
+        impact.sudo()._guarded().write({"affected_claim_ids": [(4, c.id) for c in new]})
+        for claim in new:
+            text = (
+                "Calibration impact %s: test instrument %s was found out of tolerance; a "
+                "measurement on order %s behind this claim may be wrong. Re-check before the "
+                "claim is submitted or defended (AUT-EAM-05)."
+                % (impact.name, impact.equipment_id.code, claim.service_order_id.name)
+            )
+            claim.message_post(body=text)
+            user = self._recheck_assignee(claim.service_order_id)
+            if user:
+                claim.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=user.id,
+                    summary="Calibration impact on claim (%s)" % impact.name,
+                    note=text,
+                )
+        return claims
 
     @api.model
     def consume_impact_assessment_closed(self, event):
@@ -269,3 +313,21 @@ class FixServiceOrderQualityRecheck(models.Model):
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {"quality_recheck_required"}
+
+
+class FixCalibrationImpactClaims(models.Model):
+    """M45-20: the warranty claims an impact assessment puts in doubt."""
+
+    _inherit = "fix.calibration.impact"
+
+    affected_claim_ids = fields.Many2many(
+        "fix.warranty.claim",
+        "fix_calibration_impact_claim_rel",
+        "impact_id",
+        "claim_id",
+        string="Affected Warranty Claims (M09)",
+        readonly=True,
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"affected_claim_ids"}

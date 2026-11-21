@@ -16,14 +16,18 @@
 import json
 import logging
 import math
-from datetime import UTC, datetime
 
 import psycopg2
 from odoo import SUPERUSER_ID, http
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.http import request
 
-from ..models.fix_iot_ops import IngestRefused, adapter_key_hash, adapter_key_matches
+from ..models.fix_iot_ops import (
+    IngestRefused,
+    adapter_key_hash,
+    adapter_key_matches,
+    parse_source_timestamp,
+)
 
 _logger = logging.getLogger(__name__)
 
@@ -42,6 +46,8 @@ _STATUS = {
     "signal_not_disclosed": (403, "The telemetry consent does not disclose this signal."),
     "stream_not_active": (409, "The stream is not active."),
     "invalid_value": (400, "The value must be a finite number."),
+    # A07 ERP audit (2026-11-20) M48-11: older than the late-data window.
+    "too_late": (409, "The reading is older than the late-data window."),
 }
 
 
@@ -53,15 +59,9 @@ def _unauthorized():
     return _refusal(401, "unauthorized", "The key is missing or wrong.")
 
 
-def _parse_timestamp(value):
-    """The source's own time stamp as naive UTC, as Odoo stores it. A stamp with
-    no zone is taken as UTC. Raises ValueError when it is not a date and time."""
-    if not isinstance(value, str):
-        raise ValueError("not text")
-    moment = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
-    if moment.tzinfo:
-        moment = moment.astimezone(UTC).replace(tzinfo=None)
-    return moment.replace(microsecond=0)
+# A07 ERP audit (2026-11-20) M48-12: one parser for the HTTP route and the file
+# batch (fix_iot_ops.parse_source_timestamp).
+_parse_timestamp = parse_source_timestamp
 
 
 def _parse_body(raw):
@@ -137,6 +137,9 @@ def handle_ingest(env, key, raw):
         return _refusal(403, "refused", "The reading was refused.")
     except psycopg2.errors.SerializationFailure:
         raise  # Odoo retries the request
+    except psycopg2.IntegrityError:
+        # M48-20: two concurrent replays of one reading; the unique index kept one.
+        return _refusal(409, "reading_rejected", "The reading is a duplicate or dated ahead.")
     except Exception:
         _logger.exception("IoT ingest failed on stream %s", stream.name)
         return _refusal(500, "server_error", "The reading could not be recorded.")

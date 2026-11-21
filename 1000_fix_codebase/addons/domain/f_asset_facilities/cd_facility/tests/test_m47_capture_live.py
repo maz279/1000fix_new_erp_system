@@ -222,7 +222,11 @@ def test_3_a_renewal_runs_from_initiation_to_the_new_licence(c, ui):
         record_id=ren.id,
         values={"challan_ref": "SONALI-778", "penalty_reason": "Inspector visit delayed"},
     )
+    # A07 ERP audit (2026-11-20) M47-10: the fee is owed to its authority (the payee)
+    ui.no(c.fm, ren._name, ren, "action_submit", match="authority")
+    ren.sudo().write({"authority_partner_id": c.partner.id})
     ui.ok(c.fm, ren._name, ren, "action_submit")
+    assert ren.charge_ids.mapped("kind") == ["licence_fee"]
     assert ren.state == "submitted" and ren.submitted_by_id == c.fm
     ui.no(c.fm, ren._name, ren, "action_complete", match="renewed licence")
     new_fire = _licence(c, "fire", c.today + timedelta(days=385), "FSCD-2")
@@ -237,7 +241,9 @@ def test_3_a_renewal_runs_from_initiation_to_the_new_licence(c, ui):
     with pytest.raises(UserError, match="does not change"):
         ren.with_user(c.fm).write({"government_fee": 1})
     # Cost per Site counts the renewal
-    rows = ui.report(c.bol, module="M47", report="cost_per_site")["rows"]
+    # (M47-21: one period for every column; the renewal completed today)
+    today = {"date_from": str(c.today), "date_to": str(c.today)}
+    rows = ui.report(c.bol, module="M47", report="cost_per_site", params=today)["rows"]
     assert next(r for r in rows if r["site"] == c.site.name)["compliance"] == 4500
 
 
@@ -375,8 +381,9 @@ def test_4_a_utility_account_owns_its_bills(c, ui):
     )
     ui.refused(c.fm, acc._name, {"account_no": "DESCO-101"}, "read-only", record_id=acc.id)
     # the branch records a bill: its only account is filled in
+    # M47-18: a Facility Manager records the bill
     bill = ui.new(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {"site_id": c.site.id, "period": "2026-09", "utility_type": "power", "amount": 20000},
     )
@@ -386,13 +393,13 @@ def test_4_a_utility_account_owns_its_bills(c, ui):
         c.fm, "fix.site.utility.account", dict(vals, account_no="DESCO-200", meter_no="M-2")
     )
     ui.refused(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {"site_id": c.site.id, "period": "2026-10", "utility_type": "power", "amount": 1},
         "choose the account",
     )
     ui.new(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {
             "site_id": c.site.id,
@@ -403,7 +410,7 @@ def test_4_a_utility_account_owns_its_bills(c, ui):
         },
     )
     ui.refused(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {
             "site_id": c.site.id,
@@ -415,7 +422,7 @@ def test_4_a_utility_account_owns_its_bills(c, ui):
         "already has a bill",
     )
     ui.refused(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {
             "site_id": c.site.id,
@@ -430,7 +437,7 @@ def test_4_a_utility_account_owns_its_bills(c, ui):
     ui.ok(c.fm, acc2._name, acc2, "action_close", reason="Meter merged into M-1")
     later = (c.today + timedelta(days=40)).strftime("%Y-%m")
     ui.refused(
-        c.clerk,
+        c.fm,
         "fix.site.utility",
         {
             "site_id": c.site.id,
@@ -586,8 +593,9 @@ def test_7_a_request_carries_its_photo_and_an_asset_its_identity(c, ui):
         },
     )
     assert wo.request_photo and wo.request_photo_filename == "ac.jpg"
+    # M47-18: a Facility Manager registers the plant
     asset = ui.new(
-        c.clerk,
+        c.fm,
         "fix.site.asset",
         {
             "name": "New",

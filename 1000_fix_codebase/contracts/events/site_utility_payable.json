@@ -57,6 +57,23 @@
         },
         "amount": {
           "type": "number"
+        },
+        "vendor_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "cost_date": {
+          "type": "string"
         }
       },
       "additionalProperties": false

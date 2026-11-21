@@ -35,6 +35,20 @@ REFUSED = (UserError, ValidationError, AccessError, IntegrityError)
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 def _user(env, tag, groups=()):
     n = next(_SEQ)
     ou = env["operating.unit"].search([], limit=1)
@@ -117,6 +131,7 @@ def cal(c, e, user=None, on=None, due=None, result="pass", **kw):
         "result": result,
         "certificate_ref": "CERT-%s" % TAG,
         "performed_by": "%s Lab" % TAG,
+        **d7a_evidence(c.env),
     }
     vals.update(kw)
     return c.env["fix.calibration"].with_user(user or c.clerk).create(vals)
@@ -131,7 +146,8 @@ def fit(c, **kw):
 def issue(c, e, user=None, custodian=None):
     return (
         c.env["fix.equipment.issue"]
-        .with_user(user or c.clerk)
+        # A07 ERP audit M45-15: a store keeper issues
+        .with_user(user or c.keeper)
         .create({"equipment_id": e.id, "custodian_id": (custodian or c.clerk_emp).id})
     )
 
@@ -331,7 +347,11 @@ def test_writeoff_rejection_leaves_the_item_in_service(c):
     e.with_user(c.keeper).action_request_approval()
     inbox_task(e, c.qm).with_user(c.qm).action_reject(comment="still within tolerance")
     assert (e.approval_state, e.operational_status) == ("rejected", "available")
-    e.with_user(c.clerk).write({"acquisition_cost": 6000})  # unpinned again
+    # unpinned again, for finance (A07 ERP audit M45-02: never a plain user)
+    assert refused(c.env, lambda: e.with_user(c.clerk).write({"acquisition_cost": 6000}))
+    finance, _emp = _user(c.env, "finance", ["account.group_account_manager"])
+    e.with_user(finance).write({"acquisition_cost": 6000})
+    assert e.acquisition_cost == 6000
 
 
 # ============================================================ M45-7 out of service
@@ -408,7 +428,7 @@ def test_transfer_moves_the_item_only_on_receipt_by_another_user(c):
     assert (e.branch_id, e.custodian_id) == (c.br1, c.clerk_emp)  # sender still accountable
     assert refused(c.env, lambda: t.write({"to_branch_id": c.br1.id}))
     assert refused(c.env, lambda: t.action_dispatch(), "draft")
-    assert refused(c.env, lambda: issue(c, e, user=c.clerk2), "in transit")
+    assert refused(c.env, lambda: issue(c, e, user=c.keeper2), "in transit")
     assert refused(c.env, lambda: t.action_receive(), "Segregation")
     assert refused(c.env, lambda: t.with_user(c.clerk2).action_receive(), "Store Keeper")
     t.with_user(c.keeper2).action_receive()
@@ -446,7 +466,8 @@ def test_issued_or_out_of_service_items_do_not_travel(c):
 # ============================================================ verification
 def test_a_missing_result_cannot_be_rewritten(c, p03):
     e = fit(c)
-    Ver = c.env["fix.equipment.verification"].with_user(c.clerk)
+    # A07 ERP audit M45-14: a store keeper records a verification
+    Ver = c.env["fix.equipment.verification"].with_user(c.keeper)
     lost = Ver.create({"equipment_id": e.id, "campaign_ref": "A7R-AUD", "found": False})
     assert lost.state == "missing"
     assert refused(
@@ -519,7 +540,8 @@ def test_issue_state_is_guarded_and_return_records_the_condition(c, p03):
         "inspection",
     )
     assert refused(c.env, lambda: hold.with_user(c.clerk2).action_resolve(), "Store Keeper")
-    hold.with_user(c.keeper).action_resolve()
+    # the keeper who returned it opened the hold: another one checks it
+    hold.with_user(c.keeper2).action_resolve()
     assert e.operational_status == "available"
 
 
@@ -530,7 +552,7 @@ def test_a_damaged_return_goes_out_of_service_not_available(c):
     i.action_return()
     assert e.operational_status == "out_of_service"
     hold = c.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
-    assert len(hold) == 1 and "cracked probe" in hold.reason and hold.create_uid == c.clerk
+    assert len(hold) == 1 and "cracked probe" in hold.reason and hold.create_uid == c.keeper
     assert hold.hold_type == "damaged"
     # a damaged item returns only with a re-calibration accepted by a QM
     cal(c, e, on=c.today)

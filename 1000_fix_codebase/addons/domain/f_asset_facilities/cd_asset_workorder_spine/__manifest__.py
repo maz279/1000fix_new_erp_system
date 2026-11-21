@@ -39,7 +39,7 @@ A07 P1 bridge (2026-11-04).
   branch) on every open M01 order of the device, and its clearance is
   recorded on the hold. No order state is changed.
 """,
-    "version": "19.0.0.3.1",
+    "version": "19.0.0.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Facility & Branch Infrastructure",
@@ -60,6 +60,13 @@ A07 P1 bridge (2026-11-04).
         "cd_ml_services",
         # the stock lot of a fitted component (fix.device.component)
         "stock",
+        # A07 ERP audit (2026-11-20), all already loaded before this module: the M15
+        # lot of a fitted component (LEAD-01), the M08 contract and M05 endpoint
+        # behind proactive customer work and telemetry (M48-04/06), M07 (crm).
+        "cd_inventory",
+        "cd_contract_core",
+        "cd_msp_contract",
+        "crm",
     ],
     "data": [
         "security/ir.model.access.csv",

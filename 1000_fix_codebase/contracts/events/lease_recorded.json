@@ -76,6 +76,15 @@
         },
         "notice_period_days": {
           "type": "integer"
+        },
+        "payment_frequency": {
+          "type": "string"
+        },
+        "service_charge": {
+          "type": "number"
+        },
+        "advance_rent_amount": {
+          "type": "number"
         }
       },
       "additionalProperties": false

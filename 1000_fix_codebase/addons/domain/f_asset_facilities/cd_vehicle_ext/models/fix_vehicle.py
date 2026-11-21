@@ -1,4 +1,5 @@
 # fix_vehicle — M46: fleet extension + dispatch vehicle assignment (P08-M08).
+import datetime
 import re
 
 from odoo import api, fields, models
@@ -8,6 +9,8 @@ from libs.py.fix_events import publish
 
 from .fix_vehicle_ops import (
     FLEET_OFFICER_GROUP,
+    FUEL_KM_PER_LITRE_DEFAULT,
+    FUEL_KM_PER_LITRE_PARAM,
     LICENCE_CLASS_PARAM,
     LICENCE_CLASSES,
     LICENCE_COVERS,
@@ -15,6 +18,7 @@ from .fix_vehicle_ops import (
     _reason,
     dhaka_today,
     like_exact,
+    param_float,
     param_on,
     require_role,
 )
@@ -319,28 +323,141 @@ class FleetVehicleCdExt(models.Model):
         vehicles.flush_recordset(list(_HEADER_DOCS))
         return True
 
+    # The odometer sources (A07 ERP audit M46-08): model, the accepted-reading
+    # domain, the field holding the reading, and the field dating it.
+    _ODOMETER_SOURCES = (
+        ("fleet.vehicle.odometer", [], "value", "date"),
+        (
+            "fix.vehicle.fuel",
+            [("review_state", "in", ("none", "cleared"))],
+            "odometer",
+            "filled_on",
+        ),
+        ("fix.vehicle.check", [], "odometer", "checked_on"),
+        ("fix.vehicle.pm", [("state", "=", "done")], "odometer", "done_on"),
+        ("fix.vehicle.telemetry", [("odometer_held", "=", False)], "odometer", "last_ping"),
+    )
+
+    def _fix_odometer_readings(self, exclude=None):
+        """[(Dhaka date, km, label)] of every accepted reading of this vehicle,
+        leaving out the record `exclude` when it is being judged. A held fill
+        or a held telemetry reading is not a reading anybody accepted."""
+        self.ensure_one()
+        env = self.env(su=True)
+        out = []
+        for model, domain, value_field, date_field in self._ODOMETER_SOURCES:
+            if model not in env:
+                continue
+            if exclude is not None and exclude._name == model:
+                domain = [*domain, ("id", "not in", exclude.ids)]
+            for rec in env[model].search(
+                [("vehicle_id", "=", self.id), (value_field, ">", 0), *domain]
+            ):
+                day = rec[date_field]
+                if isinstance(day, datetime.datetime):
+                    day = fields.Datetime.context_timestamp(
+                        rec.with_context(tz="Asia/Dhaka"), day
+                    ).date()
+                out.append((day or False, int(rec[value_field] or 0), rec.display_name))
+        return out
+
     def _fix_last_odometer(self, exclude=None) -> int:
         """The highest accepted odometer reading recorded for this vehicle
         (fleet log, accepted fills, checks, completed services, telemetry),
         leaving out the record `exclude` when it is being judged."""
+        readings = [km for _day, km, _label in self._fix_odometer_readings(exclude)]
+        return max(readings or [0])
+
+    def _fix_odometer_problem(self, reading, day, exclude=None):
+        """The text of _fix_odometer_check, or None."""
+        return self._fix_odometer_check(reading, day, exclude)[1]
+
+    def _fix_odometer_check(self, reading, day, exclude=None):
+        """Why `reading` km on `day` does not fit this vehicle's other
+        readings, or None (A07 ERP audit M46-08: one validator for fuel,
+        checks, services, telemetry and the fleet log).
+
+        Below a reading dated on or before that day, or above one dated
+        after it: one of them is wrong. Further past the previous reading
+        than a full tank covers (tank capacity x the km-per-litre ceiling): a
+        fill is missing or the reading is wrong. The day is a Dhaka date.
+        Returns (kind, text): kind "back" or "jump", or (None, None)."""
         self.ensure_one()
-        env = self.env(su=True)
-        readings = [int(self.sudo().odometer or 0)]
-        for model, domain in (
-            ("fix.vehicle.fuel", [("review_state", "in", ("none", "cleared"))]),
-            ("fix.vehicle.check", []),
-            ("fix.vehicle.pm", [("state", "=", "done")]),
-            ("fix.vehicle.telemetry", []),
-        ):
-            if exclude is not None and exclude._name == model:
-                domain = [*domain, ("id", "not in", exclude.ids)]
-            rec = env[model].search(
-                [("vehicle_id", "=", self.id), ("odometer", ">", 0), *domain],
-                order="odometer desc",
-                limit=1,
+        reading = int(reading or 0)
+        if reading <= 0:
+            return None, None
+        day = fields.Date.to_date(day) or dhaka_today(self)
+        before, after = None, None
+        for when, km, label in self._fix_odometer_readings(exclude):
+            if not when or when <= day:
+                if before is None or km > before[1]:
+                    before = (when, km, label)
+            elif after is None or km < after[1]:
+                after = (when, km, label)
+        if before and reading < before[1]:
+            return "back", "Odometer %s is below the reading of %s km recorded on %s (%s)." % (
+                reading,
+                before[1],
+                before[0] or "-",
+                before[2],
             )
-            readings.append(rec.odometer if rec else 0)
-        return max(readings)
+        if after and reading > after[1]:
+            return (
+                "back",
+                "Odometer %s is above the reading of %s km recorded later, on %s (%s)."
+                % (
+                    reading,
+                    after[1],
+                    after[0],
+                    after[2],
+                ),
+            )
+        ceiling = param_float(self.env, FUEL_KM_PER_LITRE_PARAM, FUEL_KM_PER_LITRE_DEFAULT)
+        if before and ceiling > 0:
+            jump = reading - before[1]
+            if jump > self.env["fix.vehicle.fuel"]._fix_tank_capacity(self) * ceiling:
+                return "jump", (
+                    "Odometer %s is %s km beyond the reading of %s km recorded on %s (%s), "
+                    "further than a full tank covers."
+                    % (reading, jump, before[1], before[0] or "-", before[2])
+                )
+        return None, None
+
+    def _fix_open_safety_defects(self):
+        """The open safety-critical defects of this vehicle (A07 ERP audit
+        M46-05: the gate and the return to service read them)."""
+        return (
+            self.env["fix.vehicle.defect"]
+            .sudo()
+            .search(
+                [
+                    ("vehicle_id", "in", self.ids),
+                    ("safety_critical", "=", True),
+                    ("state", "=", "open"),
+                ]
+            )
+        )
+
+    def _fix_cost_dimensions(self):
+        """The dimensions a cost of this vehicle carries (A07 money contract):
+        its company, its branch and the branch's operating unit. Fails closed:
+        a vehicle with no operating unit is never costed on the company's first
+        one (A07 ERP audit M46-04)."""
+        self.ensure_one()
+        vehicle = self.sudo()
+        ou = vehicle.operating_unit_id or vehicle.branch_id.operating_unit_id
+        if not ou:
+            raise UserError(
+                "%s has no operating unit: set its branch on the Vehicle Register (the "
+                "operating unit follows the branch) before a cost is recorded against it."
+                % (vehicle.name or vehicle.license_plate)
+            )
+        return {
+            "company_id": (vehicle.company_id or self.env.company).id,
+            "operating_unit_id": ou.id,
+            "branch_id": vehicle.branch_id.id or False,
+            "vehicle_id": vehicle.id,
+        }
 
     def _fix_take_offroad(self, cause, reason, raised_by=None, **links):
         """The system takes each vehicle off the road (A07 P1: a failed check,
@@ -381,6 +498,19 @@ class FleetVehicleCdExt(models.Model):
                 types.append(key)
         return types
 
+    def _fix_required_document_types(self):
+        """The statutory document types this vehicle must hold (keys)."""
+        return self._fix_mandatory_document_types()
+
+    @api.model
+    def _fix_parse_document_types(self, raw):
+        types = []
+        for item in (raw or "").split(","):
+            key = _DOC_TYPE_ALIASES.get(item.strip(), item.strip())
+            if key and key not in types:
+                types.append(key)
+        return types
+
     def _fix_document_problems(self, start, end, lapsed_only=False):
         """{vehicle id: [reason, ...]} for each mandatory document type that
         is not covered on `start` and on `end`.
@@ -393,7 +523,10 @@ class FleetVehicleCdExt(models.Model):
         can never be satisfied, so a typo fails closed and the refusal names
         it. With `lapsed_only`, only a current document that lapsed counts
         (the midnight off-road job); a missing document is the gate's."""
-        types = self._fix_mandatory_document_types()
+        # A07 ERP audit M46-19 (FR-FLT-002/010): the list is the vehicle's
+        # class profile's when it names one, else the fleet-wide parameter.
+        types_of = {v.id: v._fix_required_document_types() for v in self.sudo()}
+        types = sorted({t for listed in types_of.values() for t in listed})
         if not self.ids or not types:
             return {}
         Doc = self.env["fix.vehicle.document"].sudo()
@@ -402,7 +535,7 @@ class FleetVehicleCdExt(models.Model):
         for day in sorted({fields.Date.to_date(start), fields.Date.to_date(end)}):
             current = Doc._fix_current_map(self.ids, day, types)
             for vid in self.ids:
-                for doc_type in types:
+                for doc_type in types_of.get(vid, []):
                     doc = current.get((vid, doc_type))
                     if not doc:
                         if lapsed_only:
@@ -493,10 +626,20 @@ class FleetVehicleCdExt(models.Model):
         ):
             out[rec.vehicle_id.id].append("open accident %s (%s)" % (rec.name, rec.state))
 
+        # A07 ERP audit M46-05 (BRU-FLT-04): an open safety-critical defect
+        # stops the van, even when it joined an off-road record already
+        # returned, or was raised after the re-check.
+        for rec in self._fix_open_safety_defects():
+            out[rec.vehicle_id.id].append(
+                "open safety-critical defect %s (%s)" % (rec.name, rec.description or "-")
+            )
+
         checks = sudo["fix.vehicle.check"].search(
             [("vehicle_id", "in", self.ids), ("checked_on", "=", today)]
         )
         for rec in checks.filtered(lambda c: not c.passed):
+            if rec._fix_superseded():
+                continue
             out[rec.vehicle_id.id].append(
                 "pre-use check %s failed today (%s)" % (rec.name, rec.defects or "defect recorded")
             )

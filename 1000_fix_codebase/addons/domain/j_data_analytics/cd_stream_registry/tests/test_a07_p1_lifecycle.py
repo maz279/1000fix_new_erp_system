@@ -298,7 +298,12 @@ def test_retention_cron_aggregates_measures_and_purges_only_when_switched_on(c):
     other.ingest(5.0, timestamp=base)
     assert m48.kpis(env)["retention_compression"] is None
     out = env["fix.iot.downsample"].cron_retention()
-    assert out == {"aggregates": 2, "raw_dropped": 0, "aggregates_dropped": 0}
+    # A07 ERP audit (2026-11-20) D17(b): the tier counts ride along
+    assert {k: out[k] for k in ("aggregates", "raw_dropped", "aggregates_dropped")} == {
+        "aggregates": 2,
+        "raw_dropped": 0,
+        "aggregates_dropped": 0,
+    }
     assert (ds.raw_points_rolled, ds.rollup_points, ds.measured_compression_pct) == (10, 2, 80.0)
     first = ds.rollup_ids.sorted("bucket_start")[0]
     assert (first.points, first.value) == (5, 2.0)
@@ -370,14 +375,20 @@ def test_an_unpublished_model_is_never_applied(c):
     # one the platform recorded (as the live rows were) is not applied
     p = pred(c, user=c.env.user, model_name="made-up-model-v99")
     assert not p.model_published
-    a = c.env["fix.iot.action"].with_user(c.clerk).create({"prediction_id": p.id})
+    # A07 ERP audit (2026-11-20) M48-22: proposing is the IoT Operator's
+    a = c.env["fix.iot.action"].with_user(c.operator).create({"prediction_id": p.id})
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
-        a.with_user(c.clerk).action_request_approval(justification="bearing noise rising")
+        a.with_user(c.operator).action_request_approval(justification="bearing noise rising")
     with pytest.raises(UserError, match="not a published"), c.env.cr.savepoint():
-        p.with_user(c.operator).action_create_preventive_wo()
-    good = pred(c)
+        p.with_user(c.operator).action_create_preventive_wo("bearing noise rising")
+    # M48-02: a score a person typed is kept, but it is a manual score
+    typed = pred(c)
+    assert typed.score_source == "manual" and not typed.model_published
+    good = pred(c, user=c.env.user)
     assert good.model_published
-    good.with_user(c.operator).action_create_preventive_wo()
+    approver(c)
+    good.with_user(c.operator).action_create_preventive_wo("bearing noise rising")
+    assert good.preventive_action_id.approval_state == "pending"
     # the strict switch refuses the record itself, from the platform too
     c.env["ir.config_parameter"].sudo().set_param(MODEL_CHECK, "create")
     assert refused(c.env, lambda: pred(c, user=c.env.user, model_name="made-up-model-v99"))
@@ -397,12 +408,20 @@ def test_feature_window_is_ordered(c):
 
 def test_dispatch_hands_off_and_completion_needs_evidence_and_another_person(c):
     mgr = approver(c)
+    # A07 ERP audit (2026-11-20) M48-22 / M48-02: the IoT Operator proposes, on an
+    # engine score
     a = (
         c.env["fix.iot.action"]
-        .with_user(c.clerk)
-        .create({"prediction_id": pred(c).id, "action_type": "replace", "technician_id": c.tech.id})
+        .with_user(c.operator)
+        .create(
+            {
+                "prediction_id": pred(c, user=c.env.user).id,
+                "action_type": "replace",
+                "technician_id": c.tech.id,
+            }
+        )
     )
-    approve_via_inbox(a, mgr, requester=c.clerk, justification="bearing noise rising")
+    approve_via_inbox(a, mgr, requester=c.operator, justification="bearing noise rising")
     assert refused(c.env, lambda: a.with_user(c.clerk).action_dispatch())  # not an operator
     a.with_user(c.operator).action_dispatch()
     (payload,) = events(c.env, "iot.action_dispatched", a.id)
@@ -416,6 +435,12 @@ def test_dispatch_hands_off_and_completion_needs_evidence_and_another_person(c):
     a.with_user(c.operator).write({"outcome_evidence_ref": "SO-48-123"})
     # the technician whose intervention is evaluated does not record its outcome
     assert refused(c.env, lambda: a.with_user(c.tech_user).action_done_confirmed(note="fine"))
+    # A07 ERP audit (2026-11-20) M48-08: the spine raised the action's demand at
+    # dispatch; it waits for a site here, and is settled as done under the job
+    demand = c.env["fix.maintenance.demand"].search([("iot_action_id", "=", a.id)])
+    assert demand and demand.state == "pending"
+    assert refused(c.env, lambda: a.with_user(c.operator).action_done_confirmed(note="x"))
+    demand.action_dismiss("work done under job SO-48-123")
     a.with_user(c.operator).action_done_confirmed(note="bearing worn, replaced")
     assert a.prediction_id.outcome == "confirmed"
     assert refused(c.env, lambda: a.with_user(c.operator).write({"outcome_evidence_ref": "x"}))
@@ -433,7 +458,19 @@ def test_a_stream_activates_only_on_a_bound_device(c):
     )
     with pytest.raises(UserError, match="bound to no asset"), c.env.cr.savepoint():
         s.with_user(c.admin).action_activate()
-    orphan.write({"site_id": c.env["fix.site"].create({"name": f"L48 Site {TAG}"}).id})
+    site = c.env["fix.site"].create({"name": f"L48 Site {TAG}"})
+    orphan.write({"site_id": site.id})
+    # M48-19: and its criticality was assessed
+    with pytest.raises(UserError, match="criticality assessment"), c.env.cr.savepoint():
+        s.with_user(c.admin).action_activate()
+    c.env["fix.iot.monitoring.scope"].create(
+        {
+            "site_id": site.id,
+            "failure_consequence": "downtime",
+            "selection_rationale": "temperature",
+            "review_due": fields.Date.today() + timedelta(days=365),
+        }
+    )
     s.with_user(c.admin).action_activate()
     assert s.state == "active"
 

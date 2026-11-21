@@ -158,8 +158,8 @@ msgstr "সংশ্লিষ্ট কর্মী"
 
 #. module: cd_asset_finance_hse_bridge
 #: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_bridge_exception__role_label
-msgid "Resolved By"
-msgstr "সমাধানকারী"
+msgid "Deciding Role"
+msgstr "সিদ্ধান্তকারী ভূমিকা"
 
 #. module: cd_asset_finance_hse_bridge
 #: model:ir.model.fields,field_description:cd_asset_finance_hse_bridge.field_fix_hse_hazard__site_incident_id

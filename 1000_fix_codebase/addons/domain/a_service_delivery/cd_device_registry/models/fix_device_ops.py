@@ -477,6 +477,7 @@ class FixDeviceIdentity(models.Model):
                 raise UserError("A device cannot be merged into itself")
             if rec.state != "candidate":
                 raise UserError("Only a candidate resolution can be merged")
+            rec._merge_check_flags()
             mismatch = rec._merge_mismatch()
             if mismatch and not (justification or "").strip():
                 raise UserError(
@@ -487,6 +488,29 @@ class FixDeviceIdentity(models.Model):
                         rec.duplicate_device_id.display_name,
                         " and ".join(mismatch),
                     )
+                )
+
+    def _merge_check_flags(self):
+        """A07 ERP audit M17-03: merging a device flagged lost or stolen into a
+        clean one archived the flag with the duplicate, and every later lookup
+        of its IMEI found the clean survivor. Neither device of a merge may be
+        lost, stolen, scrapped, disputed, quarantined or NEIR-blocked: the flag
+        is cleared (by a Branch Manager) or the identity resolved first."""
+        self.ensure_one()
+        for device in (self.primary_device_id | self.duplicate_device_id).sudo():
+            problem = None
+            if device.state in NOT_SCRAPPABLE:
+                problem = device._state_label()
+            elif device.ownership_disputed:
+                problem = "under an ownership dispute"
+            elif device.identifier_quarantined:
+                problem = "quarantined for an identifier conflict"
+            elif device.neir_status == "blocked":
+                problem = "blocked on the NEIR register"
+            if problem:
+                raise UserError(
+                    "%s is %s: a merge would carry the flag away with the archived duplicate "
+                    "(BRU-AST-09). Clear or resolve it first." % (device.display_name, problem)
                 )
 
     def _approval_needed(self) -> bool:
@@ -516,7 +540,10 @@ class FixDeviceIdentity(models.Model):
                         "Merging devices requires the Device Quality Manager role, which %s "
                         "does not hold." % authority.name
                     )
-                if acting & (rec.create_uid | req.requested_by_id):
+                # §13 SoD (A07 ERP audit M17-19): nor who registered either device
+                # of the pair (the provisional asset's creator never approves its merge).
+                pair = (rec.primary_device_id | rec.duplicate_device_id).sudo()
+                if acting & (rec.create_uid | req.requested_by_id | pair.mapped("create_uid")):
                     raise UserError(
                         "Segregation of duties: you raised or requested this merge, so "
                         "another approver must decide it."
@@ -656,15 +683,32 @@ class FixDeviceCustody(models.Model):
                 "(BRU-AST-09)." % (device.display_name, device._state_label())
             )
         device._neir_assert_not_blocked("be released")
+        if device.ownership_disputed:
+            raise UserError(
+                "%s has its ownership disputed (%s): it is not released to anyone until a "
+                "Branch Manager clears the dispute (owner decision D12)."
+                % (device.display_name, device.dispute_reason or "-")
+            )
         party = self.env["res.partner"].browse(vals.get("to_party_id") or 0).exists()
         if not party:
             raise UserError("Name who receives %s (%s)." % (device.display_name, label))
-        if vals["event"] != "issued":
+        if vals["event"] not in RELEASE_EVENTS:
             return
-        if not device._owner_is(party):
+        # A07 ERP audit M17-02: "Transferred" released the device to anyone with
+        # no evidence. It goes to the owner, or to the party a recorded ownership
+        # transfer of this device names, effective that day or earlier.
+        if not device._owner_is(party) and not (
+            vals["event"] == "transferred" and self._recorded_transfer_to(device, party, vals)
+        ):
             raise UserError(
-                "%s belongs to %s; it is issued to its owner, not to %s."
-                % (device.display_name, device.owner_id.name or "nobody", party.name)
+                "%s belongs to %s; it is %s to its owner, or to the new owner a recorded "
+                "ownership transfer names, not to %s."
+                % (
+                    device.display_name,
+                    device.owner_id.name or "nobody",
+                    "issued" if vals["event"] == "issued" else "transferred",
+                    party.name,
+                )
             )
         missing = []
         cond = self.env["fix.device.condition"].browse(vals.get("condition_id") or 0).exists()
@@ -679,6 +723,25 @@ class FixDeviceCustody(models.Model):
                 "%s cannot be released without %s (BRU-AST-08)."
                 % (device.display_name, ", ".join(missing))
             )
+
+    @api.model
+    def _recorded_transfer_to(self, device, party, vals):
+        """An ownership transfer of this device to `party`, effective on or
+        before the event's date (the hand-over follows the sale)."""
+        day = fields.Date.to_date(vals.get("event_date")) or fields.Date.context_today(
+            device.with_context(tz="Asia/Dhaka")
+        )
+        return bool(
+            self.env["fix.device.ownership"]
+            .sudo()
+            .search_count(
+                [
+                    ("device_id", "=", device.id),
+                    ("to_partner_id", "=", party.id),
+                    ("transfer_date", "<=", day),
+                ]
+            )
+        )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -868,7 +931,9 @@ class FixDeviceComponent(models.Model):
     # from, and what became of it when removed.
     part_number = fields.Char(string="Part Number", index=True)
     product_id = fields.Many2one("product.product", string="Part (Catalogue)", index=True)
-    lot_model = fields.Char(default="stock.lot", readonly=True)
+    # A07 ERP audit (2026-11-20) LEAD-01/X28: the estate's lots are M15's
+    # fix.stock.lot (fix_inventory_ops.py), not Odoo's stock.lot (0 rows).
+    lot_model = fields.Char(default="fix.stock.lot", readonly=True)
     lot_id = fields.Many2oneReference(string="Stock Lot", model_field="lot_model")
     service_order_model = fields.Char(default="fix.service.order", readonly=True)
     service_order_id = fields.Many2oneReference(

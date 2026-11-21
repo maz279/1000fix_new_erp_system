@@ -35,3 +35,4 @@ access_fix_iot_file_batch_admin,fix.iot.file.batch admin,model_fix_iot_file_batc
 access_fix_iot_maintenance_window,fix.iot.maintenance.window,model_fix_iot_maintenance_window,base.group_user,1,0,0,0
 access_fix_iot_maintenance_window_operator,fix.iot.maintenance.window operator,model_fix_iot_maintenance_window,group_iot_operator,1,1,1,0
 access_fix_iot_action_part,fix.iot.action.part,model_fix_iot_action_part,base.group_user,1,1,1,1
+access_fix_iot_telemetry_aggregate,fix.iot.telemetry.aggregate,model_fix_iot_telemetry_aggregate,base.group_user,1,0,0,0

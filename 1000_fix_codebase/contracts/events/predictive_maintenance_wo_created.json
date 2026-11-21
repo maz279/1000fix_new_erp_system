@@ -41,6 +41,21 @@
         },
         "days": {
           "type": "integer"
+        },
+        "action": {
+          "type": "string"
+        },
+        "scheduled_on": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "approved_by": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
         }
       },
       "additionalProperties": false

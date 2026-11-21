@@ -261,7 +261,12 @@ def _lease(c, user=None, **kw):
         "deposit": 600000.0,
     }
     vals.update(kw)
-    return c.env["fix.site.lease"].with_user(user or c.clerk).create(vals)
+    lease = c.env["fix.site.lease"].with_user(user or c.clerk).create(vals)
+    # D6 (A07 ERP audit 2026-11-20): a lease a person records is a draft until
+    # its commitment is approved; these tests start from a recorded lease
+    lease.sudo()._guarded().write({"state": "active"})
+    lease.sudo()._lease_commence()
+    return lease
 
 
 def test_site_close_needs_checklist_and_cfo_then_ceo(c, p03):
@@ -398,8 +403,15 @@ def test_lease_terms_change_only_through_an_approved_modification(c, p03):
     assert _events(c, "lease.modified", ls.id)[0]["after"]["monthly_rent"] == 90000.0
     # terminate needs a reason; terminated is final
     _refused(ls.action_terminate, reason="x", match="Branch Operations Lead")
-    _refused(ls.with_user(c.clerk2).action_terminate, match="why")
-    ls.with_user(c.clerk2).action_terminate(reason="Landlord sold the building")
+    # D6 (A07 ERP audit 2026-11-20): an early end is requested with its reason,
+    # approved on the lease's total commitment, then executed
+    _refused(ls.with_user(c.clerk2).action_terminate, match="Request the termination")
+    _refused(ls.with_user(c.clerk2).action_request_termination, match="why")
+    ls.with_user(c.clerk2).action_request_termination(
+        reason="Landlord sold the building", deposit_outcome="refund"
+    )
+    approve_via_inbox(ls, c.t4, requester=c.clerk2)
+    ls.with_user(c.clerk2).action_terminate()
     assert ls.state == "terminated"
     _refused(ls.action_open_modification, match="cannot be renewed")
 

@@ -19,7 +19,13 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .fix_equipment import ROLE_CUSTODIAN, ROLE_QM, m45_require_role
+from .fix_equipment import (
+    ROLE_CUSTODIAN,
+    ROLE_QM,
+    m45_has_role,
+    m45_require_role,
+    m45_today,
+)
 
 # AUT-EAM-08: notify the holder when the return date passes, escalate to the
 # branch manager at +3 days and to the Quality Manager at +7 (spec §11).
@@ -279,7 +285,7 @@ class FixEquipmentIssue(models.Model):
     operating_unit_id = _ops_unit()
     custodian_id = fields.Many2one("hr.employee", string="Custodian", required=True)
     reference = fields.Char(string="Job / Ticket Ref")
-    issued_on = fields.Date(required=True, default=fields.Date.context_today)
+    issued_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     due_on = fields.Date()
     returned_on = fields.Date(readonly=True)
     condition_out = fields.Char()
@@ -307,6 +313,28 @@ class FixEquipmentIssue(models.Model):
         readonly=True,
         help="0 none, 1 holder notified, 2 branch manager (+3 days), 3 Quality Manager (+7 days).",
     )
+    # A07 ERP audit (2026-11-20) M45-01: the return date moves only through
+    # Extend Due, by a store keeper / QM, with the reason and the first date kept
+    due_original_on = fields.Date(string="Originally Due", readonly=True, copy=False)
+    due_extension_count = fields.Integer(string="Extensions", readonly=True, copy=False)
+    due_extension_note = fields.Text(string="Extension History", readonly=True, copy=False)
+    due_extended_by_id = fields.Many2one(
+        "res.users", string="Last Extended By", readonly=True, copy=False
+    )
+    proposed_due_on = fields.Date(
+        string="New Return Date",
+        copy=False,
+        help="Set it, then Extend Due (the reason is asked for): the due date itself is "
+        "fixed once issued.",
+    )
+    # M45-15: a holder's hand-in (no store keeper condition check)
+    handed_in_by_holder = fields.Boolean(
+        string="Handed In by Holder",
+        readonly=True,
+        copy=False,
+        help="The holder handed it back without a store keeper's condition check: it waits "
+        "out of service for one.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         # M45-5: an issue forged to "returned" by write left the item "issued"
@@ -317,14 +345,77 @@ class FixEquipmentIssue(models.Model):
             "returned_on",
             "overdue_level",
             "kit_id",
+            "due_original_on",
+            "due_extension_count",
+            "due_extension_note",
+            "due_extended_by_id",
+            "handed_in_by_holder",
         }
+        if self:
+            # A07 ERP audit M45-01: an OPEN issue was re-pointed to another
+            # holder (exit clearance then passed), back-dated or extended by a
+            # plain write. Who holds what since when is fixed once issued: a new
+            # holder is a return and a new issue (or a transfer); the due date
+            # moves only through action_extend_due.
+            guarded |= {"equipment_id", "custodian_id", "issued_on", "due_on"}
         if any(rec.state == "returned" for rec in self):
             guarded |= ISSUE_RETURNED_FROZEN
         return guarded
 
+    def action_extend_due(self, new_due=None, reason=None):
+        """Move the expected return date (FR-EAM-015): a store keeper or the
+        Quality Manager, with a reason; the first date and every change are
+        kept, and the escalation starts again from the new date."""
+        m45_require_role(self.env, (ROLE_CUSTODIAN, ROLE_QM), "Extending a custody due date")
+        try:
+            typed = fields.Date.to_date(new_due) if new_due else False
+        except (TypeError, ValueError):
+            typed = False
+        note = reason.strip() if isinstance(reason, str) else ""
+        if not note:
+            raise UserError("State why the return date is extended.")
+        today = m45_today(self.env)
+        for rec in self:
+            new = typed or rec.proposed_due_on
+            if not new:
+                raise UserError("Give the new return date (New Return Date) first.")
+            if rec.state != "issued":
+                raise UserError("Only an open issue has a return date to extend.")
+            if new < today or (rec.due_on and new <= rec.due_on):
+                raise UserError(
+                    "The new return date (%s) must be after the current one (%s) and not in "
+                    "the past." % (new, rec.due_on or "none")
+                )
+            if not self.env.su and rec.custodian_id.user_id == self.env.user:
+                raise UserError(
+                    "Segregation of duties: you hold %s, so another store keeper extends "
+                    "its return date." % rec.equipment_id.name
+                )
+            line = "%s: %s -> %s by %s: %s" % (
+                today,
+                rec.due_on or "none",
+                new,
+                self.env.user.name,
+                note,
+            )
+            rec._guarded().write(
+                {
+                    "due_original_on": rec.due_original_on or rec.due_on or False,
+                    "due_on": new,
+                    "due_extension_count": rec.due_extension_count + 1,
+                    "due_extension_note": "\n".join(
+                        part for part in (rec.due_extension_note, line) if part
+                    ),
+                    "due_extended_by_id": self.env.user.id,
+                    "overdue_level": 0,
+                    "proposed_due_on": False,
+                }
+            )
+        return True
+
     @api.depends("due_on", "state")
     def _compute_overdue(self):
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         for rec in self:
             rec.is_overdue = bool(rec.due_on and rec.state == "issued" and rec.due_on < today)
 
@@ -333,7 +424,7 @@ class FixEquipmentIssue(models.Model):
         # negative form is derived by the ORM from this positive one
         if operator != "in":
             return NotImplemented
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         overdue = [("state", "=", "issued"), ("due_on", "!=", False), ("due_on", "<", today)]
         if True in value:
             return overdue
@@ -406,6 +497,16 @@ class FixEquipmentIssue(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # A07 ERP audit M45-15 (spec §8.1 Available -> Issued "store keeper +
+        # holder"): anyone issued any tool to anyone, themselves included
+        if not self.env.su:
+            m45_require_role(self.env, (ROLE_CUSTODIAN, ROLE_QM), "Issuing equipment")
+            mine = self.env.user.employee_ids
+            if any(vals.get("custodian_id") in mine.ids for vals in vals_list):
+                raise UserError(
+                    "Segregation of duties: a store keeper does not issue equipment to "
+                    "themselves; another store keeper issues it to you."
+                )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
@@ -446,13 +547,24 @@ class FixEquipmentIssue(models.Model):
         conditions = dict(self._fields["return_condition"].selection)
         if condition is not None and condition not in conditions:
             raise UserError("Condition on return must be one of: %s" % ", ".join(conditions))
+        # A07 ERP audit M45-15: the holder self-certified "serviceable" and the
+        # item went straight to available. Only a store keeper / QM records the
+        # condition check, never on their own custody; anyone else's return is
+        # a hand-in that waits out of service for it (damage may be declared).
+        checker = m45_has_role(self.env, ROLE_CUSTODIAN, ROLE_QM)
         # the return opens a damaged / inspection hold (system hold types)
         Hold = self.env["fix.equipment.oos"]._guarded()
         for rec in self:
             if rec.state != "issued":
                 raise UserError("Return an issued item")
             cond = condition or rec.return_condition
-            vals = {"state": "returned", "returned_on": fields.Date.context_today(self)}
+            own = not self.env.su and rec.custodian_id.user_id == self.env.user
+            vals = {"state": "returned", "returned_on": m45_today(self.env)}
+            if (not checker or own) and cond != "damaged":
+                vals["handed_in_by_holder"] = True
+                if cond == "good":
+                    detail = "Declared serviceable by the holder. %s" % (detail or "")
+                cond = False
             if cond:
                 vals["return_condition"] = cond
             # M45 capture audit (2026-11-16): the Return form carries the damage
@@ -472,7 +584,7 @@ class FixEquipmentIssue(models.Model):
                         "hold_type": "damaged",
                     }
                 )
-            elif not cond and not self.env.su:
+            elif not cond and (not self.env.su or vals.get("handed_in_by_holder")):
                 Hold.create(
                     {
                         "equipment_id": equipment.id,
@@ -506,7 +618,7 @@ class FixEquipmentIssue(models.Model):
         """Daily (FR-EAM-015, AUT-EAM-08): escalate open issues past their
         expected return; one event per escalation level, so a re-run sends
         nothing new."""
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         escalated = 0
         for rec in self.sudo().search(self._search_is_overdue("in", [True])):
             days = (today - rec.due_on).days
@@ -514,7 +626,14 @@ class FixEquipmentIssue(models.Model):
             if level <= rec.overdue_level:
                 continue
             rec._guarded().write({"overdue_level": level})
-            rec._m45_publish("equipment.custody_overdue", days_overdue=days, escalation_level=level)
+            rec._m45_publish(
+                "equipment.custody_overdue",
+                days_overdue=days,
+                escalation_level=level,
+                # M45-23 (AUT-EAM-08): who is told at this level
+                holder_user_id=rec.custodian_id.user_id.id or None,
+                branch_manager_id=rec.equipment_id.sudo().branch_id.manager_id.id or None,
+            )
             escalated += 1
         return escalated
 
@@ -559,7 +678,7 @@ class FixEquipmentTransfer(models.Model):
         "hr.employee", string="From Custodian", help="Taken from the register."
     )
     to_custodian_id = fields.Many2one("hr.employee", string="To Custodian")
-    transfer_date = fields.Date(required=True, default=fields.Date.context_today)
+    transfer_date = fields.Date(required=True, default=lambda self: m45_today(self.env))
     state = fields.Selection(TRANSFER_STATES, required=True, default="draft")
     notes = fields.Char()
     dispatched_by_id = fields.Many2one("res.users", string="Dispatched By", readonly=True)
@@ -652,7 +771,7 @@ class FixEquipmentTransfer(models.Model):
                 {
                     "state": "dispatched",
                     "dispatched_by_id": self.env.user.id,
-                    "dispatched_on": fields.Date.context_today(self),
+                    "dispatched_on": m45_today(self.env),
                     "from_branch_id": equipment.branch_id.id or False,
                     "from_custodian_id": equipment.custodian_id.id or False,
                 }
@@ -675,7 +794,7 @@ class FixEquipmentTransfer(models.Model):
                 {
                     "state": "received",
                     "received_by_id": self.env.user.id,
-                    "received_on": fields.Date.context_today(self),
+                    "received_on": m45_today(self.env),
                 }
             )
             equipment = rec.equipment_id
@@ -726,7 +845,7 @@ class FixEquipmentVerification(models.Model):
     company_id = _ops_company()
     operating_unit_id = _ops_unit()
     campaign_ref = fields.Char(string="Campaign", required=True)
-    verified_on = fields.Date(required=True, default=fields.Date.context_today)
+    verified_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     location = fields.Char()
     found = fields.Boolean(default=True)
     condition = fields.Char()
@@ -746,8 +865,20 @@ class FixEquipmentVerification(models.Model):
             guarded |= {"found", "campaign_ref", "location", "condition", "verifier_id"}
         return guarded
 
+    def _m45_check_counter(self):
+        """A07 ERP audit M45-14 (spec §8.1 Any -> Lost is a branch manager /
+        store keeper action, FR-EAM-038 a designated counter): a technician
+        recorded "not found" on any item, which blocked it and sent a write-off
+        request to M49 and a risk to M60. The blind count run records its
+        results as the system; a single verification is a store keeper's."""
+        if not self.env.su:
+            m45_require_role(
+                self.env, (ROLE_CUSTODIAN, ROLE_QM), "Recording a physical verification"
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
+        self._m45_check_counter()
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
@@ -763,6 +894,8 @@ class FixEquipmentVerification(models.Model):
         return records
 
     def write(self, vals):
+        if not self._fix_guard_open():
+            self._m45_check_counter()
         res = super().write(vals)
         if "found" in vals and not vals["found"]:
             # found -> not found after the count: the result follows (M45 D2)
@@ -859,7 +992,7 @@ class FixEquipmentOutOfService(models.Model):
     calibration_id = fields.Many2one(
         "fix.calibration", string="Triggering Calibration", readonly=True, ondelete="restrict"
     )
-    started_on = fields.Date(required=True, default=fields.Date.context_today)
+    started_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     resolved_on = fields.Date(readonly=True)
     resolved_by_id = fields.Many2one("res.users", string="Resolved By", readonly=True)
     resolution_calibration_id = fields.Many2one(
@@ -931,9 +1064,12 @@ class FixEquipmentOutOfService(models.Model):
         self.ensure_one()
         equipment = self.equipment_id.sudo()
         latest = equipment._m45_latest_calibration()
+        # the certificate's own state: an item whose class was taken out of
+        # calibration control reads "not required", which is not a re-calibration
+        state = equipment._m45_certificate_state(latest, m45_today(self.env))
         if (
             latest
-            and equipment.calibration_state in ("current", "pending")
+            and state in ("current", "pending")
             and latest.calibrated_on >= self.started_on
             and latest.create_date >= self.create_date
         ):
@@ -959,7 +1095,12 @@ class FixEquipmentOutOfService(models.Model):
             # M45 capture audit (2026-11-16), spec §8.1: an item is re-calibrated
             # before it returns "where measurement-critical"; a tool outside
             # calibration control returns on its repair / condition check.
-            needs_recal = not inspection and equipment.sudo().measurement_critical
+            # A07 ERP audit M45-04: switching the class's calibration control
+            # off no longer lets a store keeper clear an open calibration or
+            # recall hold without a re-calibration (BRU-EAM-01: no override)
+            needs_recal = not inspection and (
+                equipment.sudo().measurement_critical or rec.hold_type in ("calibration", "recall")
+            )
             recal = rec._m45_recalibration() if needs_recal else None
             if not self.env.su:
                 if inspection or not needs_recal:
@@ -1009,7 +1150,7 @@ class FixEquipmentOutOfService(models.Model):
             rec._guarded().write(
                 {
                     "state": "resolved",
-                    "resolved_on": fields.Date.context_today(self),
+                    "resolved_on": m45_today(self.env),
                     "resolved_by_id": self.env.user.id,
                     "resolution_calibration_id": recal.id if recal else False,
                 }
@@ -1048,7 +1189,7 @@ class FixEquipmentPm(models.Model):
         required=True,
         default="preventive",
     )
-    scheduled_on = fields.Date(required=True, default=fields.Date.context_today)
+    scheduled_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     done_on = fields.Date(readonly=True)
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -1101,7 +1242,7 @@ class FixEquipmentPm(models.Model):
                         "Record %s on %s before marking it done."
                         % (" and ".join(missing), rec.name)
                     )
-            rec._guarded().write({"state": "done", "done_on": fields.Date.context_today(self)})
+            rec._guarded().write({"state": "done", "done_on": m45_today(self.env)})
         return True
 
 
@@ -1128,7 +1269,7 @@ class FixEquipmentUsage(models.Model):
     operating_unit_id = _ops_unit()
     job_ref = fields.Char(string="Job / Work Order", required=True)
     service_order_ref = fields.Char(string="Service Order")
-    used_on = fields.Date(required=True, default=fields.Date.context_today)
+    used_on = fields.Date(required=True, default=lambda self: m45_today(self.env))
     uses = fields.Integer(string="Uses", default=1)
     qc_result = fields.Selection(
         [("pass", "Pass"), ("fail", "Fail"), ("na", "Not a QC use")],
@@ -1176,7 +1317,7 @@ class FixEquipmentUsage(models.Model):
     def _m45_check_fit_for_use(self):
         if self.env.su:
             return
-        today = fields.Date.context_today(self)
+        today = m45_today(self.env)
         for rec in self:
             if rec.used_on > today:
                 raise UserError(

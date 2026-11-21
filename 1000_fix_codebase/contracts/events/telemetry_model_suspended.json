@@ -1,0 +1,72 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "telemetry.model_suspended",
+  "description": "Published by cd_ml_services through libs.py.fix_events.publish(); A07 ERP audit (2026-11-20), registered by hand.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "telemetry.model_suspended"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ml_services"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "model",
+        "version",
+        "precision",
+        "threshold",
+        "period"
+      ],
+      "properties": {
+        "model": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        },
+        "precision": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "threshold": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "period": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ml_services",
+  "x-publishers": [
+    "addons/domain/j_data_analytics/cd_ml_services/models/fix_ml_m48_gate.py"
+  ],
+  "x-derived-from": "hand-registered (A07 ERP audit S5; do not regenerate)"
+}

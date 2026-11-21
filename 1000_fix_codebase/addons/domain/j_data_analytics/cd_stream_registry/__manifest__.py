@@ -3,7 +3,7 @@
     "name": "1000FiX IoT Telemetry & Predictive Maintenance",
     "summary": "M48: IoT Telemetry & Predictive Maintenance",
     "description": "CD-M48-01 (P11).",
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "IoT Telemetry & Predictive Maintenance",

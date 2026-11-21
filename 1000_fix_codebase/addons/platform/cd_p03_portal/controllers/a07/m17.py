@@ -8,7 +8,9 @@ from odoo import fields
 from odoo.addons.cd_device_registry.models.fix_device import (
     CUSTODY_EVIDENCE_TYPES,
     TRANSFER_EVIDENCE_TYPES,
+    WARRANTY_PROOF_TYPES,
 )
+from odoo.addons.cd_device_registry.models.fix_device_erp import rework_window_days
 
 from ..p03_service_order_api import _company_domain
 
@@ -33,7 +35,10 @@ SURFACES = {
         "order": "id desc",
         "limit": 400,
         "rules": True,
-        "pickers": {"transfer_evidence_document_id": _evidence_picker(TRANSFER_EVIDENCE_TYPES)},
+        "pickers": {
+            "transfer_evidence_document_id": _evidence_picker(TRANSFER_EVIDENCE_TYPES),
+            "purchase_date_proof_document_id": _evidence_picker(WARRANTY_PROOF_TYPES),
+        },
         # A07 audit M17-8: the lifecycle moves only through these. Scrap is a
         # routed M63 decision (Device Quality Manager, never the requester);
         # here it is only requested. A Branch Manager other than the flagger
@@ -54,6 +59,11 @@ SURFACES = {
             "action_set_end_of_support",
             "action_set_obsolete",
             "action_return_to_active",
+            # A07 ERP audit (2026-11-20): the ownership dispute (D12), the
+            # purchase-date correction (M17-11, Warranty Officer)
+            "action_flag_disputed",
+            "action_clear_dispute",
+            "action_correct_purchase_date",
         },
     },
     # fix.device.history is declared by M01 — read through the merge.
@@ -178,7 +188,8 @@ SURFACES = {
         "order": "recorded_at desc, id desc",
         "limit": 300,
         "rules": True,
-        "actions": set(),
+        # A07 ERP audit M17-17: an Operations Director who did not request it
+        "actions": {"action_approve", "action_reject"},
     },
     "fix.device.estate.node": {
         "order": "estate_id, complete_name, id",
@@ -203,7 +214,7 @@ SURFACES = {
         "order": "escalated desc, severity_rank, raised_at, id",
         "limit": 400,
         "rules": True,
-        "actions": {"action_start", "action_resolve"},
+        "actions": {"action_assign", "action_start", "action_resolve"},
     },
 }
 
@@ -245,8 +256,35 @@ def _scoped(env, model, domain=None):
     return Model.search(list(domain or []) + fence)
 
 
-def _devices(env):
-    return _scoped(env, "fix.device")
+def _devices(env, date_from=None, date_to=None):
+    """Visible devices; with a period, those registered by its end (a device
+    registered later did not exist in the period). Archived (merged) devices
+    are listed too, so "active" can differ from "devices" (M17-26)."""
+    domain = []
+    if date_to:
+        domain.append(("create_date", "<", _day_after(date_to)))
+    Device = env["fix.device"].sudo().with_context(active_test=False)
+    visible = env["fix.device"].with_context(active_test=False).search([]).ids
+    return Device.search([*domain, ("id", "in", visible)])
+
+
+def _today(env):
+    """A07 ERP audit M17-27: the business day is Dhaka's, not the user's."""
+    return fields.Date.context_today(env.user.with_context(tz="Asia/Dhaka"))
+
+
+def _day_after(value):
+    return fields.Date.to_date(value) + datetime.timedelta(days=1)
+
+
+def _in_period(value, date_from=None, date_to=None):
+    """M17-26: a date or datetime inside the requested period (inclusive)."""
+    if not value:
+        return not (date_from or date_to)
+    day = value.date() if isinstance(value, datetime.datetime) else value
+    if date_from and day < fields.Date.to_date(date_from):
+        return False
+    return not (date_to and day > fields.Date.to_date(date_to))
 
 
 def _history(env):
@@ -259,7 +297,9 @@ def asset_360(env, date_from=None, date_to=None, **params):
     custody = _scoped(env, "fix.device.custody")
     # single-pass counts: 691 devices × 3,000 events must not be O(N×M)
     w_counts, w_active, h_counts, last_custody = {}, {}, {}, {}
-    today = fields.Date.context_today(env.user)
+    today = _today(env)
+    history = history.filtered(lambda h: _in_period(h.date, date_from, date_to))
+    custody = custody.filtered(lambda c: _in_period(c.event_date, date_from, date_to))
     for warranty in warranties:
         dev_id = warranty.device_id.id
         w_counts[dev_id] = w_counts.get(dev_id, 0) + 1
@@ -275,7 +315,7 @@ def asset_360(env, date_from=None, date_to=None, **params):
     for event in custody.sorted("event_date"):
         last_custody[event.device_id.id] = event.event
     rows = []
-    for device in _devices(env):
+    for device in _devices(env, date_from, date_to).filtered("active"):
         rows.append(
             {
                 "device": device.name,
@@ -334,7 +374,7 @@ def asset_360(env, date_from=None, date_to=None, **params):
 
 def identifiers(env, date_from=None, date_to=None, **params):
     rows = []
-    for device in _devices(env):
+    for device in _devices(env, date_from, date_to).filtered("active"):
         present = [
             bool(device.serial_number),
             bool(device.imei_1),
@@ -384,7 +424,9 @@ def identifiers(env, date_from=None, date_to=None, **params):
 
 def parts_genealogy(env, date_from=None, date_to=None, **params):
     rows = []
-    for component in _scoped(env, "fix.device.component"):
+    for component in _scoped(env, "fix.device.component").filtered(
+        lambda c: _in_period(c.installed_on, date_from, date_to)
+    ):
         rows.append(
             {
                 "device": component.device_id.name,
@@ -419,54 +461,77 @@ def parts_genealogy(env, date_from=None, date_to=None, **params):
 
 
 def repeat_fault(env, date_from=None, date_to=None, **params):
-    events_by_device, last_event = {}, {}
-    for event in _history(env).filtered(
-        lambda h: h.event_type in ("service_order", "repair", "qc")
-    ):
-        dev_id = event.device_id.id
-        events_by_device[dev_id] = events_by_device.get(dev_id, 0) + 1
-        if event.date and (dev_id not in last_event or event.date > last_event[dev_id]):
-            last_event[dev_id] = event.date
+    """A07 ERP audit M17-16: each M01 state transition wrote a history row, so
+    every serviced device was a "repeat". A repeat is now a DISTINCT service
+    order of the device opened within the rework window (D13, default 30
+    days) of the previous order's hand-over, or flagged rework by M01. Rows
+    carry the branch, the model and the fault codes (§14)."""
+    window = rework_window_days(env)
+    devices = _devices(env)
+    Order = env["fix.service.order"].sudo()
+    orders = Order.search(
+        [("device_id", "in", devices.ids), ("state", "!=", "cancelled")],
+        order="device_id, create_date, id",
+    )
+    by_device = {}
+    for order in orders:
+        by_device.setdefault(order.device_id.id, []).append(order)
     rows = []
-    for device in _devices(env):
-        count = events_by_device.get(device.id, 0)
-        if count < 2:
-            continue
-        rows.append(
-            {
-                "device": device.name,
-                "model": device.device_model_id.name if device.device_model_id else "—",
-                "owner": device.owner_id.name if device.owner_id else "—",
-                "events": count,
-                "last_event": str(last_event.get(device.id) or "—")[:16],
-                "state": dict(device._fields["state"].selection).get(device.state),
-            }
-        )
-    rows.sort(key=lambda r: -r["events"])
+    for chain in by_device.values():
+        previous = None
+        for order in chain:
+            if previous is not None:
+                end = previous.delivered_at or previous.closed_at or previous.create_date
+                gap = (order.create_date - end).days if end else None
+                repeat = order.is_rework or (gap is not None and 0 <= gap <= window)
+                if repeat and _in_period(order.create_date, date_from, date_to):
+                    faults = (
+                        order.fault_line_ids.mapped("fault_code")
+                        if ("fault_line_ids" in order._fields)
+                        else []
+                    )
+                    rows.append(
+                        {
+                            "device": order.device_id.name,
+                            "model": order.device_id.device_model_id.name or "—",
+                            "branch": order.branch_id.name or "—",
+                            "order": order.name,
+                            "previous": previous.name,
+                            "days": gap if gap is not None else "—",
+                            "faults": ", ".join(f for f in faults if f) or "—",
+                            "rework": "yes" if order.is_rework else "no",
+                        }
+                    )
+            previous = order
+    rows.sort(key=lambda r: (str(r["branch"]), str(r["model"]), str(r["device"])))
     return _pack(
-        "Repeat-Fault Pareto — devices with two or more service/repair events",
-        ["device", "model", "owner", "events", "last_event", "state"],
+        "Repeat-Fault Register — a device back within %d days of its last hand-over" % window,
+        ["device", "model", "branch", "order", "previous", "days", "faults", "rework"],
         {
             "device": "Device",
             "model": "Model",
-            "owner": "Owner",
-            "events": "Events",
-            "last_event": "Last Event",
-            "state": "State",
+            "branch": "Branch",
+            "order": "Repeat Order",
+            "previous": "Previous Order",
+            "days": "Days After Hand-over",
+            "faults": "Fault Codes",
+            "rework": "M01 Rework",
         },
         rows,
         [
-            "Counts service-order, repair and QC history events in a single pass; two "
-            "or more is a repeat. This is a frequency view, not a root-cause claim."
+            "One row per distinct service order opened within the rework window (parameter "
+            "cd_device_registry.rework_window_days, %d days, owner decision D13) of the "
+            "previous order's delivery, or flagged rework by M01. State changes of one order "
+            "are not repeats." % window
         ],
-        totals={"device": "Total", "events": sum(r["events"] for r in rows)},
-        empty="No device has two or more service events.",
+        totals={"device": "Total", "order": len(rows)},
+        empty="No device came back within the rework window.",
     )
 
 
 def installed_base(env, date_from=None, date_to=None, **params):
     buckets = {}
-    for device in _devices(env):
+    for device in _devices(env, date_from, date_to):
         model = device.device_model_id.name if device.device_model_id else "Unassigned model"
         brand = (
             device.device_model_id.brand_id.name
@@ -495,7 +560,7 @@ def installed_base(env, date_from=None, date_to=None, **params):
 
 
 def estate_coverage(env, date_from=None, date_to=None, **params):
-    devices = _devices(env)
+    devices = _devices(env, date_from, date_to).filtered("active")
     estates = _scoped(env, "fix.device.estate")
     rows = []
     for estate in estates:
@@ -553,7 +618,9 @@ def custody_exceptions(env, date_from=None, date_to=None, **params):
     custody = _scoped(env, "fix.device.custody")
     labels = dict(env["fix.device.custody"]._fields["event"].selection)
     rows = []
-    for event in custody.filtered(lambda c: c.event in ("lost", "found")):
+    for event in custody.filtered(
+        lambda c: c.event in ("lost", "found") and _in_period(c.event_date, date_from, date_to)
+    ):
         rows.append(
             {
                 "device": event.device_id.name,
@@ -603,49 +670,74 @@ def custody_exceptions(env, date_from=None, date_to=None, **params):
 
 
 def data_quality(env, date_from=None, date_to=None, **params):
+    """A07 ERP audit M17-25: an IMEI-identified phone lost 20 points for "no
+    serial", and the score measured completeness only. An identifier is a
+    serial OR an IMEI; verification (identity confirmed, no conflict) and
+    ownership evidence count; the score is also given by branch and estate."""
+    devices = _devices(env, date_from, date_to).filtered("active")
     conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
     conditioned = set(conditions.mapped("device_id").ids)
-    rows = []
-    for device in _devices(env):
+    ownership = _scoped(env, "fix.device.ownership")
+    evidenced = set(ownership.filtered("evidence_document_id").device_id.ids)
+    transferred = set(ownership.device_id.ids)
+    rows, groups = [], {}
+    for device in devices:
         problems = []
-        if not device.serial_number:
-            problems.append("no serial")
-        if not device.device_model_id:
-            problems.append("no model")
+        if not (device.serial_number or device.imei_1 or device.imei_2):
+            problems.append("no serial or IMEI")
+        if device.state == "provisional" or device.identifier_quarantined:
+            problems.append("identity not verified")
+        if device.identifier_warning:
+            problems.append("IMEI check digit fails")
         if not device.owner_id:
             problems.append("no owner")
+        if device.id in transferred and device.id not in evidenced:
+            problems.append("transfer without evidence")
         # An estate is a corporate customer's structure (FR-AST-038): an individual
         # has none to be in.
         if not device.estate_id and device.owner_id.commercial_partner_id.is_company:
             problems.append("no estate")
         if device.id not in conditioned:
             problems.append("no condition grade")
-        score = max(100 - len(problems) * 20, 0)
+        score = max(100 - len(problems) * 15, 0)
+        branch = device.branch_id.name or "— No branch —"
+        estate = device.estate_id.name or "—"
         rows.append(
             {
                 "device": device.name,
                 "model": device.device_model_id.name if device.device_model_id else "—",
+                "branch": branch,
+                "estate": estate,
                 "issues": len(problems),
                 "problems": ", ".join(problems) or "—",
                 "score_pct": score,
             }
         )
+        groups.setdefault((branch, estate), []).append(score)
     rows.sort(key=lambda r: r["score_pct"])
     average = round(sum(r["score_pct"] for r in rows) / len(rows), 1) if rows else 0.0
+    by_group = "; ".join(
+        "%s / %s: %.1f%%" % (b, e, sum(v) / len(v)) for (b, e), v in sorted(groups.items())
+    )
     return _pack(
-        "Data Quality Scorecard — completeness per device",
-        ["device", "model", "issues", "problems", "score_pct"],
+        "Data Quality Scorecard — completeness, verification and evidence per device",
+        ["device", "model", "branch", "estate", "issues", "problems", "score_pct"],
         {
             "device": "Device",
             "model": "Model",
+            "branch": "Branch",
+            "estate": "Estate",
             "issues": "Issues",
             "problems": "Problems",
             "score_pct": "Score %",
         },
         rows,
         [
-            "Score = 100 − 20 per missing element (serial, model, owner, confirmed condition, "
-            "and an estate for a corporate owner); average %.1f%%." % average
+            "Score = 100 − 15 per problem: no serial or IMEI, identity not verified "
+            "(provisional or in conflict), IMEI check digit, no owner, a transfer without "
+            "evidence, no estate for a corporate owner, no confirmed condition; average "
+            "%.1f%%." % average,
+            "By branch / estate: %s." % (by_group or "—"),
         ],
         empty="No devices registered yet.",
     )
@@ -655,7 +747,7 @@ def bulk_registration(env, date_from=None, date_to=None, **params):
     conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
     conditioned = set(conditions.mapped("device_id").ids)
     rows = []
-    for device in _devices(env):
+    for device in _devices(env, date_from, date_to).filtered("active"):
         missing = []
         if not device.estate_id:
             missing.append("estate")
@@ -707,9 +799,9 @@ REPORTS = {
 
 
 def kpis(env):
-    devices = _devices(env)
-    # The business date (Dhaka), not the server machine's: the A04 date-basis rule.
-    today = fields.Date.context_today(env.user)
+    devices = _devices(env).filtered("active")
+    # The business date (Dhaka), not the user's time zone (A07 ERP audit M17-27).
+    today = _today(env)
     horizon = today + datetime.timedelta(days=30)
     pms = _scoped(env, "fix.device.pm", [("state", "=", "active")])
     conditions = _scoped(env, "fix.device.condition", [("state", "=", "confirmed")])
@@ -728,5 +820,13 @@ def kpis(env):
         # read a cleared flag as still lost (A07 operability M17-12).
         "custody_open_lost": len(devices.filtered(lambda d: d.state == "lost")),
         "without_condition": len(devices) - len(set(conditions.mapped("device_id").ids)),
-        "warranty_active": len(warranties),
+        # M17-27: devices with running cover, not warranty rows, and never a
+        # lost or scrapped device.
+        "warranty_active": len(
+            set(
+                warranties.filtered(
+                    lambda w: w.device_id.active and w.device_id.state not in ("lost", "scrapped")
+                ).device_id.ids
+            )
+        ),
     }
