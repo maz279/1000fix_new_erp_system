@@ -708,6 +708,8 @@ class FixDataWipeRequest(models.Model):
         [
             ("m14_refurbishment", "Refurbishment / Trade-in (M14)"),
             ("m18_recycling", "Recycling / E-waste (M18)"),
+            # A02 pass 2 review N2: a returned rental unit before its next renter
+            ("m13_rental", "Rental Turnaround (M13)"),
             ("customer", "Customer Request"),
             ("corporate_decommission", "Corporate Decommission"),
         ],
@@ -826,6 +828,47 @@ class FixDataWipeRequest(models.Model):
             vals["requested_by_id"] = self.env.uid
             vals["requested_at"] = fields.Datetime.now()
         return super(FixDataWipeRequest, self._guarded()).create(vals_list)
+
+    @api.model
+    def _m06_request_for(
+        self, consumer, source, serial, disposition, confidentiality="high", **extra
+    ):
+        """A02 pass 2 review N2: the wipe request a consumer (an M14 trade-in,
+        an M18 collection, an M13 turnaround) raises for the device it took
+        in, named after it (source_ref), so the certificate that releases the
+        device is bound to that consumer. Idempotent: the consumer's open
+        request is returned. System write after the consumer's own checks;
+        the request names the user whose action raised it."""
+        consumer.ensure_one()
+        ref = consumer.display_name if "name" not in consumer._fields else consumer.name
+        Request = self.sudo()
+        existing = Request.search(
+            [
+                ("source", "=", source),
+                ("source_ref", "=", ref),
+                ("cancelled", "=", False),
+            ],
+            order="id desc",
+            limit=1,
+        )
+        if existing:
+            return existing.with_env(self.env)
+        vals = {
+            "source": source,
+            "source_ref": ref,
+            "serial_number": serial,
+            "confidentiality_level": confidentiality,
+            "disposition": disposition,
+        }
+        for key in ("customer_id", "device_id", "company_id", "media_description"):
+            if extra.get(key):
+                vals[key] = extra[key]
+        request = Request.create([vals])
+        request.message_post(
+            body="Raised by %s %s: the certificate that releases the device answers this "
+            "request." % (consumer._description, ref)
+        )
+        return request.with_env(self.env)
 
     def write(self, vals):
         if not self._fix_guard_open():

@@ -109,3 +109,14 @@ def test_review_p2_a_new_bench_is_not_esd_verified(m31):
     assert not bench.esd_last_verified_date and not bench.esd_compliant_today
     bench.with_user(m31.tech).action_log_daily_esd(5.0, 50.0)
     assert bench.esd_compliant_today
+
+
+# ============================================================ round 3: FR-WSR-034
+def test_review_a_context_key_does_not_start_burn_in_off_the_station(m31):
+    m31.env["fix.workshop.burnin.station"].create(
+        {"workshop_id": m31.workshop.id, "code": "BI-RV", "name": "Rack RV", "capacity": 1}
+    )
+    job = a02._l2_in_repair(m31)
+    with refused(m31.env, UserError, "stations"):
+        job.with_user(m31.tech).with_context(m31_burnin_station=True).action_start_burn_in()
+    assert job.sudo().state == "in_repair"

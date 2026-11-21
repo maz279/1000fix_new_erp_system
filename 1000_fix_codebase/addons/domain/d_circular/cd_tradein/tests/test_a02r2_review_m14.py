@@ -4,6 +4,7 @@ M14 trade-in wipe gate: the certificate is bound to THIS trade-in. The
 ``odoo_env`` fixture rolls back."""
 
 from odoo.addons.cd_tradein.tests.test_a05_m14_controls import (  # noqa: F401
+    accepted,
     cert,
     device,
     m,
@@ -42,5 +43,16 @@ def test_review_m14_a_certificate_raised_for_another_record_does_not_release(m):
     customer.write({"sector_count": 1000, "wipe_log_attachment_id": log2.id})
     customer.action_verify()
     assert "answers a customer request" in rec._wipe_gate_denial(customer, dev)
-    # its own certificate releases it
-    assert rec._wipe_gate_denial(cert(m, dev), dev) == ""
+    # A02 pass 2 review N2: a certificate answering no request does not
+    # release it either; the one answering its own request does
+    assert "no wipe request raised for" in rec._wipe_gate_denial(cert(m, dev), dev)
+    assert rec._wipe_gate_denial(cert(m, dev, rec=rec), dev) == ""
+
+
+def test_review_m14_collecting_the_device_raises_its_wipe_request(m):
+    rec = accepted(m)
+    assert not m.env["fix.data.wipe.request"].search([("source_ref", "=", rec.name)])
+    rec.action_collect()
+    req = m.env["fix.data.wipe.request"].search([("source_ref", "=", rec.name)])
+    assert (req.source, req.serial_number) == ("m14_refurbishment", rec.device_id.serial_number)
+    assert req == rec._m14_wipe_request()  # one request per trade-in

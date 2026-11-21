@@ -113,11 +113,57 @@ def test_a_certificate_raised_for_another_collection_does_not_release(m):
     assert col.state == "destruction"
 
 
+# ======================================= A02 pass 2 review round 3: N1 / N2
+def test_the_lab_person_who_destroys_certifies_and_never_witnesses(m):
+    dev = m.device()
+    col = m.collection(device_id=dev.id)
+    m.triage(col, "recycle", data_bearing=True)
+    col.action_secure_destruction()
+    cert = col.wipe_certificate_id.sudo()
+    # opened for the lab: the M18 clerk is not its certifier
+    assert cert.awaiting_lab_certifier and not cert.certified_by and not cert.technician_id
+    assert cert.wipe_request_id.source_ref == col.name
+    Att = m.env["ir.attachment"].with_user(m.wipe_tech)
+    cert.with_user(m.wipe_tech).write(
+        {
+            "media_kind": "flash",
+            "wipe_log_attachment_id": Att.create({"name": "s.log", "raw": b"PASS"}).id,
+            "destruction_photo_attachment_id": Att.create({"name": "p.jpg", "raw": b"p"}).id,
+        }
+    )
+    assert (cert.certified_by, cert.technician_id) == (m.wipe_tech.name, m.wipe_tech)
+    # the person who destroyed it and recorded the evidence does not witness it
+    assert refused(m.env, lambda: cert.with_user(m.wipe_tech).action_witness_destruction())
+    cert.with_user(m.wipe_witness).action_witness_destruction()
+    cert.with_user(m.verifier).action_verify()
+    col.action_recycle()
+    assert col.state == "recycled"
+
+
+def test_a_release_needs_the_collections_own_wipe_request(m):
+    dev = m.device()
+    col = m.collection(device_id=dev.id)
+    # a verified destruction of the same serial that answers no request
+    cert = (
+        m.env["fix.data.wipe.certificate"]
+        .with_user(m.wipe_tech)
+        .create({"method": "physical_destruction", "serial_number": dev.serial_number})
+    )
+    m.complete_destruction(cert)
+    m.triage(col, "recycle", data_bearing=True)
+    assert col._m18_wipe_request().source_ref == col.name  # raised at triage
+    col.write({"wipe_certificate_id": cert.id})
+    assert "no wipe request raised for" in col._fix_wipe_denial()
+    col.action_secure_destruction()
+    assert refused(m.env, lambda: col.action_recycle())
+    assert col.state == "destruction"
+
+
 # ============================================== E4 / M18-2: one cert one item
 def test_one_wipe_certificate_releases_one_item(m):
     dev = m.device()
-    cert = m.verified_cert(dev.serial_number)
     a = m.collection(device_id=dev.id)
+    cert = m.verified_cert(dev.serial_number, a)
     m.triage(a, "recycle")
     a.write({"wipe_certificate_id": cert.id})
     a.action_secure_destruction()
@@ -201,7 +247,7 @@ def test_co2_is_computed_and_frozen_with_the_weight(m):
     assert col.weight_kg == 0.5 and col.esg_co2_saved_kg == pytest.approx(0.75)
     other = m.collection(device_id=m.device().id)
     m.triage(other, "recycle")
-    other.write({"wipe_certificate_id": m.verified_cert(other.device_id.serial_number).id})
+    other.write({"wipe_certificate_id": m.verified_cert(other.device_id.serial_number, other).id})
     other.action_secure_destruction()
     assert refused(m.env, lambda: other.action_recycle(9000.0))
 

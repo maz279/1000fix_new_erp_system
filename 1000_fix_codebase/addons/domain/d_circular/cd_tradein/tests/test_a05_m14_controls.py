@@ -77,6 +77,9 @@ def m(odoo_env):
     # M14 capture pass 2: grade override / parts-only routing, and the write-off
     x.supervisor = _user(env, "supervisor", ["cd_tradein.group_refurb_supervisor"], ou)
     x.woapprover = _user(env, "woapprover", ["cd_tradein.group_refurb_writeoff_approver"], ou)
+    # A02 pass 2 review: the data lab records the wipe, a verifier verifies it
+    x.wipe_tech = _user(env, "wipetech", ["cd_data_case.group_data_recovery_operator"], ou)
+    x.wipe_verifier = _user(env, "wipeverifier", ["cd_data_case.group_wipe_verifier"], ou)
     brand = env["fix.brand"].create({"name": "A05 M14 Brand", "code": "A5M14C"})
     x.model = env["fix.device.model"].create({"name": "A05 M14 Phone", "brand_id": brand.id})
     grid = (
@@ -116,17 +119,25 @@ def device(x):
     )
 
 
-def cert(x, dev, verified=True):
-    # A02 pass 2 review (D16): a resale device is judged by the sanitisation
-    # matrix at release; Purge passes it for any media kind
+def cert(x, dev, verified=True, rec=None):
+    """The data lab's wipe certificate on the real role path: recorded by a
+    lab operator, verified by a wipe verifier. With ``rec`` it answers the
+    trade-in's own wipe request (A02 pass 2 review N2), with the media kind
+    the D16 matrix judges; Purge passes it for any media kind."""
     vals = {"method": "nist_800_88_purge", "serial_number": dev.serial_number}
+    if rec is not None:
+        vals.update(wipe_request_id=rec._m14_wipe_request().id, media_kind="flash")
     if verified:
-        log = x.env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
+        log = (
+            x.env["ir.attachment"]
+            .with_user(x.wipe_tech)
+            .create({"name": "wipe.log", "raw": b"nwipe: PASS %s" % dev.serial_number.encode()})
+        )
         vals.update(sector_count=1000, wipe_log_attachment_id=log.id)
-    c = x.env["fix.data.wipe.certificate"].create(vals)
+    c = x.env["fix.data.wipe.certificate"].with_user(x.wipe_tech).create(vals)
     if verified:
-        c.action_verify()
-    return c
+        c.with_user(x.wipe_verifier).action_verify()
+    return c.with_env(x.env)
 
 
 def nid():
@@ -184,7 +195,7 @@ def accepted(x, rec=None, **screen_kw):
 def refurbishing(x, rec=None, **kw):
     rec = accepted(x, rec, **kw)
     rec.action_collect()
-    rec.write({"wipe_certificate_id": cert(x, rec.device_id).id})
+    rec.write({"wipe_certificate_id": cert(x, rec.device_id, rec=rec).id})
     rec.action_wipe()
     rec.action_refurbish()
     return rec

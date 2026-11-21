@@ -333,10 +333,15 @@ def test_p2_z4_work_is_for_the_named_staff_only(m6):
 def test_p2_z4_read_needs_the_assigned_custodian(m6):
     case = m6.recovering(m6.new_case())
     stranger = m6.user("othercust", "cd_data_case.group_z4_custodian")
-    # A02 pass 2 review: the M06-02 record rule now refuses an unassigned
-    # custodian before the Z4 staff check does
-    with pytest.raises(AccessError):
+    # an unassigned custodian does not even see the case (the M06-02 rule)
+    with pytest.raises(AccessError, match="doesn't have 'read' access"):
         case.with_user(stranger).action_access_recovered_data(step_up_token="123456")
+    # one who sees every case (a lab manager) is still not its Z4 staff
+    overseer = m6.user(
+        "overseer", "cd_data_case.group_z4_custodian", "cd_data_case.group_data_lab_manager"
+    )
+    with pytest.raises(AccessError, match="assigned staff"):
+        case.with_user(overseer).action_access_recovered_data(step_up_token="123456")
     with pytest.raises(UserError, match="Access Denied"):  # assigned: on to the TOTP step
         case.with_user(m6.custodian).action_access_recovered_data(step_up_token="123456")
 
@@ -352,9 +357,12 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
     assert "error" in res
     with pytest.raises(UserError, match="64 hex digits"):
         case.action_record_image(source_hash="abc", image_hash="def")
-    # an operator not named on the case cannot even see it (M06-02)
-    with pytest.raises(AccessError):
+    # the Z4 staff check refuses an operator not named on the case
+    with pytest.raises(AccessError, match="assigned staff"):
         case.with_user(m6.tech2).action_record_image(hashes="%s %s" % (m6.digest, m6.digest))
+    # a lab manager sees it but is not its Z4 staff
+    with pytest.raises(AccessError, match="assigned staff"):
+        case.with_user(m6.manager).action_record_image(hashes="%s %s" % (m6.digest, m6.digest))
     out = m6.p03_action(
         m6.tech, CASE, case, "action_record_image", {"hashes": "%s %s" % (m6.digest, m6.digest)}
     )

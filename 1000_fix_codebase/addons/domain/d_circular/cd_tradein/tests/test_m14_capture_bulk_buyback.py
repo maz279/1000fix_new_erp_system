@@ -170,7 +170,7 @@ def test_an_asset_is_declared_once_per_lot(m):
 def test_destruction_gate_capture_attaches_the_certificate_then_the_gate_runs(m):
     rec = accepted(m)
     rec.action_collect()
-    certificate = cert(m, rec.device_id)
+    certificate = cert(m, rec.device_id, rec=rec)
     res = p03_write(m, TRD, rec.id, {"wipe_certificate_id": certificate.id})
     assert "error" not in res, res
     res = p03_action(m, TRD, rec, "action_wipe")

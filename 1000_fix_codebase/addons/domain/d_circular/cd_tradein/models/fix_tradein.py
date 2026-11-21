@@ -1117,6 +1117,9 @@ class FixTradeinRequest(models.Model):
                     )
                 )
             hold_days = int(_param_float(self.env, PARAM_HOLD_DAYS, 7))
+            # A02 pass 2 review N2: the device enters the wipe path; the
+            # certificate that releases it answers this trade-in's request
+            rec._m14_wipe_request()
             rec._tradein_move(
                 "collected",
                 {
@@ -1136,6 +1139,37 @@ class FixTradeinRequest(models.Model):
                     "consignment": rec.consignment_id.name if rec.consignment_id else "",
                 },
             )
+
+    def _m14_wipe_request(self):
+        """The wipe request this trade-in raises for its device (source_ref =
+        the trade-in), or an empty recordset when it names no device."""
+        self.ensure_one()
+        Request = self.env["fix.data.wipe.request"]
+        serial = self.env["fix.data.wipe.certificate"]._fix_media_serial(self.device_id)
+        if not serial:
+            return Request
+        return Request._m06_request_for(
+            self,
+            "m14_refurbishment",
+            serial,
+            "resale",
+            customer_id=self.customer_id.id,
+            device_id=self.device_id.id,
+            company_id=self.company_id.id,
+        )
+
+    def action_raise_wipe_request(self):
+        """A trade-in collected before its request was raised automatically
+        raises it here (idempotent)."""
+        for rec in self:
+            if rec.state not in ("collected", "wiped", "refurbished", "graded"):
+                raise UserError(
+                    "Trade-in %s is '%s': the wipe request is raised once the device is "
+                    "collected." % (rec.name, rec.state)
+                )
+            if not rec._m14_wipe_request():
+                raise UserError("Trade-in %s names no device to wipe." % rec.name)
+        return True
 
     def action_wipe(self):
         """The secure data wipe gate: the wipe operator's M06 certificate

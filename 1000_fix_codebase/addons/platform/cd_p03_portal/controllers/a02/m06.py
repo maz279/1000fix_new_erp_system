@@ -67,12 +67,15 @@ SURFACES = {
     "fix.data.wipe.certificate": {
         "order": "id desc",
         "limit": 200,
+        # A02 pass 2 review N9: purge certificates follow their case
+        "caller_scoped": True,
         # A02 pass 2 M06-09: the second person witnesses a destruction
         "actions": {"action_verify", "action_mark_failed", "action_witness_destruction"},
     },
     "fix.z4.access.audit": {
         "order": "access_time desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.recovery.attempt": {
@@ -106,6 +109,7 @@ SURFACES = {
     "fix.data.evaluation": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_complete"},
     },
     "fix.data.quote": {
@@ -152,16 +156,19 @@ SURFACES = {
     "fix.data.retention.hold": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_approve", "action_reject", "action_release"},
     },
     "fix.data.recovered.inventory": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.wipe.request": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_cancel"},
     },
     "fix.data.backup.test": {
@@ -219,16 +226,15 @@ def kpis(env):
     purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
     # A02 pass 2 M06-11 (D17): handed-over cases past their retention date,
     # not those kept on an approved retention (legal) hold (A02 pass 2 review)
-    purge_overdue = len(
-        Case.search(
-            [
-                *domain,
-                ("state", "=", "handover"),
-                ("retention_until", "!=", False),
-                ("retention_until", "<", fields.Date.context_today(Case)),
-            ]
-        ).filtered(lambda case: not case._retention_held())
+    overdue = Case.search(
+        [
+            *domain,
+            ("state", "=", "handover"),
+            ("retention_until", "!=", False),
+            ("retention_until", "<", fields.Date.context_today(Case)),
+        ]
     )
+    purge_overdue = len(overdue) - len(Case._m06_held_case_ids(overdue))
 
     return {
         "active_cases": active_cases,
@@ -290,6 +296,16 @@ def _require_data_operator(env, title):
         "%s lists data-recovery cases and customers: it is open to the "
         "Data Recovery Operator role only." % title
     )
+
+
+def _caller_cases(env, domain, channel):
+    """A02 pass 2 review N4: the cases a report lists are the CALLER's (the
+    M06-02 scope: an operator his own and the intake queue, a lab manager
+    all), and listing them is a read the case log records. Returned sudo for
+    the figures (quotations, invoices) the report derives from them."""
+    cases = env["fix.data.recovery.case"].search(domain)
+    cases._m06_log_reads(channel)
+    return cases.sudo()
 
 
 def _success_by_specialism(env, **params):
@@ -398,7 +414,8 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
     no-data-no-fee only the donor fee when unrecoverable), this company's
     cases, accepted in the period."""
     _require_data_operator(env, "Data Service Revenue")
-    Quote = env["fix.data.quote"].sudo()
+    # N4: the caller's quotations (they follow his cases)
+    Quote = env["fix.data.quote"]
     start, end = _day_bounds(env, date_from, date_to)
     domain = [("state", "=", "accepted"), ("company_id", "in", env.companies.ids)]
     if start:
@@ -420,7 +437,9 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
         }
     rows = []
     billed_total = 0.0
-    for case in quotes.mapped("case_id").sorted("name"):
+    cases = quotes.mapped("case_id")
+    cases._m06_log_reads("report")
+    for case in cases.sudo().sorted("name"):
         quote, lines, outcome = case._data_billable()
         billable = round(sum(amount for _d, amount in lines), 2)
         billed_total += billable
@@ -459,10 +478,9 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
 
 def _destruction_audit(env, **params):
     _require_data_operator(env, "Destruction & Purge Audit")
-    Case = env["fix.data.recovery.case"].sudo()
-    Cert = env["fix.data.wipe.certificate"].sudo()
+    Cert = env["fix.data.wipe.certificate"]
     fence = [("company_id", "in", env.companies.ids)]
-    purged = Case.search([*fence, ("state", "=", "purged")])
+    purged = _caller_cases(env, [*fence, ("state", "=", "purged")], "report")
     rows = [
         {
             "case": c.name,
@@ -554,15 +572,17 @@ def _recovered_inventory(env, **params):
     enters the ERP. The inventory the lab recorded (files and GB, FR-DTS-006)
     is shown first; the documents keep their own columns."""
     _require_data_operator(env, "The recovered-data inventory")
-    Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
+    Case = env["fix.data.recovery.case"].with_context(lang="en_US")
     Attachment = env["ir.attachment"].sudo()
     states = dict(type(Case).state.selection)
     types = dict(env["fix.data.recovered.inventory"]._fields["file_type"].selection)
-    cases = Case.search(
+    cases = _caller_cases(
+        Case.env,
         [
             ("company_id", "in", env.companies.ids),
             ("state", "in", ("recovering", "recovered", "handover")),
-        ]
+        ],
+        "report",
     )
     rows = []
     for case in cases:

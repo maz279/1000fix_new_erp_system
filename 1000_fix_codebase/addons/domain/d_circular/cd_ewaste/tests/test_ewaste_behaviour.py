@@ -43,17 +43,20 @@ def _in(env, state, **vals):
     return rec
 
 
-def _verified_destruction_cert(env, serial):
+def _verified_destruction_cert(env, rec):
     """The destruction operator's M06 certificate, evidence attached and verified,
-    bound to the item it certifies (A02 audit M06-1: here the collection)."""
+    bound to the item it certifies (A02 audit M06-1: here the collection) and
+    answering the collection's own wipe request (A02 pass 2 review N2)."""
+    serial = rec.name
     log = env["ir.attachment"].create({"name": "shred.log", "raw": b"shredder run 42: PASS"})
     photo = env["ir.attachment"].create({"name": "shredded.jpg", "raw": b"shredded media"})
     cert = env["fix.data.wipe.certificate"].create(
         {
             "method": "physical_destruction",
+            "wipe_request_id": rec._m18_wipe_request().id,
+            "media_kind": "flash",
             "wipe_log_attachment_id": log.id,
             "destruction_photo_attachment_id": photo.id,
-            "serial_number": serial,
         }
     )
     # D16 (A02 pass 2): a second person of the data lab witnessed it
@@ -78,7 +81,7 @@ def _verified_destruction_cert(env, serial):
 
 def _destroyed_with_verified_cert(env, **vals):
     rec = _in(env, "triaged", **vals)
-    rec.write({"wipe_certificate_id": _verified_destruction_cert(env, rec.name).id})
+    rec.write({"wipe_certificate_id": _verified_destruction_cert(env, rec).id})
     rec.action_secure_destruction()
     return rec
 

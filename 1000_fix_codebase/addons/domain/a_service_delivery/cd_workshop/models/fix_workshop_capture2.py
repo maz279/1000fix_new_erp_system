@@ -32,6 +32,11 @@ HIGH_VALUE_DEFAULT = 25000.0
 COST_TOLERANCE_PARAM = "cd_workshop.cost_variance_tolerance_pct"
 COST_TOLERANCE_DEFAULT = 10.0
 LEVEL_RANK = {"l1": 1, "l2": 2, "l3": 3}
+# A02 pass 2 review: a burn-in session started at a station opens the
+# job's burn-in through this in-process token; a JSON-RPC caller can send
+# any context key, never this object (the fix.guarded.mixin pattern)
+BURNIN_STATION_KEY = "m31_burnin_station"
+_BURNIN_STATION_TOKEN = object()
 # a device is physically in the workshop from book-in until it leaves
 HELD_STATES = (
     "intake",
@@ -1073,7 +1078,9 @@ class FixWorkshopBurninSession(models.Model):
         minimums = [vals.pop("_minimum") for vals in vals_list]
         records = super().create(vals_list)
         for rec, minimum in zip(records, minimums, strict=True):
-            rec.job_id.with_context(m31_burnin_station=True).action_start_burn_in()
+            rec.job_id.with_context(
+                **{BURNIN_STATION_KEY: _BURNIN_STATION_TOKEN}
+            ).action_start_burn_in()
             rec._guarded().write(
                 {
                     "minimum_minutes": minimum,
@@ -1761,7 +1768,7 @@ class FixWorkshopJobCapture2(models.Model):
         )
 
     def action_start_burn_in(self):
-        if not self.env.context.get("m31_burnin_station"):
+        if self.env.context.get(BURNIN_STATION_KEY) is not _BURNIN_STATION_TOKEN:
             Station = self.env["fix.workshop.burnin.station"].sudo()
             for rec in self:
                 if Station.search_count([("workshop_id", "=", rec.workshop_id.id)]):

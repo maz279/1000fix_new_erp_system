@@ -51,7 +51,11 @@ SECURE_LOCATIONS = ("z4_lab", "cleanroom", "vault")
 CONSUMER_SOURCES = {
     "fix.tradein.request": ("m14_refurbishment",),
     "fix.ewaste.collection": ("m18_recycling",),
+    "fix.rental.turnaround": ("m13_rental",),
 }
+# A02 pass 2 review N2: these releases need a certificate that answers the
+# wipe request the consumer itself raised (source_ref = the consumer)
+STRICT_CONSUMERS = frozenset(CONSUMER_SOURCES)
 STANDARDS = {
     "nist_800_88": "NIST SP 800-88 Rev. 1 - Clear",
     "nist_800_88_purge": "NIST SP 800-88 Rev. 1 - Purge",
@@ -68,6 +72,10 @@ GROUP_ACCOUNT_ADMIN = "account.group_account_manager"
 CONFIRM_KEY = "m06_custody_confirming"
 PURGE_KEY = "m06_case_purge"
 _PURGE_TOKEN = object()
+OPEN_KEY = "m06_open_destruction"
+_OPEN_TOKEN = object()
+# the certificate evidence a person records (and so may not witness or verify)
+EVIDENCE_ATTACHMENTS = ("wipe_log_attachment_id", "destruction_photo_attachment_id")
 
 
 class _M06Confirmation:
@@ -172,6 +180,11 @@ class FixDataRecoveryCaseA02R2(models.Model):
     )
     custody_request_at = fields.Datetime(readonly=True, copy=False)
     custody_request_note = fields.Char(readonly=True, copy=False)
+    # A02 pass 2 review N3: who holds the case now (the receiver of the last
+    # confirmed hand-off or media move); the M06-02 scope includes him
+    current_custodian_id = fields.Many2one(
+        "res.users", string="Current Custodian", readonly=True, copy=False, index=True
+    )
     # M06-11
     purge_escalated_at = fields.Datetime(string="Purge Escalated At", readonly=True, copy=False)
     read_log_ids = fields.One2many("fix.data.case.read.log", "case_id", string="Reads")
@@ -183,6 +196,7 @@ class FixDataRecoveryCaseA02R2(models.Model):
         "custody_request_at",
         "custody_request_note",
         "purge_escalated_at",
+        "current_custodian_id",
     }
 
     def _fix_guarded_fields(self) -> set:
@@ -290,13 +304,12 @@ class FixDataRecoveryCaseA02R2(models.Model):
         self._m06_log_reads("read")
         return result
 
-    def check_access(self, operation):
-        """A02 pass 2 review: a caller-scoped P03 form opens one case by id
-        and checks read access on it before serving its fields (field reads,
-        not read()); that check is the form's read, and is logged."""
-        super().check_access(operation)
-        if operation == "read" and self.ids:
-            self._m06_log_reads("access")
+    def _p03_log_form_read(self):
+        """A02 pass 2 review N7: the caller-scoped P03 form opens one case by
+        id and serves its fields (field reads, not read()); the form calls
+        this after its access check, so the form read is logged and internal
+        access checks (fetches, mail) are not."""
+        self._m06_log_reads("form")
 
     def _m06_log_reads(self, channel):
         # A02 pass 2 review B5: no caller-settable switch turns the log off;
@@ -436,6 +449,7 @@ class FixDataRecoveryCaseA02R2(models.Model):
                     "custody_request_to_id": False,
                     "custody_request_at": False,
                     "custody_request_note": False,
+                    "current_custodian_id": self.env.uid,
                 }
             )
             # the move is recorded as the receiver (sudo keeps the uid): he
@@ -543,6 +557,25 @@ class FixDataRecoveryCaseA02R2(models.Model):
                 "is destroyed after the customer has the data" % (cert.name, handed)
             )
         return ""
+
+    @api.model
+    def _m06_held_case_ids(self, cases) -> set:
+        """N8: the ids of ``cases`` under an approved, running retention hold,
+        in one query (the KPI asked case by case)."""
+        if not cases or "fix.data.retention.hold" not in self.env:
+            return set()
+        holds = (
+            self.env["fix.data.retention.hold"]
+            .sudo()
+            .search(
+                [
+                    ("case_id", "in", cases.ids),
+                    ("state", "=", "approved"),
+                    ("hold_until", ">=", fields.Date.context_today(self)),
+                ]
+            )
+        )
+        return set(holds.mapped("case_id").ids)
 
     # ------------------------------------------------------------ M06-06
     def action_close(self):
@@ -856,6 +889,9 @@ class FixDataMediaUnitA02R2(models.Model):
             kind, location = unit.pending_kind, unit.pending_location
             requester, recipient = unit.pending_requested_by_id, unit.pending_recipient_id
             unit._guarded().write(dict.fromkeys(self._PENDING, False))
+            # N3: the receiver now holds the media, so he keeps sight of the case
+            if kind == "transfer":
+                unit.case_id.sudo()._guarded().write({"current_custodian_id": self.env.uid})
             ctx = unit.sudo().with_context(**{CONFIRM_KEY: _M06Confirmation(requester.id)})
             who = "%s (from %s)" % (self.env.user.name, requester.name)
             if kind == "transfer":
@@ -971,13 +1007,62 @@ class FixDataWipeCertificateA02R2(models.Model):
         "ir.attachment", string="Destruction Photo", ondelete="restrict"
     )
     standard_ref = fields.Char(string="Sanitisation Standard", compute="_compute_standard_ref")
+    # A02 pass 2 review N1: who recorded the log or the photo (never the
+    # witness or the verifier), and a certificate another module opened that
+    # still waits for the lab person who destroys the media to certify it
+    evidence_by_ids = fields.Many2many(
+        "res.users",
+        "fix_data_wipe_certificate_evidence_user_rel",
+        "certificate_id",
+        "user_id",
+        string="Evidence Recorded By",
+        readonly=True,
+        copy=False,
+    )
+    awaiting_lab_certifier = fields.Boolean(
+        string="Opened for the Lab",
+        readonly=True,
+        copy=False,
+        help="Opened by another module (M18 secure destruction): the data lab person who "
+        "destroys the media and records the evidence becomes its certifier.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "certified_by",
             "certified_at",
             "destruction_witness_id",
+            "evidence_by_ids",
+            "awaiting_lab_certifier",
         }
+
+    @api.model
+    def _m06_open_destruction_certificate(self, vals):
+        """N1: another module (M18) opens a pending physical-destruction
+        certificate for the data lab, after its own checks. It names no
+        certifier: the lab person who destroys the media and records the log
+        and the photo becomes it (M06-12), and he may not witness or verify."""
+        vals = dict(vals, method="physical_destruction")
+        cert = self.sudo().with_context(**{OPEN_KEY: _OPEN_TOKEN}).create([vals])
+        return cert.with_env(self.env)
+
+    def _m06_lab_people(self):
+        """Everyone who recorded this certificate: the certifying technician,
+        its creator and whoever attached its evidence."""
+        self.ensure_one()
+        cert = self.sudo()
+        return cert.technician_id | cert.evidence_by_ids | cert.create_uid
+
+    def _verifier_check(self):
+        super()._verifier_check()
+        if self.env.su:
+            return
+        user = self.env.user
+        if user in self._m06_lab_people() or user == self.sudo().destruction_witness_id:
+            raise UserError(
+                "Segregation of duties: %s recorded or witnessed certificate %s, so a second, "
+                "independent verifier must verify it." % (user.name, self.name)
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -994,13 +1079,27 @@ class FixDataWipeCertificateA02R2(models.Model):
     def create(self, vals_list):
         if not self.env.su and not self.env.user.has_group(GROUP_OPERATOR):
             raise AccessError("A data-wipe certificate is recorded by the data lab.")
+        opening = self.env.context.get(OPEN_KEY) is _OPEN_TOKEN
         for vals in vals_list:
             # M06-12: who certified, and when, are the recording user and the
             # server time, never typed
-            for stamp in ("technician_id", "destruction_witness_id", "certified_at"):
+            for stamp in (
+                "technician_id",
+                "destruction_witness_id",
+                "certified_at",
+                "evidence_by_ids",
+                "awaiting_lab_certifier",
+            ):
                 vals.pop(stamp, None)
-            vals["certified_by"] = self.env.user.name
-            vals["certified_at"] = fields.Datetime.now()
+            if opening:
+                # N1: opened for the lab; the lab person certifies it later
+                vals.update(certified_by=False, certified_at=False, awaiting_lab_certifier=True)
+                vals.update(dict.fromkeys(EVIDENCE_ATTACHMENTS, False))
+            else:
+                vals["certified_by"] = self.env.user.name
+                vals["certified_at"] = fields.Datetime.now()
+                if any(vals.get(f) for f in EVIDENCE_ATTACHMENTS):
+                    vals["evidence_by_ids"] = [(4, self.env.uid)]
             if vals.get("purpose") == "case_purge":
                 if not vals.get("case_id"):
                     raise UserError("A purge certificate names the case it purges.")
@@ -1010,6 +1109,12 @@ class FixDataWipeCertificateA02R2(models.Model):
                 vals["serial_number"] = ref
                 vals.pop("device_id", None)
         records = super(FixDataWipeCertificateA02R2, self._guarded()).create(vals_list)
+        if opening:
+            # the base create stamps the creating user: an opened certificate
+            # names no certifier until the lab records the destruction
+            records._guarded().write(
+                {"technician_id": False, "certified_by": False, "certified_at": False}
+            )
         # the guard token opened the stamps for this create only: the caller
         # gets the records in its own environment, not a guard-open one
         records = records.with_env(self.env)
@@ -1028,7 +1133,28 @@ class FixDataWipeCertificateA02R2(models.Model):
                     raise UserError(
                         "Certificate %s is decided: what it certifies is fixed." % rec.name
                     )
+        recorded = [f for f in EVIDENCE_ATTACHMENTS if vals.get(f)]
+        stamping = recorded and not self._fix_guard_has_token()
+        if (
+            stamping
+            and self.filtered("awaiting_lab_certifier")
+            and not (self.env.su or self.env.user.has_group(GROUP_OPERATOR))
+        ):
+            raise AccessError("The data lab records the destruction evidence.")
         result = super().write(vals)
+        if stamping:
+            uid = self.env.uid
+            for rec in self:
+                stamp = {"evidence_by_ids": [(4, uid)]}
+                if rec.awaiting_lab_certifier:
+                    # N1: the lab person who destroyed the media certifies it
+                    stamp.update(
+                        technician_id=uid,
+                        certified_by=self.env.user.name,
+                        certified_at=fields.Datetime.now(),
+                        awaiting_lab_certifier=False,
+                    )
+                rec._guarded().write(stamp)
         if {"method", "media_kind", "wipe_request_id"} & set(vals):
             self._m06_check_matrix()
         return result
@@ -1102,8 +1228,16 @@ class FixDataWipeCertificateA02R2(models.Model):
         for cert in self:
             if cert.method != "physical_destruction":
                 raise UserError("Certificate %s is not a physical destruction." % cert.name)
-            if self.env.user in (cert.technician_id | cert.create_uid):
-                raise UserError("The witness is not the person who destroyed the media.")
+            if cert.awaiting_lab_certifier:
+                raise UserError(
+                    "Certificate %s: the lab person who destroys the media records the log and "
+                    "the photo first; then a second person witnesses it." % cert.name
+                )
+            if self.env.user in cert._m06_lab_people():
+                raise UserError(
+                    "The witness is not the person who destroyed the media or recorded its "
+                    "evidence."
+                )
             cert._guarded().write({"destruction_witness_id": self.env.uid})
         return True
 
@@ -1151,8 +1285,19 @@ class FixDataWipeCertificateA02R2(models.Model):
             refs = {_norm_serial(consumer.display_name)}
             if "name" in consumer._fields:
                 refs.add(_norm_serial(consumer.name))
-            # a request that names its record binds the certificate to it
-            if req and (req.source_ref or "").strip() and _norm_serial(req.source_ref) not in refs:
+            # a request that names its record binds the certificate to it; a
+            # strict consumer (M14 / M18 / M13) needs that request (N2)
+            strict = consumer._name in STRICT_CONSUMERS
+            if strict and (not req or req.cancelled):
+                return "certificate %s answers no wipe request raised for %s" % (
+                    cert.name,
+                    consumer.display_name,
+                )
+            if (
+                req
+                and (strict or (req.source_ref or "").strip())
+                and (_norm_serial(req.source_ref) not in refs)
+            ):
                 return "certificate %s answers no wipe request raised for %s (it answers %s)" % (
                     cert.name,
                     consumer.display_name,

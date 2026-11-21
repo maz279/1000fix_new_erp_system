@@ -283,11 +283,203 @@ def test_review_p2_the_requester_withdraws_an_unconfirmed_hand_off(m6):
 
 
 # ===================================================== P2 D17 KPI
+def _hold(m6, case):
+    hold = (
+        m6.env["fix.data.retention.hold"]
+        .with_user(m6.manager)
+        .create(
+            {
+                "case_id": case.id,
+                "reason_type": "legal_hold",
+                "reason": "Court order in the customer's dispute",
+                "hold_until": case.retention_until + timedelta(days=30),
+            }
+        )
+    )
+    hold.with_user(m6.manager2).action_approve()
+    return hold
+
+
 def test_review_p2_the_purge_overdue_kpi_leaves_out_held_cases(m6):
     from odoo.addons.cd_p03_portal.controllers.a02 import m06 as ctrl
 
     case = m6.handed_over(m6.new_case())
-    case._guarded().write({"retention_until": case.handover_at.date() - timedelta(days=2)})
-    assert ctrl.kpis(m6.env)["purge_overdue"] >= 1
-    with mock.patch.object(type(case), "_retention_held", lambda self: True):
-        assert ctrl.kpis(m6.env)["purge_overdue"] == 0
+    held = m6.handed_over(m6.new_case(serial="WD-RV-HELD-%d" % m6.n), target="T-RV-H")
+    _hold(m6, held)
+    past = case.handover_at.date() - timedelta(days=2)
+    (case | held)._guarded().write({"retention_until": past})
+    base = ctrl.kpis(m6.env)["purge_overdue"]
+
+    # N8: one query for the holds, never a lookup per case
+    def _per_case(self):
+        raise AssertionError("the KPI looked the hold up case by case")
+
+    with mock.patch.object(type(case), "_retention_held", _per_case):
+        assert ctrl.kpis(m6.env)["purge_overdue"] == base
+    assert held.id in m6.env[CASE]._m06_held_case_ids(case | held)
+    assert case.id not in m6.env[CASE]._m06_held_case_ids(case | held)
+
+
+# ===================================================== round 3 (A03 re-check)
+def test_review_n1_whoever_records_the_evidence_neither_witnesses_nor_verifies(m6):
+    serial = "SN-RV-N1-%d" % m6.n
+    cert = (
+        m6.env[CERT]
+        .with_user(m6.tech)
+        .create({"method": "physical_destruction", "serial_number": serial})
+    )
+    # a second lab person attaches the photo: he recorded evidence
+    photo = (
+        m6.env["ir.attachment"]
+        .with_user(m6.tech2)
+        .create({"name": "shredded.jpg", "raw": b"the shredded platters"})
+    )
+    cert.with_user(m6.tech2).write({"destruction_photo_attachment_id": photo.id})
+    assert cert.evidence_by_ids == m6.tech2
+    with pytest.raises(UserError, match="recorded its evidence"):
+        cert.with_user(m6.tech2).action_witness_destruction()
+    both = m6.env["res.users"].browse(m6.tech2.id)
+    both.sudo().write({"group_ids": [(4, m6.env.ref("cd_data_case.group_wipe_verifier").id)]})
+    log = m6.env["ir.attachment"].with_user(m6.tech).create({"name": "s.log", "raw": b"PASS"})
+    cert.with_user(m6.tech).write({"wipe_log_attachment_id": log.id})
+    witness = _user(m6, "n1witness", "cd_data_case.group_data_recovery_operator")
+    cert.with_user(witness).action_witness_destruction()
+    # the photo-taker (now also a verifier) does not verify it, nor the witness
+    with pytest.raises(UserError, match="Segregation of duties"):
+        cert.with_user(both).action_verify()
+    witness.sudo().write({"group_ids": [(4, m6.env.ref("cd_data_case.group_wipe_verifier").id)]})
+    with pytest.raises(UserError, match="Segregation of duties"):
+        cert.with_user(witness).action_verify()
+    cert.with_user(m6.verifier).action_verify()
+    assert cert.sanitization_status == "verified"
+
+
+def test_review_n1_a_certificate_opened_for_the_lab_is_certified_by_the_lab(m6):
+    clerk = _user(m6, "n1clerk")
+    serial = "SN-RV-OPEN-%d" % m6.n
+    cert = (
+        m6.env[CERT].with_user(clerk)._m06_open_destruction_certificate({"serial_number": serial})
+    )
+    cert = cert.sudo()
+    assert cert.awaiting_lab_certifier and not cert.certified_by and not cert.technician_id
+    # nobody witnesses it before the lab recorded the destruction
+    with pytest.raises(UserError, match="records the log and the photo first"):
+        cert.with_user(m6.tech2).action_witness_destruction()
+    Att = m6.env["ir.attachment"].with_user(m6.tech)
+    cert.with_user(m6.tech).write(
+        {
+            "wipe_log_attachment_id": Att.create({"name": "s.log", "raw": b"PASS"}).id,
+            "destruction_photo_attachment_id": Att.create({"name": "p.jpg", "raw": b"p"}).id,
+        }
+    )
+    assert (cert.certified_by, cert.technician_id) == (m6.tech.name, m6.tech)
+    assert not cert.awaiting_lab_certifier
+    with pytest.raises(UserError, match="recorded its evidence"):
+        cert.with_user(m6.tech).action_witness_destruction()
+    cert.with_user(m6.tech2).action_witness_destruction()
+    cert.with_user(m6.verifier).action_verify()
+
+
+def test_review_n2_a_strict_consumer_needs_its_own_wipe_request(m6):
+    from odoo.addons.cd_data_case.models import fix_data_case_a02r2 as mod
+
+    consumer = m6.new_case(serial="WD-RV-N2-%d" % m6.n)
+    serial = "SN-RV-N2-%d" % m6.n
+    loose = _cert(m6, serial, method="nist_800_88_purge")
+    since = loose.verified_at - timedelta(days=1)
+    strict = mock.patch.object(mod, "STRICT_CONSUMERS", frozenset({CASE}))
+    with strict:
+        assert "no wipe request raised for" in loose._fix_certify_denial(
+            serial, consumer=consumer, since=since
+        )
+        own = m6.env["fix.data.wipe.request"]._m06_request_for(
+            consumer, "customer", serial, "return_customer"
+        )
+        assert own.source_ref == consumer.name
+        assert own == m6.env["fix.data.wipe.request"]._m06_request_for(
+            consumer, "customer", serial, "return_customer"
+        )  # idempotent
+        bound = _cert(m6, serial, method="nist_800_88_purge", request=own)
+        assert bound._fix_certify_denial(serial, consumer=consumer, since=since) == ""
+    # without the strict rule the request is optional for a data case
+    assert loose._fix_certify_denial(serial, consumer=consumer, since=since) == ""
+
+
+def test_review_n3_the_receiver_keeps_sight_of_the_case_he_holds(m6):
+    case = m6.custody(m6.new_case())
+    case.with_user(m6.tech).action_log_custody_transfer(m6.tech2.login)
+    case.with_user(m6.tech2).action_confirm_custody()
+    assert case.current_custodian_id == m6.tech2
+    # he reads the case and logs the next move himself
+    case.with_user(m6.tech2).read(["name"])
+    case.with_user(m6.tech2).action_log_custody_transfer(m6.tech.login)
+    assert case.custody_request_to_id == m6.tech
+    # a media move he confirms makes him the custodian too
+    other = m6.custody(m6.new_case(serial="WD-RV-N3-%d" % m6.n))
+    unit = other.media_unit_ids.with_user(m6.tech)
+    unit.action_transfer("vault", handler=m6.tech2.login)
+    unit.with_user(m6.tech2).action_confirm_move()
+    assert other.current_custodian_id == m6.tech2
+    other.with_user(m6.tech2).read(["name"])
+
+
+def test_review_n4_n9_reports_and_registers_follow_the_case_scope(m6):
+    from odoo.addons.cd_p03_portal.controllers.a02 import m06 as ctrl
+
+    case = m6.handed_over(m6.new_case())
+    m6.env["fix.data.case.read.log"].sudo().search([("case_id", "=", case.id)])
+    m6.env.cr.execute("DELETE FROM fix_data_case_read_log WHERE case_id = %s", (case.id,))
+    stranger = m6.env(user=m6.tech2.id)
+    for report in (ctrl._recovered_inventory, ctrl._destruction_audit, ctrl._service_revenue):
+        text = str(report(stranger)["rows"])
+        assert case.name not in text, report.__name__
+    assert case.name in str(ctrl._service_revenue(m6.env(user=m6.tech.id))["rows"])
+    logs = m6.env["fix.data.case.read.log"].sudo().search([("case_id", "=", case.id)])
+    assert logs.filtered(lambda r: r.user_id == m6.tech and r.channel == "report")
+    # N9: the case's other registers are hidden from an operator not on it
+    for model in ("fix.data.evaluation", "fix.data.custody.event", "fix.data.quote"):
+        assert not m6.env[model].with_user(m6.tech2).search([("case_id", "=", case.id)]), model
+    hold = _hold(m6, case)
+    assert not m6.env["fix.data.retention.hold"].with_user(m6.tech2).search([("id", "=", hold.id)])
+    cert = m6.purge_cert(case)
+    assert not m6.env[CERT].with_user(m6.tech2).search([("id", "=", cert.id)])
+    assert m6.env[CERT].with_user(m6.verifier).search([("id", "=", cert.id)])
+    for model in (
+        "fix.data.evaluation",
+        "fix.data.recovered.inventory",
+        "fix.z4.access.audit",
+        "fix.data.retention.hold",
+        "fix.data.wipe.request",
+        CERT,
+    ):
+        assert ctrl.SURFACES[model].get("caller_scoped"), model
+
+
+def test_review_n5_the_case_picker_is_the_callers_scope(m6):
+    from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
+
+    staffed = m6.new_case()
+    source = api._picker_source(m6.env(user=m6.tech2.id), CASE)
+    assert not source.env.su
+    assert not source.search([("id", "=", staffed.id)])
+
+
+def test_review_n6_the_administrator_and_lab_managers_see_every_case(m6):
+    staffed = m6.new_case()
+    admin = m6.env.ref("base.user_admin")
+    assert m6.env[CASE].with_user(admin).search([("id", "=", staffed.id)]) == staffed
+    assert m6.env[CASE].with_user(m6.manager).search([("id", "=", staffed.id)]) == staffed
+
+
+def test_review_n7_internal_access_checks_are_not_logged_as_reads(m6):
+    staffed = m6.new_case()
+    m6.env.cr.execute("DELETE FROM fix_data_case_read_log WHERE case_id = %s", (staffed.id,))
+    staffed.with_user(m6.tech).check_access("read")
+    staffed.with_user(m6.tech).check_access("write")
+    Log = m6.env["fix.data.case.read.log"].sudo()
+    assert not Log.search([("case_id", "=", staffed.id)])
+    res = _p03(
+        m6, m6.tech, "model_form", model=CASE, fields=[{"name": "name"}], record_id=staffed.id
+    )
+    assert res["record"]["name"] == staffed.name
+    assert Log.search([("case_id", "=", staffed.id)]).mapped("channel") == ["form"]

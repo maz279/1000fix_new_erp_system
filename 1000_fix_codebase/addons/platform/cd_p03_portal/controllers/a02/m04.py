@@ -193,9 +193,13 @@ def _branch_fence(env, model):
     """A02 pass 2 (M04-06): the tile shows the reader's branches. A reader
     restricted to some operating units sees theirs; the fence is the record's
     operating unit (or its branch's)."""
-    units = getattr(env.user, "operating_unit_ids", None)
-    if not units:
+    if env.su or "operating_unit_ids" not in env.user._fields:
         return []
+    units = env.user.operating_unit_ids
+    if not units:
+        # A02 pass 2 review: a reader with no operating unit sees no branch's
+        # figures (it saw every branch's)
+        return [("id", "=", 0)]
     has_ou, has_branch = "operating_unit_id" in model._fields, "branch_id" in model._fields
     if has_ou and has_branch:
         # A02 pass 2 review: the record's own unit, else its branch's (an order

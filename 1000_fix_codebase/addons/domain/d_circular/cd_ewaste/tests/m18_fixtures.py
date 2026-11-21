@@ -135,14 +135,17 @@ class M18:
         vals.setdefault("weight_kg", 0.5)
         return self.env["fix.ewaste.collection"].with_user(user or self.clerk).create(vals)
 
-    def verified_cert(self, serial):
-        """The real M06 path (A02 pass 2 review B7): the data lab records the
-        destruction with its log, a second lab person witnesses it in their
-        own session, and the wipe verifier verifies it."""
+    def verified_cert(self, serial, col):
+        """The real M06 path (A02 pass 2 review B7, N2): the collection raises
+        its wipe request, the data lab records the destruction against it
+        with its log and photo, a second lab person witnesses it in their own
+        session, and the wipe verifier verifies it."""
+        request = col._m18_wipe_request()
+        assert request.serial_number == serial
         cert = (
             self.env["fix.data.wipe.certificate"]
             .with_user(self.wipe_tech)
-            .create({"method": "physical_destruction", "serial_number": serial})
+            .create({"method": "physical_destruction", "wipe_request_id": request.id})
         )
         return self.complete_destruction(cert)
 
@@ -154,6 +157,8 @@ class M18:
         tag = (cert.serial_number or str(cert.id)).encode()
         cert.with_user(self.wipe_tech).write(
             {
+                # an M18 request is judged by the D16 matrix on the media kind
+                "media_kind": "flash",
                 "wipe_log_attachment_id": Att.create(
                     {"name": "shred.log", "raw": b"run %s: PASS" % tag}
                 ).id,
@@ -179,7 +184,7 @@ class M18:
         certificate and released for the recycler ('recycled')."""
         dev = self.device()
         col = self.collection(device_id=dev.id, weight_kg=weight, material_type=material)
-        cert = self.verified_cert(dev.serial_number)
+        cert = self.verified_cert(dev.serial_number, col)
         self.triage(col, "recycle", data_bearing=True)
         col.with_user(self.clerk).write({"wipe_certificate_id": cert.id})
         col.with_user(self.clerk).action_secure_destruction()

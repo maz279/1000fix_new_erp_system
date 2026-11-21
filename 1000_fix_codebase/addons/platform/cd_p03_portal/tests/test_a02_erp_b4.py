@@ -79,6 +79,21 @@ def _ago(**kw):
 # ============================================================== M04 KPI row
 
 
+def test_a_reader_with_no_operating_unit_sees_no_branch(b4):
+    """A02 pass 2 review: the M04 tile fence fails closed."""
+    m = b4
+    nobody = (
+        m.env["res.users"]
+        .with_context(no_reset_password=True)
+        .create({"name": "B4 no unit", "login": "b4.nounit@a02.test"})
+    )
+    nobody.sudo().write({"operating_unit_ids": [(5, 0, 0)]})
+    renv = m.env(user=nobody.id)
+    assert m04ctl._branch_fence(renv, m.env["fix.service.order"]) == [("id", "=", 0)]
+    _order(m, ready_at=_ago(days=10))
+    assert m04ctl.kpis(renv)["uncollected_7d"] == 0
+
+
 def test_uncollected_counts_ready_orders_from_ready_at(b4):
     m = b4
     before = m04ctl.kpis(m.denv)["uncollected_7d"]
