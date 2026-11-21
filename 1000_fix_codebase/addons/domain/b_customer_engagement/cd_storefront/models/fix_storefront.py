@@ -37,6 +37,24 @@ CART_ABANDON_HOURS_DEFAULT = 24
 
 PAID_STATES = ("paid", "dispatched", "delivered")
 
+# A04 ERP audit (20 Nov 2026) M38-F7 / AUT-ECM-08: a prepaid order the
+# gateway never confirmed is cancelled after this many minutes and its
+# reservations released. A DEFAULT THE BUSINESS MUST CONFIRM (OWNER).
+PAYMENT_TIMEOUT_PARAM = "cd_storefront.payment_timeout_minutes"
+PAYMENT_TIMEOUT_DEFAULT = 60
+
+# M38-F13 / X7: the signed-callback secret of each rail (storefront_api).
+GATEWAY_SECRET_PARAM = "cd_storefront.gateway_secret.%s"  # noqa: S105 - a key name
+
+
+def _whole_units(qty) -> bool:
+    """M38-F4: the storefront sells whole units (0.01 of a charger paid 1%)."""
+    try:
+        return float(qty) > 0 and abs(float(qty) - round(float(qty))) < 1e-9
+    except (TypeError, ValueError):
+        return False
+
+
 ORDER_GUARDED = frozenset(
     {
         "state",
@@ -59,6 +77,8 @@ ORDER_GUARDED = frozenset(
         "refund_due",
         "cancelled_by_id",
         "placed_by_id",
+        "payment_expires_at",
+        "posting_state",
     }
 )
 
@@ -148,15 +168,17 @@ class FixStorefrontCart(models.Model):
             raise UserError("Cart %s has already been ordered" % rec.name)
         if not rec.line_ids:
             raise UserError("Cart is empty")
-        # A04 audit C1 (M38-3): the price is the catalogue's, not the cart's.
-        # A line priced anywhere but here (a tampered line, or one from
-        # before the price changed) is re-priced, so the order is always
-        # placed at the price the server sets. A graded refurb device sells
-        # at its own resale price.
+        # A04 audit C1 (M38-3) / A04 ERP M38-F1: the price is M11's released
+        # storefront price, never the cart's or list_price. Every line is
+        # re-priced here (the price can change, or be withdrawn, while the
+        # cart waits), so the order is always placed at the price the server
+        # sets; a line with no released price refuses the whole order. A
+        # graded refurb device sells at its own resale price.
         for line in rec.line_ids:
-            server_price = line._sf_server_price()
-            if line.currency_id.compare_amounts(line.unit_price, server_price) != 0:
-                line.sudo().write({"unit_price": server_price})
+            info = line._sf_price_info()
+            vals = line._sf_price_vals(info)
+            if any(line._sf_value_differs(k, v) for k, v in vals.items()):
+                line.sudo().write(vals)
         # ...and may still be sold, here, at that price: the M37 item
         # lifecycle and the M11 floor are checked again at checkout, since
         # either can change while the cart waits.
@@ -192,13 +214,30 @@ class FixStorefrontCart(models.Model):
                 lambda r: r.company_id == rec.company_id
                 and (r.country_code or "").upper() == country.upper()
             )
-            if rails and not gateway:
+            # A04 ERP audit M38-F13 / X7: a rail with no gateway master took
+            # orders nobody could ever pay. Every prepaid rail now needs its
+            # live M65 gateway in this company.
+            if not gateway:
                 raise UserError(
-                    "The %s payment gateway is not configured for %s in this company."
-                    % (payment_rail, country)
+                    "The %s payment gateway is not configured for %s in this company: the "
+                    "storefront takes no %s order until it is set up and live in M65."
+                    % (payment_rail, country, payment_rail)
                 )
-            if gateway:
-                gateway.assert_live_for_checkout("storefront checkout", country_code=country)
+            gateway.assert_live_for_checkout("storefront checkout", country_code=country)
+            # a customer's own checkout is paid by the signed callback: with
+            # no callback secret no payment could ever be confirmed
+            channel = rec["channel"] if "channel" in rec._fields else "web"
+            secret = (
+                self.env["ir.config_parameter"]
+                .sudo()
+                .get_param(GATEWAY_SECRET_PARAM % payment_rail)
+            )
+            if channel in ("web", "app") and not secret:
+                raise UserError(
+                    "The %s gateway has no callback secret (%s): an online payment could never "
+                    "be confirmed, so the storefront takes no %s order."
+                    % (payment_rail, GATEWAY_SECRET_PARAM % payment_rail, payment_rail)
+                )
 
         # A04 audit M38-8: the refurb device is reserved for this order now,
         # and the delivery slot is booked, both within their limits.
@@ -225,6 +264,10 @@ class FixStorefrontCart(models.Model):
             "state": "pending_payment",
             "slot_id": slot.id if slot else False,
             "placed_by_id": self.env.uid,
+            # M38-F7: a prepaid order is paid within the timeout or cancelled
+            "payment_expires_at": False
+            if payment_rail == "cod"
+            else fields.Datetime.now() + timedelta(minutes=self._sf_payment_timeout()),
             "line_ids": [
                 (
                     0,
@@ -240,6 +283,10 @@ class FixStorefrontCart(models.Model):
                         "currency_id": rec.currency_id.id,
                         "unit_price": line.unit_price,
                         "subtotal": line.subtotal,
+                        # M38-F1: the price lock - what M11 priced it at
+                        "unit_price_excl": line.unit_price_excl,
+                        "price_card_id": line.price_card_id.id or False,
+                        "price_source": line.price_source or False,
                     },
                 )
                 for line in rec.line_ids
@@ -265,6 +312,15 @@ class FixStorefrontCart(models.Model):
             },
         )
         return order
+
+    @api.model
+    def _sf_payment_timeout(self) -> int:
+        raw = self.env["ir.config_parameter"].sudo().get_param(PAYMENT_TIMEOUT_PARAM)
+        try:
+            minutes = int(raw) if raw else PAYMENT_TIMEOUT_DEFAULT
+        except ValueError:
+            minutes = PAYMENT_TIMEOUT_DEFAULT
+        return max(minutes, 1)
 
     @api.model
     def cron_publish_abandoned_carts(self):
@@ -325,32 +381,139 @@ class FixStorefrontCartLine(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
-    unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id", required=True)
+    unit_price = fields.Monetary(
+        string="Unit Price (incl. VAT)",
+        currency_field="currency_id",
+        required=True,
+        help="What the customer pays per unit, VAT included: the M11 released storefront "
+        "price (VAT-exclusive) plus the M51 VAT on it.",
+    )
+    # A04 ERP audit M38-F1: the price lock - the M11 price this line carries
+    unit_price_excl = fields.Monetary(
+        string="M11 Price (excl. VAT)", currency_field="currency_id", readonly=True
+    )
+    price_card_id = fields.Many2one(
+        "fix.rate.card", string="M11 Rate Card", readonly=True, ondelete="restrict"
+    )
+    price_source = fields.Char(string="Price Source", readonly=True)
     subtotal = fields.Monetary(
         compute="_compute_subtotal", string="Subtotal", currency_field="currency_id", store=True
     )
 
-    def _sf_server_price(self) -> float:
-        """The price the server sets: the refurb item's resale price, else the
-        catalogue's list price."""
+    # ------------------------------------------------------------ M11 price
+    @api.model
+    def _sf_m11_price(self, product, partner=None, company=None, qty=1.0):
+        """A04 ERP audit M38-F1: the storefront price of one unit of the
+        product template `product`, from M11 (fix.rate.card.price_for on the
+        'storefront' channel) - never product.template.list_price.
+
+        Returns {excl, incl, card_id, source}. Raises UserError when M11 has
+        no released price for it or the price is not positive: the storefront
+        sells nothing it cannot price (fail closed)."""
+        product = product.sudo()
+        company = company or self.env.company
+        variant = product.product_variant_id
+        if "fix.rate.card" not in self.env or not variant:
+            raise UserError(
+                "%s has no released M11 storefront price (M11 is not installed): it is not "
+                "sold online." % product.display_name
+            )
+        res = (
+            self.env["fix.rate.card"]
+            .sudo()
+            .price_for(
+                variant, partner=partner, channel="storefront", qty=qty or 1.0, company=company
+            )
+        )
+        excl = res.get("price")
+        if excl is None or excl <= 0.005:
+            raise UserError(
+                "%s cannot be sold online: %s"
+                % (
+                    product.display_name,
+                    res.get("reason") or "its released M11 storefront price is not positive",
+                )
+            )
+        incl = self._sf_vat_inclusive(excl, variant, company, res.get("vat_rate"))
+        if incl <= 0.005:
+            raise UserError("%s has no positive storefront price." % product.display_name)
+        return {
+            "excl": excl,
+            "incl": incl,
+            "card_id": res.get("card_id") or False,
+            "source": res.get("source") or "m11",
+        }
+
+    @api.model
+    def _sf_vat_inclusive(self, excl, variant, company, vat_rate=None):
+        """The VAT-inclusive unit price the customer pays for an M11
+        VAT-exclusive price. Here: the standard rate M11 reports (M51 Tax
+        Rate Master); cd_storefront_finance replaces it with the M51
+        determination the invoice line itself makes, so the invoice
+        reproduces the price exactly. No rate known: refused."""
+        if vat_rate is None:
+            raise UserError(
+                "No VAT rate is known for %s (M51 Tax Rate Master): the storefront cannot "
+                "state a VAT-inclusive price." % variant.display_name
+            )
+        currency = self.env.ref("base.BDT")
+        return currency.round(excl * (1.0 + float(vat_rate) / 100.0))
+
+    def _sf_price_info(self) -> dict:
+        """The price the server sets for this line: the refurb item's resale
+        price (A05), else M11's released storefront price."""
         self.ensure_one()
         if self.graded_stock_id:
-            return self.graded_stock_id.sudo().resale_price
-        return self.product_id.sudo().list_price
+            return {
+                "excl": 0.0,
+                "incl": self.graded_stock_id.sudo().resale_price,
+                "card_id": False,
+                "source": "graded_stock",
+            }
+        return self._sf_m11_price(
+            self.product_id,
+            partner=self.cart_id.customer_id,
+            company=self.cart_id.company_id or self.company_id,
+            qty=self.quantity,
+        )
+
+    @api.model
+    def _sf_price_vals(self, info) -> dict:
+        return {
+            "unit_price": info["incl"],
+            "unit_price_excl": info["excl"],
+            "price_card_id": info["card_id"] or False,
+            "price_source": info["source"],
+        }
+
+    def _sf_server_price(self) -> float:
+        """The VAT-inclusive unit price the server sets (see _sf_price_info)."""
+        self.ensure_one()
+        return self._sf_price_info()["incl"]
 
     @api.model_create_multi
     def create(self, vals_list):
-        # A04 audit C1 (M38-3): a cart line's price is the catalogue price.
-        # Only trusted server code may set a different one; a line created
-        # without a price (by anyone) takes the server's.
-        products = self.env["product.template"].sudo()
+        # A04 audit C1 (M38-3) / A04 ERP M38-F1: a cart line's price is set
+        # by the server, for everyone (the API too): M11's released
+        # storefront price, or the refurb item's resale price. A price passed
+        # in is ignored.
+        Product = self.env["product.template"].sudo()
+        Cart = self.env["fix.storefront.cart"].sudo()
         stock = self.env["fix.graded.stock"].sudo()
         for vals in vals_list:
-            if not self.env.su or vals.get("unit_price") in (None, False):
-                if vals.get("graded_stock_id"):
-                    vals["unit_price"] = stock.browse(vals["graded_stock_id"]).resale_price
-                elif vals.get("product_id"):
-                    vals["unit_price"] = products.browse(vals["product_id"]).list_price
+            if vals.get("graded_stock_id"):
+                vals["unit_price"] = stock.browse(vals["graded_stock_id"]).resale_price
+                vals.update({"unit_price_excl": 0.0, "price_source": "graded_stock"})
+                vals.pop("price_card_id", None)
+            elif vals.get("product_id"):
+                cart = Cart.browse(vals.get("cart_id") or [])
+                info = self._sf_m11_price(
+                    Product.browse(vals["product_id"]),
+                    partner=cart.customer_id if cart else None,
+                    company=cart.company_id if cart else None,
+                    qty=float(vals.get("quantity") or 1.0),
+                )
+                vals.update(self._sf_price_vals(info))
         lines = super().create(vals_list)
         lines._sf_check_sale()
         return lines
@@ -359,19 +522,28 @@ class FixStorefrontCartLine(models.Model):
         """A04 audit (2026-11-04), with M37/M11: the one sale check every
         selling document runs (product.product._fix_check_sale): the
         catalogue item's lifecycle (draft, restricted, brand authorisation)
-        and, where M11 is installed, the price floor, at this line's price,
-        on the storefront channel. Raises UserError when the line may not be
+        and the M11 gate on the storefront channel - a released price, and
+        the VAT-exclusive price at or above the floor (or an override
+        approved for this line). Raises UserError when the line may not be
         sold."""
         for line in self:
             variant = line.product_id.sudo().product_variant_id
-            if variant and hasattr(variant, "_fix_check_sale"):
+            if not variant or not hasattr(variant, "_fix_check_sale"):
+                continue
+            if line.graded_stock_id:
                 variant._fix_check_sale(unit_price=line.unit_price, channel="storefront")
+                continue
+            variant._fix_check_sale(
+                unit_price=line.unit_price_excl,
+                channel="storefront",
+                line=line,
+                partner=line.cart_id.customer_id,
+            )
 
     def write(self, vals):
-        if not self.env.su and {"unit_price", "graded_stock_id"} & set(vals):
-            raise UserError(
-                "A cart line's price comes from the catalogue and cannot be set by hand."
-            )
+        locked = {"unit_price", "graded_stock_id", "unit_price_excl", "price_card_id"}
+        if not self.env.su and locked & set(vals):
+            raise UserError("A cart line's price comes from M11 and cannot be set by hand.")
         return super().write(vals)
 
     @api.depends("quantity", "unit_price")
@@ -384,6 +556,11 @@ class FixStorefrontCartLine(models.Model):
         for rec in self:
             if rec.quantity <= 0:
                 raise UserError("Quantity must be positive")
+            if not _whole_units(rec.quantity):
+                raise ValidationError(
+                    "The storefront sells whole units: %s is not a whole quantity "
+                    "(A04 ERP M38-F4)." % rec.quantity
+                )
             if rec.graded_stock_id and rec.quantity != 1:
                 raise ValidationError("A refurbished item is one device: its quantity is 1.")
 
@@ -443,6 +620,25 @@ class FixStorefrontOrder(models.Model):
         ],
         default="bkash",
         required=True,
+    )
+    # The books state of the order. Declared here so every screen that lists
+    # orders can show it; cd_storefront_finance (the M20 bridge) owns its
+    # value and the posting itself. Without the bridge it stays "none".
+    posting_state = fields.Selection(
+        [("none", "Nothing to Post"), ("pending", "Pending Posting"), ("posted", "Posted")],
+        string="Books",
+        default="none",
+        required=True,
+        readonly=True,
+        copy=False,
+        index=True,
+    )
+    payment_expires_at = fields.Datetime(
+        string="Pay By",
+        readonly=True,
+        copy=False,
+        help="A prepaid order not paid by then is cancelled by the payment-timeout job "
+        "(AUT-ECM-08) and what it reserved is released.",
     )
     payment_ref = fields.Char(string="Payment Rail Reference / TrxID", copy=False)
     payment_date = fields.Datetime(string="Payment Date", copy=False)
@@ -924,6 +1120,32 @@ class FixStorefrontOrder(models.Model):
         return True
 
     @api.model
+    def cron_expire_unpaid_orders(self, limit=500):
+        """A04 ERP audit M38-F7 (AUT-ECM-08): a prepaid order the gateway
+        never confirmed is cancelled once its pay-by time has passed, which
+        releases its reserved stock and slot. Idempotent: only orders still
+        pending payment are touched; cash on delivery never expires."""
+        due = self.sudo().search(
+            [
+                ("state", "=", "pending_payment"),
+                ("payment_rail", "!=", "cod"),
+                ("payment_expires_at", "!=", False),
+                ("payment_expires_at", "<", fields.Datetime.now()),
+            ],
+            limit=limit,
+        )
+        for order in due:
+            try:
+                with self.env.cr.savepoint():
+                    order.action_cancel(
+                        reason="Payment not received before %s (timeout)."
+                        % order.payment_expires_at
+                    )
+            except UserError as exc:
+                logger.warning("storefront order %s did not expire: %s", order.name, exc)
+        return len(due)
+
+    @api.model
     def cron_close_return_windows(self):
         """A04 audit C10: a delivered order whose return window has elapsed is
         closed for returns. Idempotent (only orders still open are touched)."""
@@ -953,8 +1175,33 @@ class FixStorefrontOrderLine(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
-    unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id", required=True)
+    unit_price = fields.Monetary(
+        string="Unit Price (incl. VAT)", currency_field="currency_id", required=True
+    )
     subtotal = fields.Monetary(string="Subtotal", currency_field="currency_id", required=True)
+    # A04 ERP audit M38-F1: the M11 price lock carried from the cart
+    unit_price_excl = fields.Monetary(
+        string="M11 Price (excl. VAT)", currency_field="currency_id", readonly=True
+    )
+    price_card_id = fields.Many2one(
+        "fix.rate.card", string="M11 Rate Card", readonly=True, ondelete="restrict"
+    )
+    price_source = fields.Char(string="Price Source", readonly=True)
+
+    @api.constrains("quantity", "unit_price")
+    def _check_whole_priced(self):
+        """M38-F1/F4: a placed line is a whole number of units at a positive
+        price."""
+        for rec in self:
+            if not _whole_units(rec.quantity):
+                raise ValidationError(
+                    "The storefront sells whole units: %s is not a whole quantity." % rec.quantity
+                )
+            if (rec.unit_price or 0.0) <= 0.005:
+                raise ValidationError(
+                    "%s has no positive price: nothing is sold for free online."
+                    % rec.product_id.display_name
+                )
 
     def write(self, vals):
         # A04 audit M38-12: a placed order's lines are what the customer

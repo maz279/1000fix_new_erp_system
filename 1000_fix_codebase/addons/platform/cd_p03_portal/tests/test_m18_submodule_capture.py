@@ -236,7 +236,7 @@ def test_page3_destruction_gate_bind_start_release(m):
     col = m.collection(device_id=dev.id, weight_kg=0.5)
     m.triage(col, "recycle", data_bearing=True)
     assert col.state == "triaged"
-    cert = m.verified_cert(dev.serial_number)
+    cert = m.verified_cert(dev.serial_number, col)
     _ok(m.p03_write(m.clerk, COL, col.id, {"wipe_certificate_id": cert.id}))
     _ok(m.p03_action(m.clerk, COL, [col.id], "action_secure_destruction"))
     col.invalidate_recordset()

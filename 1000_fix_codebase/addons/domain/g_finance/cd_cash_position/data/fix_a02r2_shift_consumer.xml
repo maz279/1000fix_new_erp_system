@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP pass 2 X5-14 (M04 spec: shift.closed -> M50; M50 FR-TRE-016 /
+     BRU-TRE-03): a shift variance above the second threshold
+     (cd_cash_position.shift_variance_escalation_threshold; unset = the M04
+     tolerance) raises the M50 treasury alert to finance, once per shift. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a02r2_shift_closed" model="fix.event.consumer">
+            <field name="name">M50: a shift variance above the second threshold is escalated to finance</field>
+            <field name="event_type">shift.closed</field>
+            <field name="model">fix.a02r2.treasury.consumers</field>
+            <field name="method">consume_shift_closed</field>
+            <field name="module">cd_cash_position</field>
+        </record>
+
+    </data>
+</odoo>

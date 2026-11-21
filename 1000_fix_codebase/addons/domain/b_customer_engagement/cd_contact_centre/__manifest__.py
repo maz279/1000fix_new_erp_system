@@ -43,6 +43,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         # A02 audit B2: customer SMS on estimate.sent / service_order.ready.
         "data/fix_m01_notif_consumers.xml",
         "data/fix_a02_notif_consumers.xml",
+        # A02 ERP pass 2 X5-14: SLA near-breach / escalation, MSP report, M06 notices
+        "data/fix_a02r2_notif_consumers.xml",
         # A11 audit P2: approver e-mail/SMS on approval.* events.
         "data/fix_approval_notify_consumers.xml",
         # A10 S6 (M61 -> M27 hand-off): sync knowledge bindings on publish.

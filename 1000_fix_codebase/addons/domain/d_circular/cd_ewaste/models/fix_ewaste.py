@@ -301,7 +301,8 @@ class FixEwasteCollection(models.Model):
         if not self.wipe_required:
             return ""
         cert = self.sudo().wipe_certificate_id
-        return cert._fix_certify_denial(self._fix_serial())
+        # A02 pass 2 review (M06-05): bound to THIS collection
+        return cert._fix_certify_denial(self._fix_serial(), consumer=self.sudo())
 
     def _check_target_state(self, new_state, vals=None):
         """The gate of each target state. Runs on EVERY path (A05 E4)."""
@@ -443,6 +444,24 @@ class FixEwasteCollection(models.Model):
             self._fix_route_to_refurbishment()
         elif triage.decision == "hazardous":
             self._fix_open_hazmat()
+        elif wipe_required:
+            # A02 pass 2 review N2: the item enters the destruction path; the
+            # certificate that releases it answers this collection's request
+            self._m18_wipe_request()
+
+    def _m18_wipe_request(self):
+        """The wipe request this collection raises for its item (source_ref =
+        the collection)."""
+        self.ensure_one()
+        return self.env["fix.data.wipe.request"]._m06_request_for(
+            self,
+            "m18_recycling",
+            self._fix_serial(),
+            "recycling",
+            customer_id=self.customer_id.id,
+            device_id=self.device_id.id,
+            company_id=self.company_id.id,
+        )
 
     def _fix_route_to_refurbishment(self):
         """P2 / G5: a reuse or refurbish item leaves the shredder path and is
@@ -491,14 +510,26 @@ class FixEwasteCollection(models.Model):
         for rec in self:
             if rec.state != "triaged":
                 raise UserError("Destruction from triaged state")
+            # the M18 user must be allowed to change this collection
+            rec.check_access("write")
             if not rec.wipe_certificate_id:
+                # A02 pass 2 review B7 / N1 / N2: only the data lab records a
+                # wipe certificate (M06-12), so M18 opens the pending
+                # destruction certificate for the lab, after its own checks
+                # above, answering this collection's wipe request. It names no
+                # certifier and certifies nothing yet: the lab person who
+                # destroys the media attaches the log and the photo (and so
+                # certifies it), a second person witnesses it in their own
+                # session (D16) and the wipe verifier verifies it before the
+                # item is released (_fix_wipe_denial).
                 Wipe = self.env["fix.data.wipe.certificate"]
-                wipe = Wipe.create(
+                request = rec._m18_wipe_request()
+                wipe = Wipe._m06_open_destruction_certificate(
                     {
                         "device_id": rec.device_id.id,
-                        "method": "physical_destruction",
+                        "wipe_request_id": request.id,
                         # A02 audit M06-1: bound to the one item it certifies
-                        "serial_number": Wipe._fix_media_serial(rec.device_id) or rec.name,
+                        "serial_number": request.serial_number,
                     }
                 )
                 rec.write({"wipe_certificate_id": wipe.id})

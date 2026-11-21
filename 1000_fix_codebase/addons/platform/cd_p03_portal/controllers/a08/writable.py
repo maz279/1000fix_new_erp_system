@@ -1355,6 +1355,8 @@ WRITABLE = {
     "fix.referral": frozenset(
         {
             "company_id",
+            "consent_given",
+            "consent_method",
             "convert_invoice_id",
             "currency_id",
             "name",

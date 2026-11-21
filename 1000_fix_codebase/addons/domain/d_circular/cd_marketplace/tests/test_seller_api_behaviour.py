@@ -133,6 +133,9 @@ def test_dashboard_for_internal_user_by_seller_id(odoo_env, api):
     does not have, so every seller dashboard call raised AttributeError."""
     seller = _seller(odoo_env, name="Dash Seller", verified=False)
     seller.write({"rating": 4.6, "total_jobs": 12})
+    odoo_env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": seller._name, "res_id": seller.id}
+    )  # A04 ERP M12-F8: KYC is submitted with its documents
     seller.action_submit_kyc()
     result = api.dashboard(seller_id=str(seller.id))
     assert result == {
@@ -145,7 +148,8 @@ def test_dashboard_for_internal_user_by_seller_id(odoo_env, api):
             "total_jobs": 12,
         }
     }
-    assert result["seller"]["kyc_ref"].startswith("z4-token-")
+    # A04 ERP M12-F8: the reference of real documents, never a made-up token
+    assert result["seller"]["kyc_ref"].startswith("attachment:")
 
 
 def test_dashboard_kyc_ref_empty_before_submission(odoo_env, api):

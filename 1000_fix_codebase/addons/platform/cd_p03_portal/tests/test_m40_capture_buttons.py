@@ -299,6 +299,10 @@ DOFA_MIXIN_ACTIONS = {"action_request_approval", "action_recall_approval"}
 def test_every_served_action_exists_on_its_model():
     methods = _model_methods()
     methods["fix.partner.rebate"] = methods.get("fix.partner.rebate", set()) | DOFA_MIXIN_ACTIONS
+    # A04 ERP audit M40-F5: the rate change is a routed DOFA record too
+    methods["fix.partner.rate.change"] = (
+        methods.get("fix.partner.rate.change", set()) | DOFA_MIXIN_ACTIONS
+    )
     for model, acts in _surfaces().items():
         missing = acts - methods.get(model, set())
         assert not missing, "%s serves %s, which the model lacks" % (model, sorted(missing))
@@ -377,14 +381,21 @@ def test_reasons_and_values_are_asked_for(m40):
         ("M40-leads", "action_mark_lost"): "reason",
         ("M40-referral-links", "action_revoke"): "reason",
         ("M40-mdf-claims", "action_refuse"): "reason",
-        ("M40-mdf-claims", "action_record_payment"): "payment_ref",
-        ("M40-royalties", "action_record_invoice"): "invoice_ref",
         ("M40-allocations", "action_record_draw"): "qty",
         ("M40-partners", "action_change_tier"): "tier_code",
     }
     for (sid, method), kwarg in asks.items():
         acts = {a["m"]: a for a in m40["screens"][sid]["actions"]}
         assert acts[method]["kwarg"] == kwarg, (sid, method)
+    # A04 ERP audit M40-F1/F3: a typed reference no longer stands for an
+    # invoice or a payment - these actions ask for nothing
+    for sid, method in (
+        ("M40-mdf-claims", "action_record_payment"),
+        ("M40-rebates", "action_record_payout"),
+        ("M40-royalties", "action_raise_invoice"),
+    ):
+        acts = {a["m"]: a for a in m40["screens"][sid]["actions"]}
+        assert not acts[method].get("kwarg"), (sid, method)
 
 
 def test_forms_are_tabbed_and_every_section_sits_on_a_tab(m40):

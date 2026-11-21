@@ -6,7 +6,6 @@
 # The bespoke dispatch surfaces (board with suggestions, the live map) are
 # served by /p03/field/* endpoints below + the existing /p03/dispatch/map_data.
 import datetime
-import json
 import logging
 
 import pytz
@@ -113,7 +112,8 @@ SURFACES = {
     "fix.field.visit.exception": {
         "order": "recorded_at desc, id desc",
         "limit": 200,
-        "actions": set(),
+        # A02 ERP audit pass 2 M02-12 (D21): a dispatcher waives the fee
+        "actions": {"action_waive_fee"},
     },
     "fix.field.cash.recon": {
         "order": "recon_date desc, id desc",
@@ -308,67 +308,81 @@ def _utilization_report(env, **params):
     }
 
 
-def _geofence_delay_report(env, **params):
-    """Geofence Breach & Delay Log: geofence.breach events from the outbox +
-    declined dispatches with reasons (the delay taxonomy)."""
-    Outbox = env["fix.event.outbox"].sudo()
-    breaches = Outbox.search(
-        [("event_type", "=", "geofence.breach.detected")], order="id desc", limit=50
+def _geofence_delay_report(env, date_from=None, date_to=None, **params):
+    """Geofence Breach & Delay Log, from the arrivals themselves.
+
+    A02 ERP audit pass 2 X5-18: the log read a 'geofence.breach.detected'
+    event nothing ever publishes, filled the gaps with made-up territory,
+    technician and '+20 min' text, and listed every company's declines. It
+    now lists the field orders of the viewer's companies (and the period)
+    whose arrival was NOT proven by a fence: checked in under a dispatcher's
+    waiver, recorded outside the order's fence, or with no fence at all, and
+    how late the arrival was against the appointment window."""
+    from odoo.addons.cd_field_service.models.fix_field_order import _point_in_fence
+
+    FieldOrder = _field(env)
+    orders = FieldOrder.search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("arrived_at", "!=", False),
+            *_period_domain(env, "arrived_at", date_from, date_to),
+        ],
+        order="arrived_at desc, id desc",
     )
     rows = []
-    for e in breaches:
-        payload = json.loads(e.payload) if e.payload else {}
+    for fo in orders:
+        fences = fo._fix_arrival_fences()
+        has_pos = bool(fo.arrival_latitude or fo.arrival_longitude)
+        inside = has_pos and any(
+            _point_in_fence(f, fo.arrival_latitude, fo.arrival_longitude) for f in fences
+        )
+        if fo.geofence_waived_by:
+            kind = "Arrival under dispatcher waiver"
+            detail = "Waived by %s: %s" % (fo.geofence_waived_by.name, fo.geofence_waive_reason)
+        elif fences and not inside:
+            kind = "Arrival outside the geofence"
+            detail = "Checked in at %.5f, %.5f" % (fo.arrival_latitude, fo.arrival_longitude)
+        elif not fences:
+            kind = "Arrival with no geofence"
+            detail = (
+                "Checked in at %.5f, %.5f" % (fo.arrival_latitude, fo.arrival_longitude)
+                if has_pos
+                else "No position recorded"
+            )
+        else:
+            continue
+        due = fo.scheduled_end or fo.scheduled_start
+        late = round((fo.arrived_at - due).total_seconds() / 60.0) if due else None
         rows.append(
             {
-                "event_type": "Geofence Boundary Breach",
-                "ref": payload.get(
-                    "order_ref",
-                    f"FO/{e.aggregate_id:05d}"
-                    if isinstance(e.aggregate_id, int)
-                    else str(e.aggregate_id),
-                ),
-                "territory": payload.get("zone", "Dhaka Central Perimeter"),
-                "technician": payload.get("technician", "Field Technician"),
-                "detail": payload.get("detail", "Perimeter boundary deviation detected"),
-                "delay": f"+{payload.get('delay_minutes', 20)} min"
-                if payload.get("delay_minutes")
-                else "Pending",
-                "at": str(e.create_date)[:16],
+                "event_type": kind,
+                "ref": fo.name,
+                "territory": fo.zone_id.name or "",
+                "technician": fo.technician_id.name or "",
+                "detail": detail,
+                "delay": ("+%d min" % late) if late and late > 0 else ("on time" if due else ""),
+                "at": str(fo.arrived_at)[:16],
             }
         )
-    Decline = env["fix.field.decline.log"].sudo()
-    for d in Decline.search([], order="id desc", limit=50):
-        reason_label = dict(d._fields["reason"].selection).get(d.reason, d.reason)
-        rows.append(
-            {
-                "event_type": f"Dispatch Decline: {reason_label}",
-                "ref": d.field_order_id.name or "FO/Dispatched",
-                "territory": d.field_order_id.zone_id.name
-                if d.field_order_id.zone_id
-                else "Service Territory",
-                "technician": d.technician_id.name if d.technician_id else "Technician",
-                "detail": (d.notes or "Technician logged operational impediment")[:80],
-                "delay": "Re-routing / Override",
-                "at": str(d.decline_date or d.create_date)[:16],
-            }
-        )
-    rows.sort(key=lambda r: r["at"], reverse=True)
     return {
         "title": "Geofence Breach & Delay Log",
         "cols": ["event_type", "ref", "territory", "technician", "detail", "delay", "at"],
         "labels": {
-            "event_type": "Event Classification",
+            "event_type": "Arrival",
             "ref": "Field Order",
-            "territory": "Territory / Geofence",
+            "territory": "Zone",
             "technician": "Technician",
-            "detail": "Operational Detail",
-            "delay": "Impact",
-            "at": "Timestamp",
+            "detail": "Detail",
+            "delay": "Late Against Window",
+            "at": "Arrived At (UTC)",
         },
         "rows": rows,
         "notes": [
-            "Live tracking of geofence perimeter deviations and technician dispatch decline exceptions."
+            "Arrivals a geofence did not prove: under a dispatcher's waiver, outside the "
+            "order's fence, or where no fence was drawn. Lateness is against the end of the "
+            "appointment window."
         ],
+        "empty": "Every arrival in the period was inside its geofence.",
     }
 
 
@@ -687,32 +701,75 @@ def _jobs_per_technician_report(env, **params):
     }
 
 
-def _field_exceptions_report(env, **params):
-    """Field Exception Summary — real exception sources: declined dispatches
-    (with their coded reasons) and cancelled field orders."""
+def _field_exceptions_report(env, date_from=None, date_to=None, **params):
+    """Field Exception Summary — declined dispatches, failed visits (by type,
+    zone and technician, with the wasted-visit fee) and cancellations.
+
+    A02 ERP audit pass 2 M02-12: failed visits (the customer absent, no
+    access, cannot complete) were not in the report at all."""
     FieldOrder = _field(env)
+    company = [("company_id", "in", env.companies.ids)]
     Decline = env["fix.field.decline.log"].sudo()
-    declines = Decline.search([("company_id", "in", env.companies.ids)], order="id desc", limit=200)
     declining = {}
-    for log in declines:
-        reason = log.field_order_id.decline_reason or "other"
+    for log in Decline.search([*company, *_period_domain(env, "create_date", date_from, date_to)]):
+        reason = dict(log._fields["reason"].selection).get(log.reason, log.reason or "other")
         declining[reason] = declining.get(reason, 0) + 1
-    cancelled = FieldOrder.search_count(
-        [("company_id", "in", env.companies.ids), ("state", "=", "cancelled")]
-    )
     rows = [
-        {"exception": "Declined dispatch: %s" % reason, "count": n}
+        {"exception": "Declined dispatch: %s" % reason, "zone": "", "technician": "", "count": n}
         for reason, n in sorted(declining.items(), key=lambda kv: -kv[1])
     ]
-    rows.append({"exception": "Cancelled field orders", "count": cancelled})
+    Visit = env["fix.field.visit.exception"].sudo()
+    labels = dict(Visit._fields["exception_type"].selection)
+    failed = {}
+    for v in Visit.search([*company, *_period_domain(env, "recorded_at", date_from, date_to)]):
+        key = (
+            labels.get(v.exception_type, v.exception_type),
+            v.zone_id.name or "",
+            v.technician_id.name or "",
+        )
+        row = failed.setdefault(key, {"count": 0, "fee": 0.0, "waived": 0.0})
+        row["count"] += 1
+        if v.fee_waived_by_id:
+            row["waived"] += v.wasted_fee_bdt
+        else:
+            row["fee"] += v.wasted_fee_bdt
+    for (kind, zone, tech), v in sorted(failed.items(), key=lambda kv: -kv[1]["count"]):
+        rows.append(
+            {
+                "exception": "Failed visit: %s" % kind,
+                "zone": zone,
+                "technician": tech,
+                "count": v["count"],
+                "fee": round(v["fee"], 2) or None,
+                "waived": round(v["waived"], 2) or None,
+            }
+        )
+    cancelled = FieldOrder.search_count(
+        [
+            *company,
+            ("state", "=", "cancelled"),
+            *_period_domain(env, "write_date", date_from, date_to),
+        ]
+    )
+    rows.append(
+        {"exception": "Cancelled field orders", "zone": "", "technician": "", "count": cancelled}
+    )
     return {
         "title": "Field Exception Summary",
-        "cols": ["exception", "count"],
-        "labels": {"exception": "Exception", "count": "Occurrences"},
+        "cols": ["exception", "zone", "technician", "count", "fee", "waived"],
+        "labels": {
+            "exception": "Exception",
+            "zone": "Zone",
+            "technician": "Technician",
+            "count": "Occurrences",
+            "fee": "Wasted-Visit Fee (BDT)",
+            "waived": "Fee Waived (BDT)",
+        },
         "rows": rows,
         "notes": [
-            "Declines are the jobs technicians turned down, with their recorded reason; "
-            "cancellations are field jobs that were cancelled."
+            "Declines are the jobs technicians turned down, with their recorded reason; failed "
+            "visits are grouped by what happened, zone and technician, with the wasted-visit "
+            "fee charged or waived (D21); cancellations are field jobs that were cancelled."
         ],
         "empty": "No field exceptions recorded.",
     }
@@ -927,68 +984,100 @@ def _day_queue_report(env, **_params):
     }
 
 
-def _cash_recon_report(env, **_params):
-    """Daily Cash Reconciliation — the branch cash shifts' OWN measured
-    figures (opening float, cash payments/refunds/advances, expected vs
-    counted closing, variance), newest first. No amounts are inferred: the
-    shift record is the source, and an unreconciled shift says so."""
-    Shift = env["fix.cash.shift"].sudo()
-    shifts = Shift.search(
-        [("company_id", "in", env.companies.ids)],
-        order="shift_date desc, id desc",
-        limit=60,
+def _cash_recon_report(env, date_from=None, date_to=None, **_params):
+    """Daily Cash Reconciliation — per TECHNICIAN (FR-FSM-056, BRU-FSM-07).
+
+    A02 ERP audit pass 2 M02-11: the screen listed the branch cash shifts,
+    so no technician's field cash was ever reconciled on it. It now lists
+    each technician's reconciled days (fix.field.cash.recon) and, for every
+    technician who still holds field cash, a row of what is outstanding and
+    whether it is past the hand-in deadline (D20)."""
+    company = [("company_id", "in", env.companies.ids)]
+    Recon = env["fix.field.cash.recon"].sudo()
+    rows = []
+    for r in Recon.search(
+        [*company, *_period_domain(env, "create_date", date_from, date_to)],
+        order="recon_date desc, id desc",
+    ):
+        rows.append(
+            {
+                "date": str(r.recon_date or ""),
+                "technician": r.employee_id.name or "",
+                "state": r.state,
+                "collected": round(r.cash_collected or 0.0, 2),
+                "handed_over": round(r.cash_handed_over or 0.0, 2),
+                "outstanding": round(r.cash_outstanding or 0.0, 2),
+                "counted": round(r.counted_amount or 0.0, 2),
+                "variance": round(r.variance or 0.0, 2),
+                "overdue": "",
+                "confirmed_by": r.confirmed_by_id.name or "",
+            }
+        )
+    FieldOrder = _field(env)
+    held = FieldOrder.search(
+        [
+            *company,
+            ("onsite_payment_method", "=", "cash"),
+            ("onsite_collection_amount", ">", 0),
+            ("cash_handed_over_at", "=", False),
+            ("state", "in", ("completed", "cancelled")),
+        ]
     )
-    rows = [
-        {
-            "date": str(s.shift_date or ""),
-            "branch": s.branch_id.name or "—",
-            "operator": s.operator_id.name or "—",
-            "state": s.state,
-            "opening": round(s.opening_float or 0.0, 2),
-            "payments": round(s.cash_payments or 0.0, 2),
-            "refunds": round(s.cash_refunds or 0.0, 2),
-            "expected": round(s.expected_closing or 0.0, 2),
-            "counted": round(s.closing_counted or 0.0, 2),
-            "variance": round(s.variance or 0.0, 2),
-            "reconciled_by": s.reconciled_by.name or "—",
-        }
-        for s in shifts
-    ]
+    cutoff = FieldOrder._fix_cash_handin_cutoff()
+    by_tech = {}
+    for fo in held:
+        entry = by_tech.setdefault(fo.technician_id, {"amount": 0.0, "overdue": 0.0})
+        entry["amount"] += fo.onsite_collection_amount
+        if fo.onsite_collected_at and fo.onsite_collected_at < cutoff:
+            entry["overdue"] += fo.onsite_collection_amount
+    for tech, v in sorted(by_tech.items(), key=lambda kv: -kv[1]["amount"]):
+        rows.append(
+            {
+                "date": "now",
+                "technician": tech.name or "",
+                "state": "held",
+                "collected": None,
+                "handed_over": None,
+                "outstanding": round(v["amount"], 2),
+                "counted": None,
+                "variance": None,
+                "overdue": round(v["overdue"], 2) or "",
+                "confirmed_by": "",
+            }
+        )
     return {
         "title": "Daily Cash Reconciliation",
         "cols": [
             "date",
-            "branch",
-            "operator",
+            "technician",
             "state",
-            "opening",
-            "payments",
-            "refunds",
-            "expected",
+            "collected",
+            "handed_over",
+            "outstanding",
             "counted",
             "variance",
-            "reconciled_by",
+            "overdue",
+            "confirmed_by",
         ],
         "labels": {
-            "date": "Shift Date",
-            "branch": "Branch",
-            "operator": "Operator",
-            "state": "Shift State",
-            "opening": "Opening Float (BDT)",
-            "payments": "Cash Payments",
-            "refunds": "Refunds",
-            "expected": "Expected Closing",
+            "date": "Day",
+            "technician": "Technician",
+            "state": "Status",
+            "collected": "Cash Collected",
+            "handed_over": "Handed To A Branch",
+            "outstanding": "Still Held",
             "counted": "Counted",
             "variance": "Variance",
-            "reconciled_by": "Reconciled By",
+            "overdue": "Past Hand-In Deadline",
+            "confirmed_by": "Confirmed By",
         },
         "rows": rows,
         "notes": [
-            "Taken from the cash shift register kept in Treasury (M50). Variance is the "
-            "counted cash less the expected cash, as the shift recorded it; a shift not yet "
-            "reconciled shows no reconciler."
+            "Each technician's reconciled days, then what every technician still holds now. "
+            "Cash not handed to a branch cashier by the end of the next business day blocks "
+            "new dispatch (D20); a confirmed shortage is recovered like a rider COD shortage."
         ],
-        "empty": "No cash shifts recorded.",
+        "empty": "No field cash recorded.",
     }
 
 
@@ -1044,61 +1133,52 @@ def _safety_events_report(env, kind="lone_worker", **_params):
     }
 
 
-def _ftfr_by_skill_report(env, **params):
-    """First-Time Fix Rate by Skill: measures first-time resolution rate
-    per technician job title / competency, highlighting rework rates."""
+def _ftfr_by_skill_report(env, date_from=None, date_to=None, **params):
+    """First-Time Fix Rate by Skill, from real completions only.
+
+    A02 ERP audit pass 2 M02-10: a skill with no jobs showed a fabricated
+    92.5 % from invented counts (4 jobs and 3.7 fixes per technician). A first-
+    time fix is a field job completed on its first visit (no failed visit on
+    it) whose service order did not come back as a rework within its
+    warranty. Grouped by the technician's job title; skills with no
+    completed job in the period are not listed."""
     FieldOrder = _field(env)
-    company_domain = [("company_id", "in", env.companies.ids)]
-
-    # Exclude administrative and non-field roles
-    excluded_roles = {
-        "chief technical officer",
-        "human resources manager",
-        "marketing and community manager",
-        "experienced developer",
-        "consultant",
-    }
-
-    techs = (
-        env["hr.employee"]
-        .sudo()
-        .search(
-            [
-                ("company_id", "in", env.companies.ids),
-            ]
-        )
+    done = FieldOrder.search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "=", "completed"),
+            ("technician_id", "!=", False),
+            *_period_domain(env, "completed_at", date_from, date_to),
+        ]
     )
+    reworked = set()
+    if done:
+        Order = env["fix.service.order"].sudo()
+        if "rework_of_id" in Order._fields:
+            reworked = set(
+                Order.search([("rework_of_id", "in", done.order_id.ids)]).rework_of_id.ids
+            )
     by_skill = {}
-    for tech in techs:
-        skill_name = (
-            tech.job_title or (tech.job_id and tech.job_id.name) or "Field Service Engineer"
-        )
-        if skill_name.strip().lower() in excluded_roles:
-            continue
-        by_skill.setdefault(skill_name, []).append(tech)
-
+    for fo in done:
+        tech = fo.technician_id
+        skill = tech.job_title or tech.job_id.name or "(no job title)"
+        row = by_skill.setdefault(skill, {"techs": set(), "jobs": 0, "first": 0})
+        row["techs"].add(tech.id)
+        row["jobs"] += 1
+        if not fo.visit_exception_ids and fo.order_id.id not in reworked:
+            row["first"] += 1
     rows = []
-    for skill_name, tech_list in by_skill.items():
-        tech_ids = [t.id for t in tech_list]
-        orders = FieldOrder.search(
-            [
-                *company_domain,
-                ("technician_id", "in", tech_ids),
-                ("state", "in", (*_ACTIVE_FIELD_STATES, "completed")),
-            ]
-        )
-        total_jobs = len(orders)
-        first_time = sum(1 for fo in orders if not (fo.order_id and fo.order_id.is_rework))
-        ftfr_pct = round(100.0 * first_time / max(total_jobs, 1), 1) if total_jobs else 92.5
+    for skill, v in by_skill.items():
+        pct = round(100.0 * v["first"] / v["jobs"], 1)
         rows.append(
             {
-                "skill": skill_name,
-                "tech_count": len(tech_list),
-                "total_jobs": total_jobs if total_jobs else len(tech_list) * 4,
-                "first_time_fixes": first_time if total_jobs else int(len(tech_list) * 3.7),
-                "ftfr_pct": ftfr_pct,
+                "skill": skill,
+                "tech_count": len(v["techs"]),
+                "total_jobs": v["jobs"],
+                "first_time_fixes": v["first"],
+                "ftfr_pct": pct,
                 "sla_target": "85.0%",
-                "status": "Compliant" if ftfr_pct >= 85.0 else "Action Required",
+                "status": "Compliant" if pct >= 85.0 else "Action Required",
             }
         )
     rows.sort(key=lambda r: -r["ftfr_pct"])
@@ -1114,9 +1194,9 @@ def _ftfr_by_skill_report(env, **params):
             "status",
         ],
         "labels": {
-            "skill": "Skill Domain / Field Competency",
+            "skill": "Skill (Job Title)",
             "tech_count": "Technicians",
-            "total_jobs": "Dispatches",
+            "total_jobs": "Completed Field Jobs",
             "first_time_fixes": "First-Time Fixes",
             "ftfr_pct": "FTFR %",
             "sla_target": "SLA Benchmark",
@@ -1124,8 +1204,10 @@ def _ftfr_by_skill_report(env, **params):
         },
         "rows": rows,
         "notes": [
-            "First-Time Fix Rate (FTFR) calculated off non-rework field completions across technician competency domains."
+            "A first-time fix is a completed field job with no failed visit whose service "
+            "order did not come back as a rework. Only completed jobs count."
         ],
+        "empty": "No completed field job in the period.",
     }
 
 

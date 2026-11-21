@@ -52,9 +52,11 @@ class TestAutoInvoice:
         source = inspect.getsource(
             __import__(
                 "odoo.addons.cd_billing_engine.models.fix_billing_engine", fromlist=["FixArInvoice"]
-            ).FixArInvoice.from_closed_service_order
+            ).FixArInvoice._fix_invoice_service_order
         )
-        assert "time.monotonic" in source  # NFR-040: the 5-second budget measured
+        # NFR-040: the 5-second budget measured. The delivered, refused (D6)
+        # and closed paths share _fix_invoice_service_order since A02 pass 2.
+        assert "time.monotonic" in source
 
     def test_nfr040_benchmark_method_present(self):
         from odoo.addons.cd_billing_engine.models.fix_billing_engine import FixArInvoice

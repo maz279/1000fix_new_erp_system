@@ -19,7 +19,10 @@ export const MODULE = {
     { l: 'TAT < 24h (IT)', m: 'tat_under_24h', suffix: '%' },
     { l: 'Estimate Conv.', m: 'estimate_conversion', suffix: '%' },
     { l: 'Intake < 3 min', m: 'intake_minutes' },
-    { l: 'Rework Rate', m: 'rework_rate', suffix: '%' }
+    { l: 'Rework Rate', m: 'rework_rate', suffix: '%' },
+    /* A02 pass 2 (M01-05): the close cron closes a delivered order once its
+     * close gate passes; what stays is waiting on money, a claim or photos */
+    { l: 'Delivered, Not Closed', m: 'delivered_not_closed' }
   ],
   groups: [
     { en: 'Intake & Channels', screens: [
@@ -133,9 +136,13 @@ const SO_ACTIONS = [
   { id: 'send_otp', m: 'action_send_delivery_otp', l: 'Send Delivery OTP', states: ['ready'] },
   { id: 'verify_otp', m: 'action_verify_delivery_otp', l: 'Verify Delivery OTP', states: ['ready'],
     asks: [{ kwarg: 'otp', label: 'Handover code the customer read out' }] },
+  /* X5-01: the tender decides where the money goes (only cash into the drawer;
+   * a wallet or card is matched by its TrxID) - it was never asked, so every
+   * bKash or card payment was booked as drawer cash */
   { id: 'settle_counter', m: 'action_mark_settled', l: 'Record Counter Payment', states: SO_PRICED,
     kw: { source: 'counter' },
     asks: [{ kwarg: 'amount_bdt', label: 'Amount received (BDT)', number: true },
+      { kwarg: 'tender', label: 'Tender: cash, bkash, nagad, rocket, upay or card' },
       { kwarg: 'reference', label: 'Cash receipt / MFS transaction reference' }] },
   { id: 'settle_m20', m: 'action_mark_settled', l: 'Settle from M20 Receipt', states: SO_PRICED,
     kw: { source: 'm20_receipt' }, asks: [{ kwarg: 'reference', label: 'Confirmed M20 receipt number' }] },
@@ -178,6 +185,27 @@ const SO_ACTIONS = [
     states: SO_HOLDABLE,
     asks: [{ kwarg: 'passcode', label: 'Unlock code / pattern the customer gave' },
       { kwarg: 'consent', label: 'Did the customer explicitly consent to us holding it? (yes / no)' }] },
+  /* A02 pass 2 (M01-02/07/15): fixed after intake; a Service Supervisor
+   * corrects them with a reason (the customer's codes and approvals are voided) */
+  { id: 'correct_party', m: 'action_correct_customer_device', l: 'Correct Customer / Device (supervisor)',
+    states: ['draft', 'intake', 'diagnostic', 'estimate_pending'],
+    asks: [{ kwarg: 'customer_id', label: 'ID of the correct customer (blank: unchanged)', number: true },
+      { kwarg: 'device_id', label: 'ID of the correct device (blank: unchanged)', number: true },
+      { kwarg: 'reason', label: 'Why the order was taken in against the wrong one' }] },
+  { id: 'correct_lci', m: 'action_correct_lci', l: 'Correct LCI Finding (supervisor, photo)', states: SO_OPEN,
+    asks: [{ kwarg: 'tripped', label: 'Is the liquid-contact indicator tripped? (yes / no) - upload its photo on the order first' },
+      { kwarg: 'reason', label: 'Why the intake finding was wrong' }] },
+  { id: 'transfer', m: 'action_transfer_branch', l: 'Transfer Branch (supervisor)', states: SO_OPEN,
+    asks: [{ kwarg: 'branch_id', label: 'ID of the branch the order moves to', number: true },
+      { kwarg: 'reason', label: 'Why the order moves' }] },
+  /* D6: a repaired device the customer refuses still owes the approved estimate */
+  { id: 'bill_refused', m: 'action_bill_refused_repair', l: 'Bill Refused Repair (supervisor)',
+    states: ['qc_pending', 'qc_failed', 'ready'] },
+  /* M01-11: the order's server documents (no VAT / Mushak wording on any of them) */
+  { id: 'print_jobsheet', print: 'jobsheet', l: 'Print Job Sheet', states: SO_OPEN.concat(['delivered', 'closed']) },
+  { id: 'print_jobcard', print: 'jobcard', l: 'Print Job Card', states: SO_OPEN },
+  { id: 'print_challan', print: 'challan', l: 'Print Delivery Challan / Gate Pass', states: ['ready', 'delivered', 'closed'] },
+  { id: 'print_report', print: 'service_report', l: 'Print Service Report', states: ['qc_pending', 'ready', 'delivered', 'closed'] },
   { id: 'cancel', m: 'action_cancel', l: 'Cancel Order', states: SO_OPEN,
     asks: [{ kwarg: 'reason', label: 'Reason: customer_declined, estimate_declined, duplicate, unrepairable, customer_unreachable, abandoned, or other: <note>' }] },
   /* FR-SRM-029: a declined repair is charged its diagnostic fee at the cancel;
@@ -201,6 +229,50 @@ export const SCREENS = {
    * opened blank, a twin of M01-form-order under another name. */
   'M01-order': { kind: 'model_form', model: 'fix.service.order',
     title: 'Service Order Record', back: 'M01-all',
+    /* X5-19: what the order drove, read-only on its record (each is changed on
+     * its own screen: estimates M01, field orders M02, workshop jobs M31,
+     * pick-and-drop legs M03) */
+    grids: [
+      { field: 'estimate_ids', tab: 'related', title: 'Estimates', readonlyGrid: true,
+        empty: 'No estimate yet.',
+        fields: [
+          { name: 'version', label: 'Version', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'grand_total', label: 'Grand Total', readonly: true },
+          { name: 'expiry_date', label: 'Valid Until', readonly: true },
+          { name: 'approved_at', label: 'Approved At', readonly: true }
+        ] },
+      { field: 'fault_line_ids', tab: 'related', title: 'Fault Lines', readonlyGrid: true,
+        empty: 'No coded fault yet.',
+        fields: [
+          { name: 'fault_code', label: 'Fault Code', readonly: true },
+          { name: 'description', label: 'Description', readonly: true },
+          { name: 'severity', label: 'Severity', readonly: true }
+        ] },
+      { field: 'workshop_job_ids', tab: 'related', title: 'Workshop Jobs (M31)', readonlyGrid: true,
+        empty: 'Not sent to the workshop.',
+        fields: [
+          { name: 'name', label: 'Job', readonly: true },
+          { name: 'technician_id', label: 'Bench Technician', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { field: 'field_order_ids', tab: 'related', title: 'Field Orders (M02)', readonlyGrid: true,
+        empty: 'No field visit.',
+        fields: [
+          { name: 'name', label: 'Field Order', readonly: true },
+          { name: 'technician_id', label: 'Technician', readonly: true },
+          { name: 'scheduled_start', label: 'Scheduled', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { field: 'consignment_ids', tab: 'related', title: 'Pick & Drop Legs (M03)', readonlyGrid: true,
+        empty: 'No logistics leg.',
+        fields: [
+          { name: 'name', label: 'Consignment', readonly: true },
+          { name: 'consignment_type', label: 'Leg', readonly: true },
+          { name: 'scheduled_date', label: 'Scheduled', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] }
+    ],
     create: false, pick: 'Open an order from All Service Orders to see its record. A new order starts with + New Service Order.',
     status: { field: 'state' },
     tabs: [
@@ -209,7 +281,8 @@ export const SCREENS = {
       { id: 'triage', label: '3. Fault & Triage', bn: '৩. ত্রুটি ও ট্রায়াজ', icon: '🔍', badge: '8' },
       { id: 'sla', label: '4. SLA & Deferred Hold', bn: '৪. এসএলএ ও হোল্ড', icon: '⏱️', badge: '8' },
       { id: 'commercial', label: '5. Settlement & Warranty', bn: '৫. নিষ্পত্তি ও ওয়ারেন্টি', icon: '💳', badge: '7' },
-      { id: 'release', label: '6. Release & Evidence Vault', bn: '৬. হস্তান্তর ও প্রমাণক', icon: '🔐', badge: '6' }
+      { id: 'release', label: '6. Release & Evidence Vault', bn: '৬. হস্তান্তর ও প্রমাণক', icon: '🔐', badge: '6' },
+      { id: 'related', label: '7. Related Records', bn: '৭. সম্পর্কিত নথি', icon: '🔗', badge: '5' }
     ],
     sections: [
       { tab: 'intake', title: 'Customer & Omni-Channel Intake (12 Channels)', fields: [
@@ -275,7 +348,9 @@ export const SCREENS = {
           { name: 'settlement_source', label: 'Settlement Source', readonly: true },
           { name: 'settlement_verified', label: 'Settlement Verified', readonly: true },
           { name: 'amount_settled_bdt', label: 'Amount Settled (BDT)', readonly: true },
-          { name: 'service_warranty_days', label: 'Repair Warranty Period (Days)' },
+          { name: 'amount_verified_bdt', label: 'Amount Verified (BDT)', readonly: true },
+          /* M01-12: the company's repair warranty policy, never typed */
+          { name: 'service_warranty_days', label: 'Repair Warranty Period (Days, policy)', readonly: true },
           { name: 'service_warranty_until', label: 'Repair Warranty Valid Until', readonly: true },
           { name: 'currency_id', label: 'Currency', readonly: true },
         ]},
@@ -284,6 +359,8 @@ export const SCREENS = {
         { name: 'recipient_name', label: 'Collecting Recipient Full Name' },
         { name: 'recipient_nid_phone', label: 'Recipient Phone / NID Verification' },
         { name: 'service_report_attachment_id', label: 'Signed Service Report / Job Card PDF' },
+        /* M01-06 (BRU-SRM-17): a warranty order closes only with both photos on the order */
+        { name: 'after_repair_photo_attachment_id', label: 'After-Repair Photo' },
         { name: 'intake_completed_at', label: 'Intake Completed At', readonly: true },
         { name: 'delivered_at', label: 'Delivered Timestamp', readonly: true },
         { name: 'delivery_otp_verified_by', label: 'Handover OTP Checked By', readonly: true },
@@ -443,7 +520,9 @@ export const SCREENS = {
           { name: 'settlement_source', label: 'Settlement Source', readonly: true },
           { name: 'settlement_verified', label: 'Settlement Verified', readonly: true },
           { name: 'amount_settled_bdt', label: 'Amount Settled (BDT)', readonly: true },
-          { name: 'service_warranty_days', label: 'Repair Warranty Period (Days)' },
+          { name: 'amount_verified_bdt', label: 'Amount Verified (BDT)', readonly: true },
+          /* M01-12: the company's repair warranty policy, never typed */
+          { name: 'service_warranty_days', label: 'Repair Warranty Period (Days, policy)', readonly: true },
           { name: 'service_warranty_until', label: 'Repair Warranty Valid Until', readonly: true },
           { name: 'currency_id', label: 'Currency', readonly: true },
         ]},
@@ -452,6 +531,8 @@ export const SCREENS = {
         { name: 'recipient_name', label: 'Collecting Recipient Full Name' },
         { name: 'recipient_nid_phone', label: 'Recipient Phone / NID Verification' },
         { name: 'service_report_attachment_id', label: 'Signed Service Report / Job Card PDF' },
+        /* M01-06 (BRU-SRM-17): a warranty order closes only with both photos on the order */
+        { name: 'after_repair_photo_attachment_id', label: 'After-Repair Photo' },
         { name: 'intake_completed_at', label: 'Intake Completed At', readonly: true },
         { name: 'delivered_at', label: 'Delivered Timestamp', readonly: true },
         { name: 'delivery_otp_verified_by', label: 'Handover OTP Checked By', readonly: true },
@@ -684,7 +765,7 @@ export const SCREENS = {
      * the totals and no lines, so an estimate raised in M01 could never be
      * sent (2026-11-12). Same grid as M36's estimate form. */
     lines: { field: 'line_ids', title: 'Estimate Lines (parts from inventory, service / labour / transport charges)',
-      note: 'SL numbers the lines. A Spare Part, Accessory or Finished Product line takes an inventory item by its part number; a Service, Labour, Support, Diagnostic, Call-out, Transport, Installation or Fee line takes a charge code (left empty: the generic code of its type). A line left without a type is a Part and without a quantity is 1. Each line is quoted at or above its list price; a lower price is a discount, which the DOFA tiers approve.',
+      note: 'SL numbers the lines. A Spare Part, Accessory or Finished Product line takes an inventory item by its part number; a Service, Labour, Support, Diagnostic, Call-out, Transport, Installation or Fee line takes a charge code (left empty: the generic code of its type). A line left without a type is a Part and without a quantity is 1. An item with a released M11 price takes it as the unit price; a different price needs a reason, and a lower one is a discount that counts toward the DOFA tier. No line is priced below the M11 price floor or the item\'s M15 cost without an approved override for that line.',
       /* no `defaults`: a starter row carrying values is SENT on save, and a
        * row with no description is refused - a header could not be saved alone */
       fields: [
@@ -695,7 +776,9 @@ export const SCREENS = {
         { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty', required: true },
         { name: 'uom_id', label: 'Unit' },
+        { name: 'card_price', label: 'Released Price', readonly: true },
         { name: 'unit_price', label: 'Unit Price', required: true },
+        { name: 'price_override_reason', label: 'Reason (price differs from released)' },
         { name: 'line_total', label: 'Total', readonly: true },
       ] },
     tabs: [

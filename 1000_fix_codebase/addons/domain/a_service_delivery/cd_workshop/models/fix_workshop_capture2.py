@@ -23,7 +23,7 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_workshop_job import (
     CLOSED_JOB_STATES,
     GROUP_SUPERVISOR,
-    TECHNICIAN_LOCKED_STATES,
+    ON_BENCH_STATES,
 )
 from .fix_workshop_test import LEVELS as LEVELS_SELECTION
 
@@ -32,6 +32,11 @@ HIGH_VALUE_DEFAULT = 25000.0
 COST_TOLERANCE_PARAM = "cd_workshop.cost_variance_tolerance_pct"
 COST_TOLERANCE_DEFAULT = 10.0
 LEVEL_RANK = {"l1": 1, "l2": 2, "l3": 3}
+# A02 pass 2 review: a burn-in session started at a station opens the
+# job's burn-in through this in-process token; a JSON-RPC caller can send
+# any context key, never this object (the fix.guarded.mixin pattern)
+BURNIN_STATION_KEY = "m31_burnin_station"
+_BURNIN_STATION_TOKEN = object()
 # a device is physically in the workshop from book-in until it leaves
 HELD_STATES = (
     "intake",
@@ -42,6 +47,8 @@ HELD_STATES = (
     "qc_pending",
     "qc_failed",
     "ready",
+    # A02 pass 2 M31-02: released to the front desk, in outgoing staging
+    "released",
 )
 # a transfer moves a job that is not on the bench: one in repair, burn-in or
 # QC is first put to Wait for Parts (its technician and QC are fixed)
@@ -607,8 +614,9 @@ class FixWorkshopEscalation(models.Model):
             job = rec.job_id
             vals = {}
             if rec.escalation_type == "higher_level":
-                # the job's own lock refuses a level change on a job under way
-                job.write({"repair_level": rec.to_level})
+                # A02 pass 2 M31-01: the supervisor's level revision (refused
+                # on a job on the bench, emits workshop.job.level_revised)
+                job.action_revise_level(rec.to_level, "Escalated: %s" % rec.reason)
             elif rec.escalation_type == "specialist":
                 if job.bench_id:
                     job.action_allocate_bench(
@@ -617,10 +625,12 @@ class FixWorkshopEscalation(models.Model):
                         note="Escalated: %s" % rec.reason,
                     )
                 else:
-                    if job.state in TECHNICIAN_LOCKED_STATES:
+                    if job.state in ON_BENCH_STATES:
                         raise UserError("Job %s is under way: its technician is fixed." % job.name)
                     job._check_technician_certification(rec.to_technician_id, job.repair_level)
-                    job.write({"technician_id": rec.to_technician_id.id})
+                    # a supervisor decided it (A02 pass 2 M31-01: the bench
+                    # cannot re-name the technician of a job waiting for parts)
+                    job._guarded().write({"technician_id": rec.to_technician_id.id})
             else:
                 transfer = self.env["fix.workshop.transfer"].create(
                     {
@@ -1026,11 +1036,9 @@ class FixWorkshopBurninSession(models.Model):
             )
 
     def _minimum_for(self, job):
-        minimum = 0.0
-        if job.repair_level in ("l2", "l3"):
-            minimum = job._m31_burn_in_min_minutes()
-        protocol_minutes = job.sudo().test_result_ids.mapped("protocol_id.burn_in_minutes")
-        return max([minimum, *[float(m or 0) for m in protocol_minutes]])
+        # A02 pass 2 M31-04: the job's own protocol sets the run (the policy
+        # minimum for L2/L3), not whichever protocols results were recorded on
+        return job._m31_required_burn_in_minutes()
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1070,7 +1078,9 @@ class FixWorkshopBurninSession(models.Model):
         minimums = [vals.pop("_minimum") for vals in vals_list]
         records = super().create(vals_list)
         for rec, minimum in zip(records, minimums, strict=True):
-            rec.job_id.with_context(m31_burnin_station=True).action_start_burn_in()
+            rec.job_id.with_context(
+                **{BURNIN_STATION_KEY: _BURNIN_STATION_TOKEN}
+            ).action_start_burn_in()
             rec._guarded().write(
                 {
                     "minimum_minutes": minimum,
@@ -1253,11 +1263,17 @@ class FixWorkshopTransfer(models.Model):
         return super().unlink()
 
     def _is_receiving_side(self):
+        """A02 pass 2 M31-12: the RECEIVING workshop's manager, or one of its
+        own supervisors; a supervisor of any other workshop confirmed it."""
         self.ensure_one()
         if self.env.su:
             return True
-        manager = self.to_workshop_id.sudo().manager_id
-        return _is_supervisor(self.env) or (manager and manager == self.env.user)
+        dst = self.to_workshop_id.sudo()
+        user = self.env.user
+        # manager_id is an employee (A02 pass 2 review: it was compared to the user)
+        if dst.manager_id and dst.manager_id.user_id == user:
+            return True
+        return _is_supervisor(self.env) and user in dst.supervisor_user_ids
 
     def action_confirm(self):
         """The receiving workshop accepts the job: the consignment is raised and
@@ -1292,7 +1308,7 @@ class FixWorkshopTransfer(models.Model):
             )
             old_bench = job.bench_id
             move = {"workshop_id": dst.id, "bench_id": False, "current_location_id": False}
-            if job.state not in TECHNICIAN_LOCKED_STATES:
+            if job.state not in ON_BENCH_STATES:
                 move["technician_id"] = False
             job.with_context(m31_workshop_transfer=True)._guarded().write(move)
             if old_bench:
@@ -1578,7 +1594,9 @@ class FixWorkshopJobCapture2(models.Model):
         "a supervisor only where the workshop has no rate.",
     )
     full_cost = fields.Float(string="Full Repair Cost (BDT)", compute="_compute_full_cost")
-    cost_variance = fields.Float(string="Cost vs Approved (BDT)", compute="_compute_full_cost")
+    cost_variance = fields.Float(
+        string="Cost vs Estimated Cost (BDT)", compute="_compute_full_cost"
+    )
     cost_variance_flag = fields.Boolean(
         string="Variance Beyond Tolerance", compute="_compute_full_cost"
     )
@@ -1600,17 +1618,21 @@ class FixWorkshopJobCapture2(models.Model):
     @api.depends(
         "time_log_ids.minutes",
         "time_log_ids.activity",
+        "time_log_ids.rate_per_hour",
         "workshop_id.labour_rate_per_hour",
         "labour_total",
     )
     def _compute_labour_cost(self):
+        """A02 pass 2 M31-06: each segment at the rate stored on it when it
+        was booked (a rate change re-costed every past job); a segment booked
+        before rates were stored takes the workshop's rate."""
         for rec in self:
             rate = rec.workshop_id.sudo().labour_rate_per_hour or 0.0
-            if rate:
-                minutes = sum(
-                    rec.time_log_ids.filtered(lambda t: t.activity == "active").mapped("minutes")
+            active = rec.time_log_ids.filtered(lambda t: t.activity == "active")
+            if rate or any(active.mapped("rate_per_hour")):
+                rec.labour_cost = round(
+                    sum(t.minutes / 60.0 * (t.rate_per_hour or rate) for t in active), 2
                 )
-                rec.labour_cost = round(minutes / 60.0 * rate, 2)
             else:
                 rec.labour_cost = rec.labour_total or 0.0
 
@@ -1659,16 +1681,19 @@ class FixWorkshopJobCapture2(models.Model):
             )
         return True
 
-    @api.depends("cost_line_ids.amount", "consumable_ids.subtotal", "estimate_ceiling")
+    @api.depends("cost_line_ids.amount", "consumable_ids.subtotal", "estimated_cost")
     def _compute_full_cost(self):
+        """A02 pass 2 M31-07 (D14): the variance is the cost against what the
+        estimate expected it to cost (estimated_cost), not against its price;
+        the price ex-VAT is the cost GATE (_m31_cost_ceiling)."""
         tolerance = _param_float(self.env, COST_TOLERANCE_PARAM, COST_TOLERANCE_DEFAULT)
         for rec in self:
             rec.consumables_total = sum(rec.consumable_ids.mapped("subtotal"))
             rec.full_cost = sum(rec.cost_line_ids.mapped("amount"))
-            approved = rec.estimate_ceiling or 0.0
-            rec.cost_variance = rec.full_cost - approved if (approved and rec.full_cost) else 0.0
+            expected = rec.estimated_cost or 0.0
+            rec.cost_variance = rec.full_cost - expected if (expected and rec.full_cost) else 0.0
             rec.cost_variance_flag = bool(
-                approved and rec.full_cost and rec.cost_variance > approved * tolerance / 100.0
+                expected and rec.full_cost and rec.cost_variance > expected * tolerance / 100.0
             )
 
     def _m31_sync_logged_minutes(self):
@@ -1743,7 +1768,7 @@ class FixWorkshopJobCapture2(models.Model):
         )
 
     def action_start_burn_in(self):
-        if not self.env.context.get("m31_burnin_station"):
+        if self.env.context.get(BURNIN_STATION_KEY) is not _BURNIN_STATION_TOKEN:
             Station = self.env["fix.workshop.burnin.station"].sudo()
             for rec in self:
                 if Station.search_count([("workshop_id", "=", rec.workshop_id.id)]):
@@ -1831,14 +1856,19 @@ class FixWorkshopJobCapture2(models.Model):
             # 60 by default, were costed when nothing was clocked)
             minutes = rec.logged_active_minutes or 0.0
             lines = []
-            if ws.labour_rate_per_hour:
+            clocked = ws.labour_rate_per_hour or any(
+                rec.sudo().time_log_ids.mapped("rate_per_hour")
+            )
+            if clocked:
+                # A02 pass 2 M31-06: each segment at the rate it was booked at
+                hours = round(minutes / 60.0, 2)
                 lines.append(
                     (
                         "labour",
-                        "%.0f active minutes at the workshop rate" % minutes,
-                        round(minutes / 60.0, 2),
-                        ws.labour_rate_per_hour,
-                        round(minutes / 60.0 * ws.labour_rate_per_hour, 2),
+                        "%.0f active minutes at the rates they were booked at" % minutes,
+                        hours,
+                        round(rec.labour_cost / hours, 2) if hours else 0.0,
+                        round(rec.labour_cost or 0.0, 2),
                     )
                 )
             else:
@@ -1914,8 +1944,8 @@ class FixWorkshopJobCapture2(models.Model):
             if rec.cost_variance_flag:
                 body.append(
                     escape(
-                        "Variance %.2f BDT above the approved %.2f exceeds the tolerance."
-                        % (rec.cost_variance, rec.estimate_ceiling)
+                        "Variance %.2f BDT above the estimated cost %.2f exceeds the tolerance."
+                        % (rec.cost_variance, rec.estimated_cost)
                     )
                 )
             rec.message_post(body=Markup("<br/>").join(body))

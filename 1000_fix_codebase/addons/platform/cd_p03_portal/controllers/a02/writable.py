@@ -45,6 +45,8 @@ WRITABLE = {
     "fix.cash.movement": frozenset(
         {
             "amount",
+            "employee_id",
+            "expense_category",
             "movement_type",
             "reason",
             "receipt_attachment_id",
@@ -100,6 +102,7 @@ WRITABLE = {
             "volumetric_divisor",
             "waybill_attachment_id",
             "width_cm",
+            "zone_id",
         }
     ),
     "fix.counter.basket": frozenset(
@@ -220,6 +223,7 @@ WRITABLE = {
             "tested_at",
         }
     ),
+    "fix.data.case.read.log": frozenset(),
     "fix.data.cleanroom.slot": frozenset(
         {
             "case_id",
@@ -335,11 +339,17 @@ WRITABLE = {
             "reason_type",
         }
     ),
+    "fix.data.sanitisation.rule": frozenset(),
     "fix.data.wipe.certificate": frozenset(
         {
+            "case_id",
+            "destruction_photo_attachment_id",
             "device_id",
             "duration_seconds",
+            "lab_storage_ref",
+            "media_kind",
             "method",
+            "purpose",
             "sector_count",
             "serial_number",
             "tool_name",
@@ -491,6 +501,16 @@ WRITABLE = {
             "zone_id",
         }
     ),
+    "fix.logistics.tariff": frozenset(
+        {
+            "active",
+            "charge_bdt",
+            "consignment_type",
+            "weight_from_kg",
+            "weight_to_kg",
+            "zone_id",
+        }
+    ),
     "fix.monitored.asset": frozenset(
         {
             "agent_id",
@@ -516,6 +536,7 @@ WRITABLE = {
             "source",
         }
     ),
+    "fix.msp.alert.pause": frozenset(),
     "fix.msp.alert.rule": frozenset(
         {
             "active",
@@ -588,8 +609,13 @@ WRITABLE = {
             "holiday_calendar_id",
             "monitoring_scope",
             "name",
+            "overage_hourly_rate",
+            "parts_included",
             "per_device_monthly",
             "recording_retention_days",
+            "remote_hours_monthly",
+            "response_hours_major",
+            "response_hours_minor",
             "sla_target_pct",
             "unattended_access",
         }
@@ -730,6 +756,7 @@ WRITABLE = {
             "reason",
         }
     ),
+    "fix.msp.terms.amendment": frozenset(),
     "fix.offline.conflict.review": frozenset(
         {
             "decision",
@@ -803,6 +830,7 @@ WRITABLE = {
     "fix.service.order": frozenset(
         {
             "accessory_bag_barcode",
+            "after_repair_photo_attachment_id",
             "ber_photo_attachment_id",
             "branch_id",
             "catalog_item_id",
@@ -812,8 +840,6 @@ WRITABLE = {
             "collector_is_customer",
             "collector_relation",
             "cosmetic_condition_notes",
-            "counter_feedback",
-            "counter_rating",
             "customer_id",
             "deferred_notes",
             "deferred_until",
@@ -831,8 +857,8 @@ WRITABLE = {
             "recipient_nid_phone",
             "service_report_attachment_id",
             "service_type",
-            "service_warranty_days",
             "sim_memory_removed",
+            "storage_location_id",
             "symptom_reproducibility",
             "technician_id",
             "triage_verdict",
@@ -1090,10 +1116,12 @@ WRITABLE = {
             "high_value_device",
             "ipc_class_target",
             "ipc_visual_inspection_passed",
+            "maintenance_request_id",
             "order_id",
             "post_rework_photo_attachment_id",
             "pre_rework_photo_attachment_id",
             "priority",
+            "protocol_id",
             "reflow_profile_name",
             "repair_action_summary",
             "repair_level",

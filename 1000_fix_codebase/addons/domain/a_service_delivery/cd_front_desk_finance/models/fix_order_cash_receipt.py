@@ -38,7 +38,44 @@ TENDER_RECEIPT_METHOD = {
     "upay": "mobile_wallet",
     "card": "card",
     "sslcommerz": "card",
+    # A02 pass 2 (D1): the rider's cash on delivery: Dr COD clearing / Cr AR
+    "cod": "cod",
 }
+# money that is counted, not matched by a transaction ID (M04-02)
+COUNTED_METHODS = ("cash", "cod")
+
+
+def fdf_check_reference_unused(env, company, method, reference, what, allow_receipt=None):
+    """M04-02 (A02 pass 2): a wallet / card transaction ID pays once. Refuse
+    ``reference`` when a confirmed M20 receipt of the same method in the
+    company already carries it (as its number or its reference), unless that
+    receipt is ``allow_receipt`` (a field TrxID matched to the customer's own
+    receipt booked first). Cash and COD are counted, never matched by ID."""
+    ref = (reference or "").strip()
+    if not ref or not method or method in COUNTED_METHODS:
+        return
+    dup = (
+        env["fix.ar.receipt"]
+        .sudo()
+        .search(
+            [
+                ("company_id", "=", company.id),
+                ("state", "=", "confirmed"),
+                ("method", "=", method),
+                "|",
+                ("reference", "=ilike", ref),
+                ("name", "=ilike", ref),
+            ]
+        )
+    )
+    if allow_receipt:
+        dup -= allow_receipt
+    if dup:
+        raise UserError(
+            "%s refused: transaction %s is already on confirmed receipt %s (%s, BDT %.2f). "
+            "A wallet or card transaction pays once; ask for the customer's own TrxID."
+            % (what, ref, dup[0].name, dup[0].customer_id.display_name or "-", dup[0].amount)
+        )
 
 
 class FixServiceOrderSettlementReceipt(models.Model):
@@ -60,6 +97,11 @@ class FixServiceOrderSettlementReceipt(models.Model):
 
     # ------------------------------------------------------------ triggers
     def _fix_record_settlement(self, amount_bdt, reference, source):
+        tender = self.env.context.get("fd_settlement_tender")
+        if tender and tender not in COUNTED_METHODS and source in ("counter", "field_collection"):
+            # M04-02: the TrxID of a wallet / card payment pays once
+            for order in self:
+                order._fdf_check_trxid(tender, reference, source)
         if source == "counter" and fd_tender(self.env) == "cash":
             # BRU-FRD-04: high-value cash needs the customer's NID first
             Check = self.env["fix.cash.id.check"]
@@ -74,9 +116,20 @@ class FixServiceOrderSettlementReceipt(models.Model):
         # receipt booked nothing at all; A02 ERP review, 20 Nov 2026).
         before = (
             self.amount_settled_bdt or 0.0
-            if self.payment_settlement_state == "settled" and self.settlement_verified
+            if self.payment_settlement_state in ("settled", "partial") and self.settlement_verified
             else 0.0
         )
+        if source == "cod":
+            # interface contract: the COD receipt counts what was recorded
+            # before (verified or not), so only this call's money is booked.
+            # A02 pass 2 review: this counted it only when the earlier
+            # payment was itself COD, so the balance of an order part-paid on
+            # site in cash booked the technician's part to COD clearing too.
+            before = (
+                self.amount_settled_bdt or 0.0
+                if self.payment_settlement_state in ("settled", "partial")
+                else 0.0
+            )
         result = super()._fix_record_settlement(amount_bdt, reference, source)
         if source == "counter" and self.settlement_verified:
             taken = round((self.amount_settled_bdt or 0.0) - before, 2)
@@ -84,7 +137,49 @@ class FixServiceOrderSettlementReceipt(models.Model):
                 self._fdf_raise_settlement_receipt(
                     taken, tender=fd_tender(self.env), reference=reference
                 )
+        elif source == "cod":
+            # D1 / interface contract: the rider (or courier) holds the
+            # customer's cash: the receipt is raised when the COD settlement
+            # is recorded, Dr COD clearing (100204) / Cr the customer's AR; the
+            # drawer never moves. The rider's COD settlement (or the courier
+            # remittance) relieves the clearing and verifies the order
+            taken = round((self.amount_settled_bdt or 0.0) - before, 2)
+            if taken > 0.005:
+                self._fdf_raise_settlement_receipt(taken, tender="cod", reference=reference)
         return result
+
+    def _fdf_check_trxid(self, tender, reference, source):
+        """M04-02: refuse a wallet / card reference another receipt or another
+        order's settlement already holds. A field TrxID may match the
+        customer's own receipt booked first (_fdf_existing_m20_receipt)."""
+        self.ensure_one()
+        ref = (reference or "").strip()
+        method = TENDER_RECEIPT_METHOD.get(tender)
+        if not ref or not method or method in COUNTED_METHODS:
+            return
+        company = self.company_id or self.env.company
+        allow = self.env["fix.ar.receipt"]
+        if source == "field_collection":
+            allow = self._fix_find_m20_receipt(ref, 0.0) or allow
+        fdf_check_reference_unused(
+            self.env, company, method, ref, "Payment for %s" % self.name, allow_receipt=allow
+        )
+        same_method = [t for t, m in TENDER_RECEIPT_METHOD.items() if m == method]
+        other = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", company.id),
+                ("invoice_ref", "=ilike", ref),
+                ("settlement_tender", "in", same_method),
+                ("payment_settlement_state", "in", ("settled", "refund_due")),
+            ],
+            limit=1,
+        )
+        if other:
+            raise UserError(
+                "Payment for %s refused: transaction %s already settled order %s. A wallet or "
+                "card transaction pays once." % (self.name, ref, other.name)
+            )
 
     def action_verify_settlement(self):
         result = super().action_verify_settlement()
@@ -95,8 +190,10 @@ class FixServiceOrderSettlementReceipt(models.Model):
         """Raise the receipt for a field collection once a cashier verifies
         it (a counter settlement raises its own when it is taken)."""
         for order in self:
+            # interface contract (D3): a verified PART payment is booked too,
+            # for the part paid
             if not (
-                order.payment_settlement_state == "settled"
+                order.payment_settlement_state in ("settled", "partial")
                 and order.settlement_verified
                 and order.settlement_source == "field_collection"
             ):
@@ -176,10 +273,15 @@ class FixServiceOrderSettlementReceipt(models.Model):
             if not account:
                 # never take cash the books cannot hold: the settlement rolls back
                 raise UserError("Settlement of %s refused: %s" % (self.name, why))
+        else:
+            # M04-02: also for a top-up, a field verification, any caller
+            fdf_check_reference_unused(
+                self.env, company, method, reference, "Settlement of %s" % self.name
+            )
         unit = self.operating_unit_id or self.branch_id.operating_unit_id
         check = (
             self.env["fix.cash.id.check"].sudo().search([("order_id", "=", self.id)], limit=1)
-            if method == "cash"
+            if method in COUNTED_METHODS
             else self.env["fix.cash.id.check"]
         )
         receipt = (

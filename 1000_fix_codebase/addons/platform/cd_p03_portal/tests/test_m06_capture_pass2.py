@@ -257,7 +257,9 @@ def test_a_customer_nda_needs_the_signed_document(m6):  # noqa: F811
 
 def test_a_retention_hold_keeps_the_data_only_once_another_manager_approves(m6):  # noqa: F811
     case = m6.handed_over(m6.new_case(serial="WD-HOLD-%d" % m6.n), target="T-HOLD")
-    cert = _cert(m6, case.media_serial_number)
+    # A02 pass 2 M06-04 (D15): the purge rests on the lab's purge certificate
+    # of the case (its working copy destroyed), never on a drive certificate
+    cert = m6.purge_cert(case)
     end = case.retention_until
     vals = {
         "case_id": case.id,
@@ -429,7 +431,10 @@ def test_a_request_is_answered_by_a_certificate_verified_on_its_uploaded_evidenc
         CERT,
         {
             "wipe_request_id": req.id,
-            "method": "nist_800_88",
+            # A02 pass 2 M06-09 (D16): resale media is judged by the matrix on
+            # its kind - an HDD going to resale is purged, not cleared
+            "media_kind": "hdd",
+            "method": "nist_800_88_purge",
             "sector_count": 976773168,
             "tool_name": "nwipe 0.35",
             "wipe_log_attachment_id": {

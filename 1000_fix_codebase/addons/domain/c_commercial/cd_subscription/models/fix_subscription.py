@@ -53,6 +53,11 @@ SUB_GUARDED = {
     "refund_credit_note_id",
 }
 SUB_START_STATES = ("trial", "active")
+# M39-F15: a past-due subscription is still under contract and keeps billing;
+# a held (suspended), paused or closed one does not.
+BILLABLE_STATES = ("active", "past_due")
+# rev_rec_engine's refund line: above it the refund needs a manager
+REFUND_MANAGER_THRESHOLD = 25000.0
 # The price terms: set when the subscription is created, changed afterwards
 # only through an approved price change (A04 M39 request, A08 B4).
 SUB_PRICE_FIELDS = ("recurring_amount", "contract_value", "plan", "billing_cycle", "currency_id")
@@ -69,6 +74,11 @@ SUB_PRICE_GUARDED = {
     "contract_value_requested_by_id",
     "contract_value_reason",
 }
+# A04 ERP M39-F9 (20 Nov 2026): the billing terms. Set when the subscription
+# is created; afterwards only the billing run, an approved lifecycle request
+# (renewal, resume) or the billing schedule moves them (guarded writes). The
+# only Accountant moved next_invoice_date a year ahead and grace to 999 days.
+SUB_TERM_FIELDS = ("next_invoice_date", "grace_period_days", "contract_end_date")
 # Annualised price delta a second Accountant may approve; above it the
 # Accounting Administrator (05-04 §7's finance-officer band, as for credit
 # notes: a price cut is a revenue concession).
@@ -215,7 +225,7 @@ class FixSubscription(models.Model):
         locked = super()._fix_form_locked_fields()
         # set on the form when the subscription is created; an empty recordset
         # is the new-record form (locked there, nothing could be created)
-        return locked | set(SUB_PRICE_FIELDS) if self else locked
+        return locked | set(SUB_PRICE_FIELDS) | set(SUB_TERM_FIELDS) if self else locked
 
     def write(self, vals):
         if not self._fix_guard_open():
@@ -229,6 +239,20 @@ class FixSubscription(models.Model):
                 raise UserError(
                     "The price of a subscription (%s) changes only through Request Price "
                     "Change, approved by a second person." % ", ".join(sorted(set(touched)))
+                )
+            terms = sorted(
+                {
+                    f
+                    for f in set(SUB_TERM_FIELDS) & set(vals)
+                    for sub in self
+                    if sub._fix_guard_differs(f, vals[f], sub[f])
+                }
+            )
+            if terms:
+                raise UserError(
+                    "The billing terms of a subscription (%s) are set when it is created; "
+                    "afterwards a reviewed billing run, an approved renewal / resume or an "
+                    "activated billing schedule moves them (BRU-SUB-17)." % ", ".join(terms)
                 )
         return super().write(vals)
 
@@ -403,6 +427,10 @@ class FixSubscription(models.Model):
         if not self.env.su:
             raise AccessError("The quotation consumer runs only from the event relay.")
         payload = event.get("payload") or {}
+        # A04 ERP (B2): only the quotation's own event; the M01 estimate now
+        # publishes estimate.quotation_accepted on another model
+        if event.get("aggregate") != "fix.quotation":
+            return {"skipped": "aggregate %s is not fix.quotation" % event.get("aggregate")}
         if "fix.quotation" not in self.env:
             return {"skipped": "no quotation module"}
         try:
@@ -499,25 +527,39 @@ class FixSubscription(models.Model):
         revenue (IFRS 15 — recognition runs from the performance
         obligations). A consolidated subscription's invoices are rolled into
         the customer's ONE period bill by M20's Consolidated Corporate
-        Invoices (one bill, not N)."""
+        Invoices (one bill, not N).
+
+        A04 ERP M39-F5: a cycle is a calendar month / quarter / year from the
+        cycle start (a fixed 30-day roll billed 13 charges in a 12-month
+        term), and billing stops at the contract end: a last partial cycle is
+        billed for its days, nothing is billed past the end.
+        M39-F15: a past-due subscription is still under contract and is
+        billed; only a held (suspended) one is not."""
         Charge = self.env["fix.subscription.charge"]
         for sub in self:
-            if sub.state != "active":
+            if sub.state not in BILLABLE_STATES:
                 continue
             if sub.recurring_amount <= 0:
                 raise UserError("Subscription %s has no recurring amount to charge" % sub.name)
             period_start = sub.next_invoice_date
-            period_end = period_start + timedelta(days=sub._cycle_days() - 1)
-            charge = Charge.create(
+            period_end, amount = sub._fix_cycle_window(period_start)
+            if not period_end:
+                sub.message_post(
+                    body="Not billed: the contract ended on %s; the cycle from %s is outside the "
+                    "term (renew it to bill on)." % (sub.contract_end_date, period_start)
+                )
+                continue
+            charge = Charge._guarded().create(
                 {
                     "company_id": sub.company_id.id,
                     "operating_unit_id": sub.operating_unit_id.id,
                     "subscription_id": sub.id,
                     "period_start": period_start,
                     "period_end": period_end,
-                    "amount": sub.recurring_amount,
+                    "amount": amount,
                 }
             )
+            charge = Charge.browse(charge.ids)
             charge._create_invoice()
             publish(
                 self.env,
@@ -526,11 +568,46 @@ class FixSubscription(models.Model):
                 sub.id,
                 {
                     "customer_id": sub.customer_id.id,
-                    "amount": sub.recurring_amount,
-                    "period_days": sub._cycle_days(),
+                    "amount": charge.amount,
+                    "period_days": (period_end - period_start).days + 1,
                 },
             )
-            sub.next_invoice_date = sub.next_invoice_date + timedelta(days=sub._cycle_days())
+            sub._guarded().write({"next_invoice_date": period_end + timedelta(days=1)})
+
+    def _fix_cycle_window(self, period_start):
+        """(period_end, amount) of the cycle starting `period_start`: a full
+        calendar cycle at the recurring amount, clipped to the contract end
+        (the partial cycle billed for its days); (False, 0.0) when the cycle
+        starts after the contract end."""
+        self.ensure_one()
+        # A cycle runs a calendar month / quarter / year from the billing date.
+        # When the billing date falls on the start's anniversary, the cycle is
+        # counted from the start, so a month-end start does not drift
+        # (Jan 31 -> Feb 27, Feb 28 -> Mar 30).
+        months = self._cycle_months()
+        anchor = period_start
+        if self.start_date and self.start_date <= period_start:
+            k = 0
+            while self.start_date + relativedelta(months=k * months) < period_start:
+                k += 1
+            if self.start_date + relativedelta(months=k * months) == period_start:
+                anchor = self.start_date
+        n = 1
+        while anchor + relativedelta(months=n * months) <= period_start:
+            n += 1
+        cycle_start = anchor + relativedelta(months=(n - 1) * months)
+        full_end = anchor + relativedelta(months=n * months) - timedelta(days=1)
+        end = full_end
+        if self.contract_end_date:
+            if period_start > self.contract_end_date:
+                return False, 0.0
+            end = min(full_end, self.contract_end_date)
+        amount = self.recurring_amount
+        days = (end - period_start).days + 1
+        full = (full_end - cycle_start).days + 1
+        if days < full:  # a partial cycle (contract end, or resumed mid-cycle)
+            amount = round(self.recurring_amount * days / full, 2)
+        return end, amount
 
     def _cycle_months(self) -> int:
         return {"monthly": 1, "quarterly": 3, "annual": 12}[self.billing_cycle]
@@ -563,6 +640,7 @@ class FixSubscription(models.Model):
         Obligation = self.env["fix.performance.obligation"]
         created_schedules = self.env["fix.revenue.schedule"]
         for sub in self:
+            sub._fix_refuse_second_basis()
             val = sub._transaction_price()
             if val <= 0:
                 raise UserError(
@@ -609,6 +687,18 @@ class FixSubscription(models.Model):
                 {"subscription": sub.name, "amount": float(val)},
             )
         return created_schedules
+
+    def _fix_refuse_second_basis(self):
+        """A04 ERP M39-F1: a subscription whose issued invoices already defer
+        their own periods is not scheduled a second time over its whole
+        contract value (November recognised 5,868.13 on 3,000 billed)."""
+        for sub in self:
+            if sub._fix_recognition_basis() == "invoice":
+                raise UserError(
+                    "%s already recognises revenue invoice by invoice (each issued cycle "
+                    "invoice defers its own period). A contract-level schedule would recognise "
+                    "the same revenue twice: one basis per subscription (M39-F1)." % sub.name
+                )
 
     def action_trigger_dunning(self, as_of=None):
         """Automated 3-stage dunning workflow (FLAW-39.2).
@@ -779,13 +869,21 @@ class FixSubscription(models.Model):
                         ", ".join(unpaid.mapped("name")),
                     )
                 )
-            sub._guarded().write(
-                {
-                    "state": "active",
-                    "dunning_step": "none",
-                    "days_overdue": 0,
-                }
-            )
+            # A04 ERP M39-F15 (BRU-SUB-12): the suspended months are not billed
+            # on reinstatement; billing resumes from today
+            today = fields.Date.context_today(sub)
+            vals = {"state": "active", "dunning_step": "none", "days_overdue": 0}
+            if sub.next_invoice_date and sub.next_invoice_date < today:
+                vals["next_invoice_date"] = today
+                sub.message_post(
+                    body="Reinstated: the suspension from %s to %s is not billed."
+                    % (sub.next_invoice_date, today)
+                )
+                if "schedule_ids" in sub._fields:
+                    sub.schedule_ids.filtered(lambda s: s.state == "active").period_ids.filtered(
+                        lambda p, day=today: p.state == "planned" and p.period_end < day
+                    ).sudo().write({"state": "skipped"})
+            sub._guarded().write(vals)
             publish(
                 self.env,
                 "subscription.reinstated",
@@ -796,11 +894,24 @@ class FixSubscription(models.Model):
                 },
             )
 
-    def action_cancel(self):
+    def action_cancel(self, cancellation_date=None):
+        """Cancel and settle (A04 ERP M39-F2): billing stops, every revenue
+        schedule of the contract stops on the day, the unearned share of what
+        was billed is credited, and what was delivered but not billed is billed
+        (the final bill). Outstanding balances ride the M20 collections ladder."""
         require_role(self.env, GROUP_ACCOUNTANT, "Cancelling a subscription")
+        on = fields.Date.to_date(cancellation_date) if cancellation_date else None
         for sub in self:
+            if sub.state in ("cancelled", "churned"):
+                raise UserError("Subscription %s is already %s" % (sub.name, sub.state))
+            day = on or fields.Date.context_today(sub)
+            sub._guarded().write({"state": "cancelled", "cancelled_on": day})
+            res = sub._fix_settle_cancellation(day)
             sub._guarded().write(
-                {"state": "cancelled", "cancelled_on": fields.Date.context_today(sub)}
+                {
+                    "last_refund_amount": float(res.net_refund_payable),
+                    "last_refund_earned": float(res.earned_revenue),
+                }
             )
             # T03: subscription dunning stops on cancellation — outstanding
             # balances ride the M20 collections ladder instead
@@ -810,10 +921,17 @@ class FixSubscription(models.Model):
         """Prorated mid-cycle cancellation and credit note flow.
         Calculates earned vs unearned revenue and enforces BDT 25,000 approval threshold.
 
-        A08 M53: the figures are kept on the subscription; the cycle's issued
-        invoice gets a DRAFT credit note for the unearned share (gross of VAT
-        pro rata) that runs M20's approval ladder; the performance
-        obligations recognise up to the cancellation date and stop."""
+        A08 M53: the figures are kept on the subscription; each issued cycle
+        invoice running past the cancellation gets a DRAFT credit note for its
+        unearned share (gross of VAT pro rata) that runs M20's approval
+        ladder; every revenue schedule recognises up to the cancellation date
+        and stops.
+
+        A04 ERP M39-F3 / F14: the unearned share is measured on the cycle the
+        invoice actually billed (its own period and amount), not on
+        next_invoice_date - 30 days, and the invoice-level deferral schedule
+        stops too (it kept recognising the refunded share: 3,000 recognised
+        for 1,000 earned and 200401 left 2,000 in debit)."""
         require_role(self.env, GROUP_ACCOUNTANT, "Requesting a subscription refund")
         today = fields.Date.context_today(self)
         cancellation_date = fields.Date.to_date(cancellation_date) if cancellation_date else today
@@ -824,31 +942,24 @@ class FixSubscription(models.Model):
                 "A cancellation is dated today (%s), not %s: it is never backdated."
                 % (today, cancellation_date)
             )
+        try:
+            fee = float(fee_pct or 0.0)
+        except (TypeError, ValueError):
+            raise UserError("The cancellation fee is a percentage.") from None
+        if not 0.0 <= fee <= 100.0:
+            raise UserError("The cancellation fee is between 0 and 100%.")
         results = []
         for sub in self:
             if sub.state in ("cancelled", "churned"):
                 raise UserError("Subscription %s is already %s" % (sub.name, sub.state))
-            # Term calculation based on last cycle start to next invoice date
-            cycle_days = sub._cycle_days()
-            start = sub.next_invoice_date - timedelta(days=cycle_days)
-            end = sub.next_invoice_date
-            res = rev_rec_engine.compute_cancellation_refund(
-                total_amount=sub.recurring_amount,
-                start_date=start,
-                end_date=end,
-                cancellation_date=cancellation_date,
-                cancellation_fee_pct=fee_pct,
-            )
+            sub._guarded().write({"state": "cancelled", "cancelled_on": cancellation_date})
+            res = sub._fix_settle_cancellation(cancellation_date, fee_pct=fee)
             sub._guarded().write(
                 {
-                    "state": "cancelled",
-                    "cancelled_on": cancellation_date,
                     "last_refund_amount": float(res.net_refund_payable),
                     "last_refund_earned": float(res.earned_revenue),
                 }
             )
-            sub._refund_credit_note(res, start)
-            sub._stop_recognition(cancellation_date)
             publish(
                 self.env,
                 "subscription.refund_requested",
@@ -865,32 +976,114 @@ class FixSubscription(models.Model):
             results.append(res)
         return results
 
-    def _refund_credit_note(self, res, cycle_start):
-        """A draft credit note for the unearned share of the cycle invoice."""
+    # ---- A04 ERP M39-F1/F2/F3/F14: one basis, and settling a cancellation ----
+    def _fix_recognition_basis(self) -> str:
+        """M39-F1: the ONE basis revenue is recognised on. 'contract': its
+        performance obligations are scheduled (the whole transaction price
+        over the term); 'invoice': each issued cycle invoice defers its own
+        period; 'none' before either exists."""
         self.ensure_one()
-        net = float(res.net_refund_payable)
-        if net <= 0 or not self.recurring_amount:
-            return
-        charge = self.charge_ids.filtered(
-            lambda c: (
-                c.period_start == cycle_start
-                and c.invoice_id.state in ("issued", "paid", "credited")
+        if self.obligation_ids.filtered(lambda o: o.state in ("scheduled", "satisfied")):
+            return "contract"
+        if (
+            self.env["fix.revenue.schedule"]
+            .sudo()
+            .search_count(
+                [
+                    ("subscription_id", "=", self.id),
+                    ("source_model", "=", "fix.ar.invoice"),
+                    ("state", "!=", "cancelled"),
+                ]
             )
-        )[:1]
-        invoice = charge.invoice_id
-        if not invoice:
+        ):
+            return "invoice"
+        return "none"
+
+    def _fix_billed_charges(self):
+        """Cycle charges whose invoice is on the books (issued or later)."""
+        self.ensure_one()
+        return self.charge_ids.sudo().filtered(
+            lambda c: c.invoice_id and c.invoice_id.state in ("issued", "paid", "credited")
+        )
+
+    def _fix_settle_cancellation(self, cancel_date, fee_pct=0.0):
+        """Settle a cancellation dated `cancel_date`; returns the totals as a
+        rev_rec_engine.CancellationRefundResult (VAT-exclusive)."""
+        self.ensure_one()
+        Schedule = self.env["fix.revenue.schedule"].sudo()
+        earned_total = unearned_total = fee_total = net_total = billed_total = 0.0
+        first_note = self.env["fix.credit.note"]
+        contract_basis = self._fix_recognition_basis() == "contract"
+        refunded_ex_vat = 0.0
+        charges = self._fix_billed_charges().filtered(lambda c: c.period_end >= cancel_date)
+        for charge in charges.sorted("period_start"):
+            invoice = charge.invoice_id.sudo()
+            deferred = invoice._fix_deferred_amount()
+            if deferred <= 0.005:
+                continue
+            schedule = Schedule.search(
+                [("source_model", "=", invoice._name), ("source_id", "=", invoice.id)], limit=1
+            )
+            if schedule and schedule.state == "active" and not contract_basis:
+                if cancel_date > schedule.start_date and not schedule._recognition_refusal():
+                    schedule.action_recognize_period(as_of=min(cancel_date, schedule.end_date))
+                schedule.invalidate_recordset(["recognized_amount"])
+                earned = round(min(schedule.recognized_amount, deferred), 2)
+            else:
+                term = max((charge.period_end - charge.period_start).days, 1)
+                elapsed = min(max((cancel_date - charge.period_start).days, 0), term)
+                earned = round(deferred * elapsed / term, 2)
+            unearned = round(deferred - earned, 2)
+            fee = round(unearned * (fee_pct or 0.0) / 100.0, 2)
+            net = round(unearned - fee, 2)
+            note = self._fix_refund_note(invoice, net, deferred)
+            keep = 0.0
+            if note:
+                taxable_part, _vat = note._vat_split()
+                keep = round(taxable_part, 2)
+                first_note = first_note or note
+            refunded_ex_vat += keep
+            if schedule and not contract_basis:
+                schedule._fix_stop_at(cancel_date, keep_deferred=keep)
+            billed_total += deferred
+            earned_total += earned
+            unearned_total += unearned
+            fee_total += fee
+            net_total += net
+        if first_note:
+            self._guarded().write({"refund_credit_note_id": first_note.id})
+        # every other schedule of the contract stops on the day
+        self._stop_recognition(cancel_date)
+        final = self._fix_final_charge(cancel_date)
+        if contract_basis:
+            self._fix_settle_contract_liability(cancel_date, refunded_ex_vat)
+        if final:
             self.message_post(
-                body="Refund of %s computed; no issued invoice for the cycle starting %s — "
-                "raise the credit note in M20 once the cycle invoice is issued."
-                % (round(net, 2), cycle_start)
+                body="Final bill %s for %s to %s (delivered, not yet billed)."
+                % (final.invoice_id.display_name, final.period_start, final.period_end)
             )
-            return
+        return rev_rec_engine.CancellationRefundResult(
+            cancellation_date=cancel_date,
+            total_amount=Decimal(str(round(billed_total, 2))).quantize(TWO),
+            earned_revenue=Decimal(str(round(earned_total, 2))).quantize(TWO),
+            unearned_refund=Decimal(str(round(unearned_total, 2))).quantize(TWO),
+            cancellation_fee=Decimal(str(round(fee_total, 2))).quantize(TWO),
+            net_refund_payable=Decimal(str(round(net_total, 2))).quantize(TWO),
+            requires_manager_approval=net_total > REFUND_MANAGER_THRESHOLD,
+        )
+
+    def _fix_refund_note(self, invoice, net_ex_vat, deferred):
+        """A DRAFT credit note for `net_ex_vat` of `invoice` (grossed up by
+        the invoice's own VAT ratio), on M20's credit-note ladder."""
+        self.ensure_one()
+        if net_ex_vat <= 0.005 or deferred <= 0.005:
+            return self.env["fix.credit.note"]
         open_credit = invoice.total_payable - invoice.credited_amount
         amount = invoice.currency_id.round(
-            min(invoice.total_payable * net / self.recurring_amount, open_credit)
+            min(invoice.total_payable * net_ex_vat / deferred, open_credit)
         )
         if amount <= 0:
-            return
+            return self.env["fix.credit.note"]
         note = self.env["fix.credit.note"].create(
             {
                 "company_id": invoice.company_id.id,
@@ -900,20 +1093,95 @@ class FixSubscription(models.Model):
                 "reason_code": "subscription_refund",
             }
         )
-        self._guarded().write({"refund_credit_note_id": note.id})
         note.message_post(
             body="Refund of the unearned share of %s on cancellation: a draft credit note "
             "for finance to submit; it is approved by someone other than the requester "
             "(M20 credit-note ladder)." % self.name
         )
+        return note
+
+    def _fix_final_charge(self, cancel_date):
+        """The final bill: service delivered up to the cancellation but not
+        billed (billed in arrears, or the run had not reached it)."""
+        self.ensure_one()
+        billed = self.charge_ids.sudo()
+        if not billed:
+            # never billed through M39 (or billed elsewhere, e.g. the M08
+            # contract walker): no final bill is guessed
+            return self.env["fix.subscription.charge"]
+        last_end = max(billed.mapped("period_end"))
+        if cancel_date <= last_end + timedelta(days=1) or (self.recurring_amount or 0.0) <= 0:
+            return self.env["fix.subscription.charge"]
+        start = last_end + timedelta(days=1)
+        end = cancel_date - timedelta(days=1)
+        if self.contract_end_date:
+            end = min(end, self.contract_end_date)
+        if end < start:
+            return self.env["fix.subscription.charge"]
+        full_end = start + relativedelta(months=self._cycle_months()) - timedelta(days=1)
+        days = (end - start).days + 1
+        full = (full_end - start).days + 1
+        amount = round(self.recurring_amount * days / full, 2)
+        if amount <= 0.005:
+            return self.env["fix.subscription.charge"]
+        Charge = self.env["fix.subscription.charge"].sudo()
+        charge = Charge._guarded().create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id,
+                "subscription_id": self.id,
+                "period_start": start,
+                "period_end": end,
+                "amount": amount,
+            }
+        )
+        charge = Charge.browse(charge.ids)
+        charge._create_invoice()
+        return charge
+
+    def _fix_settle_contract_liability(self, cancel_date, refunded_ex_vat):
+        """Contract basis: what was billed to the liability, less what the
+        obligations recognised and the refunds, nets to zero. A remainder was
+        earned (the customer forfeited it): it is recognised now. A shortfall
+        is service recognised but never billed: it is billed (final bill)."""
+        self.ensure_one()
+        billed = sum(c.invoice_id.sudo()._fix_deferred_amount() for c in self._fix_billed_charges())
+        schedules = self.obligation_ids.mapped("schedule_id").sudo()
+        recognised = sum(schedules.mapped("recognized_amount"))
+        balance = round(billed - recognised - refunded_ex_vat, 2)
+        if balance > 0.005 and schedules:
+            target = schedules.sorted("id")[-1:]
+            target._fix_post_line(balance, cancel_date, "earned on cancellation (not refunded)")
+        elif balance < -0.005:
+            Charge = self.env["fix.subscription.charge"].sudo()
+            ends = self.charge_ids.mapped("period_end")
+            last = max(ends) if ends else cancel_date - timedelta(days=1)
+            start = max(last + timedelta(days=1), cancel_date)
+            charge = Charge._guarded().create(
+                {
+                    "company_id": self.company_id.id,
+                    "operating_unit_id": self.operating_unit_id.id,
+                    "subscription_id": self.id,
+                    "period_start": start,
+                    "period_end": start,
+                    "amount": -balance,
+                }
+            )
+            charge = Charge.browse(charge.ids)
+            charge._create_invoice()
+            self.message_post(
+                body="Final bill of %.2f: service recognised under the contract but never billed."
+                % -balance
+            )
 
     def _stop_recognition(self, cancellation_date):
-        """Recognise every obligation up to the cancellation, then stop it."""
+        """Recognise every obligation up to the cancellation, then stop it,
+        and stop any other active schedule of the subscription."""
         self.ensure_one()
         for obligation in self.obligation_ids.filtered(lambda o: o.state != "cancelled"):
             schedule = obligation.schedule_id
             if schedule and schedule.state == "active":
-                if not schedule._recognition_refusal():
+                if not schedule._recognition_refusal() and cancellation_date > schedule.start_date:
                     schedule.action_recognize_period(as_of=cancellation_date)
                 if schedule.state == "active":
                     schedule._guarded().write(
@@ -922,6 +1190,13 @@ class FixSubscription(models.Model):
             obligation._guarded().write(
                 {"state": "cancelled" if obligation.state != "satisfied" else "satisfied"}
             )
+        others = (
+            self.env["fix.revenue.schedule"]
+            .sudo()
+            .search([("subscription_id", "=", self.id), ("state", "in", ("active", "held"))])
+        )
+        for schedule in others:
+            schedule._fix_stop_at(cancellation_date)
 
     def action_allocate_price(self):
         """IFRS 15 step 4: allocate the transaction price to the performance
@@ -1026,10 +1301,10 @@ class FixSubscription(models.Model):
             "state": "issued",
         }
 
-        # Mushak 6.3 Register row creation
-        year = period_end.year
-        mushak_no = f"{year}-C{customer.id:04d}-{len(device_lines):04d}"
-        invoice_vals["mushak_ref"] = mushak_no
+        # A04 ERP M39-F19: a Mushak 6.3 number is M51's, assigned when the
+        # invoice is issued through M20; this preview never invents one (it
+        # published year-customer-count as if it were the statutory number).
+        mushak_no = False
 
         publish(
             self.env,
@@ -1388,6 +1663,31 @@ class FixRevenueSchedule(models.Model):
                 return "a manual schedule with no CFO approval"
             return None
         source = self._source_record()
+        if self.source_model == "fix.ar.invoice":
+            # A04 ERP M39-F6: a deferred invoice is its own basis - it billed
+            # this period - so a subscription with no contract value or end
+            # date still recognises what it billed (it was held for ever).
+            # M39-F1: never beside the contract's obligation schedules.
+            if not source:
+                return "its invoice no longer exists"
+            if source.state not in ("issued", "paid", "credited", "written_off"):
+                return "invoice %s is %s, not issued" % (source.display_name, source.state)
+            sub = self.subscription_id.sudo()
+            if sub and sub._fix_recognition_basis() == "contract":
+                return (
+                    "%s recognises its revenue through its contract's performance obligations "
+                    "(one basis per subscription)" % sub.display_name
+                )
+            ceiling = (
+                source._fix_deferred_amount() if hasattr(source, "_fix_deferred_amount") else 0.0
+            )
+            if self.total_amount > ceiling + 0.005:
+                return "total %.2f is above the %.2f invoice %s deferred" % (
+                    self.total_amount,
+                    ceiling,
+                    source.display_name,
+                )
+            return None
         if self.source_model == "fix.performance.obligation":
             if not source:
                 return "its performance obligation no longer exists"
@@ -1609,7 +1909,9 @@ class FixRevenueSchedule(models.Model):
         self.ensure_one()
         company = self.company_id
         deferred = _ar_account(self.env, company, "deferred_revenue")
-        revenue = _ar_account(self.env, company, "revenue")
+        revenue = self._fix_recognition_revenue_account() or _ar_account(
+            self.env, company, "revenue"
+        )
         missing = [
             role for role, acc in (("deferred_revenue", deferred), ("revenue", revenue)) if not acc
         ]
@@ -1639,6 +1941,92 @@ class FixRevenueSchedule(models.Model):
         if not move:
             raise UserError("Revenue recognition refused: %s" % (note or "posting failed"))
         return move, deferred, revenue
+
+    def _fix_recognition_revenue_account(self):
+        """A04 ERP (B2, M08-F5): a contract period billed in ADVANCE carries the
+        contract family's revenue account (amc/managed 400107, rental 400108)
+        on fix.contract.billing.period.revenue_account_id; its recognition
+        credits that account, not the generic service revenue role."""
+        self.ensure_one()
+        if self.source_model != "fix.ar.invoice":
+            return None
+        invoice = self._source_record()
+        if not invoice or invoice.source_model != "fix.contract.billing.period":
+            return None
+        Period = self.env.get("fix.contract.billing.period")
+        if Period is None or "revenue_account_id" not in Period._fields:
+            return None
+        period = Period.sudo().browse(invoice.source_id).exists()
+        return period.revenue_account_id or None
+
+    def _fix_post_line(self, amount, on_date, why):
+        """One recognition posting outside the straight line (a cancellation
+        settles what is left): Dr contract liability / Cr revenue + its line."""
+        self.ensure_one()
+        amount = round(amount, 2)
+        if amount <= 0.005:
+            return self.env["fix.revenue.recognition.line"]
+        move, deferred, revenue = self.sudo()._post_recognition(amount, on_date)
+        line = (
+            self.env["fix.revenue.recognition.line"]
+            .sudo()
+            .create({"schedule_id": self.id, "date": on_date, "amount": amount, "move_id": move.id})
+        )
+        self.invalidate_recordset(["recognized_amount", "line_ids"])
+        self.message_post(body="Recognised %.2f on %s: %s." % (amount, on_date, why))
+        publish(
+            self.env,
+            "revenue.recognized",
+            "fix.revenue.schedule",
+            self.id,
+            {
+                "amount": amount,
+                "cumulative": self.recognized_amount,
+                "source_model": self.source_model,
+                "source_id": self.source_id,
+                "gl_debit_account": deferred.code,
+                "gl_credit_account": revenue.code,
+                "reason": why,
+            },
+        )
+        return line
+
+    def _fix_stop_at(self, on_date, keep_deferred=0.0):
+        """Stop the schedule at `on_date` (a cancellation): recognise the
+        straight line up to that day, then what is left beyond the
+        `keep_deferred` the refund credit note takes off the liability (it was
+        earned: the service ended), and cancel. A held schedule (no basis) only
+        stops. Leaves the liability for this schedule at keep_deferred, which
+        the credit note's issue clears (A04 ERP M39-F2/F3, M09-F2)."""
+        for schedule in self.sudo():
+            if schedule.state not in ("active", "held"):
+                continue
+            if schedule.state == "active" and not schedule._recognition_refusal():
+                # what is not refunded is earned, and never more: a refund
+                # measured on a slightly different day count than the straight
+                # line caps the recognition (the liability then nets to zero)
+                final = round(max(schedule.total_amount - (keep_deferred or 0.0), 0.0), 2)
+                term = (schedule.end_date - schedule.start_date).days or 1
+                elapsed = min(max((on_date - schedule.start_date).days, 0), term)
+                straight = round(schedule.total_amount * elapsed / term, 2)
+                done = schedule.recognized_amount
+                to_date = round(min(straight, final) - done, 2)
+                if to_date > 0.005:
+                    schedule._fix_post_line(to_date, on_date, "recognised to the cancellation")
+                    done = round(done + to_date, 2)
+                forfeit = round(final - done, 2)
+                if forfeit > 0.005:
+                    schedule._fix_post_line(
+                        forfeit, on_date, "earned on cancellation (not refunded)"
+                    )
+                elif forfeit < -0.005:
+                    schedule.message_post(
+                        body="Recognised %.2f more than the %.2f the refund leaves earned: "
+                        "finance reviews the over-recognition." % (-forfeit, final)
+                    )
+            if schedule.state != "cancelled":
+                schedule._guarded().write({"state": "cancelled", "cancelled_date": on_date})
+        return True
 
     @api.model
     def _cron_recognize(self):
@@ -1852,6 +2240,7 @@ class FixPerformanceObligation(models.Model):
         for obligation in self:
             if obligation.state != "allocated":
                 raise UserError("Allocate the transaction price before scheduling")
+            obligation.subscription_id._fix_refuse_second_basis()
             if obligation.allocated_amount <= 0:
                 raise UserError("Obligation %s has no allocated price" % obligation.name)
             sub = obligation.subscription_id

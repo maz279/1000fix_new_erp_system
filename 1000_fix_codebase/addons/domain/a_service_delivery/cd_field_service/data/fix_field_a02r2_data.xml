@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A02 ERP audit pass 2 (20 Nov 2026): M02 receipts and owner-decided limits. -->
+<odoo>
+    <data noupdate="1">
+        <!-- M02-13: the numbered on-site receipt -->
+        <record id="seq_fix_field_onsite_receipt" model="ir.sequence">
+            <field name="name">Field On-Site Receipt</field>
+            <field name="code">fix.field.onsite.receipt</field>
+            <field name="prefix">ORC/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <!-- D19 (BLA 2006): the technician's dispatched day -->
+        <record id="icp_dispatch_max_jobs_per_day" model="ir.config_parameter">
+            <field name="key">cd_field_service.dispatch_max_jobs_per_day</field>
+            <field name="value">6</field>
+        </record>
+        <record id="icp_dispatch_normal_hours_per_day" model="ir.config_parameter">
+            <field name="key">cd_field_service.dispatch_normal_hours_per_day</field>
+            <field name="value">8</field>
+        </record>
+        <record id="icp_dispatch_max_hours_per_day" model="ir.config_parameter">
+            <field name="key">cd_field_service.dispatch_max_hours_per_day</field>
+            <field name="value">10</field>
+        </record>
+        <record id="icp_dispatch_default_job_hours" model="ir.config_parameter">
+            <field name="key">cd_field_service.dispatch_default_job_hours</field>
+            <field name="value">1</field>
+        </record>
+        <!-- D21: wasted-visit fee, BDT (0 = off) -->
+        <record id="icp_wasted_visit_fee_bdt" model="ir.config_parameter">
+            <field name="key">cd_field_service.wasted_visit_fee_bdt</field>
+            <field name="value">0</field>
+        </record>
+        <!-- D5 / M02-04: product default codes fitted on site without an
+             estimate line (comma-separated; consumables only) -->
+        <record id="icp_onsite_consumable_codes" model="ir.config_parameter">
+            <field name="key">cd_field_service.onsite_consumable_codes</field>
+            <field name="value">SCREW,THERMAL-PASTE,CABLE-TIE</field>
+        </record>
+        <!-- D20: business days a technician has to hand field cash in -->
+        <record id="icp_field_cash_handin_business_days" model="ir.config_parameter">
+            <field name="key">cd_field_service.cash_handin_business_days</field>
+            <field name="value">1</field>
+        </record>
+    </data>
+</odoo>

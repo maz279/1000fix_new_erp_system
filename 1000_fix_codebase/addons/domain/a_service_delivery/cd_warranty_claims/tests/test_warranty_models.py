@@ -154,9 +154,13 @@ def test_closed_warranty_job_creates_one_claim(wc):
     event = {"aggregate_id": order.id, "payload": {"completed_at": "2026-10-21 08:00:00"}}
     claim = model.consume_order_completed(event)
     estimate = order._fix_governing_estimate()
-    # brand from the device; amount = the APPROVED estimate's total 2000 x 1.15
-    assert (claim.brand_id, claim.claim_amount) == (wc.brand, estimate.grand_total)
-    assert claim.claim_amount == 2300.0
+    # brand from the device; amount = the APPROVED estimate EX-VAT (A04 ERP
+    # M09-F4: no brand rate released; it claimed the VAT-inclusive 2300)
+    assert (claim.brand_id, claim.claim_amount) == (
+        wc.brand,
+        estimate.grand_total - estimate.vat_amount,
+    )
+    assert claim.claim_amount == 2000.0
     assert claim.job_completed_at == fields.Datetime.to_datetime("2026-10-21 08:00:00")
     assert claim.operating_unit_id == wc.branch.operating_unit_id  # the order has no OU of its own
     assert claim.evidence_ids.mapped("requirement_key") == ["photo_before"]
@@ -220,9 +224,15 @@ def test_submission_within_and_after_the_window(wc):
         for key in ALL_KEYS
     ]
     late.submission_deadline = fields.Datetime.now() - timedelta(hours=2)
+    # A04 ERP M09-F10: past the brand's window a claim has lapsed; it goes only
+    # once an officer records the brand's late acceptance (Extend Window)
+    with wc.refused(UserError, "lapsed"):
+        late.action_submit()
+    late.with_user(wc.officer).action_extend_deadline(
+        fields.Datetime.now() + timedelta(hours=4), "Brand accepted it late (REF-1)"
+    )
     late.action_submit()
     assert late.state == "submitted"
-    assert "submitted past 72h deadline" in late.message_ids[0].body
 
 
 def test_brand_decision_requires_a_received_claim(wc):

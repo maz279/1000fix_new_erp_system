@@ -162,10 +162,22 @@ class FixWorkshopJobLifecycle(models.Model):
         if not self.sudo().order_id:
             return est, None
         if est:
-            # M01 pins what was approved; prefer it over the live total
-            pinned = est["approved_total"] if "approved_total" in est._fields else 0.0
-            return est, (pinned or est.grand_total or 0.0)
+            return est, self._m31_estimate_price_ex_vat(est)
         return est, self._m31_zero_charge_cap()
+
+    @api.model
+    def _m31_estimate_price_ex_vat(self, est) -> float:
+        """A02 pass 2 M31-07 (D14): the cost gate is the approved price WITHOUT
+        VAT. The VAT-inclusive total let the job's cost run 15% above what the
+        customer pays for the work. M01 pins the approved total (VAT
+        inclusive); its VAT share is taken off at the estimate's own split."""
+        est = est.sudo()
+        grand = est.grand_total or 0.0
+        net = grand - (est.vat_amount or 0.0)
+        pinned = est["approved_total"] if "approved_total" in est._fields else 0.0
+        if pinned and grand > 0:
+            return round(pinned * net / grand, 2)
+        return round(net, 2)
 
     def _m31_capped_cost(self, extra: float = 0.0) -> float:
         """What the approved amount must cover: consumed parts that are not
@@ -257,7 +269,9 @@ class FixWorkshopJobLifecycle(models.Model):
         if new_state in ("qc_pending", "ready"):
             self._m31_check_cost_within_estimate()
         result = super()._transition(new_state)
-        if new_state == "delivered":
+        # A02 pass 2 M31-02: the hand-back is the RELEASE to the front desk
+        # (the customer hand-over that closes the job is M01's own)
+        if new_state == "released":
             for rec in self:
                 # A02 audit B2: the hand-back to M01. Contract with the M01
                 # consumer (stream S1): service_order_id (int, or False) and

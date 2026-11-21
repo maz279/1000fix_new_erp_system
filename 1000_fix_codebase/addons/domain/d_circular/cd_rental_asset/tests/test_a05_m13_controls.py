@@ -97,6 +97,9 @@ def c(odoo_env):
     x.t1 = _user(env, "t1", ["cd_entity_config.group_dofa_tier_1"])
     x.t1b = _user(env, "t1b", ["cd_entity_config.group_dofa_tier_1"])
     x.t2 = _user(env, "t2", ["cd_entity_config.group_dofa_tier_2"])
+    # A02 pass 2 review: the data lab records the wipe, a verifier verifies it
+    x.wipe_tech = _user(env, "wipetech", ["cd_data_case.group_data_recovery_operator"])
+    x.wipe_verifier = _user(env, "wipeverifier", ["cd_data_case.group_wipe_verifier"])
     x.customer = _kyc(
         env, env["res.partner"].create({"name": "A05 M13T Customer", "phone": "01700001302"})
     )
@@ -720,18 +723,28 @@ def _turnaround(c):
     return r, t.with_user(c.clerk)
 
 
-def _cert(c, serial):
-    log = c.env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
-    cert = c.env["fix.data.wipe.certificate"].create(
-        {
-            "method": "nist_800_88",
-            "serial_number": serial,
-            "sector_count": 1000,
-            "wipe_log_attachment_id": log.id,
-        }
+def _cert(c, serial, request=None, method="nist_800_88_purge"):
+    """The data lab's wipe certificate on the real role path (a lab operator
+    records it, a wipe verifier verifies it). A unit leaving for its next
+    renter is judged by the D16 matrix at release; Purge passes it for any
+    media kind (A02 pass 2 review)."""
+    log = (
+        c.env["ir.attachment"]
+        .with_user(c.wipe_tech)
+        .create({"name": "wipe.log", "raw": b"nwipe: PASS %s" % serial.encode()})
     )
-    cert.action_verify()
-    return cert
+    vals = {
+        "method": method,
+        "sector_count": 1000,
+        "wipe_log_attachment_id": log.id,
+    }
+    if request:
+        vals["wipe_request_id"] = request.id
+    else:
+        vals["serial_number"] = serial
+    cert = c.env["fix.data.wipe.certificate"].with_user(c.wipe_tech).create(vals)
+    cert.with_user(c.wipe_verifier).action_verify()
+    return cert.with_env(c.env)
 
 
 def test_turnaround_release_needs_the_checklist_and_a_verified_wipe(c, p03):
@@ -754,7 +767,29 @@ def test_turnaround_release_needs_the_checklist_and_a_verified_wipe(c, p03):
     t.write({"data_wipe_certificate_id": _cert(c, "OTHER-SN").id})
     with pytest.raises(UserError, match="certifies media"):
         t.action_ready()
-    cert = _cert(c, SN)
+    # A02 pass 2 review (M06-05): a certificate answering another record's
+    # wipe request does not release this unit
+    other = c.env["fix.data.wipe.request"].create(
+        {
+            "source": "customer",
+            "source_ref": "SOMEONE-ELSES-ORDER",
+            "serial_number": SN,
+            "confidentiality_level": "high",
+            "disposition": "internal_reuse",
+        }
+    )
+    t.write({"data_wipe_certificate_id": _cert(c, SN, request=other).id})
+    with pytest.raises(UserError, match="no wipe request raised for"):
+        t.action_ready()
+    # A02 pass 2 review N2: a certificate answering no request does not release
+    # it, and a Clear of a unit of unrecorded media kind fails the D16 matrix
+    clear = _cert(c, SN, method="nist_800_88")
+    assert "no wipe request raised for" in clear._fix_certify_denial(SN, consumer=t.sudo())
+    assert "sanitisation matrix" in clear._m06_matrix_denial()
+    # the turnaround raised its own request when it opened; its certificate releases it
+    own = c.env["fix.data.wipe.request"].search([("source_ref", "=", t.name)])
+    assert (own.source, own.serial_number) == ("m13_rental", SN)
+    cert = _cert(c, SN, request=own)
     t.write({"data_wipe_certificate_id": cert.id})
     t.action_ready()
     assert t.state == "ready" and c.asset.status == "available" and c.asset.condition_grade == "b"

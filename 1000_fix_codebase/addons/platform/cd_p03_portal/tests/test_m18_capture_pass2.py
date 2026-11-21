@@ -203,7 +203,7 @@ def _bound_item(m, **vals):
     """A data-bearing phone with a verified M06 certificate bound to it."""
     dev = m.device()
     col = m.collection(device_id=dev.id, **vals)
-    cert = m.verified_cert(dev.serial_number)
+    cert = m.verified_cert(dev.serial_number, col)
     col.with_user(m.clerk).write({"wipe_certificate_id": cert.id})
     return col
 
@@ -388,7 +388,7 @@ def test_corporate_disposal_closes_only_when_every_asset_reconciles(m):
     # not closable: nothing reconciled yet
     assert "BRU-ESG-14" in _err(m.p03_action(m.compliance, CORP, [disposal.id], "action_close"))
     # ASSET-1 goes all the way to its disposal certificate
-    cert = m.verified_cert(dev.serial_number)
+    cert = m.verified_cert(dev.serial_number, col)
     m.triage(col, "recycle", data_bearing=True)
     col.with_user(m.clerk).write({"wipe_certificate_id": cert.id})
     col.with_user(m.clerk).action_secure_destruction()
@@ -503,7 +503,9 @@ def test_harvest_routes_to_m14_only_through_the_m06_gate(m):
     assert refused(m.env, lambda: col.with_user(m.clerk).action_route_harvest())  # role
     err = _err(m.p03_action(m.assessor, COL, [col.id], "action_route_harvest"))
     assert "M06" in err
-    col.with_user(m.clerk).write({"wipe_certificate_id": m.verified_cert(dev.serial_number).id})
+    col.with_user(m.clerk).write(
+        {"wipe_certificate_id": m.verified_cert(dev.serial_number, col).id}
+    )
     _ok(m.p03_action(m.assessor, COL, [col.id], "action_route_harvest"))
     col.invalidate_recordset()
     assert col.state == "routed"
@@ -566,7 +568,9 @@ def test_donation_is_approved_by_another_officer_and_leaves_through_the_gate(m):
     assert don.acknowledgement_attachment_id.name == "signed.pdf"
     # ... and the M06 gate (BRU-ESG-15)
     assert "M06" in _err(m.p03_action(m.dispatcher, DON, [don.id], "action_hand_over"))
-    col.with_user(m.clerk).write({"wipe_certificate_id": m.verified_cert(dev.serial_number).id})
+    col.with_user(m.clerk).write(
+        {"wipe_certificate_id": m.verified_cert(dev.serial_number, col).id}
+    )
     assert refused(m.env, lambda: don.with_user(m.clerk).action_hand_over())  # role
     _ok(m.p03_action(m.dispatcher, DON, [don.id], "action_hand_over"))
     col.invalidate_recordset()

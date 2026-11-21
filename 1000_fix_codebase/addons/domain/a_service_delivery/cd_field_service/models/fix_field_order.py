@@ -3,7 +3,9 @@ import hashlib
 import json
 import logging
 import math
+from datetime import datetime, time, timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
 
@@ -33,6 +35,17 @@ ACCEPT_TIMEOUT_PARAM = "cd_field_service.acceptance_timeout_minutes"
 # quote-to-cash P2 (13 Nov 2026): Rocket and Upay, as on the M20 payment-method list
 MFS_METHODS = ("bkash", "nagad", "rocket", "upay", "sslcommerz")
 ARRIVAL_REQUIRES_FENCE_PARAM = "cd_field_service.arrival_requires_fence"
+
+# A02 ERP audit pass 2 M02-09 / X5-06, owner decision D19 (BLA 2006 s.100 /
+# s.102): a technician's dispatched day is at most 8 hours, 10 with overtime
+# approved by the Field Service Manager (M55 overtime request), and at most 6
+# jobs. A job with no appointment window counts the default job hours.
+DAY_MAX_JOBS_PARAM = "cd_field_service.dispatch_max_jobs_per_day"
+DAY_NORMAL_HOURS_PARAM = "cd_field_service.dispatch_normal_hours_per_day"
+DAY_MAX_HOURS_PARAM = "cd_field_service.dispatch_max_hours_per_day"
+DEFAULT_JOB_HOURS_PARAM = "cd_field_service.dispatch_default_job_hours"
+DAY_LOAD_STATES = ("dispatched", "accepted", "en_route", "arrived", "in_progress", "completed")
+DHAKA_TZ = "Asia/Dhaka"
 OPEN_STATES = ("pending_dispatch", "dispatched", "accepted", "en_route", "arrived", "in_progress")
 
 # A02 ERP audit (19 Nov 2026) M02-F1/F20: field cash reaches a drawer in two
@@ -50,6 +63,13 @@ FIELD_CASH_ACCEPTOR_GROUPS = (
 # dispatcher's action (action_set_geofence); the service order never changes.
 _SITE_FIELDS = frozenset({"order_id", "zone_id", "geofence_id"})
 _SITE_EDITABLE_STATES = ("draft", "pending_dispatch", "declined")
+
+# A02 ERP audit pass 2 M02-05/M02-08: the site coordinates (they prove the
+# visit) are the dispatcher's once the order leaves draft; the appointment
+# window is the dispatcher's once the order is dispatched. A technician moved
+# both on his own orders and on colleagues'.
+_COORDINATE_FIELDS = frozenset({"latitude", "longitude"})
+_SCHEDULE_FIELDS = frozenset({"scheduled_start", "scheduled_end"})
 
 # A02 audit M02-1/M02-10: fields only a transition may change. A technician
 # wrote state=completed with customer_otp_verified=True on a dispatched order,
@@ -103,6 +123,11 @@ _GUARDED = frozenset(
         "van_location_id",
         # A02 ERP audit M02-F21: when the order (re)entered the dispatch queue
         "dispatch_requested_at",
+        # A02 ERP audit pass 2 M02-01/M02-13: the numbered on-site receipt and
+        # the reference of the settlement the cash hand-over recorded
+        "onsite_receipt_no",
+        "onsite_collected_at",
+        "cash_settlement_ref",
     }
 )
 
@@ -292,15 +317,17 @@ class FixFieldOrder(models.Model):
         string="Arrived On Time",
         compute="_compute_on_time_arrival",
         store=True,
-        help="True when arrival was recorded at or before the scheduled start.",
+        help="True when arrival was recorded by the end of the scheduled window.",
     )
 
-    @api.depends("arrived_at", "scheduled_start")
+    @api.depends("arrived_at", "scheduled_start", "scheduled_end")
     def _compute_on_time_arrival(self):
+        """A02 ERP audit pass 2 M02-15: the customer was promised a window;
+        an arrival by its end is on time (arriving one minute after the
+        window opened counted as late). No window end: its start."""
         for rec in self:
-            rec.on_time_arrival = bool(
-                rec.arrived_at and rec.scheduled_start and rec.arrived_at <= rec.scheduled_start
-            )
+            due = rec.scheduled_end or rec.scheduled_start
+            rec.on_time_arrival = bool(rec.arrived_at and due and rec.arrived_at <= due)
 
     customer_address = fields.Text(string="Customer Address")
     latitude = fields.Float(
@@ -427,6 +454,12 @@ class FixFieldOrder(models.Model):
         tracking=True,
         help="FLAW-02.3: Mandatory verified transaction reference for MFS/digital on-site collections.",
     )
+    # A02 ERP audit pass 2 M02-13: the collection is a numbered receipt the
+    # customer keeps, recorded once (it was overwritable until completion)
+    onsite_receipt_no = fields.Char(string="On-Site Receipt No.", readonly=True, copy=False)
+    onsite_collected_at = fields.Datetime(string="Collected At", readonly=True, copy=False)
+    # M02-01: the settlement the hand-over recorded on the service order
+    cash_settlement_ref = fields.Char(string="Settlement Recorded As", readonly=True, copy=False)
     cash_shift_id = fields.Many2one(
         "fix.cash.shift",
         string="Handed Over to Branch Cash Shift (HS-08)",
@@ -524,6 +557,24 @@ class FixFieldOrder(models.Model):
         return locked
 
     def write(self, vals):
+        if not self._fix_guard_open() and not self._fix_is_dispatcher():
+            self._fix_refuse_foreign_write()
+            for names, editable, what in (
+                (_COORDINATE_FIELDS & set(vals), ("draft",), "draft"),
+                (_SCHEDULE_FIELDS & set(vals), _SITE_EDITABLE_STATES, "dispatch"),
+            ):
+                moved = {
+                    name
+                    for rec in self
+                    if rec.state not in editable
+                    for name in names
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+                if moved:
+                    raise UserError(
+                        "%s of a field order are a dispatcher's to change after %s."
+                        % (", ".join(sorted(self._fields[n].string for n in moved)), what)
+                    )
         # A02 ERP audit M02-F3: the assigned technician re-pointed an open
         # order's geofence, zone and service order from the form, which moved
         # the arrival test and let completion settle another customer's order.
@@ -562,6 +613,27 @@ class FixFieldOrder(models.Model):
         return super().write(vals)
 
     # ------------------------------------------------------- authority checks
+    def _fix_refuse_foreign_write(self):
+        """A02 pass 2 review (M02-08): a technician changes only the orders
+        assigned to him, or an unassigned one he raised. The record rule for
+        it (fix_field_a02r2_rules.xml) is ORed with the operating-unit rule of
+        every internal user, so it restricted nothing; the check is made here.
+        Workflow actions open the guard and run their own checks (an action
+        that hands the order back to dispatch still posts on it)."""
+        user = self.env.user
+        # an unsaved record (new()) belongs to nobody yet: the guard and the
+        # access rules judge it, not this check
+        foreign = self.sudo().filtered(
+            lambda r: isinstance(r.id, int)
+            and r.technician_id.user_id != user
+            and not (not r.technician_id and r.create_uid == user)
+        )
+        if foreign:
+            raise AccessError(
+                "%s is not assigned to you: a technician changes only his own field orders. "
+                "A dispatcher changes the others." % ", ".join(foreign.mapped("name"))
+            )
+
     def _fix_is_dispatcher(self) -> bool:
         return self.env.su or self.env.user.has_group(DISPATCHER_GROUP)
 
@@ -740,6 +812,147 @@ class FixFieldOrder(models.Model):
             if problem:
                 raise UserError("%s cannot be sent on %s: %s." % (employee.name, rec.name, problem))
 
+    def _fix_float_param(self, key, default):
+        raw = self.env["ir.config_parameter"].sudo().get_param(key, default)
+        try:
+            value = float(raw)
+        except (TypeError, ValueError):
+            return float(default)
+        return value if math.isfinite(value) and value >= 0 else float(default)
+
+    def _fix_job_hours(self):
+        self.ensure_one()
+        if (
+            self.scheduled_start
+            and self.scheduled_end
+            and self.scheduled_end > self.scheduled_start
+        ):
+            return (self.scheduled_end - self.scheduled_start).total_seconds() / 3600.0
+        return self._fix_float_param(DEFAULT_JOB_HOURS_PARAM, "1")
+
+    def _fix_dhaka_day(self):
+        """The Dhaka calendar day of the visit (the dispatch day when it has
+        no appointment yet)."""
+        self.ensure_one()
+        moment = self.scheduled_start or fields.Datetime.now()
+        return pytz.utc.localize(moment).astimezone(pytz.timezone(DHAKA_TZ)).date()
+
+    def _fix_approved_overtime_hours(self, employee, day):
+        """Overtime approved for ``employee`` on ``day`` by a Field Service
+        Manager (D19), from the M55 overtime request."""
+        if "fix.overtime.request" not in self.env:
+            return 0.0
+        group = self.env.ref(DISPATCHER_GROUP, raise_if_not_found=False)
+        requests = (
+            self.env["fix.overtime.request"]
+            .sudo()
+            .search(
+                [("employee_id", "=", employee.id), ("date", "=", day), ("state", "=", "approved")]
+            )
+        )
+        approved = requests.filtered(
+            lambda r: group and r.decided_by_id and group in r.decided_by_id.all_group_ids
+        )
+        return sum(approved.mapped(lambda r: r.approved_hours or r.hours or 0.0))
+
+    def _fix_check_day_capacity(self, employee):
+        """D19: refuse a dispatch that takes the technician's day past 6 jobs,
+        past 8 hours without approved overtime, or past 10 hours at all."""
+        if not employee:
+            return
+        max_jobs = int(self._fix_float_param(DAY_MAX_JOBS_PARAM, "6"))
+        normal = self._fix_float_param(DAY_NORMAL_HOURS_PARAM, "8")
+        ceiling = self._fix_float_param(DAY_MAX_HOURS_PARAM, "10")
+        tz = pytz.timezone(DHAKA_TZ)
+        for rec in self:
+            day = rec._fix_dhaka_day()
+            start = tz.localize(datetime.combine(day, time.min)).astimezone(pytz.utc)
+            start = start.replace(tzinfo=None)
+            end = start + timedelta(days=1)
+            others = self.sudo().search(
+                [
+                    ("technician_id", "=", employee.id),
+                    ("state", "in", DAY_LOAD_STATES),
+                    ("id", "!=", rec.id),
+                    "|",
+                    "&",
+                    ("scheduled_start", ">=", start),
+                    ("scheduled_start", "<", end),
+                    "&",
+                    ("scheduled_start", "=", False),
+                    "&",
+                    ("dispatched_at", ">=", start),
+                    ("dispatched_at", "<", end),
+                ]
+            )
+            jobs = len(others) + 1
+            hours = sum(o._fix_job_hours() for o in others) + rec._fix_job_hours()
+            if max_jobs and jobs > max_jobs:
+                raise UserError(
+                    "%s already has %d job(s) on %s: at most %d a day (D19)."
+                    % (employee.name, jobs - 1, day, max_jobs)
+                )
+            if hours > ceiling + 1e-6:
+                raise UserError(
+                    "%s would work %.1f hours on %s: never more than %.0f hours a day, "
+                    "overtime included (BLA 2006, D19)." % (employee.name, hours, day, ceiling)
+                )
+            if hours > normal + 1e-6:
+                overtime = rec._fix_approved_overtime_hours(employee, day)
+                if hours > normal + overtime + 1e-6:
+                    raise UserError(
+                        "%s would work %.1f hours on %s: beyond %.0f hours needs overtime "
+                        "approved by the Field Service Manager (%.1f approved; D19)."
+                        % (employee.name, hours, day, normal, overtime)
+                    )
+
+    @api.model
+    def _fix_cash_handin_cutoff(self):
+        """D20: cash collected before this moment is overdue: it had until
+        the end of the next business day (Friday is the weekly holiday)."""
+        days = int(self._fix_float_param("cd_field_service.cash_handin_business_days", "1"))
+        tz = pytz.timezone(DHAKA_TZ)
+        day = datetime.now(tz).date()
+        left = max(days, 0)
+        while left > 0:
+            day -= timedelta(days=1)
+            if day.weekday() != 4:
+                left -= 1
+        start = tz.localize(datetime.combine(day, time.min)).astimezone(pytz.utc)
+        return start.replace(tzinfo=None)
+
+    @api.model
+    def _fix_overdue_cash_orders(self, employee):
+        """Field cash of ``employee`` not yet accepted into a drawer and past
+        the hand-in deadline (D20)."""
+        return self.sudo().search(
+            [
+                ("technician_id", "=", employee.id),
+                ("onsite_payment_method", "=", "cash"),
+                ("onsite_collection_amount", ">", 0),
+                ("onsite_collected_at", "!=", False),
+                ("onsite_collected_at", "<", self._fix_cash_handin_cutoff()),
+                ("cash_handed_over_at", "=", False),
+            ]
+        )
+
+    def _fix_refuse_overdue_cash(self, employee):
+        """A02 ERP audit pass 2 M02-11 (D20): a technician still holding field
+        cash past the hand-in deadline is sent on no new job."""
+        if not employee:
+            return
+        overdue = self._fix_overdue_cash_orders(employee)
+        if overdue:
+            raise UserError(
+                "%s still holds field cash past the hand-in deadline (%s, BDT %.2f): no new "
+                "job until it is handed in to a branch cashier (D20)."
+                % (
+                    employee.name,
+                    ", ".join(overdue.mapped("name")),
+                    sum(overdue.mapped("onsite_collection_amount")),
+                )
+            )
+
     def _fix_van_of(self, technician):
         """The technician's own active van stock location (empty when none)."""
         if not technician:
@@ -781,6 +994,8 @@ class FixFieldOrder(models.Model):
             if not tech:
                 raise UserError("A technician must be assigned to dispatch the field order.")
             rec._fix_assert_available(tech)
+            rec._fix_check_day_capacity(tech)
+            rec._fix_refuse_overdue_cash(tech)
 
             vals = {
                 "technician_id": tech.id,
@@ -841,6 +1056,8 @@ class FixFieldOrder(models.Model):
             if previous == technician:
                 raise UserError("%s is already assigned to %s." % (rec.name, technician.name))
             rec._fix_assert_available(technician)
+            rec._fix_check_day_capacity(technician)
+            rec._fix_refuse_overdue_cash(technician)
             # A02 ERP audit M02-F10: a reassignment is a dispatch decision too
             # (BRU-FSM-04): what the engine ranked first, who was sent, and
             # why. It used to bypass the decision log the workspace's dispatch
@@ -1291,19 +1508,138 @@ class FixFieldOrder(models.Model):
                 f"FLAW-02.3 On-Site Payment Gate: a {methods[method]} collection needs its "
                 "Transaction ID."
             )
+        warnings = []
         for rec in self:
             if rec.state not in ("arrived", "in_progress"):
                 raise UserError("A collection is recorded on site, before completion.")
             rec._fix_require_assigned_technician("record a collection on")
-            rec._guarded().write(
+            # A02 ERP audit pass 2 M02-13: the collection is the customer's
+            # receipt; once recorded it is not rewritten (a recorded BDT 3,000
+            # was later "corrected" to 300 before completion).
+            if rec.onsite_receipt_no:
+                raise UserError(
+                    "%s already has on-site receipt %s (%s BDT %.2f): a collection is "
+                    "recorded once."
+                    % (
+                        rec.name,
+                        rec.onsite_receipt_no,
+                        rec.onsite_payment_method,
+                        rec.onsite_collection_amount,
+                    )
+                )
+            # A02 pass 2 review (D20): more than the order still owes was
+            # accepted here, then the cash hand-over refused it for ever (M01
+            # records no more than is due) and the technician got no new cash
+            # job. The customer gets the difference back on the spot.
+            if amount > 0:
+                rec._fix_refuse_over_collection(amount)
+            vals = {
+                "onsite_collection_amount": amount,
+                "onsite_payment_method": method,
+                "onsite_payment_trx_id": trx_id if method in MFS_METHODS else False,
+            }
+            if amount > 0:
+                vals.update(
+                    {
+                        "onsite_receipt_no": self.env["ir.sequence"]
+                        .sudo()
+                        .next_by_code("fix.field.onsite.receipt")
+                        or "ORC/%s" % rec.name,
+                        "onsite_collected_at": fields.Datetime.now(),
+                    }
+                )
+            rec._guarded().write(vals)
+            if amount <= 0:
+                continue
+            # M02-01 (D3): what is still to collect decides what the money is.
+            # Less is a part payment (the rest stays due); more was refused above.
+            due = rec._fix_order_outstanding() if rec.order_id else 0.0
+            if amount + 0.005 < due:
+                warnings.append(
+                    "%s: BDT %.2f is a part payment; BDT %.2f stays due on %s."
+                    % (rec.name, amount, due - amount, rec.order_id.sudo().name)
+                )
+            publish(
+                rec.env,
+                "field_payment.collected",
+                "fix.field.order",
+                rec.id,
                 {
-                    "onsite_collection_amount": amount,
-                    "onsite_payment_method": method,
-                    "onsite_payment_trx_id": trx_id if method in MFS_METHODS else False,
-                }
+                    "field_order_id": rec.id,
+                    "order_ref": rec.name,
+                    "service_order_id": rec.order_id.id or False,
+                    "receipt_no": rec.onsite_receipt_no,
+                    "amount_bdt": amount,
+                    "method": method,
+                    "trx_id": rec.onsite_payment_trx_id or "",
+                    "technician_id": rec.technician_id.id or False,
+                    "amount_due_bdt": due,
+                },
+            )
+        if warnings:
+            return {"warning": " ".join(warnings)}
+        return True
+
+    def _fix_order_outstanding(self) -> float:
+        """What the service order still has to collect: the amount due less
+        what is already recorded on it (M01's _fix_amount_outstanding; the
+        amount due itself when that is not installed)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return 0.0
+        outstanding = getattr(order, "_fix_amount_outstanding", None)
+        return round(outstanding() if outstanding is not None else order._fix_amount_due(), 2)
+
+    def _fix_refuse_over_collection(self, amount):
+        """Refuse an on-site collection the service order would not record:
+        more than it still owes, or anything once its estimate is covered.
+        An order with no estimate yet records what is collected (M01)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return
+        due = order._fix_amount_due()
+        governed = due > 0.005 or bool(order._fix_governing_estimate())
+        if not governed:
+            return
+        outstanding = self._fix_order_outstanding()
+        if amount > outstanding + 0.005:
+            raise UserError(
+                "BDT %.2f is more than the BDT %.2f still to collect on %s: record what the "
+                "customer owes and give the difference back." % (amount, outstanding, order.name)
             )
 
-    def _fix_record_order_settlement(self, amount, reference, tender=None):
+    def _fix_cod_still_held(self) -> float:
+        """Cash on delivery collected for this job's service order and not
+        handed in yet (cd_consignment legs); 0 without the module."""
+        self.ensure_one()
+        Leg = self.env.get("fix.consignment")
+        if Leg is None or "cod_remitted_at" not in Leg._fields or not self.order_id:
+            return 0.0
+        legs = Leg.sudo().search(
+            [
+                ("service_order_id", "=", self.order_id.id),
+                ("cod_collected_at", "!=", False),
+                ("cod_remitted_at", "=", False),
+            ]
+        )
+        return round(sum(legs.mapped("cod_amount")), 2)
+
+    def _fix_handover_recordable(self, amount) -> float:
+        """What the service order takes of ``amount`` handed over: all of it,
+        or what it still has to collect when that is less (an order governed
+        by an estimate)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return round(amount, 2)
+        governed = order._fix_amount_due() > 0.005 or bool(order._fix_governing_estimate())
+        if not governed:
+            return round(amount, 2)
+        return round(max(min(amount, self._fix_order_outstanding()), 0.0), 2)
+
+    def _fix_record_order_settlement(self, amount, reference, tender=None, strict=False):
         """Hand the collection to the service order's own settlement method
         (contract with M01: fix.service.order._fix_record_settlement). The
         field order never writes the order's settlement fields itself (A02
@@ -1317,6 +1653,18 @@ class FixFieldOrder(models.Model):
         order = self.order_id
         if order and tender:
             order = order.with_context(fd_settlement_tender=tender)
+        if strict:
+            # A02 ERP audit pass 2 M02-01: the cash hand-over is refused when
+            # the order does not record the money (the cash went into a drawer
+            # with no receipt and no GL). A part payment (D3) is recorded by
+            # M01 as an advance; a refusal (a cancelled order) is final.
+            if not order or not hasattr(order, "_fix_record_settlement"):
+                raise UserError(
+                    "Service order of %s cannot record its settlement: the cash cannot be "
+                    "handed over." % self.name
+                )
+            order._fix_record_settlement(amount, reference, source="field_collection")
+            return "settled"
         if not order or not hasattr(order, "_fix_record_settlement"):
             self.message_post(
                 body="On-site collection of BDT %.2f (%s) recorded; the service order's "
@@ -1435,24 +1783,41 @@ class FixFieldOrder(models.Model):
                 rec._fix_require_assigned_technician("hand over the cash of")
             amount = rec.onsite_collection_amount
             reference = f"COD/{rec.name}"
-            recorded = rec._fix_record_order_settlement(amount, reference, tender="cash")
+            # A02 ERP audit pass 2 M02-01 (P0): the declaration is refused
+            # unless the service order records the money (in full, or as a
+            # part payment, D3). It used to go on regardless and the cashier
+            # then counted the cash into a drawer with no receipt and no GL.
+            # A02 pass 2 review (D20): the order may take less than was
+            # collected by now (paid at the counter or on delivery, or its
+            # price fell): it records what it still takes and the rest is the
+            # customer's credit when the cashier counts the cash in. Refusing
+            # the whole hand-over kept the technician blocked for good.
+            recordable = rec._fix_handover_recordable(amount)
+            if recordable > 0.005:
+                rec._fix_record_order_settlement(recordable, reference, tender="cash", strict=True)
+            if amount - recordable > 0.005:
+                rec.message_post(
+                    body="%s takes BDT %.2f of the BDT %.2f collected on site now; the other "
+                    "BDT %.2f is booked as the customer's credit when the cash is counted in."
+                    % (rec.order_id.name, recordable, amount, amount - recordable)
+                )
             rec._guarded().write(
                 {
                     "onsite_payment_state": "pending_acceptance",
                     "cash_declared_by_id": self.env.uid,
                     "cash_declared_at": fields.Datetime.now(),
+                    "cash_settlement_ref": reference,
                 }
             )
             rec.message_post(
-                body="HS-08: on-site cash BDT %.2f declared handed over by %s; it reaches a "
-                "drawer when a cashier of %s accepts it.%s"
+                body="HS-08: on-site cash BDT %.2f declared handed over by %s and recorded on "
+                "%s (%s); it reaches a drawer when a cashier of %s accepts it."
                 % (
                     amount,
                     self.env.user.name,
+                    rec.order_id.name,
+                    reference,
                     rec.order_id.branch_id.display_name or "the order's branch",
-                    ""
-                    if recorded == "settled"
-                    else " The service order did not record the settlement (see above).",
                 )
             )
 
@@ -1491,15 +1856,26 @@ class FixFieldOrder(models.Model):
                 )
 
     def _fix_field_cash_settlement_recorded(self) -> bool:
-        """The service order holds the settlement the declaration recorded."""
+        """The service order holds the settlement the declaration recorded:
+        in full, or (D3) as a part payment whose only unverified money is
+        this field order's cash. A02 pass 2 review: a part payment was
+        marked settled at acceptance and never verified, so the order still
+        held it as a claim and the balance never verified the order."""
         self.ensure_one()
         order = self.order_id.sudo()
-        return bool(
+        if not (
             order
-            and order.payment_settlement_state == "settled"
             and order.settlement_source == "field_collection"
             and (order.invoice_ref or "") == f"COD/{self.name}"
-        )
+        ):
+            return False
+        if order.payment_settlement_state == "settled":
+            return True
+        if order.payment_settlement_state != "partial" or order.settlement_verified:
+            return False
+        # all of the cash, or less when the order took less (D20 excess)
+        unverified = (order.amount_settled_bdt or 0.0) - (order.amount_verified_bdt or 0.0)
+        return 0.005 < unverified <= (self.onsite_collection_amount or 0.0) + 0.005
 
     def action_accept_field_cash(self, shift_id=None):
         """HS-08, step 2 of 2: a cashier counts the declared cash into the open
@@ -1527,6 +1903,18 @@ class FixFieldOrder(models.Model):
                     % (order.name, rec.name)
                 )
             company = order.sudo().company_id or rec.company_id
+            # A02 ERP audit pass 2 M02-01 (P0): no cash into a drawer without
+            # the order's settlement record (a declaration made before this
+            # rule records it now, as the cashier, or the cash is refused)
+            if not rec.cash_settlement_ref:
+                reference = f"COD/{rec.name}"
+                # recorded for the declarer (the cashier then verifies it:
+                # who records a settlement does not verify it)
+                declarer = rec.cash_declared_by_id or rec.technician_id.user_id
+                rec.with_user(declarer).sudo()._fix_record_order_settlement(
+                    rec.onsite_collection_amount, reference, tender="cash", strict=True
+                )
+                rec._guarded().write({"cash_settlement_ref": reference})
             open_shift = Shift._fd_open_shift_for(branch, company)
             if shift_id:
                 try:
@@ -1565,8 +1953,31 @@ class FixFieldOrder(models.Model):
             pay_state = "pending_settlement"
             if rec._fix_field_cash_settlement_recorded():
                 # as the cashier: segregation of duties and the M20 receipt
+                # (a part payment is verified for the part paid, D3)
                 order.with_env(self.env).action_verify_settlement()
                 pay_state = "settled" if order.sudo().settlement_verified else "pending_settlement"
+            elif (
+                rec.cash_settlement_ref
+                and order.sudo().settlement_source == "cod"
+                and not order.sudo().settlement_verified
+                and hasattr(order, "_fix_verify_amount")
+            ):
+                # A02 pass 2 review (N3): the balance came in as cash on
+                # delivery after this cash was recorded; the cashier verifies
+                # the field part she counted (the COD part is the rider's
+                # settlement's to confirm)
+                unverified = (order.sudo().amount_settled_bdt or 0.0) - (
+                    order.sudo().amount_verified_bdt or 0.0
+                )
+                part = min(amount, max(unverified - rec._fix_cod_still_held(), 0.0))
+                if part > 0.005:
+                    order.sudo()._fix_verify_amount(part)
+                pay_state = "settled"
+            elif rec.cash_settlement_ref and order.sudo().payment_settlement_state != "partial":
+                # no settlement of this cash on the order: the drawer posting
+                # booked it as an advance receipt on the order (_post_field_cash).
+                # A part payment holding other unverified money is finance's.
+                pay_state = "settled"
             rec.sudo()._guarded().write({"onsite_payment_state": pay_state})
             rec.sudo().message_post(
                 body="HS-08: on-site cash BDT %.2f accepted by %s into cash shift #%s (%s).%s"
@@ -1594,6 +2005,27 @@ class FixFieldOrder(models.Model):
         reason = (reason or "").strip() if isinstance(reason, str) else ""
         if not reason:
             raise UserError("Give the reason for the cancellation.")
+        # A02 ERP audit pass 2 M02-02: a job that took the customer's money
+        # is not cancelled (the cash was stranded: no hand-over is possible on
+        # a cancelled order). Complete it and hand the cash over; the service
+        # order's cancellation cascade stops here with this message.
+        for rec in self:
+            if rec.onsite_collection_amount > 0 and rec.onsite_payment_method not in (
+                "none",
+                "corporate_credit",
+            ):
+                raise UserError(
+                    "Field order %s holds an on-site collection of BDT %.2f (%s, receipt %s): "
+                    "it cannot be cancelled. Complete the job and hand the money over, so the "
+                    "service order records it (then refund it from the order if it is "
+                    "cancelled)."
+                    % (
+                        rec.name,
+                        rec.onsite_collection_amount,
+                        rec.onsite_payment_method,
+                        rec.onsite_receipt_no or "-",
+                    )
+                )
         if any(rec.state != "draft" for rec in self):
             self._fix_require_dispatcher("Cancelling a field order in dispatch")
         for rec in self:

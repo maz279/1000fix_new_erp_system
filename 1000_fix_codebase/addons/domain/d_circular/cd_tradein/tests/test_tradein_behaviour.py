@@ -68,13 +68,20 @@ def _nid():
     return "58%08d" % (next(_SEQ) * 7919)
 
 
-def _request(env, **vals):
+def _request(env, wiped=None, **vals):
+    """A trade-in. ``wiped``: True (a verified certificate), "pending" (an
+    unverified one) or a dict of certificate values - always answering the
+    trade-in's own wipe request (A02 pass 2 review N2)."""
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
     # An identified seller: payout refuses without a Smart NID (AML gate).
     vals.setdefault("customer_nid", _nid())
-    if vals.get("wipe_certificate_id") and "device_id" not in vals:
+    if wiped and "device_id" not in vals:
         vals["device_id"] = _device(env).id  # the device the certificate certifies
-    return env[TRD].create(vals)
+    rec = env[TRD].create(vals)
+    if wiped:
+        extra = wiped if isinstance(wiped, dict) else {}
+        rec.write({"wipe_certificate_id": _cert(env, wiped != "pending", rec=rec, **extra).id})
+    return rec
 
 
 def _screen(env, rec):
@@ -114,11 +121,11 @@ def _certify(env, rec, axis):
     )
 
 
-def _in(env, state, evidence=True, **vals):
+def _in(env, state, evidence=True, wiped=None, **vals):
     """A request set to `state` by the superuser, with the evidence that state
     implies (A05 audit E4: the gates of the later steps re-check it). Before
     the remediation this helper forged the state with no evidence at all."""
-    rec = _request(env, **vals)
+    rec = _request(env, wiped=wiped, **vals)
     rank = _ORDER.index(state) if state in _ORDER else 0
     if evidence:
         if rank >= _ORDER.index("accepted"):
@@ -128,17 +135,25 @@ def _in(env, state, evidence=True, **vals):
         if rank >= _ORDER.index("refurbished"):
             if not rec.wipe_certificate_id:
                 device = rec.device_id or _device(env)
-                rec.write({"device_id": device.id, "wipe_certificate_id": _cert(env).id})
+                rec.write({"device_id": device.id})
+                rec.write({"wipe_certificate_id": _cert(env, rec=rec).id})
             rec.write({"state": "refurbished"})
             _finish_refurbishment(env, rec)
     rec.write({"state": state})
     return rec
 
 
-def _cert(env, verified=True, **vals):
-    """The wipe operator's M06 certificate, with real evidence when verified."""
-    vals.setdefault("method", "nist_800_88")
-    vals.setdefault("serial_number", WIPE_SN)
+def _cert(env, verified=True, rec=None, **vals):
+    """The wipe operator's M06 certificate, with real evidence when verified.
+    With ``rec``: answering the trade-in's own wipe request (A02 pass 2
+    review N2), the media kind recorded for the D16 matrix."""
+    # A02 pass 2 review (D16): Purge passes the matrix at release for any media
+    vals.setdefault("method", "nist_800_88_purge")
+    if rec is not None:
+        vals.setdefault("wipe_request_id", rec._m14_wipe_request().id)
+        vals.setdefault("media_kind", "flash")
+    else:
+        vals.setdefault("serial_number", WIPE_SN)
     if verified:
         log = env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
         vals.setdefault("sector_count", 1000)
@@ -336,16 +351,15 @@ def test_wipe_never_fabricates_a_certificate(odoo_env):
 
 
 def test_wipe_refuses_an_unverified_certificate(odoo_env):
-    pending = _cert(odoo_env, verified=False)
-    rec = _in(odoo_env, "collected", wipe_certificate_id=pending.id)
+    rec = _in(odoo_env, "collected", wiped="pending")
     with pytest.raises(UserError, match="pending_verification"):
         rec.action_wipe()
     assert rec.state == "collected"
 
 
 def test_wipe_passes_on_the_operators_verified_certificate(odoo_env):
-    cert = _cert(odoo_env, method="cryptographic_erase")
-    rec = _in(odoo_env, "collected", wipe_certificate_id=cert.id)
+    rec = _in(odoo_env, "collected", wiped={"method": "cryptographic_erase"})
+    cert = rec.wipe_certificate_id
     rec.action_wipe()
     assert rec.state == "wiped"
     assert rec.wipe_certificate_id == cert
@@ -391,7 +405,7 @@ def test_refurbish_opens_job_at_central_depot(odoo_env):
         device_id=device.id,
         parts_cost=800,
         labour_cost=400,
-        wipe_certificate_id=_cert(odoo_env).id,
+        wiped=True,
     )
     rec.action_wipe()
     rec.action_refurbish()
@@ -409,7 +423,7 @@ def test_refurbish_opens_job_at_central_depot(odoo_env):
 def test_refurbish_falls_back_to_any_company_workshop(odoo_env):
     workshops = odoo_env["fix.workshop"].search([])
     workshops.filtered(lambda w: w.workshop_type == "central").write({"workshop_type": "regional"})
-    rec = _in(odoo_env, "collected", wipe_certificate_id=_cert(odoo_env).id)
+    rec = _in(odoo_env, "collected", wiped=True)
     rec.action_wipe()
     rec.action_refurbish()
     assert rec.workshop_job_id.workshop_id in workshops
@@ -417,7 +431,7 @@ def test_refurbish_falls_back_to_any_company_workshop(odoo_env):
 
 def test_refurbish_without_any_workshop_is_refused(odoo_env):
     odoo_env["fix.workshop"].search([]).write({"active": False})
-    rec = _in(odoo_env, "collected", wipe_certificate_id=_cert(odoo_env).id)
+    rec = _in(odoo_env, "collected", wiped=True)
     rec.action_wipe()
     with pytest.raises(UserError, match="No active M31 workshop"):
         rec.action_refurbish()
@@ -429,7 +443,7 @@ def test_refurbish_reuses_existing_job(odoo_env):
     job = odoo_env["fix.workshop.job"].create(
         {"workshop_id": workshop.id, "fault_description": "Pre-booked refurb"}
     )
-    rec = _in(odoo_env, "collected", workshop_job_id=job.id, wipe_certificate_id=_cert(odoo_env).id)
+    rec = _in(odoo_env, "collected", workshop_job_id=job.id, wiped=True)
     rec.action_wipe()
     rec.action_refurbish()
     assert rec.workshop_job_id == job
@@ -673,7 +687,7 @@ def test_full_journey(odoo_env):
     _screen(odoo_env, rec)
     rec.action_accept()
     rec.action_collect()
-    rec.write({"wipe_certificate_id": _cert(odoo_env, device_id=device.id).id})
+    rec.write({"wipe_certificate_id": _cert(odoo_env, rec=rec).id})
     rec.action_wipe()
     rec.action_refurbish()
     _finish_refurbishment(odoo_env, rec)

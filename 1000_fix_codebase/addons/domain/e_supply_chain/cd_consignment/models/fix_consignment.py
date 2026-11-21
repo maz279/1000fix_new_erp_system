@@ -384,11 +384,17 @@ class FixConsignment(models.Model):
             return locked
         if rec.state in FROZEN_STATES:
             return locked | rec._fix_frozen_fields()
-        if rec.state != "draft":
-            locked |= TRANSIT_LOCKED
         if rec.state in CUSTODY_STATES:
-            locked |= CARRIER_LOCKED
+            locked |= TRANSIT_LOCKED | CARRIER_LOCKED
+        elif rec.state != "draft":
+            locked |= rec._fix_dispatch_locked()
         return locked
+
+    def _fix_dispatch_locked(self) -> set:
+        """The dispatch evidence fixed on a leg confirmed for dispatch (not
+        yet on the road). cd_consignment's release rules leave a pickup's
+        door evidence open until transit starts."""
+        return set(TRANSIT_LOCKED)
 
     def write(self, vals):
         """A02 audit M03-7: a delivered, lost or returned consignment is a
@@ -416,7 +422,7 @@ class FixConsignment(models.Model):
                 elif rec.state != "draft":
                     # A02 ERP audit M03-F2: Confirm for Dispatch checked this
                     # evidence; it is fixed from then on
-                    names = TRANSIT_LOCKED & set(vals)
+                    names = rec._fix_dispatch_locked() & set(vals)
                     reason = "it is confirmed for dispatch (%s)" % rec.state
                 else:
                     names = set()

@@ -50,6 +50,7 @@ Key Features:
         "security/fix_workshop_capture2_rules.xml",
         "data/ir_sequence.xml",
         "data/fix_workshop_data.xml",
+        "data/fix_workshop_a02r2_data.xml",
         "views/fix_workshop_views.xml",
         "views/fix_workshop_menus.xml",
     ],

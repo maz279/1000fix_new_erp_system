@@ -29,6 +29,7 @@ from odoo.addons.cd_service_order.tests.test_a02_p0_m01 import (  # noqa: F401 (
     to_estimating,
     to_ready,
     w,
+    warranty_photos,
 )
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 
@@ -209,7 +210,9 @@ def test_delivery_leg_delivers_only_a_settled_order(w):
     leg = _leg(w, o, "delivery")
     _deliver_leg(w, leg, pod_verified_at=fields.Datetime.now())
     assert o.state == "ready"  # BDT 3,450 due, nothing settled
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=3450.0, reference="CASH-P1-1")
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=3450.0, reference="CASH-P1-1", tender="cash"
+    )
     publish(w.env, "consignment.delivered", "fix.consignment", leg.id, {"service_order_id": o.id})
     relay(w.env)
     assert o.state == "delivered"
@@ -306,9 +309,17 @@ def test_await_approval_needs_a_valid_estimate_with_the_customer(w):
 
 def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=3450.0, reference="CASH-P1-2")
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=3450.0, reference="CASH-P1-2", tender="cash"
+    )
     leg = _leg(w, o, "delivery")
     leg._guarded().write({"state": "confirmed"})
+    # D6 (A02 pass 2): a customer who refuses a finished repair owes the
+    # approved estimate unless a goodwill waiver is approved; with the waiver
+    # the money taken is owed back
+    o.with_user(w.clerk).action_request_goodwill("Customer refuses the repair: waived")
+    approve_via_inbox(so_request(w, "goodwill", o), w.approver, requester=w.clerk)
+    assert o.goodwill_approved_by == w.approver
     # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
     o.with_user(supervisor(w)).action_cancel(reason="customer_declined: will not collect")
     assert (o.state, o.payment_settlement_state) == ("cancelled", "refund_due")
@@ -318,7 +329,9 @@ def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
 def _delivered(w, amount=3000):
     o = to_ready(w, order(w), amount)
     due = o._fix_amount_due()
-    o.with_user(w.cashier).action_mark_settled(amount_bdt=due, reference="CASH-%d" % o.id)
+    o.with_user(w.cashier).action_mark_settled(
+        amount_bdt=due, reference="CASH-%d" % o.id, tender="cash"
+    )
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     return o
@@ -364,6 +377,7 @@ def test_warranty_job_raises_its_claim_before_it_closes(w):
     qc.with_user(w.inspector).action_complete()
     o.action_ready()
     handover_evidence(w, o)
+    warranty_photos(w, o)  # A02 pass 2 (M01-06): the OEM claim needs both photos
     o.with_user(w.clerk).action_deliver()
     o.with_user(w.clerk).action_close()
     claim = w.env["fix.warranty.claim"].sudo().search([("service_order_id", "=", o.id)])
@@ -374,12 +388,16 @@ def test_abandoned_devices_are_flagged_only_when_switched_on(w):
     o = to_ready(w, order(w), 3000)
     o._guarded().write({"ready_at": fields.Datetime.now() - timedelta(days=10)})
     Order = w.env["fix.service.order"]
-    assert Order._cron_flag_abandoned() == 0 and not o.is_abandoned  # default: off
+    assert Order._cron_flag_abandoned() == 0 and not o.is_abandoned  # D13: 90 days
     w.env["ir.config_parameter"].sudo().set_param("cd_service_order.abandon_after_days", "7")
     assert Order._cron_flag_abandoned() >= 1
     assert o.is_abandoned and "Uncollected 7 days" in o.abandon_reason
     assert GUARD in attempt(w, lambda: o.with_user(w.clerk).write({"is_abandoned": False}))
-    o.with_user(w.clerk).action_cancel(reason_code="abandoned")
+    # A02 pass 2 (M01-13, D13): disposal is a branch manager's approval
+    assert "branch manager" in attempt(
+        w, lambda: o.with_user(w.clerk).action_cancel(reason_code="abandoned")
+    )
+    o.with_user(w.bm).action_cancel(reason_code="abandoned")
     assert o.cancel_reason_code == "abandoned"
 
 

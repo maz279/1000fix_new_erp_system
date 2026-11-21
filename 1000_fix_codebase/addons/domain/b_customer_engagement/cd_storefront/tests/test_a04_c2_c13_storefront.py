@@ -44,7 +44,8 @@ def w(odoo_env):
     sf = "cd_storefront.group_fix_storefront_"
     tiers = ["cd_entity_config.group_dofa_tier_%d" % n for n in (1, 2, 3, 4)]
     x = types.SimpleNamespace(env=env)
-    x.clerk = _mk(env, "a4sf_clerk")
+    # A04 ERP audit M38-F5: carts are captured by assisted sales staff
+    x.clerk = _mk(env, "a4sf_clerk", sf + "assisted_sales")
     x.operator = _mk(env, "a4sf_operator", sf + "operator")
     x.operator2 = _mk(env, "a4sf_operator2", sf + "operator")
     x.cashier = _mk(env, "a4sf_cashier", sf + "payment_officer")
@@ -60,7 +61,74 @@ def w(odoo_env):
         {"name": "A4 SF Charger", "list_price": 2500.0, "sale_ok": True}
     )
     x.ou = env["operating.unit"].search([], limit=1)
+    storefront_world(env, x.product)
     return x
+
+
+# A04 ERP audit (20 Nov 2026) M38-F1/F12/F13: the storefront sells only at a
+# released M11 price, takes prepaid orders only on a live M65 gateway with a
+# callback secret, and COD only under an approved COD rule. The fixture sets
+# them up as configuration (superuser): BDT 2,173.91 excl. VAT is BDT 2,500.00
+# with 15% VAT, the price the older tests were written at.
+STOREFRONT_EXCL_PRICE = 2173.91
+
+
+def released_card(env, product, price=STOREFRONT_EXCL_PRICE):
+    variant = product.product_variant_id
+    if not variant.default_code:
+        variant.default_code = "A4SF-%s" % product.id
+    card = (
+        env["fix.rate.card"]
+        .sudo()
+        .create(
+            {
+                "product_code": variant.default_code,
+                "unit_price": price,
+                "line_type": "part",
+                "company_id": env.company.id,
+            }
+        )
+    )
+    card._guarded().write({"state": "released"})
+    return card
+
+
+def live_gateway(env, rail, company=None):
+    company = company or env.company
+    Gateway = env["fix.payment.gateway"].sudo().with_context(active_test=False)
+    found = Gateway.search([("provider", "=ilike", rail), ("company_id", "=", company.id)], limit=1)
+    gateway = found or Gateway.create(
+        {
+            "provider": rail,
+            "company_id": company.id,
+            "country_code": (company.country_id.code or "BD"),
+            "credential_ref": "vault://test/%s" % rail,
+        }
+    )
+    gateway._guarded().write({"state": "active", "mode": "live", "active": True})
+    env["ir.config_parameter"].sudo().set_param(
+        "cd_storefront.gateway_secret.%s" % rail, "test-secret-%s" % rail
+    )
+    return gateway
+
+
+def cod_rule(env, company=None, max_value=1000000.0):
+    Rule = env["fix.storefront.cod.rule"].sudo()
+    company = company or env.company
+    rule = Rule.search([("company_id", "=", company.id), ("state", "=", "active")], limit=1)
+    if not rule:
+        rule = Rule.create(
+            {"name": "Test COD rule", "company_id": company.id, "max_order_value": max_value}
+        )
+        rule._guarded().write({"state": "active"})
+    return rule
+
+
+def storefront_world(env, product, company=None, price=STOREFRONT_EXCL_PRICE):
+    released_card(env, product, price)
+    for rail in ("bkash", "nagad", "rocket", "upay", "sslcommerz"):
+        live_gateway(env, rail, company)
+    cod_rule(env, company)
 
 
 def _placed(w, user=None, qty=1, method="standard_delivery", rail="bkash", **kw):
@@ -240,7 +308,9 @@ def test_the_gateway_callback_confirms_only_a_signed_exact_notice(w):
     name = order.sudo().name
     handle = storefront_api.handle_gateway_callback
     payload = {"order": name, "trx_id": "GW-1", "amount": "2500.00"}
-    # no secret configured: refused, the order stays unpaid
+    # no secret configured: refused, the order stays unpaid (the assisted
+    # order was placed without one; the fixture's secret is removed here)
+    env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret.bkash", "")
     assert handle(env, "bkash", dict(payload, signature="x"))[1] == 503
     env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret.bkash", "s3cr3t")
     assert handle(env, "bkash", dict(payload, signature="forged"))[1] == 403
@@ -278,6 +348,8 @@ def test_rocket_and_upay_pay_through_their_own_signed_callback(w, rail):
     assert order.sudo().payment_rail == rail
     handle = storefront_api.handle_gateway_callback
     payload = {"order": order.sudo().name, "trx_id": rail.upper() + "-77", "amount": "2500.00"}
+    # the fixture's secret is removed: with none the callback is refused
+    env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret." + rail, "")
     assert handle(env, rail, dict(payload, signature="x"))[1] == 503  # no secret yet
     env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret." + rail, "k3y")
     # another rail's secret does not pay this order
@@ -382,7 +454,8 @@ def _refurb_order(w, item, user=None, **kw):
     # BRU-ECM-07 (capture audit 19 Nov 2026): the refurbished-condition terms
     # are accepted before a refurbished unit is ordered
     cart.write({"terms_method": "checkbox"})
-    cart.action_record_terms()
+    # A04 ERP M38-F5: recorded by a colleague, not the capturing clerk
+    cart.with_user(w.operator).action_record_terms()
     return cart.action_place_order(shipping_address="Road 7", **kw)
 
 
@@ -703,19 +776,21 @@ def test_every_priced_line_runs_the_catalogue_and_floor_check(w):
     Product = type(w.env["product.product"])
     original = Product._fix_check_sale
 
-    def spy(self, unit_price=None, channel=None):
+    def spy(self, unit_price=None, channel=None, line=None, partner=None):
         calls.append((self.product_tmpl_id, unit_price, channel))
         if self.product_tmpl_id.name == "A4SF Withdrawn":
             raise UserError("A4SF Withdrawn is restricted: not sold on the storefront")
-        return original(self, unit_price=unit_price, channel=channel)
+        return original(self, unit_price=unit_price, channel=channel, line=line, partner=partner)
 
     withdrawn = w.env["product.template"].create(
         {"name": "A4SF Withdrawn", "list_price": 100.0, "sale_ok": True}
     )
+    released_card(w.env, withdrawn, 86.96)  # priced: only the spy's rule refuses it
     with mock.patch.object(Product, "_fix_check_sale", spy):
         order = _placed(w)
-        assert (w.product, 2500.0, "storefront") in calls
-        assert calls.count((w.product, 2500.0, "storefront")) >= 2  # line + checkout
+        # A04 ERP M38-F1: the M11 gate runs on the VAT-exclusive price
+        assert (w.product, STOREFRONT_EXCL_PRICE, "storefront") in calls
+        assert calls.count((w.product, STOREFRONT_EXCL_PRICE, "storefront")) >= 2
         cart = (
             w.env["fix.storefront.cart"].with_user(w.clerk).create({"customer_id": w.customer.id})
         )

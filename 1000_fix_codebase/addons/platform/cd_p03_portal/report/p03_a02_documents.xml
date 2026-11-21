@@ -45,6 +45,12 @@
 
     <!-- label / value sections and simple tables of a non-commercial document -->
     <template id="a02_doc_sections">
+        <!-- A02 ERP audit pass 2 M02-14: a scannable code (waybill) and
+             evidence images (the customer's signature) -->
+        <div t-if="p.get('qr')" style="float: right; text-align: center; margin: 4px 0 4px 8px;">
+            <img t-att-src="'/report/barcode/?barcode_type=QR&amp;value=%s&amp;width=110&amp;height=110' % p['qr']" style="width: 28mm; height: 28mm;"/>
+            <div style="font-size: 9px;" t-esc="p['qr']"/>
+        </div>
         <t t-foreach="p.get('blocks') or []" t-as="blk">
             <div class="cds-party-label" style="margin-top: 8px;" t-esc="blk['title']"/>
             <table class="cds-meta cds-extra">
@@ -67,6 +73,10 @@
                     </tr>
                 </tbody>
             </table>
+        </t>
+        <t t-foreach="p.get('images') or []" t-as="img">
+            <div class="cds-party-label" style="margin-top: 8px;" t-esc="img['title']"/>
+            <img t-att-src="img['src']" style="max-height: 30mm; max-width: 70mm; border: 1px solid #ccc;"/>
         </t>
     </template>
 
@@ -100,6 +110,9 @@
     <template id="report_a02_field_service"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
     <template id="report_a02_consignment_note"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
     <template id="report_a02_workshop_job"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <!-- A02 pass 2 M06-10: the data recovery case file and quotation -->
+    <template id="report_a02_data_case"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
+    <template id="report_a02_data_quote"><t t-call="cd_p03_portal.a02_doc_a4"/></template>
 
     <!-- the counter receipt on the 80 mm roll (cd_doc_suite receipt body) -->
     <template id="report_a02_counter_receipt_80">
@@ -188,4 +201,28 @@
         <field name="binding_type">report</field>
     </record>
 
+    <!-- A02 pass 2 M06-10 -->
+    <record id="action_report_a02_data_case" model="ir.actions.report">
+        <field name="name">Data Recovery Case File</field>
+        <field name="model">fix.data.recovery.case</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_data_case</field>
+        <field name="report_file">cd_p03_portal.report_a02_data_case</field>
+        <field name="print_report_name">'Case File %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.data.recovery.case')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a02_data_quote" model="ir.actions.report">
+        <field name="name">Data Recovery Quotation</field>
+        <field name="model">fix.data.quote</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a02_data_quote</field>
+        <field name="report_file">cd_p03_portal.report_a02_data_quote</field>
+        <field name="print_report_name">'Quotation %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.data.quote')]"/>
+        <field name="binding_type">report</field>
+    </record>
 </odoo>

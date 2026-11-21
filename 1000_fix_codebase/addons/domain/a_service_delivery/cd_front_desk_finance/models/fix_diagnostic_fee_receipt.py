@@ -18,7 +18,11 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from .fix_counter_sale_posting import resolve_account
-from .fix_order_cash_receipt import assert_receipt_posted, dhaka_today
+from .fix_order_cash_receipt import (
+    assert_receipt_posted,
+    dhaka_today,
+    fdf_check_reference_unused,
+)
 
 FEE_CHANNEL_METHOD = {"cash": "cash", "bkash": "bkash", "nagad": "nagad", "card": "card"}
 
@@ -59,6 +63,13 @@ class FixWalkinIntakeFeeReceipt(models.Model):
             account, why = resolve_account(self.env, company, "drawer_cash")
             if not account:
                 raise UserError("Diagnostic fee of %s refused: %s" % (self.display_name, why))
+        reference = (self.payment_trx_ref or "").strip() or "DIAG/%s" % (
+            self.display_name or self.id
+        )
+        # M04-02 (A02 pass 2): a wallet / card TrxID pays once
+        fdf_check_reference_unused(
+            self.env, company, method, reference, "Diagnostic fee of %s" % self.display_name
+        )
         unit = (order.operating_unit_id if order else False) or self.branch_id.operating_unit_id
         receipt = (
             self.env["fix.ar.receipt"]
@@ -72,8 +83,7 @@ class FixWalkinIntakeFeeReceipt(models.Model):
                     "customer_id": self.customer_id.id,
                     "amount": fee,
                     "method": method,
-                    "reference": (self.payment_trx_ref or "").strip()
-                    or "DIAG/%s" % (self.display_name or self.id),
+                    "reference": reference,
                     "receipt_date": dhaka_today(),
                     "source_order_id": order.id if order else False,
                     "is_order_advance": True,

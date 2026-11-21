@@ -18,11 +18,14 @@
 #           both.
 #
 # FILE NAME IS LOAD-BEARING: imported last in models/__init__.py.
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .msp_periods import dhaka_today, month_dates
 from .msp_roles import GROUP_CREDIT_APPROVER, require_role
 
 # the terms the SLA credit and the bill are computed from
@@ -37,7 +40,15 @@ MSP_TERMS = (
     "holiday_calendar_id",
     "unattended_access",
     "recording_retention_days",
+    # A02 ERP pass 2 (M05-S09 / S17 / S18): the scope and metering terms
+    "response_hours_major",
+    "response_hours_minor",
+    "parts_included",
+    "remote_hours_monthly",
+    "overage_hourly_rate",
 )
+# the terms whose change moves the monthly fee (M05-S06: published to M39)
+MSP_MONEY_TERMS = ("device_count", "per_device_monthly")
 # set at creation by a commercial approver only (the M08 contract is the
 # engineer's to name)
 MSP_COMMERCIAL_TERMS = tuple(t for t in MSP_TERMS if t != "contract_id")
@@ -67,6 +78,36 @@ class FixMspContractGuard(models.Model):
     terms_amended_at = fields.Datetime(string="Terms Last Amended At", readonly=True, copy=False)
     terms_amended_by_id = fields.Many2one(
         "res.users", string="Terms Last Amended By", readonly=True, copy=False
+    )
+    # ---- A02 ERP pass 2 (2026-11-20) terms ---------------------------------
+    # M05-S18: the response target (first acknowledgement / ticket / fix) per
+    # severity. 0 = no response target on this contract.
+    response_hours_major = fields.Float(
+        string="Major Alert Response Target (h)",
+        default=0.0,
+        help="Hours to the first response (acknowledged, ticketed or resolved); 0 = none.",
+    )
+    response_hours_minor = fields.Float(string="Minor Alert Response Target (h)", default=0.0)
+    # M05-S09 (owner decision D10): the per-device fee covers labour and remote
+    # support. Parts and out-of-scope work are an approved overage estimate
+    # unless the contract has a parts entitlement.
+    parts_included = fields.Boolean(
+        string="Parts Entitlement",
+        help="The contract's fee also covers parts. Without it parts and out-of-scope work "
+        "on an MSP ticket are priced on an estimate the client approves (overage).",
+    )
+    # M05-S17 (D11): remote-support hours
+    remote_hours_monthly = fields.Float(
+        string="Remote Support Hours a Month",
+        help="The monthly remote-support entitlement; 0 = not metered against an entitlement.",
+    )
+    overage_hourly_rate = fields.Monetary(
+        string="Overage Rate (BDT / hour)",
+        currency_field="currency_id",
+        help="Hours above the entitlement are billed at this rate. None = not billed, flagged.",
+    )
+    terms_amendment_ids = fields.One2many(
+        "fix.msp.terms.amendment", "msp_contract_id", string="Terms History"
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -159,11 +200,18 @@ class FixMspContractGuard(models.Model):
             raise UserError("%s must be more than 0 hours." % field.string)
         return value
 
-    def action_amend_terms(self, term=None, value=None, reason=None, **terms):
+    def action_amend_terms(self, term=None, value=None, reason=None, effective_date=None, **terms):
         """Change the contract's SLA or commercial terms: an SLA credit
         approver (the commercial role), with the reason, recorded on the
         contract. ``term`` / ``value`` take one term from the workspace
-        prompt; keyword arguments take several."""
+        prompt; keyword arguments take several.
+
+        A02 ERP pass 2: every amendment has an effective date (M05-S13, default
+        today in Dhaka; never in the future, never inside a month that already
+        has its service report) and is kept in the terms history, so a month is
+        measured with the terms in force in it. A change of the monthly fee
+        (covered devices up or down, or the per-device price) is published to
+        the M39 subscription (M05-S06, owner decision D8)."""
         require_role(
             self.env, [GROUP_CREDIT_APPROVER], "Amending an MSP contract's SLA or commercial terms"
         )
@@ -186,6 +234,7 @@ class FixMspContractGuard(models.Model):
             )
         for msp in self:
             msp._msp_assert_in_service("Amending the contract terms")
+            effective = msp._msp_amendment_date(effective_date)
             vals = {name: msp._msp_term_value(name, raw) for name, raw in terms.items()}
             changed = {n: v for n, v in vals.items() if msp._fix_guard_differs(n, v, msp[n])}
             if not changed:
@@ -198,7 +247,7 @@ class FixMspContractGuard(models.Model):
                         "An MSP contract moves only to an M08 contract of the same customer."
                     )
             before = {n: msp[n] for n in changed}
-            old_count = msp.device_count
+            old_terms = msp._msp_terms_snapshot()
             msp.sudo()._guarded().write(
                 dict(
                     changed,
@@ -213,9 +262,10 @@ class FixMspContractGuard(models.Model):
                 return "-" if value in (False, None) else value
 
             msp.message_post(
-                body="Terms amended by %s (%s): %s"
+                body="Terms amended by %s, effective %s (%s): %s"
                 % (
                     self.env.user.name,
+                    effective,
                     reason,
                     "; ".join(
                         "%s %s -> %s" % (msp._fields[n].string, show(before[n]), show(msp[n]))
@@ -223,39 +273,144 @@ class FixMspContractGuard(models.Model):
                     ),
                 )
             )
-            if "device_count" in changed and msp.device_count > old_count:
-                msp._msp_publish_uplift(old_count, reason)
+            amendment = msp._msp_record_amendment(old_terms, effective, reason)
+            if set(changed) & set(MSP_MONEY_TERMS):
+                msp._msp_publish_commercial_amendment(amendment)
         return True
 
-    def _msp_publish_uplift(self, old_count, reason):
-        """BRU-RMS-07 / A02 ERP audit M05-F4: devices beyond the contracted
-        count are billed, never absorbed. The uplift goes to billing as an
-        event: the recurring MSP charge is the M39 subscription's, which
-        consumes it (the per-device price and the added devices)."""
+    def _msp_amendment_date(self, raw):
+        """The effective date of an amendment (M05-S13): today in Dhaka by
+        default; not in the future (amend on the day it takes effect); not
+        inside a month whose service report exists (that month was measured
+        with the terms then in force), nor before the M08 term starts."""
+        self.ensure_one()
+        today = dhaka_today()
+        try:
+            day = fields.Date.to_date(raw) if raw else today
+        except (TypeError, ValueError):
+            raise UserError("'%s' is not a date (YYYY-MM-DD)." % raw) from None
+        if day > today:
+            raise UserError(
+                "An amendment takes effect today or on a past date (%s is in the future): "
+                "record it on the day it takes effect." % day
+            )
+        labels = (
+            self.env["fix.msp.service.report"]
+            .sudo()
+            .search([("msp_contract_id", "=", self.id)])
+            .mapped("period_label")
+        )
+        if labels:
+            _first, last = month_dates(max(labels))
+            if last and day <= last:
+                raise UserError(
+                    "%s already has its %s service report: an amendment takes effect after "
+                    "that month (from %s), never inside a month already measured."
+                    % (self.name, max(labels), last + timedelta(days=1))
+                )
+        start = self.contract_id.sudo().date_start
+        if start and day < start:
+            raise UserError(
+                "An amendment cannot take effect before the M08 term starts (%s)." % start
+            )
+        return day
+
+    def _msp_terms_snapshot(self) -> dict:
+        """The contract's current terms as amendment-row values."""
+        self.ensure_one()
+        return {
+            "device_count": self.device_count,
+            "per_device_monthly": self.per_device_monthly,
+            "sla_target_pct": self.sla_target_pct,
+            "alert_resolve_hours_major": self.alert_resolve_hours_major,
+            "alert_resolve_hours_minor": self.alert_resolve_hours_minor,
+            "response_hours_major": self.response_hours_major,
+            "response_hours_minor": self.response_hours_minor,
+            "coverage_window": self.coverage_window,
+            "holiday_calendar_id": self.holiday_calendar_id.id or False,
+            "parts_included": self.parts_included,
+            "remote_hours_monthly": self.remote_hours_monthly,
+            "overage_hourly_rate": self.overage_hourly_rate,
+            "monthly_value": round((self.per_device_monthly or 0.0) * (self.device_count or 0), 2),
+        }
+
+    def _msp_record_amendment(self, old_terms, effective, reason):
+        """Write the terms history row of an amendment. A contract with no
+        history yet first gets its baseline (the terms before, from the term
+        start), so every day has the terms that were in force on it."""
+        self.ensure_one()
+        Amendment = self.env["fix.msp.terms.amendment"].sudo()._guarded()
+        if not Amendment.search_count([("msp_contract_id", "=", self.id)]):
+            Amendment.create(
+                dict(
+                    self._msp_amendment_vals(old_terms),
+                    kind="baseline",
+                    effective_date=min(self.contract_id.sudo().date_start or effective, effective),
+                    reason="Terms before the first recorded amendment",
+                    monthly_value_before=old_terms["monthly_value"],
+                    device_count_before=old_terms["device_count"],
+                    per_device_monthly_before=old_terms["per_device_monthly"],
+                    billing_state="none",
+                )
+            )
+        new_terms = self._msp_terms_snapshot()
+        delta = round(new_terms["monthly_value"] - old_terms["monthly_value"], 2)
+        return Amendment.create(
+            dict(
+                self._msp_amendment_vals(new_terms),
+                kind="amendment",
+                effective_date=effective,
+                reason=reason,
+                amended_by_id=self.env.uid,
+                monthly_value_before=old_terms["monthly_value"],
+                device_count_before=old_terms["device_count"],
+                per_device_monthly_before=old_terms["per_device_monthly"],
+                billing_state="pending" if abs(delta) > 0.005 else "none",
+            )
+        ).with_env(self.env)
+
+    def _msp_amendment_vals(self, terms):
+        self.ensure_one()
+        vals = {k: v for k, v in terms.items() if k != "monthly_value"}
+        vals.update(
+            {
+                "msp_contract_id": self.id,
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id or False,
+                "monthly_value": terms["monthly_value"],
+            }
+        )
+        return vals
+
+    def _msp_publish_commercial_amendment(self, amendment):
+        """BRU-RMS-07 / M05-S05 / S06: the fee change goes to billing as an
+        event carrying the amendment and its monthly delta. The M39 consumer
+        re-reads the amendment row (the payload is a claim), so the order in
+        which amendments are delivered does not matter."""
         self.ensure_one()
         contract = self.contract_id.sudo()
         partner = contract.customer_id.commercial_partner_id or contract.customer_id
-        added = self.device_count - (old_count or 0)
         publish(
             self.env,
-            "msp.device_uplift",
+            "msp.commercial_terms_amended",
             "fix.msp.contract",
             self.id,
             {
                 "msp_contract": self.name,
                 "msp_contract_id": self.id,
+                "amendment_id": amendment.id,
                 "contract_id": contract.id,
                 "contract_code": contract.code or "",
                 "partner_id": partner.id,
                 "company_id": self.company_id.id,
-                "old_device_count": old_count or 0,
-                "new_device_count": self.device_count,
-                "added_devices": added,
-                "per_device_monthly": self.per_device_monthly,
-                "monthly_increase": round(added * (self.per_device_monthly or 0.0), 2),
+                "old_device_count": amendment.device_count_before,
+                "new_device_count": amendment.device_count,
+                "old_per_device_monthly": amendment.per_device_monthly_before,
+                "new_per_device_monthly": amendment.per_device_monthly,
+                "monthly_delta": amendment.monthly_delta,
                 "currency": self.currency_id.name or "BDT",
-                "effective_date": fields.Date.to_string(fields.Date.context_today(self)),
-                "reason": reason,
+                "effective_date": fields.Date.to_string(amendment.effective_date),
+                "reason": amendment.reason,
             },
         )
 

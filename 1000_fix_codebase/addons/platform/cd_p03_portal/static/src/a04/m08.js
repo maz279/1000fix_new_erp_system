@@ -9,14 +9,16 @@
 export const MODULE = {
   area: 'A04', code: 'M08', en: 'Contract Lifecycle (AMC)', title: 'M08 · Contract Lifecycle (AMC)',
   bn: 'চুক্তি লাইফসাইকেল', icon: '📝',
-  desc: 'AMC contracts across 14 product families, coverage and entitlement consumption, SLA credits, PM schedules, amendments, renewals and churn, pricing and profitability.',
+  desc: 'Contracts in the five product families the engine carries (AMC, RAMC, managed services, rental, marketplace), coverage and entitlement consumption, SLA credits, PM schedules, amendments, renewals and churn, pricing and profitability.',
   kpis: [
     { l: 'Active Contracts', m: 'active_contracts' },
     { l: 'Contract Base Value', m: 'contract_base_value', prefix: '৳ ' },
     { l: 'Renewal Rate', m: 'renewal_rate', suffix: '%' },
     { l: 'Neg-Margin Contracts', m: 'neg_margin_contracts' },
     { l: 'Entitlement Utilisation', m: 'entitlement_utilisation', suffix: '%' },
-    { l: 'PM Visits Due (7d)', m: 'pm_visits_due_7d' }
+    { l: 'PM Visits Due (7d)', m: 'pm_visits_due_7d' },
+    { l: 'Expiring (90d)', m: 'expiring_90d' },
+    { l: 'Expiring Value (90d)', m: 'expiring_90d_value', prefix: '৳ ' }
   ],
   groups: [
     { en: 'Contract Register', screens: [
@@ -47,6 +49,7 @@ export const MODULE = {
       { id: 'M08-amend', en: 'Amendments & Variations', bn: 'সংশোধনী', t: 'g' },
       { id: 'M08-renewals', en: 'Renewals & Auto-Renew', bn: 'নবায়ন', t: 'g' },
       { id: 'M08-termination', en: 'Suspension / Termination', bn: 'স্থগিত / বাতিল', t: 'g' },
+      { id: 'M08-suspensions', en: 'Suspension Windows (not billed)', bn: 'স্থগিতকাল', t: 'g' },
       { id: 'M08-stampduty', en: 'Stamp Duty Schedule I', bn: 'স্ট্যাম্প ডিউটি তালিকা', t: 'g' },
       { id: 'M08-churn', en: 'Churn & Win-Back', bn: 'চার্ন ও উইন-ব্যাক', t: 'r' },
       { id: 'M08-disputes', en: 'Disputes & Legal Hold', bn: 'বিরোধ ও আইনি স্থগিতাদেশ', t: 'g' }
@@ -65,7 +68,7 @@ export const MODULE = {
    * price revision, signature and stamp duty) are forms of their own; the
    * SLA credit and the signature envelope are mastered by M05 and M24 and
    * open THEIR forms. */
-  forms: ['Contract (14 families)', 'Amendment', 'Asset Attach/Detach', 'Renewal Quote', 'PM Schedule',
+  forms: ['Contract (5 families)', 'Amendment', 'Asset Attach/Detach', 'Renewal Quote', 'PM Schedule',
     'Entitlement', 'Submit for Value Approval', 'Legal Review', 'SLA Credit', 'Suspension / Termination Notice',
     'Price Revision', 'Signature & Stamp Duty', 'Signature Envelope', 'Stamp Duty Rate',
     'Contract Party', 'Coverage Exclusion', 'Contract Obligation', 'Lost Renewal',
@@ -74,7 +77,7 @@ export const MODULE = {
     'Contract Dispute', 'Reinstatement', 'Wet-Ink Signature Verification'],
   cross: ['M05 MSP', 'M01 Service Orders', 'M20 AR', 'M37 Catalogue'],
   freg: { src: 108, sub: [
-    ['1', 'Template-Driven Creation', 12, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value', 'owner_id', 'parent_contract_id'], screens: ['M08-contracts', 'M08-master'], reports: [], forms: ['Contract (14 families)'] }],
+    ['1', 'Template-Driven Creation', 12, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'date_start', 'date_end', 'annual_value', 'owner_id', 'parent_contract_id'], screens: ['M08-contracts', 'M08-master'], reports: [], forms: ['Contract (5 families)'] }],
     ['2', 'Parties & Approval', 8, { model: 'fix.contract', cols: ['name', 'customer_id', 'family', 'state', 'approval_state', 'legal_review_required', 'annual_value'], screens: ['M08-contracts', 'M08-master', 'M08-parties'], reports: [], forms: ['Submit for Value Approval', 'Legal Review', 'Contract Party'], create: 'M08-form-submit' }],
     ['3', 'Coverage Scope', 10, { model: 'fix.contract.entitlement', cols: ['contract_id', 'device_id', 'entitlement_type', 'quantity_included', 'quantity_remaining'], screens: ['M08-scope', 'M08-coverage-rules', 'M08-entitle', 'M08-exclusions'], reports: ['Entitlement Consumption by Client'], forms: ['Asset Attach/Detach', 'Coverage Rule', 'Entitlement', 'Coverage Exclusion'], create: 'M08-form-coverage' }],
     ['4', 'Entitlement Engine', 14, { model: 'fix.contract.entitlement', cols: ['contract_id', 'entitlement_type', 'quantity_included', 'quantity_consumed', 'quantity_remaining'], screens: ['M08-entitle', 'M08-topups', 'M08-ledger', 'M08-balance'], reports: ['Entitlement Consumption by Client'], forms: ['Entitlement Top-Up', 'Entitlement'], create: 'M08-form-topup' }],
@@ -94,8 +97,10 @@ export const SCREENS = {
   // The value is approved from the DOFA holder's M63 inbox (never here);
   // Legal and Finance decide only what they did not raise.
   'M08-contracts': { kind: 'model_list', model: 'fix.contract', stateField: 'state',
-    cols: ['name', 'customer_id', 'family', 'date_start', 'date_end', 'annual_value', 'auto_renew', 'owner_id', 'signature_method', 'in_dispute', 'state', 'approval_state'],
+    cols: ['name', 'customer_id', 'family', 'date_start', 'date_end', 'annual_value', 'term_value', 'billing_frequency', 'auto_renew', 'owner_id', 'signature_method', 'in_dispute', 'state', 'approval_state'],
     actions: [
+      /* A04 ERP audit M08-F20: the contract's professional document */
+      { m: 'p03_print_document', print: 'a4', l: 'Print Contract' },
       { m: 'action_request_approval', l: 'Submit for Value Approval (DOFA)', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending_approval'] },
       { m: 'action_legal_review', l: 'Legal Review (Legal Reviewer)', states: ['pending_approval'], ask: 'Legal review note', kwarg: 'note' },
@@ -103,7 +108,8 @@ export const SCREENS = {
       { m: 'action_reset_to_draft', l: 'Reset to Draft', states: ['pending_approval', 'pending_signature'] },
       { m: 'action_activate', l: 'Activate (signed envelope required)', states: ['pending_signature'] },
       { m: 'action_renew', l: 'Draft Renewal Term', states: ['active', 'expiring', 'expired'] },
-      { m: 'action_verify_wet_signature', l: 'Verify Wet-Ink Signature (second officer)', states: ['draft', 'pending_approval', 'pending_signature'] }
+      { m: 'action_verify_wet_signature', l: 'Verify Wet-Ink Signature (second officer)', states: ['draft', 'pending_approval', 'pending_signature'] },
+      { m: 'action_print_contract', l: 'Print Contract (PDF)', states: ['draft', 'pending_approval', 'pending_signature', 'active', 'expiring', 'expired', 'suspended', 'terminated'] }
       /* Resume now declares the treatment of the suspended period:
        * + Reinstate a Suspended Contract (capture pass 2) */
     ] },
@@ -134,7 +140,8 @@ export const SCREENS = {
     actions: [
       { m: 'action_request_approval', l: 'Submit for Approval', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['submitted'] },
-      { m: 'action_cancel', l: 'Cancel Amendment', states: ['draft', 'submitted', 'approved'] }
+      { m: 'action_cancel', l: 'Cancel Amendment', states: ['draft', 'submitted', 'approved'] },
+      { m: 'action_legal_review', l: 'Legal Review (crosses BDT 1M)', states: ['submitted', 'approved'], ask: 'Legal review note', kwarg: 'note' }
     ] },
   'M08-renewals': { kind: 'model_list', model: 'fix.contract.renewal', stateField: 'state',
     cols: ['name', 'contract_id', 'proposed_start', 'proposed_end', 'propo_value', 'risk', 'state', 'renewal_contract_id'],
@@ -201,6 +208,10 @@ export const SCREENS = {
       { m: 'action_execute_termination', l: 'Execute (Contract Manager)', states: ['approved'] },
       { m: 'action_cancel', l: 'Cancel Notice', states: ['draft', 'submitted', 'approved'] }
     ] },
+  // A04 ERP audit M08-F1: the days a contract was suspended; never billed.
+  // Written by the engine (suspension, resume, termination), read-only here.
+  'M08-suspensions': { kind: 'model_list', model: 'fix.contract.suspension', create: false,
+    cols: ['contract_id', 'date_from', 'date_to', 'compensated', 'treatment'] },
   'M08-churn': { kind: 'table_report', module: 'M08', report: 'churn_risk', title: 'Churn & Win-Back', period: false },
   'M08-pricing': { kind: 'table_report', module: 'M08', report: 'contract_pricing', title: 'Contract Pricing Link', period: false },
   'M08-profit': { kind: 'table_report', module: 'M08', report: 'contract_pnl', title: 'Profitability & Alerts', period: false },
@@ -242,7 +253,7 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'general', title: 'Contract Identity & Master Setup',
-        note: 'Master commercial agreement across 14 product families under Bangladesh commercial laws.',
+        note: 'One engine for the five product families it carries: AMC, RAMC, managed services, rental and marketplace agreements. A new family is added to the family registry first.',
         fields: [
           { name: 'name', required: true, label: 'Contract Title' },
           { name: 'code', required: true, label: 'Contract Code', readonly: true },
@@ -258,13 +269,19 @@ export const SCREENS = {
       { tab: 'financial', title: 'Commercial Value, Delivery Cost & Margins',
         fields: [
           { name: 'annual_value', required: true, label: 'Annual Contract Value (BDT)' },
-          { name: 'total_delivery_cost', label: 'Direct Delivery & Service Cost (BDT)', readonly: true },
+          { name: 'term_value', label: 'Term Value, excl. VAT (BDT)', readonly: true },
+          { name: 'accepted_total', label: 'Accepted Total, incl. VAT (BDT)', readonly: true },
+          { name: 'billing_frequency', required: true, label: 'Billing Frequency' },
+          { name: 'billing_timing', required: true, label: 'Billed In Arrears / In Advance' },
+          { name: 'retention_pct', label: 'Retention Withheld (%)' },
+          { name: 'total_delivery_cost', label: 'Cost to Serve over the Term (BDT)', readonly: true },
           { name: 'contract_margin_bdt', label: 'Gross Contract Margin (BDT)', readonly: true },
           { name: 'contract_margin_pct', label: 'Gross Margin (%)', readonly: true },
           { name: 'escalation_pct', label: 'Annual Escalation Rate (%)' },
           { name: 'currency_id', label: 'Currency' },
           { name: 'amendment_version', label: 'Amendment Version', readonly: true },
-          { name: 'billed_through_date', label: 'Billed Through', readonly: true }
+          { name: 'billed_through_date', label: 'Billed Through', readonly: true },
+          { name: 'terminated_on', label: 'Terminated With Effect From', readonly: true }
         ] },
       /* the tab was named for coverage and SLAs and held neither: no form set
        * the covered assets, so an activated contract generated no PM visit
@@ -295,7 +312,7 @@ export const SCREENS = {
           { name: 'oca_contract_id', label: 'OCA Contract Reference', readonly: true },
           { name: 'signature_method', label: 'Signature Method' },
           { name: 'esignature_envelope_id', label: 'Kernel E-Signature Envelope (M24)' },
-          { name: 'dofa_tier_required', label: 'DOFA Tier (from the value)', readonly: true },
+          { name: 'dofa_tier_required', label: 'DOFA Tier (from the total contract value)', readonly: true },
           { name: 'approval_state', label: 'Value Approval', readonly: true },
           { name: 'dofa_approved_by', label: 'Value Approved By', readonly: true },
           { name: 'legal_review_required', label: 'Legal Review Required', readonly: true },
@@ -358,7 +375,9 @@ export const SCREENS = {
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'version_no', label: 'Contract Version', readonly: true },
           { name: 'value_before', label: 'Value Before', readonly: true },
-          { name: 'value_after', label: 'Value After', readonly: true }
+          { name: 'value_after', label: 'Value After', readonly: true },
+          { name: 'legal_review_required', label: 'Legal Review Required (crosses BDT 1M)', readonly: true },
+          { name: 'legal_reviewed_by', label: 'Legal Review By', readonly: true }
         ] }
     ]
   },
@@ -390,9 +409,11 @@ export const SCREENS = {
       { id: 'docs', label: '4. Documents', bn: '৪. নথি ও প্রমাণক' }
     ],
     sections: [
-      { tab: 'general', title: '1. What the Customer May Draw', note: 'A quantity of 0 means unlimited for that type. Consumption is recorded by the service orders delivered against the contract, never typed.', fields: [
+      { tab: 'general', title: '1. What the Customer May Draw', note: 'State the quantity: 0 is an unlimited entitlement and must be entered on purpose. A monthly or annual entitlement starts again at its full quantity each period (no carry-over). Consumption is recorded by the service orders delivered against the contract, never typed.', fields: [
         { name: 'entitlement_type', label: 'Entitlement Type', required: true },
-        { name: 'quantity_included', label: 'Included', required: true },
+        { name: 'quantity_included', label: 'Included (0 = unlimited)', required: true },
+        { name: 'reset_period', label: 'Renewed', required: true },
+        { name: 'exhaustion_policy', label: 'When Used Up', required: true },
         { name: 'quantity_consumed', label: 'Consumed', readonly: true },
         { name: 'quantity_remaining', label: 'Remaining', readonly: true }
       ] },
@@ -1146,7 +1167,7 @@ export const REPORT_ROUTES = {
 };
 
 export const FORM_MODELS = {
-  'M08:Contract (14 families)': 'fix.contract',
+  'M08:Contract (5 families)': 'fix.contract',
   'M08:Amendment': 'fix.contract.amendment',
   'M08:Asset Attach/Detach': 'fix.contract',
   'M08:Renewal Quote': 'fix.contract.renewal',
@@ -1174,7 +1195,7 @@ export const FORM_MODELS = {
 };
 
 export const FORM_CHIPS = {
-  'M08:Contract (14 families)': 'M08-record',
+  'M08:Contract (5 families)': 'M08-record',
   'M08:Amendment': 'M08-form-amendment',
   /* the registry's attach/detach form sets the contract's covered assets;
    * it opened the entitlement form until the 2026-11-13 capture audit */

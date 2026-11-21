@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- R8 consumers (A02 ERP pass 2, X5-14): M27 notices for A02 events the
+     specs route to M27 (M01 sla.warning, M05 AUT-RMS-10, M06 AUT-DTS-03 /
+     data_case.evaluated) that nobody consumed. Queued through
+     fix.notif.delivery.queue(), one message per event and recipient. -->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_a02r2_sla_near_breach" model="fix.event.consumer">
+            <field name="name">M27: e-mail the branch Service Supervisors when an M01 SLA is near breach</field>
+            <field name="event_type">sla.instance_near_breach</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_sla_near_breach</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_a02r2_sla_escalated" model="fix.event.consumer">
+            <field name="name">M27: e-mail the users an M01 SLA escalation rule escalated to</field>
+            <field name="event_type">sla.escalated</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_sla_escalated</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_a02r2_msp_report_published" model="fix.event.consumer">
+            <field name="name">M27: e-mail the MSP client when its service report is published</field>
+            <field name="event_type">msp.service_report_published</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_msp_service_report_published</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_a02r2_data_case_evaluated" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer when the M06 evaluation is complete</field>
+            <field name="event_type">data_case.evaluated</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_data_case_evaluated</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_a02r2_data_case_quote_sent" model="fix.event.consumer">
+            <field name="name">M27: SMS the customer the M06 quotation number and amount</field>
+            <field name="event_type">data_case.quote_sent</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_data_case_quote_sent</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

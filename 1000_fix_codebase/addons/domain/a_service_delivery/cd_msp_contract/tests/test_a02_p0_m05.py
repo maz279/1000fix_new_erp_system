@@ -359,8 +359,10 @@ def test_P1_install_only_from_approved(m5):
     _as(upd, m5.eng).action_defer(days=2, reason="vendor recall pending")  # M05-F18
     with pytest.raises(UserError, match="only an approved patch"):
         _as(upd, m5.eng).action_install()
-    _as(upd, m5.eng).action_approve()
-    assert upd.approved_by_id == m5.eng
+    # A02 ERP pass 2 (M05-S10): another engineer approves, inside a window
+    _as(upd, m5.eng2).action_approve()
+    assert upd.approved_by_id == m5.eng2
+    _as(_window(m5, m5.cm, name="P1 window"), m5.cab).action_approve()
     _as(upd, m5.eng).action_install()
     assert upd.state == "installed" and upd.installed_at
 
@@ -450,9 +452,22 @@ def _credit(m5, period):
 
 
 def test_S1_a_typed_credit_amount_is_refused(m5):
+    Credit = m5.env["fix.msp.sla.credit"]
+    # A02 ERP pass 2 (M05-S01): a hand-typed credit is a manual credit, so a
+    # typed amount alone is refused before it reaches the guard...
+    with pytest.raises(UserError, match="manual credit: give its amount"):
+        _as(Credit, m5.eng).create(
+            {"msp_contract_id": m5.msp.id, "period_label": "2026-01", "credit_amount": 5e6}
+        )
+    # ...and beside a manual amount the computed figure is still never typed
     with pytest.raises(UserError, match=GUARD):
-        _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
-            {"msp_contract_id": m5.msp.id, "period_label": "A02-forged", "credit_amount": 5e6}
+        _as(Credit, m5.eng).create(
+            {
+                "msp_contract_id": m5.msp.id,
+                "period_label": "2026-01",
+                "manual_amount": 100.0,
+                "credit_amount": 5e6,
+            }
         )
 
 
@@ -460,10 +475,10 @@ def test_S1_a_manual_credit_needs_the_dofa_tier_and_is_capped(m5):
     Credit = m5.env["fix.msp.sla.credit"]
     with pytest.raises(ValidationError, match="monthly value"):
         _as(Credit, m5.eng).create(
-            {"msp_contract_id": m5.msp.id, "period_label": "A02-huge", "manual_amount": 5e6}
+            {"msp_contract_id": m5.msp.id, "period_label": "2026-02", "manual_amount": 5e6}
         )
     cr = _as(Credit, m5.eng).create(
-        {"msp_contract_id": m5.msp.id, "period_label": "A02-manual", "manual_amount": 5000.0}
+        {"msp_contract_id": m5.msp.id, "period_label": "2026-03", "manual_amount": 5000.0}
     )
     assert cr.is_manual and cr.credit_amount == 5000.0 and cr.manual_set_by_id == m5.eng
     # B1: the CFO tier decides in the inbox; neither a button press...
@@ -488,7 +503,7 @@ def test_S1_the_raiser_cannot_approve_their_own_credit(m5):
     manual = _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
         {
             "msp_contract_id": m5.msp.id,
-            "period_label": "A02-own",
+            "period_label": "2026-04",
             "manual_amount": 100.0,
             "dofa_justification": "x",
         }
@@ -526,7 +541,7 @@ def test_S2_a_changed_amount_voids_the_approval(m5):
     cr = _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
         {
             "msp_contract_id": m5.msp.id,
-            "period_label": "A02-raise",
+            "period_label": "2026-05",
             "manual_amount": 4500.0,
             "dofa_justification": "agreed",
         }

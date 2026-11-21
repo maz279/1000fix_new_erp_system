@@ -25,6 +25,7 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account
 from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
     GROUP_ACCOUNTANT,
     GROUP_ADMINISTRATOR,
@@ -53,7 +54,13 @@ SETTLEMENT_ACCOUNTS = {
     "clawback_recovery": (None, "Customer Refund Clearing (clawbacks / forfeited escrow)"),
     "warranty_expense": (None, "Workmanship Warranty Expense (IAS 37)"),
     "warranty_provision": (None, "Workmanship Warranty Provision (IAS 37)"),
+    # A04 ERP audit M12-F1: what the marketplace accrual debits - the customer
+    # money M20 received (the receipt credited AR, so by default the billing
+    # engine's AR role, with the customer as partner). Never the static
+    # "clearing" cash role (101404 on fix_real). OWNER confirms the account.
+    "marketplace_collections": (None, "Marketplace Customer Collections (M20 receipts)"),
 }
+MARKETPLACE_COLLECTIONS_PARAM = "cd_settlement_ext.account_code.marketplace_collections"
 
 # The payout approval ladder (spec 05-04 §7 "Marketplace seller payout —
 # Finance Manager"; M53 §8 "Finance Manager / CFO"): every payout is approved
@@ -81,12 +88,14 @@ LEDGER_GUARDED = {
     "void_reason",
     "voided_by_id",
     "voided_at",
+    "vat_amount",
 }
 # LP-07: what an accrued row never changes (reversible only by contra-posting).
 LEDGER_LOCKED = (
     "gross_amount",
     "commission_rate",
     "commission_amount",
+    "vat_amount",
     "seller_partner_id",
     "tds_amount",
     "psr_verified",
@@ -214,6 +223,16 @@ class FixCommissionLedger(models.Model):
     )
     psr_slip_number = fields.Char(
         string="PSR Acknowledgement Slip Number", readonly=True, tracking=True
+    )
+    # A04 ERP audit M12-F9 / X6: the output VAT on the commission (M51, the
+    # declared D-03 marketplace position), deducted from the seller's share
+    vat_amount = fields.Monetary(
+        string="VAT on Commission",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="Output VAT 1000 FiX owes on its commission, determined by the declared M51 "
+        "marketplace VAT model (D-03) at accrual and deducted from the seller's share.",
     )
     net_payable = fields.Monetary(
         string="Net Payable to Seller",
@@ -407,7 +426,7 @@ class FixCommissionLedger(models.Model):
         for rec in self:
             rec.commission_amount = rec.gross_amount * rec.commission_rate
 
-    @api.depends("gross_amount", "commission_amount", "tds_amount", "source_type")
+    @api.depends("gross_amount", "commission_amount", "tds_amount", "vat_amount", "source_type")
     def _compute_net(self):
         for rec in self:
             if rec.source_type == "partner_referral":
@@ -415,8 +434,14 @@ class FixCommissionLedger(models.Model):
                 # less the TDS withheld on it
                 rec.net_payable = rec.commission_amount - (rec.tds_amount or 0.0)
             else:
-                # Seller entitlement = Gross GMV - Commission Earned - TDS Withheld
-                rec.net_payable = rec.gross_amount - rec.commission_amount - (rec.tds_amount or 0.0)
+                # Seller entitlement = Gross GMV - Commission - VAT on the
+                # commission (A04 ERP M12-F9) - TDS Withheld
+                rec.net_payable = (
+                    rec.gross_amount
+                    - rec.commission_amount
+                    - (rec.vat_amount or 0.0)
+                    - (rec.tds_amount or 0.0)
+                )
 
     def _payable_role(self) -> str:
         self.ensure_one()
@@ -490,14 +515,26 @@ class FixCommissionLedger(models.Model):
                     )
                 )
             vals = {"scheme_id": scheme.id}
-            if scheme.commission_rate:
+            # A04 ERP M12-F10: a marketplace order's rate was pinned at award
+            # from this same scheme; it is not overwritten here
+            order_rate = rec.marketplace_order_id.sudo().commission_rate
+            if scheme.commission_rate and not order_rate:
                 vals["commission_rate"] = scheme.commission_rate
+            elif order_rate:
+                vals["commission_rate"] = order_rate
             rec._guarded().write(vals)
 
     @api.model
     def _fix_scheme_rate(self, vals):
         """BRU-REV-10: the scheme in force sets the rate; a scheme rate of 0
-        means the rate agreed on the source (partner / marketplace order)."""
+        means the rate agreed on the source (partner / marketplace order).
+        A04 ERP audit M12-F10: a marketplace order carries ONE rate, pinned
+        at award from the scheme in force (cd_marketplace); the ledger row
+        takes that rate and never a second one."""
+        order = self.env["fix.marketplace.order"].sudo().browse(vals.get("marketplace_order_id"))
+        if order and order.commission_rate:
+            vals["commission_rate"] = order.commission_rate
+            return vals
         scheme = self.env["fix.commission.scheme"].browse(vals.get("scheme_id"))
         if scheme and scheme.commission_rate:
             vals["commission_rate"] = scheme.commission_rate
@@ -622,6 +659,77 @@ class FixCommissionLedger(models.Model):
                     "Commission %s carries no rate from its scheme or source." % rec.name
                 )
 
+    # ---- A04 ERP audit M12-F1/F9: money in, VAT on the commission ------------
+    def _fix_marketplace_receipt(self):
+        """The confirmed M20 receipt of the customer's payment of the order:
+        a marketplace commission accrues on money received, never on GMV that
+        never arrived (the accrual debited a cash account for it)."""
+        self.ensure_one()
+        order = self.marketplace_order_id.sudo()
+        receipt = (
+            order.customer_receipt_id.sudo() if "customer_receipt_id" in order._fields else None
+        )
+        if not receipt or receipt.state != "confirmed":
+            raise UserError(
+                "Commission %s cannot accrue: order %s has no confirmed M20 receipt of the "
+                "customer's payment (A04 ERP M12-F1)." % (self.name, order.name or "-")
+            )
+        if (receipt.amount or 0.0) + 0.005 < (self.gross_amount or 0.0):
+            raise UserError(
+                "Commission %s: receipt %s (BDT %.2f) does not cover the gross of BDT %.2f."
+                % (self.name, receipt.name, receipt.amount, self.gross_amount)
+            )
+        return receipt
+
+    def _fix_collections_account(self):
+        """The account the customer's collected money is cleared from: the
+        role marketplace_collections when configured, else the billing
+        engine's AR account (the receipt's own credit). Fail closed."""
+        self.ensure_one()
+        company = self.company_id
+        if (
+            self.env["ir.config_parameter"].sudo().get_param(MARKETPLACE_COLLECTIONS_PARAM) or ""
+        ).strip():
+            return _configured_account(self.env, company, "marketplace_collections")
+        account = _ar_account(self.env, company, "ar")
+        if not account:
+            raise UserError(
+                "Settlement posting refused: no account clears the marketplace customer "
+                "collections in %s. Set %s (or the billing engine's AR role)."
+                % (company.name, MARKETPLACE_COLLECTIONS_PARAM)
+            )
+        return account
+
+    def _fix_commission_vat(self):
+        """(vat, output VAT account) on this commission: M51's declared
+        marketplace VAT model (D-03, fix.marketplace.tax.model.determine).
+        As agent, VAT is on the commission; a principal declaration books the
+        whole sale as revenue, which this ledger does not do - refused. No
+        declared model: refused, never defaulted (BRU-TAX-17)."""
+        self.ensure_one()
+        Model = self.env.get("fix.marketplace.tax.model")
+        if Model is None:
+            raise UserError(
+                "Commission %s cannot accrue: the M51 marketplace VAT model is not installed, so "
+                "the VAT on the commission is unknown." % self.name
+            )
+        det = Model.sudo().determine(
+            self.gross_amount, self.commission_amount, company=self.company_id
+        )
+        if det["model"] != "agent":
+            raise UserError(
+                "Commission %s: the declared marketplace VAT model is %s; this ledger accrues "
+                "the agent model (VAT on the commission) only." % (self.name, det["model"])
+            )
+        vat = round(det["vat"] or 0.0, 2)
+        account = _ar_account(self.env, self.company_id, "vat_output") if vat > 0.005 else None
+        if vat > 0.005 and not account:
+            raise UserError(
+                "Settlement posting refused: no output VAT account (billing engine role "
+                "vat_output) in %s." % self.company_id.name
+            )
+        return vat, account
+
     def action_post_to_gl(self):
         """Post commission accrual to GL through M19 (cd_gl_ext).
         Strictly enforces FF-91 (MS-01):
@@ -643,71 +751,73 @@ class FixCommissionLedger(models.Model):
 
             company = rec.company_id
             journal = _configured_journal(self.env, company)
-            bank_clearing = _configured_account(self.env, company, "clearing")
+            # A04 ERP audit M12-F1: the customer's money must have reached M20
+            receipt = rec._fix_marketplace_receipt()
+            collections = rec._fix_collections_account()
             commission_rev = _configured_account(self.env, company, "commission_revenue")
             seller_payable = _configured_account(self.env, company, "seller_payable")
 
             gross = rec.gross_amount
             comm = rec.commission_amount
-            seller_share = gross - comm
+            # A04 ERP audit M12-F9 / X6: output VAT on the commission (M51)
+            vat, vat_account = rec._fix_commission_vat()
+            rec._guarded().write({"vat_amount": vat})
+            seller_share = round(gross - comm - vat, 2)
 
+            dims = {"branch_id": rec.branch_id.id, "operating_unit_id": rec.operating_unit_id.id}
+            lines = [
+                (
+                    {
+                        "name": f"Customer collection {receipt.name}: {rec.name}",
+                        "account_id": collections.id,
+                        "partner_id": receipt.customer_id.commercial_partner_id.id,
+                        "debit": gross,
+                        "credit": 0.0,
+                    },
+                    "CC-MKT",
+                ),
+                (
+                    {
+                        "name": f"Commission Revenue (FF-91): {rec.name}",
+                        "account_id": commission_rev.id,
+                        "debit": 0.0,
+                        "credit": comm,
+                    },
+                    "CC-REV",
+                ),
+            ]
+            if vat > 0.005:
+                lines.append(
+                    (
+                        {
+                            "name": f"Output VAT on commission: {rec.name}",
+                            "account_id": vat_account.id,
+                            "debit": 0.0,
+                            "credit": vat,
+                        },
+                        "CC-TAX",
+                    )
+                )
+            lines.append(
+                (
+                    {
+                        "name": f"Seller Entitlement Liability: {rec.name}",
+                        "account_id": seller_payable.id,
+                        "partner_id": rec.seller_partner_id.id,
+                        "debit": 0.0,
+                        "credit": seller_share,
+                    },
+                    "CC-PAY",
+                )
+            )
             move_vals = {
                 "journal_id": journal.id,
                 "company_id": company.id,
                 "date": fields.Date.context_today(rec),
                 "ref": f"COM-ACCRUAL-{rec.name}",
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "name": f"Customer Receipt Clearing: {rec.name}",
-                            "account_id": bank_clearing.id,
-                            "debit": gross,
-                            "credit": 0.0,
-                        },
-                    ),
-                    (
-                        0,
-                        0,
-                        {
-                            "name": f"Commission Revenue (FF-91): {rec.name}",
-                            "account_id": commission_rev.id,
-                            "debit": 0.0,
-                            "credit": comm,
-                        },
-                    ),
-                    (
-                        0,
-                        0,
-                        {
-                            "name": f"Seller Entitlement Liability: {rec.name}",
-                            "account_id": seller_payable.id,
-                            "partner_id": rec.seller_partner_id.id,
-                            "debit": 0.0,
-                            "credit": seller_share,
-                        },
-                    ),
-                ],
+                "line_ids": [(0, 0, vals) for vals, _cc in lines],
             }
-
-            dim_by_line = {
-                0: {
-                    "branch_id": rec.branch_id.id,
-                    "operating_unit_id": rec.operating_unit_id.id,
-                    "cost_centre": "CC-MKT",
-                },
-                1: {
-                    "branch_id": rec.branch_id.id,
-                    "operating_unit_id": rec.operating_unit_id.id,
-                    "cost_centre": "CC-REV",
-                },
-                2: {
-                    "branch_id": rec.branch_id.id,
-                    "operating_unit_id": rec.operating_unit_id.id,
-                    "cost_centre": "CC-PAY",
-                },
-            }
+            dim_by_line = {i: dict(dims, cost_centre=cc) for i, (_v, cc) in enumerate(lines)}
 
             move, _ = post_with_dimensions(self.env, move_vals, dim_by_line, source="settlement")
             rec._guarded().write(
@@ -1204,6 +1314,16 @@ class FixPayoutRun(models.Model):
         for bank in payees.bank_ids.sudo():
             if "fix_changed_by_id" in bank._fields:
                 users |= bank.fix_changed_by_id
+        # A04 ERP audit M12-F12 (SOD-06): whoever CFO-approved or KYC-verified a
+        # seller being paid does not also approve that seller's payout.
+        if "fix.marketplace.seller" in self.env:
+            sellers = (
+                self.env["fix.marketplace.seller"]
+                .sudo()
+                .with_context(active_test=False)
+                .search([("partner_id", "in", payees.ids)])
+            )
+            users |= sellers.mapped("cfo_approved_by") | sellers.mapped("compliance_reviewer_id")
         return users
 
     def _fix_check_rows(self):
@@ -1722,7 +1842,25 @@ class FixPayoutRun(models.Model):
         if not run.gl_move_id:
             run._guarded().write({"gl_move_id": move.id})
         rows._guarded().write({"state": "paid"})
+        run._fix_mark_orders_paid(rows)
         return move
+
+    def _fix_mark_orders_paid(self, rows):
+        """A04 ERP audit M12-F2: a marketplace order is "Payout Complete" only
+        when its commission row is discharged here, by a bank-confirmed payout
+        run; its own action_paid re-checks escrow and holds. An order that may
+        not close yet is noted on it, never forced."""
+        for order in rows.mapped("marketplace_order_id").sudo():
+            if order.state != "commissioned":
+                continue
+            try:
+                with self.env.cr.savepoint():
+                    order.action_paid()
+            except UserError as exc:
+                order.message_post(
+                    body="Payout run %s paid the seller, but the order could not close: %s"
+                    % (self.name, exc.args[0] if exc.args else exc)
+                )
 
     def _finalize_payout_execution(self):
         """Finalize executed payout run: mark paid, generate bilingual statements, and post to GL."""
@@ -1742,6 +1880,7 @@ class FixPayoutRun(models.Model):
                     claw._guarded().write({"state": "recovered"})
         run._guarded().write({"state": "executed"})
         run.commission_ids._guarded().write({"state": "paid"})
+        run._fix_mark_orders_paid(run.commission_ids)
 
         # Generate bilingual statements for each seller (born draft, issued
         # by the system now that the money has moved)
@@ -1760,6 +1899,10 @@ class FixPayoutRun(models.Model):
                     "period": run.period,
                     "gross_gmv": sum(comms.mapped("gross_amount")),
                     "commission_amount": sum(comms.mapped("commission_amount")),
+                    # A04 ERP M12-F9: the VAT on the commission was deducted from
+                    # the seller's share: the statement shows it, so its net is
+                    # the payee line the run paid
+                    "vat_on_commission": sum(c.vat_amount or 0.0 for c in comms),
                     "tds_withheld": sum(c.tds_amount or 0.0 for c in comms),
                     "clawback_amount": clawback_tot,
                     "payout_run_id": run.id,

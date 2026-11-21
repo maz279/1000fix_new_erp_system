@@ -38,7 +38,7 @@ This bridge closes the hand-off through the estate's own engines:
 A separate module on purpose (the counter-sale bridge's lesson): cd_storefront
 keeps its dependencies, and a server without the bridge never loads it.
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.1.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "E-Commerce & Digital Storefront",
@@ -48,9 +48,12 @@ keeps its dependencies, and a server without the bridge never loads it.
         "cd_inventory",
         "cd_tax_engine_bd",
         "cd_gl_ext",
+        # A04 ERP M38-F2: the order_cancelled consumer row (fix.event.consumer)
+        "cd_event_outbox",
     ],
     "data": [
         "data/fix_storefront_posting_cron.xml",
+        "data/fix_storefront_consumers.xml",
         "views/fix_storefront_finance_views.xml",
     ],
     "installable": True,

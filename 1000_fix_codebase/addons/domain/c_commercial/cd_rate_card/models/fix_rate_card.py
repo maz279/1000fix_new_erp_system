@@ -27,6 +27,8 @@ CARD_PRICE_FIELDS = frozenset(
         "valid_from",
         "valid_to",
         "company_id",
+        "partner_id",
+        "version_id",
     }
 )
 
@@ -53,9 +55,14 @@ class FixRateCard(models.Model):
     # NULLS NOT DISTINCT (PostgreSQL 15+): a TIER card has no contract_no,
     # and with plain UNIQUE two NULLs never collide - duplicate tier rates for
     # one product slipped through and made the engine's resolution ambiguous.
+    # A04 ERP audit (20 Nov 2026) M11-F4/F13: the key also carries the
+    # company, the customer and the start date, so next year's card is a new
+    # version beside this year's (no overlap: _check_no_overlap) and a
+    # company's card never blocks another company's.
     _product_tier_unique = models.Constraint(
-        "UNIQUE NULLS NOT DISTINCT (product_code, min_tier, contract_no)",
-        "One rate per product, tier and contract",
+        "UNIQUE NULLS NOT DISTINCT "
+        "(company_id, product_code, min_tier, contract_no, partner_id, valid_from)",
+        "One rate per company, product, tier, contract, customer and start date",
     )
 
     name = fields.Char(string="Rate Line Name", compute="_compute_name", store=True)
@@ -99,6 +106,25 @@ class FixRateCard(models.Model):
     valid_to = fields.Date(string="Valid To")
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
+    # A04 ERP audit (20 Nov 2026) M11-F2/F3: the customer lane (a price agreed
+    # for one customer, below the contract lane and above the tier lane).
+    partner_id = fields.Many2one(
+        "res.partner",
+        string="Customer",
+        index=True,
+        ondelete="restrict",
+        help="A customer-specific rate. Empty = a tier or standard rate.",
+    )
+    # M11-F5: a card that belongs to a price-book version prices only while
+    # that version is in force.
+    version_id = fields.Many2one(
+        "fix.price.version",
+        string="Price-Book Version",
+        index=True,
+        ondelete="restrict",
+        help="The price-book version this rate belongs to; it prices only while that "
+        "version is in force.",
     )
     active = fields.Boolean(default=True)
     # A04 audit (2026-11-04) M11-5: a card prices nothing until a Price-Book
@@ -178,17 +204,32 @@ class FixRateCard(models.Model):
         return self._raise_change("retire", lambda c: 0.0, reason)
 
     @api.model
-    def _resolve(self, product_code, tier=0, contract_no=None, on_date=None):
-        """The released card that prices `product_code` (BRU-PRC-11: the
-        contract lane first, else the highest tier the customer reaches),
-        within its validity window. Consumers: estimates, quotations, the
-        price simulation."""
+    def _resolve(
+        self,
+        product_code,
+        tier=0,
+        contract_no=None,
+        on_date=None,
+        company=None,
+        partner=None,
+        currency=None,
+    ):
+        """The released card that prices `product_code` on `on_date`
+        (BRU-PRC-11): the contract lane first, then the customer's own rate,
+        then the highest tier the customer reaches (tier 0 = the standard
+        rate). Only cards of `company` (default: the current one) and of
+        `currency` (when given), within their validity window and, for a
+        card of a price-book version, while that version is in force
+        (A04 ERP audit 20 Nov 2026, M11-F4/F5/F13/F14). Consumers: price_for
+        (the M11 price service), the price simulation."""
         if not product_code:
             return self.browse()
         day = on_date or fields.Date.context_today(self)
+        company = company or self.env.company
         base = [
             ("product_code", "=", product_code),
             ("state", "=", "released"),
+            ("company_id", "=", company.id),
             "|",
             ("valid_from", "=", False),
             ("valid_from", "<=", day),
@@ -196,18 +237,50 @@ class FixRateCard(models.Model):
             ("valid_to", "=", False),
             ("valid_to", ">=", day),
         ]
+        if currency:
+            base.append(("currency_id", "=", currency.id))
         Card = self.sudo()
+
+        def first(domain, order="valid_from desc, id desc"):
+            found = Card.search(domain, order=order)
+            return found.filtered(lambda c: c._version_in_force(day))[:1]
+
         if contract_no:
-            card = Card.search(
-                [*base, ("min_tier", "=", 99), ("contract_no", "=", contract_no)], limit=1
-            )
+            card = first([*base, ("min_tier", "=", 99), ("contract_no", "=", contract_no)])
             if card:
                 return card
-        return Card.search(
-            [*base, ("min_tier", "<=", int(tier or 0)), ("min_tier", "!=", 99)],
-            order="min_tier desc",
-            limit=1,
+        customer = partner.commercial_partner_id if partner else None
+        if customer:
+            card = first([*base, ("min_tier", "!=", 99), ("partner_id", "=", customer.id)])
+            if card:
+                return card
+        return first(
+            [
+                *base,
+                ("min_tier", "<=", int(tier or 0)),
+                ("min_tier", "!=", 99),
+                ("partner_id", "=", False),
+            ],
+            order="min_tier desc, valid_from desc, id desc",
         )
+
+    def _version_in_force(self, day):
+        """M11-F5: a card with no version is governed by its own window; a
+        card of a price-book version prices while that version is Active, or
+        - for a document dated in the past - while it was the version in
+        force (from its effective date to the day its successor took over)."""
+        self.ensure_one()
+        version = self.version_id.sudo()
+        if not version:
+            return True
+        if version.effective_from and version.effective_from > day:
+            return False
+        if version.state == "active":
+            return True
+        if version.state == "superseded":
+            nxt = version.superseded_by_id
+            return bool(nxt and nxt.effective_from and day < nxt.effective_from)
+        return False
 
     @api.depends("product_code", "min_tier", "contract_no")
     def _compute_name(self):
@@ -238,6 +311,67 @@ class FixRateCard(models.Model):
                 raise UserError("A rate must be positive")
             if card.valid_from and card.valid_to and card.valid_to < card.valid_from:
                 raise UserError("Validity window is inverted")
+            # A04 ERP audit (20 Nov 2026) M11-F8: a card was created at 400
+            # under a 950 floor; only the mass change looked at floors.
+            card._assert_not_below_floor(card.unit_price)
+
+    def _assert_not_below_floor(self, price):
+        """A rate never sits below the item's floor: the M11 price floors for
+        its code or item, and the M15 cost margin floor (M11-F8/F9)."""
+        self.ensure_one()
+        info = self._floor_info(
+            self.catalogue_item_id or self.product_code, company=self.company_id
+        )
+        if info["floor"] and (price or 0.0) + 0.005 < info["floor"]:
+            raise UserError(
+                "Rate %s at BDT %.2f is below the floor of BDT %.2f (%s). A rate is "
+                "never released below its floor (BRU-PRC-04)."
+                % (self.name or self.product_code, price or 0.0, info["floor"], info["floor_basis"])
+            )
+
+    @api.constrains(
+        "state",
+        "valid_from",
+        "valid_to",
+        "product_code",
+        "min_tier",
+        "contract_no",
+        "partner_id",
+        "company_id",
+        "currency_id",
+        "active",
+    )
+    def _check_no_overlap(self):
+        """M11-F4: two released rates of the same lane never overlap in time,
+        so the price on a document date is never ambiguous."""
+        for card in self.filtered(lambda c: c.state == "released" and c.active):
+            domain = [
+                ("id", "!=", card.id),
+                ("state", "=", "released"),
+                ("company_id", "=", card.company_id.id),
+                ("product_code", "=", card.product_code),
+                ("min_tier", "=", card.min_tier),
+                ("contract_no", "=", card.contract_no or False),
+                ("partner_id", "=", card.partner_id.id or False),
+                ("currency_id", "=", card.currency_id.id),
+                ("version_id", "=", card.version_id.id or False),
+            ]
+            if card.valid_to:
+                domain += ["|", ("valid_from", "=", False), ("valid_from", "<=", card.valid_to)]
+            if card.valid_from:
+                domain += ["|", ("valid_to", "=", False), ("valid_to", ">=", card.valid_from)]
+            clash = self.sudo().search(domain, limit=1)
+            if clash:
+                raise UserError(
+                    "%s overlaps %s (%s to %s): a new rate starts after the one in force "
+                    "ends (M11 effective dating)."
+                    % (
+                        card.name,
+                        clash.name,
+                        clash.valid_from or "open",
+                        clash.valid_to or "open",
+                    )
+                )
 
     def to_engine_line(self):
         """Project this card to the pricing engine's RateCardLine.

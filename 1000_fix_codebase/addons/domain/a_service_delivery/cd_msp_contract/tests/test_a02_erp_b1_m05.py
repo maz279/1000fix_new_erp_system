@@ -59,6 +59,10 @@ def test_f2_an_onboarding_cannot_suspend_a_contract_in_service(m5):
 
 def test_f2_a_genuine_onboarding_suspends_only_until_go_live(m5):
     msp = _fresh_msp(m5, tag="onb")
+    # A02 ERP pass 2 (D9): the SLA binds 30 days after the term start at the
+    # latest; the fixture's term started 30 days ago, so start it today for
+    # an onboarding that is still inside its window
+    msp.contract_id.sudo()._guarded().write({"date_start": fields.Date.today()})
     asset = m5.env["fix.monitored.asset"].create(
         {"msp_contract_id": msp.id, "agent_id": "AGT-B1-ONB-%d" % m5.n}
     )
@@ -83,7 +87,7 @@ def test_f2_a_project_on_a_contract_with_history_suspends_nothing(m5):
     )
     m5.env.flush_all()
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
         (project.create_date - timedelta(days=40), alert.id),
     )
     m5.env.invalidate_all()
@@ -175,12 +179,14 @@ def test_f3_an_approved_credit_keeps_the_terms_it_was_drafted_on(m5):
 
 def test_f4_raising_the_devices_publishes_the_uplift(m5):
     _as(m5.msp, m5.fin).action_amend_terms(term="device_count", value="6", reason=REASON)
+    # A02 ERP pass 2 (M05-S06): every fee change publishes one event type
     event = m5.env["fix.event.outbox"].search(
-        [("event_type", "=", "msp.device_uplift"), ("aggregate_id", "=", m5.msp.id)]
+        [("event_type", "=", "msp.commercial_terms_amended"), ("aggregate_id", "=", m5.msp.id)]
     )
     assert len(event) == 1
     payload = json.loads(event.payload)
-    assert (payload["added_devices"], payload["monthly_increase"]) == (2, 5000.0)
+    assert (payload["new_device_count"] - payload["old_device_count"]) == 2
+    assert payload["monthly_delta"] == 5000.0
 
 
 def test_f4_no_enrolment_without_a_contracted_count(m5):
@@ -220,14 +226,14 @@ def test_f8_the_report_waits_until_every_alert_can_be_judged(m5):
     _alert(m5, now - timedelta(hours=2))  # minor, 24 h target: still pending
     period = (now - timedelta(days=3), now + timedelta(days=1), "2099-01")
     with pytest.raises(UserError, match="still open inside their resolution target"):
-        m5.msp.action_monthly_report(period)
+        m5.msp._msp_monthly_report(period)
     assert m5.msp._msp_period_pending(period) == 1
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s WHERE msp_contract_id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE msp_contract_id = %s",
         (now - timedelta(hours=30), m5.msp.id),
     )
     m5.env.invalidate_all()
-    report = m5.msp.action_monthly_report(period)
+    report = m5.msp._msp_monthly_report(period)
     assert (report.breached_count, report.pending_count) == (1, 0)
 
 
@@ -346,10 +352,17 @@ def test_f21_credits_mtd_is_this_periods_approved_money(m5):
         .create({"msp_contract_id": m5.msp.id, "period_label": "2001-01"})
     )
     m5.env.flush_all()
-    for credit, state, amount in ((this, "approved", 700.0), (old, "applied", 300.0)):
+    # A02 ERP pass 2 (M05-S12): the tile counts the credits APPROVED this Dhaka
+    # month (approved_at), not the credits whose period label is this month
+    now = fields.Datetime.now()
+    for credit, state, amount, when in (
+        (this, "approved", 700.0, now),
+        (old, "applied", 300.0, datetime(2001, 2, 10, 6, 0)),
+    ):
         m5.env.cr.execute(
-            "UPDATE fix_msp_sla_credit SET state = %s, approved_amount = %s WHERE id = %s",
-            (state, amount, credit.id),
+            "UPDATE fix_msp_sla_credit SET state = %s, approved_amount = %s, approved_at = %s "
+            "WHERE id = %s",
+            (state, amount, when, credit.id),
         )
     m5.env.invalidate_all()
     assert m05_ctrl.kpis(env)["sla_credits_mtd"] == round(before + 700.0, 2)

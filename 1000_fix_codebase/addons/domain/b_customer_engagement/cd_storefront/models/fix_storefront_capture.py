@@ -49,6 +49,7 @@ from .fix_storefront_refund import (
 )
 
 GROUP_MANAGER = "cd_storefront.group_fix_storefront_manager"
+GROUP_ASSISTED = "cd_storefront.group_fix_storefront_assisted_sales"
 GROUP_MERCHANDISER = "cd_storefront.group_fix_storefront_merchandiser"
 
 # BRU-ECM-04 strict mode: when "1", a product no approved exposure policy
@@ -339,9 +340,13 @@ class FixStorefrontCollection(models.Model):
                     raise UserError(
                         "%s is not for sale and cannot be merchandised." % product.display_name
                     )
+                # A04 ERP M38-F1: merchandised only at a released M11 price
+                info = self.env["fix.storefront.cart.line"]._sf_m11_price(
+                    product, company=rec.company_id
+                )
                 variant = product.product_variant_id
                 if variant and hasattr(variant, "_fix_check_sale"):
-                    variant._fix_check_sale(unit_price=product.list_price, channel="storefront")
+                    variant._fix_check_sale(unit_price=info["excl"], channel="storefront")
             rec._guarded().write(
                 {
                     "state": "published",
@@ -483,7 +488,13 @@ class FixStorefrontCodRule(models.Model):
             [("company_id", "=", cart.company_id.id), ("state", "=", "active")], limit=1
         )
         if not rule:
-            return
+            # A04 ERP audit M38-F12 (BRU-ECM-08): COD with no approved rule
+            # was unlimited (0 rules on fix_real). Fail closed: no COD until
+            # a Storefront Manager approves the company's COD rule (OWNER).
+            raise UserError(
+                "Cash on delivery is not offered: %s has no approved COD rule. Please choose a "
+                "prepaid method." % cart.company_id.name
+            )
         if cart.currency_id.compare_amounts(total, rule.max_order_value) > 0:
             raise UserError(
                 "Cash on delivery is offered up to BDT %.2f; this order is BDT %.2f. "
@@ -535,6 +546,7 @@ class FixStockExposurePolicy(models.Model):
         "product_id",
         "category_id",
         "location_ids",
+        "stock_location_ids",
         "buffer_qty",
         "buffer_pct",
         "max_promise_days",
@@ -552,8 +564,19 @@ class FixStockExposurePolicy(models.Model):
         "fix_sf_exposure_location_rel",
         "policy_id",
         "location_id",
-        string="Locations Sold From",
-        help="Stock held here (and in sub-locations) may be sold online. Empty: every internal location.",
+        string="Odoo Locations (not used)",
+        help="Superseded by the M15 stores below (A04 ERP M38-F11): Odoo stock.quant holds no "
+        "stock on this estate.",
+    )
+    # A04 ERP audit M38-F11: the M15 stores whose stock may be sold online
+    stock_location_ids = fields.Many2many(
+        "fix.stock.location",
+        "fix_sf_exposure_m15_location_rel",
+        "policy_id",
+        "location_id",
+        string="Stores Sold From (M15)",
+        help="Unrestricted, owned M15 stock held here may be sold online. Empty: every branch "
+        "and central store of the company.",
     )
     buffer_qty = fields.Float(
         string="Buffer (units)", help="Units kept back for walk-in customers."
@@ -614,22 +637,37 @@ class FixStockExposurePolicy(models.Model):
         """Units of `product` this policy offers online: on hand in its
         locations, less the buffer (the larger of units and share)."""
         self.ensure_one()
-        Quant = self.env["stock.quant"].sudo()
-        variants = product.product_variant_ids
-        if self.location_ids:
-            loc_domain = [("location_id", "child_of", self.location_ids.ids)]
-        else:
-            loc_domain = [("location_id.usage", "=", "internal")]
-        quants = Quant.search(
-            [
-                ("product_id", "in", variants.ids),
-                ("company_id", "in", (self.company_id.id, False)),
-                *loc_domain,
-            ]
-        )
-        on_hand = sum(q.quantity - q.reserved_quantity for q in quants)
+        on_hand = self._sf_m15_free_qty(product, self.company_id, self.stock_location_ids)
         buffer = max(self.buffer_qty, math.ceil(on_hand * self.buffer_pct / 100.0))
         return max(on_hand - buffer, 0.0)
+
+    @api.model
+    def _sf_m15_free_qty(self, product, company, locations=None):
+        """A04 ERP audit M38-F11: the unreserved, unrestricted, owned M15
+        stock (fix.stock.onhand qty - reserved) of the spare parts behind
+        `product` in the company's branch and central stores (or `locations`).
+        The policy read Odoo stock.quant, which holds 0 rows here."""
+        Part = self.env["fix.spare.part"].sudo()
+        parts = Part.search(
+            [
+                ("product_id.product_tmpl_id", "=", product.id),
+                ("company_id", "in", [company.id, False]),
+            ]
+        )
+        if not parts:
+            return 0.0
+        domain = [
+            ("part_id", "in", parts.ids),
+            ("location_id.company_id", "=", company.id),
+            ("ownership_class", "=", "owned"),
+            ("stock_status", "=", "unrestricted"),
+        ]
+        if locations:
+            domain.append(("location_id", "in", locations.ids))
+        else:
+            domain.append(("location_id.location_type", "in", ("branch", "central")))
+        rows = self.env["fix.stock.onhand"].sudo().search(domain)
+        return sum(max((r.qty or 0.0) - (r.reserved or 0.0), 0.0) for r in rows)
 
     @api.model
     def _sf_check_exposure(self, product, qty, company):
@@ -984,8 +1022,22 @@ class FixStorefrontCartCapture(models.Model):
         self.ensure_one()
         return self.state == "ordered" or bool(self.client_approved_at)
 
+    def _sf_assert_not_capturer(self, what):
+        """A04 ERP audit M38-F5: the person who captured an assisted cart
+        does not also record the customer's or the client's consent on it."""
+        for rec in self:
+            if not self.env.su and rec.assisted_by_id and rec.assisted_by_id == self.env.user:
+                raise UserError(
+                    "%s: you captured cart %s; another colleague records it (segregation of "
+                    "duties, A04 ERP M38-F5)." % (what, rec.name)
+                )
+
     def action_record_terms(self):
-        """The customer's acceptance of the item terms, as taken (FR-ECM-026)."""
+        """The customer's acceptance of the item terms, as taken (FR-ECM-026).
+        A04 ERP M38-F5: an assisted-sales or storefront operator role, never
+        the colleague who captured the cart."""
+        _require(self.env, [GROUP_ASSISTED, GROUP_OPERATOR], "Recording the customer's terms")
+        self._sf_assert_not_capturer("Recording the customer's terms")
         for rec in self:
             if rec.state == "ordered":
                 raise UserError("Cart %s is already ordered." % rec.name)
@@ -995,13 +1047,17 @@ class FixStorefrontCartCapture(models.Model):
                 raise UserError(
                     "An OTP, a signed form or a recorded call has a reference: record it."
                 )
-            rec._guarded().write(
+            rec.sudo()._guarded().write(
                 {"terms_accepted_at": fields.Datetime.now(), "terms_accepted_by_id": self.env.uid}
             )
         return True
 
     def action_record_client_approval(self):
-        """The client's own approver approved this corporate order (BRU-ECM-14)."""
+        """The client's own approver approved this corporate order (BRU-ECM-14).
+        A04 ERP M38-F5: a Storefront Operator records it, never the colleague
+        who captured the cart."""
+        _require(self.env, [GROUP_OPERATOR], "Recording a client's approval")
+        self._sf_assert_not_capturer("Recording the client's approval")
         for rec in self:
             acct = rec.corporate_account_id.sudo()
             if not acct:
@@ -1018,7 +1074,7 @@ class FixStorefrontCartCapture(models.Model):
                 raise UserError(
                     "Record the reference of the client's approval (email, PO sign-off)."
                 )
-            rec._guarded().write(
+            rec.sudo()._guarded().write(
                 {
                     "client_approved_at": fields.Datetime.now(),
                     "client_approval_recorded_by_id": self.env.uid,
@@ -1031,6 +1087,7 @@ class FixStorefrontCartCapture(models.Model):
         self.ensure_one()
         if not self.env.user._is_internal() and not self.env.su:
             raise UserError("Assisted ordering is a staff action.")
+        _require(self.env, [GROUP_ASSISTED, GROUP_OPERATOR], "Placing an assisted order")
         if self.state == "open":
             self.action_checkout()
         order = self.action_place_order(
@@ -1107,7 +1164,7 @@ class FixStorefrontCartLineCapture(models.Model):
             # the P03 grid posts every column it shows: an unchanged price or
             # refurbished item is not a hand-set one
             vals = dict(vals)
-            for name in ("unit_price", "graded_stock_id"):
+            for name in ("unit_price", "graded_stock_id", "unit_price_excl", "price_card_id"):
                 if name in vals and all(
                     not line._sf_value_differs(name, vals[name]) for line in self
                 ):
@@ -1124,6 +1181,8 @@ class FixStorefrontCartLineCapture(models.Model):
         if field.type == "many2one":
             value = value.id if hasattr(value, "id") else (value or False)
             return (value or False) != (self[name].id or False)
+        if field.type in ("char", "text", "selection"):
+            return (value or False) != (self[name] or False)
         return abs(float(value or 0.0) - float(self[name] or 0.0)) > 1e-6
 
     def unlink(self):

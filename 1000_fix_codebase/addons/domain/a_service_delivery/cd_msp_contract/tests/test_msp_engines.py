@@ -171,6 +171,17 @@ def test_patch_update_lifecycle_and_compliance(ms):
     assert upd.state == "missing"
     upd.action_approve()
     assert upd.state == "approved" and upd.approved_date == fields.Date.today()
+    # A02 ERP pass 2 (M05-S10): an install happens inside an open window
+    window = env["fix.msp.maintenance.window"].create(
+        {
+            "name": "Patch night",
+            "msp_contract_id": ms.msp.id,
+            "start_at": fields.Datetime.now() - timedelta(hours=1),
+            "end_at": fields.Datetime.now() + timedelta(hours=3),
+            "operating_unit_id": ms.ou.id,
+        }
+    )
+    window.action_approve()
     upd.action_install()
     assert upd.state == "installed" and upd.installed_at
     events = _events(env, "fix.msp.patch.update", upd.id)

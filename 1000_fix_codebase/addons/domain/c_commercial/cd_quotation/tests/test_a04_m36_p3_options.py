@@ -146,7 +146,21 @@ def test_options_are_not_offered_on_an_estimate_quotation(c):
     assert "prices the estimate" in " ".join(q._readiness_problems())
 
 
+def _release_charge_cards(c, price=1000.0):
+    """A04 ERP audit M11-F1/F3: no released M11 price means no price, so a
+    template line whose charge code has no released card is refused. The
+    charge codes the templates use get a released card here."""
+    Card = c.env["fix.rate.card"].sudo()
+    for product in c.env["product.product"].search([("default_code", "=like", "CHG-%")]):
+        code = product.default_code
+        if Card.search_count([("product_code", "=", code), ("state", "=", "released")]):
+            continue
+        card = Card.create({"product_code": code, "unit_price": price, "line_type": "labour"})
+        card._guarded().write({"state": "released"})
+
+
 def test_a_template_gives_the_lines_terms_and_billing_plan(c):
+    _release_charge_cards(c)
     tpl = c.env.ref("cd_quotation.quote_template_corporate_project")
     acme = c.env["res.partner"].create({"name": "M36P3 Acme", "is_company": True})
     q = (

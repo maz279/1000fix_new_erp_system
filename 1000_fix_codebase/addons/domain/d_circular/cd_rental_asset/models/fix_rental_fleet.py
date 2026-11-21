@@ -1136,7 +1136,25 @@ class FixRentalTurnaround(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.rental.turnaround") or "TURN/New"
                 )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # A02 pass 2 review N2: a data-bearing unit is wiped before its next
+        # renter; the certificate that releases it answers this request
+        for rec in records:
+            if rec._data_bearing():
+                rec._m13_wipe_request()
+        return records
+
+    def _m13_wipe_request(self):
+        """The wipe request this turnaround raises for its unit (source_ref =
+        the turnaround), or an empty recordset when the unit has no serial."""
+        self.ensure_one()
+        Request = self.env["fix.data.wipe.request"]
+        serial = self.rental_asset_id.serial_no
+        if not serial:
+            return Request
+        return Request._m06_request_for(
+            self, "m13_rental", serial, "resale", company_id=self.company_id.id
+        )
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -1174,7 +1192,8 @@ class FixRentalTurnaround(models.Model):
             return "the turnaround checklist is incomplete (%s)" % ", ".join(missing)
         if self._data_bearing():
             cert = self.data_wipe_certificate_id
-            denial = cert._fix_certify_denial(asset.serial_no)
+            # A02 pass 2 review (M06-05): bound to THIS turnaround
+            denial = cert._fix_certify_denial(asset.serial_no, consumer=self.sudo())
             if denial:
                 return (
                     "unit %s is data-bearing (%s): %s — attach M06's verified wipe "

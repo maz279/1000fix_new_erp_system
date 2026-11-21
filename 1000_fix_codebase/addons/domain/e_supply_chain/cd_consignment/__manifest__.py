@@ -31,10 +31,13 @@ CD-M03-01/02: the logistics core.
         "security/fix_isolation_rules.xml",
         "security/fix_consignment_groups.xml",
         "security/ir.model.access.csv",
+        # A02 ERP audit pass 2: tariff company rule, rider own-leg rule
+        "security/fix_consignment_a02r2_rules.xml",
         "data/damage_claim_sequences.xml",
         "data/courier_sequences.xml",
         "data/ir_sequence.xml",
         "data/fix_consignment_consumers.xml",
+        "data/fix_consignment_a02r2_data.xml",
         "views/fix_consignment_views.xml",
     ],
     "installable": True,

@@ -64,14 +64,16 @@ class ProductTemplateExt(models.Model):
 class ProductProductExt(models.Model):
     _inherit = "product.product"
 
-    def _fix_check_sale(self, unit_price=None, channel=None):
+    def _fix_check_sale(self, unit_price=None, channel=None, line=None, partner=None):
         """The one check every selling document runs on a product line
         (estimate, quotation, storefront, marketplace): may this product be
         sold, here, at this price? Raises UserError when not.
 
-        cd_catalogue checks the item lifecycle (BRU-CAT-14); cd_rate_card
-        extends it with the M11 price floor (BRU-PRC-04). A04 audit
-        2026-11-04, M37-2 and M11-4: neither was read by any sale."""
+        cd_catalogue checks the item lifecycle (BRU-CAT-14) and, on a customer
+        channel, the VAT class and publication (A04 ERP audit 20 Nov 2026
+        M37-F1/F4); cd_rate_card extends it with the M11 price gate
+        (BRU-PRC-04). `line` is the document line (binds a below-floor
+        override to it); `partner` the customer."""
         for product in self:
             item = product.sudo().product_tmpl_id.catalogue_item_id[:1]
             if item:

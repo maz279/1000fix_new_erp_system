@@ -129,7 +129,8 @@ def test_explicit_code_is_kept(ctx):
 
 def test_defaults(ctx):
     contract = _contract(ctx)
-    assert (contract.state, contract.auto_renew, contract.renewal_lead_days) == ("draft", True, 90)
+    # A04 ERP audit M08-F17: renewing is a choice, so auto-renew defaults off
+    assert (contract.state, contract.auto_renew, contract.renewal_lead_days) == ("draft", False, 90)
     assert contract.currency_id == ctx.env.ref("base.BDT")
 
 
@@ -347,17 +348,21 @@ def test_pm_visit_opens_an_amc_service_order_once(ctx):
     assert ctx.env["fix.service.order"].search_count([("device_id", "=", device.id)]) == 1
 
 
-def test_non_amc_pm_visit_is_a_standard_order(ctx):
+def test_pm_visit_category_follows_the_family_cover(ctx):
+    """A04 ERP audit M08-F10: a rental (or RAMC / managed) visit is contract
+    work drawing its entitlement; only a family that covers no asset (a
+    marketplace agreement) opens a standard paid order."""
     device = ctx.devices[1]
     device.branch_id = _isolated_branch(ctx.env, ctx.ou, "Ctg Hub")
-    contract = _contract(
-        ctx, family="rental", state="active", covered_device_ids=[(6, 0, device.ids)]
-    )
-    visit = ctx.env["fix.contract.pm.visit"].create(
-        {"contract_id": contract.id, "device_id": device.id, "scheduled_date": date(2026, 7, 1)}
-    )
-    visit.action_create_service_order()
-    assert visit.service_order_id.order_category == "standard"
+    for family, category in (("rental", "amc"), ("marketplace", "standard")):
+        contract = _contract(
+            ctx, family=family, state="active", covered_device_ids=[(6, 0, device.ids)]
+        )
+        visit = ctx.env["fix.contract.pm.visit"].create(
+            {"contract_id": contract.id, "device_id": device.id, "scheduled_date": date(2026, 7, 1)}
+        )
+        visit.action_create_service_order()
+        assert visit.service_order_id.order_category == category, family
 
 
 # --- T05 renewal --------------------------------------------------------------
@@ -447,9 +452,11 @@ def test_expiring_ladder_publishes_each_window(ctx):
     in_45 = make("in 45 days", 45)  # inside the 60-day window
     make("in 100 days", 100)  # outside every window
     make("ends today", 0)  # date_end must be strictly in the future
+    # A04 ERP audit M08-F17: a contract nobody auto-renews is announced too
+    # (it used to expire with no alert); only the renewal draft needs auto-renew
     make("no auto-renew", 10, auto_renew=False)
     make("draft", 10, state="draft")
-    assert ctx.env["fix.contract"].cron_expiring_contracts() == 2
+    assert ctx.env["fix.contract"].cron_expiring_contracts() == 3
     assert ctx.env["fix.contract"].cron_expiring_contracts() == 0
     assert [
         e["window_days"] for e in _events(ctx.env, "contract.expiring", "fix.contract", in_10.id)

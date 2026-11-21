@@ -8,6 +8,16 @@
 # Service-order cash collected by field technicians is NOT a COD source yet
 # (no model records it) — the settlement says so instead of guessing.
 #
+# A02 pass 2 (owner decision D1, 20 Nov 2026): a repaired device may go home on
+# a cash-on-delivery leg. The rider collects the service order's amount due
+# (fix.consignment.cod_amount on the order's delivery leg); the order records
+# it with tender "cod" and its M20 receipt debits COD clearing at once. The
+# rider's settlement now loads those legs beside the storefront orders, credits
+# COD clearing for both, and verifies each order's COD settlement when it is
+# settled. D20 / M03-08: a rider whose delivered COD is not in a settlement by
+# the end of the next business day gets no new COD and logistics + finance are
+# told every day (cron).
+#
 # A08 workflow audit (M50-10): the submitter / settler stamps, the order set
 # and the state are guarded (one manager rewrote submitted_by_id and settled
 # his own COD; a bKash-paid order was written onto a rider's COD); the order
@@ -24,6 +34,8 @@
 # open, owner CFO / HR Manager), so both are configuration defaulting to 0:
 # with nothing configured every shortage takes the strictest path.
 from __future__ import annotations
+
+from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError
@@ -57,6 +69,12 @@ PAYROLL_MANAGER_GROUP = "cd_payroll_bd.group_payroll_manager"
 # e.g. the salaries-payable clearing account). OWNER: the account is the
 # finance team's choice; unset, a payroll recovery is refused (fail closed).
 PAYROLL_RECOVERY_ROLE = "rider_shortage_payroll"
+# D20: the business days a rider has to hand delivered COD in skip these
+# weekdays (Python numbers, comma separated; Bangladesh: Friday = 4)
+PARAM_WEEKEND_DAYS = "cd_cash_position.cod_weekend_days"
+# who hears of an overdue hand-in besides finance
+LOGISTICS_MANAGER_GROUP = "cd_consignment.group_fix_logistics_manager"
+SUMMARY_OVERDUE = "Rider COD hand-in overdue"
 
 
 class FixCodSettlement(models.Model):
@@ -82,6 +100,15 @@ class FixCodSettlement(models.Model):
         "settlement_id",
         "order_id",
         string="COD Orders",
+        readonly=True,
+    )
+    # D1: service-order delivery legs whose rider collected the amount due
+    consignment_ids = fields.Many2many(
+        "fix.consignment",
+        "fix_cod_settlement_consignment_rel",
+        "settlement_id",
+        "consignment_id",
+        string="Service-Order COD Legs",
         readonly=True,
     )
     order_count = fields.Integer(compute="_compute_amounts", store=True, string="Orders")
@@ -178,6 +205,7 @@ class FixCodSettlement(models.Model):
             "settled_by_id",
             "move_id",
             "order_ids",
+            "consignment_ids",
             "shortage_approved_by_id",
             "shortage_approved_at",
             "shortage_approval_note",
@@ -219,11 +247,15 @@ class FixCodSettlement(models.Model):
                     )
         return super().write(vals)
 
-    @api.depends("order_ids.total_amount", "remitted_amount")
+    @api.depends("order_ids.total_amount", "consignment_ids.cod_amount", "remitted_amount")
     def _compute_amounts(self):
         for rec in self:
-            rec.order_count = len(rec.order_ids)
-            rec.expected_amount = sum(rec.order_ids.mapped("total_amount"))
+            rec.order_count = len(rec.order_ids) + len(rec.consignment_ids)
+            rec.expected_amount = round(
+                sum(rec.order_ids.mapped("total_amount"))
+                + sum(rec.consignment_ids.mapped("cod_amount")),
+                2,
+            )
             rec.variance = round(rec.remitted_amount - rec.expected_amount, 2)
 
     @api.model_create_multi
@@ -339,24 +371,183 @@ class FixCodSettlement(models.Model):
                     "%s carries orders already in another COD settlement or courier "
                     "remittance: %s." % (rec.name, ", ".join(taken.mapped("name")))
                 )
+            rec._check_service_order_legs()
+
+    def _check_service_order_legs(self):
+        """D1: every service-order leg is a delivered COD leg of THIS rider in
+        this company, in no other live settlement, whose order recorded the
+        collection (tender cod) and booked its receipt to COD clearing."""
+        self.ensure_one()
+        legs = self.consignment_ids.sudo()
+        bad = legs.filtered(
+            lambda c: (
+                not c.service_order_id
+                or (c.cod_amount or 0.0) <= 0.005
+                or c.company_id != self.company_id
+                or c.rider_id != self.rider_id
+                or c.state != "delivered"
+                or not _pod_verified(c)
+                or (_cod_remitted(c) and self.state == "draft")
+            )
+        )
+        if bad:
+            raise UserError(
+                "%s carries legs that are not this rider's delivered service-order COD legs: %s."
+                % (self.name, ", ".join(bad.mapped("name")))
+            )
+        unrecorded = legs.filtered(lambda c: not _cod_recorded(c))
+        if unrecorded:
+            raise UserError(
+                "%s: the rider's collection is not recorded on %s (the order's cash-on-delivery "
+                "settlement and its receipt). Record it before the rider's cash is settled."
+                % (
+                    self.name,
+                    ", ".join(
+                        "%s (%s)" % (c.name, c.service_order_id.name or "-") for c in unrecorded
+                    ),
+                )
+            )
+        other = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("company_id", "=", self.company_id.id),
+                ("state", "!=", "disputed"),
+                ("consignment_ids", "in", legs.ids),
+            ],
+            limit=1,
+        )
+        if other:
+            raise UserError("Some legs of %s are already in %s." % (self.name, other.name))
+
+    def _fix_verify_service_order_cod(self):
+        """D1 (interface contract, 20 Nov): the settled rider cash marks each
+        leg's COD remitted (cd_consignment's own method) and verifies the
+        order's COD settlement as the settling user."""
+        for leg in self.consignment_ids:
+            sleg = leg.sudo()
+            mark = getattr(sleg, "_m03_mark_cod_remitted", None)
+            if mark:
+                mark()
+            order = sleg.service_order_id.with_env(self.env)
+            if order.sudo().payment_settlement_state == "settled" and not (
+                order.sudo().settlement_verified
+            ):
+                if order.sudo().settlement_source == "cod":
+                    # the settled rider cash is the remittance: M01's own COD
+                    # confirmation, as the system (the settling user is
+                    # finance, not a counter cashier)
+                    order.sudo().action_confirm_cod_remitted()
+                else:
+                    order.action_verify_settlement()
+                order.sudo().message_post(
+                    body="Cash on delivery of BDT %.2f verified: rider %s's COD settlement %s."
+                    % (sleg.cod_amount, self.rider_id.name, self.name)
+                )
 
     @api.model
     def _fix_rider_has_open_variance(self, rider) -> bool:
         """BRU-TRE-04: a rider with an unrecovered COD shortage (or one awaiting
         settlement / in dispute) is blocked from further cash collection.
-        Logistics asks this before assigning a COD consignment."""
-        return bool(
-            self.sudo().search_count(
-                [
-                    ("rider_id", "=", rider.id),
-                    "|",
-                    ("recovery_state", "=", "open"),
-                    "&",
-                    ("state", "in", ("submitted", "disputed")),
-                    ("variance", "<", -0.005),
-                ]
-            )
+        Logistics asks this before assigning a COD consignment.
+
+        D20 (A02 pass 2, M03-08): so is a rider holding delivered COD that is
+        not in a settlement by the end of the next business day."""
+        if self.sudo().search_count(
+            [
+                ("rider_id", "=", rider.id),
+                "|",
+                ("recovery_state", "=", "open"),
+                "&",
+                ("state", "in", ("submitted", "disputed")),
+                ("variance", "<", -0.005),
+            ]
+        ):
+            return True
+        orders, legs = self._fix_overdue_cod(rider)
+        return bool(orders or legs)
+
+    # ------------------------------------------------ D20: hand-in deadline
+    @api.model
+    def _fix_handin_deadline(self, delivered_day):
+        """The last day the rider may hand in COD delivered on
+        ``delivered_day``: the next business day (the weekend days are
+        cd_cash_position.cod_weekend_days, Python weekday numbers, default
+        Friday)."""
+        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_WEEKEND_DAYS, "4")
+        try:
+            weekend = {int(x) for x in str(raw).split(",") if str(x).strip()}
+        except ValueError:
+            weekend = {4}
+        if len(weekend) >= 7:
+            weekend = {4}
+        day = delivered_day + timedelta(days=1)
+        while day.weekday() in weekend:
+            day += timedelta(days=1)
+        return day
+
+    @api.model
+    def _fix_overdue_cod(self, rider):
+        """(storefront orders, service-order legs) this rider delivered as COD,
+        in no settlement, past the hand-in deadline (Dhaka days)."""
+        today = _dhaka_day(self.env, fields.Datetime.now())
+
+        def overdue(consignment):
+            day = _dhaka_day(self.env, consignment.delivered_at or consignment.write_date)
+            return bool(day) and today > self._fix_handin_deadline(day)
+
+        settlements = self.sudo()
+        companies = self.env["res.company"].sudo().search([])
+        orders = self.env["fix.storefront.order"].sudo()
+        legs = self.env["fix.consignment"].sudo()
+        for company in companies:
+            orders |= settlements._open_cod_orders(rider, company)
+            legs |= settlements._open_cod_legs(rider, company, recorded_only=False)
+        orders = orders.filtered(lambda o: overdue(o.carrier_consignment_id))
+        return orders, legs.filtered(overdue)
+
+    @api.model
+    def _cron_cod_handin_overdue(self):
+        """Daily (D20): every rider holding COD past the hand-in deadline is
+        blocked (above), and the logistics managers and finance are told."""
+        riders = (
+            self.env["fix.consignment"]
+            .sudo()
+            .search([("state", "=", "delivered"), ("rider_id", "!=", False)])
+            .mapped("rider_id")
         )
+        group = self.env.ref(LOGISTICS_MANAGER_GROUP, raise_if_not_found=False)
+        managers = (
+            group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+            if group
+            else self.env["res.users"]
+        )
+        late = 0
+        for rider in riders:
+            orders, legs = self._fix_overdue_cod(rider)
+            if not (orders or legs):
+                continue
+            late += 1
+            amount = sum(orders.mapped("total_amount")) + sum(legs.mapped("cod_amount"))
+            refs = ", ".join((orders.mapped("name") + legs.mapped("name"))[:20])
+            note = (
+                "Rider %s holds BDT %.2f of delivered cash on delivery not handed in by the end "
+                "of the next business day (%s). The rider gets no new COD until it is settled."
+                % (rider.name, amount, refs)
+            )
+            # finance: every Accounting Administrator of the rider's company
+            treasury_alert(rider, SUMMARY_OVERDUE, note)
+            for user in managers:
+                open_one = rider.sudo().activity_ids.filtered(
+                    lambda a, u=user: a.summary == SUMMARY_OVERDUE and a.user_id == u
+                )
+                if not open_one:
+                    rider.sudo().activity_schedule(
+                        "mail.mail_activity_data_todo",
+                        summary=SUMMARY_OVERDUE,
+                        note=note,
+                        user_id=user.id,
+                    )
+        return late
 
     @api.model
     def _open_cod_orders(self, rider, company):
@@ -380,13 +571,45 @@ class FixCodSettlement(models.Model):
             and not self._cod_receipt_pending(o.sudo())
         )
 
+    @api.model
+    def _open_cod_legs(self, rider, company, recorded_only=True):
+        """D1: delivered service-order COD legs of this rider in no live
+        settlement (by default only those whose order recorded the collection:
+        an unrecorded one cannot be settled yet)."""
+        legs = (
+            self.env["fix.consignment"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("rider_id", "=", rider.id),
+                    ("state", "=", "delivered"),
+                    ("service_order_id", "!=", False),
+                    ("cod_amount", ">", 0.005),
+                ]
+            )
+        )
+        settled = (
+            self.sudo()
+            .search([("company_id", "=", company.id), ("state", "!=", "disputed")])
+            .mapped("consignment_ids")
+        )
+        # interface contract: POD verified and not yet remitted (a courier
+        # remittance or an earlier settlement marked it)
+        legs = (legs - settled).filtered(lambda c: _pod_verified(c) and not _cod_remitted(c))
+        return legs.filtered(_cod_recorded) if recorded_only else legs
+
     def action_load_orders(self):
-        """Pull every delivered, unsettled COD order of the rider."""
+        """Pull every delivered, unsettled COD order of the rider (storefront
+        orders and service-order delivery legs)."""
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Orders are loaded on a draft settlement only.")
             orders = self._open_cod_orders(rec.rider_id, rec.company_id) | rec.order_ids
-            rec._guarded().write({"order_ids": [(6, 0, orders.ids)]})
+            legs = self._open_cod_legs(rec.rider_id, rec.company_id) | rec.consignment_ids
+            rec._guarded().write(
+                {"order_ids": [(6, 0, orders.ids)], "consignment_ids": [(6, 0, legs.ids)]}
+            )
         return True
 
     def action_submit(self):
@@ -394,7 +617,7 @@ class FixCodSettlement(models.Model):
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft settlement is submitted.")
-            if not rec.order_ids:
+            if not (rec.order_ids or rec.consignment_ids):
                 raise UserError(
                     "No delivered COD orders for %s — nothing to settle." % rec.rider_id.name
                 )
@@ -520,6 +743,7 @@ class FixCodSettlement(models.Model):
             )
             if rec.recovery_state == "open":
                 rec._fix_request_recovery()
+            rec._fix_verify_service_order_cod()
         return True
 
     def _fix_request_recovery(self):
@@ -658,6 +882,58 @@ class FixCodSettlement(models.Model):
         return True
 
 
+def _dhaka_day(env, stamp):
+    if not stamp:
+        return None
+    return fields.Date.context_today(
+        env["res.users"].with_context(tz="Asia/Dhaka"), timestamp=stamp
+    )
+
+
+def _pod_verified(consignment) -> bool:
+    """The hand-over to the customer was verified (POD); without the field
+    (an older cd_consignment) a delivered leg counts."""
+    if "pod_verified_at" not in consignment._fields:
+        return True
+    return bool(consignment.pod_verified_at)
+
+
+def _cod_remitted(consignment) -> bool:
+    """cd_consignment marks a leg's COD remitted (_m03_mark_cod_remitted)."""
+    return "cod_remitted_at" in consignment._fields and bool(consignment.cod_remitted_at)
+
+
+def _cod_recorded(consignment) -> bool:
+    """D1: the leg's order recorded the rider's collection as its settlement
+    (source cod) and holds a confirmed receipt for it (COD clearing).
+
+    A02 pass 2 review (N1): this read the order's tender, which keeps the
+    first payment's tender once part of the money is verified (a part payment
+    taken on site and accepted by a cashier). The COD balance then never
+    counted as recorded: the leg was never loaded into a settlement, the
+    rider stayed blocked and the order never closed. The settlement source is
+    the last payment's."""
+    order = consignment.service_order_id.sudo()
+    if not order or order.payment_settlement_state != "settled":
+        return False
+    source = order.settlement_source if "settlement_source" in order._fields else False
+    tender = order.settlement_tender if "settlement_tender" in order._fields else False
+    if "cod" not in (source, tender):
+        return False
+    Receipt = order.env["fix.ar.receipt"].sudo()
+    if "source_order_id" not in Receipt._fields:
+        return True
+    return bool(
+        Receipt.search_count(
+            [
+                ("source_order_id", "=", order.id),
+                ("method", "=", "cod"),
+                ("state", "=", "confirmed"),
+            ]
+        )
+    )
+
+
 def _refuse_blocked_riders(env, riders, what):
     """BRU-TRE-04: refuses even trusted service code; the block is lifted only
     by settling or recovering the variance, never by who is asking."""
@@ -675,7 +951,22 @@ class FixConsignmentCodBlock(models.Model):
 
     _inherit = "fix.consignment"
 
+    # D1 (A02 pass 2): what the rider collects on a service order's delivery
+    # leg. The field is cd_consignment's (fix_consignment_release, which owns
+    # the leg's rules and sets it); it is declared here too with the same type
+    # and only the attributes the settlement needs, so the two definitions
+    # merge and the rider settlement reads it whichever module loads first.
+    currency_id = fields.Many2one(
+        "res.currency", default=lambda self: self.env.ref("base.BDT", raise_if_not_found=False)
+    )
+    cod_amount = fields.Monetary(currency_field="currency_id", copy=False)
+
     def write(self, vals):
+        if vals.get("rider_id") and any(
+            (c.cod_amount or 0.0) > 0.005 and c.service_order_id for c in self
+        ):
+            rider = self.env["hr.employee"].sudo().browse(vals["rider_id"])
+            _refuse_blocked_riders(self.env, rider, "Assigning a COD delivery leg")
         if vals.get("rider_id"):
             cod_orders = (
                 self.env["fix.storefront.order"]

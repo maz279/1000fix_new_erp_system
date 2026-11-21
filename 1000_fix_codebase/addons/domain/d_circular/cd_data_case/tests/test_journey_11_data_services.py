@@ -105,6 +105,41 @@ def j11(odoo_env, monkeypatch):
         case.action_assign_staff(technician=tech, custodian=custodian)
         return case
 
+    def custody(case, giver=None, receiver=None):
+        """A02 pass 2 M06-03: sealed media, then the receiver confirms."""
+        giver, receiver = giver or custodian, receiver or tech
+        if not case.sudo().media_unit_ids:
+            env["fix.data.media.unit"].sudo().create(
+                {"case_id": case.id, "seal_number": "J11-SEAL-%d-%d" % (n, case.id)}
+            )
+        case.with_user(giver).action_take_custody(receiver.login)
+        case.with_user(receiver).action_confirm_custody()
+        return case
+
+    def purge_cert(case):
+        """A02 pass 2 M06-04 (D15): the lab's purge certificate of the case."""
+        log = (
+            env["ir.attachment"]
+            .with_user(tech)
+            .create({"name": "purge.log", "raw": b"Z4 working copy and key destroyed"})
+        )
+        cert = (
+            env[CERT]
+            .with_user(tech)
+            .create(
+                {
+                    "purpose": "case_purge",
+                    "case_id": case.id,
+                    "lab_storage_ref": "Z4-VOL-J11-%d" % case.id,
+                    "method": "cryptographic_erase",
+                    "sector_count": 1000,
+                    "wipe_log_attachment_id": log.id,
+                }
+            )
+        )
+        cert.with_user(verifier).action_verify()
+        return cert
+
     def evaluated_and_quoted(case):
         env["fix.data.evaluation"].with_user(tech).create(
             {"case_id": case.id, "verdict": "recoverable"}
@@ -115,7 +150,7 @@ def j11(odoo_env, monkeypatch):
 
     def recovered():
         case = intake()
-        case.action_take_custody("Lab Engineer Kabir")
+        custody(case)
         case.action_route_to_z4()
         evaluated_and_quoted(case)
         case.action_start_recovery()
@@ -123,7 +158,8 @@ def j11(odoo_env, monkeypatch):
             {"case_id": case.id, "method": "software_scan"}
         ).action_finish(outcome="success")
         case.action_record_image(source_hash=image_hash, image_hash=image_hash)
-        case.with_user(tech2).action_verify_image(recomputed_hash=image_hash)
+        # the case's custodian is its second person (A02 pass 2 M06-02)
+        case.with_user(custodian).action_verify_image(recomputed_hash=image_hash)
         case.action_recovered()
         return case
 
@@ -178,40 +214,56 @@ def j11(odoo_env, monkeypatch):
         recovered=recovered,
         handed_over=handed_over,
         verified_cert=verified_cert,
+        custody=custody,
+        purge_cert=purge_cert,
+        tech2=tech2,
     )
 
 
 def test_01_intake_and_custody_logging(j11):
     case = j11.intake()
     assert (case.state, case.residency_zone) == ("new", "pending")
-    case.action_take_custody("Lab Engineer Kabir")
+    j11.custody(case)
     assert case.state == "custody"
-    assert "custody taken by Lab Engineer Kabir" in case.custody_chain
-    # naming the case's Z4 staff at intake is itself the first ledger entry
-    assert case.custody_event_ids.mapped("action") == ["z4_assigned", "custody_taken"]
-    assert set(case.custody_event_ids.mapped("actor_id")) == {j11.tech}
+    assert "custody taken by" in case.custody_chain
+    # naming the case's Z4 staff at intake is itself the first ledger entry;
+    # A02 pass 2 M06-03: the hand-off is requested by one, taken by the other
+    assert case.custody_event_ids.mapped("action") == [
+        "z4_assigned",
+        "custody_requested",
+        "custody_taken",
+    ]
+    taken = case.custody_event_ids[-1]
+    assert (taken.actor_id, taken.witness_id) == (j11.tech, j11.custodian)
 
 
 def test_02_custody_transfer_preserves_audit_trail(j11):
     case = j11.intake()
-    case.action_take_custody("Lab Reception")
+    j11.custody(case)
     case.action_log_custody_transfer(
-        handler="Tariqul Islam",
+        handler=j11.custodian.login,
         role="Z4 Cleanroom Lead",
         location="Sovereign Cleanroom Vault 1",
         notes="Sealed electrostatic carrier transfer",
     )
-    assert "Lab Reception" in case.custody_chain
-    assert "Tariqul Islam (Z4 Cleanroom Lead)" in case.custody_chain
-    assert "Sovereign Cleanroom Vault 1" in case.custody_chain
+    case.with_user(j11.custodian).action_confirm_custody()
+    assert "Z4 Cleanroom Lead at Sovereign Cleanroom Vault 1" in case.custody_chain
+    assert "Sealed electrostatic carrier transfer" in case.custody_chain
     events = case.custody_event_ids
-    assert events.mapped("action") == ["z4_assigned", "custody_taken", "custody_transfer"]
-    assert events[2].prev_hash == events[1].entry_hash  # chained, append-only
+    assert events.mapped("action") == [
+        "z4_assigned",
+        "custody_requested",
+        "custody_taken",
+        "custody_requested",
+        "custody_transfer",
+    ]
+    assert events[4].prev_hash == events[3].entry_hash  # chained, append-only
+    assert (events[4].actor_id, events[4].witness_id) == (j11.custodian, j11.tech)
 
 
 def test_03_strict_z4_residency_gate_enforced(j11):
     case = j11.intake()
-    case.action_take_custody("Lab Engineer")
+    j11.custody(case)
     j11.evaluated_and_quoted(case)
     with pytest.raises(UserError, match="SC-007"):
         case.action_start_recovery()
@@ -302,7 +354,10 @@ def test_07_handover_then_purge_on_the_verified_certificate(j11):
     # a purge never fabricates a certificate
     with pytest.raises(UserError, match="wipe operator"):
         case.action_purge()
-    cert = j11.verified_cert()
+    # A02 pass 2 M06-04: a certificate of the customer's drive proves no purge
+    with pytest.raises(UserError, match="never proves a purge"):
+        case.action_purge(certificate=j11.verified_cert())
+    cert = j11.purge_cert(case)
     case.action_purge(certificate=cert)
     assert case.state == "purged"
     assert case.purge_certificate_id == cert
@@ -313,7 +368,7 @@ def test_07_handover_then_purge_on_the_verified_certificate(j11):
 
 def test_08_wipe_certificate_permanent_statutory_retention(j11):
     case = j11.handed_over(j11.recovered())
-    cert = j11.verified_cert()
+    cert = j11.purge_cert(case)
     case.action_purge(certificate=cert)
     with pytest.raises(UserError, match="NFR-095"):
         cert.unlink()

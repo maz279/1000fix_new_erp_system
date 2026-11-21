@@ -15,6 +15,8 @@ from odoo import Command, http
 from odoo.addons.cd_storefront.controllers import storefront_api
 from odoo.addons.cd_storefront.controllers.storefront_api import StorefrontApiController
 
+from .test_a04_c2_c13_storefront import storefront_world
+
 
 class _Browser:
     """One client: a user plus its own server-side session."""
@@ -48,6 +50,9 @@ def world(odoo_env):
     hidden = env["product.template"].create(
         {"name": "Internal Jig", "list_price": 5.0, "sale_ok": False}
     )
+    # A04 ERP M38-F1/F12/F13: an M11 price (86.96 + 15% VAT = 100.00), live
+    # gateways with callback secrets, an approved COD rule
+    storefront_world(env, product, price=86.96)
     return SimpleNamespace(
         env=env,
         alice=alice,
@@ -169,7 +174,10 @@ def test_guest_checkout_and_tracking_stay_in_the_placing_session(world):
     snoop = _Browser(world.env, world.public)
     with _in(guest) as ctrl:
         cart = ctrl.get_or_update_cart(product_id=world.product.id, quantity=1)
-        placed = ctrl.checkout(cart_id=cart["cart_id"], shipping_address="Mirpur")
+        # A04 ERP M38-F12: a guest order belongs to its mobile number
+        placed = ctrl.checkout(
+            cart_id=cart["cart_id"], shipping_address="Mirpur", phone="01711000999"
+        )
         tracked = ctrl.track_order(order_id=placed["order_id"])
         empty_again = ctrl.checkout()
     with _in(snoop) as ctrl:

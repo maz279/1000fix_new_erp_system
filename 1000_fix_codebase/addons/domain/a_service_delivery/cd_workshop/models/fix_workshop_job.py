@@ -26,6 +26,9 @@ WORKSHOP_JOB_STATES = [
     ("qc_pending", "QC Pending"),
     ("qc_failed", "QC Failed — Rework Loop"),
     ("ready", "Ready for Release / Handover"),
+    # A02 pass 2 M31-02: the workshop releases the device to the front desk
+    # (outgoing staging); the customer hand-over is M01's, which closes the job
+    ("released", "Released to Front Desk"),
     ("delivered", "Delivered / Handed Over"),
     ("unrepairable", "Unrepairable / BER — Written Off"),
     ("cancelled", "Cancelled"),
@@ -44,7 +47,8 @@ VALID_JOB_TRANSITIONS = {
     "burn_in": {"qc_pending", "in_repair"},
     "qc_pending": {"ready", "qc_failed"},
     "qc_failed": {"in_repair", "diagnostic", "unrepairable", "cancelled"},
-    "ready": {"delivered"},
+    "ready": {"released"},
+    "released": {"delivered"},
     "delivered": set(),
     "unrepairable": set(),
     "cancelled": set(),
@@ -122,7 +126,13 @@ JOB_FROZEN_WHEN_CLOSED = frozenset(
 # against, and the repair level decides the certification, burn-in and
 # evidence gates: while the job is on the bench or in test neither changes
 # (a downgrade from L2 to L1 would skip the burn-in).
-TECHNICIAN_LOCKED_STATES = ("in_repair", "burn_in", "qc_pending", "ready", *CLOSED_JOB_STATES)
+ON_BENCH_STATES = ("in_repair", "burn_in", "qc_pending", "ready", "released", *CLOSED_JOB_STATES)
+# A02 pass 2 M31-01: a job waiting for parts or back from a failed QC is still
+# the same repair. A downgrade there skipped the burn-in, and a new technician
+# there passed QC on work he never touched; the level and the technician
+# change only by a supervisor (action_revise_level / Allocate to Bench).
+SUPERVISOR_ROUTING_STATES = ("waiting_parts", "qc_failed")
+TECHNICIAN_LOCKED_STATES = (*ON_BENCH_STATES, *SUPERVISOR_ROUTING_STATES)
 ROUTING_LOCKED_FIELDS = frozenset({"technician_id", "repair_level"})
 
 # A02 audit M31-3: the parent-order states in which repair may proceed.
@@ -417,6 +427,8 @@ class FixWorkshopJob(models.Model):
     dofa_writeoff_tier = fields.Selection(
         [
             ("none", "No Write-Off Required"),
+            # A02 pass 2 M31-09: a BER of nothing sunk is a supervisor's decision
+            ("tier_1", "Tier 1 — Workshop Supervisor"),
             ("tier_2", "Tier 2 — Service Center Manager (<= 10,000 BDT)"),
             ("tier_3", "Tier 3 — Regional Service Head (<= 50,000 BDT)"),
             ("tier_4", "Tier 4 — Head of Service & Finance (> 50,000 BDT)"),
@@ -705,6 +717,7 @@ class FixWorkshopJob(models.Model):
         "in_repair": "action_start_repair",
         "burn_in": "action_start_burn_in",
         "qc_pending": "action_submit_qc",
+        "released": "action_release",
         "delivered": "action_deliver",
         "cancelled": "action_cancel",
     }
@@ -740,27 +753,19 @@ class FixWorkshopJob(models.Model):
                     )
                 # Execute Cross-Wave Stub STUB-M31-M22-001 (Certification check)
                 rec._check_technician_certification(rec.technician_id, rec.repair_level)
-                # FLAW-31.2: ESD compliance gate for L2/L3 repairs
-                if rec.repair_level in ("l2", "l3") and rec.bench_id:
-                    # An explicit check if bench has an unverified date or out-of-spec resistance
-                    strap = rec.bench_id.wrist_strap_mohm or 10.0
-                    surface = rec.bench_id.worksurface_rtg_mohm or 100.0
-                    if not rec.bench_id.is_esd_safe or strap >= 35.0 or surface >= 1000.0:
-                        raise UserError(
-                            f"FLAW-31.2 ESD Interlock Gate: Bench {rec.bench_id.code} has not passed today's "
-                            f"daily ESD wrist-strap (<35 MΩ) and worksurface (<1000 MΩ) verification required for {rec.repair_level.upper()} repairs."
-                        )
+                # FLAW-31.2: ESD compliance gate for L2/L3 repairs. A02 pass 2
+                # M31-05: the bench's verification of TODAY (Dhaka), not the
+                # last readings whenever they were taken, and an L3 job only in
+                # an ESD-certified workshop.
+                rec._m31_check_esd()
                 # A repair (or a rework) is a new build: the burn-in that
                 # covered the previous build does not cover this one.
                 if rec.burn_in_passed:
                     rec._guarded().write({"burn_in_passed": False})
 
-            # Business Gate: QC Pending requires burn-in pass if L2 or L3
-            if (
-                new_state == "qc_pending"
-                and rec.repair_level in ("l2", "l3")
-                and not rec.burn_in_passed
-            ):
+            # Business Gate: QC Pending requires burn-in pass if L2 or L3 (A02
+            # pass 2 M31-04: or when the job's test protocol sets a burn-in)
+            if new_state == "qc_pending" and rec._m31_burn_in_required() and not rec.burn_in_passed:
                 raise UserError(
                     f"Job {rec.name} ({rec.repair_level.upper()}) requires burn-in test to pass before QC."
                 )
@@ -864,13 +869,13 @@ class FixWorkshopJob(models.Model):
                     f"FLAW-31.3 Burn-In Gate: job {rec.name} is not in burn-in "
                     f"(state: {rec.state}). Start the burn-in run first."
                 )
-            if rec.repair_level in ("l2", "l3"):
+            if rec._m31_burn_in_required():
                 if not rec.burn_in_started_at:
                     raise UserError(
                         f"FLAW-31.3 Burn-In Gate: job {rec.name} has no burn-in start stamp."
                     )
                 elapsed = (fields.Datetime.now() - rec.burn_in_started_at).total_seconds() / 60.0
-                required = rec._m31_burn_in_min_minutes()
+                required = rec._m31_required_burn_in_minutes()
                 if elapsed < required:
                     raise UserError(
                         f"FLAW-31.3 Burn-In Gate: {rec.repair_level.upper()} repair job {rec.name} requires at least "
@@ -943,9 +948,36 @@ class FixWorkshopJob(models.Model):
     def _m31_release_evidence_types(self):
         self.ensure_one()
         needed = list(RELEASE_EVIDENCE)
-        if self.repair_level in ("l2", "l3"):
+        if self._m31_burn_in_required():
             needed += list(RELEASE_EVIDENCE_L2_L3)
         return needed
+
+    # --- A02 pass 2 M31-04 / M31-05 (the protocol's burn-in, the daily ESD) ---
+    def _m31_burn_in_required(self) -> bool:
+        """L2/L3 always; refined by the job's test protocol (fix_workshop_a02r2)."""
+        self.ensure_one()
+        return self.repair_level in ("l2", "l3")
+
+    def _m31_required_burn_in_minutes(self) -> float:
+        self.ensure_one()
+        return self._m31_burn_in_min_minutes()
+
+    def _m31_check_esd(self):
+        self.ensure_one()
+        if self.repair_level not in ("l2", "l3") or not self.bench_id:
+            return
+        bench = self.bench_id.sudo()
+        if not bench.esd_compliant_today:
+            raise UserError(
+                f"FLAW-31.2 ESD Interlock Gate: Bench {bench.code} has not passed today's "
+                f"daily ESD wrist-strap (<35 MΩ) and worksurface (<1000 MΩ) verification "
+                f"required for {self.repair_level.upper()} repairs."
+            )
+        if self.repair_level == "l3" and not self.workshop_id.sudo().is_esd_certified:
+            raise UserError(
+                f"FLAW-31.2 ESD Interlock Gate: workshop {self.workshop_id.name} is not "
+                "ESD-certified: L3 board-level repair is done only in a certified workshop."
+            )
 
     def _m31_check_release_evidence(self):
         """A02 audit M31-8 / P31-13: a release needs its evidence pack — a
@@ -967,9 +999,32 @@ class FixWorkshopJob(models.Model):
             )
 
     def action_deliver(self):
-        return self._transition("delivered")
+        """A02 pass 2 M31-02: the job is closed by M01's customer hand-over
+        (consume_service_order_delivered), not by the bench: pressing Deliver
+        on the job delivered the order to the customer from the workshop. The
+        bench releases the job (action_release); a job of no service order (a
+        refurbishment or an M45 work order) is closed by its supervisor."""
+        for rec in self:
+            # A02 pass 2 review: M01's delivered event closes the job as the
+            # superuser (consume_service_order_delivered); no context key a
+            # client sends lets the bench deliver
+            if not self.env.su:
+                if rec.sudo().order_id:
+                    raise UserError(
+                        "Job %s closes when its service order %s is handed to the customer "
+                        "at the front desk (M01). Release the job to the front desk instead."
+                        % (rec.name, rec.sudo().order_id.name)
+                    )
+                rec._m31_require_group((GROUP_SUPERVISOR,), "Closing an internal workshop job")
+            rec._transition("delivered")
+        return True
 
-    def action_cancel(self):
+    def action_release(self):
+        """A02 pass 2 M31-02: QC passed, the device leaves the bench for the
+        front desk's outgoing staging. Implemented in fix_workshop_a02r2."""
+        return self._transition("released")
+
+    def action_cancel(self, reason=""):
         return self._transition("cancelled")
 
     # --- M22 certification waiver (A02 audit M31-5, B1) ---
@@ -1110,11 +1165,13 @@ class FixWorkshopJob(models.Model):
                     ("repair_level", ">=", job.repair_level),
                 ]
             ).filtered(
-                lambda b: b.current_job_count < b.max_concurrent_jobs
+                lambda b, job=job: b.current_job_count < b.max_concurrent_jobs
                 and (
                     not b.calibration_expiry_date
                     or b.calibration_expiry_date >= fields.Date.today()
                 )
+                # A02 pass 2 M31-05: the same ESD rules as a manual allocation
+                and not job._m31_bench_fit_error(b, job.workshop_id, job.repair_level)
             )
             if not candidates:
                 raise UserError(
@@ -1128,7 +1185,8 @@ class FixWorkshopJob(models.Model):
                 # LOWEST level that can do the job (keeps L3 benches free for
                 # L3 work), then lowest load, then code for determinism
                 return (
-                    -1 if (bench.is_esd_safe and want_esd) else 0,
+                    # a bench verified today first for L2/L3 (M31-05)
+                    -1 if (bench.esd_compliant_today and want_esd) else 0,
                     level_rank.get(bench.repair_level, 1),
                     bench.current_job_count,
                     bench.code or "",
@@ -1139,7 +1197,7 @@ class FixWorkshopJob(models.Model):
                 key=lambda b: bench_score(
                     b,
                     job_level=job.repair_level,
-                    want_esd=job.repair_level == "l3",
+                    want_esd=job.repair_level in ("l2", "l3"),
                 ),
             )
             ranked[0].action_assign_job(job.sudo())
@@ -1350,7 +1408,9 @@ class FixWorkshopJob(models.Model):
         "qc_pending": ("qc_pending", "action_submit_qc"),
         "qc_failed": ("qc_failed", "action_fail_qc"),
         "ready": ("ready", "action_ready"),
-        "delivered": ("delivered", "action_deliver"),
+        # A02 pass 2 M31-02: no "delivered" entry. The customer hand-over is
+        # M01's (front desk or delivery leg); the job follows the order there
+        # (consume_service_order_delivered), it never delivers the order.
     }
 
     def _sync_with_service_order(self, new_state: str, old_state: str | None = None) -> None:

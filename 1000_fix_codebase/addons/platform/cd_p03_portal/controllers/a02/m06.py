@@ -29,6 +29,10 @@ SURFACES = {
     "fix.data.recovery.case": {
         "order": "id desc",
         "limit": 200,
+        # A02 pass 2 review: read AS THE CALLER (M06-02 - an operator sees
+        # his assigned cases and the intake queue, lab managers all), and
+        # every list or form read lands in the case read log
+        "caller_scoped": True,
         "actions": {
             "action_take_custody",
             "action_log_custody_transfer",
@@ -52,26 +56,38 @@ SURFACES = {
             "action_purge",
             "action_close",
             "action_access_recovered_data",
+            # A02 pass 2 M06-01 / M06-03: the lab manager's customer
+            # correction, and the receiver's confirmation of a hand-off
+            "action_correct_customer",
+            "action_confirm_custody",
+            # A02 pass 2 review: the requester withdraws an unconfirmed hand-off
+            "action_withdraw_handoff",
         },
     },
     "fix.data.wipe.certificate": {
         "order": "id desc",
         "limit": 200,
-        "actions": {"action_verify", "action_mark_failed"},
+        # A02 pass 2 review N9: purge certificates follow their case
+        "caller_scoped": True,
+        # A02 pass 2 M06-09: the second person witnesses a destruction
+        "actions": {"action_verify", "action_mark_failed", "action_witness_destruction"},
     },
     "fix.z4.access.audit": {
         "order": "access_time desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.recovery.attempt": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_finish"},
     },
     "fix.data.media.unit": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         # A02 audit M06-11: only the strict seal break (a named witness) is offered
         "actions": {
             "action_transfer",
@@ -80,6 +96,9 @@ SURFACES = {
             "action_confirm_seal_break",
             "action_return",
             "action_destroy",
+            # A02 pass 2 M06-03: the receiver confirms a move or a return
+            "action_confirm_move",
+            "action_withdraw_move",
         },
     },
     "fix.data.cleanroom.slot": {
@@ -90,11 +109,13 @@ SURFACES = {
     "fix.data.evaluation": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_complete"},
     },
     "fix.data.quote": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {
             "action_send",
             "action_accept",
@@ -112,9 +133,19 @@ SURFACES = {
     # M06 capture pass 2 (2026-11-18): the records five pages could not
     # capture (cd_data_case models/fix_data_capture.py), and the custody
     # ledger every move writes, which no screen listed.
+    # A02 pass 2: the sanitisation matrix (D16, the Quality Manager keeps it)
+    # and the case read log (M06-02, lab managers read it)
+    "fix.data.sanitisation.rule": {"order": "media_kind, id", "limit": 200, "actions": set()},
+    "fix.data.case.read.log": {
+        "order": "read_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        "caller_scoped": True,
+    },
     "fix.data.custody.event": {
         "order": "event_at desc, id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.confidentiality.undertaking": {
@@ -125,16 +156,19 @@ SURFACES = {
     "fix.data.retention.hold": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_approve", "action_reject", "action_release"},
     },
     "fix.data.recovered.inventory": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.wipe.request": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_cancel"},
     },
     "fix.data.backup.test": {
@@ -186,10 +220,21 @@ def kpis(env):
     )
 
     # eval turnaround: average hours media-received → verdict
-    evals = Eval.search([*domain, ("evaluated_at", "!=", False)], limit=200)
+    evals = Eval.search([*domain, ("evaluated_at", "!=", False)])
     eval_turnaround = round(sum(e.eval_hours for e in evals) / len(evals), 1) if evals else None
 
     purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
+    # A02 pass 2 M06-11 (D17): handed-over cases past their retention date,
+    # not those kept on an approved retention (legal) hold (A02 pass 2 review)
+    overdue = Case.search(
+        [
+            *domain,
+            ("state", "=", "handover"),
+            ("retention_until", "!=", False),
+            ("retention_until", "<", fields.Date.context_today(Case)),
+        ]
+    )
+    purge_overdue = len(overdue) - len(Case._m06_held_case_ids(overdue))
 
     return {
         "active_cases": active_cases,
@@ -198,6 +243,7 @@ def kpis(env):
         "destruction_certs_mtd": destruction_certs_mtd,
         "eval_turnaround": eval_turnaround,
         "purge_verifications": purge_verifications,
+        "purge_overdue": purge_overdue,
     }
 
 
@@ -252,11 +298,19 @@ def _require_data_operator(env, title):
     )
 
 
+def _caller_cases(env, domain, channel):
+    """A02 pass 2 review N4: the cases a report lists are the CALLER's (the
+    M06-02 scope: an operator his own and the intake queue, a lab manager
+    all), and listing them is a read the case log records. Returned sudo for
+    the figures (quotations, invoices) the report derives from them."""
+    cases = env["fix.data.recovery.case"].search(domain)
+    cases._m06_log_reads(channel)
+    return cases.sudo()
+
+
 def _success_by_specialism(env, **params):
     Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
-    cases = Case.search(
-        [("company_id", "in", env.companies.ids), ("state", "in", DECIDED_STATES)], limit=400
-    )
+    cases = Case.search([("company_id", "in", env.companies.ids), ("state", "in", DECIDED_STATES)])
     buckets = {}
     labels = dict(type(Case).specialism.selection)
     for case in cases:
@@ -294,15 +348,23 @@ def _success_by_specialism(env, **params):
 
 
 def _case_cycle_time(env, **params):
+    # A02 pass 2 M06-08 / X5-07: the caller's companies, the data-lab role,
+    # every case (no cap), and the clock stops at the hand-over to the customer
+    _require_data_operator(env, "Case Cycle Time")
     Case = env["fix.data.recovery.case"].sudo()
-    cases = Case.search([("state", "in", ("purged", "closed", "unrecoverable"))], limit=300)
+    cases = Case.search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "in", ("purged", "closed", "unrecoverable")),
+        ]
+    )
     rows = []
     closed_total = purged_total = unrecoverable_total = 0
     n_closed = n_purged = n_unrecoverable = 0
     for case in cases:
         days = None
         if case.received_at:
-            end = case.write_date or case.received_at
+            end = case.handover_at or case.write_date or case.received_at
             days = round((end - case.received_at).total_seconds() / 86400.0, 1)
         if days is None:
             continue
@@ -337,7 +399,10 @@ def _case_cycle_time(env, **params):
         "cols": ["outcome", "cases", "avg_days"],
         "labels": {"outcome": "Outcome", "cases": "Cases", "avg_days": "Avg Days"},
         "rows": rows,
-        "notes": ["Media received → last write, per terminal state."],
+        "notes": [
+            "Media received → hand-over to the customer (the last change for a case never "
+            "handed over), per terminal state; this company's cases."
+        ],
     }
 
 
@@ -349,14 +414,15 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
     no-data-no-fee only the donor fee when unrecoverable), this company's
     cases, accepted in the period."""
     _require_data_operator(env, "Data Service Revenue")
-    Quote = env["fix.data.quote"].sudo()
+    # N4: the caller's quotations (they follow his cases)
+    Quote = env["fix.data.quote"]
     start, end = _day_bounds(env, date_from, date_to)
     domain = [("state", "=", "accepted"), ("company_id", "in", env.companies.ids)]
     if start:
         domain.append(("accepted_at", ">=", start))
     if end:
         domain.append(("accepted_at", "<=", end))
-    quotes = Quote.search(domain, limit=300)
+    quotes = Quote.search(domain)
     if not quotes:
         return {
             "title": "Data Service Revenue",
@@ -371,7 +437,9 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
         }
     rows = []
     billed_total = 0.0
-    for case in quotes.mapped("case_id").sorted("name"):
+    cases = quotes.mapped("case_id")
+    cases._m06_log_reads("report")
+    for case in cases.sudo().sorted("name"):
         quote, lines, outcome = case._data_billable()
         billable = round(sum(amount for _d, amount in lines), 2)
         billed_total += billable
@@ -410,9 +478,9 @@ def _service_revenue(env, date_from=None, date_to=None, **params):
 
 def _destruction_audit(env, **params):
     _require_data_operator(env, "Destruction & Purge Audit")
-    Case = env["fix.data.recovery.case"].sudo()
-    Cert = env["fix.data.wipe.certificate"].sudo()
-    purged = Case.search([("state", "=", "purged")], limit=200)
+    Cert = env["fix.data.wipe.certificate"]
+    fence = [("company_id", "in", env.companies.ids)]
+    purged = _caller_cases(env, [*fence, ("state", "=", "purged")], "report")
     rows = [
         {
             "case": c.name,
@@ -424,7 +492,7 @@ def _destruction_audit(env, **params):
         }
         for c in purged
     ]
-    pending = Cert.search([("sanitization_status", "=", "pending_verification")], limit=100)
+    pending = Cert.search([*fence, ("sanitization_status", "=", "pending_verification")])
     return {
         "title": "Destruction & Purge Audit",
         "cols": ["case", "customer", "certificate", "method", "verification", "verified_at"],
@@ -445,8 +513,9 @@ def _destruction_audit(env, **params):
 
 
 def _backup_compliance(env, **params):
+    _require_data_operator(env, "Backup Compliance")
     Plan = env["fix.data.backup.plan"].sudo()
-    plans = Plan.search([], limit=300)
+    plans = Plan.search([("company_id", "in", env.companies.ids)])
     if not plans:
         return {
             "title": "Backup Restore-Test Compliance",
@@ -503,11 +572,18 @@ def _recovered_inventory(env, **params):
     enters the ERP. The inventory the lab recorded (files and GB, FR-DTS-006)
     is shown first; the documents keep their own columns."""
     _require_data_operator(env, "The recovered-data inventory")
-    Case = env["fix.data.recovery.case"].sudo().with_context(lang="en_US")
+    Case = env["fix.data.recovery.case"].with_context(lang="en_US")
     Attachment = env["ir.attachment"].sudo()
     states = dict(type(Case).state.selection)
     types = dict(env["fix.data.recovered.inventory"]._fields["file_type"].selection)
-    cases = Case.search([("state", "in", ("recovering", "recovered", "handover"))], limit=100)
+    cases = _caller_cases(
+        Case.env,
+        [
+            ("company_id", "in", env.companies.ids),
+            ("state", "in", ("recovering", "recovered", "handover")),
+        ],
+        "report",
+    )
     rows = []
     for case in cases:
         atts = Attachment.search(

@@ -23,7 +23,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.7.0",
+    "version": "19.0.2.7.3",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -55,6 +55,7 @@ CD-M20-01: the M20 accounts-receivable core.
         # skipped every module in it.
     ],
     "data": [
+        "data/fix_ar_aging_cron.xml",
         "security/fix_isolation_rules.xml",
         "security/ir.model.access.csv",
         "data/ar_impairment_sequences.xml",
@@ -67,9 +68,14 @@ CD-M20-01: the M20 accounts-receivable core.
         "data/fix_party_merge_consumers.xml",
         # A04 report §6 C7: warranty_claim.decided -> draft M20 OEM invoice.
         "data/fix_a04_consumers.xml",
+        # A02 ERP pass 2 X5-05 (D24): warranty_claim.written_off -> AR write-off.
+        "data/fix_a02r2_claim_writeoff_consumer.xml",
         # A04 report C10: the contract billing walker (switch:
         # cd_billing_engine.contract_auto_billing).
         "data/fix_a04_contract_cron.xml",
+        # A04 ERP audit (20 Nov 2026, B2): termination / top-up money legs and
+        # the contract service-credit job.
+        "data/fix_a04_contract_money.xml",
         "views/fix_billing_engine_views.xml",
         "views/fix_ar_engine_views.xml",
         "views/fix_vds_certificate_views.xml",

@@ -25,7 +25,9 @@ export const MODULE = {
     { l: 'Cleanroom Slots', m: 'cleanroom_slots' },
     { l: 'Destruction Certs MTD', m: 'destruction_certs_mtd' },
     { l: 'Eval Turnaround', m: 'eval_turnaround', suffix: 'h' },
-    { l: 'Purge Verifications', m: 'purge_verifications' }
+    { l: 'Purge Verifications', m: 'purge_verifications' },
+    /* A02 pass 2 M06-11 (D17): handed-over cases past their retention */
+    { l: 'Purges Overdue', m: 'purge_overdue' }
   ],
   groups: [
     { en: 'Recovery Cases', screens: [
@@ -121,8 +123,16 @@ export const SCREENS = {
     /* A02 audit M06: every lifecycle step is a server action (state, zone,
      * consent and purge certificate are workflow-owned, never typed). */
     actions: [
-      { m: 'action_take_custody', l: 'Take Custody', ask: 'Custody handler name', kwarg: 'handler' },
-      { m: 'action_log_custody_transfer', l: 'Log Custody Transfer', ask: 'Handed to (name)', kwarg: 'handler' },
+      /* A02 pass 2 M06-03: sealed media first; the receiver confirms each hand-off */
+      { m: 'action_take_custody', l: 'Hand to Lab (Take Custody)', ask: 'Login of the lab colleague who receives it', kwarg: 'handler' },
+      { m: 'action_log_custody_transfer', l: 'Hand Over Custody', ask: 'Login of the colleague who receives it', kwarg: 'handler' },
+      { m: 'action_confirm_custody', l: 'Confirm I Received It' },
+      /* A02 pass 2 review: the requester (or a lab manager) withdraws an unconfirmed hand-off */
+      { m: 'action_withdraw_handoff', l: 'Withdraw Hand-off', ask: 'Why the hand-off is withdrawn', kwarg: 'reason' },
+      /* M06-01: the customer is fixed after intake; a lab manager corrects it */
+      { m: 'action_correct_customer', l: 'Correct Customer (Lab Manager)', asks: [
+        { kwarg: 'partner_id', label: 'Correct customer (contact id)', number: true },
+        { kwarg: 'reason', label: 'Why is the customer corrected?' }] },
       { m: 'action_route_to_z4', l: 'Route to Z4' },
       { m: 'action_record_destructive_consent', l: 'Record Destructive Consent', ask: 'Customer OTP / portal consent reference', kwarg: 'reference' },
       { m: 'action_assign_me', l: 'Assign Me as Technician' },
@@ -138,7 +148,7 @@ export const SCREENS = {
       { m: 'action_approve_credit', l: 'Approve Hand-over on Credit (Finance)', ask: 'Why the customer may pay on account', kwarg: 'note' },
       { m: 'action_waive_charge', l: 'Waive Charge (Lab Manager)', ask: 'Why the charge is waived', kwarg: 'note' },
       { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
-      { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
+      { m: 'action_purge', l: 'Purge (Lab Purge Certificate)', ask: "Purge certificate reference (blank = this case's verified purge certificate)", kwarg: 'certificate' },
       { m: 'action_close', l: 'Close Case' }
     ] },
   'M06-record': { kind: 'model_list', model: 'fix.data.recovery.case', create: true,
@@ -154,12 +164,17 @@ export const SCREENS = {
     cols: ['seal_number', 'case_id', 'media_label', 'location', 'seal_state', 'holder'],
     stateField: 'location',
     actions: [
-      { m: 'action_transfer', l: 'Move Media', ask: 'Location (z4_lab/cleanroom/vault/reception)', kwarg: 'location' },
+      /* A02 pass 2 M06-03: requested here, confirmed by the receiver */
+      { m: 'action_transfer', l: 'Move Media', asks: [
+        { kwarg: 'location', label: 'Location (z4_lab/cleanroom/vault/reception)' },
+        { kwarg: 'handler', label: 'Login of the colleague who receives it' }] },
+      { m: 'action_confirm_move', l: 'Confirm I Received It' },
+      { m: 'action_withdraw_move', l: 'Withdraw Move', ask: 'Why the move is withdrawn', kwarg: 'reason' },
       /* A02 ERP audit M06-F11: the named witness confirms in their own session */
       { m: 'action_break_seal_with_witness', l: 'Request Seal Break (names the witness)', ask: 'Witness login (a second person, not you)', kwarg: 'witness_user_id' },
       { m: 'action_confirm_seal_break', l: 'Confirm as Witness' },
       /* M06-F10: once the case allows, to the customer or one of its contacts */
-      { m: 'action_return', l: 'Return to Customer' },
+      { m: 'action_return', l: 'Return to Customer', ask: 'Login of the colleague who confirms the return', kwarg: 'handler' },
       /* M06-F9: on the verified physical-destruction certificate the customer asked for */
       { m: 'action_destroy', l: 'Destroy (Verified Cert)', ask: 'Physical-destruction certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' }
     ] },
@@ -203,7 +218,7 @@ export const SCREENS = {
       { m: 'action_approve_credit', l: 'Approve Hand-over on Credit (Finance)', ask: 'Why the customer may pay on account', kwarg: 'note' },
       { m: 'action_waive_charge', l: 'Waive Charge (Lab Manager)', ask: 'Why the charge is waived', kwarg: 'note' },
       { m: 'action_handover', l: 'Secure Handover', ask: 'Recipient one-time code or ID number', kwarg: 'verification' },
-      { m: 'action_purge', l: 'Purge (Verified Cert)', ask: 'Wipe certificate reference (blank = the verified one for this media serial)', kwarg: 'certificate' },
+      { m: 'action_purge', l: 'Purge (Lab Purge Certificate)', ask: "Purge certificate reference (blank = this case's verified purge certificate)", kwarg: 'certificate' },
       { m: 'action_access_recovered_data', l: 'Z4 Access (TOTP)', ask: '6-digit authenticator code (SC-002)', kwarg: 'step_up_token' }
     ] },
 
@@ -216,6 +231,8 @@ export const SCREENS = {
     domain: [['sanitization_status', '=', 'pending_verification']],
     stateField: 'sanitization_status',
     actions: [
+      /* A02 pass 2 M06-09 (D16): a destruction is witnessed before it is verified */
+      { m: 'action_witness_destruction', l: 'Witness Destruction (second person)' },
       { m: 'action_verify', l: 'Verify Evidence' },
       { m: 'action_mark_failed', l: 'Mark Failed' }
     ] },
@@ -341,8 +358,31 @@ Object.assign(SCREENS, {
           { name: 'handover_receipt_attachment_id', label: 'Signed Handover Receipt', readonly: true },
           { name: 'handover_at', label: 'Handed Over At', readonly: true },
           { name: 'retention_until', label: 'Retain Recovered Data Until', readonly: true },
-          { name: 'retention_flagged_at', label: 'Retention Overdue Flagged At', readonly: true }
+          { name: 'retention_flagged_at', label: 'Retention Overdue Flagged At', readonly: true },
+          { name: 'purge_escalated_at', label: 'Purge Escalated to Lab Managers At', readonly: true },
+          { name: 'custody_request_kind', label: 'Hand-off Awaiting Confirmation', readonly: true },
+          { name: 'custody_request_to_id', label: 'Hand-off To (confirms)', readonly: true }
         ] }
+    ],
+    /* A02 pass 2 X5-19: what the case recorded, read-only (each has its own
+     * capture page and workflow) */
+    grids: [
+      { field: 'custody_event_ids', tab: 'custody', title: 'Custody Ledger', readonlyGrid: true,
+        fields: [{ name: 'event_at', label: 'When' }, { name: 'action', label: 'Action' },
+          { name: 'actor_id', label: 'Recorded By' }, { name: 'witness_id', label: 'Second Person' },
+          { name: 'description', label: 'What' }] },
+      { field: 'media_unit_ids', tab: 'custody', title: 'Sealed Media', readonlyGrid: true,
+        fields: [{ name: 'seal_number', label: 'Seal' }, { name: 'location', label: 'Location' },
+          { name: 'seal_state', label: 'Seal State' }, { name: 'pending_kind', label: 'Awaiting' }] },
+      { field: 'attempt_ids', tab: 'forensic', title: 'Recovery Attempts', readonlyGrid: true,
+        fields: [{ name: 'method', label: 'Method' }, { name: 'started_at', label: 'Started' },
+          { name: 'finished_at', label: 'Finished' }, { name: 'outcome', label: 'Outcome' }] },
+      { field: 'quote_ids', tab: 'intake', title: 'Quotations', readonlyGrid: true,
+        fields: [{ name: 'name', label: 'Quote' }, { name: 'amount', label: 'Amount' },
+          { name: 'customer_id', label: 'Quoted To' }, { name: 'state', label: 'State' }] },
+      { field: 'inventory_line_ids', tab: 'handover', title: 'Recovered Data by File Type', readonlyGrid: true,
+        fields: [{ name: 'file_type', label: 'File Type' }, { name: 'file_count', label: 'Files' },
+          { name: 'size_gb', label: 'GB' }] }
     ]
   },
 
@@ -439,8 +479,13 @@ Object.assign(SCREENS, {
           { name: 'wipe_request_id', label: 'Answers Wipe Request (serial and device come from it)',
             domain: [['state', 'in', ['requested', 'physical_required']]],
             emptyNote: 'No wipe request is waiting. Raise one with + New Wipe Request on Secure Destruction, or leave this blank for a certificate no request asked for.' },
+          /* A02 pass 2 M06-04 (D15): a case purge certifies the lab's own copy */
+          { name: 'purpose', required: true, label: 'Certifies' },
+          { name: 'case_id', label: 'Purged Case (case purge only)' },
+          { name: 'lab_storage_ref', label: 'Lab Working Copy / Key Destroyed (case purge only)' },
+          { name: 'media_kind', label: 'Media Kind (the sanitisation matrix judges it)' },
           { name: 'device_id', label: 'Registered Hardware Asset' },
-          { name: 'serial_number', required: true, label: 'Media Serial Number' },
+          { name: 'serial_number', label: 'Media Serial Number' },
           { name: 'method', required: true, label: 'NIST 800-88 Method (Purge/Clear/Destroy)' },
           { name: 'tool_name', label: 'Sanitization Tool & Version' },
           /* M06 capture pass 2: verification refuses a certificate without
@@ -448,7 +493,9 @@ Object.assign(SCREENS, {
            * certificate was unverifiable, so no case could be purged and no
            * device released to M14 / M18 */
           { name: 'wipe_log_attachment_id', label: 'Wipe Tool Report / Destruction Photo (evidence)' },
-          { name: 'technician_id', label: 'Certifying Technician', readonly: true }
+          { name: 'destruction_photo_attachment_id', label: 'Destruction Photo (physical destruction)' },
+          { name: 'technician_id', label: 'Certifying Technician', readonly: true },
+          { name: 'certified_by', label: 'Certified By (stamped)', readonly: true }
         ] },
       { tab: 'nist', title: 'Dual-Control Verification & SHA-256 Certificate',
         fields: [
@@ -458,7 +505,9 @@ Object.assign(SCREENS, {
           { name: 'verified_by_id', label: 'Independent Dual-Control Verifier', readonly: true },
           { name: 'verified_at', label: 'Verification Timestamp', readonly: true },
           { name: 'verification_hash', label: 'Audit Verification Hash (SHA-256)', readonly: true },
-          { name: 'evidence_intact', label: 'Evidence Unchanged Since Verification', readonly: true }
+          { name: 'evidence_intact', label: 'Evidence Unchanged Since Verification', readonly: true },
+          { name: 'destruction_witness_id', label: 'Destruction Witness', readonly: true },
+          { name: 'standard_ref', label: 'Sanitisation Standard', readonly: true }
         ] }
     ]
   },
@@ -628,7 +677,7 @@ Object.assign(SCREENS, {
     saveAction: {
       method: 'action_transfer', label: 'Record Move',
       done: 'Move recorded in the case chain of custody',
-      kwargs: { location: 'location' }
+      kwargs: { location: 'location', handler: 'pending_receiver_id' }
     },
     sections: [
       { title: 'Step 2 of 2: New Location (FR-DTS-002)',
@@ -640,7 +689,11 @@ Object.assign(SCREENS, {
           { name: 'holder', label: 'Held By Now', readonly: true },
           /* an INPUT here: saveAction carries it to action_transfer */
           { name: 'location', required: true, label: 'Move To', readonly: true,
-            choices: [['reception', 'Reception'], ['z4_lab', 'Z4 Lab'], ['cleanroom', 'Cleanroom'], ['vault', 'Evidence Vault']] }
+            choices: [['reception', 'Reception'], ['z4_lab', 'Z4 Lab'], ['cleanroom', 'Cleanroom'], ['vault', 'Evidence Vault']] },
+          /* A02 pass 2 M06-03: an INPUT too - the colleague who receives the
+           * unit confirms the move in their own session */
+          { name: 'pending_receiver_id', required: true, label: 'Received By (confirms the move)', readonly: true,
+            domain: [['share', '=', false]] }
         ] }
     ]
   },
@@ -841,7 +894,8 @@ Object.assign(SCREENS, {
     },
     sections: [
       { title: 'Step 2 of 2: Verified Wipe Certificate (FR-DTS-008)',
-        note: 'Recovered data is purged only on a verified wipe certificate for this case’s own media serial, unchanged since it was verified, and used for no other case. Leave the certificate blank to use the single verified certificate for the media serial.',
+        /* A02 pass 2 M06-04 (D15): the lab's purge certificate of THIS case */
+        note: 'Recovered data is purged only on the lab’s verified purge certificate of this case (its working copy and key destroyed), recorded after the hand-over and unchanged since it was verified. A certificate of the customer’s drive never proves a purge. Leave it blank to use the case’s single verified purge certificate.',
         fields: [
           { name: 'name', label: 'Case Reference', readonly: true },
           { name: 'customer_id', label: 'Customer', readonly: true },
@@ -849,8 +903,8 @@ Object.assign(SCREENS, {
           { name: 'handover_at', label: 'Handed Over At', readonly: true },
           { name: 'retention_until', label: 'Retain Until', readonly: true },
           { name: 'purge_certificate_id', label: 'Verified Wipe Certificate', readonly: true,
-            domain: [['sanitization_status', '=', 'verified']],
-            emptyNote: 'No wipe certificate is verified yet. Record the wipe on + New Destruction Request (dual control); a second person verifies it on Secure Destruction.' }
+            domain: [['sanitization_status', '=', 'verified'], ['purpose', '=', 'case_purge']],
+            emptyNote: 'No purge certificate is verified yet. Record the wipe on + New Destruction Request (dual control); a second person verifies it on Secure Destruction.' }
         ] }
     ]
   },

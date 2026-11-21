@@ -898,9 +898,12 @@ class FixRentalReservation(models.Model):
                         "consignment_type": "delivery",
                         "scheduled_date": fields.Datetime.now(),
                         "operating_unit_id": rec._logistics_operating_unit().id,
-                        "service_order_id": rec.service_order_id.id
-                        if rec.service_order_id
-                        else False,
+                        # A02 pass 2 review (P2): the loaner is not the
+                        # repaired device. A leg naming the repair's order
+                        # took that order's payment gate and COD (D1), its
+                        # door serial check (M03-04), and its one-live-leg
+                        # slot, blocking the repaired device's own leg. The
+                        # reservation keeps the order and both legs.
                     }
                 )
                 rec._guarded().write({"delivery_consignment_id": consignment.id})
@@ -954,9 +957,8 @@ class FixRentalReservation(models.Model):
                         "consignment_type": "pickup",
                         "scheduled_date": fields.Datetime.now(),
                         "operating_unit_id": rec._logistics_operating_unit().id,
-                        "service_order_id": rec.service_order_id.id
-                        if rec.service_order_id
-                        else False,
+                        # the loaner's return leg: not the repair's order (see
+                        # action_generate_delivery_consignment)
                     }
                 )
                 rec._guarded().write({"return_consignment_id": consignment.id})

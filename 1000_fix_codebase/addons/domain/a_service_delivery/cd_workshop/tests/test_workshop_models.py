@@ -52,6 +52,8 @@ def ws(odoo_env):
             "max_concurrent_jobs": 2,
         }
     )
+    # A02 pass 2 review: a new bench is not ESD-verified until today's check
+    (bench_l1 | bench_l3).action_log_daily_esd(5.0, 50.0)
     return SimpleNamespace(
         env=env,
         tech=tech,
@@ -296,13 +298,23 @@ def test_burn_in_qc_and_release(ws):
         env["fix.workshop.bench"],
         0,
     )  # bench released
+    # A02 pass 2 M31-02: released to the front desk, then closed by M01
+    job.action_release()
     job.action_deliver()
     assert job.state == "delivered"
     transitions = [
         json.loads(e.payload)["new_state"]
         for e in _events(env, "fix.workshop.job", job.id, "workshop.job.transitioned")
     ]
-    assert transitions == ["intake", "in_repair", "burn_in", "qc_pending", "ready", "delivered"]
+    assert transitions == [
+        "intake",
+        "in_repair",
+        "burn_in",
+        "qc_pending",
+        "ready",
+        "released",
+        "delivered",
+    ]
 
 
 def test_l1_job_goes_to_qc_without_burn_in(ws):
@@ -335,6 +347,19 @@ def test_inspector_must_not_be_the_repairing_technician(ws):
     _to_repair(ws, job)  # the L1 bench assigns ws.tech
     job.action_transition("qc_pending")
     _evidence(ws, job)
+    # A02 pass 2 M31-04: QC is judged on the job's protocol (passed here), so
+    # the inspector check is what refuses
+    proto = env["fix.workshop.test.protocol"].create(
+        {
+            "code": "WS-SOD-%d" % job.id,
+            "name": "SoD functional check",
+            "step_ids": [(0, 0, {"name": "Boots", "has_limits": False})],
+        }
+    )
+    job._guarded().write({"protocol_id": proto.id})
+    env["fix.workshop.test.result"].create(
+        {"job_id": job.id, "step_id": proto.step_ids.id, "observed_pass": True}
+    )
     with _refused(ws.env, ValidationError, "BRU-SRM-18 Violation"):
         job.with_user(user).action_pass_qc()
     assert job.state == "qc_pending"
@@ -507,8 +532,11 @@ def test_job_milestones_follow_onto_the_service_order(ws, so):
             "service_report_attachment_id": report.id,
         }
     )
-    job.action_deliver()
-    assert so.state == "delivered"
+    # A02 pass 2 M31-02: the bench releases, M01 delivers, the job follows
+    job.action_release()
+    so.action_deliver()
+    env["fix.workshop.job"].consume_service_order_delivered({"payload": {"order_id": so.id}})
+    assert (so.state, job.state) == ("delivered", "delivered")
     payload = json.loads(
         _events(env, "fix.workshop.job", job.id, "workshop.job.transitioned")[-1].payload
     )

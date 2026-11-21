@@ -25,3 +25,4 @@ access_fix_price_adjustment_officer,fix.price.adjustment officer,model_fix_price
 access_fix_price_mass_change,fix.price.mass.change,model_fix_price_mass_change,base.group_user,1,0,0,0
 access_fix_price_mass_change_officer,fix.price.mass.change officer,model_fix_price_mass_change,group_pricing_officer,1,1,1,0
 access_fix_price_mass_change_line,fix.price.mass.change.line,model_fix_price_mass_change_line,base.group_user,1,0,0,0
+access_fix_price_override,fix.price.override,model_fix_price_override,base.group_user,1,1,1,0

@@ -51,6 +51,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .fix_subscription import BILLABLE_STATES
 from .fix_subscription_ops import (
     BILLING,
     FINANCE_MANAGER,
@@ -388,11 +389,23 @@ class FixSubscriptionWithLines(models.Model):
     def action_generate_charge(self):
         """A subscription on an active billing schedule bills its next planned
         period (its own dates and partial-period amount); the others keep the
-        fixed cycle roll."""
+        fixed cycle roll.
+
+        A04 ERP M39-F9 (BRU-SUB-17): a cycle is billed only by a billing run
+        whose dry run a Finance Manager reviewed (the run's commit carries the
+        guard token), or by system code; the only Accountant billed a cycle
+        straight from the button. M39-F8: a scheduled period is priced at
+        billing time (the price in force today x the period's fraction), not
+        the amount frozen when the schedule was generated."""
+        if not self.env.su and not self._fix_guard_has_token():
+            raise UserError(
+                "A subscription cycle is billed by a billing run: dry run it, have a Finance "
+                "Manager who did not run it review it, then commit it (BRU-SUB-17)."
+            )
         plain = self.browse()
         Charge = self.env["fix.subscription.charge"]
         for sub in self:
-            schedule = sub._active_schedule() if sub.state == "active" else False
+            schedule = sub._active_schedule() if sub.state in BILLABLE_STATES else False
             period = (
                 schedule
                 and schedule.period_ids.filtered(lambda p: p.state == "planned").sorted(
@@ -402,18 +415,20 @@ class FixSubscriptionWithLines(models.Model):
             if not period:
                 plain |= sub
                 continue
-            if sub.recurring_amount <= 0 and not period.amount_planned:
+            amount = period._fix_price_now()
+            if amount <= 0:
                 raise UserError("Subscription %s has no recurring amount to charge" % sub.name)
-            charge = Charge.create(
+            charge = Charge._guarded().create(
                 {
                     "company_id": sub.company_id.id,
                     "operating_unit_id": sub.operating_unit_id.id,
                     "subscription_id": sub.id,
                     "period_start": period.period_start,
                     "period_end": period.period_end,
-                    "amount": period.amount_planned,
+                    "amount": amount,
                 }
             )
+            charge = Charge.browse(charge.ids)
             charge._create_invoice()
             period.sudo().write({"state": "billed", "charge_id": charge.id})
             nxt = schedule.period_ids.filtered(lambda p: p.state == "planned").sorted(
@@ -593,7 +608,11 @@ class FixSubscriptionSchedule(models.Model):
             months = CYCLE_MONTHS[sub.billing_cycle or "monthly"]
             rows = []
             start = rec.anchor_date
+            term_end = sub.contract_end_date
             for i in range(rec.horizon):
+                # A04 ERP M39-F5: nothing is scheduled past the contract end
+                if term_end and start > term_end:
+                    break
                 if rec.alignment == "calendar":
                     cycle_start, end = rec._calendar_cycle(start)
                     full_days = (end - cycle_start).days + 1
@@ -602,10 +621,16 @@ class FixSubscriptionSchedule(models.Model):
                         rec.anchor_date + relativedelta(months=months * (i + 1)) - timedelta(days=1)
                     )
                     full_days = (end - start).days + 1
+                last = bool(term_end and end > term_end)
+                if last:
+                    end = term_end
                 days = (end - start).days + 1
                 fraction = 1.0
                 partial = rec.alignment == "calendar" and i == 0 and days < full_days
                 if partial and rec.first_period == "prorate":
+                    fraction = days / full_days
+                if last and days < full_days:
+                    partial = True
                     fraction = days / full_days
                 rows.append(
                     {
@@ -618,11 +643,11 @@ class FixSubscriptionSchedule(models.Model):
                         else end + timedelta(days=1),
                         "days": days,
                         "partial": partial,
+                        "fraction": fraction,
                         "amount_planned": round((sub.recurring_amount or 0.0) * fraction, 2),
                         "explanation": (
-                            "Partial first period: %d of %d days x %.2f"
-                            % (days, full_days, sub.recurring_amount)
-                            if partial and rec.first_period == "prorate"
+                            "Partial period: %d of %d days x the price in force" % (days, full_days)
+                            if fraction < 1.0
                             else "Full %s period" % (sub.billing_cycle or "monthly")
                         ),
                     }
@@ -700,7 +725,18 @@ class FixSubscriptionSchedulePeriod(models.Model):
     billing_date = fields.Date(readonly=True)
     days = fields.Integer(readonly=True)
     partial = fields.Boolean(readonly=True)
-    amount_planned = fields.Monetary(currency_field="currency_id", readonly=True)
+    amount_planned = fields.Monetary(
+        currency_field="currency_id",
+        readonly=True,
+        help="The price in force when the schedule was generated (a projection): the period "
+        "is billed at the price in force on its billing day (M39-F8).",
+    )
+    fraction = fields.Float(
+        string="Share of a Full Cycle",
+        readonly=True,
+        default=1.0,
+        help="A partial (first / last) period bills this share of the recurring amount.",
+    )
     explanation = fields.Char(readonly=True)
     state = fields.Selection(
         [("planned", "Planned"), ("billed", "Billed"), ("skipped", "Skipped")],
@@ -713,6 +749,12 @@ class FixSubscriptionSchedulePeriod(models.Model):
         if not self.env.su:
             raise UserError("Schedule periods are generated; regenerate the schedule instead.")
         return super().write(vals)
+
+    def _fix_price_now(self):
+        """M39-F8: the period at the price in force when it is billed."""
+        self.ensure_one()
+        sub = self.subscription_id.sudo()
+        return round((sub.recurring_amount or 0.0) * (self.fraction or 1.0), 2)
 
 
 # =============================================================================
@@ -1234,6 +1276,8 @@ class FixSubscriptionChargeComposed(models.Model):
                     ("state", "=", "approved"),
                     ("billed_charge_id", "=", False),
                     ("effective_date", "<=", self.period_end),
+                    # A04 ERP M39-F7: applied on its effective date first
+                    ("applied_to_subscription", "=", True),
                 ],
                 order="effective_date, id",
             )
@@ -1433,7 +1477,7 @@ class FixSubscriptionBillingRun(models.Model):
     def _scope(self):
         self.ensure_one()
         domain = [
-            ("state", "=", "active"),
+            ("state", "in", list(BILLABLE_STATES)),
             ("next_invoice_date", "<=", self.as_of),
             ("company_id", "=", self.company_id.id),
         ]
@@ -1457,6 +1501,14 @@ class FixSubscriptionBillingRun(models.Model):
             return "no_customer", "No customer to bill."
         if sub.charge_ids.filtered(lambda c: c.period_start == sub.next_invoice_date):
             return "already_billed", "The cycle from %s is already billed." % sub.next_invoice_date
+        if (
+            sub.contract_end_date
+            and sub.next_invoice_date > sub.contract_end_date
+            and not sub._active_schedule()
+        ):
+            return "term_ended", "The contract ended on %s (renew it to bill on)." % (
+                sub.contract_end_date
+            )
         exceptions = (
             sub.env["fix.subscription.usage"]
             .sudo()
@@ -1465,6 +1517,48 @@ class FixSubscriptionBillingRun(models.Model):
         if exceptions:
             return "unrated_usage", "%d usage reading(s) are not rated." % exceptions
         return False, False
+
+    @api.model
+    def _fix_preview_amount(self, sub, period):
+        """A04 ERP M39-F12: what the commit will bill for `sub`, computed the
+        way the charge composes it (base or scheduled period at today's price,
+        usage overage, recurring and one-time lines, approved prorations and
+        adjustments), without writing anything. The dry run counted the base
+        and recurring lines only: 3,000 previewed, 8,700 committed."""
+        if period:
+            start, end = period.period_start, period.period_end
+            base = period._fix_price_now()
+        else:
+            start = sub.next_invoice_date
+            end, base = sub._fix_cycle_window(start)
+            if not end:
+                return 0.0
+        overage = sum(
+            sub.env["fix.subscription.usage"]
+            .sudo()
+            .search(
+                [
+                    ("subscription_id", "=", sub.id),
+                    ("state", "=", "open"),
+                    ("period_start", "<=", end),
+                ]
+            )
+            .mapped("overage_charge")
+        )
+        draft = sub.env["fix.subscription.charge"].new(
+            {
+                "subscription_id": sub.id,
+                "period_start": start,
+                "period_end": end,
+                "amount": base + overage,
+            }
+        )
+        debits, credits, _one_time = draft._fix_components()
+        total = round(base + overage + sum(d[1] for d in debits), 2)
+        for item in credits:
+            if round(total + item[1], 2) > 0:
+                total = round(total + item[1], 2)
+        return total
 
     def action_dry_run(self):
         """T-10: the units the commit will bill, with the same scope rules; the
@@ -1485,22 +1579,12 @@ class FixSubscriptionBillingRun(models.Model):
                         "period_start"
                     )[:1]
                 )
-                base = period.amount_planned if period else (sub.recurring_amount or 0.0)
-                lines = sub.line_ids._bills_in(sub.next_invoice_date, sub.next_invoice_date)
                 rows.append(
                     {
                         "run_id": run.id,
                         "subscription_id": sub.id,
                         "period_start": period.period_start if period else sub.next_invoice_date,
-                        "amount": round(
-                            base
-                            + sum(
-                                lines.filtered(lambda r: r.charge_type == "recurring").mapped(
-                                    "amount"
-                                )
-                            ),
-                            2,
-                        ),
+                        "amount": self._fix_preview_amount(sub, period),
                         "state": "exception" if cause else "ready",
                         "cause": cause or False,
                         "detail": detail or False,
@@ -1560,7 +1644,7 @@ class FixSubscriptionBillingRun(models.Model):
                     unit.sudo().write({"state": "skipped"})
                     continue
                 sub = unit.subscription_id
-                if sub.state != "active" or (
+                if sub.state not in BILLABLE_STATES or (
                     sub.next_invoice_date != unit.period_start and not sub._active_schedule()
                 ):
                     unit.sudo().write(
@@ -1570,7 +1654,8 @@ class FixSubscriptionBillingRun(models.Model):
                 try:
                     with self.env.cr.savepoint():
                         before = sub.charge_ids
-                        sub.action_generate_charge()
+                        # the reviewed run is the authority to bill (BRU-SUB-17)
+                        sub._guarded().action_generate_charge()
                         charge = (sub.charge_ids - before)[:1]
                         unit.sudo().write(
                             {"state": "committed", "charge_id": charge.id, "amount": charge.amount}
@@ -1625,6 +1710,7 @@ class FixSubscriptionBillingRunUnit(models.Model):
             ("no_customer", "No customer"),
             ("already_billed", "Already billed"),
             ("unrated_usage", "Unrated usage"),
+            ("term_ended", "Contract term ended"),
         ],
         readonly=True,
     )
@@ -1649,6 +1735,7 @@ class FixSubscriptionBillingRunUnit(models.Model):
                     "already_billed",
                     "no_amount",
                     "no_customer",
+                    "term_ended",
                 ):
                     raise UserError("%s cannot be billed anyway." % unit.detail)
         return super().write(vals)
@@ -1900,7 +1987,9 @@ class FixSubscriptionLifecycle(models.Model):
                 if sub.next_invoice_date and sub.next_invoice_date < rec.effective_date:
                     sub.write({"next_invoice_date": rec.effective_date})
             elif rec.action_type == "cancel":
-                sub.action_cancel()
+                # A04 ERP M39-F2: the cancellation settles (refund, final bill,
+                # recognition stopped) on the date it takes effect
+                sub.action_cancel(cancellation_date=rec.effective_date)
             elif rec.action_type == "renew":
                 sub.write({"contract_end_date": rec.renewal_end_date})
                 if rec.escalation_pct:

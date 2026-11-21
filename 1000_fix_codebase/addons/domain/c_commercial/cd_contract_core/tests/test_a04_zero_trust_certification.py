@@ -86,6 +86,28 @@ def contract(env, customer):
     return _make
 
 
+def _work_done(env, order, part_cost, hours, rate):
+    """A04 ERP audit M08-F13: the cost to serve is what the work consumed AT
+    COST - a part drawn on the order's work order at its unit cost, and the
+    hours worked at the labour cost rate Finance sets - never the estimate's
+    selling prices."""
+    from datetime import datetime, timedelta
+
+    env["ir.config_parameter"].sudo().set_param("cd_contract_core.labour_cost_per_hour", str(rate))
+    part = env["product.product"].create({"name": "ZT part %s" % TAG, "type": "consu"})
+    start = datetime(2026, 3, 1, 9, 0)
+    return env["fix.work.order"].create(
+        {
+            "order_id": order.id,
+            "start_time": start,
+            "end_time": start + timedelta(hours=hours),
+            "parts_consumed_ids": [
+                (0, 0, {"product_id": part.id, "quantity": 1, "unit_cost": part_cost})
+            ],
+        }
+    )
+
+
 # ==========================================================================
 # M08 · Contract Lifecycle
 # ==========================================================================
@@ -109,42 +131,18 @@ class TestM08Contract:
         )
 
     def test_flaw_08_1_delivered_work_reduces_the_margin(self, env, customer, contract):
-        """Cost to serve must actually move the P&L."""
+        """Cost to serve must actually move the P&L (A04 ERP audit M08-F13:
+        at cost, against the whole term's value)."""
         c = contract(annual_value=100000.0)
         order = _service_order(env, customer, contract=c)
-        env["fix.estimate"].create(
-            {
-                "order_id": order.id,
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "line_type": "part",
-                            "description": "Mainboard",
-                            "quantity": 1,
-                            "unit_price": 20000.0,
-                        },
-                    ),
-                    (
-                        0,
-                        0,
-                        {
-                            "line_type": "labour",
-                            "description": "Bench labour",
-                            "quantity": 1,
-                            "unit_price": 5000.0,
-                        },
-                    ),
-                ],
-            }
-        )
+        _work_done(env, order, part_cost=20000.0, hours=2.0, rate=2500.0)
         order.invalidate_recordset()
         c.invalidate_recordset()
         assert order.delivery_cost_bdt == 25000.0
         assert c.total_delivery_cost == 25000.0, (
             "delivered parts+labour did not reach the contract: %s" % c.total_delivery_cost
         )
+        assert c.term_value == 100000.0
         assert c.contract_margin_bdt == 75000.0
         assert c.contract_margin_pct == 75.0
 
@@ -1025,7 +1023,7 @@ class TestM11DecimalPricing:
     def test_flaw_11_1_matches_independent_decimal_arithmetic(self, rule):
         """The engine's answer equals the Decimal computation done
         here independently — not merely "a plausible number"."""
-        from decimal import ROUND_HALF_EVEN
+        from decimal import ROUND_HALF_UP
 
         r = rule(adjustment_pct=7.5, surge_multiplier=1.25)
         for base in (1000.10, 333.33, 19.95, 87654.32):
@@ -1033,7 +1031,7 @@ class TestM11DecimalPricing:
                 Decimal(str(base))
                 * (Decimal("1.0") + Decimal("7.5") / Decimal("100.0"))
                 * Decimal("1.25")
-            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN)
+            ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
             assert Decimal(str(r.apply_to(base))) == expected, (
                 "base %r: engine %r != Decimal %r" % (base, r.apply_to(base), expected)
             )
@@ -1049,12 +1047,15 @@ class TestM11DecimalPricing:
         assert naive != 1100.11, "float drift precondition no longer holds"
         assert r.apply_to(1000.10) == 1100.11
 
-    def test_flaw_11_1_banker_rounding_is_used(self, rule):
-        """ROUND_HALF_EVEN is the documented choice; a half-paisa tie
-        goes to the even digit, not always up."""
+    def test_flaw_11_1_half_up_rounding_is_used(self, rule):
+        """A04 ERP audit (20 Nov 2026) M11-F16: one M11 rounding, half-up to
+        the paisa (cd_rate_card pricing_money.money), the rule the M20
+        invoice and every other money path in the estate use. The dynamic
+        rule alone rounded half-even, so 2.345 priced 2.34 here and invoiced
+        2.35 there."""
         r = rule(adjustment_pct=0.0)
-        assert r.apply_to(2.345) == 2.34  # ties to even (4)
-        assert r.apply_to(2.355) == 2.36  # ties to even (6)
+        assert r.apply_to(2.345) == 2.35
+        assert r.apply_to(2.355) == 2.36
 
     def test_flaw_11_1_negative_base_is_refused(self, rule):
         r = rule()
@@ -1320,43 +1321,16 @@ class TestA04BusinessRules:
     """
 
     def test_contract_margin_equals_value_less_measured_cost(self, env, customer, contract):
-        """margin = annual value - (parts + labour delivered)."""
+        """margin = term value - (parts at cost + hours x labour cost rate)."""
         c = contract(annual_value=250000.0)
-        parts, labour = 40000.0, 15000.0
+        parts, hours, rate = 40000.0, 6.0, 2500.0
         order = _service_order(env, customer, contract=c)
-        env["fix.estimate"].create(
-            {
-                "order_id": order.id,
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "line_type": "part",
-                            "description": "Board",
-                            "quantity": 1,
-                            "unit_price": parts,
-                        },
-                    ),
-                    (
-                        0,
-                        0,
-                        {
-                            "line_type": "labour",
-                            "description": "Bench",
-                            "quantity": 1,
-                            "unit_price": labour,
-                        },
-                    ),
-                ],
-            }
-        )
+        _work_done(env, order, part_cost=parts, hours=hours, rate=rate)
+        order.invalidate_recordset()
         c.invalidate_recordset()
-        expected_cost = parts + labour
-        expected_margin = 250000.0 - expected_cost
-        assert c.total_delivery_cost == expected_cost
-        assert c.contract_margin_bdt == expected_margin
-        assert c.contract_margin_pct == round(expected_margin / 250000.0 * 100.0, 2)
+        cost = parts + hours * rate
+        assert c.total_delivery_cost == cost
+        assert c.contract_margin_bdt == c.term_value - cost == 250000.0 - cost
 
     def test_escrow_release_is_exactly_seven_days_from_accrual(self, env, customer):
         """REQ: a marketplace payout is held for a 7-day buyer

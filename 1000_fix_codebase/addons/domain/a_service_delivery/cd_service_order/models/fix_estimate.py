@@ -39,6 +39,10 @@ _ORDER_FINISHED_STATES = ("delivered", "closed", "cancelled")
 # used only where no Tax Rate Master (M51, cd_tax_engine_bd) can answer.
 _COMMERCIAL_APPROVER_GROUP = "cd_service_order.group_so_commercial_approver"
 _FALLBACK_VAT_RATE = 15.0
+# A02 pass 2 (M01-08, owner decision D12): an estimate is valid this many
+# days from sending (BRU-SRM-13); the date is set at send and then locked.
+VALIDITY_DAYS_PARAM = "cd_service_order.estimate_validity_days"
+VALIDITY_DAYS_DEFAULT = 15
 # In-process token (an object, which an RPC caller cannot put in the context):
 # lets a revision carry the rate its estimate already has.
 _VAT_CARRY_KEY = "fix_estimate_vat_carry"
@@ -100,9 +104,11 @@ class FixEstimate(models.Model):
         if self and any(e.state in _DECIDED_STATES for e in self):
             # An approved (or rejected/expired) estimate is frozen: revise it.
             locked |= _PRICED_FIELDS | {"signed_estimate_attachment_id", "expiry_date"}
-        if not (self.env.su or self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP)):
-            # shown, not typed: the server refuses any other rate anyway
-            locked.add("vat_rate")
+        if self and any(e.state != "draft" for e in self):
+            # M01-08: the validity is set when the estimate is sent
+            locked.add("expiry_date")
+        # X5-03 (D23): the VAT is M51's, per line; the header rate is shown only
+        locked.add("vat_rate")
         return locked
 
     # Discount authority, in percent of the chargeable total. The discount
@@ -116,9 +122,28 @@ class FixEstimate(models.Model):
     # and the agent's own authority there. The bands are now READ from M11
     # (fix.discount.policy.discount_ladder(), cd_rate_card): the company's
     # released bands, the spec's BRU-PRC-06 default while none is released.
+    #
+    # A04 ERP audit (20 Nov 2026) M11-F6, FR-PRC-031: the ladder read only
+    # the header discount, so typing a lower line price (or a promotion)
+    # escaped it. The amount is now the CUMULATIVE discount off the released
+    # M11 prices: each line at the higher of its released price (card_price,
+    # set by cd_rate_card) and its own price, against what the estimate
+    # charges after the header discount. With no released price on a line
+    # its own price is its list, so the header discount alone counts.
     def _dofa_amount(self) -> float:
         self.ensure_one()
-        return self.discount_pct or 0.0
+        header = self.discount_pct or 0.0
+        list_total = net_lines = 0.0
+        for line in self.line_ids:
+            qty = line.quantity or 0.0
+            unit = line.unit_price or 0.0
+            ref = line["card_price"] if "card_price" in line._fields else 0.0
+            list_total += qty * max(ref or 0.0, unit)
+            net_lines += qty * unit
+        if list_total <= 0.0:
+            return header
+        net = net_lines - (self.discount or 0.0)
+        return round(max(header, (list_total - net) / list_total * 100.0), 2)
 
     def _dofa_thresholds(self):
         company = self.company_id[:1] or self.env.company
@@ -133,7 +158,10 @@ class FixEstimate(models.Model):
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "a %.1f%% discount (BDT %.2f)" % (self.discount_pct or 0.0, self.discount or 0.0)
+        return "a %.1f%% cumulative discount off the released prices (header BDT %.2f)" % (
+            self._dofa_amount(),
+            self.discount or 0.0,
+        )
 
     _order = "order_id, version desc"
 
@@ -437,20 +465,28 @@ class FixEstimate(models.Model):
         return _FALLBACK_VAT_RATE, set()
 
     def _fix_assert_vat_rate(self, rate, company=None) -> None:
-        standard, scheduled = self._fix_vat_rates_in_force(company)
+        """X5-03 (owner decision D23): the M51 Tax Rate Master decides the
+        VAT, line by line (cd_billing_engine computes the estimate's VAT the
+        way the invoice will). A typed header rate - a commercial approver's
+        zero or reduced rate - made the estimate and the Mushak 6.3 differ,
+        so the customer settled one amount and was invoiced another. The
+        header shows the standard rate in force and takes no other value."""
+        standard, _scheduled = self._fix_vat_rates_in_force(company)
         rate = float(rate or 0.0)
         if abs(rate - standard) < 1e-6:
             return
-        allowed = sorted(scheduled | {0.0})
-        if self.env.user.has_group(_COMMERCIAL_APPROVER_GROUP) and any(
-            abs(rate - other) < 1e-6 for other in allowed
-        ):
-            return
         raise UserError(
-            "VAT rate %g%% cannot be set on an estimate: the standard VAT rate in force "
-            "is %g%%. Only a Service Commercial Approver applies a zero or scheduled "
-            "reduced rate (%s)." % (rate, standard, " / ".join("%g%%" % r for r in allowed))
+            "VAT rate %g%% cannot be set on an estimate: VAT is determined per line by the "
+            "M51 Tax Rate Master (standard rate in force: %g%%). A zero-rated or reduced "
+            "item is set up on its tariff in M51, and the estimate follows it." % (rate, standard)
         )
+
+    def _fix_line_vat_rates(self) -> dict:
+        """{line id: VAT rate %} the estimate charges on each line. The
+        header rate here; cd_billing_engine answers from M51 (X5-03), so the
+        billed-part exemption values a line as its invoice will."""
+        self.ensure_one()
+        return dict.fromkeys(self.line_ids.ids, self.vat_rate or 0.0)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -489,6 +525,18 @@ class FixEstimate(models.Model):
                 )
             if "signed_estimate_attachment_id" in vals and frozen:
                 raise UserError("The signed estimate of a decided estimate cannot be replaced.")
+            if "expiry_date" in vals:
+                # M01-08: the validity the customer was given is not stretched
+                # (an expired quote revived) or cut after sending
+                sent = self.filtered(
+                    lambda e: e.state != "draft"
+                    and e._fix_guard_differs("expiry_date", vals["expiry_date"], e.expiry_date)
+                )
+                if sent:
+                    raise UserError(
+                        "Estimate %s is with the customer: its validity is fixed. Revise it to "
+                        "quote a new validity." % ", ".join(sent.mapped("display_name"))
+                    )
         result = super().write(vals)
         if vals.get("customer_approval_ref") and "customer_approved_total" not in vals:
             # The portal records the customer's own approval (sudo): pin the
@@ -599,9 +647,25 @@ class FixEstimate(models.Model):
                     "Only a draft estimate is sent; this one is %s. Revise it to send a "
                     "new version." % est.state
                 )
-            est._guarded().write({"state": "sent"})
+            vals = {"state": "sent"}
+            if not est.expiry_date:
+                # M01-08 (D12): valid N days from sending, on the Dhaka day
+                vals["expiry_date"] = _dhaka_today() + timedelta(days=est._fix_validity_days())
+            est._guarded().write(vals)
             publish(self.env, "estimate.sent", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("estimate_sent")
+
+    @api.model
+    def _fix_validity_days(self) -> int:
+        raw = (
+            self.env["ir.config_parameter"]
+            .sudo()
+            .get_param(VALIDITY_DAYS_PARAM, VALIDITY_DAYS_DEFAULT)
+        )
+        try:
+            return max(int(raw), 1)
+        except (TypeError, ValueError):
+            return VALIDITY_DAYS_DEFAULT
 
     def action_approve(self):
         """BRU-SRM-07 (H): above the customer threshold the CUSTOMER approval
@@ -684,6 +748,9 @@ class FixEstimate(models.Model):
             est._fix_supersede_other_versions()
             publish(self.env, "estimate.approved", "fix.estimate", est.id, est._fix_event_payload())
             est._fix_drive_order("approved")
+            if est.order_id and hasattr(est.order_id, "_fix_reserve_estimate_parts"):
+                # X5-16: the approved parts are held in M15 for the job
+                est.order_id._fix_reserve_estimate_parts(est)
 
     def _fix_other_versions(self):
         self.ensure_one()
@@ -945,7 +1012,7 @@ class FixEstimate(models.Model):
     @api.model
     def _cron_expire_estimates(self):
         """BRU-SRM-13: a sent estimate past its validity date expires."""
-        today = fields.Date.context_today(self)
+        today = _dhaka_today()
         stale = self.sudo().search([("state", "=", "sent"), ("expiry_date", "<", today)])
         for est in stale:
             est._guarded().write({"state": "expired"})
@@ -993,7 +1060,51 @@ class FixEstimateLine(models.Model):
     description = fields.Char(required=True)
     quantity = fields.Float(default=1.0, digits="Product Unit of Measure")
     # AS-10: Monetary
-    unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id")
+    # A04 ERP audit (20 Nov 2026) M11-F1/F2: a line named an item and took a
+    # typed price. A line whose price is not given now takes the RELEASED M11
+    # price (fix.rate.card.price_for, channel 'service') for the order's
+    # customer and contract; with no released price it stays as typed (the
+    # M15 cost floor still applies, _fix_check_price_floor). Never the
+    # list_price placeholder. line_total stays quantity x unit_price.
+    unit_price = fields.Monetary(
+        string="Unit Price",
+        currency_field="currency_id",
+        compute="_compute_unit_price_default",
+        store=True,
+        readonly=False,
+        precompute=True,
+    )
+
+    @api.depends("product_id")
+    def _compute_unit_price_default(self):
+        Card = self.env.get("fix.rate.card")
+        for line in self:
+            price = None
+            if line.product_id and Card is not None and hasattr(Card, "price_for"):
+                price = Card.price_for(**line._fix_price_context())["price"]
+            if price is not None:
+                line.unit_price = price
+            elif not line.unit_price:
+                line.unit_price = 0.0
+
+    def _fix_price_context(self) -> dict:
+        """The price_for arguments of this line: the customer, contract,
+        company and date of its estimate and order."""
+        self.ensure_one()
+        est = self.estimate_id
+        order = est.order_id if est else None
+        contract = order["contract_id"] if order and "contract_id" in order._fields else None
+        return {
+            "product": self.product_id,
+            "partner": est._fix_doc_partner() if est else None,
+            "channel": "service",
+            "qty": self.quantity or 1.0,
+            "company": (est.company_id if est and "company_id" in est._fields else None)
+            or self.env.company,
+            "contract": contract or None,
+            "currency": self.currency_id or None,
+        }
+
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -1026,16 +1137,43 @@ class FixEstimateLine(models.Model):
             )
 
     def _fix_check_price_floor(self) -> None:
-        if self.env.su or not _param_on(self.env, PRICE_FLOOR_PARAM):
+        """A04 ERP audit (20 Nov 2026) M11-F1/F6: the M11 price gate, always
+        on (the old list-price floor read the 1.00 placeholder and could be
+        switched off). fix.rate.card.check_sale_price refuses a price below
+        the floor - the M11 price floor or the M15 cost margin floor - unless
+        a below-floor override approved for THIS line covers it. A price
+        typed below the released price is a discount: it is allowed, needs a
+        stated reason (price_override_reason, cd_rate_card) and counts in the
+        cumulative discount the DOFA ladder reads (FixEstimate._dofa_amount).
+        With no released price (no rate cards yet) a typed price stands,
+        checked against the M15 cost floor whenever the cost is known."""
+        if self.env.su:
             return
-        for line in self:
-            floor = line.product_id.lst_price if line.product_id else 0.0
-            if floor and (line.unit_price or 0.0) + 0.005 < floor:
-                raise UserError(
-                    "%s is listed at BDT %.2f; it cannot be quoted at BDT %.2f. Quote the "
-                    "list price and give a discount, which the DOFA tiers approve."
-                    % (line.product_id.display_name, floor, line.unit_price or 0.0)
-                )
+        Card = self.env.get("fix.rate.card")
+        if Card is None or not hasattr(Card, "check_sale_price"):
+            return
+        for line in self.filtered("product_id"):
+            ctx = line._fix_price_context()
+            if "card_price" in line._fields:
+                card = line.card_price or 0.0
+                if (
+                    card
+                    and abs((line.unit_price or 0.0) - card) > 0.005
+                    and not (line.price_override_reason or "").strip()
+                ):
+                    raise UserError(
+                        "%s has a released price of BDT %.2f; state why this line is priced at "
+                        "BDT %.2f (Price Change Reason)."
+                        % (line.product_id.display_name, card, line.unit_price or 0.0)
+                    )
+            Card.check_sale_price(
+                line.product_id,
+                line.unit_price or 0.0,
+                "estimate",
+                partner=ctx["partner"],
+                company=ctx["company"],
+                line=line,
+            )
 
     def _fix_check_not_negative(self) -> None:
         """The floor every line has, product or not: zero. A negative price or
@@ -1109,6 +1247,13 @@ _ESTIMATE_BUCKET.update(
         "diagnostic": "diagnostic",
     }
 )
+
+
+def _dhaka_today():
+    """The Asia/Dhaka business day (the validity is a customer-facing date)."""
+    import pytz
+
+    return pytz.utc.localize(fields.Datetime.now()).astimezone(pytz.timezone("Asia/Dhaka")).date()
 
 
 def _param_on(env, key, default="1"):

@@ -48,8 +48,11 @@ def cr(c):
     )
     env["ir.config_parameter"].sudo().set_param(CHARGES_PARAM, c.charges.code)
     Courier = env["fix.courier.partner"]
-    c.pathao = Courier.create({"name": "G10 Pathao %s" % n, "code": "G10P%s%s" % (c.n, n)})
-    c.redx = Courier.create({"name": "G10 RedX %s" % n, "code": "G10R%s%s" % (c.n, n)})
+    # A02 ERP audit pass 2 M03-06 (D22): deducted delivery charges are checked
+    # against the courier's rate card, so each courier has one
+    rates = {"base_rate": 200.0, "per_kg_rate": 0.0}
+    c.pathao = Courier.create({"name": "G10 Pathao %s" % n, "code": "G10P%s%s" % (c.n, n), **rates})
+    c.redx = Courier.create({"name": "G10 RedX %s" % n, "code": "G10R%s%s" % (c.n, n), **rates})
     return c
 
 

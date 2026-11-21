@@ -29,10 +29,14 @@ import re
 import secrets
 from datetime import timedelta
 
+import pytz
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from libs.py.fix_events import publish
+
 from .fix_partner import (
+    EARNING_STATES,
     GROUP_MANAGER,
     GROUP_OFFICER,
     GROUP_TIER3,
@@ -44,6 +48,68 @@ from .fix_partner_ops import GROUP_FINANCE
 # Business defaults the owner must confirm (report §6).
 LEAD_ATTRIBUTION_DAYS = 90  # FR-PCM-024: the attribution window
 ROYALTY_MAX_RATE = 0.30  # the highest royalty / levy rate accepted
+PARAM_ATTRIBUTION_DAYS = "cd_partner.lead_attribution_days"
+# A04 ERP audit M40-F1/F2: the income accounts the franchise invoices credit.
+# An OWNER choice: unset, the invoice is refused (fail closed). fix_real has
+# no royalty or franchise-fee income account; 400109 "Other Income" is the
+# recommended code until one is opened.
+PARAM_ACCOUNT = "cd_partner.account_code.%s"
+PARTNER_ACCOUNT_ROLES = {
+    "royalty_income": "franchise royalty and marketing levy income",
+    "franchise_fee_income": "franchise initial fee income",
+}
+
+
+def attribution_days(env):
+    """FR-PCM-024: the attribution window in days - the parameter when the
+    owner set one, else the programme default (90)."""
+    raw = env["ir.config_parameter"].sudo().get_param(PARAM_ATTRIBUTION_DAYS)
+    try:
+        days = int(raw) if raw not in (None, False, "") else LEAD_ATTRIBUTION_DAYS
+    except (TypeError, ValueError):
+        days = LEAD_ATTRIBUTION_DAYS
+    return days if days > 0 else LEAD_ATTRIBUTION_DAYS
+
+
+def partner_account(env, company, role):
+    """The configured income account of a franchise invoice, or a refusal
+    naming the parameter. Never guessed."""
+    param = PARAM_ACCOUNT % role
+    code = env["ir.config_parameter"].sudo().get_param(param)
+    if not code:
+        raise UserError(
+            "No GL account is configured for %s: set system parameter %s to the account code "
+            "(recommended: 400109 Other Income). Nothing is invoiced until it is set."
+            % (PARTNER_ACCOUNT_ROLES[role], param)
+        )
+    account = (
+        env["account.account"]
+        .sudo()
+        .with_company(company)
+        .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+    )
+    if not account:
+        raise UserError(
+            "System parameter %s names account %s, which %s does not have."
+            % (param, code, company.name)
+        )
+    return account
+
+
+def dhaka_day(moment):
+    """The Asia/Dhaka business day of a UTC datetime."""
+    moment = fields.Datetime.to_datetime(moment) or fields.Datetime.now()
+    return moment.replace(tzinfo=pytz.UTC).astimezone(pytz.timezone("Asia/Dhaka")).date()
+
+
+def credit_ex_vat(note):
+    """The VAT-exclusive part of an M20 credit note: its amount carries the
+    invoice's VAT in the invoice's proportion."""
+    inv = note.invoice_id
+    total = inv.total_payable or 0.0
+    if total <= 0.005:
+        return 0.0
+    return (note.amount or 0.0) * (inv.taxable_amount or 0.0) / total
 
 
 def _clean(text):
@@ -1110,7 +1176,7 @@ class FixReferralLink(models.Model):
         fix_require(self.env, [GROUP_OFFICER], "Issuing a referral link")
         for vals in vals_list:
             partner = self.env["fix.partner"].sudo().browse(vals.get("partner_id"))
-            if partner and partner.state != "onboarded":
+            if partner and partner.state not in EARNING_STATES:
                 raise ValidationError(
                     "%s is %s: only an onboarded partner refers (BRU-PCM-01)."
                     % (partner.name, partner.state)
@@ -1118,7 +1184,8 @@ class FixReferralLink(models.Model):
         recs = super().create(vals_list)
         for rec in recs:
             prefix = re.sub(r"[^A-Z0-9]", "", (rec.partner_id.name or "P").upper())[:4] or "P"
-            rec._guarded().write({"code": "%s-%s" % (prefix, secrets.token_urlsafe(9))})
+            # hex: no "-" inside the random part (token_urlsafe's could split it)
+            rec._guarded().write({"code": "%s-%s" % (prefix, secrets.token_hex(8))})
         return recs
 
     def _is_live(self, day=None):
@@ -1256,11 +1323,7 @@ class FixPartnerLead(models.Model):
         # who may capture a lead is answered before what a lead needs
         self.check_access("create")
         today = fields.Date.context_today(self)
-        days = int(
-            self.env["ir.config_parameter"]
-            .sudo()
-            .get_param("cd_partner.lead_attribution_days", LEAD_ATTRIBUTION_DAYS)
-        )
+        days = attribution_days(self.env)
         for vals in vals_list:
             # BRU-PCM-06: no consent, no record - checked before the insert
             if not vals.get("consent_given") or not vals.get("consent_method"):
@@ -1269,7 +1332,7 @@ class FixPartnerLead(models.Model):
                     "created (BRU-PCM-06, PDPA)."
                 )
             partner = self.env["fix.partner"].sudo().browse(vals.get("partner_id"))
-            if not partner or partner.state != "onboarded":
+            if not partner or partner.state not in EARNING_STATES:
                 raise ValidationError("Only an onboarded partner submits leads (BRU-PCM-01).")
             if vals.get("link_id"):
                 link = self.env["fix.referral.link"].sudo().browse(vals["link_id"])
@@ -1318,16 +1381,31 @@ class FixPartnerLead(models.Model):
                     body="Converted after the attribution window closed on %s: no partner is "
                     "credited (BRU-PCM-05)." % rec.attribution_expires_on
                 )
+            elif rec.partner_id.state not in EARNING_STATES:
+                # A04 ERP audit M40-F9: a partner that left good standing
+                # since the lead is credited nothing.
+                vals["attribution_lapsed"] = True
+                rec.message_post(
+                    body="Converted while partner %s is %s: no partner is credited (BRU-PCM-01)."
+                    % (rec.partner_id.name, rec.partner_id.state)
+                )
             else:
+                # the referral carries the lead's consent and the date the
+                # lead was attributed (the window runs from it); its name is
+                # what the partner typed, never the party master's (M40-F8)
                 referral = (
                     self.env["fix.referral"]
                     .sudo()
                     .create(
                         {
-                            "name": "%s - %s" % (rec.name, rec.customer_id.display_name),
+                            "name": "%s - %s" % (rec.name, rec.customer_name),
                             "partner_id": rec.partner_id.id,
                             "referred_partner_id": rec.customer_id.id,
                             "company_id": rec.company_id.id,
+                            "referred_on": dhaka_day(rec.attributed_at),
+                            "consent_given": rec.consent_given,
+                            "consent_method": rec.consent_method,
+                            "consent_at": rec.consent_at,
                         }
                     )
                 )
@@ -1487,11 +1565,30 @@ class FixResellerAllocation(models.Model):
     )
     item_description = fields.Char(required=True)
     item_ref = fields.Char(string="Item / Lot Reference (M14/M15)")
+    # A04 ERP audit M40-F16: the item priced by M11 and moved by a draw.
+    product_id = fields.Many2one(
+        "product.product", string="Item (M37/M11)", ondelete="restrict", index=True
+    )
+    location_id = fields.Many2one(
+        "stock.location",
+        string="Draw From (M15 location)",
+        domain="[('usage', '=', 'internal')]",
+        help="The stock location a refurbished-stock draw leaves from.",
+    )
     qty = fields.Float(string="Allocated Quantity", required=True)
     consumed_qty = fields.Float(string="Drawn", readonly=True, copy=False)
     remaining_qty = fields.Float(compute="_compute_remaining", string="Remaining")
     period = fields.Char(required=True)
-    unit_price = fields.Monetary(currency_field="currency_id", string="Agreed Unit Price")
+    unit_price = fields.Monetary(
+        currency_field="currency_id",
+        string="Agreed Unit Price",
+        readonly=True,
+        copy=False,
+        help="The M11 reseller price (price_for channel 'reseller'), VAT exclusive, set when "
+        "the allocation is made - never typed.",
+    )
+    price_source = fields.Char(string="Price Source (M11)", readonly=True, copy=False)
+    draw_ids = fields.One2many("fix.reseller.draw", "allocation_id", string="Draws")
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -1510,15 +1607,23 @@ class FixResellerAllocation(models.Model):
             "allocation_type",
             "item_description",
             "item_ref",
+            "product_id",
+            "location_id",
             "qty",
             "period",
-            "unit_price",
             "currency_id",
         }
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"name", "state", "consumed_qty", "allocated_by_id"}
+        return super()._fix_guarded_fields() | {
+            "name",
+            "state",
+            "consumed_qty",
+            "allocated_by_id",
+            "unit_price",
+            "price_source",
+        }
 
     @api.depends("qty", "consumed_qty")
     def _compute_remaining(self):
@@ -1545,20 +1650,71 @@ class FixResellerAllocation(models.Model):
             )
         return recs
 
+    def _fix_m11_price(self):
+        """A04 ERP audit M40-F16: the reseller price is M11's (price_for,
+        channel 'reseller'), never a typed figure. None = no released price."""
+        self.ensure_one()
+        if not self.product_id:
+            raise ValidationError(
+                "Name the item of allocation %s: the reseller price is M11's for that item."
+                % self.name
+            )
+        quote = (
+            self.env["fix.rate.card"]
+            .sudo()
+            .price_for(
+                self.product_id,
+                partner=self.partner_id.partner_id,
+                channel="reseller",
+                qty=self.qty,
+                date=fields.Date.context_today(self),
+                company=self.company_id,
+                currency=self.currency_id,
+            )
+        )
+        if quote.get("price") is None:
+            raise ValidationError(
+                "M11 has no released reseller price for %s: %s"
+                % (self.product_id.display_name, quote.get("reason") or "no rate card")
+            )
+        return quote
+
     def action_allocate(self):
         fix_require(self.env, [GROUP_MANAGER], "Allocating to a reseller")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft allocation is made.")
             fix_not_creator(self.env, rec, "allocating it")
-            if rec.partner_id.partner_type != "reseller" or rec.partner_id.state != "onboarded":
+            if (
+                rec.partner_id.partner_type != "reseller"
+                or rec.partner_id.state not in EARNING_STATES
+            ):
                 raise ValidationError(
                     "%s is not an onboarded reseller (BRU-PCM-01)." % rec.partner_id.name
                 )
-            rec._guarded().write({"state": "allocated", "allocated_by_id": self.env.uid})
+            if rec.allocation_type == "stock" and not rec.location_id:
+                raise ValidationError(
+                    "Name the M15 location refurbished stock of %s is drawn from." % rec.name
+                )
+            quote = rec._fix_m11_price()
+            rec._guarded().write(
+                {
+                    "state": "allocated",
+                    "allocated_by_id": self.env.uid,
+                    "unit_price": quote["price"],
+                    "price_source": "%s%s"
+                    % (
+                        quote.get("source") or "card",
+                        (" #%s" % quote["card_id"]) if quote.get("card_id") else "",
+                    ),
+                }
+            )
         return True
 
     def action_record_draw(self, qty=None):
+        """A04 ERP audit M40-F16: a draw is a sale to the reseller - it moves
+        the stock out of the M15 location (refurbished stock) and raises the
+        draft M20 invoice at the M11 price fixed at allocation."""
         fix_require(self.env, [GROUP_OFFICER], "Recording a reseller draw")
         try:
             qty = float(qty)
@@ -1566,6 +1722,7 @@ class FixResellerAllocation(models.Model):
             raise UserError("Give the quantity drawn as a number.") from None
         if qty <= 0:
             raise UserError("A draw is a positive quantity.")
+        draws = self.env["fix.reseller.draw"]
         for rec in self:
             if rec.state != "allocated":
                 raise UserError("Draws are recorded against an open allocation.")
@@ -1573,9 +1730,89 @@ class FixResellerAllocation(models.Model):
                 raise ValidationError(
                     "%s has %.2f left; %.2f cannot be drawn." % (rec.name, rec.remaining_qty, qty)
                 )
+            if rec.partner_id.state not in EARNING_STATES:
+                raise ValidationError(
+                    "%s is %s: it draws nothing (BRU-PCM-01)."
+                    % (rec.partner_id.name, rec.partner_id.state)
+                )
+            draw = rec._fix_draw(qty)
             rec._guarded().write({"consumed_qty": rec.consumed_qty + qty})
-            rec.message_post(body="Drawn %.2f by %s." % (qty, self.env.user.name))
-        return True
+            rec.message_post(
+                body="Drawn %.2f by %s: invoice %s%s."
+                % (
+                    qty,
+                    self.env.user.name,
+                    draw.invoice_id.display_name,
+                    (", stock move %s" % draw.move_id.display_name) if draw.move_id else "",
+                )
+            )
+            draws |= draw
+        return {"res_model": draws._name, "res_ids": draws.ids}
+
+    def _fix_draw(self, qty):
+        self.ensure_one()
+        Draw = self.env["fix.reseller.draw"].sudo()
+        seq = len(self.sudo().draw_ids) + 1
+        draw = Draw._guarded().create(
+            {"allocation_id": self.id, "sequence": seq, "qty": qty, "unit_price": self.unit_price}
+        )
+        move = self.env["stock.move"]
+        if self.allocation_type == "stock":
+            move = self._fix_draw_move(qty, draw)
+        invoice = (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            ._fix_draft_invoice_from_source(
+                "fix.reseller.draw",
+                "fix.reseller.draw/%s" % draw.id,
+                self.partner_id.partner_id,
+                [
+                    {
+                        "description": "%s - %s x %.2f (allocation %s)"
+                        % (self.item_description, self.product_id.display_name, qty, self.name),
+                        "taxable_amount": self.currency_id.round(qty * self.unit_price),
+                        "product_id": self.product_id.id,
+                    }
+                ],
+                "Reseller draw %s/%d on allocation %s" % (self.name, seq, self.name),
+                company=self.company_id,
+            )
+        )
+        draw._guarded().write({"invoice_id": invoice.id, "move_id": move.id or False})
+        return self.env["fix.reseller.draw"].browse(draw.id)
+
+    def _fix_draw_move(self, qty, draw):
+        """The stock leaving the M15 location for the reseller (a done move to
+        the customer location)."""
+        if not self.location_id:
+            raise ValidationError("Allocation %s names no M15 location." % self.name)
+        dest = self.env.ref("stock.stock_location_customers")
+        move = (
+            self.env["stock.move"]
+            .sudo()
+            .create(
+                {
+                    "product_id": self.product_id.id,
+                    "product_uom_qty": qty,
+                    "product_uom": self.product_id.uom_id.id,
+                    "location_id": self.location_id.id,
+                    "location_dest_id": dest.id,
+                    "company_id": self.company_id.id,
+                    "partner_id": self.partner_id.partner_id.id,
+                    "origin": "%s draw %d" % (self.name, draw.sequence),
+                }
+            )
+        )
+        move._action_confirm()
+        move._action_assign()
+        if move.product_uom_qty - move.quantity > 1e-6:
+            raise ValidationError(
+                "%s has %.2f of %s on hand; the draw of %.2f is refused."
+                % (self.location_id.display_name, move.quantity, self.product_id.display_name, qty)
+            )
+        move.picked = True
+        move._action_done()
+        return move
 
     def action_close(self):
         fix_require(self.env, [GROUP_MANAGER], "Closing a reseller allocation")
@@ -1584,6 +1821,44 @@ class FixResellerAllocation(models.Model):
                 raise UserError("Only an open allocation is closed.")
             rec._guarded().write({"state": "closed"})
         return True
+
+
+class FixResellerDraw(models.Model):
+    """A04 ERP audit M40-F16: one draw against a reseller allocation - its
+    stock move and its M20 invoice."""
+
+    _name = "fix.reseller.draw"
+    _description = "Reseller Draw"
+    _inherit = ["fix.guarded.mixin"]
+    _order = "allocation_id, sequence"
+
+    allocation_id = fields.Many2one(
+        "fix.reseller.allocation", required=True, ondelete="restrict", index=True
+    )
+    company_id = fields.Many2one(related="allocation_id.company_id", store=True, index=True)
+    partner_id = fields.Many2one(related="allocation_id.partner_id", store=True)
+    currency_id = fields.Many2one(related="allocation_id.currency_id")
+    sequence = fields.Integer(readonly=True)
+    qty = fields.Float(readonly=True)
+    unit_price = fields.Monetary(currency_field="currency_id", readonly=True)
+    move_id = fields.Many2one("stock.move", string="Stock Move", readonly=True)
+    invoice_id = fields.Many2one("fix.ar.invoice", string="Invoice (M20)", readonly=True)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "allocation_id",
+            "sequence",
+            "qty",
+            "unit_price",
+            "move_id",
+            "invoice_id",
+        }
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        if not self._fix_guard_open():
+            raise UserError("A reseller draw is recorded by Record Draw on its allocation.")
+        return super().create(vals_list)
 
 
 # =============================================================== p8 franchise
@@ -1759,12 +2034,24 @@ class FixFranchiseRoyalty(models.Model):
     currency_id = fields.Many2one(related="franchise_id.currency_id", store=True, readonly=True)
     period_from = fields.Date(required=True)
     period_to = fields.Date(required=True)
-    revenue_basis = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
+    revenue_basis = fields.Monetary(
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+        help="The branch's M20 revenue of the period, VAT exclusive, net of its credit notes "
+        "(A04 ERP audit M40-F19).",
+    )
+    credited_basis = fields.Monetary(
+        string="Credit Notes Netted",
+        currency_field="currency_id",
+        readonly=True,
+        copy=False,
+    )
     royalty_rate = fields.Float(readonly=True, copy=False)
     royalty_amount = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
     levy_rate = fields.Float(readonly=True, copy=False)
     levy_amount = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
-    order_count = fields.Integer(readonly=True, copy=False, string="Settled Orders Counted")
+    order_count = fields.Integer(readonly=True, copy=False, string="Invoices Counted")
     state = fields.Selection(
         [("draft", "Draft"), ("computed", "Computed"), ("invoiced", "Invoiced")],
         required=True,
@@ -1773,6 +2060,13 @@ class FixFranchiseRoyalty(models.Model):
     )
     computed_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     invoice_ref = fields.Char(readonly=True, copy=False)
+    # A04 ERP audit M40-F1: the M20 invoice raised for the royalty and levy.
+    invoice_id = fields.Many2one(
+        "fix.ar.invoice", string="Invoice (M20)", readonly=True, copy=False
+    )
+    company_id = fields.Many2one(
+        related="franchise_id.partner_id.company_id", store=True, index=True, readonly=True
+    )
 
     _FROZEN = frozenset({"franchise_id", "period_from", "period_to"})
     _period_unique = models.Constraint(
@@ -1790,6 +2084,8 @@ class FixFranchiseRoyalty(models.Model):
             "order_count",
             "computed_by_id",
             "invoice_ref",
+            "invoice_id",
+            "credited_basis",
         }
 
     @api.constrains("period_from", "period_to")
@@ -1798,10 +2094,19 @@ class FixFranchiseRoyalty(models.Model):
             if rec.period_to < rec.period_from:
                 raise ValidationError("A royalty period ends after it starts.")
 
+    # M20 invoice states that are revenue of the period (a draft is not yet
+    # revenue, a cancelled one never was; a written-off one was earned).
+    _REVENUE_STATES = ("issued", "paid", "credited", "written_off")
+
     def _erp_revenue(self):
-        """The branch's ERP-recorded revenue for the period: the verified
-        settlements of its service orders (M01/M20), never a declaration.
-        Invoices on this estate carry no operating unit, the orders do."""
+        """The branch's ERP-recorded revenue for the period, never a
+        declaration (BRU-PCM-17).
+
+        A04 ERP audit M40-F19: the basis was the VAT-INCLUSIVE cash settled on
+        service orders (15% over) with refunds never netted. It is now the
+        branch's M20 invoices of the period (invoice date), VAT exclusive,
+        less the VAT-exclusive part of the credit notes issued against the
+        branch's invoices in the period. Returns (net basis, credited, count)."""
         self.ensure_one()
         ou = self.franchise_id.operating_unit_id
         if not ou:
@@ -1809,22 +2114,37 @@ class FixFranchiseRoyalty(models.Model):
                 "Link franchise %s to its branch operating unit: royalties are computed from "
                 "ERP revenue, never self-declared (BRU-PCM-17)." % self.franchise_id.name
             )
-        start = fields.Datetime.to_datetime(self.period_from)
-        stop = fields.Datetime.to_datetime(self.period_to) + timedelta(days=1)
-        orders = (
-            self.env["fix.service.order"]
+        invoices = (
+            self.env["fix.ar.invoice"]
             .sudo()
             .search(
                 [
                     ("operating_unit_id", "=", ou.id),
-                    ("payment_settlement_state", "=", "settled"),
-                    ("settlement_verified", "=", True),
-                    ("settlement_verified_at", ">=", start),
-                    ("settlement_verified_at", "<", stop),
+                    ("state", "in", self._REVENUE_STATES),
+                    ("invoice_date", ">=", self.period_from),
+                    ("invoice_date", "<=", self.period_to),
+                    # the franchise's own royalty invoices are not its revenue
+                    ("source_model", "not in", ("fix.franchise.royalty", "fix.partner.franchise")),
                 ]
             )
         )
-        return sum(orders.mapped("amount_settled_bdt")), len(orders)
+        gross = sum(invoices.mapped("taxable_amount"))
+        start = fields.Datetime.to_datetime(self.period_from) - timedelta(hours=6)
+        stop = fields.Datetime.to_datetime(self.period_to) + timedelta(days=1, hours=-6)
+        notes = (
+            self.env["fix.credit.note"]
+            .sudo()
+            .search(
+                [
+                    ("invoice_id.operating_unit_id", "=", ou.id),
+                    ("state", "=", "issued"),
+                    ("issued_at", ">=", start),
+                    ("issued_at", "<", stop),
+                ]
+            )
+        )
+        credited = round(sum(credit_ex_vat(n) for n in notes), 2)
+        return round(gross - credited, 2), credited, len(invoices)
 
     def action_compute(self):
         fix_require(self.env, [GROUP_OFFICER], "Computing a franchise royalty")
@@ -1836,7 +2156,8 @@ class FixFranchiseRoyalty(models.Model):
                 raise UserError("A royalty is computed after its period ends.")
             if rec.franchise_id.state != "active":
                 raise ValidationError("Franchise %s is not active." % rec.franchise_id.name)
-            basis, count = rec._erp_revenue()
+            basis, credited, count = rec._erp_revenue()
+            basis = max(basis, 0.0)
             rate = rec.franchise_id.royalty_rate or 0.0
             levy = rec.franchise_id.marketing_levy_rate or 0.0
             if rate <= 0:
@@ -1846,6 +2167,7 @@ class FixFranchiseRoyalty(models.Model):
                 {
                     "state": "computed",
                     "revenue_basis": basis,
+                    "credited_basis": credited,
                     "order_count": count,
                     "royalty_rate": rate,
                     "royalty_amount": cur.round(basis * rate),
@@ -1856,17 +2178,67 @@ class FixFranchiseRoyalty(models.Model):
             )
         return True
 
-    def action_record_invoice(self, invoice_ref=None):
-        """Finance records the M20 invoice raised for the royalty."""
-        _require_finance(self.env, "Recording a royalty invoice")
-        ref = _clean(invoice_ref)
-        if not ref:
-            raise UserError("Give the invoice reference.")
+    def action_raise_invoice(self):
+        """A04 ERP audit M40-F1 (AUT-PCM-15): finance raises the M20 invoice
+        of the royalty and the marketing levy to the franchisee - one line
+        each, VAT determined by M51, crediting the configured royalty income
+        account. The invoice is a draft: finance issues it (number, Mushak
+        6.3, GL). A typed reference no longer stands for an invoice."""
+        _require_finance(self.env, "Raising a royalty invoice")
+        invoices = self.env["fix.ar.invoice"]
         for rec in self:
             if rec.state != "computed":
                 raise UserError("Only a computed royalty is invoiced.")
-            rec.sudo()._guarded().write({"state": "invoiced", "invoice_ref": ref})
-        return True
+            fr = rec.franchise_id.sudo()
+            lines = []
+            label = "%s to %s" % (rec.period_from, rec.period_to)
+            if rec.royalty_amount > 0.005:
+                lines.append(
+                    {
+                        "description": "Franchise royalty %s: %.2f%% of BDT %.2f (%s)"
+                        % (fr.name, rec.royalty_rate * 100.0, rec.revenue_basis, label),
+                        "taxable_amount": rec.royalty_amount,
+                    }
+                )
+            if rec.levy_amount > 0.005:
+                lines.append(
+                    {
+                        "description": "Marketing levy %s: %.2f%% of BDT %.2f (%s)"
+                        % (fr.name, rec.levy_rate * 100.0, rec.revenue_basis, label),
+                        "taxable_amount": rec.levy_amount,
+                    }
+                )
+            if not lines:
+                raise UserError(
+                    "Royalty %s is nil (no revenue in %s): there is nothing to invoice."
+                    % (rec.id, label)
+                )
+            company = fr.partner_id.company_id
+            account = partner_account(self.env, company, "royalty_income")
+            invoice = (
+                self.env["fix.ar.invoice"]
+                .sudo()
+                ._fix_draft_invoice_from_source(
+                    rec._name,
+                    "%s/%s" % (rec._name, rec.id),
+                    fr.partner_id.partner_id,
+                    lines,
+                    "Franchise royalty and marketing levy of %s for %s (BRU-PCM-17)"
+                    % (fr.name, label),
+                    company=company,
+                    invoice_date=fields.Date.context_today(self),
+                    credit_account=account,
+                )
+            )
+            rec.sudo()._guarded().write(
+                {"state": "invoiced", "invoice_id": invoice.id, "invoice_ref": invoice.name}
+            )
+            rec.sudo().message_post(
+                body="Draft M20 invoice %s raised for BDT %.2f + VAT; finance issues it."
+                % (invoice.display_name, sum(line["taxable_amount"] for line in lines))
+            )
+            invoices |= invoice
+        return {"res_model": invoices._name, "res_ids": invoices.ids}
 
 
 # ==================================================================== p9 MDF
@@ -1987,6 +2359,7 @@ class FixMdfClaim(models.Model):
     decided_at = fields.Datetime(readonly=True, copy=False)
     refusal_reason = fields.Char(readonly=True, copy=False)
     payment_ref = fields.Char(readonly=True, copy=False)
+    company_id = fields.Many2one(related="fund_id.company_id", store=True, index=True)
 
     _FROZEN = frozenset(
         {"fund_id", "campaign_id", "amount", "description", "evidence_attachment_id"}
@@ -2072,17 +2445,45 @@ class FixMdfClaim(models.Model):
             )
 
     def action_approve(self):
+        """A04 ERP audit M40-F3: approval is the payment instruction - it
+        publishes partner.mdf_claim_approved, whose M53 consumer accrues the
+        claim (Dr MDF expense / Cr partner payable / Cr TDS) and raises the
+        pending M50 payout of the net, as for a rebate. Refused while the
+        payout accounts are unconfigured (fail closed)."""
+        from .fix_partner_ops import assert_payout_accounts
+
         for rec in self:
             if rec.state != "submitted":
                 raise UserError("Only a claim under review is approved.")
             rec._assert_decider()
             rec._assert_within_balance()
+            if rec.fund_id.partner_id.state not in EARNING_STATES:
+                raise ValidationError(
+                    "%s is %s: no MDF is paid (BRU-PCM-01)."
+                    % (rec.fund_id.partner_id.name, rec.fund_id.partner_id.state)
+                )
+            assert_payout_accounts(self.env, rec.fund_id.company_id, "partner_mdf_expense")
             rec._guarded().write(
                 {
                     "state": "approved",
                     "decided_by_id": self.env.uid,
                     "decided_at": fields.Datetime.now(),
                 }
+            )
+            publish(
+                rec.env,
+                "partner.mdf_claim_approved",
+                rec._name,
+                rec.id,
+                {
+                    "claim": rec.name,
+                    "fund": rec.fund_id.name,
+                    "partner_id": rec.fund_id.partner_id.id,
+                    "party_id": rec.fund_id.partner_id.partner_id.id,
+                    "amount": float(rec.amount or 0.0),
+                    "currency": rec.currency_id.name,
+                    "approved_by": rec.env.user.id,
+                },
             )
         return True
 
@@ -2105,14 +2506,19 @@ class FixMdfClaim(models.Model):
         return True
 
     def action_record_payment(self, payment_ref=None):
+        """A04 ERP audit M40-F3: an MDF claim is paid when its M50 payout
+        instruction is executed (the bank confirmed it) - the reference is the
+        instruction's, never a typed one."""
+        from .fix_partner_ops import executed_payout
+
         _require_finance(self.env, "Recording an MDF payment")
-        ref = _clean(payment_ref)
-        if not ref:
-            raise UserError("Give the payment reference.")
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Only an approved claim is paid.")
-            rec.sudo()._guarded().write({"state": "paid", "payment_ref": ref})
+            pay = executed_payout(rec, "MDF claim %s" % rec.name)
+            rec.sudo()._guarded().write(
+                {"state": "paid", "payment_ref": pay.bank_reference or pay.name}
+            )
         return True
 
 
@@ -2134,13 +2540,17 @@ class FixPartnerCapture(models.Model):
         "fix.partner.tier", string="Tier", domain="[('programme_id', '=', programme_id)]"
     )
     contact_role_ids = fields.One2many("fix.partner.contact.role", "partner_id", string="Contacts")
+    pending_tier_id = fields.Many2one(
+        "fix.partner.tier", string="Tier After Notice", readonly=True, copy=False
+    )
+    tier_effective_on = fields.Date(string="Tier Effective On", readonly=True, copy=False)
     onboarding_ids = fields.One2many(
         "fix.partner.onboarding", "partner_id", string="Onboarding Checklist"
     )
     enablement_ids = fields.One2many("fix.partner.enablement", "partner_id", string="Enablement")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"tier_id"}
+        return super()._fix_guarded_fields() | {"tier_id", "pending_tier_id", "tier_effective_on"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -2188,9 +2598,15 @@ class FixPartnerCapture(models.Model):
 
     def action_change_tier(self, tier_code=None):
         """FR-PCM-004: a manager moves the partner to another tier of its
-        programme, effective after the tier's notice period."""
+        programme, effective after the tier's notice period.
+
+        A04 ERP audit M40-F30: the move took effect at once whatever the
+        notice. It is now staged (pending tier, effective date = today + the
+        tier's notice days) and applied by the daily job on that date; a tier
+        with no notice applies at once."""
         fix_require(self.env, [GROUP_MANAGER], "Moving a partner between tiers")
         code = _clean(tier_code)
+        today = fields.Date.context_today(self)
         for rec in self:
             if not rec.programme_id:
                 raise UserError("%s is on no programme." % rec.name)
@@ -2205,17 +2621,59 @@ class FixPartnerCapture(models.Model):
                     )
                 )
             old = rec.tier_id
-            rec._guarded().write({"tier_id": tier[0].id})
+            new = tier[0]
+            effective = today + timedelta(days=max(new.notice_days, 0))
+            if effective <= today:
+                rec._guarded().write(
+                    {"tier_id": new.id, "pending_tier_id": False, "tier_effective_on": today}
+                )
+            else:
+                rec._guarded().write({"pending_tier_id": new.id, "tier_effective_on": effective})
             rec.message_post(
-                body="Tier %s -> %s by %s; effective after %d days' notice."
-                % (old.code or "-", tier[0].code, self.env.user.name, tier[0].notice_days)
+                body="Tier %s -> %s by %s; effective on %s (%d days' notice)."
+                % (old.code or "-", new.code, self.env.user.name, effective, new.notice_days)
             )
         return True
 
+    @api.model
+    def cron_apply_tier_changes(self):
+        """A04 ERP audit M40-F30: a staged tier move takes effect on its date."""
+        today = fields.Date.context_today(self)
+        due = self.sudo().search(
+            [("pending_tier_id", "!=", False), ("tier_effective_on", "<=", today)]
+        )
+        for rec in due:
+            rec._guarded().write({"tier_id": rec.pending_tier_id.id, "pending_tier_id": False})
+            rec.message_post(body="Tier %s in effect from %s." % (rec.tier_id.code, today))
+        return len(due)
+
     def action_onboard(self):
         """BRU-PCM-01: every required onboarding step done, the agreement
-        linked once the checklist names one."""
+        linked once the checklist names one.
+
+        A04 ERP audit M40-F11: a partner with no checklist, no agreement and
+        no programme was onboarded. Onboarding now needs all three: the
+        partner bound to a published programme version, its M08 agreement in
+        force, and a checklist whose required steps are all done."""
         for rec in self:
+            src = rec.sudo()
+            if not src.programme_id or src.programme_id.state != "published":
+                raise ValidationError(
+                    "%s cannot be onboarded: bind it to a published programme first "
+                    "(FR-PCM-003, BRU-PCM-01)." % rec.name
+                )
+            contract = src.contract_id
+            if not contract or contract.state not in ("active", "expiring"):
+                raise ValidationError(
+                    "%s cannot be onboarded: its M08 partner agreement is %s - it must be "
+                    "executed and in force (BRU-PCM-01)."
+                    % (rec.name, contract.state if contract else "missing")
+                )
+            if not src.onboarding_ids.filtered("required"):
+                raise ValidationError(
+                    "%s cannot be onboarded: it has no onboarding checklist (Generate "
+                    "Onboarding Checklist, FR-PCM-007, BRU-PCM-01)." % rec.name
+                )
             pending = rec.sudo().onboarding_ids.filtered(lambda s: s.required and s.state != "done")
             if pending:
                 raise ValidationError(

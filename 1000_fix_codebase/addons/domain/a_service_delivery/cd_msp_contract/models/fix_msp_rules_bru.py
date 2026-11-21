@@ -61,6 +61,28 @@ def add_business_hours(start_utc, hours, holidays=frozenset()):
     raise UserError("The SLA target is longer than the working calendar can measure.")
 
 
+def business_seconds_between(start_utc, end_utc, holidays=frozenset()):
+    """The Sunday–Thursday 09:00–18:00 Asia/Dhaka working seconds between two
+    naive-UTC moments (0 when ``end_utc`` is not after ``start_utc``): the
+    measure add_business_hours adds, so a business-hours clock is stopped,
+    extended and judged in one unit (A02 pass-2 review: a pause added
+    wall-clock seconds to a business-hours deadline)."""
+    if not start_utc or not end_utc or end_utc <= start_utc:
+        return 0.0
+    local = pytz.utc.localize(start_utc).astimezone(BD_TZ).replace(tzinfo=None)
+    stop = pytz.utc.localize(end_utc).astimezone(BD_TZ).replace(tzinfo=None)
+    total = 0.0
+    day = local.date()
+    while day <= stop.date():
+        if day.weekday() in BUSINESS_DAYS and day not in holidays:
+            begin = max(local, datetime.combine(day, BUSINESS_START))
+            end = min(stop, datetime.combine(day, BUSINESS_END))
+            if end > begin:
+                total += (end - begin).total_seconds()
+        day += timedelta(days=1)
+    return total
+
+
 class FixMspContractBru(models.Model):
     _inherit = "fix.msp.contract"
 
@@ -152,16 +174,31 @@ class FixMspContractBru(models.Model):
                 raise ValidationError("The recording retention cannot be negative.")
 
     # ---- BRU-RMS-05 -------------------------------------------------------
-    def _msp_deadline(self, alert):
+    def _msp_deadline(self, alert, kind="resolve"):
         """When ``alert`` breaches: its severity's target in the contracted
         coverage window. 24 × 7 adds clock hours; business hours count only
         Sun–Thu 09:00–18:00 in Dhaka, so an alert raised on Thursday evening
-        is not breached over the weekend."""
+        is not breached over the weekend.
+
+        A02 ERP pass 2 (M05-S13): the target, window and holidays are the
+        terms in force when the alert was raised, not today's; ``kind``
+        "response" gives the response deadline (None when the contract sets
+        no response target)."""
         self.ensure_one()
-        hours = self._msp_target_hours(alert)
-        if self.coverage_window == "business":
-            return add_business_hours(alert.create_date, hours, self._msp_holiday_dates())
-        return alert.create_date + timedelta(hours=hours)
+        raised = alert.create_date or fields.Datetime.now()
+        terms = self._msp_terms_at(raised)
+        if kind == "response":
+            name = "response_hours_%s" % ("major" if alert.severity == "major" else "minor")
+            hours = terms[name] or 0.0
+            if hours <= 0:
+                return None
+        else:
+            hours = self._msp_target_hours(alert)
+        if terms.coverage_window == "business":
+            return add_business_hours(
+                raised, hours, self._msp_holiday_dates_of(terms.holiday_calendar_id)
+            )
+        return raised + timedelta(hours=hours)
 
     def _msp_holiday_dates(self):
         """Every closed date of the contract's holiday calendar."""
@@ -179,15 +216,37 @@ class FixMspContractBru(models.Model):
         from the coverage window instead of always counting clock hours."""
         self.ensure_one()
         as_of = as_of or fields.Datetime.now()
-        within = breached = pending = 0
+        within = breached = pending = response_breached = 0
+        tta, ttr = [], []
         for alert in alerts:
-            deadline = self._msp_deadline(alert)
+            # A02 ERP pass 2 (M05-S02 / S18): the deadline stamped when the
+            # alert was raised, extended by its waiting-on-client pauses; the
+            # response target counts too when the contract sets one.
+            until = alert.resolved_at if alert.state == "resolved" else as_of
+            deadline = alert._msp_effective_deadline("resolve", until)
+            respond = alert._msp_effective_deadline("response", alert.responded_at or until)
+            paused = alert._msp_paused_seconds(until)
+            missed_response = bool(
+                respond
+                and (
+                    (alert.responded_at and alert.responded_at > respond)
+                    or (not alert.responded_at and until > respond)
+                )
+            )
+            response_breached += int(missed_response)
+            if alert.responded_at:
+                tta.append((alert.responded_at - alert.create_date).total_seconds() / 60.0)
             if alert.state == "resolved":
-                if alert.resolved_at and alert.resolved_at <= deadline:
+                if alert.resolved_at:
+                    ttr.append(
+                        max((alert.resolved_at - alert.create_date).total_seconds() - paused, 0)
+                        / 60.0
+                    )
+                if alert.resolved_at and alert.resolved_at <= deadline and not missed_response:
                     within += 1
                 else:
                     breached += 1
-            elif as_of > deadline:
+            elif as_of > deadline or missed_response:
                 breached += 1
             else:
                 pending += 1
@@ -196,6 +255,9 @@ class FixMspContractBru(models.Model):
             "within": within,
             "breached": breached,
             "pending": pending,
+            "response_breached": response_breached,
+            "mtta_minutes": round(sum(tta) / len(tta), 1) if tta else 0.0,
+            "mttr_minutes": round(sum(ttr) / len(ttr), 1) if ttr else 0.0,
             "attainment": round(within / measured, 4) if measured else 1.0,
         }
 
@@ -491,14 +553,49 @@ CREDENTIAL = re.compile(
     r"\s*[:=]\s*\S+",
     re.IGNORECASE,
 )
+# A02 ERP pass 2 (M05-S19): every free-text field an M05 user writes (the
+# guard covered six models and missed the evidence, notes and reasons of the
+# rest), and the chatter (message_post) of every guarded model.
 FREE_TEXT = {
-    "fix.msp.alert": ("message", "resolution_note"),
-    "fix.remote.session": ("session_summary",),
-    "fix.msp.runbook": ("script",),
+    "fix.msp.alert": ("message", "resolution_note", "reclassified_reason"),
+    "fix.remote.session": ("session_summary", "recording_url"),
+    "fix.msp.runbook": ("name", "script"),
     "fix.msp.runbook.run": ("output_note",),
-    "fix.msp.change.record": ("description", "rollback_plan", "resolution_note", "pir_note"),
-    "fix.msp.backup.job": ("note",),
+    "fix.msp.change.record": (
+        "name",
+        "description",
+        "rollback_plan",
+        "resolution_note",
+        "pir_note",
+    ),
+    "fix.msp.backup.job": ("note", "plan_ref"),
+    "fix.msp.contract": ("access_revoked_evidence", "data_return_evidence"),
+    "fix.monitored.asset": ("agent_removal_evidence",),
+    "fix.msp.patch.update": (
+        "title",
+        "fail_note",
+        "test_note",
+        "exception_reason",
+        "client_approval_evidence",
+    ),
+    "fix.msp.sla.credit": ("reason", "dofa_justification"),
+    "fix.msp.maintenance.window": ("name", "purpose"),
+    "fix.msp.major.incident": ("name", "impact", "resolution_note", "review_note"),
+    "fix.msp.service.review": ("attendees", "summary"),
+    "fix.msp.review.action": ("name",),
+    "fix.msp.dr.plan": ("scope",),
+    "fix.msp.dr.test": ("evidence",),
+    "fix.msp.roadmap.item": ("name", "description"),
+    "fix.msp.onboarding": ("notes",),
+    "fix.msp.onboarding.step": ("evidence",),
+    "fix.msp.alert.pause": ("reason",),
 }
+
+_CREDENTIAL_REFUSAL = (
+    "%s holds what looks like a credential. Client credentials are kept in the "
+    "credential vault, never in a ticket or note (BRU-RMS-03): remove it and refer to "
+    "the vault entry instead."
+)
 
 
 def _assert_no_credentials(model, vals_list):
@@ -506,12 +603,17 @@ def _assert_no_credentials(model, vals_list):
         for name in FREE_TEXT.get(model._name, ()):
             text = vals.get(name)
             if isinstance(text, str) and CREDENTIAL.search(text):
-                raise ValidationError(
-                    "%s holds what looks like a credential. Client credentials are kept "
-                    "in the credential vault, never in a ticket or note (BRU-RMS-03): "
-                    "remove it and refer to the vault entry instead."
-                    % (model._fields[name].string or name)
-                )
+                field = model._fields.get(name)
+                raise ValidationError(_CREDENTIAL_REFUSAL % (field.string if field else name))
+
+
+def check_message_body(kwargs):
+    """A note typed on the chatter is free text too (M05-S19). Called from
+    each model's own message_post: a mixin's override would sit behind
+    mail.thread in the method order and never run."""
+    body = kwargs.get("body")
+    if body and CREDENTIAL.search(re.sub(r"<[^>]+>", " ", str(body))):
+        raise ValidationError(_CREDENTIAL_REFUSAL % "The message")
 
 
 class _NoCredentials(models.AbstractModel):
@@ -532,15 +634,27 @@ class FixMspAlertNoCred(models.Model):
     _name = "fix.msp.alert"
     _inherit = ["fix.msp.alert", "fix.msp.no.credentials.mixin"]
 
+    def message_post(self, **kwargs):
+        check_message_body(kwargs)
+        return super().message_post(**kwargs)
+
 
 class FixRemoteSessionNoCred(models.Model):
     _name = "fix.remote.session"
     _inherit = ["fix.remote.session", "fix.msp.no.credentials.mixin"]
 
+    def message_post(self, **kwargs):
+        check_message_body(kwargs)
+        return super().message_post(**kwargs)
+
 
 class FixMspRunbookNoCred(models.Model):
     _name = "fix.msp.runbook"
     _inherit = ["fix.msp.runbook", "fix.msp.no.credentials.mixin"]
+
+    def message_post(self, **kwargs):
+        check_message_body(kwargs)
+        return super().message_post(**kwargs)
 
 
 class FixMspRunbookRunNoCred(models.Model):
@@ -552,7 +666,15 @@ class FixMspChangeRecordNoCred(models.Model):
     _name = "fix.msp.change.record"
     _inherit = ["fix.msp.change.record", "fix.msp.no.credentials.mixin"]
 
+    def message_post(self, **kwargs):
+        check_message_body(kwargs)
+        return super().message_post(**kwargs)
+
 
 class FixMspBackupJobNoCred(models.Model):
     _name = "fix.msp.backup.job"
     _inherit = ["fix.msp.backup.job", "fix.msp.no.credentials.mixin"]
+
+    def message_post(self, **kwargs):
+        check_message_body(kwargs)
+        return super().message_post(**kwargs)

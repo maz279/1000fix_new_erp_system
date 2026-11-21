@@ -103,6 +103,19 @@ LEG_LABELS = {
     "receipt": "Receipt application",
     "stock": "Stock issue",
     "cancel_credit": "Cancellation credit note",
+    "cancel_refund": "Cancellation refund (M20 receipt refund)",
+}
+# A04 ERP audit M38-F2/F15: the M20 refund method (fix.ar.refund) a cancelled
+# order's money goes back by - the rail it came in on. A card (SSLCOMMERZ) or
+# Upay refund has no own M20 method: it goes by bank transfer until treasury
+# has a gateway-reversal rail (OWNER).
+RAIL_REFUND_METHOD = {
+    "bkash": "bkash",
+    "nagad": "nagad",
+    "rocket": "rocket",
+    "upay": "bank_transfer",
+    "sslcommerz": "bank_transfer",
+    "cod": "cash",
 }
 RETRY_GROUPS = (
     GROUP_OPERATOR,
@@ -118,6 +131,7 @@ ORDER_POSTING_FIELDS = {
     "ar_invoice_id",
     "ar_receipt_id",
     "ar_credit_note_id",
+    "ar_refund_id",
     "dispatched_at",
 }
 
@@ -220,6 +234,22 @@ class FixStorefrontOrderBooks(models.Model):
         copy=False,
         ondelete="restrict",
     )
+    # A04 ERP audit M38-F2: a paid order cancelled before it was invoiced is
+    # refunded from its M20 receipt (fix.ar.refund -> M50 instruction on the
+    # rail it was paid by), never left at "nothing to post".
+    ar_refund_id = fields.Many2one(
+        "fix.ar.refund",
+        string="Cancellation Refund (M20)",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="restrict",
+    )
+
+    _ar_refund_unique = models.UniqueIndex(
+        "(ar_refund_id) WHERE ar_refund_id IS NOT NULL",
+        "This M20 refund already refunds another storefront order.",
+    )
     # G9 (owner decision 12 Nov 2026): high-value cash collected on delivery
     # carries the customer's NID, as counter cash does (FR-ARB-026).
     cod_customer_nid = fields.Char(
@@ -301,12 +331,39 @@ class FixStorefrontOrderBooks(models.Model):
         self._sfb_post()
         return result
 
+    def _sfb_invoice_owed(self) -> bool:
+        self.ensure_one()
+        return (self.total_amount or 0.0) > 0.005 and not self.sudo().ar_invoice_id
+
     def action_dispatch(self, carrier_consignment_id=None):
+        """A04 ERP audit M38-F10 (BRU-ECM-20): goods leave only with their
+        M20 invoice (Mushak 6.3). A prepaid order is invoiced at payment: a
+        pending invoice is posted now, and dispatch is refused while it is
+        still owed. A cash-on-delivery order is invoiced at dispatch (its tax
+        point): if the invoice cannot be raised the dispatch is undone."""
+        for order in self:
+            if order.state == "paid" and order._sfb_invoice_owed():
+                order._sfb_post()
+                order.invalidate_recordset()
+                if order._sfb_invoice_owed():
+                    raise UserError(
+                        "Order %s cannot be dispatched: its M20 invoice (Mushak 6.3) is not "
+                        "raised yet - %s. Fix the cause and Retry Posting first (BRU-ECM-20)."
+                        % (order.name, order.sudo().posting_note or "posting is pending")
+                    )
         result = super().action_dispatch(carrier_consignment_id=carrier_consignment_id)
         self.filtered(lambda o: not o.dispatched_at)._guarded().write(
             {"dispatched_at": fields.Datetime.now()}
         )
         self._sfb_post()
+        for order in self:
+            order.invalidate_recordset()
+            if order._sfb_invoice_owed():
+                raise UserError(
+                    "Order %s cannot be dispatched: its M20 invoice (Mushak 6.3) could not be "
+                    "raised at dispatch - %s (BRU-ECM-20)."
+                    % (order.name, order.sudo().posting_note or "posting is pending")
+                )
         return result
 
     def action_deliver(self):
@@ -316,8 +373,46 @@ class FixStorefrontOrderBooks(models.Model):
 
     def action_cancel(self, reason=None):
         result = super().action_cancel(reason=reason)
+        # A04 ERP audit M38-F6: the stock held for the order is released
+        self.sudo().line_ids._sfb_release_reservation()
         self._sfb_post()
         return result
+
+    def _sfb_reserve(self):
+        """A04 ERP audit M38-F6 (BRU-ECM-03, FR-041): an order's spare parts
+        are reserved in M15 when it is placed, so the same unit is never sold
+        twice; the reservation is consumed by the dispatch issue and released
+        on cancellation or payment timeout. A line whose part no single store
+        can hold for it is refused (the storefront store is named by
+        cd_storefront_finance.stock_location_code)."""
+        for order in self.sudo():
+            for line in order.line_ids.filtered(lambda ln: not ln.graded_stock_id):
+                part = line._sfb_part()
+                if not part:
+                    continue
+                try:
+                    location = line._sfb_issue_location(part)
+                except UserError as exc:
+                    if not _message(exc).startswith("Several"):
+                        raise  # no store holds it free: not sold twice
+                    # more than one store could serve it and none is named:
+                    # the operator names the store before dispatch (as today)
+                    order.message_post(
+                        body="%s: not reserved at placement - %s"
+                        % (part.part_number, _message(exc))
+                    )
+                    continue
+                cls = location_class(location, "owned")
+                self.env["fix.stock.onhand"]._fix_reserve(
+                    part, location, cls, line.quantity, order.name
+                )
+                line.write(
+                    {
+                        "reserved_qty": line.quantity,
+                        "reserved_location_id": location.id,
+                        "stock_part_id": part.id,
+                    }
+                )
 
     def action_retry_posting(self):
         """Post whatever the order still owes the books (idempotent)."""
@@ -327,16 +422,59 @@ class FixStorefrontOrderBooks(models.Model):
         return True
 
     @api.model
+    def consume_storefront_order_cancelled(self, event: dict) -> dict:
+        """A04 ERP audit X2: the R8 consumer of storefront.order_cancelled.
+        The cancellation posts its refund at once (action_cancel); the relay
+        makes sure it happened: the order is re-read (the payload is a claim)
+        and whatever it still owes the books is posted. Idempotent."""
+        if not self.env.su:
+            raise UserError("The storefront cancellation consumer runs only from the event relay.")
+        if (event.get("aggregate") or self._name) != self._name:
+            return {"skipped": event.get("aggregate")}
+        try:
+            order_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            order_id = 0
+        order = self.sudo().browse(order_id).exists()
+        if not order:
+            raise UserError("There is no storefront order #%s." % order_id)
+        if order.state != "cancelled":
+            return {"skipped": "order %s is %s" % (order.name, order.state)}
+        order._sfb_post()
+        order.invalidate_recordset()
+        if order.posting_state == "pending":
+            # leave the delivery failed so the relay retries (and the hourly job)
+            raise UserError(
+                "Order %s: the cancellation is not in the books yet - %s"
+                % (order.name, order.posting_note or "pending")
+            )
+        return {
+            "model": self._name,
+            "id": order.id,
+            "refund": order.ar_refund_id.name or False,
+            "credit_note": order.ar_credit_note_id.id or False,
+        }
+
+    @api.model
     def _cron_retry_storefront_postings(self, limit=200):
         """Hourly: post every order still pending, oldest attempt first. An
         order paid before this bridge was installed is posted the same way."""
         orders = self.sudo().search(
             [
                 "|",
+                "|",
                 ("posting_state", "=", "pending"),
                 "&",
                 ("posting_state", "=", "none"),
                 ("state", "in", ("paid", "dispatched", "delivered")),
+                # M38-F2: a paid order cancelled before this fix sat at "none"
+                "&",
+                "&",
+                "&",
+                ("state", "=", "cancelled"),
+                ("refund_due", ">", 0.0),
+                ("ar_refund_id", "=", False),
+                ("ar_invoice_id", "=", False),
             ],
             order="posting_attempted_at asc, id asc",
             limit=limit,
@@ -358,8 +496,18 @@ class FixStorefrontOrderBooks(models.Model):
         legs = []
         inv = self.ar_invoice_id
         if self.state == "cancelled":
-            if inv and inv.state in ("issued", "paid") and not self.ar_credit_note_id:
-                legs.append("cancel_credit")
+            if inv and inv.state in ("issued", "paid"):
+                # the money received is applied first, then credited in full
+                if self._sfb_receipt_owed():
+                    legs.append("receipt")
+                if not self.ar_credit_note_id:
+                    legs.append("cancel_credit")
+                return legs
+            # A04 ERP audit M38-F2: paid but never invoiced (the invoice leg
+            # was pending when the order was cancelled): the receipt is
+            # captured and refunded on the rail it came by.
+            if (self.refund_due or 0.0) > 0.005 and not self.ar_refund_id:
+                legs.append("cancel_refund")
             return legs
         money = (self.total_amount or 0.0) > 0.005
         shipped = self.state in ("dispatched", "delivered")
@@ -421,7 +569,11 @@ class FixStorefrontOrderBooks(models.Model):
         if self._sfb_todo():
             new = "pending"
         elif self.state in ("draft", "pending_payment") or (
-            self.state == "cancelled" and not self.ar_invoice_id
+            # M38-F2: never "nothing to post" while a refund is owed
+            self.state == "cancelled"
+            and not self.ar_invoice_id
+            and not self.ar_refund_id
+            and (self.refund_due or 0.0) <= 0.005
         ):
             new = "none"
         else:
@@ -552,6 +704,8 @@ class FixStorefrontOrderBooks(models.Model):
             lines,
             "Storefront order %s (%s)" % (self.name, rail),
             credit_account=credit_account,
+            # A04 ERP audit M38-F18: the revenue belongs to the store it ships from
+            operating_unit=self._sfb_fulfilment_ou() or None,
             invoice_date=day,
             issue=True,
         )
@@ -593,8 +747,9 @@ class FixStorefrontOrderBooks(models.Model):
             .create(
                 {
                     "company_id": self.company_id.id,
-                    "operating_unit_id": invoice.operating_unit_id.id,
-                    "customer_id": invoice.customer_id.id,
+                    "operating_unit_id": (invoice.operating_unit_id or self._sfb_fulfilment_ou()).id
+                    or False,
+                    "customer_id": (invoice.customer_id or self.customer_id).id,
                     "currency_id": self.currency_id.id,
                     "amount": self.total_amount,
                     "method": method,
@@ -799,6 +954,74 @@ class FixStorefrontOrderBooks(models.Model):
             }
         )
 
+    def _sfb_leg_cancel_refund(self):
+        """A04 ERP audit M38-F2: a gateway- or receipt-paid order cancelled
+        before its invoice posted. The money is in the books as an M20
+        receipt (captured now from the verified callback when it is not yet),
+        and the refund owed is raised against it as an M20 refund on the rail
+        it was paid by (fix.ar.refund: another accountant authorises it and
+        treasury pays it as an M50 instruction). One refund per order."""
+        receipt = self.ar_receipt_id or self.payment_receipt_id
+        if not receipt:
+            if not self.payment_date or self.payment_source != "gateway":
+                raise UserError(
+                    "Order %s owes a refund of BDT %.2f but holds no proof of payment to refund "
+                    "from." % (self.name, self.refund_due)
+                )
+            receipt = self._sfb_capture_gateway_receipt()
+        if receipt != self.ar_receipt_id:
+            self._guarded().write({"ar_receipt_id": receipt.id})
+        receipt = receipt.sudo()
+        Refund = self.env["fix.ar.refund"].sudo()
+        existing = Refund.search(
+            [("receipt_id", "=", receipt.id), ("state", "!=", "rejected")], limit=1
+        )
+        if existing:
+            raise UserError(
+                "Receipt %s is already being refunded (%s): one refund per payment."
+                % (receipt.name, existing.name)
+            )
+        receipt.invalidate_recordset(["unapplied_amount"])
+        amount = round(min(self.refund_due, receipt.unapplied_amount), 2)
+        if amount <= 0.005:
+            raise UserError(
+                "Receipt %s has nothing left on account to refund for order %s."
+                % (receipt.name, self.name)
+            )
+        refund = Refund.create(
+            {
+                "receipt_id": receipt.id,
+                "amount": amount,
+                "method": RAIL_REFUND_METHOD.get(self.payment_rail, "bank_transfer"),
+                "payee_account": self.payment_ref if self.payment_rail != "sslcommerz" else False,
+                "reason": ("Storefront order %s cancelled after payment" % self.name)[:250],
+            }
+        )
+        refund.message_post(
+            body="Raised by the storefront bridge: order %s was cancelled after payment (%s %s); "
+            "refund BDT %.2f back on the %s rail, for another accountant to authorise."
+            % (self.name, self.payment_rail, self.payment_ref or "", amount, self.payment_rail)
+        )
+        self._guarded().write({"ar_refund_id": refund.id})
+
+    def _sfb_fulfilment_ou(self):
+        """A04 ERP audit M38-F18: the operating unit the sale belongs to - the
+        store it ships from (the order's issue location, a line's issue
+        location, the configured storefront store), else the order's own;
+        never silently the company's first unit."""
+        self.ensure_one()
+        loc = self.stock_location_id or self.line_ids.mapped("stock_location_id")[:1]
+        if not loc:
+            code = (self.env["ir.config_parameter"].sudo().get_param(LOCATION_PARAM) or "").strip()
+            if code:
+                loc = (
+                    self.env["fix.stock.location"]
+                    .sudo()
+                    .search([("code", "=", code), ("company_id", "=", self.company_id.id)], limit=1)
+                )
+        ou = loc.operating_unit_id if loc and "operating_unit_id" in loc._fields else False
+        return ou or self.operating_unit_id
+
     def _sfb_leg_cancel_credit(self):
         """A cancelled paid order: the whole invoice is credited through M20
         (6.7, GL mirror, the money back through treasury once issued)."""
@@ -837,6 +1060,54 @@ class FixStorefrontOrderBooks(models.Model):
         return problems
 
 
+class FixStorefrontCartReserve(models.Model):
+    """A04 ERP audit M38-F6: placement reserves the order's parts in M15."""
+
+    _inherit = "fix.storefront.cart"
+
+    def action_place_order(
+        self,
+        shipping_address=None,
+        shipping_method="standard_delivery",
+        payment_rail="bkash",
+        slot_id=None,
+    ):
+        order = super().action_place_order(
+            shipping_address=shipping_address,
+            shipping_method=shipping_method,
+            payment_rail=payment_rail,
+            slot_id=slot_id,
+        )
+        order._sfb_reserve()
+        return order
+
+
+class FixStorefrontCartLineVat(models.Model):
+    """A04 ERP audit M38-F1 (with B1's M11 service): M11 prices are
+    VAT-EXCLUSIVE; the storefront shows and charges the VAT-inclusive price.
+    The VAT on it is the M51 determination the M20 invoice line makes for
+    the same item and day, so the invoice reproduces the customer's price
+    to the paisa (_sfb_split)."""
+
+    _inherit = "fix.storefront.cart.line"
+
+    @api.model
+    def _sf_vat_inclusive(self, excl, variant, company, vat_rate=None):
+        Line = self.env["fix.ar.invoice.line"].sudo()
+        tz = company.partner_id.tz or DHAKA
+        day = fields.Date.context_today(self.with_context(tz=tz))
+        frame = SimpleNamespace(invoice_date=day, company_id=company)
+        taxable = Decimal(str(excl)).quantize(CENT, ROUND_HALF_UP)
+        det = Line._fix_determined(frame, float(taxable), variant, self.env["fix.vat.treatment"])
+        if getattr(det, "treatment", None) == "truncated":
+            raise UserError(
+                "%s is a truncated-base supply: its VAT is not a rate on the storefront price, "
+                "so it is not sold online." % variant.display_name
+            )
+        total = Decimal(str(det.taxable_amount)) + Decimal(str(det.vat_amount))
+        return float(total.quantize(CENT, ROUND_HALF_UP))
+
+
 class FixStorefrontOrderLineBooks(models.Model):
     _inherit = "fix.storefront.order.line"
 
@@ -862,6 +1133,23 @@ class FixStorefrontOrderLineBooks(models.Model):
     stock_lot_id = fields.Many2one(
         "fix.stock.lot", string="Issued Serial", readonly=True, copy=False
     )
+    # A04 ERP audit M38-F6: the M15 reservation made at placement
+    reserved_qty = fields.Float(string="Reserved Qty (M15)", readonly=True, copy=False)
+    reserved_location_id = fields.Many2one(
+        "fix.stock.location", string="Reserved At", readonly=True, copy=False
+    )
+
+    def _sfb_release_reservation(self):
+        """Return the line's reserved quantity to free stock (cancel, timeout,
+        a return before issue). Idempotent."""
+        Onhand = self.env["fix.stock.onhand"]
+        for line in self.sudo().filtered(lambda ln: ln.reserved_qty > 1e-9):
+            location = line.reserved_location_id
+            cls = location_class(location, "owned")
+            Onhand._fix_unreserve(
+                line.stock_part_id, location, cls, line.reserved_qty, line.order_id.name
+            )
+            line.write({"reserved_qty": 0.0})
 
     def action_set_stock_serial(self, serial):
         """A storefront operator records the serial of a serialized part
@@ -954,7 +1242,15 @@ class FixStorefrontOrderLineBooks(models.Model):
         if not part:
             line.write({"stock_state": "not_required"})
             return
-        location = line._sfb_issue_location(part)
+        # M38-F6: the placement's reservation is consumed by this issue (its
+        # savepoint undoes the release if the issue fails)
+        reserved_at = line.reserved_location_id
+        line._sfb_release_reservation()
+        location = (
+            reserved_at
+            if reserved_at and not line.order_id.stock_location_id
+            else line._sfb_issue_location(part)
+        )
         if location.location_type in ("quarantine", "scrap"):
             raise UserError(
                 "%s is a %s location: its stock is not sold."

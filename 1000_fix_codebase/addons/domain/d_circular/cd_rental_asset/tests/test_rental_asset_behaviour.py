@@ -11,6 +11,8 @@ from unittest import mock
 import pytest
 from odoo import fields
 from odoo.addons.cd_service_order.models import fix_otp_util
+from odoo.addons.cd_service_order.tests.test_a02_p0_m01 import order as service_order
+from odoo.addons.cd_service_order.tests.test_a02_p0_m01 import w  # noqa: F401
 from odoo.exceptions import UserError, ValidationError
 
 RES = "fix.rental.reservation"
@@ -579,3 +581,25 @@ def test_full_journey(odoo_env):
     assert rec.deposit_refunded == 3000
     assert rec.delivery_consignment_id.consignment_type == "delivery"
     assert rec.return_consignment_id.consignment_type == "pickup"
+
+
+def test_a_loaner_leg_is_not_the_repaired_devices_leg(odoo_env, w):  # noqa: F811
+    """A02 pass 2 review (P2): a loaner for a repair was dispatched on a leg
+    naming the repair's service order, so it took that order's payment gate
+    and COD (D1), its door serial check, and its one-live-leg slot (the
+    repaired device's own leg was then refused). The loaner's legs carry no
+    service order; the reservation keeps the link."""
+    order = service_order(w)
+    live = odoo_env["fix.consignment"].create(
+        {
+            "consignment_type": "pickup",
+            "service_order_id": order.id,
+            "scheduled_date": fields.Datetime.now(),
+            "operating_unit_id": odoo_env.user.default_operating_unit_id.id,
+        }
+    )
+    rec = _in(odoo_env, "reserved", service_order_id=order.id)
+    leg = rec.action_generate_delivery_consignment()
+    assert leg and not leg.service_order_id
+    assert not (leg.cod_amount if "cod_amount" in leg._fields else 0.0)
+    assert rec.service_order_id == order and live.state == "draft"

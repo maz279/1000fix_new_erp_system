@@ -2,6 +2,7 @@
 import math
 
 from odoo import api, fields, models
+from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish  # FF-28
 
@@ -86,7 +87,33 @@ class FixTechnicianLocation(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # A02 ERP audit pass 2 M02-08: a technician records his OWN position,
+        # stamped by the server; pings are never edited (no write ACL). A
+        # dispatcher (or the superuser sync) may record for anyone.
+        trusted = self.env.su or self.env.user.has_group(
+            "cd_field_service.group_fix_field_service_manager"
+        )
+        own = (
+            self.env["hr.employee"].sudo().search([("user_id", "=", self.env.uid)]).ids
+            if not trusted
+            else []
+        )
         for vals in vals_list:
+            if not trusted:
+                if vals.get("technician_id") not in own:
+                    raise UserError("A technician records only his own location.")
+                vals["timestamp"] = fields.Datetime.now()
+            if not vals.get("operating_unit_id"):
+                # a ping from the app names no unit (the column is required):
+                # the technician's own unit, else the user's default unit
+                tech = self.env["hr.employee"].sudo().browse(vals.get("technician_id") or 0)
+                unit = (
+                    tech.exists().operating_unit_id
+                    if "operating_unit_id" in tech._fields
+                    else False
+                ) or self.env.user.default_operating_unit_id
+                if unit:
+                    vals["operating_unit_id"] = unit.id
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.technician.location")
                 vals["name"] = (

@@ -39,7 +39,7 @@ carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
 clearing (gross), prepared by an accountant and settled by a different
 Accounting Administrator.
 """,
-    "version": "19.0.1.5.1",
+    "version": "19.0.1.5.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
@@ -64,6 +64,8 @@ Accounting Administrator.
         # A04 report C7: consumers of the storefront refund and bond
         # encashment hand-offs.
         "data/fix_a04_consumers.xml",
+        # A02 ERP pass 2 X5-14: shift.closed -> Finance Manager escalation
+        "data/fix_a02r2_shift_consumer.xml",
         # A05 report cross-area follow-up: the e-waste settlement money leg.
         "data/fix_a05_consumers.xml",
         # A09 Update 3/4: payroll payments reach treasury (M50).
@@ -71,6 +73,8 @@ Accounting Administrator.
         # A08 B1 (F1/E12): deposit matching, LC expiry and the payment
         # consumer crons.
         "data/fix_treasury_automation.xml",
+        # A02 pass 2 (D20): riders holding COD past the hand-in deadline
+        "data/fix_cod_handin_cron.xml",
         "views/fix_cash_position_views.xml",
     ],
     "installable": True,

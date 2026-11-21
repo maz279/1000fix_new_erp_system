@@ -26,6 +26,30 @@ def _product(w, code="A02-FS-PART"):
     )
 
 
+def _approved_for(w, order, product, qty=5.0):
+    """A02 pass 2 M02-04 (D5): a part is fitted on site only when the service
+    order's approved estimate covers it. Setup: the customer approved it."""
+    est = w.env["fix.estimate"].create(
+        {
+            "order_id": order.id,
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "line_type": "part",
+                        "product_id": product.id,
+                        "quantity": qty,
+                        "unit_price": 350.0,
+                    },
+                )
+            ],
+        }
+    )
+    est.sudo().write({"state": "approved"})
+    return est
+
+
 def _payloads(env, rec, event_type):
     rows = (
         env["fix.event.outbox"]
@@ -98,6 +122,7 @@ def test_a_garbled_timeout_switch_stays_off(w):
 def test_offline_consume_part_writes_to_the_field_order(w, monkeypatch):
     rec = w.fo("in_progress", w.ea)
     prod = _product(w)
+    _approved_for(w, rec.order_id, prod)
     res = _sync(
         w,
         w.ua,
@@ -141,10 +166,12 @@ def test_a_picked_part_must_be_fitted_or_returned_before_completion(w):
 
 def test_a_fitted_part_is_frozen(w):
     rec = w.fo("in_progress", w.ea)
+    product = _product(w)
+    _approved_for(w, rec.order_id, product)
     part = (
         w.env["fix.field.order.part"]
         .with_user(w.ua)
-        .create({"field_order_id": rec.id, "product_id": _product(w).id})
+        .create({"field_order_id": rec.id, "product_id": product.id})
     )
     part.action_consume()
     assert (part.state, part.consumed_by_id) == ("consumed", w.ua)

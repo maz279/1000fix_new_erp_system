@@ -120,7 +120,7 @@ def test_a_counter_top_up_of_an_m20_settled_order_is_booked(books):
     )
     _revise(m, order, 2000.0)
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-TOP-M20", source="counter"
+        amount_bdt=1150.0, reference="CTR-TOP-M20", source="counter", tender="cash"
     )
     cash = _order_receipts(m, order).filtered(lambda r: r.method == "cash")
     assert cash.amount == 1150.0 and cash.reference == "CTR-TOP-M20"
@@ -197,7 +197,7 @@ def test_a_receipt_that_topped_up_one_order_settles_no_other(books):
     customer = m.env["res.partner"].create({"name": "Top-up receipt customer"})
     first = m.job(1000.0, customer=customer)
     first.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-TR-1", source="counter"
+        amount_bdt=1150.0, reference="CTR-TR-1", source="counter", tender="cash"
     )
     _revise(m, first, 2000.0)
     _receipt(m, customer, 1150.0, "BANK-TOPUP-1")
@@ -229,7 +229,7 @@ def test_an_advance_covering_the_estimate_releases_without_new_money(books):
     order._check_delivery_settlement_gate()  # nothing more is owed: no refusal
     with pytest.raises(UserError, match="owes nothing more"):
         order.with_user(m.so_cashier).action_mark_settled(
-            amount_bdt=1.0, reference="CTR-EXTRA", source="counter"
+            amount_bdt=1.0, reference="CTR-EXTRA", source="counter", tender="cash"
         )
 
 
@@ -241,7 +241,7 @@ def test_a_refund_takes_the_money_off_the_receipt(books):
     m.shift(as_user=m.so_cashier)
     order = m.job(500.0)
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=575.0, reference="CTR-RFD-1", source="counter"
+        amount_bdt=575.0, reference="CTR-RFD-1", source="counter", tender="cash"
     )
     receipt = order.settlement_receipt_id
     order.action_cancel(reason_code="customer_declined")  # superuser = supervisor
@@ -344,14 +344,26 @@ def test_a_cash_fee_taken_with_no_shift_is_still_booked(books):
 def test_another_customers_receipt_never_stands_in_for_a_field_trxid(books):
     m = books
     stranger = m.env["res.partner"].create({"name": "Stranger"})
-    _receipt(m, stranger, 575.0, "TRX-SHARED")
+    stranger_receipt = _receipt(m, stranger, 575.0, "TRX-SHARED")
     order = m.job(500.0, state="in_repair")
+    # A02 pass 2 (s2): a wallet/card TrxID pays once, so the stranger's
+    # transaction is refused at recording, before it can be verified at all
+    with pytest.raises(UserError, match="pays once"):
+        order.with_context(fd_settlement_tender="bkash")._fix_record_settlement(
+            575.0, "TRX-SHARED", "field_collection"
+        )
+    order.invalidate_recordset()
+    assert not order.settlement_receipt_id and not order.settlement_verified
+    stranger_receipt.invalidate_recordset()
+    assert stranger_receipt.customer_id == stranger and stranger_receipt.amount == 575.0
+    # the customer's own TrxID settles on a receipt of the order's customer
     order.with_context(fd_settlement_tender="bkash")._fix_record_settlement(
-        575.0, "TRX-SHARED", "field_collection"
+        575.0, "TRX-OWN-575", "field_collection"
     )
     order.with_user(m.so_cashier).action_verify_settlement()
     receipt = order.settlement_receipt_id
     assert receipt and receipt.customer_id == order.customer_id and receipt.amount == 575.0
+    assert receipt != stranger_receipt
 
 
 # ----------------------------------------- 10. the drawer verifier's scope
@@ -427,7 +439,7 @@ def test_the_delivery_invoice_is_dated_on_the_dhaka_day(books):
     m.shift(as_user=m.so_cashier)
     order = m.job(1000.0)
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-TAXPT", source="counter"
+        amount_bdt=1150.0, reference="CTR-TAXPT", source="counter", tender="cash"
     )
     order._guarded().write({"state": "delivered", "delivered_at": datetime(2026, 11, 30, 20, 30)})
     invoice = order._fix_invoice_at_delivery()
@@ -463,7 +475,7 @@ def test_the_estimate_collects_exactly_what_the_invoice_charges(books):
     # per line 0.10 x 15% = 0.015 -> 0.02, twice: 0.04 (header rounding gave 0.03)
     assert round(est.vat_amount, 2) == 0.04 and round(est.grand_total, 2) == 0.24
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=order._fix_amount_due(), reference="CTR-PAISA", source="counter"
+        amount_bdt=order._fix_amount_due(), reference="CTR-PAISA", source="counter", tender="cash"
     )
     invoice = m.deliver(order)
     invoice.invalidate_recordset()

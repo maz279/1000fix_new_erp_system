@@ -44,6 +44,10 @@ def ppl(odoo_env):
 def _rule(env, user, **kw):
     vals = {"name": "%s rule %d" % (TAG, next(_SEQ)), "adjustment_pct": 10.0}
     vals.update(kw)
+    # A04 ERP audit M11-F17: the rule type follows the direction it moves
+    mult = vals.get("surge_multiplier") or 1.0
+    if "rule_type" not in vals and (1 + vals["adjustment_pct"] / 100.0) * mult < 1.0:
+        vals["rule_type"] = "off_peak"
     return env["fix.dynamic.price.rule"].with_user(user).create(vals)
 
 

@@ -123,3 +123,33 @@ def test_a_waived_fee_raises_no_invoice(books):
     order.action_cancel(reason_code="customer_declined")
 
     assert order.state == "cancelled" and not _fee_invoice(order)
+
+
+def test_a_refused_repair_billed_then_declined_is_billed_once(books):
+    """D6 then FR-SRM-029: a repair refused after it was done is billed its
+    approved estimate (the intake fee applied to it); cancelling it as
+    declined raises no second, fee-only invoice."""
+    m = books
+    _charge_code(m.env)
+    m.shift(as_user=m.so_cashier)
+    order = m.job(2000.0, customer=m.customer, state="ready")
+    intake = m.intake(
+        device_id=m.device.id,
+        diagnostic_fee_bdt=FEE,
+        payment_channel="bkash",
+        payment_trx_ref="BKX-REFUSED",
+    )
+    intake.sudo()._guarded().write({"service_order_id": order.id})
+    receipt = intake.sudo()._fdf_raise_fee_receipt()
+
+    order.action_bill_refused_repair()
+    order.action_cancel(reason_code="customer_declined")
+
+    invoices = _fee_invoice(order)
+    assert len(invoices) == 1, invoices
+    invoices.invalidate_recordset()
+    assert invoices.total_payable > FEE  # the estimate, not the fee
+    assert not invoices.line_ids.filtered(lambda line: line.line_type == "diagnostic")
+    receipt.invalidate_recordset()
+    assert receipt.unapplied_amount == 0.0  # the fee went to the estimate invoice
+    assert "no separate diagnostic fee" in " ".join(order.message_ids.mapped("body"))

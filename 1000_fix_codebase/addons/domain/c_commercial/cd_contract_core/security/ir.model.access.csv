@@ -34,3 +34,4 @@ access_fix_contract_credit_scheme,fix.contract.credit.scheme,model_fix_contract_
 access_fix_contract_credit_scheme_officer,fix.contract.credit.scheme.officer,model_fix_contract_credit_scheme,group_contract_officer,1,1,1,1
 access_fix_contract_dispute,fix.contract.dispute,model_fix_contract_dispute,base.group_user,1,0,0,0
 access_fix_contract_dispute_officer,fix.contract.dispute.officer,model_fix_contract_dispute,group_contract_officer,1,1,1,0
+access_fix_contract_suspension,fix.contract.suspension,model_fix_contract_suspension,base.group_user,1,0,0,0

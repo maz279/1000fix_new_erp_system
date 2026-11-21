@@ -119,9 +119,44 @@ def m6(odoo_env):
         quote.action_accept(acceptance_reference="OTP-%06d" % (n * 7))
         return quote
 
+    def custody(case, giver=None, receiver=None):
+        """A02 pass 2 M06-03: sealed media, then a two-person hand-off."""
+        giver, receiver = giver or custodian_user, receiver or tech
+        if not case.sudo().media_unit_ids:
+            env["fix.data.media.unit"].sudo().create(
+                {"case_id": case.id, "seal_number": "SEAL-P0-%d-%d" % (n, case.id)}
+            )
+        case.with_user(giver).action_take_custody(receiver.login)
+        case.with_user(receiver).action_confirm_custody()
+        return case.with_user(tech)
+
+    def purge_cert(case, ref=None, verify=True):
+        """A02 pass 2 M06-04 (D15): the lab's purge certificate of the case."""
+        log = (
+            env["ir.attachment"]
+            .with_user(tech)
+            .create({"name": "purge.log", "raw": b"lab copy %d destroyed" % case.id})
+        )
+        cert = (
+            env[CERT]
+            .with_user(tech)
+            .create(
+                {
+                    "purpose": "case_purge",
+                    "case_id": case.id,
+                    "lab_storage_ref": ref or "Z4-VOL-%d" % case.id,
+                    "method": "cryptographic_erase",
+                    "sector_count": 1000,
+                    "wipe_log_attachment_id": log.id,
+                }
+            )
+        )
+        if verify:
+            cert.with_user(verifier).action_verify()
+        return cert, log
+
     def to_recovering(case):
-        case = case.with_user(tech)
-        case.action_take_custody("tech")
+        case = custody(case)
         case.action_route_to_z4()
         evaluate(case)
         accept_quote(case)
@@ -132,7 +167,8 @@ def m6(odoo_env):
         case.with_user(by or tech).action_record_image(
             source_hash=image_hash, image_hash=image_hash
         )
-        case.with_user(verifier or tech2).action_verify_image(recomputed_hash=image_hash)
+        # the custodian is the case's second person (A02 pass 2 M06-02)
+        case.with_user(verifier or custodian_user).action_verify_image(recomputed_hash=image_hash)
 
     def handover_code(case):
         """Send the recipient the handover code; return what they received."""
@@ -225,6 +261,8 @@ def m6(odoo_env):
         accept_quote=accept_quote,
         to_recovering=to_recovering,
         to_handover=to_handover,
+        custody=custody,
+        purge_cert=purge_cert,
         new_cert=new_cert,
         verified_cert=verified_cert,
         slot=slot,
@@ -266,7 +304,7 @@ def test_a_plain_user_has_no_case_access(m6):
 
 def test_D1_case_state_cannot_be_forged_to_purged(m6):
     case = m6.new_case()
-    case.action_take_custody("tech")
+    m6.custody(case)
     res = m6.p03_write(m6.tech, CASE, case, {"state": "purged"})
     assert "error" in res
     with pytest.raises(UserError, match=GUARD):
@@ -277,14 +315,14 @@ def test_D1_case_state_cannot_be_forged_to_purged(m6):
 
 def test_D2_custody_is_taken_once_and_never_after_purge(m6):
     case = m6.to_handover(m6.new_case(serial="WD-D2"))
-    cert, _ = m6.verified_cert("WD-D2")
+    cert, _ = m6.purge_cert(case)
     case.action_purge(certificate=cert)
     assert case.state == "purged"
     with pytest.raises(UserError, match="taken once"):
         case.action_take_custody("someone")
     assert case.state == "purged"
     fresh = m6.new_case(serial="WD-D2-B")
-    fresh.action_take_custody("desk")  # legitimate: from new
+    m6.custody(fresh)  # legitimate: from new
     assert fresh.state == "custody"
 
 
@@ -311,7 +349,7 @@ def test_D3_recovered_only_from_recovery_with_a_successful_attempt(m6):
 
 def test_D4_recovery_needs_z4_routing_evaluation_and_accepted_quote(m6):
     case = m6.new_case()
-    case.action_take_custody("tech")
+    m6.custody(case)
     # M06-9: the zone is not a label a user types
     res = m6.p03_write(m6.tech, CASE, case, {"residency_zone": "z4"})
     assert "error" in res
@@ -374,18 +412,28 @@ def test_D5_destructive_attempt_needs_consent_and_a_passing_cleanroom_slot(m6):
 
 def test_D6_custody_chain_is_an_append_only_ledger(m6):
     case = m6.new_case(serial="WD-D6", staffed=False)
-    case.action_take_custody("Desk")
-    case.action_log_custody_transfer("Nadia", location="Z4 Vault")
+    m6.custody(case, giver=m6.tech2, receiver=m6.tech)
+    # A02 pass 2 M06-03: a transfer is confirmed by the person receiving it
+    case.with_user(m6.tech).action_log_custody_transfer(m6.tech2.login, location="Z4 Vault")
+    case.with_user(m6.tech2).action_confirm_custody()
     res = m6.p03_write(m6.tech, CASE, case, {"custody_chain": "nothing happened"})
     assert "error" in res
     with pytest.raises(UserError, match=GUARD):
         case.write({"custody_chain": "erased"})
-    events = case.custody_event_ids
-    assert events.mapped("action") == ["custody_taken", "custody_transfer"]
-    assert set(events.mapped("actor_id")) == {m6.tech}
+    events = case.sudo().custody_event_ids
+    assert events.mapped("action") == [
+        "custody_requested",
+        "custody_taken",
+        "custody_requested",
+        "custody_transfer",
+    ]
+    # both people of each hand-off are on the ledger: the receiver records
+    # the move, the giver is its witness
+    assert (events[1].actor_id, events[1].witness_id) == (m6.tech, m6.tech2)
+    assert (events[3].actor_id, events[3].witness_id) == (m6.tech2, m6.tech)
     assert set(events.mapped("media_serial")) == {"WD-D6"}
     assert events[1].prev_hash == events[0].entry_hash
-    assert "custody taken by Desk" in case.custody_chain
+    assert "custody taken by" in case.custody_chain
     with pytest.raises(UserError, match="append-only"):
         events[0].write({"description": "rewritten"})
     with pytest.raises(UserError, match="append-only"):
@@ -402,7 +450,7 @@ def test_D6_custody_chain_is_an_append_only_ledger(m6):
 
 def test_H1_unrecoverable_and_closed_are_reachable(m6):
     case = m6.new_case()
-    case.action_take_custody("tech")
+    m6.custody(case)
     with pytest.raises(UserError, match="unrecoverable verdict needs"):
         case.action_mark_unrecoverable()
     with pytest.raises(UserError, match="closes after"):
@@ -415,14 +463,15 @@ def test_H1_unrecoverable_and_closed_are_reachable(m6):
         case.action_start_recovery()
     out = m6.p03_action(m6.tech, CASE, case, "action_mark_unrecoverable", {"reason": "PCB burnt"})
     assert out["success"], out
-    unit = (
-        m6.env["fix.data.media.unit"]
-        .with_user(m6.tech)
-        .create({"case_id": case.id, "seal_number": "SEAL-H1-%d" % m6.n})
-    )
+    # A02 pass 2 M06-03: the sealed bag custody was taken on
+    unit = case.media_unit_ids[:1].with_user(m6.tech)
     with pytest.raises(UserError, match="return the customer's media"):
         case.action_close()
-    unit.action_return()
+    # A02 pass 2 M06-03: the return is confirmed by a second person
+    unit.action_return(handler=m6.tech2.login)
+    assert unit.location != "returned_to_customer" and unit.pending_kind == "return"
+    unit.with_user(m6.tech2).action_confirm_move()
+    assert unit.location == "returned_to_customer"
     case.action_close()
     assert case.state == "closed"
 
@@ -472,35 +521,33 @@ def test_W3_verification_without_a_holder_says_so(m6):
         cert.with_user(m6.tech2).action_verify()
 
 
-def test_W4_certificate_binds_one_serial_and_purges_one_case(m6):
+def test_W4_a_purge_is_proved_by_the_cases_own_purge_certificate(m6):
+    """A02 pass 2 M06-04 (D15): a certificate of the customer's drive never
+    proves a purge; the lab's purge certificate of THIS case does, once."""
     c1 = m6.to_handover(m6.new_case(serial="WD-A-%d" % m6.n))
     c2 = m6.to_handover(m6.new_case(serial="WD-B-%d" % m6.n))
-    other, _ = m6.verified_cert("WD-OTHER-9")
-    for case in (c1, c2):
-        with pytest.raises(UserError, match="certifies media WD-OTHER-9"):
-            case.action_purge(certificate=other)
+    drive, _ = m6.verified_cert("WD-A-%d" % m6.n)
+    with pytest.raises(UserError, match="never proves a purge"):
+        c1.action_purge(certificate=drive)
+    theirs, _ = m6.purge_cert(c2)
+    with pytest.raises(UserError, match="belongs to case"):
+        c1.action_purge(certificate=theirs)
     assert (c1.state, c2.state) == ("handover", "handover")
     # the legitimate UI path: the button passes the reference, or nothing
-    own, _ = m6.verified_cert("wd-a-%d" % m6.n)  # labels vary in case
+    own, _ = m6.purge_cert(c1)
     out = m6.p03_action(m6.tech, CASE, c1, "action_purge", {"certificate": ""})
     assert out["success"], out
     assert (c1.state, c1.purge_certificate_id) == ("purged", own)
-    # one certificate purges one case, even of the same serial
-    c3 = m6.to_handover(m6.new_case(serial="WD-B-%d" % m6.n))
-    for case in (c2, c3):
-        with pytest.raises(UserError, match="certifies media|already closed another case"):
-            case.action_purge(certificate=own.name)
-    b_cert, _ = m6.verified_cert("WD-B-%d" % m6.n)
-    out = m6.p03_action(m6.tech, CASE, c2, "action_purge", {"certificate": b_cert.name})
+    out = m6.p03_action(m6.tech, CASE, c2, "action_purge", {"certificate": theirs.name})
     assert out["success"], out
-    with pytest.raises(UserError, match="already closed another case"):
-        c3.action_purge(certificate=b_cert)
+    # a purge certificate releases no device (M14 / M18 gates)
+    assert "certifies no device" in own._fix_certify_denial(own.serial_number)
 
 
 def test_W5_a_log_changed_after_verification_voids_it(m6):
     case = m6.to_handover(m6.new_case(serial="WD-S-%d" % m6.n))
-    cert, att = m6.verified_cert("WD-S-%d" % m6.n)
-    assert cert._fix_certifies("WD-S-%d" % m6.n)
+    cert, att = m6.purge_cert(case)
+    assert not case._m06_purge_denial(cert)
     att.with_user(m6.tech).write({"raw": b"wipe FAILED - 12 bad sectors"})
     cert.invalidate_recordset()
     assert not cert.evidence_intact
@@ -640,7 +687,7 @@ def test_Q2_acceptance_needs_the_customers_artefact(m6):
 
 def test_Q3_price_and_terms_freeze_once_sent(m6):
     case = m6.new_case()
-    case.action_take_custody("tech")
+    m6.custody(case)
     quote = m6.accept_quote(case, amount=15000)
     res = m6.p03_write(
         m6.tech, "fix.data.quote", quote, {"amount": 95000, "no_data_no_fee_applies": False}
@@ -690,7 +737,8 @@ def test_M1_media_cannot_be_forged_destroyed(m6):
     assert "error" in m6.p03_write(m6.tech, "fix.data.media.unit", unit, {"location": "destroyed"})
     with pytest.raises(UserError, match=GUARD):
         unit.write({"location": "destroyed"})
-    unit.action_transfer(location="z4_lab", handler="Nadia")
+    unit.action_transfer(location="z4_lab", handler=m6.tech2.login)
+    unit.with_user(m6.tech2).action_confirm_move()
     assert unit.location == "z4_lab"
     assert unit.case_id.custody_event_ids[-1].media_unit_id == unit
 

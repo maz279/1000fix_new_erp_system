@@ -6,16 +6,30 @@
 # on the 1st before 06:00 Dhaka time fell into the previous month, and one
 # raised on the last day after 18:00 into the next. The business day is
 # Asia/Dhaka (UTC+6): a period is that calendar month, converted to UTC.
+import re
 from datetime import datetime, time, timedelta
 
 import pytz
 
 BD_TZ = pytz.timezone("Asia/Dhaka")
+# the one spelling of a reporting month: a free-text label made two credits of
+# one month ("2026-1" beside "2026-01"; A02 pass-2 review P2)
+PERIOD_RE = re.compile(r"^\d{4}-(0[1-9]|1[0-2])$")
 
 
 def dhaka_today():
     """Today's date in Dhaka, whatever the server or cron user's zone."""
     return datetime.now(BD_TZ).date()
+
+
+def dhaka_date(stamp):
+    """The Dhaka calendar date of a naive-UTC datetime (a date is returned
+    as it is; None is None)."""
+    if not stamp:
+        return None
+    if isinstance(stamp, datetime):
+        return pytz.utc.localize(stamp).astimezone(BD_TZ).date()
+    return stamp
 
 
 def _utc(day, end):

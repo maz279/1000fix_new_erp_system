@@ -10,6 +10,8 @@ themselves are proved in test_a04_c2_c13_storefront.py.
 import pytest
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+from .test_a04_c2_c13_storefront import storefront_world
+
 REFUSED = (UserError, ValidationError, AccessError)
 
 
@@ -23,7 +25,17 @@ def clerk_env(odoo_env):
             {
                 "name": "SF Unit Clerk",
                 "login": "sf.unit.clerk@a04.test",
-                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+                # A04 ERP M38-F5: carts are captured by assisted sales staff
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            env.ref("base.group_user").id,
+                            env.ref("cd_storefront.group_fix_storefront_assisted_sales").id,
+                        ],
+                    )
+                ],
             }
         )
     )
@@ -31,6 +43,8 @@ def clerk_env(odoo_env):
     product = env["product.template"].create(
         {"name": "SF Unit Cable", "list_price": 300.0, "sale_ok": True}
     )
+    # A04 ERP M38-F1: the M11 card (260.87 + 15% VAT = BDT 300.00)
+    storefront_world(env, product, price=260.87)
     return env, clerk, customer, product
 
 

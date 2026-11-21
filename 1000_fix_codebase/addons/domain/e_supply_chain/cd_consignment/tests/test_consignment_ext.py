@@ -4,10 +4,36 @@ guarded confirm, and the service-order bridge.
 ``odoo_env`` (addons/conftest.py): fix_test, rolled back after every test.
 """
 
+import base64
 from datetime import datetime
 
 import pytest
 from odoo.exceptions import UserError
+
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
+DOOR_WEIGHT_G = 500.0
+
+
+def _door_proof(cons):
+    """A02 pass 2 M03-04: a pickup of a service order leaves the customer's
+    door with the customer's signature, a package photo, the scanned serial
+    and the outbound seal and weight (the leg is confirmed)."""
+    for kind in ("signature", "photo"):
+        image = cons.env["ir.attachment"].create(
+            {
+                "name": "%s.png" % kind,
+                "raw": PNG,
+                "mimetype": "image/png",
+                "res_model": cons._name,
+                "res_id": cons.id,
+            }
+        )
+        cons.action_attach_pickup_evidence(attachment_id=image.id, kind=kind)
+    cons.action_scan_pickup_serial(serial=cons.service_order_id.device_serial)
+    cons.write({"outbound_seal_number": "SEAL-%s" % cons.id, "dispatch_weight_g": DOOR_WEIGHT_G})
+    return cons
 
 
 @pytest.fixture
@@ -98,6 +124,7 @@ def test_confirm_refuses_non_draft(lg):
 def test_start_transit_reachable_and_stamps_first_scan(lg):
     cons = lg.consignment()
     cons.action_confirm()
+    _door_proof(cons)
     cons.action_start_transit()
     assert cons.state == "in_transit"
     assert cons.custody_ids[:1].step == "picked_up"  # chain auto-started
@@ -115,6 +142,7 @@ def test_start_transit_requires_confirmed(lg):
 
 
 def test_pod_otp_full_flow(lg, sms):
+    _ready(lg.order)  # D1: a delivery leg leaves only for a Ready order
     cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
@@ -137,6 +165,7 @@ def test_pod_otp_full_flow(lg, sms):
 
 
 def test_pod_requires_issued_otp(lg):
+    _ready(lg.order)  # D1: a delivery leg leaves only for a Ready order
     cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
@@ -151,6 +180,7 @@ def test_generate_otp_only_in_transit(lg):
 
 
 def test_lost_refuses_delivered(lg, sms):
+    _ready(lg.order)  # D1: a delivery leg leaves only for a Ready order
     cons = lg.consignment(consignment_type="delivery")
     cons.action_confirm()
     cons.action_start_transit()
@@ -175,6 +205,7 @@ def test_bridge_creates_pickup_for_collection(lg):
 
 def test_bridge_creates_delivery_for_onsite(lg):
     lg.order.service_type = "onsite"
+    _ready(lg.order)  # D1: the delivery leg is raised once the order is Ready
     created = lg.order.action_create_consignment()
     assert created.consignment_type == "delivery"
     assert created.origin_branch_id == lg.branch
@@ -207,8 +238,11 @@ def _arrive(cons):
     """A pickup leg through to its receipt at the branch (the device is home)."""
     cons.declared_value_bdt = 1000.0  # BRU-LOG-12
     cons.action_confirm()
+    _door_proof(cons)
     cons.action_start_transit()
-    cons.action_verify_hub_intake()
+    cons.action_verify_hub_intake(
+        inbound_seal=cons.outbound_seal_number, receive_weight_g=DOOR_WEIGHT_G
+    )
     cons.action_confirm_receipt()
     assert cons.state == "delivered"
     return cons

@@ -38,6 +38,7 @@ export const MODULE = {
       { id: 'M36-legal-holds', en: 'Legal Holds', bn: 'আইনি স্থগিতাদেশ', t: 'g' },
       { id: 'M36-doc-templates', en: 'Bilingual Document Templates', bn: 'দ্বিভাষিক নথি টেমপ্লেট', t: 'g' },
       { id: 'M36-contract-scope', en: 'Contracted Scope (from quotations)', bn: 'চুক্তির পরিধি', t: 'g' },
+      { id: 'M36-proposed-entitlements', en: 'Proposed Contract Entitlements', bn: 'প্রস্তাবিত এনটাইটেলমেন্ট', t: 'g' },
       { id: 'M36-versions', en: 'Quotation Versions', bn: 'কোটেশন ভার্সন', t: 'g' },
       { id: 'M36-esign', en: 'e-Signature & Evidence', bn: 'ই-সাইন', t: 'r' }
     ]},
@@ -82,7 +83,7 @@ export const MODULE = {
    * that still had nowhere to be captured now have their forms. */
   freg: { src: 86, sub: [
     ['1', 'Estimate Build-Up', 10, { model: 'fix.estimate.line', cols: ['estimate_id', 'line_type', 'description', 'quantity', 'unit_price', 'line_total'], screens: ['M36-buildup', 'M36-estimates', 'M36-est-reviews'], reports: [], forms: ['Estimate', 'Technical Review Request', 'Record Technical Review Outcome'], create: 'M36-form-estimate' }],
-    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-terms', 'M36-renewals', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Quotation Term', 'Renewal Quotation', 'Bulk Estate Quotation (asset upload)', 'Proforma Invoice (Local)'] }],
+    ['2', 'Quotation Object', 12, { model: 'fix.quotation', cols: ['name', 'state', 'customer_id', 'version', 'value', 'vat_amount'], screens: ['M36-quotes', 'M36-terms', 'M36-renewals', 'M36-proformas', 'M36-billing-quotes', 'M36-billing-lines', 'M36-handoffs', 'M36-contract-scope', 'M36-proposed-entitlements'], reports: ['Quote Conversion by Channel', 'Margin on Approved Quotes'], forms: ['Quotation (versioned)', 'Quotation Term', 'Renewal Quotation', 'Bulk Estate Quotation (asset upload)', 'Proforma Invoice (Local)', 'Proposed Contract Entitlement'] }],
     /* FR-QTE-012/015, BRU-QTE-02/04: an issued, expired or declined version is
      * never edited; it is revised into the next version. */
     ['3', 'Versioning', 7, { model: 'fix.quotation', cols: ['name', 'version', 'parent_version_id', 'state', 'customer_id', 'value', 'valid_until'], screens: ['M36-versions'], reports: [], forms: ['Revise a Quotation', 'Compare with the Previous Version'], create: 'M36-form-revise' }],
@@ -213,7 +214,7 @@ export const SCREENS = {
     actions: [
       { m: 'action_quote', l: 'Quote to Customer', states: ['approved'] },
       { m: 'action_negotiate', l: 'Customer Counter (negotiating)', states: ['approved'] },
-      { m: 'action_accept', l: 'Record Acceptance (within validity)', states: ['approved'] },
+      { m: 'action_accept', l: 'Record Acceptance (within validity)', ask: 'Customer acceptance evidence (signed slip no., message or call reference)', kwarg: 'evidence', states: ['approved'] },
       { m: 'action_decline', l: 'Record Decline', ask: 'Why did the customer decline?', kwarg: 'reason', states: ['approved'] },
       { m: 'action_create_proforma', l: 'Raise Proforma Invoice', states: ['sent', 'approved'] },
       { m: 'action_fix_print', l: '🖨 Print Estimate (PDF)' },
@@ -400,6 +401,25 @@ export const SCREENS = {
       ] }
     ]
   },
+  // A04 ERP audit M36-F10: what a contract quotation proposes the customer may
+  // draw; copied onto the M08 contract when the quotation converts.
+  'M36-proposed-entitlements': { kind: 'model_list', model: 'fix.quotation.entitlement',
+    cols: ['quotation_id', 'entitlement_type', 'quantity_included', 'device_id'] },
+  'M36-form-proposed-entitlement': { kind: 'model_form', model: 'fix.quotation.entitlement',
+    title: 'Proposed Contract Entitlement', back: 'M36-proposed-entitlements',
+    tabs: [
+      { id: 'general', label: '1. Entitlement', bn: '১. এনটাইটেলমেন্ট' },
+      { id: 'docs', label: '2. Documents', bn: '২. নথি' }
+    ],
+    sections: [
+      { tab: 'general', title: '1. What the Contract Will Include', note: 'Editable while the quotation is a draft or approved. State the quantity: 0 is unlimited and must be entered on purpose.', fields: [
+        { name: 'quotation_id', label: 'Quotation (contract)', required: true, domain: [['quote_type', '=', 'contract'], ['state', 'in', ['draft', 'approved']]] },
+        { name: 'entitlement_type', label: 'Entitlement Type', required: true },
+        { name: 'quantity_included', label: 'Included (0 = unlimited)', required: true },
+        { name: 'device_id', label: 'Specific Asset (empty = all covered assets)' }
+      ] },
+      { tab: 'docs', title: '2. Documents', fields: [] }
+    ] },
   'M36-contract-scope': { kind: 'model_list', model: 'fix.contract.scope.line', create: false,
     cols: ['contract_id', 'line_type', 'description', 'device_id', 'site_id', 'quantity', 'unit_price', 'subtotal'] },
   'M36-handoffs': { kind: 'model_list', model: 'fix.quotation.handoff', create: false,
@@ -632,7 +652,7 @@ export const SCREENS = {
           { name: 'margin_known', label: 'Margin Known (cost recorded)', readonly: true },
           { name: 'pretax_margin_bdt', label: 'Pre-Tax Operational Margin (BDT)', readonly: true },
           { name: 'margin_pct', label: 'Gross Margin (%)', readonly: true },
-          { name: 'vat_rate', label: 'Standard VAT Rate (%)' },
+          { name: 'vat_rate', label: 'VAT Rate (%) - M51 on the lines', readonly: true },
           { name: 'vat_amount', label: 'Mushak VAT Amount (BDT)', readonly: true },
           { name: 'amount_total', label: 'Total Payable incl. VAT (BDT)', readonly: true }
         ] },
@@ -682,6 +702,7 @@ export const SCREENS = {
           { name: 'contract_family', label: 'Contract Family' },
           { name: 'contract_months', label: 'Contract Term (months)' },
           { name: 'contract_start', label: 'Contract Start' },
+          { name: 'contract_sla_policy_ids', label: 'Proposed Service Levels (contract)' },
           { name: 'service_order_id', label: 'Service Order', readonly: true },
           { name: 'converted_ref', label: 'Converted Into', readonly: true },
           { name: 'converted_at', label: 'Converted At', readonly: true }
@@ -1231,6 +1252,11 @@ export const SCREENS = {
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
         { name: 'amount', label: 'Amount' },
+        { name: 'instrument', label: 'Instrument (guarantee / pay order EMD)', required: true },
+        { name: 'margin_amount', label: 'Cash Margin Held by the Bank' },
+        { name: 'charges_amount', label: 'Bank Commission' },
+        { name: 'funding_move_id', label: 'GL: Funding Entry', readonly: true },
+        { name: 'release_move_id', label: 'GL: Release Entry', readonly: true },
         { name: 'dofa_tier_required', label: 'Approval Tier', readonly: true },
         { name: 'release_ref', label: 'Bank Discharge Ref', readonly: true },
         { name: 'claim_reason', label: 'Encashment Reason', readonly: true }
@@ -1778,6 +1804,7 @@ export const FORM_MODELS = {
   'M36:Technical Review Request': 'fix.estimate.review',
   'M36:Record Technical Review Outcome': 'fix.estimate.review',
   'M36:Quotation Term': 'fix.quotation.term',
+  'M36:Proposed Contract Entitlement': 'fix.quotation.entitlement',
   'M36:Renewal Quotation': 'fix.quotation',
   'M36:Decide a Term Deviation': 'fix.quotation.term',
   'M36:Finance Credit Override': 'fix.quotation.credit.override',
@@ -1813,6 +1840,7 @@ export const FORM_CHIPS = {
   'M36:Technical Review Request': 'M36-form-est-review',
   'M36:Record Technical Review Outcome': 'M36-form-est-review-decide',
   'M36:Quotation Term': 'M36-form-term',
+  'M36:Proposed Contract Entitlement': 'M36-form-proposed-entitlement',
   'M36:Renewal Quotation': 'M36-form-renewal',
   'M36:Decide a Term Deviation': 'M36-form-term-decide',
   'M36:Finance Credit Override': 'M36-form-credit-override',
@@ -1847,6 +1875,7 @@ export const FORM_CHIPS = {
   },
   'M36:__by_screen__': {
     'M36-estimates': 'M36-form-estimate',
+    'M36-proposed-entitlements': 'M36-form-proposed-entitlement',
     'M36-quotes': 'M36-record',
     'M36-proformas': 'M36-form-proforma',
     'M36-billing-quotes': 'M36-billing',

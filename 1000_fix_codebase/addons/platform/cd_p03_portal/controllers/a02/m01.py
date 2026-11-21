@@ -45,6 +45,8 @@ SURFACES = {
             "action_verify_delivery_otp",
             # M04 build (BRU-FRD-05, cd_front_desk): a third-party collector's ID
             "action_verify_collector_id",
+            # A02 pass 2 (M04-06, cd_front_desk): the customer's own rating page
+            "action_request_counter_rating",
             # A02 audit B1: goodwill and zero-charge rework are REQUESTED here
             # and decided from the approver's M63 inbox (the approve methods
             # refuse a direct press, so they are not offered).
@@ -72,6 +74,14 @@ SURFACES = {
             # FR-SRM-029: finance's retry of a declined repair's fee invoice
             # (cd_billing_engine; finance managers only)
             "action_invoice_diagnostic_fee",
+            # A02 pass 2: supervisor corrections of what is fixed after intake
+            # (M01-02/07/15), the refused-repair invoice (D6, cd_billing_engine)
+            # and the cashier's confirmation of a rider's COD remittance (D1)
+            "action_correct_customer_device",
+            "action_correct_lci",
+            "action_transfer_branch",
+            "action_bill_refused_repair",
+            "action_confirm_cod_remitted",
         },
     },
     "fix.estimate": {
@@ -240,52 +250,106 @@ def _orders(env):
     return env["fix.service.order"].sudo().with_context(lang="en_US")
 
 
+# A02 pass 2 (M01-16): the rework rate and the TAT measure the last 30 days
+_KPI_WINDOW_DAYS = 30
+
+
+def _sla_at_risk(env, company_domain):
+    """Open orders whose resolution clock is past its WARNING point (the
+    policy's warn_at, 80% of the target by default) and still running: at
+    risk before it breaches. A02 pass 2 (M01-16): 'at risk' counted orders
+    already PAST the deadline - those are breached, not at risk."""
+    Instance = env.get("fix.sla.kpi.instance")
+    if Instance is None or "warn_at" not in Instance._fields:
+        return 0
+    order_ids = _orders(env).search([*company_domain, ("state", "in", _OPEN_STATES)]).ids
+    if not order_ids:
+        return 0
+    now = fields.Datetime.now()
+    rows = Instance.sudo()._read_group(
+        [
+            ("res_model", "=", "fix.service.order"),
+            ("res_id", "in", order_ids),
+            ("kpi_code", "=", "resolution"),
+            ("state", "=", "in_progress"),
+            ("warn_at", "!=", False),
+            ("warn_at", "<=", now),
+        ],
+        ["res_id"],
+        ["__count"],
+    )
+    return len(rows)
+
+
 def kpis(env):
     """The M01 module-tile KPI row — same measures the Role Center computes
-    (single source: the real fix.service.order/estimate tables)."""
+    (single source: the real fix.service.order/estimate tables).
+
+    A02 pass 2 (M01-16 / X5-17): every measure reads the whole population
+    (counts and grouped reads, no limit= cap: TAT read the newest 500
+    orders); the rework rate is reworks among the period's DELIVERIES (it
+    divided open reworks by open orders); conversion is per ORDER (an order
+    revised three times counted three estimates); at-risk reads the SLA
+    clock's warning point."""
     Order = _orders(env)
     company_domain = [("company_id", "in", env.companies.ids)]
+    now = fields.Datetime.now()
+    since = now - datetime.timedelta(days=_KPI_WINDOW_DAYS)
 
     open_orders = Order.search_count([*company_domain, ("state", "in", _OPEN_STATES)])
-    at_risk = Order.search_count(
-        [
-            *company_domain,
-            ("state", "in", _OPEN_STATES),
-            ("sla_clock_paused", "=", False),
-            ("sla_resolution_deadline", "!=", False),
-            ("sla_resolution_deadline", "<", datetime.datetime.now()),
-        ]
-    )
+    at_risk = _sla_at_risk(env, company_domain)
 
-    # TAT: orders resolved (Ready) within 24h of intake (IT target). A02 ERP
-    # audit M01-F15: measured intake -> Ready, the resolution promise; it
-    # read start-of-repair -> delivery, so the customer's collection delay
-    # counted and the diagnosis and estimate wait did not.
-    closed = Order.search(
-        [*company_domain, ("state", "in", _RESOLVED_STATES), ("sla_resolution_at", "!=", False)],
-        order="sla_resolution_at desc",
-        limit=500,
-    )
+    # TAT: orders resolved (Ready) within 24h of intake (IT target), over the
+    # window. A02 ERP audit M01-F15: measured intake -> Ready.
+    resolved_domain = [
+        *company_domain,
+        ("state", "in", _RESOLVED_STATES),
+        ("sla_resolution_at", ">=", since),
+        ("intake_completed_at", "!=", False),
+    ]
     tat_total = 0
     tat_24 = 0
-    for order in closed:
-        started = order.intake_completed_at
-        resolved = order.sla_resolution_at
-        if started and resolved:
-            tat_total += 1
-            if (resolved - started).total_seconds() <= 24 * 3600:
-                tat_24 += 1
+    for row in Order.search_read(resolved_domain, ["intake_completed_at", "sla_resolution_at"]):
+        tat_total += 1
+        if (row["sla_resolution_at"] - row["intake_completed_at"]).total_seconds() <= 24 * 3600:
+            tat_24 += 1
 
-    # Estimate conversion: approved / (approved + rejected + expired)
+    # Estimate conversion per order: orders whose estimate the customer
+    # decided, and of them the orders with an approved one
     Estimate = env["fix.estimate"].sudo()
-    decided = Estimate.search_count(
-        [*company_domain, ("state", "in", ("approved", "rejected", "expired"))]
-    )
-    approved = Estimate.search_count([*company_domain, ("state", "=", "approved")])
+    decided_orders = {
+        order.id
+        for (order,) in Estimate._read_group(
+            [
+                *company_domain,
+                ("order_id", "!=", False),
+                ("state", "in", ("approved", "superseded", "rejected", "expired")),
+            ],
+            ["order_id"],
+        )
+    }
+    approved_orders = {
+        order.id
+        for (order,) in Estimate._read_group(
+            [
+                *company_domain,
+                ("order_id", "!=", False),
+                ("state", "in", ("approved", "superseded")),
+            ],
+            ["order_id"],
+        )
+    }
+    decided = len(decided_orders)
+    approved = len(approved_orders & decided_orders)
 
-    rework_open = Order.search_count(
-        [*company_domain, ("state", "in", _OPEN_STATES), ("is_rework", "=", True)]
-    )
+    delivered_domain = [
+        *company_domain,
+        ("state", "in", ("delivered", "closed")),
+        ("delivered_at", ">=", since),
+    ]
+    deliveries = Order.search_count(delivered_domain)
+    rework_delivered = Order.search_count([*delivered_domain, ("is_rework", "=", True)])
+    delivered_not_closed = Order.search_count([*company_domain, ("state", "=", "delivered")])
 
     # intake speed: average intake duration in minutes from walk-in intake records
     avg_minutes = None
@@ -302,7 +366,8 @@ def kpis(env):
         "tat_under_24h": round(100.0 * tat_24 / tat_total, 1) if tat_total else None,
         "estimate_conversion": round(100.0 * approved / decided, 1) if decided else None,
         "intake_minutes": avg_minutes,
-        "rework_rate": round(100.0 * rework_open / open_orders, 1) if open_orders else None,
+        "rework_rate": round(100.0 * rework_delivered / deliveries, 1) if deliveries else None,
+        "delivered_not_closed": delivered_not_closed,
     }
 
 
@@ -372,8 +437,13 @@ def channel_intake_report(env, date_from=None, date_to=None, channel=None, group
 
 
 def wip_ageing_report(env, **params):
-    """WIP Ageing by Branch: open WIP orders bucketed by days since intake."""
-    today = datetime.date.today()
+    """WIP Ageing by Branch: open WIP orders bucketed by HOURS since intake.
+
+    A02 pass 2 (M01-16): the age was the difference of two UTC calendar days
+    (server date.today() and create_date.date()), so an order taken in at
+    23:00 was a day old an hour later and the < 24h bucket meant "today in
+    UTC". It is the elapsed time since intake now (the same in any zone)."""
+    now = fields.Datetime.now()
     domain = [
         ("company_id", "in", env.companies.ids),
         ("state", "in", _WIP_STATES),
@@ -381,9 +451,9 @@ def wip_ageing_report(env, **params):
     buckets = {"under_24h": 0, "24_48h": 0, "over_48h": 0}
     by_branch = {}
     for order in _orders(env).search(domain):
-        created = order.create_date.date() if order.create_date else today
-        age = (today - created).days
-        key = "under_24h" if age < 1 else ("24_48h" if age < 2 else "over_48h")
+        started = order.intake_completed_at or order.create_date or now
+        hours = (now - started).total_seconds() / 3600.0
+        key = "under_24h" if hours < 24 else ("24_48h" if hours < 48 else "over_48h")
         buckets[key] += 1
         name = order.branch_id.name or "—"
         by_branch.setdefault(name, {"under_24h": 0, "24_48h": 0, "over_48h": 0})[key] += 1
@@ -410,7 +480,7 @@ def wip_ageing_report(env, **params):
         "rows": rows,
         "notes": [
             "Orders still in work (from intake up to a failed quality check), grouped by the "
-            "number of days since the device was received."
+            "hours since the device was taken in."
         ],
     }
 
@@ -546,7 +616,7 @@ def rework_analysis_report(env, **params):
     device model (BRU-SRM-06 same-device-within-30-days detection)."""
     Order = _orders(env)
     domain = [("company_id", "in", env.companies.ids), ("is_rework", "=", True)]
-    rework = Order.search(domain, limit=500)
+    rework = Order.search(domain)  # X5-17: the whole population, no cap
     by_state = {}
     by_model = {}
     for order in rework:

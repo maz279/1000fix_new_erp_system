@@ -4,12 +4,12 @@
 # seller NPS (no survey key on sellers) is a declared gap. Seller stock
 # (fix.seller.stock) and seller standards (fix.seller.certification against
 # fix.seller.standard) were declared gaps until 12 Nov 2026 and are now built.
-import datetime
 
 from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _company_domain, _require_internal
+from ._scope import scoped, scoped_count
 
 SURFACES = {
     # A04 workflow audit (2026-11-03) M12-12: every surface declared
@@ -69,7 +69,10 @@ SURFACES = {
             "action_complete",
             "action_review",
             "action_earn_commission",
-            "action_paid",
+            # A04 ERP audit M12-F1: finance links the customer's M20 receipt.
+            # M12-F2: action_paid is NOT offered - the order is paid out by
+            # the M53 payout run's bank-confirmed discharge only.
+            "action_record_customer_receipt",
             "action_cancel",
         },
     },
@@ -153,7 +156,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _sellers(env):
-    return env["fix.marketplace.seller"].search([])
+    return scoped(env, "fix.marketplace.seller")
 
 
 def seller_liquidity(env, date_from=None, date_to=None, **params):
@@ -172,7 +175,8 @@ def seller_liquidity(env, date_from=None, date_to=None, **params):
             },
         )
         row["sellers"] += 1
-        if seller.active:
+        # A04 ERP M12-F14: only an approved seller is active supply
+        if seller.active and seller.kyc_status == "verified" and seller.cfo_approved:
             row["active"] += 1
         row["listings"] += len(listings.filtered(lambda ln, sid=seller.id: ln.seller_id.id == sid))
         row["jobs"] += seller.total_jobs or 0
@@ -203,19 +207,26 @@ def seller_liquidity(env, date_from=None, date_to=None, **params):
 
 
 def scorecard_distribution(env, date_from=None, date_to=None, **params):
-    scores = env["fix.seller.score"].search([])
-    bands = {"0-40": 0, "40-60": 0, "60-80": 0, "80-100": 0}
+    # A04 ERP audit M12-F14: the composite is on a 0-1 scale (the tier bands
+    # 0.50 / 0.70 / 0.85); every score fell in "0-40" before.
+    scores = scoped(env, "fix.seller.score", [], "create_date", date_from, date_to)
+    bands = {
+        "at risk (<0.50)": 0,
+        "silver (0.50-0.70)": 0,
+        "gold (0.70-0.85)": 0,
+        "platinum (0.85+)": 0,
+    }
     rows_by_seller = {}
     for score in scores:
         value = score.composite or 0.0
-        if value < 40:
-            bands["0-40"] += 1
-        elif value < 60:
-            bands["40-60"] += 1
-        elif value < 80:
-            bands["60-80"] += 1
+        if value < 0.50:
+            bands["at risk (<0.50)"] += 1
+        elif value < 0.70:
+            bands["silver (0.50-0.70)"] += 1
+        elif value < 0.85:
+            bands["gold (0.70-0.85)"] += 1
         else:
-            bands["80-100"] += 1
+            bands["platinum (0.85+)"] += 1
         rows_by_seller.setdefault(
             score.seller_id.id,
             {
@@ -237,21 +248,27 @@ def scorecard_distribution(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Score bands from the measured composite. Top sellers: %s."
-            % (", ".join("%s (%.1f)" % (r["seller"], r["composite"]) for r in detail[:5]) or "none")
+            % (", ".join("%s (%.2f)" % (r["seller"], r["composite"]) for r in detail[:5]) or "none")
         ],
         totals={"band": "Total", "sellers": sum(r["sellers"] for r in rows)} if rows else None,
         empty="No seller scorecards yet.",
     )
 
 
+def _fill(env, date_from=None, date_to=None):
+    """A04 ERP audit M12-F14: fill rate = jobs posted in the period that were
+    awarded to a seller (selected or later, not cancelled) / jobs posted."""
+    posted = scoped(env, "fix.marketplace.order", [], "create_date", date_from, date_to)
+    awarded = posted.filtered(lambda o: o.selected_quote_id and o.state != "cancelled")
+    return len(awarded), len(posted)
+
+
 def fill_rate(env, date_from=None, date_to=None, **params):
-    scores = env["fix.seller.score"].search([])
-    quotes = env["fix.seller.quote"].search([])
+    quotes = scoped(env, "fix.seller.quote", [], "create_date", date_from, date_to)
     by_state = {}
     for quote in quotes:
         by_state[quote.state] = by_state.get(quote.state, 0) + 1
-    decided = sum(s.quotes_decided or 0 for s in scores)
-    awarded = sum(s.orders_awarded or 0 for s in scores)
+    awarded, decided = _fill(env, date_from, date_to)
     rows = [{"state": k, "quotes": v} for k, v in sorted(by_state.items(), key=lambda kv: -kv[1])]
     return _pack(
         "Fill Rate & Time-to-Accept",
@@ -259,7 +276,7 @@ def fill_rate(env, date_from=None, date_to=None, **params):
         {"state": "Quote State", "quotes": "Quotes"},
         rows,
         [
-            "Fill rate = orders_awarded / quotes_decided across scorecards: %d of %d "
+            "Fill rate = jobs awarded to a seller / jobs posted in the period: %d of %d "
             "(%.1f%%)." % (awarded, decided, awarded / decided * 100.0 if decided else 0.0)
         ],
         totals={"state": "Total", "quotes": len(quotes)} if rows else None,
@@ -268,7 +285,7 @@ def fill_rate(env, date_from=None, date_to=None, **params):
 
 
 def commission_revenue(env, date_from=None, date_to=None, **params):
-    statements = env["fix.seller.statement"].sudo().search([])
+    statements = scoped(env, "fix.seller.statement", [], "create_date", date_from, date_to)
     by_period = {}
     for st in statements:
         row = by_period.setdefault(
@@ -315,8 +332,8 @@ def commission_revenue(env, date_from=None, date_to=None, **params):
 
 
 def dispute_rate(env, date_from=None, date_to=None, **params):
-    disputes = env["fix.marketplace.dispute"].search([])
-    orders = env["fix.marketplace.order"].search_count([])
+    disputes = scoped(env, "fix.marketplace.dispute", [], "create_date", date_from, date_to)
+    orders = scoped_count(env, "fix.marketplace.order", [], "create_date", date_from, date_to)
     by_state = {}
     for dispute in disputes:
         by_state[dispute.state] = by_state.get(dispute.state, 0) + 1
@@ -466,7 +483,7 @@ def oversight(env, date_from=None, date_to=None, **params):
 
 
 def seller_wallet(env, date_from=None, date_to=None, **params):
-    statements = env["fix.seller.statement"].sudo().search([])
+    statements = scoped(env, "fix.seller.statement", [], "create_date", date_from, date_to)
     by_seller = {}
     for st in statements:
         row = by_seller.setdefault(
@@ -525,7 +542,7 @@ def seller_wallet(env, date_from=None, date_to=None, **params):
 
 
 def fees_register(env, date_from=None, date_to=None, **params):
-    statements = env["fix.seller.statement"].sudo().search([])
+    statements = scoped(env, "fix.seller.statement", [], "create_date", date_from, date_to)
     rows = []
     for st in statements:
         rows.append(
@@ -871,19 +888,19 @@ REPORTS = {
 
 
 def kpis(env):
-    sellers = _sellers(env)
-    scores = env["fix.seller.score"].search([])
-    disputes = env["fix.marketplace.dispute"].search([])
+    # A04 ERP audit M12-F14: scoped to the caller's companies, Dhaka month,
+    # only KYC-verified and CFO-approved sellers count as active supply.
+    sellers = scoped(
+        env,
+        "fix.marketplace.seller",
+        [("kyc_status", "=", "verified"), ("cfo_approved", "=", True)],
+    )
+    disputes = scoped(env, "fix.marketplace.dispute", [("state", "!=", "resolved")])
     today = fields.Date.context_today(env["fix.marketplace.order"])
     month_start = today.replace(day=1)
-    payouts_mtd = len(
-        env["fix.payout.run"]
-        .sudo()
-        .search([("create_date", ">=", datetime.datetime.combine(month_start, datetime.time.min))])
-    )
-    decided = sum(s.quotes_decided or 0 for s in scores)
-    awarded = sum(s.orders_awarded or 0 for s in scores)
-    open_disputes = len(disputes.filtered(lambda d: d.state not in ("resolved", "closed")))
+    payouts_mtd = scoped_count(env, "fix.payout.run", [], "create_date", month_start, today)
+    awarded, decided = _fill(env, month_start, today)
+    open_disputes = len(disputes)
     return {
         "active_sellers": len(sellers.filtered(lambda s: s.active)),
         "job_fill_rate": round(awarded / decided * 100.0, 1) if decided else None,

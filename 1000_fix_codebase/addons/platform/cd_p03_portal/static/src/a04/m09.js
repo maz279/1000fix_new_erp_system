@@ -334,7 +334,12 @@ export const SCREENS = {
       { m: 'action_propose_partial', l: 'Key Partial Approval', ask: 'Amount the OEM approved (BDT)', kwarg: 'approved_amount', states: ['submitted', 'in_review'] },
       { m: 'action_propose_reject', l: 'Key OEM Rejection', ask: 'Reason the OEM gave', kwarg: 'reason', states: ['submitted', 'in_review'] },
       { m: 'action_recall_approval', l: 'Recall Keyed Decision', states: ['submitted', 'in_review'] },
-      { m: 'action_close', l: 'Close Claim', states: ['remitted', 'rejected'] }
+      { m: 'action_close', l: 'Close Claim', states: ['remitted', 'rejected'] },
+      // A04 ERP M09-F5 / F10: withdraw a claim; reopen a lapsed one when the brand accepts it late
+      { m: 'action_cancel', l: 'Cancel / Withdraw Claim', ask: 'Why the claim is cancelled', kwarg: 'reason', states: ['draft', 'ready', 'lapsed', 'submitted', 'in_review'] },
+      { m: 'action_extend_deadline', l: 'Extend Window (brand accepts late)', states: ['lapsed', 'draft', 'ready'],
+        asks: [{ kwarg: 'new_deadline', label: 'New window ends (YYYY-MM-DD HH:MM)' },
+          { kwarg: 'reason', label: 'Brand acceptance reference' }] }
     ] },
   'M09-record': {
 
@@ -391,7 +396,10 @@ export const SCREENS = {
         ] },
       { tab: 'financial', title: 'Commercial Reimbursement & Remittance Matching',
         fields: [
-          { name: 'claim_amount', readonly: true, label: 'Requested Amount (BDT, the approved estimate)' },
+          { name: 'repair_level', label: 'Repair Level (the brand rate is read for it)' },
+          { name: 'claim_amount', readonly: true, label: 'Requested Amount (BDT ex-VAT, the M11 brand rate)' },
+          { name: 'valuation_basis', readonly: true, label: 'Valued By' },
+          { name: 'rate_id', readonly: true, label: 'Brand Rate Applied' },
           { name: 'approved_amount', readonly: true, label: 'Approved by the OEM (BDT)' },
           { name: 'remittance_amount', readonly: true, label: 'Remitted, bank-confirmed (BDT)' }
         ] },

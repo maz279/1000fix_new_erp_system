@@ -25,6 +25,9 @@ PART_FROZEN_FIELDS = frozenset(
 )
 ORDER_CLOSED_STATES = ("completed", "cancelled")
 ON_SITE_STATES = ("arrived", "in_progress")
+# A02 ERP audit pass 2 M02-04 (owner decision D5): consumables fitted without
+# an estimate line, by product default code (comma-separated parameter).
+CONSUMABLE_CODES_PARAM = "cd_field_service.onsite_consumable_codes"
 
 
 class FixFieldOrderPart(models.Model):
@@ -150,8 +153,20 @@ class FixFieldOrderPart(models.Model):
             order._fix_require_assigned_technician("record parts on")
 
     def action_consume(self):
-        """The assigned technician fits the part on site."""
+        """The assigned technician fits the part on site.
+
+        A02 ERP audit pass 2 M02-04 (D5): only what the customer approved is
+        fitted. A part not on the service order's approved estimate (or more
+        of it than approved) is refused unless an approved revision covers
+        it; configured consumables are exempt. The check runs before the M15
+        issue (fix_field_order_part_m15 calls this first)."""
         self._m02_check_on_site("fitted")
+        for rec in self:
+            problem = rec.field_order_id._fix_part_estimate_problem(
+                rec.product_id, rec.quantity, exclude=rec
+            )
+            if problem:
+                raise UserError(problem)
         for rec in self:
             rec._guarded().write(
                 {
@@ -190,6 +205,54 @@ class FixFieldOrderParts(models.Model):
             rec.parts_total = sum(
                 rec.part_line_ids.filtered(lambda ln: ln.state == "consumed").mapped("subtotal")
             )
+
+    def _fix_consumable_codes(self):
+        raw = self.env["ir.config_parameter"].sudo().get_param(CONSUMABLE_CODES_PARAM, "") or ""
+        return {c.strip().upper() for c in raw.split(",") if c.strip()}
+
+    def _fix_part_estimate_problem(self, product, quantity, exclude=None):
+        """Why ``quantity`` of ``product`` may not be fitted on this job, or
+        '' (D5). The approved estimate governing the service order is the
+        customer's authority: its part lines, less what this job already
+        fitted. A zero-charge job (warranty / AMC entitlement) is not billed
+        to the customer and is not limited here."""
+        self.ensure_one()
+        product = product.sudo()
+        if (product.default_code or "").strip().upper() in self._fix_consumable_codes():
+            return ""
+        order = self.order_id.sudo()
+        if not order:
+            return ""
+        if order._fix_zero_charge_basis():
+            return ""
+        estimate = order._fix_governing_estimate().filtered(lambda e: e.state == "approved")
+        approved = sum(
+            estimate.line_ids.filtered(lambda ln: ln.product_id == product).mapped("quantity")
+        )
+        fitted = self.sudo().part_line_ids.filtered(
+            lambda ln: ln.state == "consumed" and ln.product_id == product and ln != exclude
+        )
+        used = sum(fitted.mapped("quantity"))
+        if used + (quantity or 0.0) <= approved + 1e-6:
+            return ""
+        if not estimate:
+            return (
+                "%s cannot be fitted on %s: service order %s has no approved estimate. "
+                "Raise the estimate and record the customer's approval first (D5)."
+                % (product.display_name, self.name, order.name)
+            )
+        return (
+            "%s x %s cannot be fitted on %s: the approved estimate %s covers %s (already "
+            "fitted %s). Revise the estimate and have the customer approve it first (D5)."
+            % (
+                quantity,
+                product.display_name,
+                self.name,
+                estimate.display_name,
+                approved or 0,
+                used or 0,
+            )
+        )
 
     def _fix_parts_unresolved(self):
         """Picked parts neither fitted nor returned: completion waits for them

@@ -143,7 +143,8 @@ def test_every_served_m03_action_has_a_button(reg):
 
 
 def test_the_m01_order_hands_over_to_logistics(reg):
-    methods = [a["m"] for a in reg["m01"]["actions"]]
+    # A02 pass 2 (M01 documents): print buttons carry `print`, not a method
+    methods = [a["m"] for a in reg["m01"]["actions"] if "m" in a]
     assert "action_create_consignment" in methods
     assert "action_create_consignment" in api.SURFACES["fix.service.order"]["actions"]
 

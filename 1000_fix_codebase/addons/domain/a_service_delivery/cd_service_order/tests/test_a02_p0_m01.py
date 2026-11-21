@@ -196,6 +196,17 @@ def handover_evidence(w, o):
     otp_verify(w, o)
 
 
+def warranty_photos(w, o):
+    """A02 pass 2 (M01-06, BRU-SRM-17): the intake and after-repair photos a
+    warranty order needs, uploaded on the order before it closes."""
+    vals = {"datas": _PNG_B64, "mimetype": "image/png"}
+    intake = w.env["ir.attachment"].create(dict(vals, name="intake.png"))
+    after = w.env["ir.attachment"].create(dict(vals, name="after-repair.png"))
+    o.with_user(w.clerk).write(
+        {"intake_photo_attachment_id": intake.id, "after_repair_photo_attachment_id": after.id}
+    )
+
+
 def so_request(w, kind, target):
     """The live fix.so.approval request (A02 audit B1) for a target."""
     field = "estimate_id" if kind == "manager_key" else "order_id"
@@ -413,10 +424,17 @@ def test_superuser_raise_voids_an_approval(w):
 
 
 def test_price_below_list_needs_the_discount_route(w):
-    prod = w.env["product.product"].create({"name": "A02 P0 LCD", "list_price": 5000.0})
+    # A04 ERP audit (M11-F1/F6): the floor is the M11 price floor, never the
+    # list_price placeholder; a price below it needs a line-bound override.
+    prod = w.env["product.product"].create(
+        {"name": "A02 P0 LCD", "default_code": "A02-P0-LCD", "list_price": 5000.0}
+    )
+    w.env["fix.price.floor"].create(
+        {"name": "A02 P0 LCD floor", "product_code": "A02-P0-LCD", "floor_price": 5000.0}
+    )
     o = order(w)
     part = {"line_type": "part", "product_id": prod.id, "description": "LCD", "quantity": 1}
-    assert "listed at BDT 5000" in attempt(
+    assert "floor is BDT 5000.00" in attempt(
         w,
         lambda: w.env["fix.estimate"]
         .with_user(w.clerk)
@@ -433,6 +451,11 @@ def test_price_below_list_needs_the_discount_route(w):
 # =========================================================================== QC (M01-6)
 def test_qc_state_is_guarded_and_needs_items(w):
     o = order(w)
+    # A02 pass 2 (M01-09): QC completes only once the repair is in QC Pending,
+    # so the order gets there first and the empty checklist is refused for its items
+    approved(w, o)
+    o.action_start_repair()
+    o.action_submit_qc()
     assert GUARD in attempt(
         w,
         lambda: w.env["fix.qc.checklist"]
@@ -492,28 +515,36 @@ def test_failed_qc_sends_the_order_to_rework(w):
 # =========================================================================== settlement + delivery
 def test_settlement_api_refuses_bad_inputs(w):
     o = to_ready(w, order(w), 10000)  # BDT 11,500 due
-    S = o.with_user(w.cashier)
+    # A02 pass 2 (s2): a counter settlement names its tender; one that does not
+    # is refused, and the other refusals are proved with the tender named
+    assert "never assumed to be cash" in attempt(
+        w, lambda: o.with_user(w.cashier)._fix_record_settlement(11500, "R1", "counter")
+    )
+    S = o.with_user(w.cashier).with_context(fd_settlement_tender="cash")
     assert "reference" in attempt(w, lambda: S._fix_record_settlement(11500, "", "counter"))
     assert "does not settle" in attempt(w, lambda: S._fix_record_settlement(1, "R1", "counter"))
     assert "Unknown settlement source" in attempt(
         w, lambda: S._fix_record_settlement(11500, "R1", "cash")
     )
     assert "Only a Service Order Cashier" in attempt(
-        w, lambda: o.with_user(w.clerk)._fix_record_settlement(11500, "R1", "counter")
+        w,
+        lambda: o.with_user(w.clerk)
+        .with_context(fd_settlement_tender="cash")
+        ._fix_record_settlement(11500, "R1", "counter"),
     )
     assert "M20 receipt" in attempt(
         w, lambda: S._fix_record_settlement(11500, "NO-SUCH", "m20_receipt")
     )
     # action_mark_settled: no default reference and no arbitrary amount (M01-15)
     assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled())
-    assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled("X", 1.0))
+    assert attempt(w, lambda: o.with_user(w.cashier).action_mark_settled("X", 1.0, tender="cash"))
 
 
 def test_counter_settlement_opens_the_delivery_gate(w):
     o = to_ready(w, order(w), 10000)
     handover_evidence(w, o)
     assert "Settlement Gate" in attempt(w, lambda: o.with_user(w.clerk).action_deliver())
-    o.with_user(w.cashier).action_mark_settled("POS-123", 11500.0)
+    o.with_user(w.cashier).action_mark_settled("POS-123", 11500.0, tender="cash")
     assert (o.settlement_source, o.settlement_verified) == ("counter", True)
     o.with_user(w.clerk).action_deliver()
     assert o.state == "delivered" and o.delivered_at
@@ -568,7 +599,7 @@ def test_m20_receipt_settles_verified(w):
 
 def test_delivery_needs_verified_otp_recipient_and_report(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-9", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-9", 3450.0, tender="cash")
     msg = attempt(w, lambda: o.with_user(w.clerk).action_deliver())
     assert "handover OTP" in msg and "recipient" in msg and "signed service" in msg
     o.with_user(w.clerk).action_send_delivery_otp()
@@ -598,7 +629,7 @@ def test_five_wrong_codes_burn_the_otp(w):
 def test_settlement_cannot_be_reverted_and_close_needs_it(w):
     o = to_ready(w, order(w), 10000)
     handover_evidence(w, o)
-    o.with_user(w.cashier).action_mark_settled("POS-1", 11500.0)
+    o.with_user(w.cashier).action_mark_settled("POS-1", 11500.0, tender="cash")
     o.with_user(w.clerk).action_deliver()
     assert GUARD in attempt(
         w, lambda: o.with_user(w.clerk).write({"payment_settlement_state": "unpaid"})
@@ -678,7 +709,7 @@ def test_cancel_needs_a_reason_and_cascades(w):
 def test_cancelling_a_settled_order_raises_the_refund_hand_off(w):
     o = order(w)
     approved(w, o, 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-55", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-55", 3450.0, tender="cash")
     # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
     assert "only a Service Supervisor" in attempt(
         w, lambda: o.with_user(w.clerk).action_cancel(reason_code="customer_declined")
@@ -726,6 +757,7 @@ def test_warranty_job_is_not_invoiced_to_the_customer(w):
     o = order(w, dev=device(w, warranty="active"), order_category="warranty")
     to_ready(w, o, 4000)
     handover_evidence(w, o)
+    warranty_photos(w, o)
     o.with_user(w.clerk).action_deliver()
     o.with_user(w.clerk).action_close()
     msg = attempt(

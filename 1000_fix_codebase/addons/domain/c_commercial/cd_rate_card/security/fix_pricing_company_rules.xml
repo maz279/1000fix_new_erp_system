@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 ERP audit (20 Nov 2026) M11-F13: fix.rate.card is an FF-21 exempt
+  master (no generated isolation rule), but a rate is a company's price: a
+  company-2 card priced a company-1 lookup. Hand-written company rule; the
+  resolver (fix.rate.card._resolve) also filters by company.
+-->
+<odoo>
+    <record id="rule_fix_rate_card_company" model="ir.rule">
+        <field name="name">fix.rate.card: allowed companies</field>
+        <field name="model_id" ref="model_fix_rate_card"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+</odoo>

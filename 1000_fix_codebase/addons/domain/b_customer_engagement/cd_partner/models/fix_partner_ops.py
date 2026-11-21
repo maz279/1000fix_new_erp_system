@@ -16,13 +16,14 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
 from .fix_partner import (
     AUDIT_PASS_SCORE,
     AUDIT_VALIDITY_DAYS,
+    EARNING_STATES,
     GROUP_MANAGER,
     GROUP_OFFICER,
     GROUP_REBATE_APPROVER,
@@ -36,6 +37,85 @@ from .fix_partner import (
 # warning 30 days before it lapses; an authorisation warns 30 days ahead.
 DEAL_PROTECTION_DAYS = 90
 EXPIRY_WARNING_DAYS = 30
+# A04 ERP audit M40-F14 (AUT-PCM-04, BRU-PCM-07): a brand authorisation
+# escalates at T-180, T-90 and T-30 days, each threshold once, to a wider
+# audience: the channel managers (Finance Director's delegate), DOFA Tier 3
+# (CCO), DOFA Tier 5 (CEO). The audience per threshold is an OWNER mapping.
+AUTHORISATION_WARNINGS = (
+    (180, GROUP_MANAGER),
+    (90, "cd_entity_config.group_dofa_tier_3"),
+    (30, "cd_entity_config.group_dofa_tier_5"),
+)
+# A04 ERP audit M40-F12: M20 invoice states that count as paid revenue.
+REBATE_BASIS_STATES = ("paid",)
+# A04 ERP audit M40-F3/F13: the settlement account roles a partner payout
+# accrues to (cd_settlement_ext.account_code.<role>). The expense roles have
+# no default: unset, the approval is refused (fail closed). Recommended on
+# fix_real: partner_rebate_payout 500306 Sales Commission, partner_mdf_expense
+# 500210 Marketing Expense; partner_payable is 32656556, tds_payable 200905.
+PAYOUT_ACCOUNT_PARAM = "cd_settlement_ext.account_code.%s"
+PAYOUT_ROLE_LABELS = {
+    "partner_rebate_payout": "Channel partner rebate expense",
+    "partner_mdf_expense": "Partner market development fund (MDF) expense",
+    "partner_payable": "Partner payable",
+    "tds_payable": "TDS withheld liability",
+}
+PAYOUT_ROLE_DEFAULTS = {"tds_payable": "210100"}
+
+
+def payout_account(env, company, role):
+    """The configured settlement account of a payout role, or a refusal that
+    names the parameter to set. Never guessed."""
+    param = PAYOUT_ACCOUNT_PARAM % role
+    code = env["ir.config_parameter"].sudo().get_param(param) or PAYOUT_ROLE_DEFAULTS.get(role)
+    if not code:
+        raise UserError(
+            "No GL account is configured for %s in %s: set system parameter %s. Nothing is "
+            "approved for payment until it is (fail closed)."
+            % (PAYOUT_ROLE_LABELS.get(role, role), company.name, param)
+        )
+    account = (
+        env["account.account"]
+        .sudo()
+        .with_company(company)
+        .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+    )
+    if not account:
+        raise UserError(
+            "%s names account %s, which %s does not have (%s)."
+            % (param, code, company.name, PAYOUT_ROLE_LABELS.get(role, role))
+        )
+    return account
+
+
+def assert_payout_accounts(env, company, expense_role):
+    """Refuse unless the expense, payable and TDS accounts of a payout exist."""
+    for role in (expense_role, "partner_payable", "tds_payable"):
+        payout_account(env, company, role)
+
+
+def executed_payout(rec, label):
+    """The M50 payout instruction raised for `rec`, refused unless executed."""
+    if "fix.payment.execution" not in rec.env:
+        raise UserError("%s: the M50 payment module is not installed." % label)
+    pay = (
+        rec.env["fix.payment.execution"]
+        .sudo()
+        .search([("source_model", "=", rec._name), ("source_id", "=", rec.id)], limit=1)
+    )
+    if not pay:
+        raise UserError(
+            "%s has no M50 payout instruction yet (the approval's hand-off raises it): nothing "
+            "is paid before it is." % label
+        )
+    if pay.state != "executed":
+        raise UserError(
+            "%s: payout %s is %s - it is paid when treasury's instruction is executed and the "
+            "bank confirms it, not on a typed reference." % (label, pay.name, pay.state)
+        )
+    return pay
+
+
 # The highest rebate / MDF rate accepted, as a fraction. Report §7.5 leaves
 # the bound to the business; 20% is the default until it rules.
 REBATE_MAX_RATE = 0.20
@@ -91,6 +171,8 @@ class FixPartnerAudit(models.Model):
 
     name = fields.Char(required=True, default="New", copy=False)
     partner_id = fields.Many2one("fix.partner", required=True, ondelete="cascade", index=True)
+    # A04 ERP audit M40-F27: the child registers carry their partner's company.
+    company_id = fields.Many2one(related="partner_id.company_id", store=True, index=True)
     audit_date = fields.Date(required=True, default=fields.Date.context_today)
     score = fields.Float(string="Audit Score (%)", required=True, default=0.0)
     findings = fields.Text()
@@ -209,6 +291,7 @@ class FixPartnerAuthorisation(models.Model):
 
     name = fields.Char(required=True)
     partner_id = fields.Many2one("fix.partner", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="partner_id.company_id", store=True, index=True)
     brand_id = fields.Many2one("fix.brand", string="Brand", index=True)
     scope = fields.Char(help="What the authorisation covers (service types, product lines).")
     valid_from = fields.Date(required=True)
@@ -228,6 +311,8 @@ class FixPartnerAuthorisation(models.Model):
     revoked_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     revoke_reason = fields.Char(readonly=True, copy=False)
     expiry_warned = fields.Boolean(readonly=True, copy=False)
+    # A04 ERP audit M40-F14: the smallest escalation threshold (days) fired
+    expiry_warned_days = fields.Integer(readonly=True, copy=False)
 
     _FROZEN = frozenset(
         {
@@ -249,6 +334,7 @@ class FixPartnerAuthorisation(models.Model):
             "revoked_by_id",
             "revoke_reason",
             "expiry_warned",
+            "expiry_warned_days",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -262,6 +348,40 @@ class FixPartnerAuthorisation(models.Model):
             for rec in self.filtered(lambda r: r.state != "draft"):
                 _refuse_frozen(rec, vals, self._FROZEN, "the authorisation is %s" % rec.state)
         return super().write(vals)
+
+    # ---- A04 ERP audit M40-F14 (BRU-PCM-08): the brand-work gate ----------
+    @api.model
+    def fix_brand_authorisation(self, brand, on_date=None, company=None):
+        """The active authorisation that covers work on `brand` (fix.brand
+        record or id) on `on_date`, held by an onboarded brand partner, or an
+        empty recordset. M09 / M01 call this before brand work."""
+        brand_id = brand.id if hasattr(brand, "id") else int(brand or 0)
+        if not brand_id:
+            return self.browse()
+        day = on_date or fields.Date.context_today(self)
+        dom = [
+            ("brand_id", "=", brand_id),
+            ("state", "=", "active"),
+            ("valid_from", "<=", day),
+            ("valid_to", ">=", day),
+            ("partner_id.state", "in", EARNING_STATES),
+        ]
+        if company:
+            dom.append(("partner_id.company_id", "=", company.id))
+        return self.sudo().search(dom, order="valid_to desc", limit=1)
+
+    @api.model
+    def fix_assert_brand_authorised(self, brand, what, on_date=None, company=None):
+        """Refuse `what` on a brand with no valid authorisation (BRU-PCM-08)."""
+        auth = self.fix_brand_authorisation(brand, on_date=on_date, company=company)
+        if not auth:
+            name = brand.display_name if hasattr(brand, "display_name") else brand
+            raise UserError(
+                "%s refused: 1000FiX holds no valid brand authorisation for %s on %s - the "
+                "authorisation lapsed, was revoked or was never activated (BRU-PCM-08)."
+                % (what, name, on_date or fields.Date.context_today(self))
+            )
+        return auth
 
     @api.constrains("valid_from", "valid_to")
     def _check_dates(self):
@@ -279,7 +399,7 @@ class FixPartnerAuthorisation(models.Model):
             if rec.state != "draft":
                 raise UserError("Only a draft authorisation can be activated.")
             fix_not_creator(self.env, rec, "activating it")
-            if rec.partner_id.state != "onboarded":
+            if rec.partner_id.state not in EARNING_STATES:
                 raise ValidationError(
                     "Partner %s is %s: only an onboarded partner holds a brand "
                     "authorisation (BRU-PCM-01)." % (rec.partner_id.name, rec.partner_id.state)
@@ -318,18 +438,23 @@ class FixPartnerAuthorisation(models.Model):
     @api.model
     def cron_authorisation_expiry(self):
         """A04 audit C10: an active authorisation lapses once its validity
-        ends, and warns once, 30 days before (partner.authorisation_expiring).
-        Idempotent."""
+        ends. A04 ERP audit M40-F14 (AUT-PCM-04): it escalates at T-180, T-90
+        and T-30 days (partner.authorisation_expiring, once per threshold,
+        consumed below), not only at 30. Idempotent."""
         today = fields.Date.context_today(self)
         active = self.sudo().search([("state", "=", "active")])
         lapsed = active.filtered(lambda a: a.valid_to < today)
         if lapsed:
             lapsed._guarded().write({"state": "expired"})
-        soon = (active - lapsed).filtered(
-            lambda a: not a.expiry_warned
-            and a.valid_to <= today + timedelta(days=EXPIRY_WARNING_DAYS)
-        )
-        for auth in soon:
+        warned = 0
+        for auth in active - lapsed:
+            days_left = (auth.valid_to - today).days
+            due = [d for d, _g in AUTHORISATION_WARNINGS if days_left <= d]
+            if not due:
+                continue
+            threshold = min(due)
+            if auth.expiry_warned_days and auth.expiry_warned_days <= threshold:
+                continue
             publish(
                 auth.env,
                 "partner.authorisation_expiring",
@@ -340,11 +465,70 @@ class FixPartnerAuthorisation(models.Model):
                     "partner_id": auth.partner_id.id,
                     "brand_id": auth.brand_id.id or None,
                     "valid_to": fields.Date.to_string(auth.valid_to),
+                    "days_left": days_left,
+                    "threshold": threshold,
                 },
             )
-        if soon:
-            soon._guarded().write({"expiry_warned": True})
-        return len(lapsed) + len(soon)
+            auth._guarded().write(
+                {"expiry_warned": threshold <= EXPIRY_WARNING_DAYS, "expiry_warned_days": threshold}
+            )
+            warned += 1
+        return len(lapsed) + warned
+
+    @api.model
+    def consume_partner_authorisation_expiring(self, event: dict) -> dict:
+        """A04 ERP audit X3 / M40-F14: the escalation reaches people. Each
+        threshold opens a to-do on the authorisation for the holders of its
+        audience (180: channel managers, 90: DOFA Tier 3, 30: DOFA Tier 5).
+        Relay only; idempotent per (authorisation, threshold)."""
+        if not self.env.su:
+            raise AccessError("Partner consumers run only from the event relay.")
+        try:
+            auth = self.sudo().browse(int(event.get("aggregate_id") or 0)).exists()
+        except (TypeError, ValueError):
+            auth = self.browse()
+        if not auth:
+            raise UserError("Authorisation hand-off refused: no such authorisation.")
+        payload = event.get("payload") or {}
+        try:
+            threshold = int(payload.get("threshold") or EXPIRY_WARNING_DAYS)
+        except (TypeError, ValueError):
+            threshold = EXPIRY_WARNING_DAYS
+        group_xmlid = dict(AUTHORISATION_WARNINGS).get(threshold, GROUP_MANAGER)
+        group = self.env.ref(group_xmlid, raise_if_not_found=False)
+        users = (group.sudo().all_user_ids if group else self.env["res.users"]).filtered(
+            lambda u: not u.share and u.active
+        )
+        summary = "Brand authorisation %s expires in %d days (T-%d)" % (
+            auth.name,
+            max((auth.valid_to - fields.Date.context_today(self)).days, 0),
+            threshold,
+        )
+        Activity = self.env["mail.activity"].sudo()
+        model_id = self.env["ir.model"]._get_id(self._name)
+        made = 0
+        for user in users:
+            if Activity.search_count(
+                [
+                    ("res_model_id", "=", model_id),
+                    ("res_id", "=", auth.id),
+                    ("user_id", "=", user.id),
+                    ("summary", "=", summary[:100]),
+                ]
+            ):
+                continue
+            auth.activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=auth.valid_to,
+                summary=summary[:100],
+                note="Renew the authorisation of %s with %s before %s: work on the brand stops "
+                "when it lapses (BRU-PCM-08)."
+                % (auth.brand_id.name or "the brand", auth.partner_id.name, auth.valid_to),
+                user_id=user.id,
+            )
+            made += 1
+        auth.message_post(body="%s: escalated to %d holder(s)." % (summary, len(users)))
+        return {"model": auth._name, "id": auth.id, "activities": made}
 
 
 class FixPartnerDeal(models.Model):
@@ -359,6 +543,7 @@ class FixPartnerDeal(models.Model):
 
     name = fields.Char(required=True)
     partner_id = fields.Many2one("fix.partner", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="partner_id.company_id", store=True, index=True)
     customer_id = fields.Many2one("res.partner", string="End Customer")
     value = fields.Monetary(currency_field="currency_id")
     currency_id = fields.Many2one(
@@ -458,7 +643,7 @@ class FixPartnerDeal(models.Model):
             if rec.state not in ("registered", "conflict"):
                 raise UserError("Only a registered deal can be approved.")
             fix_not_creator(self.env, rec, "approving it")
-            if rec.partner_id.state != "onboarded":
+            if rec.partner_id.state not in EARNING_STATES:
                 raise ValidationError(
                     "Partner %s is %s: only an onboarded partner registers deals "
                     "(BRU-PCM-01)." % (rec.partner_id.name, rec.partner_id.state)
@@ -599,8 +784,17 @@ class FixPartnerRebate(models.Model):
 
     name = fields.Char(required=True)
     partner_id = fields.Many2one("fix.partner", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="partner_id.company_id", store=True, index=True)
     period = fields.Char(required=True)
-    basis = fields.Monetary(currency_field="currency_id", string="Rebate Basis")
+    # A04 ERP audit M40-F12: the period the basis is measured over, and the
+    # basis itself COMPUTED from the partner's paid M20 invoices at accrual
+    # (VAT exclusive, net of credit notes) - never typed.
+    period_from = fields.Date(string="Period From")
+    period_to = fields.Date(string="Period To")
+    basis = fields.Monetary(
+        currency_field="currency_id", string="Rebate Basis", readonly=True, copy=False
+    )
+    basis_invoice_count = fields.Integer(string="Paid Invoices Counted", readonly=True, copy=False)
     rate = fields.Float(required=True, default=0.0, help="Fraction, e.g. 0.03 = 3%.")
     amount = fields.Monetary(currency_field="currency_id", compute="_compute_amount", store=True)
     currency_id = fields.Many2one(
@@ -650,7 +844,17 @@ class FixPartnerRebate(models.Model):
     )
 
     _FROZEN = frozenset(
-        {"partner_id", "period", "basis", "rate", "kind", "currency_id", "campaign_id"}
+        {
+            "partner_id",
+            "period",
+            "period_from",
+            "period_to",
+            "basis",
+            "rate",
+            "kind",
+            "currency_id",
+            "campaign_id",
+        }
     )
 
     @api.depends("basis", "rate")
@@ -688,6 +892,8 @@ class FixPartnerRebate(models.Model):
         return super()._fix_guarded_fields() | {
             "state",
             "amount",
+            "basis",
+            "basis_invoice_count",
             "audit_id",
             "accrued_by_id",
             "accrued_at",
@@ -747,21 +953,61 @@ class FixPartnerRebate(models.Model):
         approved._guarded().write({"state": "accrued", "audit_id": False})
         return result
 
+    # ------------------------------------------------------------ basis
+    def _fix_paid_basis(self):
+        """A04 ERP audit M40-F12: the partner's PAID M20 invoices dated in the
+        period, VAT exclusive, less the VAT-exclusive part of the credit notes
+        issued against them. Returns (basis, invoice count)."""
+        self.ensure_one()
+        if not (self.period_from and self.period_to) or self.period_to < self.period_from:
+            raise ValidationError(
+                "Give rebate %s its period (from / to dates): the basis is measured from the "
+                "partner's paid invoices of that period." % self.name
+            )
+        party = self.partner_id.sudo().partner_id.commercial_partner_id
+        invoices = (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "child_of", party.id),
+                    ("company_id", "=", self.partner_id.company_id.id),
+                    ("state", "in", REBATE_BASIS_STATES),
+                    ("invoice_date", ">=", self.period_from),
+                    ("invoice_date", "<=", self.period_to),
+                ]
+            )
+        )
+        gross = sum(invoices.mapped("taxable_amount"))
+        credited = 0.0
+        for note in invoices.mapped("credit_note_ids").filtered(lambda n: n.state == "issued"):
+            total = note.invoice_id.total_payable or 0.0
+            if total > 0.005:
+                credited += (note.amount or 0.0) * note.invoice_id.taxable_amount / total
+        return round(max(gross - credited, 0.0), 2), len(invoices)
+
     # ------------------------------------------------------------ lifecycle
     def action_accrue(self):
         fix_require(self.env, [GROUP_OFFICER], "Accruing a rebate")
         for rec in self:
             if rec.state != "draft":
                 raise UserError("Only a draft rebate can be accrued.")
-            if rec.partner_id.state != "onboarded":
+            if rec.partner_id.state not in EARNING_STATES:
                 raise ValidationError(
                     "Partner %s is %s: only an onboarded partner earns a rebate (BRU-PCM-01)."
                     % (rec.partner_id.name, rec.partner_id.state)
                 )
-            if (rec.basis or 0.0) <= 0 or (rec.rate or 0.0) <= 0:
-                raise ValidationError("A rebate accrues on a positive basis and rate.")
+            basis, count = rec._fix_paid_basis()
+            if basis <= 0 or (rec.rate or 0.0) <= 0:
+                raise ValidationError(
+                    "A rebate accrues on a positive basis and rate: %s has %d paid invoice(s) "
+                    "worth BDT %.2f in %s to %s."
+                    % (rec.name, count, basis, rec.period_from, rec.period_to)
+                )
             rec._guarded().write(
                 {
+                    "basis": basis,
+                    "basis_invoice_count": count,
                     "state": "accrued",
                     "accrued_by_id": self.env.uid,
                     "accrued_at": fields.Datetime.now(),
@@ -781,7 +1027,7 @@ class FixPartnerRebate(models.Model):
         for rec in self:
             if rec.state != "accrued":
                 raise UserError("Only an accrued rebate can be approved for payout.")
-            if rec.partner_id.state != "onboarded":
+            if rec.partner_id.state not in EARNING_STATES:
                 raise ValidationError("Partner %s is no longer onboarded." % rec.partner_id.name)
             audit = rec.partner_id._fix_current_audit()
             score = audit.score if audit else 0.0
@@ -792,6 +1038,13 @@ class FixPartnerRebate(models.Model):
                     "FLAW-40.1, from an approved audit of the last %d days)."
                     % (rec.partner_id.name, score, AUDIT_PASS_SCORE, AUDIT_VALIDITY_DAYS)
                 )
+            # A04 ERP audit M40-F13: no payout is approved that the ledger
+            # cannot accrue (expense, partner payable and TDS accounts).
+            assert_payout_accounts(
+                self.env,
+                rec.partner_id.company_id,
+                "partner_mdf_expense" if rec.kind == "mdf" else "partner_rebate_payout",
+            )
             rec.action_dofa_approve()
             rec._guarded().write({"state": "approved", "audit_id": audit.id})
             publish(
@@ -814,18 +1067,21 @@ class FixPartnerRebate(models.Model):
         return True
 
     def action_record_payout(self, payment_ref=None):
-        """Finance records that the approved amount was paid (the M52/M53
-        payable raised from partner.rebate_approved), with its reference."""
+        """Finance records that the approved amount was paid.
+
+        A04 ERP audit M40-F13: a typed reference stood for the payment. The
+        rebate is now paid when the M50 instruction raised by its approval
+        hand-off is executed (bank confirmed); the reference is that
+        instruction's bank reference."""
         finance = self.env.ref(GROUP_FINANCE, raise_if_not_found=False)
         if not (self.env.su or (finance and self.env.user in finance.sudo().all_user_ids)):
             raise UserError("Recording a rebate payout is finance's (Invoicing / Billing role).")
-        ref = (str(payment_ref).strip() if payment_ref else "") or False
-        if not ref:
-            raise UserError("Give the payout reference (the payable or bank transfer).")
         for rec in self:
             if rec.state != "approved":
                 raise UserError("Only an approved rebate is paid.")
             rec._dofa_assert_approved("The rebate payout")
+            pay = executed_payout(rec, "Rebate %s" % rec.name)
+            ref = pay.bank_reference or pay.name
             # sudo after the finance check: finance records the payout without
             # holding the channel roles' write access.
             rec.sudo()._guarded().write(
@@ -857,8 +1113,13 @@ class FixPartnerFranchise(models.Model):
 
     name = fields.Char(required=True)
     partner_id = fields.Many2one("fix.partner", required=True, ondelete="cascade", index=True)
+    company_id = fields.Many2one(related="partner_id.company_id", store=True, index=True)
     territory = fields.Char(required=True)
     fee = fields.Monetary(currency_field="currency_id")
+    # A04 ERP audit M40-F2: the M20 invoice of the initial fee.
+    fee_invoice_id = fields.Many2one(
+        "fix.ar.invoice", string="Initial Fee Invoice (M20)", readonly=True, copy=False
+    )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -886,6 +1147,7 @@ class FixPartnerFranchise(models.Model):
             "terminated_by_id",
             "terminated_at",
             "termination_reason",
+            "fee_invoice_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -899,6 +1161,41 @@ class FixPartnerFranchise(models.Model):
             for rec in self.filtered(lambda r: r.state != "draft"):
                 _refuse_frozen(rec, vals, self._FROZEN, "the agreement is %s" % rec.state)
         return super().write(vals)
+
+    def _fix_bill_initial_fee(self):
+        """A04 ERP audit M40-F2: the initial fee is billed at activation - a
+        draft M20 invoice to the franchisee (VAT by M51), crediting the
+        configured franchise-fee income account. partner.franchise_activated
+        had no consumer: a BDT 750,000 fee produced no invoice."""
+        from .fix_partner_capture import partner_account
+
+        self.ensure_one()
+        if (self.fee or 0.0) <= 0.005:
+            return self.env["fix.ar.invoice"]
+        company = self.partner_id.sudo().company_id
+        account = partner_account(self.env, company, "franchise_fee_income")
+        invoice = (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            ._fix_draft_invoice_from_source(
+                self._name,
+                "%s/%s/initial-fee" % (self._name, self.id),
+                self.partner_id.sudo().partner_id,
+                [
+                    {
+                        "description": "Franchise initial fee - %s (%s)"
+                        % (self.name, self.territory),
+                        "taxable_amount": self.fee,
+                    }
+                ],
+                "Franchise agreement %s activated: initial fee (FR-PCM-036)" % self.name,
+                company=company,
+                invoice_date=fields.Date.context_today(self),
+                credit_account=account,
+            )
+        )
+        self._guarded().write({"fee_invoice_id": invoice.id})
+        return invoice
 
     @api.constrains("start_date", "end_date", "fee")
     def _check_terms(self):
@@ -940,6 +1237,7 @@ class FixPartnerFranchise(models.Model):
                     "activated_at": fields.Datetime.now(),
                 }
             )
+            rec._fix_bill_initial_fee()
             publish(
                 rec.env,
                 "partner.franchise_activated",
@@ -986,6 +1284,7 @@ class FixPartnerConflict(models.Model):
 
     name = fields.Char(required=True)
     partner_a_id = fields.Many2one("fix.partner", string="Partner A", required=True)
+    company_id = fields.Many2one(related="partner_a_id.company_id", store=True, index=True)
     partner_b_id = fields.Many2one("fix.partner", string="Partner B")
     customer_id = fields.Many2one("res.partner", string="Contested Customer")
     description = fields.Text(required=True)

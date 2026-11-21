@@ -16,6 +16,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .pricing_money import money
 from .pricing_roles import (
     DEFAULT_DISCOUNT_LADDER,
     ROLE_OFFICER,
@@ -203,6 +204,8 @@ class FixPriceVersion(models.Model):
 
     name = fields.Char(required=True)
     book_id = fields.Many2one("fix.price.book", required=True, ondelete="restrict", index=True)
+    # A04 ERP audit (20 Nov 2026) M11-F13: a version is its book's company's.
+    company_id = fields.Many2one(related="book_id.company_id", store=True, index=True)
     version = fields.Char(required=True)
     effective_from = fields.Date(required=True)
     state = fields.Selection(VERSION_STATES, required=True, default="draft", readonly=True)
@@ -333,6 +336,23 @@ class FixPriceVersion(models.Model):
             current = self.search(
                 [("book_id", "=", rec.book_id.id), ("state", "=", "active"), ("id", "!=", rec.id)]
             )
+            # A04 ERP audit (20 Nov 2026) M11-F5: approving an older-dated
+            # version superseded the newer one in force. An older version
+            # never displaces a newer one: it is superseded on arrival, and
+            # documents dated in its window still find it through the cards'
+            # version window (fix.rate.card._version_in_force).
+            newer = current.filtered(
+                lambda v, r=rec: v.effective_from and v.effective_from > r.effective_from
+            )
+            if newer:
+                rec._guarded().write(
+                    {"state": "superseded", "superseded_at": now, "superseded_by_id": newer[0].id}
+                )
+                rec.message_post(
+                    body="Not activated: %s (from %s) is newer and stays in force."
+                    % (newer[0].display_name, newer[0].effective_from)
+                )
+                continue
             if current:
                 current._guarded().write(
                     {"state": "superseded", "superseded_at": now, "superseded_by_id": rec.id}
@@ -417,6 +437,11 @@ class FixPriceFloor(models.Model):
     product_code = fields.Char(required=True, index=True)
     catalogue_item_id = fields.Many2one("fix.catalogue.item", string="Catalogue Item")
     book_id = fields.Many2one("fix.price.book", string="Price Book")
+    # A04 ERP audit (20 Nov 2026) M11-F13: a floor binds its own company's
+    # sales only.
+    company_id = fields.Many2one(
+        "res.company", required=True, index=True, default=lambda self: self.env.company
+    )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -464,7 +489,7 @@ class FixPriceFloor(models.Model):
         if self:
             # A04 audit M11-5 (pf_08): the floor is the control; it changes
             # only through an approved price change.
-            guarded |= {"floor_price", "product_code", "catalogue_item_id", "active"}
+            guarded |= {"floor_price", "product_code", "catalogue_item_id", "active", "company_id"}
         return guarded
 
     @api.depends("floor_price", "proposed_override_price", "dofa_approved", "dofa_approved_by")
@@ -575,17 +600,29 @@ class FixPriceFloor(models.Model):
         return True
 
     @api.model
-    def _floors_for(self, product):
+    def _floors_for(self, product, company=None):
         """Active floors that govern `product` (by code or catalogue item)."""
         product = product.sudo()
         code = (product.default_code or "").strip()
         item = product.product_tmpl_id.catalogue_item_id[:1]
+        return self._floors_matching(code, item, company)
+
+    @api.model
+    def _floors_matching(self, code=None, item=None, company=None):
+        """Active floors on `code` OR on catalogue `item`, of `company` (or
+        shared, with no company). A04 ERP audit (20 Nov 2026) M11-F9/F13:
+        the dynamic rule matched floors by code only, and a floor had no
+        company, so another company's floor bound this one's sale."""
         domain = []
         if code:
             domain = [("product_code", "=", code)]
         if item:
             domain = ["|", ("catalogue_item_id", "=", item.id)] + (domain or [("id", "=", 0)])
-        return self.sudo().search(domain) if domain else self.sudo().browse()
+        if not domain:
+            return self.sudo().browse()
+        if company:
+            domain = [*domain, ("company_id", "in", [company.id, False])]
+        return self.sudo().search(domain)
 
     def action_request_floor_change(self):
         """Raise a price change for the floor staged on this record."""
@@ -886,7 +923,7 @@ class FixPromotion(models.Model):
         raw = base * self.value / 100.0 if self.discount_type == "percent" else self.value
         if self.budget_amount:
             raw = min(raw, max(self.budget_amount - self.budget_used, 0.0))
-        return round(min(raw, base), 2)
+        return money(min(raw, base))
 
     @api.model
     def best_combination(self, promotions, base_price, channel=None):
@@ -902,8 +939,8 @@ class FixPromotion(models.Model):
         stack_total = min(sum(p.discount_on(base_price) for p in stack), base_price or 0.0)
         ex_total = best_ex.discount_on(base_price) if best_ex else 0.0
         if stack and stack_total >= ex_total:
-            return stack, round(stack_total, 2)
-        return (best_ex or self.browse()), round(ex_total, 2)
+            return stack, money(stack_total)
+        return (best_ex or self.browse()), money(ex_total)
 
     def consume(self, amount):
         """Record one use giving `amount` of discount; refused once the budget

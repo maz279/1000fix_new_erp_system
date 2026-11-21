@@ -61,7 +61,11 @@ def _uplift_event(m5, devices):
         m5.env["fix.event.outbox"]
         .sudo()
         .search(
-            [("event_type", "=", "msp.device_uplift"), ("aggregate_id", "=", m5.msp.id)],
+            # A02 ERP pass 2 (M05-S06): every fee change, one event type
+            [
+                ("event_type", "=", "msp.commercial_terms_amended"),
+                ("aggregate_id", "=", m5.msp.id),
+            ],
             order="id desc",
             limit=1,
         )
@@ -90,35 +94,39 @@ def test_an_uplift_requests_the_subscription_price_change(m5):
     event = _uplift_event(m5, old + 2)
     payload = json.loads(json.dumps(event["payload"]))
     rate = m5.msp.per_device_monthly
-    out = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_device_uplift(event)
+    out = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_commercial_terms_amended(event)
     assert out["created"] and out["new_amount"] == round(10000.0 + 2 * rate, 2)
-    assert payload["added_devices"] == 2
+    assert payload["monthly_delta"] == 2 * rate
     asked = _requested_amount(sub)
     assert asked == out["new_amount"], asked
     # the recurring amount itself waits for the second person
     assert sub.recurring_amount == 10000.0
     # a replay requests nothing twice
-    again = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_device_uplift(event)
+    again = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_commercial_terms_amended(event)
     assert again["created"] is False
 
 
 def test_a_quarterly_subscription_bills_three_months_of_devices(m5):
     _subscription(m5, amount=30000.0, cycle="quarterly")
     event = _uplift_event(m5, m5.msp.device_count + 1)
-    out = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_device_uplift(event)
+    out = m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_commercial_terms_amended(event)
     assert out["new_amount"] == round(30000.0 + 3 * m5.msp.per_device_monthly, 2)
 
 
-def test_a_forged_count_and_a_user_call_are_refused(m5):
+def test_a_forged_amendment_and_a_user_call_are_refused(m5):
     _subscription(m5)
     event = _uplift_event(m5, m5.msp.device_count + 1)
-    forged = dict(event, payload=dict(event["payload"], new_device_count=999))
-    with pytest.raises(UserError, match="the event says"):
-        m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_device_uplift(forged)
+    # the amount comes from the terms history, never the payload (M05-S05)
+    forged = dict(event, payload=dict(event["payload"], amendment_id=999999999))
+    with pytest.raises(UserError, match="is not a terms change"):
+        m5.env["fix.subscription.msp.uplift"].sudo().consume_msp_commercial_terms_amended(forged)
     with pytest.raises(AccessError):
-        m5.env["fix.subscription.msp.uplift"].with_user(m5.fin).consume_msp_device_uplift(event)
+        m5.env["fix.subscription.msp.uplift"].with_user(
+            m5.fin
+        ).consume_msp_commercial_terms_amended(event)
 
 
 def test_the_consumer_is_wired(m5):
-    row = m5.env["fix.event.consumer"].sudo().search([("event_type", "=", "msp.device_uplift")])
-    assert row and row.model == "fix.subscription.msp.uplift"
+    for event_type in ("msp.device_uplift", "msp.commercial_terms_amended"):
+        row = m5.env["fix.event.consumer"].sudo().search([("event_type", "=", event_type)])
+        assert row and row.model == "fix.subscription.msp.uplift"

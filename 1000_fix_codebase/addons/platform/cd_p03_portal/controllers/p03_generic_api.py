@@ -193,7 +193,9 @@ def _picker_source(env, comodel, surface=None, name=None):
         return env[comodel]
     if name and name in ((surface or {}).get("picker_names") or ()):
         return env[comodel].sudo()
-    return env[comodel] if (SURFACES.get(comodel) or {}).get("rules") else env[comodel].sudo()
+    conf = SURFACES.get(comodel) or {}
+    # A02 pass 2 review: a caller-scoped surface is fenced like a rules one
+    return env[comodel] if (conf.get("rules") or conf.get("caller_scoped")) else env[comodel].sudo()
 
 
 # An evidence field (a many2one to ir.attachment: signed waybill, POD scan,
@@ -1005,6 +1007,9 @@ class P03GenericApiController(http.Controller):
                     rec = env[model].browse(int(record_id)).exists()
                     if rec:
                         rec.check_access("read")
+                        # a model that logs who read it (M06 cases) logs the form
+                        if hasattr(rec, "_p03_log_form_read"):
+                            rec._p03_log_form_read()
                 else:
                     rec = env[model].sudo().browse(int(record_id)).exists()
             out_fields = self._form_field_meta(env, model, fields, rec or None)
@@ -1226,7 +1231,8 @@ class P03GenericApiController(http.Controller):
         if record_id:
             # the parent surface's "rules" flag governs its child grid too
             conf = SURFACES.get(model) or {}
-            read_model = env[model] if conf.get("rules") else env[model].sudo()
+            scoped = conf.get("rules") or conf.get("caller_scoped")
+            read_model = env[model] if scoped else env[model].sudo()
             rec = read_model.browse(int(record_id)).exists()
             if rec:
                 binaries = [m["name"] for m in out_fields if m["type"] == "binary"]

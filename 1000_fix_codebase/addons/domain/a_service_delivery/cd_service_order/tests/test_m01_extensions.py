@@ -72,7 +72,12 @@ def _walk_to_delivered(order):
     order.action_start_repair()
     order.action_submit_qc()
     order.env["fix.qc.checklist"].create(
-        {"order_id": order.id, "state": "passed", "item_ids": [Command.create({"name": "Boot"})]}
+        {
+            "order_id": order.id,
+            "qc_round": order.qc_round,
+            "state": "passed",
+            "item_ids": [Command.create({"name": "Boot"})],
+        }
     )
     order.action_ready()
     order.action_deliver()

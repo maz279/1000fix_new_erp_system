@@ -18,4 +18,6 @@ from . import (
     # M31 capture pass 2 (19 Nov 2026): extends the allocation, burn-in and
     # QC actions above, so it is imported last
     fix_workshop_capture2,
+    # A02 pass 2 (20 Nov 2026): extends the job, time log and workshop above
+    fix_workshop_a02r2,
 )

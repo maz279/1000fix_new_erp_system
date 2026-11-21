@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 ERP audit M08-F20 (20 Nov 2026): the contract printout. There was none:
+  a contract could be signed only as a template's text, with nothing that
+  stated its number, the parties' BINs, the term, the price before and after
+  VAT, how it is billed, what it covers and who signs. The layout follows the
+  estate's commercial document standard (number, BIN, VAT, terms, totals),
+  self-contained so this module keeps its dependencies.
+  Printed at /report/pdf/cd_contract_core.report_contract/<id>.
+-->
+<odoo>
+
+    <record id="report_contract" model="ir.actions.report">
+        <field name="name">Contract</field>
+        <field name="model">fix.contract</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_contract_core.report_contract_document</field>
+        <field name="report_file">cd_contract_core.report_contract_document</field>
+        <field name="print_report_name">'Contract %s' % (object.code or object.name)</field>
+        <field name="binding_model_id" ref="model_fix_contract"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <template id="report_contract_document">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <t t-set="company" t-value="doc.company_id"/>
+                    <t t-set="customer" t-value="doc.customer_id.commercial_partner_id"/>
+                    <t t-set="family" t-value="dict(doc._fields['family'].selection).get(doc.family)"/>
+                    <t t-set="vat" t-value="round((doc.accepted_total or 0.0) - (doc.term_value or 0.0), 2) if doc.accepted_total else None"/>
+                    <div class="page" style="font-size: 11px;">
+                        <h3 style="margin-bottom: 2px;">SERVICE CONTRACT</h3>
+                        <div><strong>Contract No.:</strong> <span t-field="doc.code"/>
+                            <span t-if="doc.amendment_version"> (amendment version <span t-esc="doc.amendment_version"/>)</span></div>
+                        <div><strong>Title:</strong> <span t-field="doc.name"/></div>
+                        <table style="width: 100%; margin-top: 8px; border-collapse: collapse;">
+                            <tr>
+                                <td style="width: 50%; vertical-align: top; border: 1px solid #ccc; padding: 4px;">
+                                    <strong>Service Provider</strong><br/>
+                                    <span t-esc="company.name"/><br/>
+                                    BIN: <span t-esc="company.vat or '—'"/><br/>
+                                    Operating unit: <span t-esc="doc.operating_unit_id.name or '—'"/>
+                                </td>
+                                <td style="width: 50%; vertical-align: top; border: 1px solid #ccc; padding: 4px;">
+                                    <strong>Customer</strong><br/>
+                                    <span t-esc="customer.name"/><br/>
+                                    BIN: <span t-esc="customer.vat or '—'"/><br/>
+                                    <span t-esc="customer.contact_address or ''" style="white-space: pre-wrap;"/>
+                                </td>
+                            </tr>
+                        </table>
+                        <h5 style="margin-top: 10px;">1. Term and price</h5>
+                        <table style="width: 100%; border-collapse: collapse;">
+                            <tr><td style="width: 40%;">Product family</td><td t-esc="family"/></tr>
+                            <tr><td>Term</td><td><span t-field="doc.date_start"/> to <span t-field="doc.date_end"/></td></tr>
+                            <tr><td>Annual value (excl. VAT)</td><td>BDT <span t-esc="'{:,.2f}'.format(doc.annual_value or 0.0)"/></td></tr>
+                            <tr><td>Contract value for the term (excl. VAT)</td><td>BDT <span t-esc="'{:,.2f}'.format(doc.term_value or 0.0)"/></td></tr>
+                            <tr t-if="vat is not None"><td>VAT (as determined on each Mushak 6.3 invoice)</td><td>BDT <span t-esc="'{:,.2f}'.format(vat)"/></td></tr>
+                            <tr t-if="doc.accepted_total"><td><strong>Total payable over the term (incl. VAT)</strong></td><td><strong>BDT <span t-esc="'{:,.2f}'.format(doc.accepted_total)"/></strong></td></tr>
+                            <tr t-if="not doc.accepted_total"><td>VAT</td><td>Charged at the rate in force on each tax invoice (Mushak 6.3)</td></tr>
+                            <tr><td>Billing</td><td><span t-esc="dict(doc._fields['billing_frequency'].selection).get(doc.billing_frequency)"/>, <span t-esc="dict(doc._fields['billing_timing'].selection).get(doc.billing_timing)"/></td></tr>
+                            <tr t-if="doc.escalation_pct"><td>Escalation at renewal</td><td><span t-esc="doc.escalation_pct"/>% a year</td></tr>
+                            <tr t-if="doc.retention_pct"><td>Retention</td><td><span t-esc="doc.retention_pct"/>% of each bill (excl. VAT), released at the end of the defects-liability period</td></tr>
+                            <tr t-if="doc.ld_rate_pct_per_day"><td>Liquidated damages</td><td><span t-esc="doc.ld_rate_pct_per_day"/>% per day of delay, capped at <span t-esc="doc.ld_cap_pct"/>%</td></tr>
+                        </table>
+                        <h5 style="margin-top: 10px;">2. Billing schedule</h5>
+                        <table style="width: 100%; border-collapse: collapse;" class="table table-sm">
+                            <thead><tr><th>#</th><th>Period</th><th style="text-align: right;">Amount (excl. VAT)</th></tr></thead>
+                            <tbody>
+                                <t t-foreach="doc._fix_billing_schedule()" t-as="row">
+                                    <tr>
+                                        <td t-esc="row_index + 1"/>
+                                        <td><span t-esc="row['period_start']"/> to <span t-esc="row['period_end']"/></td>
+                                        <td style="text-align: right;" t-esc="'{:,.2f}'.format(row['amount'])"/>
+                                    </tr>
+                                </t>
+                            </tbody>
+                        </table>
+                        <h5 style="margin-top: 10px;">3. Cover</h5>
+                        <table style="width: 100%; border-collapse: collapse;" class="table table-sm">
+                            <thead><tr><th>Entitlement</th><th>Asset</th><th style="text-align: right;">Included</th></tr></thead>
+                            <tbody>
+                                <tr t-foreach="doc.entitlement_ids" t-as="ent">
+                                    <td t-esc="dict(ent._fields['entitlement_type'].selection).get(ent.entitlement_type)"/>
+                                    <td t-esc="ent.device_id.display_name or 'All covered assets'"/>
+                                    <td style="text-align: right;" t-esc="ent.quantity_included or 'Unlimited'"/>
+                                </tr>
+                                <tr t-if="not doc.entitlement_ids"><td colspan="3">No entitlement lines.</td></tr>
+                            </tbody>
+                        </table>
+                        <div t-if="doc.covered_device_ids"><strong>Covered assets:</strong>
+                            <span t-esc="', '.join(doc.covered_device_ids.mapped('display_name'))"/></div>
+                        <div t-if="doc.sla_policy_ids"><strong>Service levels:</strong>
+                            <t t-foreach="doc.sla_policy_ids" t-as="sla">
+                                <span t-esc="sla.name"/> (response <span t-esc="sla.response_hours"/> h, resolution <span t-esc="sla.resolution_hours"/> h)<t t-if="not sla_last">; </t>
+                            </t></div>
+                        <h5 style="margin-top: 10px;">4. Statutory</h5>
+                        <div>Stamp Act 1899 Schedule I: <span t-esc="dict(doc._fields['stamp_act_article'].selection).get(doc.stamp_act_article) if doc.stamp_duty_applicable else 'Not chargeable: %s' % (doc.stamp_duty_exemption_reason or '')"/>
+                            <span t-if="doc.stamp_duty_cert_no"> - certificate <span t-esc="doc.stamp_duty_cert_no"/></span></div>
+                        <div t-if="doc.template_id">Terms and conditions: <span t-esc="doc.template_id.display_name"/> (attached).</div>
+                        <table style="width: 100%; margin-top: 40px;">
+                            <tr>
+                                <td style="width: 50%;">______________________________<br/>For <span t-esc="company.name"/></td>
+                                <td style="width: 50%;">______________________________<br/>For <span t-esc="customer.name"/></td>
+                            </tr>
+                        </table>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+</odoo>

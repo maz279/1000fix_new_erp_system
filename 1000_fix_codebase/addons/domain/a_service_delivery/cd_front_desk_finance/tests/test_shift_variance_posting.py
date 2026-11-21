@@ -85,9 +85,13 @@ def test_the_e2e2_shortage_posts_dr_cash_shortage_cr_drawer(var):
     assert shift.variance_posting_state == "posted"
     assert _balance(m.env, m.acc.drawer) == -350.0
     assert _balance(m.env, m.acc.shortage) == 350.0
-    # through M19, on behalf of the reconciling manager
+    # through M19, once: since A02 pass 2 (M04-04) the approved variance posts
+    # when the count is confirmed closed (a shift closed but never reconciled
+    # kept its shortage out of the GL while M50 banked from it), on behalf of
+    # the user who confirmed the close; the manager's reconcile posts nothing
     log = m.env["fix.journal.posting.log"].sudo().search([("move_id", "=", move.id)])
-    assert log.source == "cash_shift" and log.requested_by == m.manager
+    assert len(log) == 1 and log.source == "cash_shift"
+    assert log.requested_by == s.env.user and log.requested_by != m.manager
 
 
 def test_an_overage_posts_dr_drawer_cr_cash_overage(var):

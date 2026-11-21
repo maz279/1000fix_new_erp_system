@@ -476,16 +476,28 @@ def test_plain_user_cannot_open_or_edit_a_shift(m04):
 
 
 def test_field_cash_posts_through_the_shift_method(m04):
-    """HS-08: the M02 settlement posts through _post_field_cash, open shift only."""
+    """HS-08: the M02 settlement posts through _post_field_cash, open shift only.
+    A02 pass 2 (D3 / M02-01): field cash is some service order's money and
+    enters a drawer only with that order's receipt, so it names the order."""
     m = m04
     s = m.shift()
-    s._post_field_cash(1200.0)
+    order = m.env["fix.service.order"].create(
+        {
+            "device_id": m.device.id,
+            "customer_id": m.customer.id,
+            "branch_id": m.branch.id,
+            "fault_description": "on-site repair, cash collected",
+        }
+    )
+    with _refused(m.env, UserError, "names no service order"):
+        s._post_field_cash(1200.0)
+    s._post_field_cash(1200.0, order=order)
     assert s.field_cash_deposited == 1200.0 and s.expected_closing == 6200.0
     with _refused(m.env, UserError, "positive"):
-        s._post_field_cash(-5.0)
+        s._post_field_cash(-5.0, order=order)
     s.action_close_shift()
     with _refused(m.env, UserError, "only to an open shift"):
-        s._post_field_cash(10.0)
+        s._post_field_cash(10.0, order=order)
 
 
 # ============================================================ counter sale
@@ -584,7 +596,9 @@ def test_p04_09_refund_needs_reason_and_an_independent_approver(m04, call):
     _reconciled(m, s)
     with _refused(m.env, UserError, "no open cash shift"):
         approve_via_inbox(sale, m.approver)
-    now_open = m.shift(as_user=m.cashier2, operator=m.cashier2_emp)
+    # M04-03: the next drawer opens with the float the last close left
+    carried = s.sudo().closing_counted
+    now_open = m.shift(as_user=m.cashier2, operator=m.cashier2_emp, opening=carried)
     approve_via_inbox(sale, m.approver)
     sale.invalidate_recordset()
     assert (sale.state, sale.refund_state, sale.refund_approved_by, sale.refund_shift_id) == (

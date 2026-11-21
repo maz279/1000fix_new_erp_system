@@ -281,11 +281,20 @@ def test_b1_sla_credit_routed_to_a_credit_approver_who_did_not_raise_it(m5):
 
 def test_b1_a_credit_on_a_term_never_in_force_is_not_requested(m5):
     draft = m5.contract(state="draft", name="draft term")
+    # a priced MSP layer: a manual credit is capped at the monthly value
+    # (BRU-RMS-06), so a term with no fee could hold no credit at all
     msp = m5.env["fix.msp.contract"].create(
-        {"name": "draft MSP", "contract_id": draft.id, "operating_unit_id": m5.ou.id}
+        {
+            "name": "draft MSP",
+            "contract_id": draft.id,
+            "operating_unit_id": m5.ou.id,
+            "device_count": 2,
+            "per_device_monthly": 1000.0,
+        }
     )
+    # A02 ERP pass 2 (M05-S01): a hand-typed credit carries its amount
     cr = _as(m5.env["fix.msp.sla.credit"], m5.eng).create(
-        {"msp_contract_id": msp.id, "period_label": "2026-04", "manual_amount": 0.0}
+        {"msp_contract_id": msp.id, "period_label": "2026-04", "manual_amount": 100.0}
     )
     with pytest.raises(UserError, match="never came"):
         _as(cr, m5.eng).action_request_approval()
@@ -305,12 +314,35 @@ def _patch(m5, ident, severity="medium"):
             "operating_unit_id": m5.ou.id,
         }
     )
-    _as(upd, m5.eng if severity != "critical" else m5.cab).action_approve()
+    # A02 ERP pass 2 (M05-S10): never the engineer who logged it
+    _as(upd, m5.eng2 if severity != "critical" else m5.cab).action_approve()
     return upd
 
 
-def test_b1_patch_install_today_needs_no_window(m5):
+def _client_approval(m5, upd):
+    """A02 ERP pass 2 (M05-S10): outside an open window the client's
+    change approver agrees first."""
+    partner = m5.env["res.partner"].create(
+        {"name": "Client approver %s" % upd.identifier, "parent_id": m5.customer.id}
+    )
+    contact = m5.env["fix.msp.client.contact"].create(
+        {
+            "msp_contract_id": m5.msp.id,
+            "partner_id": partner.id,
+            "role": "approver",
+            "can_approve_changes": True,
+        }
+    )
+    _as(upd, m5.eng).action_record_client_approval(
+        contact_id=contact.id, evidence="OTP ref fix.otp.log 1001"
+    )
+
+
+def test_b1_patch_install_outside_a_window_needs_the_client_not_an_exception(m5):
     upd = _patch(m5, "KB-TODAY")
+    with pytest.raises(UserError, match="client's approval"):
+        _as(upd, m5.eng).action_install()
+    _client_approval(m5, upd)
     _as(upd, m5.eng).action_install()
     assert upd.state == "installed"
 
@@ -318,6 +350,9 @@ def test_b1_patch_install_today_needs_no_window(m5):
 def test_b1_outside_window_install_needs_a_routed_exception(m5):
     m5.env["ir.config_parameter"].set_param(WINDOW_SWITCH, "1")
     upd = _patch(m5, "KB-WIN")
+    # A02 ERP pass 2 (M05-S10): the client approves an out-of-window install
+    # first; the business's own window rule is what this test exercises
+    _client_approval(m5, upd)
     with pytest.raises(UserError, match="approved maintenance window"):
         _as(upd, m5.eng).action_install()
     with pytest.raises(UserError, match="Justify"):
@@ -354,6 +389,7 @@ def test_b1_critical_patch_exception_goes_to_the_cab(m5):
 
 def test_b1_skipping_the_test_needs_an_exception_or_a_test(m5):
     m5.env["ir.config_parameter"].set_param(TEST_SWITCH, "1")
+    _window(m5)  # inside an open window (M05-S10)
     upd = _patch(m5, "KB-TEST")
     with pytest.raises(UserError, match="pre-deployment test"):
         _as(upd, m5.eng).action_install()
@@ -383,7 +419,7 @@ def _alert(m5, created, severity="minor", state="new", resolved_in=None):
     )
     m5.env.flush_all()
     m5.env.cr.execute(
-        "UPDATE fix_msp_alert SET create_date = %s, resolved_at = %s WHERE id = %s",
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s, resolved_at = %s WHERE id = %s",
         (created, created + timedelta(hours=resolved_in) if resolved_in else None, alert.id),
     )
     m5.env.invalidate_all()
@@ -695,14 +731,26 @@ def test_p2_within_sla_is_measured_from_resolution_times(m5):
     b = _alert(m5, t0, severity="major", state="resolved", resolved_in=5)  # late
     c = _alert(m5, t0, state="resolved")  # no resolution time: no evidence
     d = _alert(m5, t0)  # open past its target
+    # A02 ERP pass 2 (M05-S18) added the response / MTTA / MTTR figures
+    keys = ("within", "breached", "pending", "attainment")
     measure = m5.msp._msp_period_sla(a | b | c | d, as_of=datetime(2026, 7, 1))
-    assert measure == {"within": 1, "breached": 3, "pending": 0, "attainment": 0.25}
+    assert {k: measure[k] for k in keys} == {
+        "within": 1,
+        "breached": 3,
+        "pending": 0,
+        "attainment": 0.25,
+    }
     fresh = _alert(m5, datetime(2026, 6, 30, 23, 0))
     pending = m5.msp._msp_period_sla(fresh, as_of=datetime(2026, 7, 1, 0, 30))
-    assert pending == {"within": 0, "breached": 0, "pending": 1, "attainment": 1.0}
+    assert {k: pending[k] for k in keys} == {
+        "within": 0,
+        "breached": 0,
+        "pending": 1,
+        "attainment": 1.0,
+    }
     m5.msp.alert_resolve_hours_major = 6
     assert m5.msp._msp_period_sla(a | b, as_of=datetime(2026, 7, 1))["within"] == 2
-    report = m5.msp.action_monthly_report(
+    report = m5.msp._msp_monthly_report(
         (datetime(2026, 6, 1), datetime(2026, 6, 30, 23, 59, 59), "2026-06")
     )
     assert report.alert_count == 5 and report.resolved_total_count == 3

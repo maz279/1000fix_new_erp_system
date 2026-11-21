@@ -144,6 +144,8 @@ def test_only_the_writer_corrects_a_handover_before_it_is_read(m04, ui, screens)
 
 
 def test_the_counter_takes_the_customers_rating_at_handover(m04, ui, screens):
+    """A02 pass 2 (M04-06): the customer gives the rating on their own page
+    (the counter asks for it); staff never type it."""
     order = _ready_order(m04)
     form = screens["M04-form-rating"]
     listed = ui.records(
@@ -154,9 +156,12 @@ def test_the_counter_takes_the_customers_rating_at_handover(m04, ui, screens):
         m04.cashier,
         model="fix.service.order",
         record_id=order.id,
-        values=_form_values(form, {"counter_rating": "4", "counter_feedback": "Quick, polite"}),
+        values={"counter_rating": "4", "counter_feedback": "Quick, polite"},
     )
-    assert "error" not in res, res
+    assert "error" in res, "staff typed the customer's rating"
+    order.with_user(m04.cashier).action_request_counter_rating()
+    token = order.sudo().counter_rating_token
+    m04.env["fix.service.order"]._fd_take_customer_rating(token, "4", "Quick, polite")
     order.invalidate_recordset()
     assert order.counter_rating == "4" and order.counter_rated_by_id == m04.cashier
     assert order.counter_rated_at
@@ -165,28 +170,16 @@ def test_the_counter_takes_the_customers_rating_at_handover(m04, ui, screens):
         m04.cashier, model="fix.service.order", cols=["name"], domain=form["pickRecord"]["domain"]
     )
     assert order.id not in {r["id"] for r in listed["rows"]}
-    res = ui.write(
-        m04.cashier2, model="fix.service.order", record_id=order.id, values={"counter_rating": "5"}
-    )
-    assert "error" in res and "already rated" in res["error"]
+    with pytest.raises(UserError, match="already rated"):
+        order.with_user(m04.cashier2).action_request_counter_rating()
 
 
 def test_a_rating_is_taken_only_at_handover(m04, ui, screens):
     order = _ready_order(m04)
     m04.env.cr.execute("UPDATE fix_service_order SET state = 'in_repair' WHERE id = %s", [order.id])
     order.invalidate_recordset()
-    res = ui.write(
-        m04.cashier, model="fix.service.order", record_id=order.id, values={"counter_rating": "2"}
-    )
-    assert "error" in res and "handover" in res["error"]
-    ready = _ready_order(m04)
-    res = ui.write(
-        m04.cashier,
-        model="fix.service.order",
-        record_id=ready.id,
-        values={"counter_feedback": "no stars given"},
-    )
-    assert "error" in res and "rating" in res["error"]
+    with pytest.raises(UserError, match="handover"):
+        order.with_user(m04.cashier).action_request_counter_rating()
 
 
 def test_the_release_form_still_saves_without_a_rating(m04, ui, screens):

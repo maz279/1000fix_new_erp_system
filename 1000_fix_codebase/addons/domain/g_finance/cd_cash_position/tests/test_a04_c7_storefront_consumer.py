@@ -18,6 +18,7 @@ from datetime import timedelta
 
 import pytest
 from odoo import Command, fields
+from odoo.addons.cd_storefront.tests.test_a04_c2_c13_storefront import storefront_world
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -46,7 +47,8 @@ def w(odoo_env):
         )
 
     x = types.SimpleNamespace(env=env)
-    x.clerk = mk("clerk")
+    # A04 ERP M38-F5: carts are captured by assisted sales staff
+    x.clerk = mk("clerk", sf + "assisted_sales")
     x.operator = mk("operator", sf + "operator")
     x.cashier = mk("cashier", sf + "payment_officer")
     x.approver = mk(
@@ -63,7 +65,32 @@ def w(odoo_env):
         {"name": "A4 C7 Charger", "list_price": 2500.0, "sale_ok": True}
     )
     x.ou = env["operating.unit"].search([], limit=1)
+    # A04 ERP M38-F1/F12/F13: a released M11 price (2,173.91 + 15% VAT =
+    # 2,500.00), live gateways with callback secrets and an approved COD rule
+    storefront_world(env, x.product)
+    if _bridged(env):
+        _books_accounts(env)
     return x
+
+
+def _books_accounts(env):
+    """The storefront finance bridge invoices at payment and dispatches only
+    with that invoice (A04 ERP M38-F10): the billing roles it posts to are
+    named (configuration, as the bridge's own suite does)."""
+    params = env["ir.config_parameter"].sudo()
+    for role, kind in (
+        ("ar", "asset_receivable"),
+        ("revenue", "income"),
+        ("vat_output", "liability_current"),
+        ("channel_mfs", "asset_current"),
+    ):
+        code = "A4C7%s" % role.replace("_", "").upper()[:6]
+        if not env["account.account"].search([("code", "=", code)], limit=1):
+            env["account.account"].create(
+                {"code": code, "name": "A4 C7 %s" % role, "account_type": kind}
+            )
+        params.set_param("cd_billing_engine.account_code.%s" % role, code)
+    params.set_param("cd_storefront_finance.account_code.revenue", "A4C7REVENU")
 
 
 def _relay(env):

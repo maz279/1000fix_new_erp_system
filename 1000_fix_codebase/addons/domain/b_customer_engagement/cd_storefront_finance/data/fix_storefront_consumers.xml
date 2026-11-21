@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 ERP audit (20 Nov 2026) X2 / M38-F2: storefront.order_cancelled carries
+  the refund a cancelled paid order owes, and nothing consumed it. The bridge
+  posts the cancellation's credit note or M20 receipt refund at once; this
+  consumer re-reads the order and posts whatever it still owes (idempotent),
+  so a cancellation is never left at "nothing to post".
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_storefront_order_cancelled" model="fix.event.consumer">
+            <field name="name">M38: refund a cancelled paid storefront order (M20)</field>
+            <field name="event_type">storefront.order_cancelled</field>
+            <field name="model">fix.storefront.order</field>
+            <field name="method">consume_storefront_order_cancelled</field>
+            <field name="module">cd_storefront_finance</field>
+        </record>
+    </data>
+</odoo>

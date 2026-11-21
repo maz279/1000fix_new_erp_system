@@ -3,11 +3,15 @@
 # and the new usage, proration and autopay models. MRR is the recorded
 # recurring amount of live subscriptions; no revenue is extrapolated.
 import datetime
+import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from ._scope import scoped
+
+_logger = logging.getLogger(__name__)
 
 SURFACES = {
     # fix.subscription / fix.revenue.schedule are owned by M53 (a08 surface) and
@@ -76,7 +80,39 @@ SURFACES = {
     },
 }
 
+# A04 ERP audit M39-F13 (20 Nov 2026): the packs and KPIs read through
+# _scope.scoped (the caller's companies and the requested period), and the
+# formulas were corrected:
+#   * MRR counts subscriptions under contract that bill (active, trial, past
+#     due); a held (suspended) one is excluded - it bills nothing;
+#   * churn is monthly: logos cancelled in the period / live at its start;
+#   * a cohort is normalised (monthly value, not the cycle amount);
+#   * the MRR waterfall bridges opening -> new / expansion / contraction /
+#     churn -> closing over the period, and NRR is read from it;
+#   * the dunning pack sums the OVERDUE BALANCE of cycle invoices, not the
+#     recurring amount.
 LIVE = ("active", "trial", "past_due", "hold")
+BILLING_LIVE = ("active", "trial", "past_due")
+CLOSED = ("churned", "cancelled")
+
+
+def _period(env, date_from=None, date_to=None):
+    """The requested period, defaulting to the current month (Asia/Dhaka)."""
+    today = fields.Date.context_today(env.user.with_context(tz="Asia/Dhaka"))
+    start = _as_date(date_from) or today.replace(day=1)
+    end = _as_date(date_to) or today
+    return start, end
+
+
+def _as_date(value):
+    if not value:
+        return None
+    if isinstance(value, datetime.date):
+        return value
+    try:
+        return fields.Date.to_date(str(value)[:10])
+    except (TypeError, ValueError):
+        return None
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -91,55 +127,105 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _subs(env):
-    return env["fix.subscription"].sudo().search([])
+def _subs(env, domain=None):
+    """Subscriptions of the caller's companies (any start date)."""
+    return scoped(env, "fix.subscription", domain or [])
+
+
+def _live_on(sub, day):
+    """Under contract on `day`: started, not yet cancelled."""
+    if not sub.start_date or sub.start_date > day:
+        return False
+    if sub.state in CLOSED:
+        return bool(sub.cancelled_on and sub.cancelled_on > day)
+    return True
+
+
+def _waterfall(env, start, end):
+    """Opening / new / expansion / contraction / churn / closing MRR over
+    [start, end] from the subscriptions and their applied price changes."""
+    subs = _subs(env)
+    eve = start - datetime.timedelta(days=1)
+    opening_subs = subs.filtered(lambda s: _live_on(s, eve) and s.state != "hold")
+    new_subs = subs.filtered(lambda s: s.start_date and start <= s.start_date <= end)
+    churned = subs.filtered(
+        lambda s: s.state in CLOSED and s.cancelled_on and start <= s.cancelled_on <= end
+    )
+    prorations = scoped(
+        env,
+        "fix.subscription.proration",
+        [("applied_to_subscription", "=", True), ("subscription_id", "in", subs.ids)],
+        "effective_date",
+        start,
+        end,
+    )
+    months = {"monthly": 1, "quarterly": 3, "annual": 12}
+    expansion = contraction = 0.0
+    for p in prorations:
+        delta = ((p.new_amount or 0.0) - (p.old_amount or 0.0)) / months.get(
+            p.subscription_id.billing_cycle or "monthly", 1
+        )
+        if p.change_type == "cancel":
+            continue
+        if delta >= 0:
+            expansion += delta
+        else:
+            contraction += -delta
+    opening = sum(opening_subs.mapped("monthly_value"))
+    new = sum((new_subs - churned).mapped("monthly_value"))
+    lost = sum(churned.filtered(lambda s: s in opening_subs).mapped("monthly_value"))
+    closing = sum(
+        subs.filtered(lambda s: s.state in BILLING_LIVE and _live_on(s, end)).mapped(
+            "monthly_value"
+        )
+    )
+    return {
+        "opening": round(opening, 2),
+        "new": round(new, 2),
+        "expansion": round(expansion, 2),
+        "contraction": round(contraction, 2),
+        "churn": round(lost, 2),
+        "closing": round(closing, 2),
+        "opening_logos": len(opening_subs),
+        "churned_logos": len(churned.filtered(lambda s: s in opening_subs)),
+    }
 
 
 def mrr_waterfall(env, date_from=None, date_to=None, **params):
-    subs = _subs(env)
-    live = subs.filtered(lambda s: s.state in LIVE)
-    by_plan = {}
-    for sub in live:
-        row = by_plan.setdefault(
-            sub.plan or "unspecified",
-            {
-                "plan": sub.plan or "unspecified",
-                "subs": 0,
-                "mrr": 0.0,
-            },
-        )
-        row["subs"] += 1
-        # BRU-SUB-15: normalised to a month, recurring lines included
-        row["mrr"] += sub.monthly_value or 0.0
-    rows = list(by_plan.values())
-    for row in rows:
-        row["mrr"] = round(row["mrr"], 2)
-    rows.sort(key=lambda r: -r["mrr"])
-    charges = env["fix.subscription.charge"].sudo().search([])
-    by_period = {}
-    for charge in charges:
-        key = charge.period_start.strftime("%Y-%m") if charge.period_start else "undated"
-        by_period[key] = round(by_period.get(key, 0.0) + (charge.amount or 0.0), 2)
-    notes = [
-        "MRR by plan from live subscriptions, normalised to a month (a quarterly or annual "
-        "amount is divided by its months) and including active recurring charge lines. "
-        "Billed periods recorded: %s."
-        % (", ".join("%s=%s" % (k, v) for k, v in sorted(by_period.items())) or "none")
+    start, end = _period(env, date_from, date_to)
+    w = _waterfall(env, start, end)
+    rows = [
+        {"step": "Opening MRR (%s)" % (start - datetime.timedelta(days=1)), "mrr": w["opening"]},
+        {"step": "+ New", "mrr": w["new"]},
+        {"step": "+ Expansion", "mrr": w["expansion"]},
+        {"step": "- Contraction", "mrr": -w["contraction"]},
+        {"step": "- Churn", "mrr": -w["churn"]},
+        {"step": "Closing MRR (%s)" % end, "mrr": w["closing"]},
     ]
-    totals = (
-        {"plan": "Total MRR", "subs": len(live), "mrr": round(sum(r["mrr"] for r in rows), 2)}
-        if rows
-        else None
-    )
+    nrr = _nrr(w)
     return _pack(
         "MRR Waterfall",
-        ["plan", "subs", "mrr"],
-        {"plan": "Plan", "subs": "Live Subscriptions", "mrr": "MRR"},
+        ["step", "mrr"],
+        {"step": "Movement", "mrr": "MRR"},
         rows,
-        notes,
-        totals=totals,
-        empty="No live subscriptions yet.",
+        [
+            "MRR is normalised to a month (BRU-SUB-15) and counts subscriptions that bill "
+            "(active, trial, past due); a held (suspended) subscription is excluded. "
+            "Expansion / contraction are the price changes applied in the period. NRR = "
+            "(opening + expansion - contraction - churn) / opening = %s%%. Movements use "
+            "today's monthly value of each subscription; the closing line is the live "
+            "register, so a residual can remain when prices changed outside a proration."
+            % (nrr if nrr is not None else "n/a")
+        ],
+        empty="No subscriptions yet.",
     )
+
+
+def _nrr(w):
+    if not w["opening"]:
+        return None
+    kept = w["opening"] + w["expansion"] - w["contraction"] - w["churn"]
+    return round(kept / w["opening"] * 100.0, 1)
 
 
 def churn_nrr_cohorts(env, date_from=None, date_to=None, **params):
@@ -149,23 +235,16 @@ def churn_nrr_cohorts(env, date_from=None, date_to=None, **params):
         key = sub.start_date.strftime("%Y-%m") if sub.start_date else "undated"
         row = by_cohort.setdefault(
             key,
-            {
-                "cohort": key,
-                "subs": 0,
-                "active": 0,
-                "churned": 0,
-                "mrr": 0.0,
-                "churned_mrr": 0.0,
-            },
+            {"cohort": key, "subs": 0, "active": 0, "churned": 0, "mrr": 0.0, "churned_mrr": 0.0},
         )
         row["subs"] += 1
-        amount = sub.recurring_amount or 0.0
-        if sub.state in ("churned", "cancelled"):
+        monthly = sub.monthly_value or 0.0  # normalised (M39-F13)
+        if sub.state in CLOSED:
             row["churned"] += 1
-            row["churned_mrr"] += amount
-        elif sub.state in LIVE:
+            row["churned_mrr"] += monthly
+        elif sub.state in BILLING_LIVE:
             row["active"] += 1
-            row["mrr"] += amount
+            row["mrr"] += monthly
     rows = [by_cohort[k] for k in sorted(by_cohort, reverse=True)]
     for row in rows:
         row["retention_pct"] = round(row["active"] / row["subs"] * 100.0, 1) if row["subs"] else 0.0
@@ -177,23 +256,24 @@ def churn_nrr_cohorts(env, date_from=None, date_to=None, **params):
         {
             "cohort": "Start Cohort",
             "subs": "Subscriptions",
-            "active": "Still Active",
+            "active": "Still Billing",
             "churned": "Churned/Cancelled",
             "retention_pct": "Logo Retention %",
-            "mrr": "Live MRR",
-            "churned_mrr": "Churned MRR",
+            "mrr": "Live MRR (monthly)",
+            "churned_mrr": "Churned MRR (monthly)",
         },
         rows,
         [
-            "Cohorts are the subscription start month. Logo retention = active / cohort "
-            "size; churned MRR is the recurring amount lost."
+            "Cohorts are the subscription start month. Logo retention = still billing / "
+            "cohort size; MRR is the monthly value (a quarterly or annual amount divided by "
+            "its months)."
         ],
         empty="No subscriptions yet.",
     )
 
 
 def usage_vs_committed(env, date_from=None, date_to=None, **params):
-    usage = env["fix.subscription.usage"].sudo().search([])
+    usage = scoped(env, "fix.subscription.usage", [], "period_start", date_from, date_to)
     rows = []
     for row in usage:
         rows.append(
@@ -235,57 +315,52 @@ def usage_vs_committed(env, date_from=None, date_to=None, **params):
     )
 
 
+def _overdue_balance(sub):
+    invoices = sub._overdue_unpaid_invoices()
+    return round(sum(invoices.mapped("amount_residual")), 2)
+
+
 def billing_exception_log(env, date_from=None, date_to=None, **params):
-    subs = _subs(env).filtered(lambda s: s.state in ("past_due", "hold"))
-    autopay = env["fix.subscription.autopay"].sudo().search([])
-    failed = autopay.filtered(lambda a: a.last_result == "failed")
+    subs = _subs(env, [("state", "in", ("past_due", "hold"))])
+    autopay = scoped(env, "fix.subscription.autopay", [("last_result", "=", "failed")])
+    failed_subs = autopay.mapped("subscription_id")
     rows = []
-    for sub in subs:
+    for sub in subs | failed_subs:
         rows.append(
             {
                 "subscription": sub.name,
                 "plan": sub.plan,
                 "state": sub.state,
                 "days_overdue": sub.days_overdue,
+                "overdue": _overdue_balance(sub),
                 "dunning": sub.dunning_step,
-                "autopay": "failed" if sub.id in failed.mapped("subscription_id").ids else "—",
+                "autopay": "failed" if sub in failed_subs else "—",
             }
         )
-    for mandate in failed:
-        if mandate.subscription_id.id not in subs.ids:
-            rows.append(
-                {
-                    "subscription": mandate.subscription_id.name,
-                    "plan": mandate.subscription_id.plan,
-                    "state": mandate.subscription_id.state,
-                    "days_overdue": mandate.subscription_id.days_overdue,
-                    "dunning": mandate.subscription_id.dunning_step,
-                    "autopay": "failed",
-                }
-            )
     rows.sort(key=lambda r: -(r["days_overdue"] or 0))
     return _pack(
         "Billing Exception Log",
-        ["subscription", "plan", "state", "days_overdue", "dunning", "autopay"],
+        ["subscription", "plan", "state", "days_overdue", "overdue", "dunning", "autopay"],
         {
             "subscription": "Subscription",
             "plan": "Plan",
             "state": "State",
             "days_overdue": "Days Overdue",
+            "overdue": "Overdue Balance",
             "dunning": "Dunning Step",
             "autopay": "Autopay",
         },
         rows,
         [
             "Exceptions are past-due/hold subscriptions plus any subscription whose "
-            "autopay mandate last failed."
+            "autopay mandate last failed; the balance is what is overdue on its cycle invoices."
         ],
         empty="No billing exceptions — every subscription is current.",
     )
 
 
 def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
-    schedules = env["fix.revenue.schedule"].sudo().search([])
+    schedules = scoped(env, "fix.revenue.schedule", [], "start_date", None, date_to)
     rows = []
     total_deferred = 0.0
     for schedule in schedules:
@@ -310,8 +385,8 @@ def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Deferred balance comes from the revenue-recognition schedules. An empty "
-            "bridge means no schedule exists yet — nothing is estimated."
+            "Deferred balance comes from the revenue-recognition schedules started by the "
+            "period end. An empty bridge means no schedule exists yet — nothing is estimated."
         ],
         totals={"schedule": "Total deferred", "deferred": round(total_deferred, 2)}
         if rows
@@ -321,16 +396,25 @@ def deferred_revenue_bridge(env, date_from=None, date_to=None, **params):
 
 
 def plan_mix(env, date_from=None, date_to=None, **params):
-    pack = mrr_waterfall(env)
-    rows = []
-    for row in pack["rows"]:
-        rows.append({"plan": row["plan"], "subs": row["subs"], "mrr": row["mrr"]})
+    subs = _subs(env, [("state", "in", list(BILLING_LIVE))])
+    by_plan = {}
+    for sub in subs:
+        row = by_plan.setdefault(
+            sub.plan or "unspecified", {"plan": sub.plan or "unspecified", "subs": 0, "mrr": 0.0}
+        )
+        row["subs"] += 1
+        row["mrr"] += sub.monthly_value or 0.0
+    rows = sorted(by_plan.values(), key=lambda r: -r["mrr"])
+    for row in rows:
+        row["mrr"] = round(row["mrr"], 2)
     return _pack(
         "Plan Changes — current plan mix",
         ["plan", "subs", "mrr"],
-        {"plan": "Plan", "subs": "Live Subscriptions", "mrr": "MRR"},
+        {"plan": "Plan", "subs": "Billing Subscriptions", "mrr": "MRR"},
         rows,
-        ["Plan changes are recorded as proration rows; this pack is the live mix."],
+        [
+            "Plan changes are recorded as proration rows; this pack is the live mix (holds excluded)."
+        ],
         totals={
             "plan": "Total",
             "subs": sum(r["subs"] for r in rows),
@@ -343,20 +427,15 @@ def plan_mix(env, date_from=None, date_to=None, **params):
 
 
 def dunning_ladder(env, date_from=None, date_to=None, **params):
-    subs = _subs(env).filtered(lambda s: s.state in ("past_due", "hold"))
+    subs = _subs(env, [("state", "in", ("past_due", "hold"))])
     by_step = {}
     for sub in subs:
         row = by_step.setdefault(
             sub.dunning_step or "none",
-            {
-                "step": sub.dunning_step or "none",
-                "subs": 0,
-                "amount": 0.0,
-                "max_days": 0,
-            },
+            {"step": sub.dunning_step or "none", "subs": 0, "amount": 0.0, "max_days": 0},
         )
         row["subs"] += 1
-        row["amount"] += sub.recurring_amount or 0.0
+        row["amount"] += _overdue_balance(sub)
         row["max_days"] = max(row["max_days"], sub.days_overdue or 0)
     rows = sorted(by_step.values(), key=lambda r: -r["max_days"])
     for row in rows:
@@ -367,24 +446,24 @@ def dunning_ladder(env, date_from=None, date_to=None, **params):
         {
             "step": "Dunning Step",
             "subs": "Subscriptions",
-            "amount": "Recurring Amount",
+            "amount": "Overdue Balance",
             "max_days": "Max Days Overdue",
         },
         rows,
         [
-            "The ladder is read from the subscription's recorded dunning step and "
-            "overdue days; service hold is a state, not an assumption."
+            "The ladder is read from the subscription's recorded dunning step; the amount is "
+            "the unpaid residual of its cycle invoices past due (M39-F13), not the recurring "
+            "amount."
         ],
         empty="No subscription is in dunning.",
     )
 
 
 def recurring_forecast(env, date_from=None, date_to=None, **params):
-    subs = _subs(env).filtered(lambda s: s.state in LIVE and s.next_invoice_date)
-    horizon = datetime.date.today() + datetime.timedelta(days=90)
+    subs = _subs(env, [("state", "in", list(BILLING_LIVE))]).filtered("next_invoice_date")
+    today = fields.Date.context_today(env.user)
+    horizon = today + datetime.timedelta(days=90)
     rows = []
-    # FR-SUB-010: a subscription on an active billing schedule forecasts its
-    # planned periods; the others their recorded next invoice date
     scheduled = (
         env["fix.subscription.schedule.period"]
         .sudo()
@@ -406,20 +485,23 @@ def recurring_forecast(env, date_from=None, date_to=None, **params):
                 "customer": sub.customer_id.name or "—",
                 "plan": sub.plan,
                 "next_invoice": str(period.billing_date),
-                "amount": round(period.amount_planned or 0.0, 2),
+                "amount": round(period._fix_price_now(), 2),
             }
         )
     upcoming = (subs - scheduled.mapped("subscription_id")).filtered(
         lambda s: s.next_invoice_date <= horizon and not s._active_schedule()
     )
     for sub in upcoming.sorted("next_invoice_date"):
+        end, amount = sub._fix_cycle_window(sub.next_invoice_date)
+        if not end:
+            continue
         rows.append(
             {
                 "subscription": sub.name,
                 "customer": sub.customer_id.name or "—",
                 "plan": sub.plan,
                 "next_invoice": str(sub.next_invoice_date),
-                "amount": round(sub.recurring_amount or 0.0, 2),
+                "amount": round(amount, 2),
             }
         )
     return _pack(
@@ -434,8 +516,8 @@ def recurring_forecast(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Forecast = the planned periods of active billing schedules, and otherwise the "
-            "recorded next invoice date, within the next 90 days. No projection beyond them."
+            "Forecast = the planned periods of active billing schedules at today's price, and "
+            "otherwise the next cycle within the contract term, within the next 90 days."
         ],
         totals={"subscription": "Total", "amount": round(sum(r["amount"] for r in rows), 2)}
         if rows
@@ -445,7 +527,7 @@ def recurring_forecast(env, date_from=None, date_to=None, **params):
 
 
 def proration_summary(env, date_from=None, date_to=None, **params):
-    prorations = env["fix.subscription.proration"].sudo().search([])
+    prorations = scoped(env, "fix.subscription.proration", [], "effective_date", date_from, date_to)
     rows = []
     for row in prorations:
         rows.append(
@@ -475,7 +557,7 @@ def proration_summary(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Each row is a recorded upgrade/downgrade/cancellation proration with its "
-            "amount and invoicing state."
+            "amount and invoicing state, effective in the period."
         ],
         totals={"proration": "Total", "amount": round(sum(r["amount"] for r in rows), 2)}
         if rows
@@ -497,22 +579,39 @@ REPORTS = {
 }
 
 
-def kpis(env):
-    subs = _subs(env)
-    live = subs.filtered(lambda s: s.state in LIVE)
-    mrr = sum(live.mapped("monthly_value"))
-    churned = len(subs.filtered(lambda s: s.state in ("churned", "cancelled")))
-    exceptions = len(subs.filtered(lambda s: s.state in ("past_due", "hold")))
-    dunning = len(subs.filtered(lambda s: s.dunning_step and s.dunning_step != "none"))
-    total = len(subs)
-    return {
-        "mrr": round(mrr, 2),
-        "arr": round(mrr * 12.0, 2),
-        "nrr": None,  # needs expansion/contraction history (proration timeline)
-        "churn_logo": round(churned / total * 100.0, 1) if total else None,
-        "billing_exceptions": exceptions,
-        "dunning_in_progress": dunning,
+def kpis(env, date_from=None, date_to=None):
+    """M39-F13: through scoped(), for the period (default: this month)."""
+    out = {
+        "mrr": None,
+        "arr": None,
+        "nrr": None,
+        "churn_logo": None,
+        "billing_exceptions": None,
+        "dunning_in_progress": None,
     }
+    try:
+        start, end = _period(env, date_from, date_to)
+        billing = _subs(env, [("state", "in", list(BILLING_LIVE))])
+        mrr = sum(billing.mapped("monthly_value"))
+        w = _waterfall(env, start, end)
+        out.update(
+            {
+                "mrr": round(mrr, 2),
+                "arr": round(mrr * 12.0, 2),
+                "nrr": _nrr(w),
+                # logos lost in the period / logos live at its start (monthly churn)
+                "churn_logo": round(w["churned_logos"] / w["opening_logos"] * 100.0, 1)
+                if w["opening_logos"]
+                else None,
+                "billing_exceptions": len(_subs(env, [("state", "in", ("past_due", "hold"))])),
+                "dunning_in_progress": len(
+                    _subs(env, [("dunning_step", "not in", (False, "none"))])
+                ),
+            }
+        )
+    except Exception:  # a KPI tile must not break the screen, but is never silent
+        _logger.exception("M39 KPIs failed")
+    return out
 
 
 class P03SubscriptionApi(http.Controller):

@@ -15,6 +15,7 @@ from pathlib import Path
 
 import pytest
 from odoo import SUPERUSER_ID, api, fields
+from odoo.addons.cd_storefront.tests.test_a04_c2_c13_storefront import released_card
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -213,6 +214,9 @@ def _live_gateway(c, tag="live", **kw):
 def shop(c):
     env = c.env
     product = env["product.template"].create({"name": "A12F Router", "list_price": 1200.0})
+    # A04 ERP M38-F1: the storefront sells only at a released M11 price
+    # (BDT 1,043.48 excl. VAT = BDT 1,200.00 with 15% VAT), never list_price
+    released_card(env, product, 1043.48)
     partner = env["res.partner"].create({"name": "A12F Customer"})
 
     def cart():
@@ -628,6 +632,9 @@ def test_a12f_e5_suspended_gateway_archive_or_rename_does_not_reopen_checkout(c,
 
 
 def test_a12f_e12_checkout_reads_the_row_for_this_country(c, shop):
+    # A04 ERP M38-F13: a web checkout is paid by the signed callback, so the
+    # rail needs its callback secret (configuration, set here) as well
+    c.env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret.bkash", "a12f-test")
     np_live = _live_gateway(c, tag="d14", provider="bkash", country_code="NP")
     assert _place(c, shop())[0] == "refused", "an NP row must not serve a BD sale"
     bd = _live_gateway(c, tag="d15", provider="bkash", country_code="BD")
@@ -637,9 +644,12 @@ def test_a12f_e12_checkout_reads_the_row_for_this_country(c, shop):
     assert np_live.state == "active"
 
 
-def test_a12f_e12_rail_with_no_row_keeps_todays_behaviour(c, shop):
+def test_a12f_e12_rail_with_no_row_is_refused(c, shop):
+    """A04 ERP M38-F13: a prepaid rail with no gateway master used to take
+    orders nobody could ever pay; it is now refused until M65 has it live."""
     assert not c.env["fix.payment.gateway"].sudo().search_count([("provider", "=ilike", "nagad")])
-    assert _place(c, shop(), rail="nagad")[0] == "ok"
+    outcome, message = _place(c, shop(), rail="nagad")
+    assert outcome == "refused" and "not configured" in message
 
 
 # ===================================================================== E6

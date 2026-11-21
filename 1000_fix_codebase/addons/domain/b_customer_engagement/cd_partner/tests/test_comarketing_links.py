@@ -11,9 +11,13 @@ not co-fund or be re-pointed once it is accrued.
 
 import types
 from contextlib import contextmanager
+from datetime import timedelta
 
 import pytest
-from odoo import Command
+from odoo import Command, fields
+from odoo.addons.cd_partner.tests.m40_fixtures import paid_invoice
+
+TODAY = None
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -41,6 +45,8 @@ def cm(odoo_env):
     env = odoo_env
     if "fix.campaign" not in env:
         pytest.skip("cd_campaign not installed")
+    global TODAY
+    TODAY = fields.Date.context_today(env.user)
     x = types.SimpleNamespace(env=env)
     x.clerk = _user(env, "cm_clerk")
     x.officer = _user(env, "cm_officer", OFFICER)
@@ -70,7 +76,9 @@ def cm(odoo_env):
             "name": "CM MDF",
             "partner_id": partner_rec.id,
             "period": "2026-Q4",
-            "basis": 100000.0,
+            # A04 ERP audit M40-F12: the basis is computed from paid invoices
+            "period_from": TODAY - timedelta(days=30),
+            "period_to": TODAY,
             "rate": 0.05,
             "kind": kind,
             **kw,
@@ -149,6 +157,7 @@ def test_the_campaign_is_pinned_once_the_mdf_is_accrued(cm):
     cm.other.write({"partner_ids": [Command.link(cm.p1.id)]})
     rec = cm.mdf(cm.p1, cm.campaign)
     rec.with_user(cm.officer).write({"campaign_id": cm.other.id})  # draft: still editable
+    paid_invoice(cm.env, cm.p1.partner_id, 100000.0, TODAY - timedelta(days=5))  # set-up
     rec.with_user(cm.officer).action_accrue()
     assert rec.state == "accrued"
     with _refused(cm.env, UserError):

@@ -82,10 +82,38 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
 3. On-site repair: dispatch, GPS arrival recorded, cash 1,725 accepted by a separate cashier as a
    receipt Dr 100108.
 
+## Field dispatch on fix_real (20 Nov, proven on a fix_real copy, 6/6)
+A walk with the real users found that **only `admin` could dispatch a branch field job**: the two
+Field Service Managers are head office, and the dispatcher `shariful.islam` held only Main Operating
+Unit, so the OU record rule hid every branch's field orders from him (53 service branches each own an
+OU). Owner decision: the head-office desk dispatches for every branch, so `shariful.islam` now holds
+all 58 operating units on fix_real (applied 20 Nov).
+Walk (`evidence_a02_erp/a02_dispatch_walk_*`), Motijheel Service Center order, real users, 0
+certifications on the DB: an uncertified technician is refused by the M22 gate -> the dispatcher
+requests a per-order waiver -> it reaches the Certification Override Approver's M63 inbox, not the
+requester's -> approved -> the dispatcher dispatches from the screen (dispatch decision) -> the
+branch technician accepts, travels, arrives on GPS, works and completes.
+
+## Full regression, 21 Nov 2026 (shared HEAD 54c6f289)
+Every A02 module and its finance / people / fleet neighbours, plus the 13 A02 portal suites, on a
+fresh template at HEAD: **3,684 passed, 0 failed**, 83 skipped (82 by design: A02 screen models with
+no workflow-controlled fields have nothing for the guard checks to attack; 1 environmental: the local
+residency service returns synthetic ID numbers). Modules: cd_service_order, cd_warranty_claims,
+cd_front_desk, cd_front_desk_finance, cd_msp_contract, cd_workshop, cd_field_service,
+cd_device_registry, cd_consignment, cd_data_case, cd_billing_engine, cd_gl_ext, cd_tax_engine_bd,
+cd_cash_position, cd_settlement_ext, cd_subscription, cd_quotation, cd_competency,
+cd_vehicle_dispatch, cd_asset_workorder_spine. cd_cash_position passes on an up-to-date DB (the setup
+error another session saw came from a shared test DB behind HEAD, not from the code).
+Two earlier runs were cut short by shared-Postgres crashes on 20 Nov (10:43 and 13:00 UTC, under
+concurrent drops and test load from several sessions). After each recovery both ports served and
+all 132 A02 screens read on fix_real and fix_dev with 0 errors and 0 dropped columns.
+
 ## Still the business's to supply
-- **Technician certifications** (HR records them in M22, owner 20 Nov). fix_real has none yet, so
-  until then each field dispatch needs an approved per-order certification waiver (BRU-LMS-01).
-  Not fabricated here.
+- **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
+  the waiver above is the path, and it works end to end today.
+- fix_dev holds **no stock at all** (0 on-hand rows), so no part can be issued there from any store;
+  the workshop store link (HO-WTY) is in place for when stock is loaded. fix_real's workshop store
+  holds 53,148 units and the part issue was walked there (scenario 2).
 
 ## Owner decisions (original list)
 | # | Decision | Effect until decided |
@@ -115,6 +143,11 @@ Evidence: `evidence_a02_erp/a02_e2e_walk_odoo_shell.py.txt` (script) and
   charge code) never undoes the cancel; finance retries with **Invoice Diagnostic Fee** on the order.
   Other cancel reasons (duplicate, unreachable...) leave the fee as the customer's credit to move or
   refund. Tests: `cd_front_desk_finance/tests/test_a02_declined_repair_fee.py`.
+  Live since 16:21 on 8069/8090 (afa7b1ca). Walked on a fix_real copy, 9/9
+  (`evidence_a02_erp/a02_decline_walk_*`): cash fee 300 Dr 100108 -> estimate 8,050 declined ->
+  INV/2026/00001 paid, 260.87 + VAT 39.13, Mushak 2026-000003; receipt unapplied 0, customer AR 0.
+  Regression of every suite on the invoice path (billing, front desk, service order, settlement,
+  quotation, asset spine, A02/M01 portal): ~1,440 tests, 0 failures.
 - A refunded counter settlement no longer stays "unapplied": the refund is an M20 `fix.ar.refund`
   against the receipt, which takes it off the receipt (`test_a02_p1p2_cd_settlement_ext.py`,
   `test_a02_erp_review_money.py` assert unapplied 0). The earlier note here was out of date.

@@ -5,6 +5,7 @@ import unittest
 
 import pytest
 from odoo.addons.cd_partner.models.fix_partner import FixReferral
+from odoo.addons.cd_partner.tests.m40_fixtures import make_onboardable
 from odoo.exceptions import UserError
 
 
@@ -43,7 +44,7 @@ def test_a_partner_is_a_role_on_an_m33_party(channel):
         party,
         "referral",
         "prospective",
-        0.05,
+        0.0,  # A04 ERP audit M40-F5: no rate until one is approved
     )
 
 
@@ -54,7 +55,8 @@ def test_onboarding_is_a_second_persons_decision_and_is_published(channel):
         .with_user(officer)
         .create({"name": "Unit", "partner_id": party.id, "territory": "Mirpur"})
     )
-    with pytest.raises(UserError):
+    make_onboardable(env, p)  # M40-F11 set-up: programme, agreement, checklist
+    with pytest.raises(UserError, match="Channel Manager"):
         p.with_user(officer).action_onboard()
     p.with_user(manager).action_onboard()
     assert p.state == "onboarded"

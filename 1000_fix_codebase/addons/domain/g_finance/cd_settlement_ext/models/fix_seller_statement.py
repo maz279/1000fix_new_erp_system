@@ -22,6 +22,7 @@ STATEMENT_FIGURES = (
     "period",
     "gross_gmv",
     "commission_amount",
+    "vat_on_commission",
     "tds_withheld",
     "platform_fee",
     "clawback_amount",
@@ -72,6 +73,14 @@ class FixSellerStatement(models.Model):
     commission_amount = fields.Monetary(
         string="Platform Commission / প্ল্যাটফর্ম কমিশন", currency_field="currency_id", required=True
     )
+    # A04 ERP audit M12-F9: the output VAT 1000 FiX owes on its commission is
+    # deducted from the seller's share at accrual; the statement shows it as
+    # its own deduction so its net is what the payout run paid.
+    vat_on_commission = fields.Monetary(
+        string="VAT on Commission / কমিশনের উপর মূসক",
+        currency_field="currency_id",
+        default=0.0,
+    )
     tds_withheld = fields.Monetary(
         string="TDS Withheld (ITA 2023 s.140) / উৎসে কর কর্তন (ধারা ১৪০)",
         currency_field="currency_id",
@@ -89,8 +98,8 @@ class FixSellerStatement(models.Model):
         compute="_compute_net",
         store=True,
         help="BRU-REV-14: computed in the published deduction order — a seller is paid gross "
-        "less commission, platform fee, TDS and clawbacks; a partner its commission less TDS "
-        "and clawbacks.",
+        "less commission, the VAT on it, platform fee, TDS and clawbacks; a partner its "
+        "commission less TDS and clawbacks.",
     )
     settled_by_id = fields.Many2one(
         "res.users", string="Settled By / নিষ্পত্তিকারী", readonly=True, copy=False
@@ -157,6 +166,7 @@ class FixSellerStatement(models.Model):
     @api.depends(
         "gross_gmv",
         "commission_amount",
+        "vat_on_commission",
         "tds_withheld",
         "platform_fee",
         "clawback_amount",
@@ -171,6 +181,7 @@ class FixSellerStatement(models.Model):
                 rec.net_payable = round(
                     (rec.gross_gmv or 0.0)
                     - (rec.commission_amount or 0.0)
+                    - (rec.vat_on_commission or 0.0)
                     - (rec.platform_fee or 0.0)
                     - deductions,
                     2,

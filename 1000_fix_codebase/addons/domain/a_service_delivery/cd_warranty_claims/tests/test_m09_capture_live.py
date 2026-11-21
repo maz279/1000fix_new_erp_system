@@ -435,13 +435,28 @@ def test_one_brand_payment_is_matched_across_claims_and_the_rest_is_unmatched(wc
         _as(rem, wc.clerk).write({"total_amount": 16500.0})
 
 
+def _issued_oem_invoice(wc, claim):
+    """A04 ERP M09-F3: a write-off is booked against the brand's receivable,
+    so the claim's OEM invoice is raised (the decided hand-off) and issued."""
+    wc.brand.partner_id = wc.env["res.partner"].create({"name": "OEM %s" % wc.brand.name})
+    event = (
+        wc.env["fix.event.outbox"]
+        .search([("event_type", "=", "warranty_claim.decided"), ("aggregate_id", "=", claim.id)])
+        .sorted("id")[-1]
+    )
+    wc.env["fix.a04.claim.consumers"].consume_warranty_claim_decided(event._relay_event_dict())
+    invoice = claim._oem_invoice()
+    invoice.action_issue()
+    return invoice
+
+
 def test_a_write_off_is_decided_by_a_finance_manager_who_raised_nothing(wc):
     claim = _approved_claim(wc, 6000.0)
-    claim.action_record_remittance(5000.0, "BANK-SHORT")  # short paid
+    invoice = _issued_oem_invoice(wc, claim)
     W = _as(wc.env["fix.claim.writeoff"], wc.clerk)
-    with wc.refused(ValidationError, "up to the 1000.00"):
-        W.create({"claim_id": claim.id, "amount": 1500.0, "reason": "brand cap"})
-    wo = W.create({"claim_id": claim.id, "amount": 1000.0, "reason": "Brand capped labour"})
+    with wc.refused(ValidationError, "up to the 6000.00"):
+        W.create({"claim_id": claim.id, "amount": 6500.0, "reason": "brand cap"})
+    wo = W.create({"claim_id": claim.id, "amount": 6000.0, "reason": "Brand will not pay"})
     with wc.refused(AccessError):
         _as(wo, wc.officer).action_approve()
     # the clerk who submitted the claim, even holding the finance role, may not
@@ -450,7 +465,8 @@ def test_a_write_off_is_decided_by_a_finance_manager_who_raised_nothing(wc):
         _as(wo, wc.clerk).action_approve()
     finance = wc.user("m09_finance", FINANCE)
     _as(wo, finance).action_approve()
-    assert (wo.state, claim.state, claim.written_off_amount) == ("approved", "written_off", 1000.0)
+    assert (wo.state, claim.state, claim.written_off_amount) == ("approved", "written_off", 6000.0)
+    assert wo.ar_writeoff_id.state == "posted" and invoice.state == "written_off"
     event = wc.env["fix.event.outbox"].search(
         [("aggregate_id", "=", claim.id), ("event_type", "=", "warranty_claim.written_off")]
     )

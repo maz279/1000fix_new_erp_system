@@ -18,6 +18,17 @@ import types
 from datetime import timedelta
 
 import pytest
+from odoo import fields
+from odoo.addons.cd_partner.tests.m40_fixtures import (
+    approved_rate,
+    configure_payout_accounts,
+    make_onboardable,
+    paid_invoice,
+)
+from odoo.addons.cd_settlement_ext.tests.b4_marketplace_fixtures import (
+    link_receipt,
+    marketplace_ready,
+)
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -148,12 +159,17 @@ def _commissioned_order(w):
     quote = env["fix.seller.quote"].create(
         {"marketplace_order_id": order.id, "seller_id": seller.id, "quoted_price": 8000.0}
     )
+    # A04 ERP M12-F4 / F1 / F9: no award without a seller commission scheme in
+    # force, no commission without the customer's M20 receipt, and the
+    # commission carries M51 VAT (b4_marketplace_fixtures)
+    marketplace_ready(env)
     quote.with_user(w.operator).action_select()
     as_op = order.with_user(w.operator)
     as_op.action_start_job()
     _job_evidence(order)
     as_op.action_complete()
     as_op.action_review(rating=5)
+    link_receipt(env, order)
     as_op.action_earn_commission()
     order.invalidate_recordset()
     assert order.state == "commissioned"
@@ -171,10 +187,12 @@ def _commissioned_referral(w):
             "partner_type": "reseller",
             "tin_number": "123456789012",
             "trade_license_no": "TL-C7",
-            "commission_rate": 0.05,
         }
     )
+    # A04 ERP audit M40-F5/F11 set-up: an onboarded partner with an approved rate
+    make_onboardable(env, partner)
     partner.with_user(w.manager).action_onboard()
+    approved_rate(partner, 0.05)
     ref = env["fix.referral"].create(
         {"name": "A4 C7 Referral", "partner_id": partner.id, "base_amount": 40000.0}
     )
@@ -198,7 +216,11 @@ def _approved_rebate(w):
             "trade_license_no": "TL-C7R",
         }
     )
+    make_onboardable(env, partner)
     partner.with_user(w.manager).action_onboard()
+    # A04 ERP audit M40-F12: the basis is the partner's paid M20 invoices
+    today = fields.Date.context_today(env.user)
+    paid_invoice(env, party, 100000.0, today - timedelta(days=5))
     audit = (
         env["fix.partner.audit"]
         .with_user(w.officer)
@@ -227,13 +249,25 @@ def _approved_rebate(w):
                 "name": "A4 C7 rebate",
                 "partner_id": partner.id,
                 "period": "2026-Q4",
-                "basis": 100000.0,
+                "period_from": today - timedelta(days=30),
+                "period_to": today,
                 "rate": 0.03,
             }
         )
     )
     rebate.with_user(w.officer).action_accrue()
     rebate.with_user(w.officer).action_request_approval(justification="Q4 volume met")
+    # M40-F13: the payout accounts and the partner scheme (TDS 10%) exist
+    configure_payout_accounts(env)
+    env["fix.commission.scheme"].sudo().create(
+        {
+            "name": "A4 C7 partner scheme",
+            "scheme_type": "partner",
+            "partner_type": "reseller",  # beside any generic line, not over it
+            "tds_rate": 0.10,
+            "date_from": today - timedelta(days=30),
+        }
+    )
     approve_via_inbox(rebate, w.approver, requester=w.officer, justification="Q4 volume met")
     rebate.invalidate_recordset()
     assert (rebate.state, rebate.amount) == ("approved", 3000.0)
@@ -301,12 +335,15 @@ def test_an_approved_rebate_raises_its_pending_payout(w):
     (pay,) = Execution.search(
         [("source_model", "=", "fix.partner.rebate"), ("source_id", "=", rebate.id)]
     )
-    assert (pay.state, pay.amount) == ("pending", 3000.0)
+    # A04 ERP audit M40-F13: the net of TDS (10% + 50% non-filer uplift)
+    # clears the partner payable the accrual credited
+    assert (pay.state, pay.amount) == ("pending", 2550.0)
+    assert pay.debit_account_id.code == "200202"
     assert pay.partner_id == rebate.partner_id.partner_id
     result = w.env["fix.a04.finance.consumers"].consume_partner_rebate_approved(
         _event_dict(w.env, "partner.rebate_approved", rebate.id)
     )
-    assert result == {"model": "fix.payment.execution", "id": pay.id, "created": True}
+    assert result == {"model": "fix.payment.execution", "id": pay.id, "created": False}
     assert (
         len(
             Execution.search(
@@ -349,9 +386,13 @@ def test_an_unknown_aggregate_and_a_wrong_state_are_refused(w):
             "name": "A4 C7 Early Partner",
             "partner_id": w.env["res.partner"].create({"name": "A4 C7 Early Co"}).id,
             "partner_type": "reseller",
-            "commission_rate": 0.05,
+            "tin_number": "123456789014",
+            "trade_license_no": "TL-C7E",
         }
     )
+    make_onboardable(w.env, partner)
+    partner.with_user(w.manager).action_onboard()
+    approved_rate(partner, 0.05)
     ref = w.env["fix.referral"].create(
         {"name": "A4 C7 early", "partner_id": partner.id, "base_amount": 100.0}
     )

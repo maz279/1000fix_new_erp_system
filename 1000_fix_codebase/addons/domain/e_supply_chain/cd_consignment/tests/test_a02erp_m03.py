@@ -51,8 +51,8 @@ def test_f1_receipt_needs_the_completed_intake(w):
 
 
 def test_f1_a_failed_seal_needs_the_released_hold(w):
-    c = _pickup(w, outbound_seal_number="SEAL-F1B")
-    c.with_user(w.hub).action_verify_hub_intake(inbound_seal="SEAL-OTHER")
+    c = _pickup(w, outbound_seal_number="SEAL-F1B", dispatch_weight_g=500.0)
+    c.with_user(w.hub).action_verify_hub_intake(inbound_seal="SEAL-OTHER", receive_weight_g=500)
     assert c.state == "held"
     c.with_user(w.manager).action_release_hold(reason="Seal replaced at origin, photos on file")
     c.with_user(w.hub).action_verify_hub_intake()
@@ -222,7 +222,7 @@ def test_f6_cancel_and_return_are_reachable(w):
 
 
 def test_f6_a_booking_closes_with_its_consignment(w):
-    c = w.cons()
+    c = w.cons(rider_id=False)  # a courier leg (A02 pass 2 M03-03)
     c.with_user(w.hub).action_confirm()
     b = _booking(w, c)
     b.with_user(w.hub).action_pick_up()
@@ -233,7 +233,7 @@ def test_f6_a_booking_closes_with_its_consignment(w):
     assert b.state == "picked_up"  # the parcel is not back yet
     c.with_user(w.hub).action_receive_return()
     assert b.state == "returned" and "address not found" in b.close_reason
-    lost = w.cons()
+    lost = w.cons(rider_id=False)
     lost.with_user(w.hub).action_confirm()
     b2 = _booking(w, lost)
     lost.with_user(w.hub).action_report_lost(reason="never collected")

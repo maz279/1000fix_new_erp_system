@@ -18,3 +18,6 @@ from . import (
     imprest,
     fix_treasury_capture,
 )
+
+# A02 ERP pass 2 X5-14: the M04 shift.closed consumer (BRU-TRE-03 second step).
+from . import fix_a02r2_shift_consumer

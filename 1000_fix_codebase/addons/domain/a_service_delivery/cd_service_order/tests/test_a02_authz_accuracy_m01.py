@@ -181,7 +181,7 @@ def test_a_finished_orders_estimate_is_not_revised(w):
     v2 = w.env["fix.estimate"].browse(est.with_user(w.clerk).action_revise()["res_id"])
     assert v2.state == "draft"
     v2.unlink()  # superuser clean-up, so v1 is the latest version again
-    o.with_user(w.cashier).action_mark_settled("POS-G3-1", 3450.0)
+    o.with_user(w.cashier).action_mark_settled("POS-G3-1", 3450.0, tender="cash")
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     assert "delivered" in (attempt(w, lambda: est.with_user(w.clerk).action_revise()) or "")
@@ -196,13 +196,24 @@ def test_a_finished_orders_estimate_is_not_revised(w):
 
 # =========================================================================== 3c. floor
 def test_list_price_floor_applies_to_a_labour_line_with_a_product(w):
-    """The list-price floor reads the line's product, whatever the line type."""
+    """The price floor reads the line's product, whatever the line type.
+
+    A04 ERP audit (M11-F1/F6): the floor is the M11 price floor (or the M15
+    cost margin floor), never the list_price placeholder (1.00 on fix_real)."""
     service = w.env["product.product"].create(
-        {"name": "G3 board-level labour", "list_price": 4000.0, "type": "service"}
+        {
+            "name": "G3 board-level labour",
+            "default_code": "A02-G3-LABOUR",
+            "list_price": 4000.0,
+            "type": "service",
+        }
+    )
+    w.env["fix.price.floor"].create(
+        {"name": "G3 labour floor", "product_code": "A02-G3-LABOUR", "floor_price": 4000.0}
     )
     o = order(w)
     line = {"line_type": "labour", "product_id": service.id, "description": "x", "quantity": 1}
-    assert "listed at BDT 4000" in (
+    assert "floor is BDT 4000.00" in (
         attempt(
             w,
             lambda: w.env["fix.estimate"]
@@ -247,30 +258,33 @@ def test_estimate_vat_rate_is_the_statutory_rate_not_a_typed_one(w, p03_write):
     assert est.grand_total == pytest.approx(1000 * (1 + std / 100))
     # the form posts the rate it shows: writing the value it has is no change
     est.with_user(w.clerk).write({"vat_rate": std, "diagnostic_notes": "saved from the form"})
-    # a commercial approver applies a zero / scheduled rate, never an invented one
+    # A02 pass 2 (X5-03, D23): nobody types a rate, a commercial approver
+    # included: a zero-rated or reduced item is set up on its M51 tariff
     assert attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 3.33}))
-    est.with_user(w.approver).write({"vat_rate": 0.0})
-    assert est.grand_total == 1000.0
+    assert "M51" in attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 0.0}))
 
 
 def test_estimate_vat_rate_follows_the_tax_rate_master(w):
     Rate = w.env.get("fix.tax.rate")
     if Rate is None:
         pytest.skip("cd_tax_engine_bd not installed")
-    in_force = SimpleNamespace(standard=Decimal("17.5"), reduced=frozenset({Decimal("5")}))
+    # D23: the estimate asks M51 per line, which also reports the rates' source
+    in_force = SimpleNamespace(
+        standard=Decimal("17.5"), reduced=frozenset({Decimal("5")}), source="master"
+    )
     with mock.patch.object(type(Rate), "_fix_vat_rates", lambda self, *a, **k: in_force):
         est = estimate(w, order(w), 1000)
-        assert est.vat_rate == 17.5 and est.grand_total == 1175.0
+        assert est.vat_rate == 17.5
         assert attempt(w, lambda: est.with_user(w.clerk).write({"vat_rate": 15.0}))
         assert attempt(w, lambda: est.with_user(w.clerk).write({"vat_rate": 5.0}))
-        est.with_user(w.approver).write({"vat_rate": 5.0})  # a scheduled reduced rate
-        assert est.grand_total == 1050.0
+        # A02 pass 2 (D23): a scheduled reduced rate is M51's tariff, not typed
+        assert attempt(w, lambda: est.with_user(w.approver).write({"vat_rate": 5.0}))
 
 
 def test_a_revision_keeps_the_rate_the_estimate_already_carries(w):
     o = to_estimating(order(w))
     est = estimate(w, o, 1000)
-    est.with_user(w.approver).write({"vat_rate": 0.0})
+    est._guarded().write({"vat_rate": 0.0})  # a rate carried from before D23
     est.with_user(w.clerk).action_send()
     v2 = w.env["fix.estimate"].browse(est.with_user(w.clerk).action_revise()["res_id"])
     assert v2.vat_rate == 0.0  # carried, not re-typed: the clerk changed nothing

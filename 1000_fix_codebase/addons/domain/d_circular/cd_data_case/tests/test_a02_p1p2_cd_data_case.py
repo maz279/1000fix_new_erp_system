@@ -98,6 +98,43 @@ def m6(odoo_env):
             case.action_assign_staff(technician=tech, custodian=custodian)
         return case
 
+    def custody(case, giver=None, receiver=None):
+        """A02 pass 2 M06-03: the media is sealed, then one person hands the
+        case over and the receiver confirms it in their own session."""
+        giver, receiver = giver or custodian, receiver or tech
+        if not case.sudo().media_unit_ids:
+            env["fix.data.media.unit"].sudo().create(
+                {"case_id": case.id, "seal_number": "SEAL-P1-%d-%d" % (n, case.id)}
+            )
+        case.with_user(giver).action_take_custody(receiver.login)
+        case.with_user(receiver).action_confirm_custody()
+        return case
+
+    def purge_cert(case, ref=None, verify=True):
+        """A02 pass 2 M06-04 (D15): the lab's purge certificate of the case."""
+        log = (
+            env["ir.attachment"]
+            .with_user(tech)
+            .create({"name": "purge.log", "raw": b"lab copy %d destroyed" % case.id})
+        )
+        cert = (
+            env["fix.data.wipe.certificate"]
+            .with_user(tech)
+            .create(
+                {
+                    "purpose": "case_purge",
+                    "case_id": case.id,
+                    "lab_storage_ref": ref or "Z4-VOL-%d" % case.id,
+                    "method": "cryptographic_erase",
+                    "sector_count": 1000,
+                    "wipe_log_attachment_id": log.id,
+                }
+            )
+        )
+        if verify:
+            cert.with_user(verifier).action_verify()
+        return cert
+
     def evaluate(case, verdict="recoverable"):
         env["fix.data.evaluation"].with_user(tech).create(
             {"case_id": case.id, "verdict": verdict}
@@ -107,7 +144,7 @@ def m6(odoo_env):
         return env[QUOTE].with_user(tech).create({"case_id": case.id, "amount": amount, **vals})
 
     def recovering(case):
-        case.action_take_custody("desk")
+        custody(case)
         case.action_route_to_z4()
         evaluate(case)
         q = quote(case)
@@ -121,7 +158,9 @@ def m6(odoo_env):
 
     def image(case):
         case.action_record_image(source_hash=digest, image_hash=digest)
-        case.with_user(tech2).action_verify_image(recomputed_hash=digest)
+        # the second person is the case's custodian (A02 pass 2 M06-02: an
+        # operator not named on a case does not see it)
+        case.with_user(custodian).action_verify_image(recomputed_hash=digest)
 
     def recovered(case):
         recovering(case)
@@ -181,7 +220,7 @@ def m6(odoo_env):
 
 def _sent_and_requoted(m6):
     case = m6.new_case()
-    case.action_take_custody("desk")
+    m6.custody(case)
     m6.evaluate(case)
     first = m6.quote(case, amount=15000)
     first.action_send()
@@ -260,7 +299,7 @@ def test_p2_a_quote_needs_a_completed_recoverable_evaluation(m6):
 
 def test_p2_z4_work_is_for_the_named_staff_only(m6):
     case = m6.new_case(staffed=False)
-    case.action_take_custody("desk")
+    m6.custody(case)
     case.action_route_to_z4()
     m6.evaluate(case)
     q = m6.quote(case)
@@ -294,8 +333,15 @@ def test_p2_z4_work_is_for_the_named_staff_only(m6):
 def test_p2_z4_read_needs_the_assigned_custodian(m6):
     case = m6.recovering(m6.new_case())
     stranger = m6.user("othercust", "cd_data_case.group_z4_custodian")
-    with pytest.raises(AccessError, match="assigned staff"):
+    # an unassigned custodian does not even see the case (the M06-02 rule)
+    with pytest.raises(AccessError, match="doesn't have 'read' access"):
         case.with_user(stranger).action_access_recovered_data(step_up_token="123456")
+    # one who sees every case (a lab manager) is still not its Z4 staff
+    overseer = m6.user(
+        "overseer", "cd_data_case.group_z4_custodian", "cd_data_case.group_data_lab_manager"
+    )
+    with pytest.raises(AccessError, match="assigned staff"):
+        case.with_user(overseer).action_access_recovered_data(step_up_token="123456")
     with pytest.raises(UserError, match="Access Denied"):  # assigned: on to the TOTP step
         case.with_user(m6.custodian).action_access_recovered_data(step_up_token="123456")
 
@@ -311,8 +357,12 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
     assert "error" in res
     with pytest.raises(UserError, match="64 hex digits"):
         case.action_record_image(source_hash="abc", image_hash="def")
+    # the Z4 staff check refuses an operator not named on the case
     with pytest.raises(AccessError, match="assigned staff"):
         case.with_user(m6.tech2).action_record_image(hashes="%s %s" % (m6.digest, m6.digest))
+    # a lab manager sees it but is not its Z4 staff
+    with pytest.raises(AccessError, match="assigned staff"):
+        case.with_user(m6.manager).action_record_image(hashes="%s %s" % (m6.digest, m6.digest))
     out = m6.p03_action(
         m6.tech, CASE, case, "action_record_image", {"hashes": "%s %s" % (m6.digest, m6.digest)}
     )
@@ -323,9 +373,11 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
         case.action_recovered()
     with pytest.raises(UserError, match="Segregation of duties"):
         case.action_verify_image(recomputed_hash=m6.digest)
+    # the second person is the case's custodian (an unassigned operator does
+    # not see the case: M06-02)
     with pytest.raises(UserError, match="does not match"):
-        case.with_user(m6.tech2).action_verify_image(recomputed_hash="f" * 64)
-    case.with_user(m6.tech2).action_verify_image(recomputed_hash=m6.digest.upper())
+        case.with_user(m6.custodian).action_verify_image(recomputed_hash="f" * 64)
+    case.with_user(m6.custodian).action_verify_image(recomputed_hash=m6.digest.upper())
     assert case.image_verify_method == "second_person" and case.image_matches_source
     assert case.image_sha256_hash == m6.digest
     with pytest.raises(UserError, match="frozen"):
@@ -451,7 +503,10 @@ def test_b4_auto_purge_only_on_a_verified_certificate_for_the_media(m6):
     no_cert = m6.handed_over(m6.new_case(serial="WD-NOCERT-%d" % m6.n), target="T-A")
     _cert(m6, "SOME-OTHER-DRIVE-%d" % m6.n)  # binds another serial
     with_cert = m6.handed_over(m6.new_case(serial="WD-CERT-%d" % m6.n), target="T-B")
-    cert = _cert(m6, with_cert.media_serial_number)
+    # A02 pass 2 M06-04 (D15): the purge is proved by the lab's purge
+    # certificate of the case, never by a drive certificate
+    _cert(m6, with_cert.media_serial_number)
+    cert = m6.purge_cert(with_cert)
     _past_retention(no_cert)
     _past_retention(with_cert)
     assert Case.cron_retention_purge() == 1

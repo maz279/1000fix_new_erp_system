@@ -1,0 +1,10 @@
+OK   M04 open the branch cash shift -> shift #12 open
+OK   M17 register the customer's device -> E2E Laptop 15 — S/N E2E-SN-DECL
+OK   M04 walk-in intake with a BDT 300 cash diagnostic fee, hand-over -> order SO000939, fee receipt RCP/2026/00005 confirmed Dr 100108, unapplied 300.00
+OK   M01 diagnose and send the estimate (part + labour) -> estimate sent total 8050.00, order estimate_sent
+OK   M01 the customer rejects the estimate -> order cancelled (estimate_declined) -> order cancelled; fee invoice INV/2026/00001 paid total 300.00 (taxable 260.87 + VAT 39.13) residual 0.00; line diagnostic CHG-DIAG
+OK   M51 the fee carries its Mushak 6.3 -> Mushak 2026-000003 (register rows +1), GL move -
+OK   M20 the fee receipt is applied, not left as credit -> receipt RCP/2026/00005 unapplied 0.00
+OK   M19 ledger after the decline -> drawer +300.00, customer AR 0.00, revenue -260.87, VAT -39.13
+OK   M01 the order chatter tells the counter what happened -> chatter ok
+SUMMARY 9 / 9

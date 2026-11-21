@@ -46,6 +46,12 @@ CUSTODY_ACTIONS = [
     # A02 ERP audit M06-F9: a unit destroyed under a physical-destruction
     # certificate, and the witness's own confirmation of a seal break (F11)
     ("media_destroyed", "Media Destroyed"),
+    # A02 pass 2 M06-01 / M06-03: a lab-manager customer correction, and the
+    # first half of a two-person custody move (the receiver confirms it)
+    ("customer_corrected", "Customer Corrected (Lab Manager)"),
+    ("custody_requested", "Custody Hand-off Requested"),
+    # A02 pass 2 review: the requester withdraws a hand-off not yet confirmed
+    ("custody_withdrawn", "Custody Hand-off Withdrawn"),
 ]
 
 
@@ -879,6 +885,12 @@ class FixDataRecoveryCase(models.Model):
             )
         return matches
 
+    def _m06_purge_denial(self, cert) -> str:
+        """'' when ``cert`` proves this case's purge, else why not. Refined
+        by fix_data_case_a02r2 (A02 pass 2 M06-04, D15)."""
+        self.ensure_one()
+        return cert._fix_certify_denial(self.media_serial_number)
+
     def action_purge(self, certificate=None):
         """Close the case on the wipe operator's VERIFIED fix.data.wipe.certificate
         (its evidence - sector count, method, tool log - is entered by the
@@ -891,8 +903,9 @@ class FixDataRecoveryCase(models.Model):
                 raise UserError("Purge from handover")
             cert = rec._purge_certificate(certificate)
             # A02 audit M06-1 (W4, W5): the certificate must still be verified,
-            # its log unchanged since verification, and bound to THIS media.
-            denial = cert._fix_certify_denial(rec.media_serial_number)
+            # its log unchanged since verification, and bound to THIS case
+            # (A02 pass 2 M06-04: the lab's purge certificate of this case).
+            denial = rec._m06_purge_denial(cert)
             if denial:
                 raise UserError("Case %s cannot be purged: %s." % (rec.name, denial))
             if rec.sudo().search_count(

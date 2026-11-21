@@ -19,7 +19,7 @@ CD-M05-01 (P08-M07) — the managed-services business on M08's engine:
   DE-17): uptime, alert volume, SLA attainment, resolutions
 - monthly report generation is calendar-driven (journey 6 nightly)
 """,
-    "version": "19.0.3.5.1",
+    "version": "19.0.3.6.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/MSP",
@@ -39,6 +39,8 @@ CD-M05-01 (P08-M07) — the managed-services business on M08's engine:
         "views/fix_msp_views.xml",
         "data/ir_cron.xml",
         "data/fix_event_consumers.xml",
+        # A02 ERP pass 2 (M05-S15): the printable client service report
+        "report/msp_service_report.xml",
     ],
     "installable": True,
     "application": True,

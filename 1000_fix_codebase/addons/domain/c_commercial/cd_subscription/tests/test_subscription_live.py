@@ -123,15 +123,15 @@ def test_cycle_days(ctx, cycle, days):
 def test_consolidated_charge_publishes_advances_and_bills_the_cycle(ctx):
     sub = _sub(ctx)
     sub.action_generate_charge()
-    # Jan 31 + 30 days = Mar 2 2026 (Feb has 28 days)
-    assert sub.next_invoice_date == date(2026, 3, 2)
+    # A04 ERP M39-F5: a calendar month from Jan 31 (Jan 31 - Feb 27), not 30 days
+    assert sub.next_invoice_date == date(2026, 2, 28)
     assert _events(ctx.env, "subscription.charged", "fix.subscription", sub.id) == [
-        {"customer_id": ctx.partner.id, "amount": 3000.0, "period_days": 30}
+        {"customer_id": ctx.partner.id, "amount": 3000.0, "period_days": 28}
     ]
     # A08 M53: every cycle is a charge with ONE draft invoice; the consolidated
     # flag rolls these invoices into the customer's period bill (M20)
     (charge,) = sub.charge_ids
-    assert (charge.period_start, charge.period_end) == (date(2026, 1, 31), date(2026, 3, 1))
+    assert (charge.period_start, charge.period_end) == (date(2026, 1, 31), date(2026, 2, 27))
     invoice = charge.invoice_id
     assert (invoice.source_model, invoice.source_id) == ("fix.subscription.charge", charge.id)
     assert invoice.state == "draft"
@@ -159,8 +159,8 @@ def test_standalone_charge_opens_its_own_invoice(ctx):
     assert invoice.customer_id == ctx.partner
     assert invoice.operating_unit_id == ctx.ou
     assert invoice.state == "draft"
-    # Jan 31 + 91 days = May 2 2026
-    assert sub.next_invoice_date == date(2026, 5, 2)
+    # A04 ERP M39-F5: a calendar quarter from Jan 31 (Jan 31 - Apr 29)
+    assert sub.next_invoice_date == date(2026, 4, 30)
 
 
 def test_standalone_invoice_lands_in_the_subscriptions_company(ctx):
@@ -273,10 +273,20 @@ def test_cancel_publishes(ctx):
 # --- prorated refund --------------------------------------------------------
 
 
+def _billed_cycle(sub):
+    """A04 ERP M39-F14: a refund is measured on the cycle actually billed, so
+    the tests bill and issue it first (it used next_invoice_date - 30)."""
+    sub.action_generate_charge()
+    charge = sub.charge_ids.sorted("period_start")[-1]
+    charge.invoice_id.action_issue()
+    return charge
+
+
 def test_mid_cycle_refund_prorates_and_charges_fee(ctx):
-    # monthly: cycle = [Jan 1, Jan 31) = 30 days; cancel Jan 11 -> 10 days
+    # monthly: billed cycle Jan 1 - Jan 31 (30-day term); cancel Jan 11 -> 10 days
     # earned = 3000 * 10/30 = 1000.00, unearned 2000.00, fee 10% = 200.00
-    sub = _sub(ctx)
+    sub = _sub(ctx, start_date=date(2026, 1, 1), next_invoice_date=date(2026, 1, 1))
+    _billed_cycle(sub)
     (res,) = sub.action_request_refund(cancellation_date=date(2026, 1, 11), fee_pct=10.0)
     assert str(res.earned_revenue) == "1000.00"
     assert str(res.unearned_refund) == "2000.00"
@@ -297,22 +307,32 @@ def test_mid_cycle_refund_prorates_and_charges_fee(ctx):
 
 def test_refund_defaults_to_today_without_fee(ctx):
     today = fields.Date.context_today(ctx.env["fix.subscription"])
-    # cycle start = (today + 10) - 30 = today - 20 -> 20 of 30 days earned
-    # earned = 3000 * 20/30 = 2000.00, net refund = 1000.00
-    sub = _sub(ctx, next_invoice_date=today + timedelta(days=10))
+    start = today - timedelta(days=20)
+    sub = _sub(ctx, start_date=start, next_invoice_date=start)
+    charge = _billed_cycle(sub)
+    term = (charge.period_end - charge.period_start).days
+    earned = round(3000.0 * 20 / term, 2)
     (res,) = sub.action_request_refund()
-    assert str(res.earned_revenue) == "2000.00"
-    assert str(res.net_refund_payable) == "1000.00"
+    assert float(res.earned_revenue) == earned
+    assert float(res.net_refund_payable) == round(3000.0 - earned, 2)
+
+
+def test_a_refund_with_nothing_billed_refunds_nothing(ctx):
+    sub = _sub(ctx, start_date=date(2026, 1, 1), next_invoice_date=date(2026, 1, 1))
+    (res,) = sub.action_request_refund(cancellation_date=date(2026, 1, 11))
+    assert str(res.net_refund_payable) == "0.00" and not sub.refund_credit_note_id
 
 
 def test_large_refund_needs_manager_approval(ctx):
-    # annual 120,000 cancelled on day 0 of the cycle -> all unearned
+    # annual 120,000 cancelled on day 0 of the billed cycle -> all unearned
     sub = _sub(
         ctx,
         billing_cycle="annual",
         recurring_amount=120000.0,
-        next_invoice_date=date(2027, 1, 1),
+        start_date=date(2026, 1, 1),
+        next_invoice_date=date(2026, 1, 1),
     )
+    _billed_cycle(sub)
     (res,) = sub.action_request_refund(cancellation_date=date(2026, 1, 1))
     assert str(res.net_refund_payable) == "120000.00"
     assert res.requires_manager_approval is True
@@ -342,8 +362,9 @@ def test_consolidated_invoice_totals_lines_and_mushak(ctx):
     assert out["total_vat"] == 375.0
     assert out["total_payable"] == 2874.99
     assert out["line_count"] == out["device_count"] == 3
-    mushak = f"2026-C{ctx.partner.id:04d}-0003"
-    assert out["mushak_no"] == mushak
+    # A04 ERP M39-F19: the Mushak number is M51's at issue, never invented here
+    mushak = False
+    assert out["mushak_no"] is mushak
     assert out["lines"][0] == {
         "description": "Device Maintenance & Support",
         "device_id": None,
@@ -367,7 +388,6 @@ def test_consolidated_invoice_totals_lines_and_mushak(ctx):
         "vat_amount": 375.0,
         "total_payable": 2874.99,
         "state": "issued",
-        "mushak_ref": mushak,
     }
     assert _events(
         ctx.env, "invoice.consolidated_b2b_created", "fix.ar.invoice", ctx.partner.id
@@ -397,7 +417,7 @@ def test_400_device_client_gets_one_invoice(ctx):
         15000.0,
         115000.0,
     )
-    assert out["mushak_no"].endswith("-0400")
+    assert out["mushak_no"] is False
 
 
 def test_consolidated_invoice_without_devices_is_empty(ctx):
@@ -405,7 +425,7 @@ def test_consolidated_invoice_without_devices_is_empty(ctx):
         ctx.partner.id, date(2026, 1, 1), date(2026, 1, 31)
     )
     assert (out["total_payable"], out["line_count"], out["lines"]) == (0.0, 0, [])
-    assert out["mushak_no"] == f"2026-C{ctx.partner.id:04d}-0000"
+    assert out["mushak_no"] is False
 
 
 def test_consolidated_invoice_carries_the_active_company(ctx):

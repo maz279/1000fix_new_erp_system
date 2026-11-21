@@ -92,6 +92,23 @@ class FixServiceOrderHandback(models.Model):
         )
         if not order:
             return {"moved": False, "reason": "no service order"}
+        # A02 ERP audit pass 2 M02-03 (D4): an on-site job skips the depot QC.
+        # The field sign-off and post-work photo are its QC and delivery
+        # evidence: M01 delivers (and invoices) the order at field completion.
+        if (
+            order.service_type == "onsite"
+            and field_order
+            and field_order.state == "completed"
+            and hasattr(order, "action_complete_onsite")
+        ):
+            if order.state in ("delivered", "closed"):
+                return {"moved": False, "reason": "already %s" % order.state}
+            try:
+                with self.env.cr.savepoint():
+                    order.action_complete_onsite(field_order)
+            except (UserError, ValidationError) as exc:
+                return order._fix_handback_refused("Field order completed", str(exc))
+            return {"moved": True, "state": order.state}
         result = order._fix_handback_to_qc("Field order completed")
         tech_user = field_order.technician_id.user_id if field_order else None
         if result.get("moved") and tech_user:
@@ -155,8 +172,17 @@ class FixServiceOrderHandback(models.Model):
                 "Delivery leg %s delivered" % leg.name, "no verified proof of delivery"
             )
         due = order._fix_amount_due()
+        # A02 ERP audit pass 2 M03-01/02 (D1): a cash-on-delivery leg recorded
+        # its collection on the order at the verified POD (cd_consignment);
+        # the cash reaches the books through COD clearing, not a cashier
+        cod_collected = bool(
+            "cod_collected_at" in leg._fields
+            and leg.cod_collected_at
+            and order.payment_settlement_state == "settled"
+        )
         if not (
-            order._fix_zero_charge_basis()
+            cod_collected
+            or order._fix_zero_charge_basis()
             or due <= 0
             or order.payment_settlement_state == "credit_approved"
             or order._fix_settlement_covers(due)

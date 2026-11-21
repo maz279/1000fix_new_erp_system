@@ -36,9 +36,11 @@
         <field name="model_id" ref="model_fix_referral"/>
         <field name="domain_force">[('partner_id.partner_id', '=', user.partner_id.id)]</field>
         <field name="groups" eval="[(4, ref('group_fix_partner_portal'))]"/>
+        <!-- A04 ERP audit M40-F8: a partner submits a LEAD (with consent);
+             the company converts it. The portal only reads its referrals. -->
         <field name="perm_read" eval="True"/>
-        <field name="perm_write" eval="True"/>
-        <field name="perm_create" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
         <field name="perm_unlink" eval="False"/>
     </record>
 </odoo>

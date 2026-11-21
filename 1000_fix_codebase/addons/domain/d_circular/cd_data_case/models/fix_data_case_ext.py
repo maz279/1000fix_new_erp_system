@@ -664,7 +664,8 @@ class FixDataMediaUnit(models.Model):
                 raise UserError(
                     "Certificate %s is an erasure, not a physical destruction." % cert.name
                 )
-            refusal = cert._fix_certify_denial(case.media_serial_number)
+            # A02 pass 2 review (M06-05): bound to THIS case
+            refusal = cert._fix_certify_denial(case.media_serial_number, consumer=case)
             if refusal:
                 raise UserError("Media %s cannot be destroyed: %s." % (unit.seal_number, refusal))
             request = cert.wipe_request_id if "wipe_request_id" in cert._fields else False

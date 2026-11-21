@@ -98,6 +98,19 @@ def _prerequisites(m5):
             "msp_contract_id": m5.msp.id,
         }
     )
+    # A02 ERP pass 2 (M05-S06): the service goes live billed by one M39
+    # subscription on its M08 contract
+    if "fix.subscription" in m5.env:
+        ou = m5.msp.operating_unit_id or m5.env["operating.unit"].search([], limit=1)
+        m5.env["fix.subscription"].create(
+            {
+                "name": "MSP billing %s" % m5.msp.name,
+                "operating_unit_id": ou.id,
+                "customer_id": m5.msp.contract_id.customer_id.id,
+                "contract_id": m5.msp.contract_id.id,
+                "recurring_amount": 1000.0,
+            }
+        )
 
 
 def _complete_checklist(m5, call, project):
@@ -282,8 +295,14 @@ def _breached_alert(m5, contract, asset, days_ago):
         }
     )
     when = fields.Datetime.now() - timedelta(days=days_ago)
-    m5.env.cr.execute("UPDATE fix_msp_alert SET create_date = %s WHERE id = %s", (when, alert.id))
-    alert.invalidate_recordset(["create_date"])
+    # A02 ERP pass 2 (M05-S02): the deadlines are stamped when the alert is
+    # raised; flush that write first, or it lands after (and undoes) the SQL
+    alert.flush_recordset()
+    m5.env.cr.execute(
+        "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
+        (when, alert.id),
+    )
+    alert.invalidate_recordset()
     return alert
 
 

@@ -49,6 +49,11 @@
         <field name="model_id" ref="model_fix_price_change"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_price_floor_company" model="ir.rule">
+        <field name="name">fix.price.floor: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_floor"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_price_mass_change_company" model="ir.rule">
         <field name="name">fix.price.mass.change: allowed companies</field>
         <field name="model_id" ref="model_fix_price_mass_change"/>
@@ -59,9 +64,19 @@
         <field name="model_id" ref="model_fix_price_mass_change_line"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_price_override_company" model="ir.rule">
+        <field name="name">fix.price.override: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_override"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
     <record id="rule_fix_price_simulation_company" model="ir.rule">
         <field name="name">fix.price.simulation: allowed companies</field>
         <field name="model_id" ref="model_fix_price_simulation"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_price_version_company" model="ir.rule">
+        <field name="name">fix.price.version: allowed companies</field>
+        <field name="model_id" ref="model_fix_price_version"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
     <record id="rule_fix_promotion_company" model="ir.rule">

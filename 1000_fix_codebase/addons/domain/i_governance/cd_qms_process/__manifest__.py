@@ -46,6 +46,8 @@ management-system patterns:
         # A10 S6 (M23-12): the M42 supplier-CAR hand-off — supplier.car.raised
         # arrives through the relay and raises the QMS NCR for majors.
         "data/fix_qms_consumers.xml",
+        # A02 ERP pass 2 X5-14: M01 QC failures and reworks raise their NCR.
+        "data/fix_a02r2_quality_consumers.xml",
         # M23 capture audit (2026-11-19): numbering of the new records
         "data/fix_qms_capture_data.xml",
         "views/fix_qms_views.xml",

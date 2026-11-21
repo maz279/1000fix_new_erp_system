@@ -12,6 +12,27 @@ class FixServiceOrderFieldBridge(models.Model):
     _inherit = "fix.service.order"
 
     field_order_ids = fields.One2many("fix.field.order", "order_id", string="Field Orders")
+    # A02 ERP audit pass 2 M02-06: a failed visit's follow-up brings the
+    # device in (M03 pickup leg) and, for a workshop transfer, flags the
+    # order for the workshop (M31)
+    field_pickup_requested = fields.Boolean(
+        string="Field Visit Converted To Pickup", readonly=True, copy=False
+    )
+    field_workshop_transfer = fields.Boolean(
+        string="Field Visit Transferred To Workshop", readonly=True, copy=False
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {
+            "field_pickup_requested",
+            "field_workshop_transfer",
+        }
+
+    def _fix_field_pickup_requested(self) -> bool:
+        """cd_consignment asks this to start an on-site order with a pickup."""
+        self.ensure_one()
+        return bool(self.field_pickup_requested)
+
     field_order_count = fields.Integer(string="Field Orders", compute="_compute_field_order_count")
 
     @api.depends("field_order_ids")
@@ -77,6 +98,15 @@ class FixServiceOrderFieldBridge(models.Model):
                     "scheduled_start": False,
                     "sla_deadline": order.sla_resolution_deadline,
                     "customer_address": address or None,
+                    # A02 ERP audit pass 2 M02-05: the site position the
+                    # failed-visit evidence and the suggestion engine measure
+                    # against (it was never set, so both checks were inert)
+                    "latitude": partner.partner_latitude
+                    if "partner_latitude" in partner._fields
+                    else 0.0,
+                    "longitude": partner.partner_longitude
+                    if "partner_longitude" in partner._fields
+                    else 0.0,
                     "notes": order.fault_description or None,
                 }
             )

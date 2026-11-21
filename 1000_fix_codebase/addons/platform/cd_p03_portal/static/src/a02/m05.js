@@ -25,7 +25,10 @@ export const MODULE = {
     { l: 'Monitored Assets', m: 'monitored_assets' },
     { l: 'Remote Resolution', m: 'remote_resolution', suffix: '%' },
     { l: 'Open MSP Tickets', m: 'open_msp_tickets' },
-    { l: 'SLA Credits MTD', m: 'sla_credits_mtd' },
+    /* A02 ERP pass 2 (M05-S12): credits approved this Dhaka month, and the
+     * last closed month's credits (a month's credit is drafted after it closes) */
+    { l: 'SLA Credits Approved This Month', m: 'sla_credits_mtd' },
+    { l: 'SLA Credits Last Month', m: 'sla_credits_last_month' },
     { l: 'Patch Compliance', m: 'patch_compliance', suffix: '%' },
     { l: 'On-Call Escalations', m: 'oncall_escalations' }
   ],
@@ -61,7 +64,11 @@ export const MODULE = {
       { id: 'M05-review-meetings', en: 'Service Review Meetings', bn: 'সেবা পর্যালোচনা সভা', t: 'g' },
       { id: 'M05-roadmap', en: 'Technology Roadmap', bn: 'প্রযুক্তি রোডম্যাপ', t: 'g' },
       { id: 'M05-contracts', en: 'MSP Contracts & Monthly Reports', bn: 'এমএসপি চুক্তি ও মাসিক প্রতিবেদন', t: 'g' },
-      { id: 'M05-credits', en: 'SLA Credits', bn: 'এসএলএ ক্রেডিট', t: 'g' }
+      { id: 'M05-credits', en: 'SLA Credits', bn: 'এসএলএ ক্রেডিট', t: 'g' },
+      /* A02 ERP pass 2 (M05-S06 / S13 / S18) */
+      { id: 'M05-billing-recon', en: 'MSP Fee vs M39 Billing', bn: 'এমএসপি ফি বনাম বিলিং', t: 'r' },
+      { id: 'M05-terms-history', en: 'Contract Terms History', bn: 'চুক্তির শর্ত ইতিহাস', t: 'g' },
+      { id: 'M05-alert-pauses', en: 'SLA Pauses (Waiting on Client)', bn: 'এসএলএ বিরতি', t: 'g' }
     ]},
     /* capture audit pass 2 (2026-11-18): FR-RMS-047, spec 8.3 */
     { en: 'Client Onboarding', screens: [
@@ -74,7 +81,7 @@ export const MODULE = {
       { id: 'M05-dr-tests', en: 'DR Tests', bn: 'ডিআর পরীক্ষা', t: 'g' }
     ]}
   ],
-  reports: ['MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register',
+  reports: ['MSP Fee vs M39 Billing Reconciliation', 'MSP SLA Attainment by Client', 'Remote Resolution Rate', 'Patch Compliance Report', 'Alert-to-Ticket Conversion', 'Backup & Restore Test Log', 'SLA Credit Register',
     'Cloud Cost & Optimisation', 'Licence Compliance', 'Security Posture'],
   /* M05 capture audit 2026-11-13: every chip that has a form is listed, so
    * each sub-module page names the forms that capture its records */
@@ -96,7 +103,7 @@ export const MODULE = {
       ['3', 'Metrics & Health Scoring', 9, { model: 'fix.monitored.asset', cols: ['hostname', 'health_score', 'cpu_utilization_pct', 'ram_utilization_pct', 'disk_free_gb'], screens: ['M05-health', 'M05-estate', 'M05-backups', 'M05-dr-plans', 'M05-dr-tests'], reports: ['Backup & Restore Test Log'], forms: ['Health Reading', 'Backup Job', 'DR Plan', 'DR Test'], create: 'M05-form-reading' }],
       /* 4 FR-RMS-015: the engine is configured by its rules; alerts are
        * raised by readings that cross them. The button opened the ticket form. */
-      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules', 'M05-windows'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket', 'Maintenance Window'], create: 'M05-form-alert-rule' }],
+      ['4', 'Alerting Engine', 11, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'severity', 'rule_id', 'state', 'create_date'], screens: ['M05-alerts', 'M05-alert-rules', 'M05-windows', 'M05-alert-pauses'], reports: ['Alert-to-Ticket Conversion'], forms: ['Alert Rule', 'MSP Ticket', 'Maintenance Window'], create: 'M05-form-alert-rule' }],
       ['5', 'On-Call & Escalation', 7, { model: 'fix.msp.oncall.shift', cols: ['name', 'technician_id', 'level', 'start_at', 'state'], screens: ['M05-oncall'], reports: [], forms: ['On-Call Shift'] }],
       ['6', 'Runbooks & Remediation', 8, { model: 'fix.msp.runbook', cols: ['name', 'trigger', 'scope_contract_id', 'auto_run', 'auto_resolve_alert'], screens: ['M05-runbooks', 'M05-runbook-runs'], reports: [], forms: ['Runbook', 'Runbook Execution'] }],
       ['7', 'Patch Management', 9, { model: 'fix.msp.patch.update', cols: ['identifier', 'title', 'asset_id', 'severity', 'state'], screens: ['M05-patching', 'M05-msp-patch-policy', 'M05-windows'], reports: ['Patch Compliance Report'], forms: ['Patch Update', 'Patch Policy', 'Maintenance Window'] }],
@@ -106,7 +113,7 @@ export const MODULE = {
       ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem', 'M05-contacts', 'M05-major-incidents'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record', 'Client Contact', 'Major Incident'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
       /* 9 FR-RMS-035: the monthly report is generated from its contract,
        * never typed - its figures decide the SLA credit. No button before. */
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-credits', 'M05-review-meetings', 'M05-roadmap'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'SLA Credit', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-credits', 'M05-review-meetings', 'M05-roadmap', 'M05-terms-history'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'SLA Credit', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
       /* 10 FR-RMS-047/048, spec 8.3: the button opened the MSP contract; no
        * record held the onboarding project, its checklist or the go-live
        * from which SLA clocks bind (capture audit pass 2, 2026-11-18) */
@@ -120,7 +127,7 @@ export const MODULE = {
 export const SCREENS = {
   /* --- Remote Sessions --- */
   'M05-sessions': { kind: 'model_list', model: 'fix.remote.session',
-    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'access_mode', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at'],
+    cols: ['msp_contract_id', 'asset_id', 'technician_id', 'tool', 'access_mode', 'consent_captured', 'consent_token_ref', 'started', 'started_at', 'ended_at', 'duration_minutes'],
     stateField: 'tool',
     actions: [
       { m: 'action_request_consent', l: 'Request Consent' },
@@ -147,13 +154,20 @@ export const SCREENS = {
     ] },
   'M05-health': { kind: 'table_report', module: 'M05', report: 'estate_health', period: false },
   'M05-alerts': { kind: 'model_list', model: 'fix.msp.alert', create: true,
-    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'coverage_gap', 'state', 'escalated', 'order_id', 'resolved_at'],
+    cols: ['msp_contract_id', 'asset_id', 'severity', 'message', 'source', 'rule_id', 'coverage_gap', 'state', 'sla_deadline', 'paused', 'escalated', 'order_id', 'resolved_at'],
     stateField: 'state',
     actions: [
       { m: 'action_acknowledge', l: 'Acknowledge' },
       { m: 'action_to_ticket', l: 'Create Ticket' },
       { m: 'action_resolve', l: 'Resolve', ask: 'Resolution note', kwarg: 'note' },
-      { m: 'action_escalate', l: 'Escalate' }
+      { m: 'action_escalate', l: 'Escalate' },
+      /* A02 ERP pass 2: reclassify a NEW alert with the reason (M05-S02);
+       * stop the SLA clock while waiting on the client (M05-S18); send a
+       * ticket to an M02 field visit (M05-S16) */
+      { m: 'action_reclassify', l: 'Reclassify (new alerts)', asks: [{ kwarg: 'severity', label: 'New severity: minor or major' }, { kwarg: 'reason', label: 'Why the severity changes' }] },
+      { m: 'action_pause', l: 'Pause SLA (Waiting on Client)', ask: 'What the client must do before work continues', kwarg: 'reason' },
+      { m: 'action_resume', l: 'Resume SLA' },
+      { m: 'action_escalate_to_field', l: 'Escalate to Field Visit (M02)', ask: 'Why a visit is needed', kwarg: 'note' }
     ] },
   /* FR-RMS-015: a threshold per metric; scoped to one contract or, empty,
    * to every contract's estate. Evaluated on every health reading. */
@@ -165,14 +179,21 @@ export const SCREENS = {
    * the desk = what clients reported (phone, email, portal, chat) and every
    * alert that became a ticket. "+ New" logs a client's report. */
   'M05-tickets': { kind: 'model_list', model: 'fix.msp.alert',
-    cols: ['asset_id', 'severity', 'message', 'source', 'reported_by_contact_id', 'order_id', 'recurring', 'problem_id', 'major_incident_id', 'state', 'escalated', 'resolved_at', 'resolution_note'],
+    cols: ['asset_id', 'severity', 'message', 'source', 'reported_by_contact_id', 'order_id', 'recurring', 'problem_id', 'major_incident_id', 'state', 'sla_deadline', 'responded_at', 'paused', 'escalated', 'field_order_ref', 'resolved_at', 'resolution_note'],
     stateField: 'state',
     domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']],
     actions: [
       { m: 'action_acknowledge', l: 'Acknowledge' },
       { m: 'action_to_ticket', l: 'Create Service Order' },
       { m: 'action_resolve', l: 'Resolve', ask: 'Resolution note', kwarg: 'note' },
-      { m: 'action_escalate', l: 'Escalate' }
+      { m: 'action_escalate', l: 'Escalate' },
+      /* A02 ERP pass 2: reclassify a NEW alert with the reason (M05-S02);
+       * stop the SLA clock while waiting on the client (M05-S18); send a
+       * ticket to an M02 field visit (M05-S16) */
+      { m: 'action_reclassify', l: 'Reclassify (new alerts)', asks: [{ kwarg: 'severity', label: 'New severity: minor or major' }, { kwarg: 'reason', label: 'Why the severity changes' }] },
+      { m: 'action_pause', l: 'Pause SLA (Waiting on Client)', ask: 'What the client must do before work continues', kwarg: 'reason' },
+      { m: 'action_resume', l: 'Resume SLA' },
+      { m: 'action_escalate_to_field', l: 'Escalate to Field Visit (M02)', ask: 'Why a visit is needed', kwarg: 'note' }
     ] },
   'M05-oncall': { kind: 'model_list', model: 'fix.msp.oncall.shift',
     cols: ['name', 'technician_id', 'level', 'start_at', 'end_at', 'state'],
@@ -202,7 +223,7 @@ export const SCREENS = {
 
   /* --- Compliance --- */
   'M05-patching': { kind: 'model_list', model: 'fix.msp.patch.update',
-    cols: ['msp_contract_id', 'asset_id', 'identifier', 'title', 'category', 'severity', 'state', 'installed_at'],
+    cols: ['msp_contract_id', 'asset_id', 'identifier', 'title', 'category', 'severity', 'state', 'client_approved_at', 'installed_at'],
     stateField: 'state',
     actions: [
       { m: 'action_approve', l: 'Approve' },
@@ -210,6 +231,8 @@ export const SCREENS = {
       { m: 'action_request_window_exception', l: 'Request Exception: Outside Window', ask: 'Why it cannot wait for an approved window', kwarg: 'reason' },
       { m: 'action_request_test_exception', l: 'Request Exception: Skip Test', ask: 'Why it cannot wait for a test', kwarg: 'reason' },
       { m: 'action_recall_approval', l: 'Recall Exception Request' },
+      /* A02 ERP pass 2 (M05-S10): outside an open window the client approves first */
+      { m: 'action_record_client_approval', l: 'Record Client Approval (out-of-window)', asks: [{ kwarg: 'contact_id', label: 'Client contact ID (a contact who may approve changes)', number: true }, { kwarg: 'evidence', label: 'Evidence: OTP reference or the approving e-mail' }] },
       { m: 'action_install', l: 'Mark Installed' },
       /* A02 ERP audit M05-F18: a deferral names its days (the policy's maximum) and reason */
       { m: 'action_defer', l: 'Defer', asks: [{ kwarg: 'days', label: 'Days to defer (1 to the patch policy maximum)', number: true }, { kwarg: 'reason', label: 'Why the patch is deferred' }] },
@@ -239,22 +262,38 @@ export const SCREENS = {
 
   /* --- Client Reporting --- */
   'M05-sla': { kind: 'table_report', module: 'M05', report: 'sla_by_client', title: 'MSP SLA Attainment by Client', period: false },
+  /* A02 ERP pass 2 (M05-S06, D8): the MSP terms are the price master */
+  'M05-billing-recon': { kind: 'table_report', module: 'M05', report: 'msp_billing_reconciliation', title: 'MSP Fee vs M39 Billing Reconciliation', period: false },
+  /* A02 ERP pass 2 (M05-S13): what was in force on any day; written by Amend Terms only */
+  'M05-terms-history': { kind: 'model_list', model: 'fix.msp.terms.amendment', create: false,
+    cols: ['msp_contract_id', 'effective_date', 'kind', 'device_count', 'per_device_monthly', 'monthly_value', 'monthly_delta', 'sla_target_pct', 'billing_state', 'billing_ref', 'reason', 'amended_by_id'],
+    stateField: 'billing_state',
+    empty: 'No amendment yet. Amend SLA / Commercial Terms on MSP Contracts records one, with its effective date.' },
+  /* A02 ERP pass 2 (M05-S18): the SLA clock stops while the client is awaited */
+  'M05-alert-pauses': { kind: 'model_list', model: 'fix.msp.alert.pause', create: false,
+    cols: ['alert_id', 'msp_contract_id', 'started_at', 'ended_at', 'reason', 'started_by_id', 'ended_by_id'],
+    empty: 'No SLA pause. Pause SLA (Waiting on Client) on an alert stops its clock until Resume SLA.' },
   'M05-reviews': { kind: 'model_list', model: 'fix.msp.service.report', create: false,
-    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'pending_count', 'sla_attainment_pct', 'attainment_flagged', 'summary_en', 'summary_bn'],
-    actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' }] },
+    cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'breached_count', 'response_breached_count', 'sla_attainment_pct', 'sla_not_binding', 'mtta_minutes', 'mttr_minutes', 'overage_hours', 'attainment_flagged', 'summary_en'],
+    actions: [{ m: 'action_generate_bilingual_report', l: 'Regenerate Summary' },
+      /* A02 ERP pass 2 (M05-S15): the bilingual client report as a PDF */
+      { m: 'action_print_service_report', l: 'Print Client Report (PDF)' }] },
   /* the monthly report and the SLA credit run, per MSP contract */
   'M05-contracts': { kind: 'model_list', model: 'fix.msp.contract',
-    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'enrolled_count', 'coverage_window', 'sla_target_pct', 'monthly_value', 'lifecycle'],
+    cols: ['name', 'contract_id', 'contract_state', 'entitled', 'device_count', 'enrolled_count', 'coverage_window', 'sla_target_pct', 'monthly_value', 'remote_usage_pct', 'lifecycle'],
     stateField: 'lifecycle',
     actions: [
-      { m: 'action_generate_monthly_report', l: 'Generate Monthly Report' },
+      /* A02 ERP pass 2 (M05-S14): any finished month, e.g. one the nightly run could not report */
+      { m: 'action_generate_monthly_report', l: 'Generate Monthly Report', ask: 'Month (YYYY-MM; empty = last month)', kwarg: 'period' },
       { m: 'action_compute_sla_credits', l: 'Compute SLA Credits' },
       /* A02 ERP audit M05-F3: the SLA and commercial terms change only here,
        * by an SLA credit approver, with the reason (raising the covered
        * devices sends the uplift to billing) */
       { m: 'action_amend_terms', l: 'Amend SLA / Commercial Terms', asks: [
-        { kwarg: 'term', label: 'Term: device_count, per_device_monthly, sla_target_pct, alert_resolve_hours_major, alert_resolve_hours_minor, coverage_window (24x7/business), holiday_calendar_id, unattended_access, recording_retention_days or contract_id' },
+        { kwarg: 'term', label: 'Term: device_count, per_device_monthly, sla_target_pct, alert_resolve_hours_major, alert_resolve_hours_minor, response_hours_major, response_hours_minor, coverage_window (24x7/business), holiday_calendar_id, parts_included, remote_hours_monthly, overage_hourly_rate, unattended_access, recording_retention_days or contract_id' },
         { kwarg: 'value', label: 'New value' },
+        /* A02 ERP pass 2 (M05-S13): the day the amendment takes effect */
+        { kwarg: 'effective_date', label: 'Effective date (YYYY-MM-DD; empty = today; never inside a reported month)' },
         { kwarg: 'reason', label: 'Reason (the amendment or the client agreement it follows)' }] },
       /* BRU-RMS-11 offboarding: start, record access revoked, complete */
       { m: 'action_start_offboarding', l: 'Start Offboarding' },
@@ -392,7 +431,7 @@ export const SCREENS = {
     status: { field: 'state' },
     tabs: [
       { id: 'alert', label: '1. Report & Asset', bn: '১. অভিযোগ ও সম্পদ', icon: '🚨', badge: '7' },
-      { id: 'resolution', label: '2. SLA Resolution & Ticket', bn: '২. সমাধান ও টিকেট', icon: '✅', badge: '4' }
+      { id: 'resolution', label: '2. SLA Resolution & Ticket', bn: '২. সমাধান ও টিকেট', icon: '✅', badge: '12' }
     ],
     sections: [
       { tab: 'alert', title: 'What the Client Reported, and on Which Asset',
@@ -418,6 +457,12 @@ export const SCREENS = {
         { name: 'problem_id', label: 'Problem Record (needed to resolve a recurring incident)' },
         { name: 'major_incident_id', label: 'Major Incident' },
         { name: 'state', label: 'Ticket / Alert State', readonly: true },
+        /* A02 ERP pass 2 (M05-S02 / S18): stamped when raised; pauses extend them */
+        { name: 'sla_deadline', label: 'Resolution Deadline (stamped when raised)', readonly: true },
+        { name: 'response_deadline', label: 'Response Deadline', readonly: true },
+        { name: 'responded_at', label: 'First Response At', readonly: true },
+        { name: 'paused', label: 'SLA Clock Paused (Waiting on Client)', readonly: true },
+        { name: 'field_order_ref', label: 'Field Visit (M02)', readonly: true },
         { name: 'resolved_at', label: 'Resolved Timestamp', readonly: true },
         { name: 'resolution_note', label: 'Root Cause & Resolution Summary', type: 'text', readonly: true }
       ]},
@@ -610,7 +655,11 @@ export const SCREENS = {
           { name: 'exception_kind', label: "Install Exception", readonly: true },
           { name: 'exception_reason', label: "Exception Justification", type: 'text', readonly: true },
           { name: 'approval_state', label: "Exception Approval (M63 inbox)", readonly: true },
-          { name: 'exception_approved_by_id', label: "Exception Approved By", readonly: true }
+          { name: 'exception_approved_by_id', label: "Exception Approved By", readonly: true },
+          /* A02 ERP pass 2 (M05-S10): an install outside an open window */
+          { name: 'client_approval_contact_id', label: "Client Approver (out-of-window install)", readonly: true },
+          { name: 'client_approval_evidence', label: "Client Approval Evidence", readonly: true },
+          { name: 'client_approved_at', label: "Client Approved At", readonly: true }
         ] }
     ]
   },
@@ -639,10 +688,46 @@ export const SCREENS = {
         { name: 'health', label: 'Health', readonly: true },
         { name: 'last_seen', label: 'Last Seen', readonly: true },
       ] },
+    /* A02 ERP pass 2 (X5-19, M05-S13): the contract's reports, credits and
+     * terms history were on no form */
+    grids: [
+      { field: 'report_ids', tab: 'records', title: 'Monthly Service Reports', readonlyGrid: true,
+        empty: 'No service report yet: the nightly run makes one for every finished month.',
+        fields: [
+          { name: 'period_label', label: 'Month', readonly: true },
+          { name: 'alert_count', label: 'Alerts', readonly: true },
+          { name: 'breached_count', label: 'Breaches', readonly: true },
+          { name: 'sla_attainment_pct', label: 'Attainment %', readonly: true },
+          { name: 'sla_not_binding', label: 'Not Yet Binding', readonly: true },
+          { name: 'overage_hours', label: 'Overage Hours', readonly: true }
+        ] },
+      { field: 'credit_ids', tab: 'records', title: 'SLA Credits', readonlyGrid: true,
+        empty: 'No SLA credit: every reported month met its target.',
+        fields: [
+          { name: 'period_label', label: 'Month', readonly: true },
+          { name: 'attainment_pct', label: 'Attained %', readonly: true },
+          { name: 'target_pct', label: 'Target %', readonly: true },
+          { name: 'credit_amount', label: 'Credit (BDT, before VAT)', readonly: true },
+          { name: 'state', label: 'State', readonly: true }
+        ] },
+      { field: 'terms_amendment_ids', tab: 'records', title: 'Terms History', readonlyGrid: true,
+        empty: 'Never amended: the terms above are the terms since the start.',
+        fields: [
+          { name: 'effective_date', label: 'Effective', readonly: true },
+          { name: 'kind', label: 'Kind', readonly: true },
+          { name: 'device_count', label: 'Devices', readonly: true },
+          { name: 'per_device_monthly', label: 'Per Device', readonly: true },
+          { name: 'monthly_delta', label: 'Monthly Fee Change', readonly: true },
+          { name: 'sla_target_pct', label: 'Target %', readonly: true },
+          { name: 'billing_state', label: 'Billing (M39)', readonly: true },
+          { name: 'reason', label: 'Reason', readonly: true }
+        ] }
+    ],
     tabs: [
       { id: 'contract', label: '1. Contract & Scope', bn: '১. চুক্তি ও পরিধি', icon: '📑', badge: '6' },
-      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '9' },
-      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '10' }
+      { id: 'commercial', label: '2. Commercials & SLA', bn: '২. মূল্য ও এসএলএ', icon: '💰', badge: '14' },
+      { id: 'lifecycle', label: '3. Lifecycle & Offboarding', bn: '৩. জীবনচক্র ও অফবোর্ডিং', icon: '🔚', badge: '10' },
+      { id: 'records', label: '4. Reports, Credits & Terms History', bn: '৪. প্রতিবেদন, ক্রেডিট ও শর্ত', icon: '📊' }
     ],
     sections: [
       { tab: 'contract', title: "Contract & Monitoring Scope",
@@ -667,7 +752,14 @@ export const SCREENS = {
           { name: 'alert_resolve_hours_minor', label: "Minor Alert Resolution Target (h)" },
           { name: 'coverage_window', required: true, label: "SLA Coverage Window (the hours the clock runs)" },
           { name: 'holiday_calendar_id', label: "Holiday Calendar (business-hours clocks stop on its holidays)" },
-          { name: 'recording_retention_days', label: "Session Recording Retention (days, 0 = contract life)" }
+          { name: 'recording_retention_days', label: "Session Recording Retention (days, 0 = contract life)" },
+          /* A02 ERP pass 2 (M05-S09 / S17 / S18) */
+          { name: 'response_hours_major', label: "Major Alert Response Target (h, 0 = none)" },
+          { name: 'response_hours_minor', label: "Minor Alert Response Target (h, 0 = none)" },
+          { name: 'parts_included', label: "Parts Entitlement (else parts are an approved overage estimate)" },
+          { name: 'remote_hours_monthly', label: "Remote Support Hours a Month (0 = not metered)" },
+          { name: 'overage_hourly_rate', label: "Overage Rate (BDT / hour; none = flagged, not billed)" },
+          { name: 'remote_usage_pct', label: "Remote Hours Used This Month (%)", readonly: true }
         ] },
       { tab: 'lifecycle', title: "Service Lifecycle & Offboarding (BRU-RMS-11)",
         note: "Offboarding is run from MSP Contracts: Start Offboarding, record each agent's removal on Estate & Agents and the access revocation here, then Complete Offboarding. It completes only when every agent is removed and access is revoked, each with its evidence.",
@@ -714,6 +806,10 @@ export const SCREENS = {
           { name: 'dofa_tier_required', label: "DOFA Tier Required", readonly: true },
           { name: 'is_manual', label: "Manual Credit / Override", readonly: true },
           { name: 'breach_count', label: "SLA Breaches in the Month", readonly: true },
+          /* A02 ERP pass 2 (M05-S18) */
+          { name: 'response_breached_count', label: "Response Target Missed", readonly: true },
+          { name: 'mtta_minutes', label: "MTTA (min)", readonly: true },
+          { name: 'mttr_minutes', label: "MTTR (min)", readonly: true },
           { name: 'approved_by_id', label: "Approved By", readonly: true },
           { name: 'approved_at', label: "Approved At", readonly: true },
           { name: 'approved_amount', label: "Amount Approved (BDT)", readonly: true },

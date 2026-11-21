@@ -9,6 +9,10 @@ from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from odoo.addons.cd_settlement_ext.tests.b4_marketplace_fixtures import (
+    link_paid_order,
+    marketplace_accrual_ready,
+)
 from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
     declare_marketplace_agent,
 )
@@ -109,6 +113,11 @@ def book(odoo_env):
     c1 = _commission(env, seller_a, 10000.0, 0.10, tds=450.0, payment_id="PAY-1", rail="bKash")
     c2 = _commission(env, seller_a, 2500.5, 0.10)
     c3 = _commission(env, seller_b, 4000.0, 0.05, tds=190.0)
+    # A04 ERP M12-F1/F4/F9: each row's paid source order, the scheme, the
+    # declared agent VAT position and the collections role (101000)
+    marketplace_accrual_ready(env, env.company)
+    for row in (c1, c2, c3):
+        link_paid_order(row)
     return SimpleNamespace(env=env, seller_a=seller_a, seller_b=seller_b, c1=c1, c2=c2, c3=c3)
 
 
@@ -140,25 +149,29 @@ class TestCommissionLedger:
         move = book.c1.gl_move_id
         assert (book.c1.state, move.state) == ("accrued", "posted")
         lines = {line.name.split(":")[0]: line for line in move.line_ids}
-        clearing = lines["Customer Receipt Clearing"]
+        # A04 ERP M12-F1: the debit clears the customer's M20 collection
+        (clearing,) = [ln for name, ln in lines.items() if name.startswith("Customer collection")]
+        vat = lines["Output VAT on commission"]
         revenue = lines["Commission Revenue (FF-91)"]
         seller = lines["Seller Entitlement Liability"]
-        # gross 10,000.00 Dr; commission 1,000.00 Cr revenue; 9,000.00 Cr seller (never gross to revenue)
+        # gross 10,000.00 Dr; commission 1,000.00 Cr revenue; its 15% VAT 150.00 Cr
+        # VAT output (A04 ERP M12-F9); 8,850.00 Cr seller (never gross to revenue)
         assert (_money(clearing.debit), _money(clearing.credit)) == (D("10000.00"), D("0.00"))
         assert (_money(revenue.debit), _money(revenue.credit)) == (D("0.00"), D("1000.00"))
-        assert (_money(seller.debit), _money(seller.credit)) == (D("0.00"), D("9000.00"))
+        assert (_money(vat.debit), _money(vat.credit)) == (D("0.00"), D("150.00"))
+        assert (_money(seller.debit), _money(seller.credit)) == (D("0.00"), D("8850.00"))
         # found by their configured codes - never by "any account of the type"
         assert clearing.account_id.code == "101000"
         assert revenue.account_id.code == "400100"
         assert seller.account_id.code == "200200"
         assert seller.partner_id == book.seller_a
         dims = book.env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
-        assert sorted(dims.mapped("cost_centre")) == ["CC-MKT", "CC-PAY", "CC-REV"]
+        assert sorted(dims.mapped("cost_centre")) == ["CC-MKT", "CC-PAY", "CC-REV", "CC-TAX"]
         (event,) = _events(book.env, "commission.accrued", book.c1.id)
         assert (event["gross"], event["commission_amount"], event["seller_share"]) == (
             10000.0,
             1000.0,
-            9000.0,
+            8850.0,
         )
         assert (event["payment_id"], event["rail"], event["move_id"]) == ("PAY-1", "bKash", move.id)
         # already accrued: skipped, no second move
@@ -197,13 +210,15 @@ class TestCommissionLedger:
         )
         seller = _seller(env, "Rangpur Electronics")
         c = _commission(env, seller, 2000.0, 0.10, company_id=company.id, operating_unit_id=ou.id)
+        marketplace_accrual_ready(env, company)  # A04 ERP M12-F1/F9
+        link_paid_order(c)
         with pytest.raises(UserError, match="no GL account 101000"), env.cr.savepoint():
             c.action_post_to_gl()
         assert (c.state, c.gl_move_id) == ("earned", env["account.move"])
         _settlement_chart(env, company)
         c.action_post_to_gl()
         codes = sorted(c.gl_move_id.line_ids.with_company(company).mapped("account_id.code"))
-        assert codes == ["101000", "200200", "400100"]
+        assert codes == ["101000", "200200", "209902", "400100"]  # + VAT output
         assert set(
             env["fix.journal.dimension"]
             .search([("move_line_id", "in", c.gl_move_id.line_ids.ids)])
@@ -392,12 +407,13 @@ class TestPayoutRun:
             run.with_user(t.clerk).action_approve()
         _inbox_approve(book.env, run, t.releaser)
         assert (run.state, run.approved_by_id, run.sod_verified) == ("approved", t.releaser, True)
-        assert _money(run.approved_total) == D("14410.45")
-        assert sorted(run.line_ids.mapped("amount")) == [3610.0, 10800.45]
+        # net of the VAT on the commission (A04 ERP M12-F9): 8,400.00 + 2,212.94 + 3,580.00
+        assert _money(run.approved_total) == D("14192.94")
+        assert sorted(run.line_ids.mapped("amount")) == [3580.0, 10612.94]
         assert _events(book.env, "payout.approved", run.id) == [
             {
                 "payout_run": run.name,
-                "total_payable": 14410.45,
+                "total_payable": 14192.94,
                 "total_tds": 640.0,
                 "seller_count": 2,
                 "approved_by": t.releaser.name,
@@ -436,18 +452,41 @@ class TestPayoutRun:
                 round(credit + line.credit, 2),
             )
         assert totals == {
-            "200200": (15050.45, 0.0),
+            "200200": (14832.94, 0.0),
             "210100": (0.0, 640.0),
-            bank_code: (0.0, 14410.45),
+            bank_code: (0.0, 14192.94),
         }
         st_a = run.statement_ids.filtered(lambda s: s.seller_partner_id == book.seller_a)
-        assert st_a.state == "issued" and _money(st_a.net_payable) == D("10800.45")
+        # A04 ERP M12-F9: the statement shows the VAT on the commission (150.00 +
+        # 37.51) as its own deduction, so its net is what the run paid seller A
+        assert st_a.state == "issued" and _money(st_a.vat_on_commission) == D("187.51")
+        assert _money(st_a.net_payable) == D("10612.94")
         assert not st_a.withholding_cert_ref  # numbered on the TDS challan (M53-8)
         (event,) = _events(book.env, "payout.executed", run.id)
-        assert (event["sellers_paid"], event["total_disbursed"]) == (2, 14410.45)
+        assert (event["sellers_paid"], event["total_disbursed"]) == (2, 14192.94)
         # a second release cannot pay again
         with pytest.raises(UserError), book.env.cr.savepoint():
             run.with_user(t.preparer).action_request_payments()
+
+    def test_the_statement_net_is_what_the_payout_line_paid(self, book):
+        """A04 ERP audit (B4 follow-up): the statement said 10,800.45 (gross -
+        commission - TDS) while 10,612.94 was paid - it did not know the VAT on
+        the commission deducted at accrual. Each payee's statement now nets to
+        exactly its pinned payout line."""
+        t = _treasury(book)
+        run = _approved(book, t)
+        _release_all(book, t, run)
+        assert run.state == "executed"
+        for line in run.line_ids:
+            (st,) = run.statement_ids.filtered(
+                lambda s, p=line.partner_id: s.seller_partner_id == p
+            )
+            assert _money(st.net_payable) == _money(line.amount), line.partner_id.name
+            rows = line.commission_ids
+            assert _money(st.vat_on_commission) == _money(sum(rows.mapped("vat_amount")))
+        st_b = run.statement_ids.filtered(lambda s: s.seller_partner_id == book.seller_b)
+        # 4,000.00 - 200.00 commission - 30.00 VAT on it - 190.00 TDS
+        assert _money(st_b.net_payable) == D("3580.00")
 
     def test_a_failed_bank_payment_does_not_complete_the_run(self, book):
         t = _treasury(book)
@@ -480,6 +519,7 @@ class TestPayoutRun:
         t = _treasury(book)
         nobank = _seller(book.env, "Comilla Mobile Hub", account=None)
         c4 = _commission(book.env, nobank, 1000.0, 0.10)
+        link_paid_order(c4)  # A04 ERP M12-F1
         c4.action_post_to_gl()
         _age(book.env, c4)
         run = _approved(book, t)
@@ -567,15 +607,15 @@ class TestPayoutReconciliation:
             False,
             "break_detected",
         )
-        assert recon.unmatched_count == 2 and _money(recon.unmatched_amount) == D("14410.45")
+        assert recon.unmatched_count == 2 and _money(recon.unmatched_amount) == D("14192.94")
         (event,) = _events(book.env, "platform.reconciliation_divergence", recon.id)
-        assert (event["count_diff"], event["amount_diff"]) == (2, 14410.45)
+        assert (event["count_diff"], event["amount_diff"]) == (2, 14192.94)
         for pay in run.line_ids.mapped("payment_execution_id"):
             _bank_debit(book.env, pay)
         recon2 = self._recon(book.env, run)
         recon2.action_run_reconciliation()
         assert (recon2.system_count, recon2.rail_count) == (2, 2)
-        assert _money(recon2.rail_amount) == D("14410.45")
+        assert _money(recon2.rail_amount) == D("14192.94")
         assert (recon2.count_matched, recon2.amount_matched, recon2.state) == (
             True,
             True,

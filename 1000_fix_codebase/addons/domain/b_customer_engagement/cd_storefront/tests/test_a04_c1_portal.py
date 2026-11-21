@@ -10,6 +10,8 @@ the order is always priced from the catalogue at checkout.
 import pytest
 from odoo.exceptions import AccessError, UserError
 
+from .test_a04_c2_c13_storefront import storefront_world
+
 REFUSED = (AccessError, UserError)
 
 
@@ -17,6 +19,8 @@ REFUSED = (AccessError, UserError)
 def shop(odoo_env):
     env = odoo_env
     product = env["product.template"].create({"name": "C1 Charger", "list_price": 2500.0})
+    # A04 ERP M38-F1: the M11 storefront price (2,173.91 + 15% VAT = 2,500.00)
+    storefront_world(env, product)
 
     def customer(n):
         partner = env["res.partner"].create({"name": "C1 Customer %d" % n})
@@ -86,7 +90,7 @@ def test_an_internal_user_cannot_hand_price_a_line_either(shop, odoo_env):
             }
         )
     )
-    with pytest.raises(UserError, match="catalogue"):
+    with pytest.raises(REFUSED):
         line.with_user(clerk).write({"unit_price": 1.0})
 
 
@@ -111,7 +115,17 @@ def test_a_line_takes_the_catalogue_price_whatever_is_sent(shop):
             {
                 "name": "C1 Clerk 2",
                 "login": "c1.clerk2@a04.test",
-                "group_ids": [(6, 0, [env.ref("base.group_user").id])],
+                # A04 ERP M38-F5: a cart line is captured by assisted sales
+                "group_ids": [
+                    (
+                        6,
+                        0,
+                        [
+                            env.ref("base.group_user").id,
+                            env.ref("cd_storefront.group_fix_storefront_assisted_sales").id,
+                        ],
+                    )
+                ],
             }
         )
     )

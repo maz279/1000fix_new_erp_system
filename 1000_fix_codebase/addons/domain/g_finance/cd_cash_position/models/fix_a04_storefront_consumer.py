@@ -80,6 +80,28 @@ class FixA04StorefrontConsumers(models.AbstractModel):
         if not customer:
             raise UserError("%s refused: return %s has no customer." % (label, ret.name))
 
+        # A04 ERP audit M38-F3 / X1: ONE owner of a storefront refund. Where
+        # the storefront finance bridge is installed it raises the refund
+        # itself (the M20 credit note against the order's invoice, whose
+        # issue pays the customer through M50) the moment the refund is
+        # approved, and retries until it is raised. This hand-off raised a
+        # second M50 instruction for the same return whenever the bridge's
+        # credit note was still pending: it now only checks the bridge did
+        # its part, and never pays.
+        if "ar_credit_note_id" in ret._fields:
+            note = ret.ar_credit_note_id
+            if not note:
+                ret._sfb_post()
+                ret.invalidate_recordset()
+                note = ret.ar_credit_note_id
+            if not note:
+                # failed delivery: the relay retries, as does the hourly job
+                raise UserError(
+                    "%s: return %s waits for the storefront bridge's credit note (%s)."
+                    % (label, ret.name, ret.books_note or "posting pending")
+                )
+            return {"model": note._name, "id": note.id, "created": False}
+
         # the Mushak 6.7 path first: a credit note against the order's own
         # invoice, when there is one left to credit
         if "fix.credit.note" in self.env and "fix.ar.invoice" in self.env:

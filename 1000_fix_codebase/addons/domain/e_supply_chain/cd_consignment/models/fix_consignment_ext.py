@@ -540,20 +540,33 @@ class FixServiceOrderConsignmentBridge(models.Model):
         not be raised at all. The device is home once a pickup leg is
         delivered; from then on the next leg is the delivery, and only when
         the order is ready to go back. Every other order type is delivered
-        to the customer, as before."""
+        to the customer, as before.
+
+        A02 ERP audit pass 2 M03-01 (D1): a delivery leg is raised only once
+        the order is Ready, for every service type (a walk-in order's device
+        went out on a delivery leg before it was repaired). M02-06: an
+        on-site order whose field visit was converted to a pick-up
+        (_fix_field_pickup_requested, cd_field_service) starts with a pickup."""
         self.ensure_one()
-        if self.service_type not in ("collection", "mail_in"):
-            return "delivery"
+        converted = getattr(self, "_fix_field_pickup_requested", None)
+        pickup_first = self.service_type in ("collection", "mail_in") or bool(
+            converted and converted()
+        )
         arrived = self.consignment_ids.filtered(
             lambda c: c.consignment_type == "pickup" and c.state == "delivered"
         )
-        if not arrived and self.state != "ready":
+        if pickup_first and not arrived and self.state != "ready":
             return "pickup"
         if self.state != "ready":
+            if arrived:
+                raise UserError(
+                    "Order %s: the device already arrived at the branch (%s). Its return "
+                    "delivery is raised once the order is ready."
+                    % (self.name, ", ".join(arrived.mapped("name")))
+                )
             raise UserError(
-                "Order %s: the device already arrived at the branch (%s). Its return "
-                "delivery is raised once the order is ready."
-                % (self.name, ", ".join(arrived.mapped("name")))
+                "Order %s is %s: its delivery leg is raised once the order is Ready "
+                "(repaired and passed QC)." % (self.name, self.state)
             )
         return "delivery"
 

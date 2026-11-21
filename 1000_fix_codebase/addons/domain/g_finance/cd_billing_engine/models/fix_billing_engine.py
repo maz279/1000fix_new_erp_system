@@ -31,6 +31,7 @@
 from datetime import timedelta
 from decimal import ROUND_HALF_UP, Decimal
 
+import psycopg2.errors
 from odoo import api, fields, models
 from odoo.addons.cd_catalogue.models.fix_commercial_line import LINE_TYPES
 from odoo.addons.cd_tax_engine_bd.models import tax_logic
@@ -491,18 +492,35 @@ class FixArInvoice(models.Model):
                 % (customer.name, profile.hold_reason or "no reason recorded")
             )
 
-    def _ar_posting_dims(self, branch_id=None):
-        """Dimensions for every AR-family GL posting: the branch, plus the
-        configured default cost centre and business line (COA-03 may require
-        any of them per account). Defaults come from config params so each
-        deployment sets its own; postings never invent values beyond these
-        configured defaults."""
+    def _ar_posting_dims(self, branch_id=None, operating_unit_id=None):
+        """Dimensions for every AR-family GL posting: the branch and operating
+        unit, plus the configured default cost centre and business line
+        (COA-03 may require any of them per account). Defaults come from
+        config params so each deployment sets its own; postings never invent
+        values beyond these configured defaults.
+
+        A04 ERP audit M08-F4 / M38-F18: the operating unit was dropped, so
+        M19 fell back to the company's FIRST unit ("Main Operating Unit") for
+        every contract, quotation and storefront invoice. The unit now comes
+        from, in order: the branch's own unit (M19 refuses a branch under
+        another unit), an explicit `operating_unit_id`, and the invoice's own
+        unit when this is called on one invoice."""
         param = self.env["ir.config_parameter"].sudo().get_param
-        return {
+        invoice = self if len(self) == 1 and "operating_unit_id" in self._fields else None
+        if not branch_id and invoice is not None and "branch_id" in self._fields:
+            branch_id = invoice.branch_id.id or None
+        branch = self.env["fix.branch"].sudo().browse(branch_id or []).exists()
+        ou_id = branch.operating_unit_id.id if branch else False
+        if not ou_id:
+            ou_id = operating_unit_id or (invoice.operating_unit_id.id if invoice else False)
+        dims = {
             "branch_id": branch_id or False,
             "cost_centre": param("cd_billing_engine.default_cost_centre") or "CORP",
             "business_line": param("cd_billing_engine.default_business_line") or "RETAIL",
         }
+        if ou_id:
+            dims["operating_unit_id"] = ou_id
+        return dims
 
     INVOICE_SEQUENCE_CODE = "fix.ar.invoice"
 
@@ -539,9 +557,31 @@ class FixArInvoice(models.Model):
             "The invoice numbering sequence is missing — upgrade cd_billing_engine.",
         )
 
+    # A04 ERP audit X10: how long an issue waits for a concurrent issue of the
+    # same company to commit before it gives up (a PostgreSQL interval).
+    INVOICE_SEQUENCE_LOCK_TIMEOUT = "15s"
+
     def _next_invoice_no(self) -> str:
+        """The next gapless number. A04 ERP audit X10: Odoo's no_gap sequence
+        takes its row with FOR UPDATE NOWAIT, so the second of two concurrent
+        payment confirmations failed outright. The row is now taken first with
+        a WAITING lock (bounded by a lock timeout); the NOWAIT that follows in
+        the same transaction finds the lock already held and succeeds."""
         self.ensure_one()
-        return self._invoice_sequence(self.company_id).next_by_id(sequence_date=self.invoice_date)
+        seq = self._invoice_sequence(self.company_id)
+        cr = self.env.cr
+        cr.execute("SHOW lock_timeout")
+        previous = cr.fetchone()[0]
+        cr.execute("SET LOCAL lock_timeout = %s", (self.INVOICE_SEQUENCE_LOCK_TIMEOUT,))
+        try:
+            cr.execute("SELECT id FROM ir_sequence WHERE id = %s FOR UPDATE", (seq.id,))
+        except psycopg2.errors.LockNotAvailable:
+            raise UserError(
+                "Another invoice of %s is being numbered and did not finish within %s: "
+                "try again." % (self.company_id.name, self.INVOICE_SEQUENCE_LOCK_TIMEOUT)
+            ) from None
+        cr.execute("SET LOCAL lock_timeout = %s", (previous,))
+        return seq.next_by_id(sequence_date=self.invoice_date)
 
     def _post_issue_gl(self):
         """The issue posting through M19's hardened engine (source='ar'):
@@ -648,10 +688,13 @@ class FixArInvoice(models.Model):
             (acc.id, label, 0.0, amount, partner or False)
             for role, acc, amount, partner in credit_lines
         ]
+        # X5-10: the Dhaka business day (UTC "today" put a 00:00-06:00 Dhaka
+        # cancellation or write-off into the previous day, and at a month end
+        # into the previous period)
         move, note = _post_ar_move(
             self.env,
             self.company_id,
-            fields.Date.today(),
+            dhaka_date(fields.Datetime.now()),
             label,
             lines,
             dims,
@@ -1175,13 +1218,29 @@ class FixArInvoice(models.Model):
         in state 'closed'. Determination runs synchronously (M20 -> M51);
         the invoice, its lines, the account.move, the Mushak register row and
         the invoice.created event all commit in ONE transaction (T08)."""
-        import time
-
-        started = time.monotonic()
         # BRU-SRM-05: Delivered or Closed. The supply (tax point) is the
         # delivery; the close drain is the safety net (A02 ERP audit X-03).
         if order.state not in ("delivered", "closed"):
             raise UserError("Auto-invoicing runs on delivered or closed jobs only (BRU-SRM-05)")
+        return self._fix_invoice_service_order(order, closed_event_at)
+
+    @api.model
+    def from_refused_service_order(self, order) -> "FixArInvoice":
+        """D6 (A02 pass 2, M01-03): a repair the customer refuses after it is
+        done (QC / Ready) is billed its approved estimate, exactly as a
+        delivered one would be; the tax point is the refusal."""
+        if order.state not in ("qc_pending", "qc_failed", "ready"):
+            raise UserError(
+                "%s is %s: only a repaired order the customer refuses is billed this way."
+                % (order.name, order.state)
+            )
+        return self._fix_invoice_service_order(order, fields.Datetime.now())
+
+    @api.model
+    def _fix_invoice_service_order(self, order, closed_event_at) -> "FixArInvoice":
+        import time
+
+        started = time.monotonic()
         existing = self.search(
             [("source_model", "=", "fix.service.order"), ("source_id", "=", order.id)]
         )
@@ -1741,6 +1800,41 @@ class FixArInvoiceLine(models.Model):
         "discount_amount",
     )
 
+    # M37 VAT classes that carry no rate of their own: a catalogue item of one
+    # of these classes is determined so even when M51 has no tariff row for it.
+    ITEM_RATELESS_CLASSES = ("exempt", "zero_rated")
+
+    @api.model
+    def _fix_item_tax_keys(self, invoice, product, product_code):
+        """(hs_code, treatment) of the line's M37 catalogue item.
+
+        A04 ERP audit M37-F2: the catalogue item's HS code and VAT class
+        never reached M51, so exempt and zero-rated items were taxed at 15%.
+        The HS code keys M51's tariff master; the item's class decides an
+        exempt / zero-rated line only when M51 has no tariff row for it (the
+        tariff stays the authority where it speaks)."""
+        if not product or "fix.catalogue.item" not in self.env:
+            return "", ""
+        item = (
+            self.env["fix.catalogue.item"]
+            .sudo()
+            .search([("product_tmpl_id", "=", product.product_tmpl_id.id)], limit=1)
+        )
+        if not item:
+            return "", ""
+        hs_code = (item.hs_code or "").strip() if "hs_code" in item._fields else ""
+        vat_class = item.vat_class if "vat_class" in item._fields else False
+        if vat_class not in self.ITEM_RATELESS_CLASSES:
+            return hs_code, ""
+        Treatment = self.env["fix.vat.treatment"]
+        company = invoice.company_id if invoice else self.env.company
+        if hasattr(Treatment, "_fix_treatment_for") and (
+            Treatment._fix_treatment_for(hs_code, company)
+            or Treatment._fix_treatment_for(product_code, company)
+        ):
+            return hs_code, ""
+        return hs_code, vat_class
+
     @api.model
     def _fix_determined(
         self, invoice, taxable, product, treatment, qty=None, unit_price=None, discount=None
@@ -1756,12 +1850,15 @@ class FixArInvoiceLine(models.Model):
                 q = Decimal("1")
                 price = Decimal(str(taxable or 0.0)).quantize(TWO_PLACES, ROUND_HALF_UP)
                 disc = Decimal("0")
+            product_code = (product.default_code if product else "") or "SVC"
+            hs_code, item_treatment = self._fix_item_tax_keys(invoice, product, product_code)
             line = tax_logic.TaxLine(
-                product_code=(product.default_code if product else "") or "SVC",
+                product_code=product_code,
                 qty=q,
                 unit_price=price,
                 discount=disc,
-                treatment=treatment.treatment_type if treatment else "",
+                hs_code=hs_code,
+                treatment=(treatment.treatment_type if treatment else "") or item_treatment,
                 rate_override=(
                     Decimal(str(treatment.rate))
                     if treatment and treatment.treatment_type == "reduced"
@@ -2672,8 +2769,10 @@ class FixCreditNote(models.Model):
             note._guarded().write(
                 {"state": "issued", "issued_at": fields.Datetime.now(), "refund_amount": refund}
             )
-            note._post_credit_gl()
-            note._register_mushak_note()
+            # X5-10: the GL entry and the Mushak 6.7 carry the same Dhaka day
+            on_date = dhaka_date(fields.Datetime.now())
+            note._post_credit_gl(on_date)
+            note._register_mushak_note(on_date)
             note._fix_request_refund()
             # partial application: only fully-credited invoices flip state
             if invoice.state == "issued" and invoice.amount_residual <= 0.005:
@@ -2699,8 +2798,9 @@ class FixCreditNote(models.Model):
         vat_part = self.amount * ratio
         return self.amount - vat_part, vat_part
 
-    def _register_mushak_note(self):
+    def _register_mushak_note(self, on_date=None):
         """The Mushak 6.7 against the invoice's 6.3 (M51's correction service)."""
+        on_date = on_date or dhaka_date(fields.Datetime.now())
         Register = self.env["fix.mushak.register"]
         for note in self:
             original = note.invoice_id.mushak_id
@@ -2714,13 +2814,16 @@ class FixCreditNote(models.Model):
                 round(vat, 2),
                 "Credit note #%s (%s)" % (note.id, note.reason_code),
                 ref="CN/%s" % note.id,
+                on_date=on_date,
             )
             note._guarded().write({"mushak_note_id": row.id})
 
-    def _post_credit_gl(self):
+    def _post_credit_gl(self, on_date=None):
         """The statutory mirror posting (FR-ARB-039): Dr Revenue + Dr VAT
         pro-rata / Cr AR — only when the invoice itself posted to GL."""
         from .fix_ar_engine import _ar_account, _ar_invoice_journal, _post_ar_move
+
+        on_date = on_date or dhaka_date(fields.Datetime.now())
 
         for note in self:
             invoice = note.invoice_id
@@ -2744,7 +2847,7 @@ class FixCreditNote(models.Model):
             move, gl_note = _post_ar_move(
                 note.env,
                 company,
-                fields.Date.today(),
+                on_date,
                 "CREDIT NOTE INV %s — %s (%s)" % (invoice.name, note.amount, note.reason_code),
                 [
                     (revenue.id, "Credit — service revenue", revenue_part, 0.0, False),

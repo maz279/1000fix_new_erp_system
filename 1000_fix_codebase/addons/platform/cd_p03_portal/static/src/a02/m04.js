@@ -93,14 +93,14 @@ export const MODULE = {
       ['1', 'Token & Queue', 12, { model: 'fix.token.queue', cols: ['token_display', 'service_type', 'priority_level', 'state', 'issued_at'], screens: ['M04-queue', 'M04-priority', 'M04-counters'], reports: ['Token Wait-Time Distribution'], forms: ['Token Issue', 'Queue Priority Rule', 'Service Counter'] }],
       ['2', 'Counter Workstation', 14, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_serial_input', 'symptom_category', 'state', 'intake_start'], screens: ['M04-counter', 'M04-handover'], reports: ['Token Wait-Time Distribution'], forms: ['Walk-in Intake', 'Intake Receipt Acknowledgement'], create: 'M04-form-storage' }],
       /* 3 FR-FRD-011: the shelf / bin of a device already in custody */
-      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_location_id', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-locations', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment', 'Storage Location'], create: 'M04-form-storage-assign' }],
+      ['3', 'Device Storage & Retrieval', 10, { model: 'fix.walkin.intake', cols: ['customer_id', 'device_id', 'storage_location_id', 'state', 'service_order_id'], screens: ['M04-storage', 'M04-shelved', 'M04-locations', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Device Storage Assignment', 'Service Order Shelf', 'Storage Location'], create: 'M04-form-storage-assign' }],
       /* 4 FR-FRD-010 / BRU-FRD-05: a ready device released to its collector,
        * whose identity is checked (the intake hand-off is Counter Workstation's) */
       ['4', 'Collection & Handover', 9, { model: 'fix.service.order', cols: ['name', 'customer_id', 'recipient_name', 'collector_is_customer', 'collector_id_verified_by', 'delivery_otp_verified', 'state'], screens: ['M04-collection', 'M04-uncollected'], reports: ['Uncollected Device Ageing'], forms: ['Handover (ID verified)', 'Customer Rating at Handover'], create: 'M04-form-release', domain: [['state', 'in', ['ready', 'delivered']]] }],
       ['5', 'Counter Sales', 8, { model: 'fix.counter.sale', cols: ['name', 'sale_date', 'product_id', 'total', 'state'], screens: ['M04-sales', 'M04-baskets', 'M04-kiosk'], reports: ['Counter Sales by Category'], forms: ['Counter Sale', 'Counter Basket'] }],
-      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer', 'M04-movements'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register'], forms: ['Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher'] }],
+      ['6', 'Cash Drawer', 12, { model: 'fix.cash.shift', cols: ['shift_date', 'opening_float', 'expected_closing', 'closing_counted', 'variance'], screens: ['M04-drawer', 'M04-movements', 'M04-books'], reports: ['Branch Daily Cash Summary', 'Shift Variance Register', 'Front-Desk Money Not Yet in the Books'], forms: ['Shift Open/Close', 'Drawer Cash-Out', 'Petty Cash Voucher'] }],
       /* 7 FR-FRD-016: the method, reference and tender of a rung-up sale */
-      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-idchecks', 'M04-receipts'], reports: ['Branch Daily Cash Summary'], forms: ['Counter Payment', 'High-Value Cash ID Check'], create: 'M04-form-payment' }],
+      ['7', 'Payment Capture', 9, { model: 'fix.counter.sale', cols: ['name', 'customer_id', 'total', 'payment_method', 'transaction_ref'], screens: ['M04-payments', 'M04-idchecks', 'M04-receipts', 'M04-books'], reports: ['Branch Daily Cash Summary', 'Front-Desk Money Not Yet in the Books'], forms: ['Counter Payment', 'High-Value Cash ID Check'], create: 'M04-form-payment' }],
       /* 8 FR-FRD-014/022: the outgoing shift hands over to the incoming team,
        * who acknowledge it (the drawer itself is Cash Drawer's) */
       ['8', 'Shift Operations', 10, { model: 'fix.shift.handover', cols: ['name', 'branch_id', 'from_shift_id', 'to_operator_id', 'state', 'handed_over_at', 'acknowledged_by_id'], screens: ['M04-handovers', 'M04-shift', 'M04-shift-close', 'M04-checklists'], reports: ['Branch Daily Cash Summary'], forms: ['Shift Handover', 'Shift Open/Close', 'Opening / Closing Checklist'], create: 'M04-form-shift-handover' }],
@@ -154,13 +154,20 @@ export const SCREENS = {
     domain: [['state', 'in', ['handover_pending', 'completed']]],
     stateField: 'state',
     actions: [{ m: 'action_complete_handover', l: 'Complete Handover' }] },
+  /* A02 pass 2 M04-05: the service orders on a shelf at the branch */
+  'M04-shelved': { kind: 'model_list', model: 'fix.service.order', create: false,
+    title: 'Devices on the Shelves',
+    cols: ['name', 'customer_id', 'device_id', 'branch_id', 'storage_location_id', 'state'],
+    domain: [['storage_location_id', '!=', false], ['state', 'not in', ['delivered', 'closed', 'cancelled']]],
+    stateField: 'state',
+    empty: 'No service order is on a shelf. The intake\'s shelf passes to its order at the hand-off; Service Order Shelf puts a Ready device on one.' },
   'M04-locations': { kind: 'model_list', model: 'fix.storage.location',
-    cols: ['branch_id', 'code', 'zone', 'shelf', 'bin', 'secure', 'occupied', 'occupied_by_id', 'active'],
+    cols: ['branch_id', 'code', 'zone', 'shelf', 'bin', 'secure', 'occupied', 'occupied_by_id', 'occupied_by_order_id', 'active'],
     empty: 'No storage location is registered yet. Add the shelves and bins of each branch with + New.' },
   /* FR-FRD-010: ready devices; the release needs the customer's OTP and, for
    * a third-party collector, an identity check (BRU-FRD-05) */
   'M04-collection': { kind: 'model_list', model: 'fix.service.order', create: false,
-    cols: ['name', 'customer_id', 'device_id', 'branch_id', 'recipient_name', 'collector_is_customer', 'delivery_otp_verified', 'collector_id_verified_by', 'state'],
+    cols: ['name', 'customer_id', 'device_id', 'branch_id', 'storage_location_id', 'recipient_name', 'collector_is_customer', 'delivery_otp_verified', 'collector_id_verified_by', 'state'],
     domain: [['state', '=', 'ready']],
     stateField: 'state',
     empty: 'No device is ready for collection.',
@@ -168,12 +175,14 @@ export const SCREENS = {
       { m: 'action_send_delivery_otp', l: 'Send Handover OTP', states: ['ready'] },
       { m: 'action_verify_delivery_otp', l: 'Verify Handover OTP', states: ['ready'], ask: 'Code from the customer\'s phone', kwarg: 'code' },
       { m: 'action_verify_collector_id', l: 'Verify Collector ID', states: ['ready'] },
-      { m: 'action_deliver', l: 'Release Device', states: ['ready'] }
+      { m: 'action_deliver', l: 'Release Device', states: ['ready'] },
+      /* A02 pass 2 M04-06: the customer rates on their own page (tablet / phone) */
+      { m: 'action_request_counter_rating', l: 'Ask the Customer to Rate', states: ['ready', 'delivered'] }
     ] },
   'M04-uncollected': { kind: 'table_report', module: 'M04', report: 'uncollected_ageing', period: false },
   /* a drawer starts with a counted float (FR-FRD-014): "+ New" opens a shift */
   'M04-drawer': { kind: 'model_list', model: 'fix.cash.shift',
-    cols: ['shift_date', 'shift_type', 'branch_id', 'operator_id', 'opening_float', 'cash_payments', 'cash_refunds', 'expected_closing', 'closing_counted', 'variance', 'state'],
+    cols: ['shift_date', 'shift_type', 'branch_id', 'operator_id', 'opening_float', 'proposed_float', 'cash_payments', 'cash_refunds', 'cash_advances', 'expected_closing', 'closing_counted', 'variance', 'variance_posting_state', 'state'],
     stateField: 'state',
     /* A02 audit M04-2/-11: the cashier submits a BLIND count (it no longer
      * echoes the variance); a Branch Manager who did not handle the cash
@@ -185,17 +194,24 @@ export const SCREENS = {
       { m: 'action_confirm_closed', l: 'Confirm Count' },
       { m: 'action_request_approval', l: 'Request Variance Approval', ask: 'Explanation of the variance', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request' },
-      { m: 'action_reconcile', l: 'Reconcile' }
+      { m: 'action_reconcile', l: 'Reconcile' },
+      /* A02 pass 2 M04-03: a float other than the last close's cash needs a
+       * Branch Manager who does not run the drawer */
+      { m: 'action_approve_opening_float', l: 'Approve Opening Float', states: ['open'] },
+      /* A02 pass 2 X5-20: the variance posts when the count is confirmed */
+      { m: 'action_retry_variance_posting', l: 'Retry Variance GL Posting', states: ['closed', 'reconciled', 'discrepancy'] }
     ] },
   /* FR-FRD-015: every movement of the drawer; cash-outs are recorded here */
   'M04-movements': { kind: 'model_list', model: 'fix.cash.movement',
-    cols: ['name', 'shift_id', 'branch_id', 'movement_type', 'direction', 'amount', 'reason', 'reference', 'state', 'recorded_by_id', 'approved_by_id', 'posted_at'],
+    cols: ['name', 'shift_id', 'branch_id', 'movement_type', 'direction', 'amount', 'reason', 'employee_id', 'reference', 'state', 'posting_state', 'recorded_by_id', 'approved_by_id', 'posted_at'],
     stateField: 'state',
     empty: 'No drawer movement yet. Sales, refunds and settlements write theirs; a cash-out is recorded with + New.',
     actions: [
       { m: 'action_approve', l: 'Approve Cash-Out', states: ['draft'] },
       { m: 'action_post', l: 'Post Cash-Out', states: ['draft', 'approved'] },
-      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'approved'] }
+      { m: 'action_cancel', l: 'Cancel', states: ['draft', 'approved'] },
+      /* A02 pass 2 X5-20: a cash-out whose account did not resolve is pending */
+      { m: 'action_retry_posting', l: 'Retry GL Posting', states: ['posted'] }
     ] },
   'M04-payments': { kind: 'model_list', model: 'fix.counter.sale', create: false,
     cols: ['name', 'sale_date', 'branch_id', 'product_id', 'quantity', 'total', 'payment_method', 'transaction_ref', 'tendered_amount', 'state'],
@@ -204,6 +220,8 @@ export const SCREENS = {
      * in the open drawer and issues the Mushak-6.3 number (FR-FRD-016) */
     actions: [{ m: 'action_confirm', l: 'Confirm Payment & Issue Receipt', states: ['draft'] }] },
   'M04-shift': { kind: 'table_report', module: 'M04', report: 'daily_cash', period: false },
+  /* A02 pass 2 X5-20: what the counter took that the books still owe, and why */
+  'M04-books': { kind: 'table_report', module: 'M04', report: 'books_pending', period: false },
   /* FR-FRD-018: the branch deposits M04 records with M50's form; M50
    * dispatches and reconciles them (Cash-in-Transit) */
   'M04-deposits': { kind: 'model_list', model: 'fix.cash.deposit',
@@ -224,7 +242,7 @@ export const SCREENS = {
   'M04-banking': { kind: 'table_report', module: 'M04', report: 'variance_register', period: false },
   /* a sale is rung up at the counter (FR-FRD-012): "+ New" opens Counter Sale */
   'M04-sales': { kind: 'model_list', model: 'fix.counter.sale',
-    cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'refund_state', 'sold_by'],
+    cols: ['name', 'sale_date', 'product_id', 'quantity', 'unit_price', 'total', 'payment_method', 'state', 'refund_state', 'posting_state', 'sold_by'],
     stateField: 'state',
     /* A02 audit M04-5: a price below list and a refund need a manager who
      * did not sell; the refund leaves the drawer that is open now.
@@ -239,7 +257,9 @@ export const SCREENS = {
       { m: 'action_accept_terms', l: 'Customer Accepted the Terms', states: ['draft'] },
       /* A02 ERP audit X-17: the customer's receipt (statutory Mushak 6.3 once posted) */
       { m: 'action_print_receipt', l: 'Print Receipt (A4)', states: ['confirmed', 'refunded'] },
-      { m: 'action_print_receipt_80', l: 'Print Receipt (80 mm)', states: ['confirmed', 'refunded'] }
+      { m: 'action_print_receipt_80', l: 'Print Receipt (80 mm)', states: ['confirmed', 'refunded'] },
+      /* A02 pass 2 X5-20: a sale / refund whose posting is pending */
+      { m: 'action_retry_posting', l: 'Retry Posting to Books', states: ['confirmed', 'refunded'] }
     ] },
   'M04-kiosk': { kind: 'table_report', module: 'M04', report: 'sales_category', period: false },
   /* quote-to-cash 2026-11-13: a customer buying several items pays once.
@@ -380,7 +400,7 @@ export const SCREENS = {
     back: 'M04-drawer',
     status: { field: 'state', labels: { open: "Open", counting: "Counting", closed: "Closed", reconciled: "Reconciled", discrepancy: "Discrepancy" } },
     tabs: [
-      { id: 'shift', label: '1. Shift Context', bn: '১. শিফট তথ্য', icon: '🏢', badge: '5' },
+      { id: 'shift', label: '1. Shift Context', bn: '১. শিফট তথ্য', icon: '🏢', badge: '8' },
       { id: 'blind', label: '2. Bangladesh Taka Denomination Count', bn: '২. টাকার নোট গণনা', icon: '💵', badge: '10' },
       { id: 'reconciliation', label: '3. Field Cash & Supervisor Approval', bn: '৩. ফিল্ড ক্যাশ ও অনুমোদন', icon: '✍️', badge: '6' }
     ],
@@ -391,7 +411,12 @@ export const SCREENS = {
           { name: 'shift_date', required: true, label: "Shift Date" },
           { name: 'shift_type', required: true, label: "Shift Type (Morning / Evening)" },
           { name: 'operator_id', required: true, label: "Cashier / Operator" },
-          { name: 'opening_float', label: "Opening Cash Float (BDT)" }
+          /* A02 pass 2 M04-03: left empty, the drawer opens with what the last
+           * close left; a different float needs a Branch Manager's approval */
+          { name: 'opening_float', label: "Opening Cash Float (BDT) — empty: the last close's cash" },
+          { name: 'proposed_float', label: "Proposed Float (last close less deposits)", readonly: true },
+          { name: 'float_variance', label: "Float Difference (BDT)", readonly: true },
+          { name: 'float_approved_by_id', label: "Float Difference Approved By", readonly: true }
         ] },
       { tab: 'blind', title: "Blind Physical Cash Count by BDT Note Denominations (FLAW-04.2)",
         note: "Cashier counts physical currency notes blindly without seeing system expected cash totals.",
@@ -418,6 +443,9 @@ export const SCREENS = {
           { name: 'variance_approved_amount', label: "Approved Variance (BDT)", readonly: true },
           { name: 'approval_state', label: "Variance Approval (M63)", readonly: true },
           { name: 'reconciled_by', label: "Reconciled By", readonly: true },
+          /* A02 pass 2 M04-04: posted when the count is confirmed */
+          { name: 'variance_posting_state', label: "Variance in GL", readonly: true },
+          { name: 'variance_move_id', label: "Variance GL Entry", readonly: true },
           { name: 'bank_deposit_slip_no', label: "Bank Deposit Challan / Slip No" },
           { name: 'bank_deposit_attachment_id', label: "Bank Deposit Slip Scanned PDF" },
           { name: 'state', label: "Reconciliation Status", readonly: true }
@@ -503,9 +531,26 @@ export const SCREENS = {
         { name: 'subtotal', label: 'Amount (BDT)', readonly: true }
       ]
     },
+    /* A02 pass 2 X5-19: the counter sales the basket raised (each one's
+     * Mushak 6.3 and posting), read-only */
+    grids: [
+      {
+        field: 'sale_ids', tab: 'sales', title: 'Counter Sales Raised', readonlyGrid: true,
+        empty: 'No counter sale yet: confirming the basket raises one per item.',
+        fields: [
+          { name: 'name', label: 'Sale', readonly: true },
+          { name: 'product_id', label: 'Item', readonly: true },
+          { name: 'quantity', label: 'Qty', readonly: true },
+          { name: 'total', label: 'Amount (BDT)', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'posting_state', label: 'Books', readonly: true }
+        ]
+      }
+    ],
     tabs: [
       { id: 'items', label: '1. Customer & Items', bn: '১. গ্রাহক ও পণ্য', icon: '🛒', badge: '4' },
-      { id: 'pay', label: '2. Payment', bn: '২. পেমেন্ট', icon: '💳', badge: '6' }
+      { id: 'pay', label: '2. Payment', bn: '২. পেমেন্ট', icon: '💳', badge: '6' },
+      { id: 'sales', label: '3. Counter Sales Raised', bn: '৩. বিক্রয় রসিদ', icon: '🧾' }
     ],
     sections: [
       { tab: 'items', title: 'Customer & Branch', note: 'The branch decides the operating unit and, for cash, the open drawer.',
@@ -757,17 +802,56 @@ export const SCREENS = {
     status: { field: 'state', labels: { draft: 'Recorded', approved: 'Approved', posted: 'Posted', cancelled: 'Cancelled' } },
     sections: [
       { title: 'Cash Leaving the Drawer',
-        note: 'Record cash taken out of an OPEN drawer: a safe drop, a small expense paid from the till or a staff advance. Post Cash-Out on Drawer Movements lowers the expected closing. A staff advance, and a petty expense above BDT 500, need a Branch Manager who did not record it. Sales, refunds and settlements write their own movements. Expenses from the branch petty-cash fund are M50 imprest vouchers.',
+        note: 'Record cash taken out of an OPEN drawer: a safe drop, a small expense paid from the till or a staff advance. Post Cash-Out on Drawer Movements lowers the expected closing and books it (A02 pass 2, D2): a petty expense to the expense account of its category, a staff advance to the advance account of the staff member, a safe drop to Cash in Safe, each against drawer cash. A staff advance, and a petty expense above BDT 500, need a Branch Manager who did not record it. Sales, refunds and settlements write their own movements. Expenses from the branch petty-cash fund are M50 imprest vouchers.',
         fields: [
           { name: 'shift_id', required: true, label: 'Open Cash Shift' },
           { name: 'movement_type', required: true, label: 'Kind of Cash-Out' },
           { name: 'amount', required: true, label: 'Amount (BDT)' },
           { name: 'reason', required: true, label: 'Reason / Payee' },
+          { name: 'expense_category', label: 'Expense Category (petty expense)' },
+          { name: 'employee_id', label: 'Staff Member (staff advance)' },
           { name: 'receipt_attachment_id', label: 'Voucher / Receipt Scan' },
           { name: 'state', label: 'Status', readonly: true },
           { name: 'recorded_by_id', label: 'Recorded By', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true },
-          { name: 'posted_at', label: 'Posted At', readonly: true }
+          { name: 'posted_at', label: 'Posted At', readonly: true },
+          { name: 'posting_state', label: 'In GL', readonly: true },
+          { name: 'move_id', label: 'GL Entry', readonly: true },
+          { name: 'debit_account_id', label: 'Booked To', readonly: true },
+          { name: 'posting_note', label: 'Why Not Posted Yet', readonly: true }
+        ] }
+    ]
+  },
+
+  /* A02 pass 2 M04-05 (FR-FRD-011 / BRU-FRD-06): where a service order's
+   * device waits at the branch. Required before Ready once the branch has
+   * registered its shelves; freed at delivery or cancellation. */
+  'M04-form-shelf': {
+    kind: 'model_form',
+    model: 'fix.service.order',
+    title: 'Service Order Shelf',
+    newLabel: 'Put a Device on a Shelf',
+    back: 'M04-shelved',
+    status: { field: 'state' },
+    pickRecord: {
+      label: 'Step 1 of 2: choose the service order whose device is at the branch',
+      note: 'Open orders; an order already on a shelf can be moved to another.',
+      search: 'Search order / customer / serial',
+      choose: 'Shelve this device',
+      cols: ['name', 'customer_id', 'device_id', 'branch_id', 'storage_location_id', 'state'],
+      domain: [['state', 'not in', ['delivered', 'closed', 'cancelled']], ['service_type', '!=', 'onsite']],
+      empty: 'No open order has its device at a branch.'
+    },
+    sections: [
+      { title: 'Step 2 of 2: The Shelf',
+        note: 'A location holds one device, and a device is in one location (BRU-FRD-06). It is freed when the device is delivered or the order is cancelled.',
+        fields: [
+          { name: 'storage_location_id', required: true, label: 'Storage Location', domain: [['occupied', '=', false]] },
+          { name: 'name', label: 'Service Order', readonly: true },
+          { name: 'customer_id', label: 'Customer', readonly: true },
+          { name: 'device_id', label: 'Device', readonly: true },
+          { name: 'branch_id', label: 'Branch', readonly: true },
+          { name: 'state', label: 'Order State', readonly: true }
         ] }
     ]
   },
@@ -930,14 +1014,16 @@ export const SCREENS = {
     },
     sections: [
       { title: 'Step 2 of 2: How Was Today\'s Service?',
-        note: 'Ask the customer to rate the service at handover, on the counter tablet or by telling you. A rating is taken once and not changed. The fuller survey still goes to the customer when the order closes (M34).',
+        note: 'The customer rates the service themselves (A02 pass 2, M04-06): use Ask the Customer to Rate on Collection & Handover, then open the Customer Rating Page below on the counter tablet or send it to the customer\'s phone. The page takes the stars and a comment once; staff cannot type or change a rating. The fuller survey still goes to the customer when the order closes (M34).',
         fields: [
-          { name: 'counter_rating', required: true, label: 'Customer Rating (1 to 5)' },
-          { name: 'counter_feedback', label: 'Customer\'s Comment' },
+          { name: 'counter_rating_url', label: 'Customer Rating Page (open on the tablet / phone)', readonly: true },
+          { name: 'counter_rating', label: 'Customer Rating (1 to 5)', readonly: true },
+          { name: 'counter_feedback', label: 'Customer\'s Comment', readonly: true },
           { name: 'name', label: 'Service Order', readonly: true },
           { name: 'customer_id', label: 'Customer', readonly: true },
-          { name: 'counter_rated_by_id', label: 'Rating Taken By', readonly: true },
-          { name: 'counter_rated_at', label: 'Rating Taken At', readonly: true },
+          { name: 'counter_rated_by_id', label: 'Rating Asked By', readonly: true },
+          { name: 'counter_rating_requested_at', label: 'Rating Asked At', readonly: true },
+          { name: 'counter_rated_at', label: 'Rating Given At', readonly: true },
           { name: 'state', label: 'Order State', readonly: true }
         ] }
     ]
@@ -952,7 +1038,8 @@ export const REPORT_ROUTES = {
   "M04:Uncollected Device Ageing": "M04-uncollected",
   "M04:Counter Sales by Category": "M04-kiosk",
   "M04:Shift Variance Register": "M04-banking",
-  "M04:Branch Comparison League": "M04-dashboard"
+  "M04:Branch Comparison League": "M04-dashboard",
+  "M04:Front-Desk Money Not Yet in the Books": "M04-books"
 };
 
 /* every M04 form chip is a declared in-workspace form (FORM_CHIPS) */
@@ -972,6 +1059,7 @@ export const FORM_CHIPS = {
   'M04:Service Counter': 'M04-form-counter',
   'M04:Queue Priority Rule': 'M04-form-priority-rule',
   'M04:Storage Location': 'M04-form-location',
+  'M04:Service Order Shelf': 'M04-form-shelf',
   'M04:Drawer Cash-Out': 'M04-form-movement',
   /* the branch petty-cash fund is M50's imprest: M04 records with its form */
   'M04:Petty Cash Voucher': 'M50-form-voucher',

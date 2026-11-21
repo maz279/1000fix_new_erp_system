@@ -7,6 +7,9 @@ from odoo import fields, models
 SOURCE = "counter_sale"
 # the reconciled drawer variance (fix_cash_shift_posting)
 SHIFT_SOURCE = "cash_shift"
+# a drawer cash-out: petty expense, staff advance, safe drop, field shortage
+# (fix_cash_movement_posting)
+MOVEMENT_SOURCE = "cash_movement"
 
 
 def _suspense_to_shipment(rows):
@@ -19,8 +22,16 @@ class FixJournalPostingLogCounter(models.Model):
     _inherit = "fix.journal.posting.log"
 
     source = fields.Selection(
-        selection_add=[(SOURCE, "Counter Sale (M04)"), (SHIFT_SOURCE, "Cash Shift Variance (M04)")],
-        ondelete={SOURCE: "set default", SHIFT_SOURCE: "set default"},
+        selection_add=[
+            (SOURCE, "Counter Sale (M04)"),
+            (SHIFT_SOURCE, "Cash Shift Variance (M04)"),
+            (MOVEMENT_SOURCE, "Drawer Cash-Out (M04)"),
+        ],
+        ondelete={
+            SOURCE: "set default",
+            SHIFT_SOURCE: "set default",
+            MOVEMENT_SOURCE: "set default",
+        },
     )
 
 

@@ -5,7 +5,9 @@ real ORM record, and every mail template must attach that PDF via
 report_template_ids — the "export in PDF, send email" acceptance bar.
 """
 
-from odoo.tests import TransactionCase, tagged
+import unittest
+
+import pytest
 
 
 def _first_key(env, model, field):
@@ -13,10 +15,18 @@ def _first_key(env, model, field):
     return meta[field]["selection"][0][0]
 
 
-@tagged("post_install", "-at_install")
-class TestDocSuiteRendering(TransactionCase):
+class TestDocSuiteRendering(unittest.TestCase):
+    """A04 ERP integration (21 Nov 2026): this was the estate's only Odoo
+    TransactionCase; under the pytest runner Odoo's harness had no database
+    name (tests.common.get_db_name -> IndexError), so every case errored at
+    setup and no suite PDF was ever rendered. The estate's rolled-back
+    odoo_env fixture now provides the environment; the cases are unchanged."""
+
+    @pytest.fixture(autouse=True)
+    def _odoo_env(self, odoo_env):
+        self.env = odoo_env
+
     def setUp(self):
-        super().setUp()
         env = self.env
         self.partner = env["res.partner"].create(
             {

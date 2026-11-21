@@ -41,6 +41,15 @@ def _cert(m6, serial, method="nist_800_88", request=None, verify=True):
             }
         )
     )
+    if method == "physical_destruction":
+        # A02 pass 2 M06-09 (D16): a destruction is photographed and witnessed
+        photo = (
+            m6.env["ir.attachment"]
+            .with_user(m6.tech)
+            .create({"name": "shredded.jpg", "raw": b"photo of the shredded platters"})
+        )
+        cert.with_user(m6.tech).write({"destruction_photo_attachment_id": photo.id})
+        cert.with_user(m6.tech2).action_witness_destruction()
     if verify:
         cert.with_user(m6.verifier).action_verify()
     return cert
@@ -136,7 +145,7 @@ def test_f1_finance_approves_a_handover_on_credit(m6):
 
 def test_f1_nothing_billable_hands_over_and_unrecoverable_is_published(m6):
     case = m6.new_case()
-    case.action_take_custody("desk")
+    m6.custody(case)
     case.action_route_to_z4()
     m6.evaluate(case)
     q = m6.quote(case, amount=0)
@@ -172,7 +181,7 @@ def test_f1_billable_follows_outcome_and_no_data_no_fee(m6):
 
 def test_f5_a_fresh_quote_cannot_bypass_the_requote(m6):
     case = m6.new_case()
-    case.action_take_custody("desk")
+    m6.custody(case)
     m6.evaluate(case)
     first = m6.quote(case, amount=15000)
     first.action_send()
@@ -253,14 +262,16 @@ def test_f10_media_is_returned_only_at_the_end_and_to_the_customer(m6):
     case = m6.recovering(m6.new_case())
     unit = _unit(m6, case)
     with pytest.raises(UserError, match="stays in custody"):
-        unit.with_user(m6.tech).action_return()
+        unit.with_user(m6.tech).action_return(handler=m6.tech2.login)
     case._guarded().write({"state": "unrecoverable"})
     stranger = m6.env["res.partner"].create({"name": "Not the customer %d" % m6.n})
     with pytest.raises(UserError, match="not the customer"):
-        unit.with_user(m6.tech).action_return(recipient=stranger.id)
+        unit.with_user(m6.tech).action_return(handler=m6.tech2.login, recipient=stranger.id)
     with pytest.raises(AccessError):
-        unit.with_user(m6.verifier).action_return()
-    unit.with_user(m6.tech).action_return(recipient=m6.contact.id)
+        unit.with_user(m6.verifier).action_return(handler=m6.tech2.login)
+    # A02 pass 2 M06-03: requested by one, confirmed by the second person
+    unit.with_user(m6.tech).action_return(handler=m6.tech2.login, recipient=m6.contact.id)
+    unit.with_user(m6.tech2).action_confirm_move()
     assert unit.location == "returned_to_customer" and unit.returned_to_id == m6.contact
 
 
@@ -268,11 +279,12 @@ def test_f9_a_purged_case_closes_only_once_its_media_left_the_lab(m6):
     case = _ready_for_handover(m6)
     _waive(m6, case)
     case.action_handover(verification=m6.code_for(case)["code"])
-    unit = _unit(m6, case)
+    unit = case.media_unit_ids[:1]  # the sealed bag custody was taken on (A02 pass 2)
     serial = case.media_serial_number
     req = _request(m6, serial)
     cert = _cert(m6, serial, method="physical_destruction", request=req)
-    case.action_purge(cert)
+    # A02 pass 2 M06-04: the purge is the lab's own purge certificate
+    case.action_purge(m6.purge_cert(case))
     with pytest.raises(UserError, match="return the customer's media first"):
         case.action_close()
     # an erasure certificate does not destroy the drive
@@ -283,7 +295,8 @@ def test_f9_a_purged_case_closes_only_once_its_media_left_the_lab(m6):
     assert unit.location == "destroyed" and unit.destruction_certificate_id == cert
     with pytest.raises(UserError, match="already destroyed another unit"):
         other.with_user(m6.tech).action_destroy(cert.id)
-    other.with_user(m6.tech).action_return()
+    other.with_user(m6.tech).action_return(handler=m6.tech2.login)
+    other.with_user(m6.tech2).action_confirm_move()
     case.action_close()
     assert case.state == "closed"
 
@@ -323,14 +336,14 @@ def test_f11_the_witness_confirms_the_seal_break_in_their_own_session(m6):
 def test_f12_the_verifier_does_not_see_the_hash_they_must_recompute(m6):
     case = m6.recovering(m6.new_case())
     case.action_record_image(source_hash=m6.digest, image_hash=m6.digest)
-    seen = case.with_user(m6.tech2).read(
+    seen = case.with_user(m6.custodian).read(
         ["image_sha256_hash", "image_source_sha256", "custody_chain"]
     )[0]
     assert not seen["image_sha256_hash"] and not seen["image_source_sha256"]
     assert m6.digest not in (seen["custody_chain"] or "")
     with pytest.raises(UserError, match="does not match"):
-        case.with_user(m6.tech2).action_verify_image(recomputed_hash="e" * 64)
-    case.with_user(m6.tech2).action_verify_image(recomputed_hash=m6.digest)
+        case.with_user(m6.custodian).action_verify_image(recomputed_hash="e" * 64)
+    case.with_user(m6.custodian).action_verify_image(recomputed_hash=m6.digest)
     assert case.image_sha256_hash == m6.digest and case.image_source_sha256 == m6.digest
     assert case.image_matches_source
 

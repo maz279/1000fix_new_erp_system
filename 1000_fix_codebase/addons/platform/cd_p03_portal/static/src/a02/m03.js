@@ -51,6 +51,8 @@ export const MODULE = {
     { en: 'Exceptions & Billing', screens: [
       { id: 'M03-exc', en: 'Loss / Damage Claims', bn: 'ক্ষতি ও হারানোর দাবি', t: 'g' },
       { id: 'M03-charges', en: 'Distance & Zone Charging', bn: 'দূরত্ব ও জোন চার্জ', t: 'r' },
+      /* A02 ERP audit pass 2 M03-05 (D22): the zone x weight tariff */
+      { id: 'M03-tariff', en: 'Pick & Drop Tariff', bn: 'পিক ও ড্রপ ট্যারিফ', t: 'g' },
       { id: 'M03-cod', en: 'COD Reconciliation', bn: 'ক্যাশ অন ডেলিভারি রিকনসিলিয়েশন', t: 'r' }
     ]}
   ],
@@ -63,7 +65,7 @@ export const MODULE = {
    * nothing writes a scan or a seal verdict directly. */
   forms: ['Consignment', 'Next Journey Leg', 'Courier Booking', 'Damage Claim', 'Courier Partner',
     'Seal for Dispatch', 'Hub Intake Scan', 'Proof of Delivery Record', 'Rider & Vehicle Assignment',
-    'Rider COD Settlement', 'Courier POD Record', 'Rider Certification'],
+    'Rider COD Settlement', 'Courier POD Record', 'Rider Certification', 'Pick & Drop Tariff Band'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
   freg: {
     src: 93,
@@ -107,13 +109,36 @@ export const MODULE = {
       ['11', 'Loss / Damage Claims', 6, { model: 'fix.damage.claim', cols: ['name', 'consignment_id', 'damage_kind', 'claimed_amount', 'state'], screens: ['M03-damage-claim', 'M03-exc'], reports: ['Damage & Insurance Claims'], forms: ['Damage Claim'] }],
       /* 12 FR-LOG-022: freight is computed from the courier's tariff (base
        * + per-kg) and the declared value; the tariff is what is captured. */
-      ['12', 'Distance & Zone Charging', 5, { model: 'fix.consignment', cols: ['name', 'chargeable_weight_kg', 'base_freight_bdt', 'volumetric_surcharge_bdt', 'insurance_fee_bdt'], screens: ['M03-charges', 'M03-couriers'], reports: [], forms: ['Courier Partner'], create: 'M03-form-courier' }]
+      ['12', 'Distance & Zone Charging', 5, { model: 'fix.consignment', cols: ['name', 'chargeable_weight_kg', 'base_freight_bdt', 'volumetric_surcharge_bdt', 'insurance_fee_bdt'], screens: ['M03-charges', 'M03-tariff', 'M03-couriers'], reports: [], forms: ['Courier Partner', 'Pick & Drop Tariff Band'], create: 'M03-form-courier' }]
     ]
   }
 };
 
 /* In-workspace data screens over the whitelisted consignment models. */
 export const SCREENS = {
+  /* A02 ERP audit pass 2 M03-05 (D22): the pick & drop tariff. Empty = no
+   * charge; a band prices a leg at confirmation; warranty and AMC are waived.
+   * Kept by the logistics manager. */
+  'M03-tariff': { kind: 'model_list', title: 'Pick & Drop Tariff', model: 'fix.logistics.tariff',
+    cols: ['zone_id', 'consignment_type', 'weight_from_kg', 'weight_to_kg', 'charge_bdt', 'active'],
+    empty: 'No tariff band: pickups and deliveries are not charged (D22). A logistics manager adds a band with + New.' },
+  'M03-form-tariff': {
+    kind: 'model_form',
+    model: 'fix.logistics.tariff',
+    title: 'Pick & Drop Tariff Band',
+    back: 'M03-tariff',
+    sections: [
+      { title: 'Zone x Weight Band', note: 'A leg in this zone (empty = any zone without its own band) whose chargeable weight is from the lower bound up to (not including) the upper bound is charged this amount, excluding VAT.',
+        fields: [
+          { name: 'zone_id', label: 'Zone' },
+          { name: 'consignment_type', required: true, label: 'Leg' },
+          { name: 'weight_from_kg', required: true, label: 'From (kg)' },
+          { name: 'weight_to_kg', required: true, label: 'Up To (kg)' },
+          { name: 'charge_bdt', required: true, label: 'Charge (BDT, excl. VAT)' },
+          { name: 'active', label: 'Active' }
+        ] }
+    ]
+  },
   'M03-form-courier': {
     kind: 'model_form',
     model: 'fix.courier.partner',
@@ -210,7 +235,12 @@ export const SCREENS = {
       { m: 'action_report_lost', l: 'Report Lost', ask: 'What happened', kwarg: 'reason' },
       { m: 'action_release_hold', l: 'Release Exception Hold', ask: 'Reason for releasing the hold', kwarg: 'reason' },
       /* BRU-LOG-03: a second person vouches for a high-value dispatch */
-      { m: 'action_countersign_dispatch', l: 'Countersign High-Value Dispatch' }
+      { m: 'action_countersign_dispatch', l: 'Countersign High-Value Dispatch' },
+      /* A02 ERP audit pass 2 M03-04: proof of collection at the customer's door */
+      { m: 'action_send_pickup_otp', l: 'Send Pickup Code to Customer', states: ['confirmed'] },
+      { m: 'action_verify_pickup_otp', l: 'Verify Pickup Code', ask: 'The code the customer received', kwarg: 'otp', states: ['confirmed'] },
+      { m: 'action_scan_pickup_serial', l: 'Scan Device Serial at Pickup', ask: 'Serial on the device', kwarg: 'serial', states: ['confirmed'] },
+      { m: 'action_attach_pickup_evidence', l: 'Record Package Photo', ask: 'Attachment id of the package photo uploaded on this consignment', kwarg: 'attachment_id', states: ['confirmed'] }
     ] },
   'M03-record': { kind: 'model_list', model: 'fix.consignment', create: false,
     cols: ['name', 'consignment_type', 'state', 'service_order_id', 'custody_summary', 'chain_broken',
@@ -287,13 +317,50 @@ export const SCREENS = {
     title: "Consignment",
     back: 'M03-cons',
     status: { field: 'state', labels: { draft: "Draft", confirmed: "Confirmed", in_transit: "In Transit", held: "Exception Hold", delivered: "Delivered", returned: "Returned", lost: "Lost" } },
+    /* A02 ERP audit pass 2 X5-19: the custody chain is shown on the leg */
+    lines: { field: 'custody_ids', title: 'Custody Chain', readonlyGrid: true,
+      note: 'Every custody scan of this leg, in order. Scans are stamped by the server and never edited.',
+      fields: [
+        { name: 'step', label: 'Step', readonly: true },
+        { name: 'scanned_at', label: 'Scanned At', readonly: true },
+        { name: 'scanned_by', label: 'Scanned By', readonly: true },
+        { name: 'location_branch_id', label: 'Location', readonly: true },
+        { name: 'device_serial', label: 'Device Serial', readonly: true },
+        { name: 'exception_reason', label: 'Exception', readonly: true }
+      ] },
     tabs: [
       { id: 'journey', label: '1. Journey & Legs', bn: '১. রুট ও স্থানান্তর', icon: '🚚', badge: '14' },
       { id: 'custody', label: '2. Tamper Evident Seals', bn: '২. সিল ও নিরাপত্তা', icon: '🔒', badge: '16' },
       { id: 'volumetric', label: '3. Chargeable Weight', bn: '৩. ওজন ও বিলিং', icon: '⚖️', badge: '16' },
-      { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '8' }
+      { id: 'pod', label: '4. OTP Proof of Delivery', bn: '৪. ওটিপি প্রমাণক', icon: '📱', badge: '8' },
+      { id: 'cod', label: '5. Cash on Delivery & Charge', bn: '৫. ক্যাশ অন ডেলিভারি ও চার্জ', icon: '💵', badge: '9' },
+      { id: 'pickup', label: '6. Proof of Collection', bn: '৬. সংগ্রহের প্রমাণ', icon: '📦', badge: '7' }
     ],
     sections: [
+      { tab: 'cod', title: "Cash on Delivery (D1) and Pick & Drop Charge (D22)",
+        note: "A delivery leg of a service order leaves only when the order is Ready and paid or credit-released, or as a cash-on-delivery leg: the rider or courier collects the amount due at the verified hand-over and the order records it. The pick & drop charge comes from the zone x weight tariff at confirmation (warranty and AMC waived).",
+        fields: [
+          { name: 'cod_amount', label: "Cash To Collect (BDT)", readonly: true },
+          { name: 'cod_collected_at', label: "Collected At", readonly: true },
+          { name: 'cod_collected_by_id', label: "Recorded By", readonly: true },
+          { name: 'cod_reference', label: "COD Reference", readonly: true },
+          { name: 'cod_remitted_at', label: "Handed In At", readonly: true },
+          { name: 'zone_id', label: "Customer Zone" },
+          { name: 'logistics_tariff_id', label: "Tariff Band", readonly: true },
+          { name: 'logistics_charge_bdt', label: "Pick & Drop Charge (BDT)", readonly: true },
+          { name: 'logistics_charge_note', label: "Charge Basis", readonly: true }
+        ] },
+      { tab: 'pickup', title: "Proof of Collection at the Customer's Door (M03-04)",
+        note: "Before a pickup leaves the customer: the customer's sign-off (Send / Verify Pickup Code, or a signature image), a package photo, the scanned serial (must match the order's device), and the outbound seal and dispatch weight.",
+        fields: [
+          { name: 'pickup_otp_channel', label: "Pickup Code Sent To", readonly: true },
+          { name: 'pickup_otp_verified_at', label: "Customer Confirmed At", readonly: true },
+          { name: 'pickup_signature_attachment_id', label: "Customer Signature", readonly: true },
+          { name: 'pickup_photo_attachment_id', label: "Package Photo", readonly: true },
+          { name: 'pickup_serial_scanned', label: "Serial Scanned", readonly: true },
+          { name: 'pickup_proof_by_id', label: "Recorded By", readonly: true },
+          { name: 'outbound_seal_number', label: "Outbound Seal No", readonly: true }
+        ] },
       { tab: 'journey', title: "Multi-Leg Consignment Route & Rider Assignment", note: "One leg of a journey: a pickup or delivery for a service order, a branch transfer, or a return to vendor (name the purchase order: its vendor receives the delivery code). Legs made by the M01 hand-over arrive here filled in. The operating unit defaults to yours; the type is fixed once the leg is confirmed.",
         fields: [
           { name: 'name', label: "Consignment Reference", readonly: true },
@@ -735,6 +802,7 @@ export const FORM_CHIPS = {
   'M03:Consignment': 'M03-form-consignment',
   'M03:Next Journey Leg': 'M03-form-next-leg',
   'M03:Courier Partner': 'M03-form-courier',
+  'M03:Pick & Drop Tariff Band': 'M03-form-tariff',
   'M03:Seal for Dispatch': 'M03-form-seal',
   'M03:Hub Intake Scan': 'M03-form-hub-intake',
   'M03:Proof of Delivery Record': 'M03-form-pod',
@@ -751,6 +819,7 @@ export const FORM_CHIPS = {
     'fix.custody.scan': 'M03-form-rider-shift',
     'fix.cod.settlement': 'M50-form-cod',
     'fix.rider.certification': 'M03-form-rider-cert',
+    'fix.logistics.tariff': 'M03-form-tariff',
   },
   'M03:__by_screen__': {
     'M03-couriers': 'M03-form-courier',
@@ -759,5 +828,6 @@ export const FORM_CHIPS = {
     'M03-cons': 'M03-form-consignment',
     'M03-custody': 'M03-form-rider-shift',
     'M03-rider-certs': 'M03-form-rider-cert',
+    'M03-tariff': 'M03-form-tariff',
   }
 };

@@ -62,6 +62,17 @@ class FixCashDeposit(models.Model):
     )
     amount = fields.Monetary(string="Amount", currency_field="currency_id", required=True)
     slip_no = fields.Char(string="Deposit Slip No", tracking=True)
+    # A02 pass 2 (M04-01, owner decision D2): a safe drop takes cash out of the
+    # drawer into the branch safe (Dr Cash in Safe / Cr drawer cash); the
+    # deposit may bank the safe's cash instead of a day's closed drawers.
+    cash_source = fields.Selection(
+        [("drawer", "Branch Drawers (closed shifts)"), ("safe", "Branch Safe")],
+        string="Cash Taken From",
+        default="drawer",
+        required=True,
+        help="Drawers: the counted cash of the day's closed shifts. Safe: the cash the "
+        "drawers dropped into the branch safe and no deposit has banked yet.",
+    )
     carrier = fields.Selection(
         [("staff", "Branch Staff"), ("cit_company", "Cash-in-Transit Company")],
         default="staff",
@@ -127,7 +138,15 @@ class FixCashDeposit(models.Model):
             "incident_raised_at",
         }
     )
-    _DEPOSIT_TERMS = ("amount", "branch_id", "journal_id", "business_date", "slip_no", "company_id")
+    _DEPOSIT_TERMS = (
+        "amount",
+        "branch_id",
+        "journal_id",
+        "business_date",
+        "slip_no",
+        "company_id",
+        "cash_source",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._DEPOSIT_GUARDED
@@ -184,8 +203,12 @@ class FixCashDeposit(models.Model):
 
     def _available_cash(self):
         """Counted cash of the branch's closed shifts on the cash day, less the
-        floats they opened with, less what other deposits already took."""
+        floats they opened with, less what other deposits already took. From
+        the safe: what the drawers dropped into it, less what deposits from the
+        safe already took."""
         self.ensure_one()
+        if self.cash_source == "safe":
+            return self._available_safe_cash()
         shifts = self.env["fix.cash.shift"].search(
             [
                 ("branch_id", "=", self.branch_id.id),
@@ -199,10 +222,40 @@ class FixCashDeposit(models.Model):
                 ("branch_id", "=", self.branch_id.id),
                 ("business_date", "=", self.business_date),
                 ("state", "not in", ("draft", "cancelled")),
+                ("cash_source", "=", "drawer"),
                 ("id", "!=", self.id),
             ]
         )
         return shifts, round(counted - sum(others.mapped("amount")), 2)
+
+    def _available_safe_cash(self):
+        """(safe drops, undeposited safe cash) of the branch up to the cash day:
+        every posted safe drop of its drawers, less every deposit from the safe
+        that left the branch."""
+        self.ensure_one()
+        Movement = self.env["fix.cash.movement"].sudo()
+        domain = [
+            ("branch_id", "=", self.branch_id.id),
+            ("company_id", "=", self.company_id.id),
+            ("movement_type", "=", "safe_drop"),
+            ("state", "=", "posted"),
+            ("shift_id.shift_date", "<=", self.business_date),
+        ]
+        if "posting_state" in Movement._fields:
+            # the front-desk finance bridge books the drop: only cash the safe
+            # account holds is banked from it (a pending drop is not there yet)
+            domain.append(("posting_state", "=", "posted"))
+        drops = Movement.search(domain)
+        banked = self.sudo().search(
+            [
+                ("branch_id", "=", self.branch_id.id),
+                ("company_id", "=", self.company_id.id),
+                ("cash_source", "=", "safe"),
+                ("state", "not in", ("draft", "cancelled")),
+                ("id", "!=", self.id),
+            ]
+        )
+        return drops, round(sum(drops.mapped("amount")) - sum(banked.mapped("amount")), 2)
 
     def action_dispatch(self):
         """Cash leaves the branch: Dr cash-in-transit / Cr branch cash."""
@@ -211,18 +264,27 @@ class FixCashDeposit(models.Model):
             if dep.state != "draft":
                 raise UserError("Only a draft deposit is dispatched.")
             shifts, available = dep._available_cash()
+            from_safe = dep.cash_source == "safe"
             if not shifts:
                 raise UserError(
-                    "No counted cash shift for %s on %s — count and close the drawer first."
+                    "No safe drop at %s up to %s — nothing in the safe to bank."
+                    % (dep.branch_id.name, dep.business_date)
+                    if from_safe
+                    else "No counted cash shift for %s on %s — count and close the drawer first."
                     % (dep.branch_id.name, dep.business_date)
                 )
             if dep.amount > available + 0.005:
                 raise UserError(
-                    "Deposit %s exceeds the branch's undeposited counted cash for the day (%s)."
+                    "Deposit %s exceeds the branch safe's undeposited cash (%s)."
                     % (dep.amount, available)
+                    if from_safe
+                    else "Deposit %s exceeds the branch's undeposited counted cash for the day "
+                    "(%s)." % (dep.amount, available)
                 )
             cit = treasury_account(self.env, dep.company_id, "cash_in_transit")
-            cash = treasury_account(self.env, dep.company_id, "branch_cash")
+            cash = treasury_account(
+                self.env, dep.company_id, "branch_safe" if from_safe else "branch_cash"
+            )
             bank_account_of(dep.journal_id)
             move = post_treasury_move(
                 self.env,
@@ -231,7 +293,13 @@ class FixCashDeposit(models.Model):
                 "CIT %s — %s" % (dep.name, dep.branch_id.name),
                 [
                     (cit, "Cash in transit %s" % dep.name, dep.amount, 0.0, None),
-                    (cash, "Branch cash out %s" % dep.name, 0.0, dep.amount, None),
+                    (
+                        cash,
+                        "Branch %s out %s" % ("safe" if from_safe else "cash", dep.name),
+                        0.0,
+                        dep.amount,
+                        None,
+                    ),
                 ],
                 branch=dep.branch_id,
                 source="treasury",
@@ -374,3 +442,27 @@ class FixCashDeposit(models.Model):
                 raise UserError("Only a draft deposit is cancelled; a dispatched one is credited.")
             dep._guarded().write({"state": "cancelled"})
         return True
+
+
+class FixCashShiftBankedFloat(models.Model):
+    """A02 pass 2 (M04-03): the float a new drawer opens with is the last
+    close's count less what the bank deposits of that cash day took."""
+
+    _inherit = "fix.cash.shift"
+
+    @api.model
+    def _fd_banked_on(self, shift):
+        deposits = (
+            self.env["fix.cash.deposit"]
+            .sudo()
+            .search(
+                [
+                    ("branch_id", "=", shift.branch_id.id),
+                    ("company_id", "=", shift.company_id.id),
+                    ("business_date", "=", shift.shift_date),
+                    ("cash_source", "=", "drawer"),
+                    ("state", "not in", ("draft", "cancelled")),
+                ]
+            )
+        )
+        return round(super()._fd_banked_on(shift) + sum(deposits.mapped("amount")), 2)

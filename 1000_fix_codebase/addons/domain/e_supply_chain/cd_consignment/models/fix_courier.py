@@ -150,6 +150,11 @@ class FixCourierBooking(models.Model):
             rec.volumetric_weight_kg = vol
             rec.chargeable_weight_kg = round(max(rec.weight_kg or 0.0, vol), 3)
 
+    # A02 ERP audit pass 2 M03-03: what a booking is for is fixed once it is
+    # made (a hub operator re-pointed a booking at another courier's, or an
+    # own rider's, leg and closed it with no OTP).
+    _BOOKING_LOCKED = ("consignment_id", "partner_id", "cod_amount")
+
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
@@ -157,7 +162,45 @@ class FixCourierBooking(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.courier.booking") or "CBR/New"
                 )
+            consignment = self.env["fix.consignment"].browse(vals.get("consignment_id") or [])
+            if consignment:
+                consignment = consignment.sudo()
+                if consignment.rider_id and not consignment.courier_partner_id:
+                    raise UserError(
+                        "%s is carried by our rider %s; it is not booked with a courier."
+                        % (consignment.name, consignment.rider_id.name)
+                    )
+                if (
+                    consignment.courier_partner_id
+                    and vals.get("partner_id")
+                    and consignment.courier_partner_id.id != vals["partner_id"]
+                ):
+                    raise UserError(
+                        "%s is assigned to courier %s."
+                        % (consignment.name, consignment.courier_partner_id.name)
+                    )
+                # D1: the courier collects exactly the leg's cash on delivery
+                if "cod_amount" in consignment._fields:
+                    vals["cod_amount"] = consignment.cod_amount
         return super().create(vals_list)
+
+    def write(self, vals):
+        locked = set(self._BOOKING_LOCKED) & set(vals)
+        if locked and self and not self._fix_guard_open():
+            changed = sorted(
+                {
+                    name
+                    for rec in self
+                    for name in locked
+                    if rec._fix_guard_differs(name, vals[name], rec[name])
+                }
+            )
+            if changed:
+                raise UserError(
+                    "%s cannot change once the booking is made (M03-03): cancel it and book "
+                    "again." % ", ".join(self._fields[n].string or n for n in changed)
+                )
+        return super().write(vals)
 
     def _courier_require_hub(self, what):
         if self.env.su or self.env.user.has_group("cd_consignment.group_fix_logistics_hub"):
@@ -278,6 +321,20 @@ class FixCourierBooking(models.Model):
                     raise UserError(
                         "Booking %s cannot close while consignment %s is %s."
                         % (rec.name, consignment.name, consignment.state)
+                    )
+                # A02 ERP audit pass 2 M03-03: the courier's POD closes only a
+                # leg that courier picked up; an own-rider leg closes with the
+                # recipient's OTP
+                if rec.state != "picked_up":
+                    raise UserError(
+                        "Booking %s was never picked up by %s: its POD cannot close %s."
+                        % (rec.name, rec.partner_id.name, consignment.name)
+                    )
+                if consignment.courier_partner_id != rec.partner_id:
+                    raise UserError(
+                        "%s is not carried by %s (booking %s): it closes with its own "
+                        "carrier's proof of delivery."
+                        % (consignment.name, rec.partner_id.name, rec.name)
                     )
                 rec._courier_close_consignment()
             rec._guarded().write(

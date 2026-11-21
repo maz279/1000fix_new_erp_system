@@ -234,10 +234,20 @@ class TestPostWithDimensions:
         # in force for its source (FR-FIN-008/010).
         crossval_model = MagicMock()
         rule_model = MagicMock()
+        # A02 ERP audit (19 Nov 2026): a line that names a branch but no OU
+        # takes the BRANCH's own OU (the company's first OU was refused at
+        # 57 of 73 fix_real branches), not the company's first.
+        branch_model = MagicMock()
+        branch_ou = MagicMock(id=42)
+        branch_ou.company_id = move_mock.company_id
+        branch_model.browse.return_value.exists.return_value = MagicMock(
+            operating_unit_id=branch_ou
+        )
 
         env = {
             "account.move": MagicMock(create=MagicMock(return_value=move_mock)),
             "fix.journal.dimension": dim_model,
+            "fix.branch": branch_model,
             "operating.unit": ou_model,
             "fix.chart.account": chart_model,
             "fix.journal.posting.log": log_model,
@@ -257,6 +267,9 @@ class TestPostWithDimensions:
                 soft=False
             )
             dim_model.create.assert_called_once()
+            branch_model.browse.assert_called_once_with(2)
+            assert dim_model.create.call_args[0][0]["operating_unit_id"] == 42
+            ou_model.search.assert_not_called()  # never the company's first OU
             mock_pub.assert_called_once()
             log_model.with_context.return_value.sudo.return_value.create.assert_called_once()
             crossval_model._check_move.assert_called_once()

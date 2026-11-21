@@ -79,6 +79,21 @@ def _ago(**kw):
 # ============================================================== M04 KPI row
 
 
+def test_a_reader_with_no_operating_unit_sees_no_branch(b4):
+    """A02 pass 2 review: the M04 tile fence fails closed."""
+    m = b4
+    nobody = (
+        m.env["res.users"]
+        .with_context(no_reset_password=True)
+        .create({"name": "B4 no unit", "login": "b4.nounit@a02.test"})
+    )
+    nobody.sudo().write({"operating_unit_ids": [(5, 0, 0)]})
+    renv = m.env(user=nobody.id)
+    assert m04ctl._branch_fence(renv, m.env["fix.service.order"]) == [("id", "=", 0)]
+    _order(m, ready_at=_ago(days=10))
+    assert m04ctl.kpis(renv)["uncollected_7d"] == 0
+
+
 def test_uncollected_counts_ready_orders_from_ready_at(b4):
     m = b4
     before = m04ctl.kpis(m.denv)["uncollected_7d"]
@@ -541,14 +556,21 @@ def test_workshop_job_card_prints_the_repair(b4):
             }
         )
     )
-    m.env["fix.workshop.part.line"].sudo().create(
-        {
-            "job_id": job.id,
-            "product_id": m.product.id,
-            "quantity": 1.0,
-            "fitted_serial_number": "PMIC-B4-1",
-        }
+    line = (
+        m.env["fix.workshop.part.line"]
+        .sudo()
+        .create(
+            {
+                "job_id": job.id,
+                "product_id": m.product.id,
+                "quantity": 1.0,
+                "fitted_serial_number": "PMIC-B4-1",
+            }
+        )
     )
+    # A02 pass 2 M31-10: the card prints only the parts fitted on the bench
+    # (consumed); test setup marks this one fitted
+    line._guarded().write({"reservation_state": "consumed"})
     html = _html(m.env, "cd_p03_portal.report_a02_workshop_job", job)
     for text in (
         "WORKSHOP JOB CARD / REPAIR REPORT",

@@ -115,7 +115,12 @@ def test_full_lifecycle_records_history_events_and_sla_clocks(base):
     assert order.sla_response_at == response_at  # stamped once
     order.action_submit_qc()
     env["fix.qc.checklist"].create(
-        {"order_id": order.id, "state": "passed", "item_ids": [Command.create({"name": "Boot"})]}
+        {
+            "order_id": order.id,
+            "qc_round": order.qc_round,
+            "state": "passed",
+            "item_ids": [Command.create({"name": "Boot"})],
+        }
     )
     order.action_ready()
     # ... and the resolution is Ready (the resolution promise is intake to ready)
@@ -190,8 +195,12 @@ def test_ready_requires_a_passed_qc_checklist(base):
     order.write({"state": "qc_pending"})
     with _refused(base.env, UserError, "has no QC checklist"):
         order.action_ready()
-    base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
-    base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "failed"})
+    base.env["fix.qc.checklist"].create(
+        {"order_id": order.id, "qc_round": order.qc_round, "state": "passed"}
+    )
+    base.env["fix.qc.checklist"].create(
+        {"order_id": order.id, "qc_round": order.qc_round, "state": "failed"}
+    )
     # A02 ERP audit M01-F4: the newest inspection decides
     with _refused(base.env, UserError, "latest QC checklist is failed"):
         order.action_ready()
@@ -208,7 +217,9 @@ def test_plain_write_to_ready_is_held_by_the_qc_gate(base):
         order.write({"state": state})
     with _refused(base.env, UserError, "has no QC checklist"):
         order.write({"state": "ready"})
-    base.env["fix.qc.checklist"].create({"order_id": order.id, "state": "failed"})
+    base.env["fix.qc.checklist"].create(
+        {"order_id": order.id, "qc_round": order.qc_round, "state": "failed"}
+    )
     with _refused(base.env, UserError, "latest QC checklist is failed"):
         order.state = "ready"
     assert order.state == "qc_pending"

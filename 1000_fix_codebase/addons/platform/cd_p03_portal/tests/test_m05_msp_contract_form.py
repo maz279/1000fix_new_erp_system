@@ -41,6 +41,12 @@ EDITABLE = {
     "coverage_window",
     "recording_retention_days",
     "holiday_calendar_id",
+    # A02 ERP pass 2 (M05-S09 / S17 / S18): scope and metering terms
+    "response_hours_major",
+    "response_hours_minor",
+    "parts_included",
+    "remote_hours_monthly",
+    "overage_hourly_rate",
 }
 
 PROBE = """
@@ -101,8 +107,13 @@ def test_rows_chips_and_the_list_reach_the_same_form(m05):
 def test_the_form_is_tabbed_and_shows_the_estate_it_covers(m05, odoo_env):
     form = m05["screens"][FORM]
     tabs = {t["id"] for t in form["tabs"]}
-    # contract, commercials & SLA, lifecycle & offboarding (BRU-RMS-11)
-    assert len(tabs) == 3 and {s["tab"] for s in form["sections"]} == tabs
+    # contract, commercials & SLA, lifecycle & offboarding (BRU-RMS-11), and
+    # (A02 ERP pass 2, X5-19) the reports, credits and terms history grids
+    assert len(tabs) == 4
+    assert {s["tab"] for s in form["sections"]} | {g["tab"] for g in form["grids"]} == tabs
+    grids = {g["field"]: g for g in form["grids"]}
+    assert set(grids) == {"report_ids", "credit_ids", "terms_amendment_ids"}
+    assert all(g["readonlyGrid"] for g in grids.values())
     contract_fields = odoo_env["fix.msp.contract"]._fields
     names = [f["name"] for f in _fields(form)]
     assert len(names) == len(set(names)), "a field declared twice locks its first input"
