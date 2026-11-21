@@ -44,8 +44,9 @@ def _consumer(m):
 
 
 def _tradein(m):
+    ou = m.env["operating.unit"].search([("company_id", "=", m.env.company.id)], limit=1)
     return m.env["fix.tradein.request"].create(
-        {"customer_id": m.customer.id, "device_id": m.device().id}
+        {"customer_id": m.customer.id, "device_id": m.device().id, "operating_unit_id": ou.id}
     )
 
 
@@ -101,5 +102,9 @@ def test_consumer_is_superuser_only_and_the_m18_gates_still_apply(m):
     assert m.p03_write(m.clerk, "fix.ewaste.collection", col.id, {"source_ref": "X"}).get("error")
     assert refused(m.env, lambda: clerk_col.write({"state": "recycled"}))
     assert refused(m.env, lambda: clerk_col.action_secure_destruction())
+    # A05 S3 M18-14: a hand-off arrives unweighed and is weighed in first
+    assert col.weight_pending
+    assert refused(m.env, lambda: m.triage(col, "recycle"))
+    clerk_col.write({"weight_kg": 0.4})
     m.triage(col, "recycle")
     assert col.state == "triaged" and col.wipe_required

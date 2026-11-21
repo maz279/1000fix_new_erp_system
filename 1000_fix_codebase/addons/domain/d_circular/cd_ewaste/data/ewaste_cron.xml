@@ -48,5 +48,15 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A05 ERP build S3 (M18-08, AUT-ESG-11): the certificate-due clock -->
+        <record id="ir_cron_ewaste_certificate_due" model="ir.cron">
+            <field name="name">M18: recycler certificate-due clock (exceptions, recycler suspension)</field>
+            <field name="model_id" ref="model_fix_ewaste_batch"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_certificate_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

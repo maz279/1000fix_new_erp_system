@@ -16,7 +16,11 @@ export const MODULE = {
     { l: 'Recycled (kg)', m: 'recycled_kg' },
     { l: 'CO2 Saved (kg)', m: 'co2_saved_kg' },
     { l: 'Green Certs', m: 'certs_issued' },
-    { l: 'Diversion Rate', m: 'diversion_rate', suffix: '%' }
+    { l: 'Diversion Rate', m: 'diversion_rate', suffix: '%' },
+    { l: 'Certificates on File', m: 'certificates_on_file_pct', suffix: '%' },
+    { l: 'Certified Partners', m: 'partners_certified' },
+    { l: 'Recovery Income 12m', m: 'recovery_income_12m', prefix: '৳ ' },
+    { l: 'Zero-Target Breaches 90d', m: 'zero_target_breaches_90d' }
   ],
   groups: [
     { en: 'Intake & Triage', screens: [
@@ -52,7 +56,8 @@ export const MODULE = {
     'Material Recovery Yield',
     'Statutory Compliance Pack',
     'Impact & Diversion',
-    'ESG Materiality Report'
+    'ESG Materiality Report',
+    'Zero-Target Controls'
   ],
   forms: [
     'E-Waste Collection Dossier',
@@ -113,7 +118,7 @@ export const MODULE = {
     ['8', 'EPR Reporting', 8, { model: 'fix.ewaste.return', cols: ['name', 'authority', 'period', 'recovery_rate_pct', 'state'], screens: ['M18-returns'], reports: ['Statutory Compliance Pack'], forms: ['Statutory Environmental Return', 'DoE E-Waste Registration'] }],
     /* the figures stay computed (BRU-ESG-11): what is captured here is the
      * versioned factor set they are computed with (FR-ESG-019 / T-08) */
-    ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit', 'factor_version'], screens: ['M18-esg', 'M18-factors'], reports: ['ESG Materiality Report', 'Impact & Diversion'], forms: ['Emission Factor Set'], create: 'M18-form-factor' }],
+    ['9', 'ESG & Carbon', 9, { model: 'fix.esg.metric', cols: ['name', 'metric_type', 'period', 'value', 'unit', 'factor_version'], screens: ['M18-esg', 'M18-factors'], reports: ['ESG Materiality Report', 'Impact & Diversion', 'Zero-Target Controls'], forms: ['Emission Factor Set'], create: 'M18-form-factor' }],
     ['10', 'Compliance Pack', 9, { model: 'fix.ewaste.obligation', cols: ['name', 'instrument', 'citation', 'owner_id', 'next_review', 'compliance_status', 'state'], screens: ['M18-obligations', 'M18-registration', 'M18-epr', 'M18-partners', 'M18-pic'], reports: ['Statutory Compliance Pack', 'Impact & Diversion'], forms: ['Regulatory Obligation', 'Review an Obligation', 'DoE E-Waste Registration', 'Authorized Recycler Partner', 'Basel Prior Informed Consent'] }]
   ] }
 };
@@ -181,10 +186,13 @@ export const SCREENS = {
     cols: ['name', 'certificate_no', 'partner_id', 'batch_id', 'material_type', 'weight_kg', 'issued_on', 'state'],
     actions: [
       { m: 'action_issue', l: 'Issue & Certify Items' },
-      { m: 'action_revoke', l: 'Revoke' }
+      { m: 'action_revoke', l: 'Revoke' },
+      /* A05 ERP XC-10: watermarked NOT ISSUED / REVOKED where applicable */
+      { m: 'p03_print_document', print: 'a4', l: 'Print Disposal Certificate' }
     ] },
   'M18-manifest': { kind: 'model_list', model: 'fix.ewaste.manifest', create: false,
-    cols: ['name', 'batch_id', 'partner_id', 'licence_no', 'destination_country_id', 'total_weight_kg', 'hazardous', 'issued_on'] },
+    cols: ['name', 'batch_id', 'partner_id', 'licence_no', 'destination_country_id', 'total_weight_kg', 'hazardous', 'issued_on'],
+    actions: [{ m: 'p03_print_document', print: 'a4', l: 'Print Form-1 Manifest & Hazmat Declaration' }] },
   'M18-pic': { kind: 'model_list', model: 'fix.ewaste.basel.pic', stateField: 'state',
     cols: ['name', 'partner_id', 'destination_country_id', 'consent_ref', 'max_weight_kg', 'valid_to', 'state'],
     actions: [
@@ -195,7 +203,7 @@ export const SCREENS = {
     cols: ['name', 'authority', 'role', 'registration_no', 'epr_target_pct', 'valid_to', 'state'],
     actions: [{ m: 'action_activate', l: 'Confirm Registration' }] },
   'M18-settlements': { kind: 'model_list', model: 'fix.ewaste.settlement', stateField: 'state',
-    cols: ['name', 'kind', 'partner_id', 'collection_id', 'batch_id', 'amount', 'approval_state', 'state'],
+    cols: ['name', 'kind', 'partner_id', 'collection_id', 'batch_id', 'operating_unit_id', 'payment_method', 'amount', 'approval_state', 'state'],
     actions: [
       { m: 'action_request_approval', l: 'Request Approval' },
       { m: 'action_recall_approval', l: 'Recall Request' },
@@ -206,7 +214,8 @@ export const SCREENS = {
     actions: [
       { m: 'action_calculate_mass_balance', l: 'Calc Balance' },
       { m: 'action_submit_return', l: 'Submit DoE' },
-      { m: 'action_accept_return', l: 'Accept DoE' }
+      { m: 'action_accept_return', l: 'Accept DoE' },
+      { m: 'p03_print_document', print: 'a4', l: 'Print DoE Return' }
     ] },
   'M18-esg': { kind: 'model_list', model: 'fix.esg.metric', create: false,
     cols: ['name', 'metric_type', 'scope', 'period', 'value', 'unit', 'factor_version', 'computed'],
@@ -279,6 +288,7 @@ export const SCREENS = {
   'M18-rpt-compliance': { kind: 'table_report', module: 'M18', report: 'compliance_pack', title: 'Statutory Compliance Pack', period: true },
   'M18-rpt-diversion': { kind: 'table_report', module: 'M18', report: 'impact_diversion', title: 'Impact & Diversion', period: true },
   'M18-rpt-esg': { kind: 'table_report', module: 'M18', report: 'esg_report', title: 'ESG Materiality Report', period: true },
+  'M18-rpt-zero-target': { kind: 'table_report', module: 'M18', report: 'zero_target_controls', title: 'Zero-Target Controls', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS (6-TAB STANDARD) ============ */
   'M18-form-collection': {
@@ -286,7 +296,7 @@ export const SCREENS = {
     model: 'fix.ewaste.collection',
     title: 'E-Waste Collection Dossier',
     back: 'M18-intake',
-    status: { field: 'state', labels: { collected: 'Collected', triaged: 'Triaged', destruction: 'Secure Destruction', recycled: 'Ready for Recycler', routed: 'Routed to M14', hazmat: 'Hazardous Stream', disposed: 'Disposed', certified: 'Certified' } },
+    status: { field: 'state', labels: { collected: 'Collected', triaged: 'Triaged', destruction: 'Secure Destruction', recycled: 'Ready for Recycler', routed: 'Routed to M14', hazmat: 'Hazardous Stream', disposed: 'Disposed', certified: 'Certified', donated: 'Donated' } },
     tabs: [
       { id: 'general', label: '1. General & Origin', bn: '১. সাধারণ ও উৎস', icon: '📦', badge: '4' },
       { id: 'pricing', label: '2. Mass & Material', bn: '২. ভর ও উপাদান', icon: '⚖️', badge: '3' },
@@ -311,6 +321,7 @@ export const SCREENS = {
         fields: [
           { name: 'item_count', label: 'Item Count' },
           { name: 'weight_kg', required: true, label: 'Intake Mass (kg)' },
+          { name: 'weight_pending', label: 'Awaiting Weigh-in (hand-off)', readonly: true },
           { name: 'material_type', required: true, label: 'Schedule-1 Category (Phone/Laptop/Battery/Other)' },
           { name: 'condition', label: 'Condition on Receipt' },
           { name: 'triage_grade', label: 'Triage Grade', readonly: true }
@@ -397,6 +408,7 @@ export const SCREENS = {
         ] },
       { tab: 'lifecycle', title: 'Inspector Evaluation',
         fields: [
+          { name: 'supersedes_id', label: 'Supersedes (earlier decision, unit sent back by M14)', readonly: true },
           { name: 'decided_by_id', label: 'Decided By', readonly: true },
           { name: 'inspector_id', label: 'Assessor (the deciding user)', readonly: true },
           { name: 'decided_on', label: 'Decision Timestamp', readonly: true },
@@ -438,6 +450,14 @@ export const SCREENS = {
           { name: 'operating_unit_id', label: 'Dispatch Hub' },
           { name: 'state', label: 'Batch Status', readonly: true }
         ] },
+      { tab: 'pricing', title: 'Outbound Weighbridge (before the manifest, T-05)',
+        note: 'Weigh the batch out: the net must reconcile to the sum of its items within tolerance before the Form-1 manifest is issued; the recycler’s weight is then reconciled to this net (M18-16).',
+        fields: [
+          { name: 'outbound_ticket_ref', label: 'Outbound Weighbridge Ticket' },
+          { name: 'outbound_gross_kg', label: 'Outbound Gross (kg)' },
+          { name: 'outbound_tare_kg', label: 'Outbound Tare (kg)' },
+          { name: 'outbound_net_kg', label: 'Outbound Net (kg)', readonly: true }
+        ] },
       { tab: 'pricing', title: 'Weighbridge & Fraction',
         fields: [
           { name: 'item_count', label: 'Items', readonly: true },
@@ -459,7 +479,9 @@ export const SCREENS = {
           { name: 'received_on', label: 'Received On', readonly: true },
           { name: 'processed_on', label: 'Processed On', readonly: true },
           { name: 'transfer_note_ref', label: 'Waste Transfer Manifest Ref', readonly: true },
-          { name: 'dispatched_on', label: 'Departure Timestamp', readonly: true }
+          { name: 'dispatched_on', label: 'Departure Timestamp', readonly: true },
+          { name: 'certificate_due_on', label: 'Recycler Certificate Due', readonly: true },
+          { name: 'certificate_overdue', label: 'Certificate Overdue', readonly: true }
         ] },
       { tab: 'lifecycle', title: 'Driver & Logistics Notes',
         fields: [
@@ -685,13 +707,17 @@ export const SCREENS = {
           { name: 'licence_filename', label: 'Licence File Name' },
           { name: 'certificate_no', required: true, label: 'DoE License Number' },
           { name: 'valid_from', label: 'License Effective Date' },
-          { name: 'valid_to', label: 'License Expiry Date' }
+          { name: 'valid_to', label: 'License Expiry Date' },
+          { name: 'certificate_window_days', label: 'Agreed Certificate Window (days after transfer)' }
         ] },
       { tab: 'lifecycle', title: 'Audit Verification',
         fields: [
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'approved_by_id', label: 'Approved By', readonly: true },
-          { name: 'approved_on', label: 'Approved On', readonly: true }
+          { name: 'approved_on', label: 'Approved On', readonly: true },
+          { name: 'expiry_warned_stage', label: 'Last Expiry Warning (T-days)', readonly: true },
+          { name: 'suspended_on', label: 'Suspended On', readonly: true },
+          { name: 'suspension_reason', label: 'Suspension Reason', readonly: true }
         ] },
       { tab: 'governance', title: 'Company Context',
         fields: [
@@ -732,7 +758,25 @@ export const SCREENS = {
           { name: 'nil_return_reason', label: 'Nil Return Reason (0 t)' },
           { name: 'total_tonnage_collected', label: 'Gross Collected Tonnage (MT)', readonly: true },
           { name: 'total_tonnage_recycled', label: 'Total Recycled Tonnage (MT)', readonly: true },
-          { name: 'recovery_rate_pct', label: 'Recovery Rate (% Target: 30%-50%)', readonly: true }
+          { name: 'recovery_rate_pct', label: 'Recovery Rate (recovered / treated, %)', readonly: true }
+        ] },
+      { tab: 'pricing', title: 'Period Mass Balance (kg): opening + in - out = closing',
+        note: 'Computed from the item ledger in kg, one cohort (M18-11). Treated = what the recycler processed in the period; recovered = its recovery lines; disposed = the residue.',
+        fields: [
+          { name: 'opening_kg', label: 'Opening Stock (kg)', readonly: true },
+          { name: 'received_kg', label: 'Received (kg)', readonly: true },
+          { name: 'out_kg', label: 'Left Custody (kg)', readonly: true },
+          { name: 'closing_kg', label: 'Closing Stock (kg)', readonly: true },
+          { name: 'prepared_for_reuse_kg', label: 'Left for Reuse / Refurbishment / Donation (kg)', readonly: true },
+          { name: 'treated_kg', label: 'Treated by Recycler (kg)', readonly: true },
+          { name: 'recovered_kg', label: 'Material Recovered (kg)', readonly: true },
+          { name: 'disposed_kg', label: 'Residue to Disposal (kg)', readonly: true }
+        ] },
+      { tab: 'pricing', title: 'EPR Collection Target (from the DoE registration)',
+        fields: [
+          { name: 'epr_base_kg', label: 'EPR Obligation Base (kg)' },
+          { name: 'epr_target_pct', label: 'EPR Target in Force (%)', readonly: true },
+          { name: 'epr_achievement_pct', label: 'EPR Achievement (%)', readonly: true }
         ] },
       { tab: 'technical', title: 'Timetable & Regulatory Receipt',
         fields: [
@@ -1400,7 +1444,7 @@ export const SCREENS = {
           { name: 'owner_id', label: 'Owner' },
           { name: 'evidence_source', label: 'Evidence Source' },
           { name: 'frequency', required: true, label: 'Obligation Frequency' },
-          { name: 'next_review', label: 'Next Review (at most a quarter away)' }
+          { name: 'next_review', label: 'Next Review (set by activation and each review, at most a quarter away)', readonly: true }
         ] },
       { tab: 'review', title: 'Last Review (BRU-ESG-16)',
         fields: [
@@ -1471,6 +1515,15 @@ export const SCREENS = {
           { name: 'amount', required: true, label: 'Amount (BDT)' },
           { name: 'rate_per_kg', label: 'Rate per kg' }
         ] },
+      /* A05 ERP build S3 (I2): the dimensions and payment terms the approval pins */
+      { tab: 'pricing', title: 'Where the money posts and how it is paid (pinned by the approval)',
+        note: 'The operating unit is the collection’s or batch’s; the branch belongs to it. A bank or wallet payment names the payee’s account. Recovery income is the batch’s recovery lines’ total and cannot be typed (M18-05).',
+        fields: [
+          { name: 'operating_unit_id', label: 'Operating Unit (from the collection / batch)' },
+          { name: 'branch_id', required: true, label: 'Branch' },
+          { name: 'payment_method', label: 'Payment Method (incentive / recycler fee)' },
+          { name: 'partner_bank_id', label: 'Payee Account / Wallet' }
+        ] },
       { tab: 'governance', title: 'Routed Approval (M63)',
         fields: [
           { name: 'approval_state', label: 'Approval', readonly: true },
@@ -1488,7 +1541,8 @@ export const REPORT_ROUTES = {
   'M18:Material Recovery Yield': 'M18-rpt-recovery',
   'M18:Statutory Compliance Pack': 'M18-rpt-compliance',
   'M18:Impact & Diversion': 'M18-rpt-diversion',
-  'M18:ESG Materiality Report': 'M18-rpt-esg'
+  'M18:ESG Materiality Report': 'M18-rpt-esg',
+  'M18:Zero-Target Controls': 'M18-rpt-zero-target'
 };
 
 export const FORM_MODELS = {

@@ -29,6 +29,8 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from libs.py.fix_events import publish
+
 from . import ewaste_common as c
 from .fix_ewaste import OPEN_STATES
 from .fix_ewaste_ops import MATERIALS, _seq
@@ -451,25 +453,65 @@ class FixEwasteCollectionCapture(models.Model):
             fractions = [chem for flag, chem in self._FLAG_FRACTIONS if rec[flag]]
             if rec.material_type == "battery" and "li_ion" not in fractions:
                 fractions.insert(0, "li_ion")
+            if not fractions:
+                # graded hazardous with no flag ticked: one record of an
+                # unspecified fraction, placed (or refused) like any other
+                fractions = ["other"]
             swollen = rec.condition == "swollen"
             for n, chem in enumerate(fractions):
                 hclass = _hazard_class(chem, swollen and chem == "li_ion")
-                point = rec.collection_point_id
-                Battery.create(
+                weight = (rec.weight_kg or 0.0) if n == 0 else 0.0
+                point = rec.sudo().collection_point_id
+                refusal = rec._fix_point_refusal(point, hclass, weight)
+                bat = Battery.create(
                     {
                         "collection_id": rec.id,
                         "company_id": rec.company_id.id,
                         "operating_unit_id": rec.operating_unit_id.id or False,
                         "chemistry": chem,
                         "swollen_cell": swollen and chem == "li_ion",
-                        "weight_kg": (rec.weight_kg or 0.0) if n == 0 else 0.0,
-                        "collection_point_id": point.id
-                        if point and point._fix_limit_for(hclass)
-                        else False,
+                        "weight_kg": weight,
+                        "collection_point_id": point.id if point and not refusal else False,
                     }
                 )
+                if refusal:
+                    bat._fix_alert_ceiling(point, hclass, weight, refusal)
             rec.invalidate_recordset(["battery_ids"])
         return super()._fix_open_hazmat()
+
+    def _fix_point_refusal(self, point, hclass, weight):
+        """M18-12 (BRU-ESG-07, T-06): why the item's point may NOT accept this
+        hazmat class and weight, or '' when it may. A hazmat item is accepted
+        only at an active point with a ceiling for its class, within it."""
+        self.ensure_one()
+        label = dict(HAZ_CLASSES).get(hclass, hclass)
+        if not point:
+            return "it was received at no designated collection point"
+        if point.state != "active":
+            return "%s is %s" % (point.name, point.state)
+        limit = point._fix_limit_for(hclass)
+        if not limit:
+            return "%s is not designated for %s (no ceiling for the class)" % (point.name, label)
+        held = sum(
+            self.env["fix.ewaste.battery"]
+            .sudo()
+            .search(
+                [
+                    ("collection_point_id", "=", point.id),
+                    ("hazmat_class", "=", hclass),
+                    ("state", "=", "stored"),
+                ]
+            )
+            .mapped("weight_kg")
+        )
+        if held + weight > limit.max_kg + 1e-6:
+            return "%s would hold %.1f kg of %s against its %.1f kg ceiling" % (
+                point.name,
+                held + weight,
+                label,
+                limit.max_kg,
+            )
+        return ""
 
     # ------------------------------------------------------------ routes
     def action_route_harvest(self):
@@ -518,6 +560,118 @@ class FixEwasteCollectionCapture(models.Model):
             col.sudo()._guarded().write({"channel": "internal_writeoff"})
         return col
 
+    # ------------------------------------------------------------ I1 (M13)
+    @api.model
+    def consume_rental_asset_retired(self, event):
+        """I1 (S1 -> S3): rental.asset_retired with route 'recycle' -> an
+        e-waste collection carrying the unit's device, serial, weight,
+        material and operating unit (M18-14: the M13 route was a manual tick
+        that lost all of them). Superuser-only (the event relay) and
+        idempotent: one collection per retired asset. The asset is re-read:
+        it must exist and be retired; the payload is used only for what the
+        asset itself does not hold. A 'resale' route is M14's (S2), not ours.
+        The unit then goes through M18's own triage, wipe and dispatch gates."""
+        if not self.env.su:
+            raise UserError("consume_rental_asset_retired runs only from the event relay.")
+        payload = event.get("payload") or {}
+        if event.get("aggregate") not in (None, "fix.rental.asset"):
+            return self.browse()
+        if "fix.rental.asset" not in self.env:
+            return self.browse()
+        try:
+            asset_id = int(event.get("aggregate_id") or payload.get("asset_id") or 0)
+        except (TypeError, ValueError):
+            asset_id = 0
+        asset = self.env["fix.rental.asset"].sudo().browse(asset_id).exists() if asset_id else None
+        if not asset:
+            raise UserError("Rental retirement refused: no fix.rental.asset #%s." % asset_id)
+
+        # the retirement record (S1) holds the route, weight and material;
+        # the payload only fills what no record holds
+        retirement = (
+            self.env["fix.rental.retirement"]
+            .sudo()
+            .search(
+                [("asset_id", "=", asset.id), ("state", "=", "retired")], order="id desc", limit=1
+            )
+            if "fix.rental.retirement" in self.env
+            else None
+        )
+
+        def own(name, fallback=None):
+            for rec in (retirement, asset):
+                if rec and name in rec._fields and rec[name]:
+                    return rec[name]
+            return fallback
+
+        route = own("route", payload.get("route"))
+        if route != "recycle":
+            return self.browse()
+        if "status" in asset._fields and asset.status != "retired":
+            raise UserError(
+                "Rental retirement refused: %s is %s, not retired." % (asset.name, asset.status)
+            )
+        device = (
+            own("device_id")
+            or self.env["fix.device"].sudo().browse(int(payload.get("device_id") or 0)).exists()
+        )
+        materials = dict(self._fields["material_type"].selection)
+        material = own("material", payload.get("material"))
+        if material not in materials:
+            material = (
+                self._DEVICE_MATERIAL.get(device.device_type, "other")
+                if device and "device_type" in device._fields
+                else "other"
+            )
+        try:
+            weight = float(own("weight_kg", payload.get("weight_kg")) or 0.0)
+        except (TypeError, ValueError):
+            weight = 0.0
+        existing = self._fix_unit_collection(asset, device)
+        if existing:
+            # one collection per unit: the M49 disposal hand-off may have
+            # received it first (lead note, S1 report) - link, never duplicate
+            return existing._fix_link_rental_source(asset, weight=weight, material=material)
+        company = asset.company_id if "company_id" in asset._fields else self.env.company
+        ou = (
+            own("operating_unit_id")
+            or self.env["operating.unit"]
+            .sudo()
+            .browse(int(payload.get("operating_unit_id") or 0))
+            .exists()
+        )
+        col = (
+            self.sudo()
+            ._guarded()
+            .create(
+                {
+                    "company_id": company.id,
+                    "operating_unit_id": ou.id if ou else False,
+                    # a retired fleet unit is the company's own
+                    "customer_id": company.partner_id.id,
+                    "device_id": device.id if device else False,
+                    "material_type": material,
+                    "weight_kg": max(weight, 0.0),
+                    "channel": "rental_retired",
+                    "source_model": asset._name,
+                    "source_res_id": asset.id,
+                    "source_ref": asset.name,
+                }
+            )
+        )
+        serial = payload.get("serial") or (device.serial_number if device else "")
+        col.message_post(
+            body="Received from M13: retired rental unit %s%s, %.3f kg%s."
+            % (
+                asset.name,
+                " (serial %s)" % serial if serial else "",
+                col.weight_kg,
+                "" if col.weight_kg > 0 else " - weigh it in before triage",
+            )
+        )
+        # never hand back a record that still carries the guard token
+        return self.browse(col.id)
+
 
 class FixEwasteBatteryCapture(models.Model):
     _inherit = "fix.ewaste.battery"
@@ -537,6 +691,42 @@ class FixEwasteBatteryCapture(models.Model):
     def _compute_hazmat_class(self):
         for rec in self:
             rec.hazmat_class = _hazard_class(rec.chemistry, rec.swollen_cell)
+
+    def _fix_alert_ceiling(self, point, hclass, weight, reason):
+        """M18-12: the item was NOT accepted at the point - it waits, unplaced
+        (no inspection, no dispatch), and the HSE officer is alerted and
+        ewaste.hazmat_ceiling_breach published for M59 / M47."""
+        for rec in self:
+            label = dict(HAZ_CLASSES).get(hclass, hclass)
+            limit = point._fix_limit_for(hclass) if point else None
+            publish(
+                rec.env,
+                "ewaste.hazmat_ceiling_breach",
+                "fix.ewaste.battery",
+                rec.id,
+                {
+                    "location": point.name if point else None,
+                    "point_id": point.id if point else None,
+                    "hazard_class": hclass,
+                    "quantity_kg": weight,
+                    "ceiling_kg": limit.max_kg if limit else None,
+                    "reason": reason,
+                    "company_id": rec.company_id.id,
+                },
+            )
+            # a to-do for the HSE officer on the item (the hazmat record has
+            # no activities), the refusal on the hazmat record's own chatter
+            rec.message_post(
+                body="Not accepted at %s: %s." % (point.name if point else "-", reason)
+            )
+            c.notify(
+                rec.collection_id or rec,
+                "Hazmat not accepted at its point",
+                "%s (%s, %.3f kg) was not accepted: %s. Place it at a point designated, with "
+                "room, for %s before it is inspected or dispatched (BRU-ESG-07)."
+                % (rec.name, label, weight, reason, label),
+                c.G_HSE,
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -1270,8 +1460,22 @@ class FixEwastePartnerDownstream(models.Model):
         return True
 
     def action_withdraw(self):
+        """M18-22: withdrawing a recycler's onward destination is a recycler
+        approver's or compliance officer's decision, not any user's."""
+        if not (
+            self.env.su
+            or self.env.user.has_group(c.G_RECYCLER_APPROVER)
+            or self.env.user.has_group(c.G_COMPLIANCE)
+        ):
+            raise UserError(
+                "Only an E-Waste Recycler Approver or Compliance Officer withdraws a downstream "
+                "destination."
+            )
         for rec in self:
+            if rec.state == "withdrawn":
+                continue
             rec._guarded().write({"state": "withdrawn"})
+            rec.message_post(body="Withdrawn by %s." % self.env.user.name)
         return True
 
     def _fix_current(self, today):
@@ -1294,6 +1498,13 @@ class FixEwastePartnerCapture(models.Model):
         """BRU-ESG-18: downstream destinations are declared at qualification."""
         self._approval_assert_routed()  # only from the approver's inbox (A05 E11)
         for rec in self:
+            if not rec.partner_id:
+                # M18-06: a recycler's fee or income is paid to / invoiced on
+                # its business contact - qualified only with one
+                raise UserError(
+                    "Recycler %s has no business contact: link the contact its fees are paid "
+                    "to and its income invoiced on before it is qualified." % rec.name
+                )
             if not rec.sudo().downstream_ids.filtered(lambda d: d.state != "withdrawn"):
                 raise UserError(
                     "Recycler %s has declared no downstream destination: where its material "
@@ -1619,7 +1830,23 @@ class FixEwasteMaterialRecovery(models.Model):
                     % batch.partner_id.name
                 )
             weight = sum(lines.mapped("weight_kg"))
-            settlement = Settlement.create(
+            live = Settlement.sudo().search(
+                [
+                    ("kind", "=", "recovery_income"),
+                    ("batch_id", "=", batch.id),
+                    ("state", "!=", "cancelled"),
+                ],
+                limit=1,
+            )
+            if live:
+                # M18-05: one live income settlement per batch
+                raise UserError(
+                    "Batch %s already has recovery income %s: cancel it to raise the batch's "
+                    "income again." % (batch.name, live.name)
+                )
+            # M18-05: the income is raised here only (trusted create), its
+            # amount the lines' total; a typed recovery_income is refused
+            settlement = Settlement._guarded().create(
                 {
                     "kind": "recovery_income",
                     "batch_id": batch.id,

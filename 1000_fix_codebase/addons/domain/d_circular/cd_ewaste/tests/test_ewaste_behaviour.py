@@ -28,6 +28,8 @@ def _events(env, event_type, res_id):
 
 def _collection(env, **vals):
     vals.setdefault("customer_id", env["res.partner"].create({"name": "E-Waste Donor"}).id)
+    # A05 S3 M18-14: an item is weighed on receipt (triage refuses 0 kg)
+    vals.setdefault("weight_kg", 0.5)
     return env[EW].create(vals)
 
 

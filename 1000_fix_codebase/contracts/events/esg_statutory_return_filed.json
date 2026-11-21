@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "esg.statutory_return_filed",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "esg.statutory_return_filed"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "authority",
+        "period",
+        "form",
+        "reference",
+        "volumes_kg",
+        "recovery_rate_pct",
+        "epr_target_pct",
+        "epr_achievement_pct",
+        "company_id"
+      ],
+      "properties": {
+        "authority": {
+          "type": "string"
+        },
+        "period": {
+          "type": "string"
+        },
+        "form": {
+          "type": "string"
+        },
+        "reference": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "volumes_kg": {
+          "type": "object"
+        },
+        "recovery_rate_pct": {
+          "type": "number"
+        },
+        "epr_target_pct": {
+          "type": "number"
+        },
+        "epr_achievement_pct": {
+          "type": "number"
+        },
+        "company_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ewaste",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_ewaste/models/fix_s3_a05_build.py"
+  ],
+  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+}

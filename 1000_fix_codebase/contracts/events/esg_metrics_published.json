@@ -1,0 +1,74 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "esg.metrics_published",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "esg.metrics_published"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "period",
+        "company_id",
+        "metrics",
+        "factor_version",
+        "restatement",
+        "definition"
+      ],
+      "properties": {
+        "period": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "metrics": {
+          "type": "object"
+        },
+        "factor_version": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "restatement": {
+          "type": "boolean"
+        },
+        "definition": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ewaste",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_ewaste/models/fix_s3_a05_build.py"
+  ],
+  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+}

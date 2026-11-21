@@ -3,7 +3,7 @@
     "name": "1000FiX E-Waste & Circular Economy",
     "summary": "M18: E-Waste & Circular Economy",
     "description": "CD-M18-01 (P11).",
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "E-Waste & Circular Economy",

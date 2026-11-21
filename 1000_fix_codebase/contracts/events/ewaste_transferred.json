@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ewaste.transferred",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "ewaste.transferred"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "batch",
+        "partner_id",
+        "manifest",
+        "pic_ref",
+        "weight_kg",
+        "outbound_net_kg",
+        "item_count",
+        "certificate_due_on",
+        "company_id"
+      ],
+      "properties": {
+        "batch": {
+          "type": "string"
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "manifest": {
+          "type": "string"
+        },
+        "pic_ref": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "weight_kg": {
+          "type": "number"
+        },
+        "outbound_net_kg": {
+          "type": "number"
+        },
+        "item_count": {
+          "type": "integer"
+        },
+        "certificate_due_on": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ewaste",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_ewaste/models/fix_ewaste_ops.py"
+  ],
+  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+}

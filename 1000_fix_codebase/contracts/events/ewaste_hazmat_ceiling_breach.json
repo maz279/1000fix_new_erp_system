@@ -1,0 +1,86 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "ewaste.hazmat_ceiling_breach",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "ewaste.hazmat_ceiling_breach"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_ewaste"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "location",
+        "point_id",
+        "hazard_class",
+        "quantity_kg",
+        "ceiling_kg",
+        "reason",
+        "company_id"
+      ],
+      "properties": {
+        "location": {
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
+        },
+        "point_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "hazard_class": {
+          "type": "string"
+        },
+        "quantity_kg": {
+          "type": "number"
+        },
+        "ceiling_kg": {
+          "type": [
+            "number",
+            "boolean",
+            "null"
+          ]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_ewaste",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_ewaste/models/fix_m18_capture.py"
+  ],
+  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+}

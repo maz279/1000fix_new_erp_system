@@ -6,8 +6,14 @@ access_fix_ewaste_triage,fix.ewaste.triage user,model_fix_ewaste_triage,base.gro
 access_fix_ewaste_triage_assessor,fix.ewaste.triage assessor,model_fix_ewaste_triage,group_ewaste_triage_assessor,1,1,1,0
 access_fix_ewaste_batch,fix.ewaste.batch user,model_fix_ewaste_batch,base.group_user,1,0,0,0
 access_fix_ewaste_batch_dispatcher,fix.ewaste.batch dispatcher,model_fix_ewaste_batch,group_ewaste_dispatcher,1,1,1,0
-access_fix_ewaste_battery,fix.ewaste.battery,model_fix_ewaste_battery,base.group_user,1,1,1,0
-access_fix_ewaste_partner,fix.ewaste.partner,model_fix_ewaste_partner,base.group_user,1,1,1,0
+access_fix_ewaste_battery,fix.ewaste.battery user (read),model_fix_ewaste_battery,base.group_user,1,0,0,0
+access_fix_ewaste_battery_hse,fix.ewaste.battery hse,model_fix_ewaste_battery,group_ewaste_hse_officer,1,1,1,0
+access_fix_ewaste_battery_dispatcher,fix.ewaste.battery dispatcher,model_fix_ewaste_battery,group_ewaste_dispatcher,1,1,0,0
+access_fix_ewaste_battery_compliance,fix.ewaste.battery compliance,model_fix_ewaste_battery,group_ewaste_compliance_officer,1,1,0,0
+access_fix_ewaste_partner,fix.ewaste.partner user (read),model_fix_ewaste_partner,base.group_user,1,0,0,0
+access_fix_ewaste_partner_dispatcher,fix.ewaste.partner dispatcher,model_fix_ewaste_partner,group_ewaste_dispatcher,1,1,1,0
+access_fix_ewaste_partner_approver,fix.ewaste.partner approver,model_fix_ewaste_partner,group_ewaste_recycler_approver,1,1,1,0
+access_fix_ewaste_partner_compliance,fix.ewaste.partner compliance,model_fix_ewaste_partner,group_ewaste_compliance_officer,1,1,1,0
 access_fix_ewaste_certificate,fix.ewaste.certificate user,model_fix_ewaste_certificate,base.group_user,1,0,0,0
 access_fix_ewaste_certificate_dispatcher,fix.ewaste.certificate dispatcher,model_fix_ewaste_certificate,group_ewaste_dispatcher,1,1,1,0
 access_fix_ewaste_certificate_compliance,fix.ewaste.certificate compliance,model_fix_ewaste_certificate,group_ewaste_compliance_officer,1,1,1,0
@@ -20,7 +26,13 @@ access_fix_ewaste_basel_pic,fix.ewaste.basel.pic user,model_fix_ewaste_basel_pic
 access_fix_ewaste_basel_pic_compliance,fix.ewaste.basel.pic compliance,model_fix_ewaste_basel_pic,group_ewaste_compliance_officer,1,1,1,0
 access_fix_ewaste_registration,fix.ewaste.registration user,model_fix_ewaste_registration,base.group_user,1,0,0,0
 access_fix_ewaste_registration_compliance,fix.ewaste.registration compliance,model_fix_ewaste_registration,group_ewaste_compliance_officer,1,1,1,0
-access_fix_ewaste_settlement,fix.ewaste.settlement,model_fix_ewaste_settlement,base.group_user,1,1,1,0
+access_fix_ewaste_settlement_dispatcher,fix.ewaste.settlement dispatcher,model_fix_ewaste_settlement,group_ewaste_dispatcher,1,1,1,0
+access_fix_ewaste_settlement_compliance,fix.ewaste.settlement compliance,model_fix_ewaste_settlement,group_ewaste_compliance_officer,1,1,1,0
+access_fix_ewaste_settlement_finance,fix.ewaste.settlement finance,model_fix_ewaste_settlement,group_ewaste_finance_approver,1,1,0,0
+access_fix_ewaste_settlement_tier_2,fix.ewaste.settlement dofa tier 2,model_fix_ewaste_settlement,cd_entity_config.group_dofa_tier_2,1,1,0,0
+access_fix_ewaste_settlement_tier_3,fix.ewaste.settlement dofa tier 3,model_fix_ewaste_settlement,cd_entity_config.group_dofa_tier_3,1,1,0,0
+access_fix_ewaste_settlement_tier_4,fix.ewaste.settlement dofa tier 4,model_fix_ewaste_settlement,cd_entity_config.group_dofa_tier_4,1,1,0,0
+access_fix_ewaste_settlement_tier_5,fix.ewaste.settlement dofa tier 5,model_fix_ewaste_settlement,cd_entity_config.group_dofa_tier_5,1,1,0,0
 access_fix_ewaste_collection_point,fix.ewaste.collection.point,model_fix_ewaste_collection_point,base.group_user,1,1,1,0
 access_fix_ewaste_collection_point_limit,fix.ewaste.collection.point.limit,model_fix_ewaste_collection_point_limit,base.group_user,1,1,1,1
 access_fix_ewaste_corporate_disposal,fix.ewaste.corporate.disposal,model_fix_ewaste_corporate_disposal,base.group_user,1,1,1,0
@@ -28,7 +40,10 @@ access_fix_ewaste_corporate_disposal_line,fix.ewaste.corporate.disposal.line,mod
 access_fix_ewaste_triage_criteria,fix.ewaste.triage.criteria user,model_fix_ewaste_triage_criteria,base.group_user,1,0,0,0
 access_fix_ewaste_triage_criteria_compliance,fix.ewaste.triage.criteria compliance,model_fix_ewaste_triage_criteria,group_ewaste_compliance_officer,1,1,1,0
 access_fix_ewaste_donation,fix.ewaste.donation,model_fix_ewaste_donation,base.group_user,1,1,1,0
-access_fix_ewaste_partner_downstream,fix.ewaste.partner.downstream,model_fix_ewaste_partner_downstream,base.group_user,1,1,1,0
+access_fix_ewaste_partner_downstream,fix.ewaste.partner.downstream user (read),model_fix_ewaste_partner_downstream,base.group_user,1,0,0,0
+access_fix_ewaste_partner_downstream_dispatcher,fix.ewaste.partner.downstream dispatcher,model_fix_ewaste_partner_downstream,group_ewaste_dispatcher,1,1,1,0
+access_fix_ewaste_partner_downstream_approver,fix.ewaste.partner.downstream approver,model_fix_ewaste_partner_downstream,group_ewaste_recycler_approver,1,1,1,0
+access_fix_ewaste_partner_downstream_compliance,fix.ewaste.partner.downstream compliance,model_fix_ewaste_partner_downstream,group_ewaste_compliance_officer,1,1,1,0
 access_fix_ewaste_certificate_exception,fix.ewaste.certificate.exception user,model_fix_ewaste_certificate_exception,base.group_user,1,0,0,0
 access_fix_ewaste_certificate_exception_compliance,fix.ewaste.certificate.exception compliance,model_fix_ewaste_certificate_exception,group_ewaste_compliance_officer,1,1,0,0
 access_fix_ewaste_material_recovery_dispatcher,fix.ewaste.material.recovery dispatcher,model_fix_ewaste_material_recovery,group_ewaste_dispatcher,1,1,1,0

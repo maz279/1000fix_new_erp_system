@@ -165,8 +165,9 @@ class M18:
         cert = self.verified_cert(dev.serial_number)
         self.triage(col, "recycle", data_bearing=True)
         col.with_user(self.clerk).write({"wipe_certificate_id": cert.id})
-        col.with_user(self.clerk).action_secure_destruction()
-        col.with_user(self.clerk).action_recycle_estimated()
+        # A05 S3 M18-28: destruction and release are the floor's (dispatcher)
+        col.with_user(self.dispatcher).action_secure_destruction()
+        col.with_user(self.dispatcher).action_recycle_estimated()
         assert col.state == "recycled"
         return col
 
@@ -177,7 +178,13 @@ class M18:
         vals.setdefault("valid_from", self.today - timedelta(days=30))
         vals.setdefault("valid_to", self.today + timedelta(days=300))
         vals.setdefault("licence_attachment_id", attachment(self.env, "licence.pdf").id)
-        p = self.env["fix.ewaste.partner"].with_user(user or self.clerk).create(vals)
+        # A05 S3 M18-06: a recycler is qualified with its business contact
+        if "partner_id" not in vals:
+            vals["partner_id"] = (
+                self.env["res.partner"].create({"name": "%s (contact)" % vals["name"]}).id
+            )
+        # A05 S3 M18-22: registered by the e-waste floor, not any user
+        p = self.env["fix.ewaste.partner"].with_user(user or self.dispatcher).create(vals)
         # capture pass 2 (BRU-ESG-18): where its material goes next is
         # declared at qualification
         self.downstream(p)
@@ -186,7 +193,7 @@ class M18:
     def downstream(self, partner, material="all", user=None, **vals):
         return (
             self.env["fix.ewaste.partner.downstream"]
-            .with_user(user or self.clerk)
+            .with_user(user or self.dispatcher)
             .create(
                 {
                     "partner_id": partner.id,
@@ -200,7 +207,7 @@ class M18:
 
     def approved_partner(self, **vals):
         p = self.partner(**vals)
-        approve_via_inbox(p, self.approver, requester=self.clerk)
+        approve_via_inbox(p, self.approver, requester=self.dispatcher)
         assert p.state == "active", p.state
         # ... and verified by an approver who did not declare it (FR-ESG-024)
         p.downstream_ids.with_user(self.approver).action_verify()
@@ -224,9 +231,22 @@ class M18:
         b = self.batch(partner=partner)
         b.action_load_ready_items()
         assert set(items) <= set(b.collection_ids), (items, b.collection_ids)
+        self.weigh_out(b)
         b.action_dispatch()
         assert b.state == "dispatched"
         return b
+
+    def weigh_out(self, batch, net=None):
+        """A05 S3 M18-16: the outbound weighbridge ticket, before dispatch."""
+        net = batch.weight_kg if net is None else net
+        batch.with_user(self.dispatcher).write(
+            {
+                "outbound_ticket_ref": "WB-OUT-%d" % next(_SEQ),
+                "outbound_gross_kg": net + 10.0,
+                "outbound_tare_kg": 10.0,
+            }
+        )
+        return batch
 
     def processed_batch(self, items=None, partner=None):
         b = self.dispatched_batch(items, partner)

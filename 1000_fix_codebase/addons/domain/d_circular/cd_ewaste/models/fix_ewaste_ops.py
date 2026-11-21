@@ -120,8 +120,13 @@ class FixEwasteTriage(models.Model):
     wipe_required = fields.Boolean(string="Wipe / Destruction Required", default=True)
     inspector_id = fields.Many2one("hr.employee", string="Assessor")
     decided_by_id = fields.Many2one("res.users", string="Decided By", readonly=True)
-    decided_on = fields.Date(required=True, default=fields.Date.context_today)
+    decided_on = fields.Date(required=True, default=c.default_today)
     notes = fields.Text()
+    # A05 S3 M18-13: the earlier decision this one supersedes (a unit M14
+    # sent back is re-assessed; the first decision stays on file)
+    supersedes_id = fields.Many2one(
+        "fix.ewaste.triage", string="Supersedes", readonly=True, copy=False, index=True
+    )
     # M18 capture pass 2 (FR-ESG-006/007, BRU-ESG-09): the assessment against
     # the published criteria in force, with its evidence - all write-once
     criteria_id = fields.Many2one(
@@ -174,6 +179,7 @@ class FixEwasteTriage(models.Model):
             "evidence_file",
             "evidence_filename",
             "notes",
+            "supersedes_id",
         }
     )
 
@@ -185,6 +191,7 @@ class FixEwasteTriage(models.Model):
             "decided_by_id",
             "decided_on",
             "evidence_attachment_id",
+            "supersedes_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -249,6 +256,13 @@ class FixEwasteTriage(models.Model):
                     "%s is already %s: a triage decision is made once, on a collected item."
                     % (collection.name, collection.state)
                 )
+            earlier = self.sudo().search(
+                [("collection_id", "=", collection.id), ("id", "!=", rec.id)],
+                order="id desc",
+                limit=1,
+            )
+            if earlier:
+                rec.sudo()._guarded().write({"supersedes_id": earlier.id})
             collection._fix_apply_triage(rec)
         return records
 
@@ -300,6 +314,21 @@ class FixEwasteBatch(models.Model):
     transfer_note_ref = fields.Char(string="Transfer Note Ref", readonly=True)
     dispatched_on = fields.Date(readonly=True)
     dispatched_by_id = fields.Many2one("res.users", readonly=True)
+    # A05 S3 M18-16 (T-05): the outbound weighbridge ticket, reconciled to the
+    # item sum BEFORE the manifest is issued; the recycler's weight is then
+    # reconciled to what left (never to a figure already 5% off)
+    outbound_gross_kg = fields.Float(string="Outbound Gross (kg)")
+    outbound_tare_kg = fields.Float(string="Outbound Tare (kg)")
+    outbound_net_kg = fields.Float(
+        string="Outbound Net (kg)", compute="_compute_outbound_net", store=True
+    )
+    outbound_ticket_ref = fields.Char(string="Outbound Weighbridge Ticket")
+    # A05 S3 M18-08 (AUT-ESG-11): the certificate-due clock
+    certificate_due_on = fields.Date(
+        compute="_compute_certificate_due", store=True, string="Certificate Due"
+    )
+    certificate_overdue = fields.Boolean(readonly=True, copy=False, index=True)
+    certificate_overdue_on = fields.Date(readonly=True, copy=False)
     received_weight_kg = fields.Float(string="Recycler Weighbridge (kg)")
     recycler_receipt_ref = fields.Char(string="Recycler Receipt Ref")
     received_on = fields.Date(readonly=True)
@@ -346,10 +375,15 @@ class FixEwasteBatch(models.Model):
             "processed_weight_kg",
             "processed_on",
             "processed_by_id",
+            "certificate_overdue",
+            "certificate_overdue_on",
         }
     )
     # editable only in the state named (the step's evidence input)
     _EDIT_IN = {
+        "outbound_gross_kg": ("draft",),
+        "outbound_tare_kg": ("draft",),
+        "outbound_ticket_ref": ("draft",),
         "partner_id": ("draft",),
         "material_type": ("draft",),
         "destination_country_id": ("draft",),
@@ -373,6 +407,33 @@ class FixEwasteBatch(models.Model):
             ):
                 locked.add(name)
         return c.lock_uploads(locked, self._UPLOADS)
+
+    @api.depends("outbound_gross_kg", "outbound_tare_kg")
+    def _compute_outbound_net(self):
+        for rec in self:
+            rec.outbound_net_kg = round(
+                max((rec.outbound_gross_kg or 0.0) - (rec.outbound_tare_kg or 0.0), 0.0), 3
+            )
+
+    @api.depends("dispatched_on", "partner_id.certificate_window_days")
+    def _compute_certificate_due(self):
+        default = c.param_int(self.env, c.P_CERT_DUE_DAYS, c.DEFAULT_CERT_DUE_DAYS)
+        for rec in self:
+            days = rec.partner_id.sudo().certificate_window_days or default
+            rec.certificate_due_on = (
+                rec.dispatched_on + timedelta(days=days) if rec.dispatched_on else False
+            )
+
+    def _fix_uncertified(self):
+        """The items of this batch still awaiting a disposal certificate: its
+        items not certified, and the hazmat items whose cells are not covered."""
+        self.ensure_one()
+        batch = self.sudo()
+        items = batch.collection_ids.filtered(lambda i: i.state != "certified")
+        cells = batch.battery_ids.filtered(
+            lambda b: not b.disposal_certificate_id or b.disposal_certificate_id.state != "issued"
+        )
+        return items | cells.mapped("collection_id")
 
     @api.depends("collection_ids.weight_kg", "battery_ids.weight_kg")
     def _compute_weight(self):
@@ -473,6 +534,16 @@ class FixEwasteBatch(models.Model):
         batteries = self.sudo().battery_ids
         if not items and not batteries:
             raise UserError("Batch %s lists no items: load the ready items first." % self.name)
+        if not self.env.su:
+            # M18-21 (spec §13): the assessor who triaged an item does not
+            # authorise its transfer
+            deciders = (items | batteries.mapped("collection_id")).mapped("triage_id.decided_by_id")
+            if self.env.user in deciders:
+                raise UserError(
+                    "You triaged items in batch %s: someone else authorises their transfer "
+                    "(spec §13)." % self.name
+                )
+        self._check_outbound_weight()
         for item in items:
             if item.state != "recycled":
                 raise UserError("%s is %s, not ready for the recycler." % (item.name, item.state))
@@ -500,13 +571,50 @@ class FixEwasteBatch(models.Model):
                 or pic.partner_id != partner
                 or pic.destination_country_id != self.destination_country_id
                 or (pic.valid_to and pic.valid_to < today)
-                or (pic.max_weight_kg and self.weight_kg > pic.max_weight_kg)
             ):
                 raise UserError(
                     "A transfer to %s needs a consented, in-date Basel prior-informed-"
                     "consent record for %s covering this weight (BRU-ESG-06)."
                     % (self.destination_country_id.name, partner.name)
                 )
+            if pic.max_weight_kg:
+                # M18-15: the consented quantity covers every transfer made
+                # under the consent, not each batch on its own
+                shipped = sum(
+                    self.sudo()
+                    .search(
+                        [
+                            ("basel_pic_id", "=", pic.id),
+                            ("state", "!=", "draft"),
+                            ("id", "!=", self.id),
+                        ]
+                    )
+                    .mapped("weight_kg")
+                )
+                if shipped + self.weight_kg > pic.max_weight_kg + 1e-6:
+                    raise UserError(
+                        "Basel consent %s covers %.3f kg; %.3f kg already left under it, so "
+                        "batch %s (%.3f kg) would exceed it (BRU-ESG-06)."
+                        % (pic.name, pic.max_weight_kg, shipped, self.name, self.weight_kg)
+                    )
+
+    def _check_outbound_weight(self):
+        """M18-16 (T-05): the outbound weighbridge net reconciles to the sum
+        of the items before the transfer note is issued."""
+        self.ensure_one()
+        if not (self.outbound_ticket_ref or "").strip() or self.outbound_net_kg <= 0:
+            raise UserError(
+                "Batch %s: weigh it out first - record the outbound weighbridge ticket, gross "
+                "and tare (T-05)." % self.name
+            )
+        tol = c.param_float(self.env, c.P_TOLERANCE, c.DEFAULT_TOLERANCE)
+        expected = self.weight_kg
+        if expected <= 0 or abs(self.outbound_net_kg - expected) > expected * tol / 100.0:
+            raise UserError(
+                "Batch %s: its items weigh %.3f kg but the outbound weighbridge net is %.3f kg, "
+                "outside the %.1f%% tolerance (T-05). Re-weigh, or check the items."
+                % (self.name, expected, self.outbound_net_kg, tol)
+            )
 
     def _check_receipt(self):
         self.ensure_one()
@@ -516,7 +624,8 @@ class FixEwasteBatch(models.Model):
                 % self.name
             )
         tol = c.param_float(self.env, c.P_TOLERANCE, c.DEFAULT_TOLERANCE)
-        expected = self.weight_kg
+        # M18-16: against what left our weighbridge (tolerances never stack)
+        expected = self.outbound_net_kg or self.weight_kg
         if expected <= 0 or abs(self.received_weight_kg - expected) > expected * tol / 100.0:
             raise UserError(
                 "Batch %s left at %.3f kg and the recycler weighed %.3f kg: outside the "
@@ -533,12 +642,15 @@ class FixEwasteBatch(models.Model):
             if rec.state != "draft":
                 raise UserError("Only a draft batch is loaded.")
             if rec.material_type == "battery":
+                # M18-22: only cells with an intake behind them (an orphan
+                # record never becomes 'recycled' tonnage)
                 cells = self.env["fix.ewaste.battery"].search(
                     [
                         ("company_id", "=", rec.company_id.id),
                         ("state", "=", "stored"),
                         ("batch_id", "=", False),
                         ("terminal_taped", "=", True),
+                        ("collection_id", "!=", False),
                     ]
                 )
                 cells._guarded().write({"batch_id": rec.id})
@@ -576,6 +688,23 @@ class FixEwasteBatch(models.Model):
             rec.message_post(
                 body="Dispatched to %s under manifest %s." % (rec.partner_id.name, manifest.name)
             )
+            publish(
+                rec.env,
+                "ewaste.transferred",
+                "fix.ewaste.batch",
+                rec.id,
+                {
+                    "batch": rec.name,
+                    "partner_id": rec.partner_id.id,
+                    "manifest": manifest.name,
+                    "pic_ref": rec.basel_pic_id.consent_ref or None,
+                    "weight_kg": rec.weight_kg,
+                    "outbound_net_kg": rec.outbound_net_kg,
+                    "item_count": rec.item_count,
+                    "certificate_due_on": str(rec.certificate_due_on or ""),
+                    "company_id": rec.company_id.id,
+                },
+            )
         return True
 
     def action_receive(self):
@@ -608,7 +737,8 @@ class FixEwasteBatch(models.Model):
             )
             for bat in rec.battery_ids:
                 bat._guarded().write({"state": "processed"})
-                bat._fix_close_collection()
+            # M18-07: a hazmat item is disposed by the certificate that covers
+            # it, not by the recycler processing it
         return True
 
     def action_record_certificate(self):
@@ -694,15 +824,27 @@ class FixEwasteBattery(models.Model):
         required=True,
         default="stored",
     )
-    received_on = fields.Date(default=fields.Date.context_today)
+    received_on = fields.Date(default=c.default_today)
     notes = fields.Char()
+    # A05 S3 M18-07: the recycler disposal certificate that covers this cell
+    disposal_certificate_id = fields.Many2one(
+        "fix.ewaste.certificate", string="Disposal Certificate", readonly=True, copy=False
+    )
 
     _weight_positive = models.Constraint(
         "CHECK (weight_kg >= 0)", "Battery weight cannot be negative"
     )
 
     _GUARDED = frozenset(
-        {"state", "terminal_taped", "inspected_by_id", "inspected_on", "batch_id", "received_on"}
+        {
+            "state",
+            "terminal_taped",
+            "inspected_by_id",
+            "inspected_on",
+            "batch_id",
+            "received_on",
+            "disposal_certificate_id",
+        }
     )
     # the cell as inspected: frozen once the HSE inspection is recorded
     _FROZEN_AFTER_INSPECTION = frozenset(
@@ -732,6 +874,16 @@ class FixEwasteBattery(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        if not self._fix_guard_open():
+            # M18-22: a hazmat record is the HSE officer's, and belongs to an
+            # intake - an orphan cell would become 'recycled' tonnage with
+            # nothing received behind it
+            c.require_group(self.env, c.G_HSE, "E-Waste HSE Officer", "record a hazmat item")
+            if any(not vals.get("collection_id") for vals in vals_list):
+                raise UserError(
+                    "A hazmat record belongs to the collection it was found in: triage the item "
+                    "as hazardous, or name its collection."
+                )
         staged = c.stage_uploads(vals_list, self._UPLOADS)
         for vals in vals_list:
             if vals.get("name", "New") == "New":
@@ -820,17 +972,20 @@ class FixEwasteBattery(models.Model):
                 raise UserError(
                     "Attach the inspection photo of battery %s (taped terminals) first." % rec.name
                 )
+            if not rec.collection_point_id:
+                # M18-12 (BRU-ESG-07): accepted only at a point designated,
+                # with a ceiling, for its class
+                raise UserError(
+                    "Battery %s has no designated storage point: place it at a point with a "
+                    "ceiling for %s first (BRU-ESG-07)." % (rec.name, rec.hazmat_class)
+                )
             vals = {
                 "terminal_taped": True,
                 "inspected_by_id": rec.env.uid,
                 "inspected_on": fields.Datetime.now(),
             }
-            if rec.swollen_cell:
-                if not rec.quarantine_barrel_ref:
-                    vals["quarantine_barrel_ref"] = "DRUM-VERM-%s" % (rec.name or "01")
-                vals["storage_location"] = "Quarantine Bay Q-09 (Fireproof Vermiculite Barrel)"
-            elif not rec.storage_location:
-                vals["storage_location"] = "Storage Shelf B-04"
+            if rec.swollen_cell and not rec.quarantine_barrel_ref:
+                vals["quarantine_barrel_ref"] = "DRUM-VERM-%s" % (rec.name or "01")
             rec._guarded().write(vals)
         return True
 
@@ -856,16 +1011,22 @@ class FixEwasteBattery(models.Model):
             if rec.state != "dispatched":
                 raise UserError("Battery %s is processed only after dispatch." % rec.name)
             rec._guarded().write({"state": "processed"})
-            rec._fix_close_collection()
         return True
 
     def _fix_close_collection(self):
+        """M18-07: a hazmat item is disposed once every one of its cells is
+        processed AND covered by an issued disposal certificate."""
         for rec in self:
             col = rec.sudo().collection_id
             if (
                 col
                 and col.state == "hazmat"
-                and all(b.state == "processed" for b in col.battery_ids)
+                and all(
+                    b.state == "processed"
+                    and b.disposal_certificate_id
+                    and b.disposal_certificate_id.state == "issued"
+                    for b in col.battery_ids
+                )
             ):
                 col._guarded().write({"state": "disposed"})
 
@@ -924,6 +1085,17 @@ class FixEwastePartner(models.Model):
     approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True)
     approved_on = fields.Datetime(readonly=True)
     expiry_warned_on = fields.Date(readonly=True)
+    # A05 S3 M18-29 (AUT-ESG-12): the last warning stage sent (60 / 30 / 7)
+    expiry_warned_stage = fields.Integer(string="Expiry Warning Stage (days)", readonly=True)
+    # A05 S3 M18-08 (AUT-ESG-11): the agreed certificate window, and the
+    # suspension it triggers
+    certificate_window_days = fields.Integer(
+        string="Certificate Window (days)",
+        help="Days after a transfer by which the recycler's disposal certificate is due. "
+        "Empty: the company default (cd_ewaste.certificate_due_days).",
+    )
+    suspended_on = fields.Date(readonly=True, copy=False)
+    suspension_reason = fields.Char(readonly=True, copy=False)
 
     _dates_ordered = models.Constraint(
         "CHECK (valid_to IS NULL OR valid_to >= valid_from)",
@@ -940,6 +1112,7 @@ class FixEwastePartner(models.Model):
             "licence_attachment_id",
             "company_id",
             "partner_id",
+            "certificate_window_days",
         }
     )
 
@@ -949,6 +1122,9 @@ class FixEwastePartner(models.Model):
             "approved_by_id",
             "approved_on",
             "expiry_warned_on",
+            "expiry_warned_stage",
+            "suspended_on",
+            "suspension_reason",
         }
 
     _UPLOADS = {"licence_attachment_id": ("licence_file", "licence_filename")}
@@ -1022,6 +1198,9 @@ class FixEwastePartner(models.Model):
                     "approved_by_id": rec.env.uid,
                     "approved_on": fields.Datetime.now(),
                     "expiry_warned_on": False,
+                    "expiry_warned_stage": 0,
+                    "suspended_on": False,
+                    "suspension_reason": False,
                 }
             )
             rec.message_post(body="Recycler approved by %s." % rec.env.user.name)
@@ -1034,7 +1213,43 @@ class FixEwastePartner(models.Model):
         for rec in self:
             if rec.state != "active":
                 raise UserError("Only an active recycler is suspended.")
-            rec._guarded().write({"state": "suspended"})
+            rec._fix_suspend("performance", "suspended by %s" % self.env.user.name)
+        return True
+
+    def _fix_suspend(self, reason, detail):
+        """Suspend (trusted): no batch is dispatched to it until it is renewed
+        and approved again. Publishes ewaste.partner_suspended (M16/M42/M60)."""
+        for rec in self:
+            if rec.state not in ("active", "expired"):
+                continue
+            if rec.state == "active":
+                rec._guarded().write(
+                    {
+                        "state": "suspended",
+                        "suspended_on": c.today(rec.env),
+                        "suspension_reason": ("%s: %s" % (reason, detail))[:250],
+                    }
+                )
+            publish(
+                rec.env,
+                "ewaste.partner_suspended",
+                "fix.ewaste.partner",
+                rec.id,
+                {
+                    "partner": rec.name,
+                    "reason": reason,
+                    "detail": detail,
+                    "state": rec.state,
+                    "company_id": rec.company_id.id,
+                },
+            )
+            c.notify(
+                rec,
+                "Recycler suspended",
+                "Recycler %s is %s (%s: %s): no batch may be dispatched to it."
+                % (rec.name, rec.state, reason, detail),
+                c.G_RECYCLER_APPROVER,
+            )
         return True
 
     def action_renew(self):
@@ -1054,6 +1269,7 @@ class FixEwastePartner(models.Model):
                     "approved_by_id": False,
                     "approved_on": False,
                     "approval_state": "none",
+                    "expiry_warned_stage": 0,
                 }
             )
         return True
@@ -1063,7 +1279,7 @@ class FixEwastePartner(models.Model):
         """E12: expire lapsed recycler licences, warn ahead of expiry, and
         expire Basel consents and DoE registrations. Safe to re-run."""
         today = c.today(self.env)
-        warn = c.param_int(self.env, c.P_LICENCE_WARNING_DAYS, c.DEFAULT_REMINDER_DAYS)
+        stages = c.licence_stages(self.env)
         Partner = self.sudo()
         lapsed = Partner.search([("state", "=", "active"), ("valid_to", "<", today)])
         for rec in lapsed:
@@ -1075,22 +1291,33 @@ class FixEwastePartner(models.Model):
                 % (rec.name, rec.certificate_no or "-", rec.valid_to),
                 c.G_RECYCLER_APPROVER,
             )
+            # AUT-ESG-12: suspended on expiry, regardless - no grace period
+            rec._fix_suspend(
+                "expiry", "licence %s expired %s" % (rec.certificate_no or "-", rec.valid_to)
+            )
+        # M18-29 (AUT-ESG-12): a warning at T-60, T-30 and T-7 - each stage
+        # once, the nearest stage reached
         soon = Partner.search(
             [
                 ("state", "=", "active"),
                 ("valid_to", ">=", today),
-                ("valid_to", "<=", today + timedelta(days=warn)),
-                ("expiry_warned_on", "=", False),
+                ("valid_to", "<=", today + timedelta(days=stages[0])),
             ]
         )
         for rec in soon:
-            rec._guarded().write({"expiry_warned_on": today})
-            c.notify(
-                rec,
-                "Recycler licence expiring",
-                "Recycler %s's licence expires on %s: renew it." % (rec.name, rec.valid_to),
-                c.G_RECYCLER_APPROVER,
+            left = (rec.valid_to - today).days
+            stage = min(d for d in stages if left <= d)
+            if rec.expiry_warned_stage and rec.expiry_warned_stage <= stage:
+                continue
+            rec._guarded().write({"expiry_warned_on": today, "expiry_warned_stage": stage})
+            summary = "Recycler licence expiring (T-%d)" % stage
+            note = "Recycler %s's licence expires on %s (%d day(s)): renew it." % (
+                rec.name,
+                rec.valid_to,
+                left,
             )
+            c.notify(rec, summary, note, c.G_RECYCLER_APPROVER)
+            c.notify(rec, summary + " - QM", note, c.G_COMPLIANCE)
         self.env["fix.ewaste.basel.pic"].sudo()._fix_expire(today)
         self.env["fix.ewaste.registration"].sudo()._fix_expire(today)
         return len(lapsed)
@@ -1122,6 +1349,15 @@ class FixEwasteCertificate(models.Model):
         readonly=True,
     )
     batch_id = fields.Many2one("fix.ewaste.batch", string="Batch", ondelete="restrict")
+    # A05 S3 M18-07: the hazmat cells of the batch the certificate covers
+    battery_ids = fields.Many2many(
+        "fix.ewaste.battery",
+        "fix_ewaste_certificate_battery_rel",
+        "certificate_id",
+        "battery_id",
+        string="Certified Hazmat Items",
+        readonly=True,
+    )
     partner_id = fields.Many2one(
         "fix.ewaste.partner", string="Certified Partner", required=True, ondelete="restrict"
     )
@@ -1177,6 +1413,7 @@ class FixEwasteCertificate(models.Model):
             "batch_id",
             "partner_id",
             "company_id",
+            "battery_ids",
         }
     )
     _DRAFT_INPUT = frozenset(
@@ -1200,6 +1437,15 @@ class FixEwasteCertificate(models.Model):
         (a supplementary certificate covers what an earlier one left out)."""
         self.ensure_one()
         return self.sudo().batch_id.collection_ids.filtered(lambda i: i.state == "recycled")
+
+    def _fix_hazmat_scope(self):
+        """M18-07: the batch's processed hazmat cells no issued certificate
+        covers yet - a hazmat item is certified like any other."""
+        self.ensure_one()
+        return self.sudo().batch_id.battery_ids.filtered(
+            lambda b: b.state == "processed"
+            and (not b.disposal_certificate_id or b.disposal_certificate_id.state != "issued")
+        )
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -1280,27 +1526,25 @@ class FixEwasteCertificate(models.Model):
                     )
                 )
             items = scope - uncovered
+            cells = rec._fix_hazmat_scope()
             earlier = batch.certificate_ids.filtered(
                 lambda x, r=rec: x != r and x.state == "issued"
             )
-            if earlier and not items:
+            if earlier and not items and not cells:
                 raise UserError(
                     "Certificate %s covers nothing: batch %s has no item left awaiting a "
                     "certificate." % (rec.name, batch.name)
                 )
-            if uncovered and not items:
+            if uncovered and not items and not cells:
                 raise UserError(
                     "Certificate %s lists none of the batch's items: record the exception "
                     "on the batch instead of issuing an empty certificate." % rec.name
                 )
-            if earlier or uncovered:
-                # a partial or supplementary certificate states what it covers
-                expected, basis = (
-                    round(sum(items.mapped("weight_kg")), 3),
-                    "the %d item(s) it covers" % len(items),
-                )
-            else:
-                expected, basis = batch.processed_weight_kg, "batch %s processed" % batch.name
+            # M18-16: the recycler's stated weight is reconciled to the sum of
+            # the items it covers (never to a weighbridge figure that is itself
+            # within a tolerance: tolerances do not stack)
+            expected = round(sum(items.mapped("weight_kg")) + sum(cells.mapped("weight_kg")), 3)
+            basis = "the %d item(s) it covers" % (len(items) + len(cells))
             if expected <= 0 or abs(rec.recycler_stated_weight_kg - expected) > (
                 expected * tol / 100.0
             ):
@@ -1314,17 +1558,18 @@ class FixEwasteCertificate(models.Model):
                     "issued_on": c.today(rec.env),
                     "issued_by_id": rec.env.uid,
                     "collection_ids": [(6, 0, items.ids)],
+                    "battery_ids": [(6, 0, cells.ids)],
                     "collection_id": items[:1].id if len(items) == 1 else False,
-                    "weight_kg": round(
-                        sum(items.mapped("weight_kg"))
-                        + (0.0 if earlier else sum(batch.battery_ids.mapped("weight_kg"))),
-                        3,
-                    ),
+                    "weight_kg": expected,
                 }
             )
             Exc = rec.env["fix.ewaste.certificate.exception"].sudo()
-            Exc._fix_resolve(items, rec)
+            hazmat_items = cells.mapped("collection_id")
+            Exc._fix_resolve(items | hazmat_items, rec)
             Exc._fix_raise(uncovered, rec)
+            if cells:
+                cells._guarded().write({"disposal_certificate_id": rec.id})
+                cells._fix_close_collection()
             for item in items:
                 item._guarded().write(
                     {
@@ -1343,6 +1588,22 @@ class FixEwasteCertificate(models.Model):
                         "co2_saved": item.esg_co2_saved_kg,
                     },
                 )
+            publish(
+                rec.env,
+                "ewaste.disposal_certified",
+                "fix.ewaste.certificate",
+                rec.id,
+                {
+                    "batch": batch.name,
+                    "certificate": rec.name,
+                    "certificate_no": rec.certificate_no,
+                    "partner_id": batch.partner_id.id,
+                    "item_ids": items.ids,
+                    "hazmat_ids": cells.ids,
+                    "weight_kg": rec.weight_kg,
+                    "company_id": rec.company_id.id,
+                },
+            )
         return True
 
     def action_revoke(self):
@@ -1365,6 +1626,14 @@ class FixEwasteCertificate(models.Model):
                 item._guarded().write(
                     {"disposal_certificate_id": False, "disposal_certificate_ref": False}
                 )
+            cells = rec.sudo().battery_ids.filtered(lambda b, r=rec: b.disposal_certificate_id == r)
+            if cells:
+                # M18-07: the hazmat items it disposed are open again
+                cells._guarded().write({"disposal_certificate_id": False})
+                for col in cells.mapped("collection_id").filtered(lambda x: x.state == "disposed"):
+                    col._guarded().write({"state": "hazmat"})
+            # M18-26: the figures it certified are restated
+            rec.env["fix.esg.metric"].sudo()._fix_restate_for_certificate(rec)
             others = rec.sudo().batch_id.certificate_ids.filtered(
                 lambda x, r=rec: x != r and x.state == "issued"
             )
