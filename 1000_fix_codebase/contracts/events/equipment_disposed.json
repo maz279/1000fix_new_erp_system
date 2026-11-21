@@ -68,6 +68,30 @@
             "boolean",
             "null"
           ]
+        },
+        "sale_amount": {
+          "type": "number"
+        },
+        "buyer_partner_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "currency": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "book_value": {
+          "type": "number"
         }
       },
       "additionalProperties": false

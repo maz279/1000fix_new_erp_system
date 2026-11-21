@@ -63,6 +63,12 @@
         },
         "was_missing": {
           "type": "boolean"
+        },
+        "value_basis": {
+          "type": "string"
+        },
+        "acquisition_cost": {
+          "type": "number"
         }
       },
       "additionalProperties": false

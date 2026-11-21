@@ -26,7 +26,12 @@ from .fix_equipment import (
     ROLE_CUSTODIAN,
     ROLE_QM,
     m45_require_role,
+    m45_today,
 )
+
+# D9 (A07 ERP decisions 2026-11-20): a staff recharge needs an HR-approved
+# recovery decision; M56 deducts it within the statutory limit (S6 / M56).
+ROLE_HR = ("hr.group_hr_manager",)
 
 # FR-EAM-002: the spec's classes.
 EQUIPMENT_CLASSES = [
@@ -45,7 +50,8 @@ OPEN_LOSS = ("reported", "writeoff_requested")
 
 
 def _today(env):
-    return fields.Date.context_today(env["fix.equipment"])
+    # A07 ERP audit M45-08: the Dhaka business day, whatever the user's tz
+    return m45_today(env)
 
 
 def _same_code(model, rec, field="code"):
@@ -71,8 +77,15 @@ def _same_code(model, rec, field="code"):
 class FixEquipmentCategory(models.Model):
     _name = "fix.equipment.category"
     _description = "Equipment Class"
-    _inherit = ["mail.thread"]
+    # A07 ERP audit (2026-11-20) M45-04: switching calibration control off is
+    # a routed approval (M63), not a tick by the Quality Manager
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.approvable.mixin"]
     _order = "classification, code"
+
+    _approval_domain = "calibration_control"
+    _approval_apply_method = "action_apply_control_off"
+    _approval_group = ROLE_QM
+    _approval_routed = True
 
     code = fields.Char(required=True, tracking=True)
     name = fields.Char(required=True, tracking=True)
@@ -111,6 +124,25 @@ class FixEquipmentCategory(models.Model):
     )
     active = fields.Boolean(default=True)
     equipment_count = fields.Integer(compute="_compute_equipment_count", string="Items")
+    # M45-04: the proposal a Quality Manager requests approval for
+    proposed_classification = fields.Selection(
+        EQUIPMENT_CLASSES,
+        string="Proposed Classification",
+        copy=False,
+        help="Optional: the class the items move to when control is switched off.",
+    )
+    control_change_reason = fields.Text(
+        string="Why Calibration Control Is Switched Off",
+        copy=False,
+        help="Why items of this class no longer verify conformity. Approved by a Quality "
+        "Manager other than the requester (an M63 rule may add the CTO).",
+    )
+
+    def _fix_guarded_fields(self) -> set:
+        guarded = super()._fix_guarded_fields()
+        if any(rec.approval_state == "pending" for rec in self):
+            guarded |= {"proposed_classification", "control_change_reason"}
+        return guarded
 
     @api.depends("classification")
     def _compute_class_defaults(self):
@@ -143,9 +175,71 @@ class FixEquipmentCategory(models.Model):
         m45_require_role(self.env, (ROLE_QM,), "An equipment class")
         return super().create(vals_list)
 
+    def _m45_turns_control_off(self, vals) -> bool:
+        if "requires_calibration" in vals:
+            after = bool(vals["requires_calibration"])
+        elif "classification" in vals:
+            after = vals["classification"] in CALIBRATED_CLASSES
+        else:
+            return False
+        return any(rec.requires_calibration and not after for rec in self)
+
     def write(self, vals):
-        m45_require_role(self.env, (ROLE_QM,), "Changing an equipment class")
+        if not self._fix_guard_open():
+            m45_require_role(self.env, (ROLE_QM,), "Changing an equipment class")
+            if not self.env.su and self._m45_turns_control_off(vals):
+                raise UserError(
+                    "Switching calibration control off releases every instrument of the "
+                    "class from the fitness gate (BRU-EAM-01 has no override). State why "
+                    "under 'Why Calibration Control Is Switched Off' and Request Approval: "
+                    "a Quality Manager other than you decides it."
+                )
         return super().write(vals)
+
+    def _approval_needed(self) -> bool:
+        return True
+
+    def action_request_approval(self, justification=None):
+        """Ask for calibration control to be switched off on the class."""
+        m45_require_role(self.env, (ROLE_QM,), "Requesting a calibration-control change")
+        for rec in self:
+            if not rec.requires_calibration:
+                raise UserError("%s is not calibration-controlled." % rec.name)
+            reason = (justification or rec.control_change_reason or "").strip()
+            if not reason:
+                raise UserError("State why calibration control is switched off on %s." % rec.name)
+            if rec.proposed_classification in CALIBRATED_CLASSES:
+                raise UserError(
+                    "%s is a calibration-controlled classification: propose an "
+                    "uncontrolled one, or leave it empty." % rec.proposed_classification
+                )
+            if not (rec.control_change_reason or "").strip():
+                rec.write({"control_change_reason": reason})
+            super(FixEquipmentCategory, rec).action_request_approval(justification=reason)
+        return True
+
+    def action_apply_control_off(self):
+        """The approver's decision, from the inbox task (engine-routed). The open
+        calibration and recall holds of the class stay open: only a passing
+        re-calibration clears them (fix.equipment.oos.action_resolve)."""
+        self._approval_assert_routed()
+        authority = self._approval_authority_user()
+        for rec in self:
+            if not self.env.su and not authority.has_group(ROLE_QM):
+                raise UserError(
+                    "Approving a calibration-control change needs the Quality Manager role."
+                )
+            vals = {"requires_calibration": False}
+            if rec.proposed_classification:
+                vals["classification"] = rec.proposed_classification
+            reason = rec.control_change_reason
+            rec._guarded().write(vals)
+            rec._guarded().write({"proposed_classification": False, "control_change_reason": False})
+            rec.message_post(
+                body="Calibration control switched off, approved by %s. Justification: %s"
+                % (self.env.user.name, reason or "-")
+            )
+        return True
 
 
 # ---------------------------------------------------------------------------
@@ -271,8 +365,32 @@ class FixEquipmentRegister(models.Model):
         # decision, never a store keeper's (FR-EAM-003, BRU-EAM-01 has no override)
         if "category_id" in vals and not self._fix_guard_open():
             new = vals["category_id"] or False
-            if any((rec.category_id.id or False) != new for rec in self):
+            moved = self.filtered(lambda r: (r.category_id.id or False) != new)
+            if moved:
                 m45_require_role(self.env, (ROLE_QM,), "Changing the class of registered equipment")
+            target = self.env["fix.equipment.category"].sudo().browse(new or [])
+            # A07 ERP audit M45-04: an overdue meter was moved to an
+            # uncontrolled class and was at once "not required" and usable.
+            # Moving an item out of calibration control is allowed only while
+            # it is in calibration (current, no calibration or recall hold).
+            if target and not target.requires_calibration and not self.env.su:
+                today = _today(self.env)
+                Hold = self.env["fix.equipment.oos"].sudo()
+                for rec in moved.sudo().filtered("measurement_critical"):
+                    state = rec._m45_certificate_state(rec._m45_latest_calibration(), today)
+                    held = Hold.search_count(
+                        [
+                            ("equipment_id", "=", rec.id),
+                            ("state", "=", "open"),
+                            ("hold_type", "in", ("calibration", "recall")),
+                        ]
+                    )
+                    if state != "current" or held:
+                        raise UserError(
+                            "%s is not in calibration (%s): it cannot leave calibration "
+                            "control. Recalibrate it first; the class change then follows."
+                            % (rec.name, "on hold" if held else state)
+                        )
         return super().write(vals)
 
     # ---- the measurement-critical gate (FR-EAM-003) -------------------------
@@ -424,20 +542,15 @@ class FixEquipmentRegister(models.Model):
                 {"state": "written_off", "decided_by_id": self.env.user.id, "decided_on": now}
             )
             for loss in losses.filtered(lambda r: r.recharge_employee_id and r.recharge_amount):
-                # AUT-EAM-14: M52 recovers the recharge from the employee
-                publish(
-                    self.env,
-                    "equipment.recharge_requested",
-                    "fix.equipment.loss",
-                    loss.id,
-                    {
-                        "equipment": rec.code,
-                        "loss": loss.name,
-                        "employee_id": loss.recharge_employee_id.id,
-                        "employee": loss.recharge_employee_id.name,
-                        "amount": loss.recharge_amount,
-                    },
-                )
+                # AUT-EAM-14 / D9: payroll recovers it only on HR's approval
+                if loss.recharge_hr_decision == "approved":
+                    loss._m45_publish_recharge()
+                elif not loss.recharge_hr_decision:
+                    loss.message_post(
+                        body="Written off. The proposed recharge of BDT %.2f to %s waits for "
+                        "HR's recovery decision."
+                        % (loss.recharge_amount, loss.recharge_employee_id.name)
+                    )
             self.env["fix.equipment.retirement"].sudo().search(
                 [("equipment_id", "=", rec.id), ("state", "=", "requested")]
             )._guarded().write({"state": "approved"})
@@ -503,6 +616,29 @@ class FixCalibrationStandard(models.Model):
             problem = self._m45_standard_problem(vals)
             if problem:
                 raise UserError(problem)
+            std = self.env["fix.equipment"].sudo().browse(vals.get("standard_equipment_id") or [])
+            if std:
+                # A07 ERP audit M45-07: the reference is the standard's own code;
+                # a different typed reference would hide which standard was used
+                typed = (vals.get("standard_ref") or "").strip()
+                if not typed:
+                    vals["standard_ref"] = std.code
+                elif (
+                    typed.lower()
+                    not in {
+                        (std.code or "").strip().lower(),
+                        (std.asset_tag or "").strip().lower(),
+                    }
+                    and not self.env.su
+                ):
+                    raise UserError(
+                        "The standard reference %s does not match the reference standard "
+                        "chosen (%s): leave it empty, it is taken from the standard."
+                        % (
+                            typed,
+                            std.code,
+                        )
+                    )
         return super().create(vals_list)
 
 
@@ -539,7 +675,7 @@ class FixBranchEquipmentProfile(models.Model):
         help="The branch stops work without a fit item of this class: a branch with none "
         "available is a capability exception (BRU-EAM-20)."
     )
-    effective_from = fields.Date(default=fields.Date.context_today)
+    effective_from = fields.Date(default=lambda self: _today(self.env))
     active = fields.Boolean(default=True)
     held_count = fields.Integer(compute="_compute_cover", string="Held")
     fit_count = fields.Integer(compute="_compute_cover", string="Fit & Available")
@@ -612,7 +748,9 @@ class FixEquipmentPmPlan(models.Model):
         required=True,
         default="months",
     )
-    start_on = fields.Date(string="Counting From", required=True, default=fields.Date.context_today)
+    start_on = fields.Date(
+        string="Counting From", required=True, default=lambda self: _today(self.env)
+    )
     task = fields.Text(string="Work To Do", required=True)
     active = fields.Boolean(default=True, tracking=True)
     job_ids = fields.One2many("fix.equipment.pm", "plan_id", string="Jobs")
@@ -677,7 +815,8 @@ class FixEquipmentPmPlan(models.Model):
         used = sum(
             self.env["fix.equipment.usage"]
             .sudo()
-            .search([("equipment_id", "=", equipment.id), ("used_on", ">=", base)])
+            # M45-29: uses on the completion day itself belong to the old period
+            .search([("equipment_id", "=", equipment.id), ("used_on", ">", base)])
             .mapped("uses")
         )
         return used >= self.interval_value, today
@@ -784,6 +923,13 @@ class FixEquipmentPmCapture(models.Model):
 # ---------------------------------------------------------------------------
 # Loss, theft and damage (FR-EAM-040/041, BRU-EAM-12, AUT-EAM-13/14)
 # ---------------------------------------------------------------------------
+RECHARGE_STAMPS = {
+    "recharge_hr_decision",
+    "recharge_hr_decided_by_id",
+    "recharge_hr_decided_on",
+    "recharge_hr_note",
+    "recharge_requested_on",
+}
 LOSS_STAMPS = {
     "state",
     "reported_by_id",
@@ -818,7 +964,7 @@ class FixEquipmentLoss(models.Model):
         required=True,
         default="lost",
     )
-    occurred_on = fields.Date(required=True, default=fields.Date.context_today)
+    occurred_on = fields.Date(required=True, default=lambda self: _today(self.env))
     circumstances = fields.Text(required=True)
     police_report_ref = fields.Char(string="Police Report (GD) Ref")
     evidence_file = fields.Binary(string="Evidence", attachment=True, copy=False)
@@ -830,6 +976,26 @@ class FixEquipmentLoss(models.Model):
     value_impact = fields.Monetary(currency_field="currency_id", readonly=True)
     recharge_employee_id = fields.Many2one("hr.employee", string="Recharge To")
     recharge_amount = fields.Monetary(currency_field="currency_id")
+    # A07 ERP audit (2026-11-20) M45-05 / decision D9: a recharge is recovered
+    # only on an HR-approved recovery decision; M56 deducts it within the
+    # statutory limit HR records (S6 consumes equipment.recharge_requested).
+    recharge_hr_decision = fields.Selection(
+        [("approved", "Approved by HR"), ("rejected", "Rejected by HR")],
+        string="HR Recovery Decision",
+        readonly=True,
+        copy=False,
+    )
+    recharge_hr_decided_by_id = fields.Many2one(
+        "res.users", string="HR Decision By", readonly=True, copy=False
+    )
+    recharge_hr_decided_on = fields.Datetime(string="HR Decision On", readonly=True, copy=False)
+    recharge_hr_note = fields.Text(string="HR Decision Note", readonly=True, copy=False)
+    recharge_requested_on = fields.Datetime(
+        string="Recharge Sent to Payroll",
+        readonly=True,
+        copy=False,
+        help="When the approved recharge was handed to M52/M56 (once).",
+    )
     state = fields.Selection(
         [
             ("reported", "Reported"),
@@ -848,9 +1014,12 @@ class FixEquipmentLoss(models.Model):
     repair_job_id = fields.Many2one("fix.equipment.pm", string="Repair Job", readonly=True)
 
     def _fix_guarded_fields(self) -> set:
-        guarded = super()._fix_guarded_fields() | LOSS_STAMPS
+        guarded = super()._fix_guarded_fields() | LOSS_STAMPS | RECHARGE_STAMPS
         if self:
             guarded |= {"equipment_id", "kind", "occurred_on"}
+        if any(rec.recharge_hr_decision for rec in self):
+            # HR decided on this employee and this amount: pinned
+            guarded |= {"recharge_employee_id", "recharge_amount"}
         if any(rec.state != "reported" for rec in self):
             guarded |= {
                 "circumstances",
@@ -914,7 +1083,8 @@ class FixEquipmentLoss(models.Model):
                     "reported_by_id": self.env.uid,
                     "reported_on": fields.Datetime.now(),
                     "custodian_at_loss_id": custodian.id or False,
-                    "value_impact": equipment.acquisition_cost or 0.0,
+                    # D10: the write-off basis (M49 NBV when capitalised)
+                    "value_impact": equipment._m45_writeoff_basis()[0],
                 }
             )
             if rec.kind == "damaged":
@@ -1005,6 +1175,95 @@ class FixEquipmentLoss(models.Model):
             rec._m45_decide("repair", "Corrective job %s raised." % job.name, repair_job_id=job.id)
         return True
 
+    def action_hr_decide_recharge(self, decision="approved", note=None):
+        """D9: HR approves or rejects the recovery of the recharge from the
+        employee. Not the person who reported the loss, nor the employee
+        recharged. An approved recharge reaches payroll once the write-off is
+        approved (or at once if it already is)."""
+        m45_require_role(self.env, ROLE_HR, "Deciding a staff recharge")
+        if decision not in ("approved", "rejected"):
+            raise UserError("The HR decision is approved or rejected.")
+        text = note.strip() if isinstance(note, str) else ""
+        for rec in self:
+            if not (rec.recharge_employee_id and rec.recharge_amount > 0):
+                raise UserError("%s proposes no recharge to decide." % rec.name)
+            if rec.recharge_hr_decision:
+                raise UserError("HR has already decided the recharge of %s." % rec.name)
+            if rec.state in ("recovered",):
+                raise UserError("%s was recovered: there is nothing to recharge." % rec.name)
+            if not self.env.su:
+                if rec.reported_by_id == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: you reported %s, so another HR manager "
+                        "decides its recharge." % rec.name
+                    )
+                if rec.recharge_employee_id.user_id == self.env.user:
+                    raise UserError("You cannot decide a recharge made to yourself.")
+            if decision == "rejected" and not text:
+                raise UserError("State why HR rejects the recharge of %s." % rec.name)
+            rec._guarded().write(
+                {
+                    "recharge_hr_decision": decision,
+                    "recharge_hr_decided_by_id": self.env.uid,
+                    "recharge_hr_decided_on": fields.Datetime.now(),
+                    "recharge_hr_note": text or False,
+                }
+            )
+            rec.message_post(
+                body="HR %s the recharge of BDT %.2f to %s.%s"
+                % (
+                    decision,
+                    rec.recharge_amount,
+                    rec.recharge_employee_id.name,
+                    (" %s" % text) if text else "",
+                )
+            )
+            rec._m45_publish_recharge()
+        return True
+
+    def action_hr_approve_recharge(self, note=None):
+        """D9: HR approves the recovery (the P03 button)."""
+        return self.action_hr_decide_recharge("approved", note)
+
+    def action_hr_reject_recharge(self, note=None):
+        """D9: HR rejects the recovery, with the reason (the P03 button)."""
+        return self.action_hr_decide_recharge("rejected", note)
+
+    def _m45_publish_recharge(self):
+        """equipment.recharge_requested, once, only for an HR-approved recharge
+        on an approved write-off (D9). Carries what payroll / AR need."""
+        for rec in self:
+            if not (
+                rec.state == "written_off"
+                and rec.recharge_hr_decision == "approved"
+                and rec.recharge_employee_id
+                and rec.recharge_amount > 0
+                and not rec.recharge_requested_on
+            ):
+                continue
+            equipment = rec.equipment_id.sudo()
+            rec.sudo()._guarded().write({"recharge_requested_on": fields.Datetime.now()})
+            publish(
+                self.env,
+                "equipment.recharge_requested",
+                "fix.equipment.loss",
+                rec.id,
+                {
+                    "equipment": equipment.code,
+                    "loss": rec.name,
+                    "employee_id": rec.recharge_employee_id.id,
+                    "employee": rec.recharge_employee_id.name,
+                    "amount": rec.recharge_amount,
+                    "currency": rec.currency_id.name or "BDT",
+                    "hr_approved_by_id": rec.recharge_hr_decided_by_id.id,
+                    "hr_approved_on": str(rec.recharge_hr_decided_on),
+                    "company_id": rec.company_id.id,
+                    "operating_unit_id": rec.operating_unit_id.id or None,
+                    "value_impact": rec.value_impact or 0.0,
+                    "kind": rec.kind,
+                },
+            )
+
     def action_request_writeoff(self):
         """Ask for the write-off within the authority matrix; the reporter of
         the loss never approves it (BRU-EAM-11/12)."""
@@ -1028,6 +1287,8 @@ class FixEquipmentLoss(models.Model):
 # ---------------------------------------------------------------------------
 AUDIT_STAMPS = {
     "state",
+    "reviewed_by_id",
+    "reviewed_on",
     "expected_count",
     "found_count",
     "missing_count",
@@ -1054,11 +1315,18 @@ class FixEquipmentAudit(models.Model):
         required=True,
         default="all",
     )
-    scheduled_for = fields.Date(required=True, default=fields.Date.context_today)
+    scheduled_for = fields.Date(required=True, default=lambda self: _today(self.env))
     counter_id = fields.Many2one("hr.employee", string="Counter", required=True)
     line_ids = fields.One2many("fix.equipment.audit.line", "audit_id", string="Items Found")
     state = fields.Selection(
-        [("draft", "Draft"), ("counting", "Counting"), ("done", "Done")],
+        [
+            ("draft", "Draft"),
+            ("counting", "Counting"),
+            # A07 ERP audit M45-16 / AC-14: a count with items not found is
+            # final only once a reviewer accepts the discrepancy with a reason
+            ("review", "Discrepancy Review"),
+            ("done", "Done"),
+        ],
         required=True,
         default="draft",
         tracking=True,
@@ -1066,6 +1334,12 @@ class FixEquipmentAudit(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
+    discrepancy_reason = fields.Text(
+        string="Discrepancy Reason",
+        help="Why the items not found are missing (searched where, who was asked).",
+    )
+    reviewed_by_id = fields.Many2one("res.users", string="Discrepancy Approved By", readonly=True)
+    reviewed_on = fields.Datetime(readonly=True)
     expected_count = fields.Integer(readonly=True)
     found_count = fields.Integer(readonly=True)
     missing_count = fields.Integer(readonly=True)
@@ -1078,8 +1352,10 @@ class FixEquipmentAudit(models.Model):
         guarded = super()._fix_guarded_fields() | AUDIT_STAMPS | {"currency_id"}
         if self:
             guarded |= {"branch_id", "scope", "company_id"}
-        if any(rec.state == "done" for rec in self):
+        if any(rec.state in ("review", "done") for rec in self):
             guarded |= {"scheduled_for", "counter_id", "line_ids"}
+        if any(rec.state == "done" for rec in self):
+            guarded |= {"discrepancy_reason"}
         return guarded
 
     @api.model_create_multi
@@ -1120,15 +1396,64 @@ class FixEquipmentAudit(models.Model):
             rec._guarded().write({"state": "counting"})
         return True
 
+    def _m45_check_counter_sod(self):
+        """FR-EAM-038 / §13: the store keeper does not count their own store.
+        Refused: the person who scheduled the count, the register custodian of
+        any item of the branch, and an Equipment Custodian assigned to it."""
+        for rec in self:
+            counter = rec.counter_id.sudo()
+            counter_user = counter.user_id
+            if counter_user and counter_user == rec.create_uid:
+                raise UserError(
+                    "Segregation of duties: %s scheduled this count, so someone else counts."
+                    % counter.name
+                )
+            held = (
+                self.env["fix.equipment"]
+                .sudo()
+                .search(
+                    [
+                        ("company_id", "=", rec.company_id.id),
+                        ("branch_id", "=", rec.branch_id.id),
+                        ("custodian_id", "=", counter.id),
+                        ("operational_status", "!=", "retired"),
+                    ],
+                    limit=1,
+                )
+            )
+            if held:
+                raise UserError(
+                    "Segregation of duties: %s is the custodian of %s, so another person "
+                    "counts this branch." % (counter.name, held.name)
+                )
+            if (
+                counter_user
+                and "branch_id" in counter._fields
+                and counter.branch_id == rec.branch_id
+                and counter_user.has_group(ROLE_CUSTODIAN)
+                and not counter_user.has_group(ROLE_QM)
+            ):
+                raise UserError(
+                    "Segregation of duties: %s keeps the store of %s, so another person "
+                    "counts it." % (counter.name, rec.branch_id.name)
+                )
+
     def action_complete(self):
         """Close the count. It is blind: the counter scanned what was found, and
         every item the register expects but nobody found is recorded missing.
         The counter closes their own count and may not hold any of the items
-        counted (SOD: the store keeper does not count their own store)."""
-        Verification = self.env["fix.equipment.verification"].sudo()
+        counted (SOD: the store keeper does not count their own store).
+
+        A07 ERP audit M45-16: a count that did not find everything goes to
+        Discrepancy Review; a reviewer other than the counter and the scheduler
+        accepts it with a reason (action_approve_count) before the items are
+        recorded missing."""
         for rec in self:
-            if rec.state == "done":
-                raise UserError("%s is done already." % rec.name)
+            if rec.state != "counting":
+                raise UserError(
+                    "%s is %s: only a count in progress (Start Count) is completed."
+                    % (rec.name, dict(rec._fields["state"].selection)[rec.state])
+                )
             expected = rec._m45_expected()
             if not self.env.su:
                 counter_user = rec.counter_id.sudo().user_id
@@ -1137,56 +1462,102 @@ class FixEquipmentAudit(models.Model):
                         "Only the counter (%s) closes this count: the person who counted "
                         "signs for it." % rec.counter_id.name
                     )
-                held = expected.filtered(lambda e, c=rec.counter_id: e.custodian_id == c)
-                if held:
-                    raise UserError(
-                        "Segregation of duties: %s is the custodian of %s, so another "
-                        "person counts this branch." % (rec.counter_id.name, held[0].name)
-                    )
+                rec._m45_check_counter_sod()
             found = rec.line_ids.equipment_id
-            today = _today(self.env)
             missing = expected - found
-            for item in expected | found:
-                line = rec.line_ids.filtered(lambda line, e=item: line.equipment_id == e)[:1]
-                Verification.create(
+            if missing:
+                rec._guarded().write(
                     {
-                        "equipment_id": item.id,
-                        "campaign_ref": rec.name,
-                        "verified_on": today,
-                        "found": item in found,
-                        "location": (line.found_location or rec.branch_id.name or "")
-                        if item in found
-                        else False,
-                        "condition": line.condition or False,
-                        "verifier_id": rec.counter_id.id,
+                        "state": "review",
+                        "expected_count": len(expected),
+                        "found_count": len(found & expected),
+                        "missing_count": len(missing),
+                        "unexpected_count": len(found - expected),
+                        "variance_value": sum(m._m45_writeoff_basis()[0] for m in missing),
                     }
                 )
+                rec.message_post(
+                    body="Count closed by the counter with %d item(s) not found (%s): waiting "
+                    "for the discrepancy review."
+                    % (len(missing), ", ".join(missing.mapped("code")))
+                )
+                continue
+            rec._m45_finalise(expected, found)
+        return True
+
+    def action_approve_count(self, reason=None):
+        """AC-14: the discrepancy is accepted, with its reason, by a store keeper
+        or Quality Manager who neither counted nor scheduled the count; the
+        items not found are then recorded missing."""
+        m45_require_role(self.env, (ROLE_CUSTODIAN, ROLE_QM), "Approving a count discrepancy")
+        text = reason.strip() if isinstance(reason, str) else ""
+        for rec in self:
+            if rec.state != "review":
+                raise UserError("%s has no discrepancy waiting for review." % rec.name)
+            if not self.env.su and self.env.user in (
+                rec.counter_id.sudo().user_id | rec.create_uid
+            ):
+                raise UserError(
+                    "Segregation of duties: you counted or scheduled %s, so another person "
+                    "approves its discrepancy." % rec.name
+                )
+            if text:
+                rec.write({"discrepancy_reason": text})
+            if not (rec.discrepancy_reason or "").strip():
+                raise UserError("State why the items of %s were not found." % rec.name)
             rec._guarded().write(
+                {"reviewed_by_id": self.env.uid, "reviewed_on": fields.Datetime.now()}
+            )
+            rec._m45_finalise(rec._m45_expected(), rec.line_ids.equipment_id)
+        return True
+
+    def _m45_finalise(self, expected, found):
+        """Record each verification (as the count run) and close the count."""
+        self.ensure_one()
+        rec = self
+        Verification = self.env["fix.equipment.verification"].sudo()
+        today = _today(self.env)
+        missing = expected - found
+        for item in expected | found:
+            line = rec.line_ids.filtered(lambda line, e=item: line.equipment_id == e)[:1]
+            Verification.create(
                 {
-                    "state": "done",
-                    "expected_count": len(expected),
-                    "found_count": len(found & expected),
-                    "missing_count": len(missing),
-                    "unexpected_count": len(found - expected),
-                    "variance_value": sum(missing.mapped("acquisition_cost")),
-                    "completed_by_id": self.env.uid,
-                    "completed_on": fields.Datetime.now(),
+                    "equipment_id": item.id,
+                    "campaign_ref": rec.name,
+                    "verified_on": today,
+                    "found": item in found,
+                    "location": (line.found_location or rec.branch_id.name or "")
+                    if item in found
+                    else False,
+                    "condition": line.condition or False,
+                    "verifier_id": rec.counter_id.id,
                 }
             )
-            publish(
-                self.env,
-                "equipment.audit_completed",
-                "fix.equipment.audit",
-                rec.id,
-                {
-                    "branch": rec.branch_id.name,
-                    "expected": rec.expected_count,
-                    "found": rec.found_count,
-                    "missing": rec.missing_count,
-                    "variance": rec.variance_value,
-                },
-            )
-        return True
+        rec._guarded().write(
+            {
+                "state": "done",
+                "expected_count": len(expected),
+                "found_count": len(found & expected),
+                "missing_count": len(missing),
+                "unexpected_count": len(found - expected),
+                "variance_value": sum(m._m45_writeoff_basis()[0] for m in missing),
+                "completed_by_id": self.env.uid,
+                "completed_on": fields.Datetime.now(),
+            }
+        )
+        publish(
+            self.env,
+            "equipment.audit_completed",
+            "fix.equipment.audit",
+            rec.id,
+            {
+                "branch": rec.branch_id.name,
+                "expected": rec.expected_count,
+                "found": rec.found_count,
+                "missing": rec.missing_count,
+                "variance": rec.variance_value,
+            },
+        )
 
 
 class FixEquipmentAuditLine(models.Model):
@@ -1199,6 +1570,9 @@ class FixEquipmentAuditLine(models.Model):
     equipment_id = fields.Many2one(
         "fix.equipment", string="Equipment Found", required=True, ondelete="restrict"
     )
+    # M45-16 blind count: the counter scans the tag (or types the code / serial)
+    # instead of picking from the register list
+    scanned_code = fields.Char(string="Scanned Tag / Code / Serial")
     found_location = fields.Char(string="Found At")
     condition = fields.Char()
 
@@ -1207,14 +1581,37 @@ class FixEquipmentAuditLine(models.Model):
     )
 
     def _m45_check_open(self, audits):
-        if not self.env.su and any(a.state == "done" for a in audits):
-            raise UserError("A completed verification is final: its count cannot change.")
+        if not self.env.su and any(a.state in ("review", "done") for a in audits):
+            # M45-16: closed by the counter, the count is what the reviewer judges
+            raise UserError("A closed verification is final: its count cannot change.")
 
     @api.model_create_multi
     def create(self, vals_list):
-        self._m45_check_open(
-            self.env["fix.equipment.audit"].browse([v.get("audit_id") for v in vals_list])
-        )
+        audits = self.env["fix.equipment.audit"].browse([v.get("audit_id") for v in vals_list])
+        self._m45_check_open(audits)
+        Equipment = self.env["fix.equipment"].sudo()
+        for vals in vals_list:
+            code = (vals.get("scanned_code") or "").strip()
+            if code and not vals.get("equipment_id"):
+                audit = self.env["fix.equipment.audit"].sudo().browse(vals.get("audit_id"))
+                company = audit.company_id.id or self.env.company.id
+                item = Equipment.search(
+                    [
+                        ("company_id", "=", company),
+                        "|",
+                        "|",
+                        ("asset_tag", "=ilike", code),
+                        ("code", "=ilike", code),
+                        ("serial_no", "=ilike", code),
+                    ],
+                    limit=2,
+                )
+                if len(item) != 1:
+                    raise UserError(
+                        "%s identifies %s registered item(s): scan the asset tag."
+                        % (code, "no" if not item else "more than one")
+                    )
+                vals["equipment_id"] = item.id
         return super().create(vals_list)
 
     def write(self, vals):
@@ -1282,6 +1679,11 @@ class FixEquipmentRetirement(models.Model):
     disposal_route = fields.Selection(DISPOSAL_ROUTES)
     erasure_certificate_ref = fields.Char(string="M06 Erasure Certificate")
     disposal_ref = fields.Char(string="E-Waste Batch / Sale Reference")
+    # A07 ERP audit M45-06 / D10: the sale proceeds M49 books the gain or loss
+    # against (and M51 output VAT on); S6 consumes equipment.disposed
+    currency_id = fields.Many2one(related="equipment_id.currency_id", string="Currency")
+    sale_amount = fields.Monetary(currency_field="currency_id", string="Sale Proceeds")
+    buyer_partner_id = fields.Many2one("res.partner", string="Buyer")
     requested_by_id = fields.Many2one("res.users", string="Requested By", readonly=True)
     disposed_by_id = fields.Many2one("res.users", string="Disposed By", readonly=True)
     disposed_on = fields.Date(readonly=True)
@@ -1293,8 +1695,20 @@ class FixEquipmentRetirement(models.Model):
         if any(rec.state != "draft" for rec in self):
             guarded |= {"basis", "justification", "replacement_required", "replacement_note"}
         if any(rec.state == "disposed" for rec in self):
-            guarded |= {"disposal_route", "erasure_certificate_ref", "disposal_ref"}
+            guarded |= {
+                "disposal_route",
+                "erasure_certificate_ref",
+                "disposal_ref",
+                "sale_amount",
+                "buyer_partner_id",
+            }
         return guarded
+
+    @api.constrains("sale_amount")
+    def _check_sale_amount(self):
+        for rec in self:
+            if (rec.sale_amount or 0.0) < 0:
+                raise ValidationError("Sale proceeds cannot be negative.")
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1352,6 +1766,13 @@ class FixEquipmentRetirement(models.Model):
                 raise UserError(
                     "Record the e-waste batch or sale reference for %s." % equipment.name
                 )
+            if rec.disposal_route == "resale" and not (
+                rec.buyer_partner_id and (rec.sale_amount or 0.0) > 0.0
+            ):
+                raise UserError(
+                    "A resale of %s records the buyer and the sale proceeds: M49 books the "
+                    "gain or loss against them." % equipment.name
+                )
             rec._guarded().write(
                 {
                     "state": "disposed",
@@ -1372,6 +1793,13 @@ class FixEquipmentRetirement(models.Model):
                     "fixed_asset_id": equipment.fixed_asset_id.id
                     if "fixed_asset_id" in equipment._fields
                     else None,
+                    # M45-06: the facts S6 books the disposal from
+                    "sale_amount": rec.sale_amount or 0.0,
+                    "buyer_partner_id": rec.buyer_partner_id.id or None,
+                    "currency": rec.currency_id.name or "BDT",
+                    "company_id": rec.company_id.id,
+                    "operating_unit_id": rec.operating_unit_id.id or None,
+                    "book_value": equipment._m45_writeoff_basis()[0],
                 },
             )
         return True
@@ -1393,5 +1821,13 @@ class FixEquipmentUsageConformity(models.Model):
                         "%s is not a measurement-critical instrument (its class is outside "
                         "calibration control), so it cannot produce a QC result. Use a "
                         "calibrated instrument." % equipment.name
+                    )
+                # A07 ERP audit M45-24 / BRU-EAM-05: certified by a provider
+                # without accreditation, it is restricted to non-conformity work
+                if equipment and equipment._m45_latest_calibration().non_accredited:
+                    raise UserError(
+                        "%s holds a certificate from a provider that is not accredited: it is "
+                        "restricted to non-conformity work and cannot produce a QC result."
+                        % equipment.name
                     )
         return super().create(vals_list)

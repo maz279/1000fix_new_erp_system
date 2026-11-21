@@ -62,6 +62,33 @@
         },
         "amount": {
           "type": "number"
+        },
+        "currency": {
+          "type": "string"
+        },
+        "hr_approved_by_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "hr_approved_on": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "value_impact": {
+          "type": "number"
+        },
+        "kind": {
+          "type": "string"
         }
       },
       "additionalProperties": false

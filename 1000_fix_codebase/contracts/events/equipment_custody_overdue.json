@@ -74,6 +74,24 @@
             "boolean",
             "null"
           ]
+        },
+        "holder_user_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "branch_manager_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "days_overdue": {
+          "type": "integer"
+        },
+        "escalation_level": {
+          "type": "integer"
         }
       },
       "additionalProperties": false

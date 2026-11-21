@@ -32,6 +32,20 @@ SRC = Path(portal.__file__).parent / "static" / "src" / "a07" / "m45.js"
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 @pytest.fixture(scope="module")
 def js(tmp_path_factory):
     node = shutil.which("node")
@@ -219,6 +233,7 @@ def cal(c, e, user=None, on=None, due=None, result="pass", **kw):
         "standard_ref": "STD-%s" % TAG,
         "certificate_ref": "CERT-%s" % TAG,
         "performed_by": "%s Lab" % TAG,
+        **d7a_evidence(c.env),
         "next_due": due or c.today + timedelta(days=355),
         "result": result,
     }
@@ -323,6 +338,13 @@ def test_04_only_the_quality_manager_moves_an_item_out_of_calibration_control(c,
         "Quality Manager",
     )
     assert meter.category_id == c.meters
+    # A07 ERP audit M45-04: an item leaves calibration control only while it is
+    # in calibration, never to escape its lapse
+    assert_refused(
+        save(ui, c.qm, js, "M45-form-equipment", meter.id, {"category_id": c.tools.id}),
+        "not in calibration",
+    )
+    cal(c, meter)
     assert_done(save(ui, c.qm, js, "M45-form-equipment", meter.id, {"category_id": c.tools.id}))
     assert not meter.measurement_critical
 
@@ -365,11 +387,13 @@ def test_06_no_calibration_against_a_lapsed_standard(c, ui, js):
     changes = {
         "equipment_id": meter.id,
         "calibrated_on": str(c.today - timedelta(days=1)),
-        "standard_ref": "In-house",
+        # A07 ERP audit M45-07: the reference is the standard's own code
+        "standard_ref": "",
         "standard_equipment_id": std.id,
         "result": "pass",
         "next_due": str(c.today + timedelta(days=300)),
         "performed_by": "Bench",
+        **d7a_evidence(c.env),
         "certificate_ref": "C-1",
     }
     assert_refused(save(ui, c.tech, js, "M45-form-calibration", changes=changes), "BRU-EAM-04")
@@ -696,6 +720,17 @@ def test_15_a_blind_count_records_what_nobody_found(c, ui, js):
         ui.action(c.keeper, model=audit._name, ids=audit.ids, method="action_complete"), "counter"
     )
     assert_done(ui.action(c.clerk2, model=audit._name, ids=audit.ids, method="action_complete"))
+    # A07 ERP audit M45-16 / AC-14: a discrepancy waits for an independent reviewer
+    assert audit.state == "review" and lost.operational_status == "available"
+    assert_done(
+        ui.action(
+            c.qm,
+            model=audit._name,
+            ids=audit.ids,
+            method="action_approve_count",
+            kwargs={"reason": "Store, benches and vans searched"},
+        )
+    )
     assert audit.state == "done" and audit.missing_count == 1 and audit.variance_value == 700.0
     assert lost.operational_status == "missing" and found.operational_status == "available"
     assert out_on_issue.operational_status == "issued", "custody accounts for an issued item"
@@ -710,6 +745,7 @@ def test_16_a_custodian_does_not_count_their_own_store(c, ui, js):
         .with_user(c.keeper)
         .create({"branch_id": c.branch.id, "counter_id": c.clerk2.employee_id.id})
     )
+    audit.with_user(c.keeper).action_start()
     assert_refused(
         ui.action(c.clerk2, model=audit._name, ids=audit.ids, method="action_complete"),
         "Segregation of duties",
@@ -751,8 +787,18 @@ def test_17_a_data_bearing_item_leaves_only_with_its_erasure_certificate(c, ui, 
     assert_done(
         save(ui, c.qm, js, "M45-form-retirement", ret.id, {"erasure_certificate_ref": "M06-ER-9"})
     )
-    assert_done(ui.action(c.qm, model=ret._name, ids=ret.ids, method="action_dispose"))
-    assert ret.state == "disposed" and ret.disposed_by_id == c.qm
+    # A07 ERP audit M45-21: a typed reference is not the erasure; the approval
+    # raised the M06 request and the disposal waits for its certificate
+    if "wipe_request_id" in ret._fields:
+        assert ret.wipe_request_id
+        assert_refused(
+            ui.action(c.qm, model=ret._name, ids=ret.ids, method="action_dispose"),
+            "not certified",
+        )
+        assert ret.state == "approved"
+    else:
+        assert_done(ui.action(c.qm, model=ret._name, ids=ret.ids, method="action_dispose"))
+        assert ret.state == "disposed" and ret.disposed_by_id == c.qm
 
 
 # ================================================ 9. branch profile and reports

@@ -36,6 +36,20 @@ SRC = Path(portal.__file__).parent / "static" / "src" / "a07" / "m45.js"
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 @pytest.fixture(scope="module")
 def js(tmp_path_factory):
     node = shutil.which("node")
@@ -192,6 +206,7 @@ def cal(c, e, user=None, on=None, due=None, result="pass", **kw):
         "standard_ref": "STD-%s" % TAG,
         "certificate_ref": "CERT-%s" % TAG,
         "performed_by": "%s Lab" % TAG,
+        **d7a_evidence(c.env),
         "next_due": due or c.today + timedelta(days=355),
         "result": result,
     }
@@ -235,6 +250,7 @@ def new_calibration_values(e, **kw):
         "equipment_id": e.id,
         "calibrated_on": str(fields.Date.today() - timedelta(days=1)),
         "standard_ref": "STD-%s" % TAG,
+        **d7a_evidence(e.env),
     }
     vals.update(kw)
     return vals
@@ -327,9 +343,10 @@ def test_03_leaving_found_alone_stores_found(c, ui, js):
     e = eq(c)
     out = open_form(ui, c.clerk, js, "M45-form-verification")
     assert out["defaults"]["found"] is True
+    # A07 ERP audit M45-14: a verification is a store keeper's record
     res = save(
         ui,
-        c.clerk,
+        c.keeper,
         js,
         "M45-form-verification",
         changes={"equipment_id": e.id, "campaign_ref": "Q4 count"},
@@ -345,7 +362,7 @@ def test_03_unticking_found_stores_missing(c, ui, js, unticked):
     e = eq(c)
     # whatever a caller sends for "not found" is a loss, never a verified row
     res = ui.write(
-        c.clerk,
+        c.keeper,
         model="fix.equipment.verification",
         record_id=False,
         values={"equipment_id": e.id, "campaign_ref": "Q4 count", "found": unticked},
@@ -360,7 +377,7 @@ def test_03_a_role_holder_cannot_clear_a_loss_by_leaving_the_form_alone(c, ui, j
     e = eq(c)
     res = save(
         ui,
-        c.clerk,
+        c.keeper2,
         js,
         "M45-form-verification",
         changes={"equipment_id": e.id, "campaign_ref": "Q4 count", "found": False},
@@ -866,7 +883,15 @@ def test_18_accredited_provider_is_enforced_when_the_profile_requires_it(c, ui, 
     e, profile = profiled(c, provider="accredited")
     assert profile.provider_requirement == "accredited"
     reading = {"point_id": profile.point_ids.id, "as_found": 10.0}
-    pass_vals = {"result": "pass", "certificate_ref": "C-1", "performed_by": "Lab"}
+    pass_vals = {
+        "result": "pass",
+        "certificate_ref": "C-1",
+        "performed_by": "Lab",
+        **d7a_evidence(c.env),
+        # the profile accepts an accredited provider only: not ticked here
+        "provider_accredited": False,
+        "accreditation_ref": False,
+    }
     assert_refused(
         save(
             ui,
@@ -884,7 +909,9 @@ def test_18_accredited_provider_is_enforced_when_the_profile_requires_it(c, ui, 
         c.tech,
         js,
         "M45-form-calibration",
-        changes=new_calibration_values(e, provider_accredited=True, **pass_vals),
+        changes=new_calibration_values(
+            e, **dict(pass_vals, provider_accredited=True, accreditation_ref="BAB-17025-TEST")
+        ),
         new_rows=[reading],
     )
     assert_done(res)
@@ -967,7 +994,12 @@ def test_blank_result_with_good_readings_still_needs_certificate_and_performer(c
     e, profile = profiled(c, provider="any")
     reading = (0, 0, {"point_id": profile.point_ids.id, "as_found": 10.0})
     Calibration = c.env["fix.calibration"].with_user(c.tech)
-    base = {"equipment_id": e.id, "standard_ref": "STD", "reading_ids": [reading]}
+    base = {
+        "equipment_id": e.id,
+        "standard_ref": "STD",
+        "reading_ids": [reading],
+        **d7a_evidence(c.env),
+    }
     with pytest.raises(UserError, match="certificate"), c.env.cr.savepoint():
         Calibration.create(dict(base))
     assert not e.calibration_ids

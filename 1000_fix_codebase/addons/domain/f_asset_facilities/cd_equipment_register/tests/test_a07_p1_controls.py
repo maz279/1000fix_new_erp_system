@@ -29,6 +29,20 @@ REFUSED = (UserError, ValidationError, AccessError)
 _SEQ = itertools.count(1)
 
 
+# A07 ERP audit (2026-11-20) decision D7(a): a pass always carries its
+# certificate file and its (here accredited, external) provider
+D7A_PDF = "JVBERi0xLjQgQTA3IGNlcnRpZmljYXRl"
+
+
+def d7a_evidence(env):
+    return {
+        "provider_id": env.ref("base.partner_admin").id,
+        "provider_accredited": True,
+        "accreditation_ref": "BAB-17025-TEST",
+        "certificate_file": D7A_PDF,
+    }
+
+
 def _user(env, tag, groups=(), company=None):
     n = next(_SEQ)
     ou = env["operating.unit"].search([], limit=1)
@@ -104,6 +118,7 @@ def fit(c, **kw):
             "result": "pass",
             "certificate_ref": "CERT",
             "performed_by": "Lab",
+            **d7a_evidence(c.env),
         }
     )
     return e
@@ -112,7 +127,8 @@ def fit(c, **kw):
 def issue(c, e, user=None, custodian=None, **kw):
     vals = {"equipment_id": e.id, "custodian_id": (custodian or c.clerk_emp).id}
     vals.update(kw)
-    return c.env["fix.equipment.issue"].with_user(user or c.clerk).create(vals)
+    # A07 ERP audit M45-15: a store keeper issues
+    return c.env["fix.equipment.issue"].with_user(user or c.keeper).create(vals)
 
 
 def events(c, since, event_type):
@@ -240,7 +256,8 @@ def test_a_return_without_a_condition_waits_for_a_condition_check(c):
     e = fit(c)
     i = issue(c, e)
     i.write({"condition_in": "DAMAGED - cracked probe"})
-    i.action_return()
+    # the holder hands it back (M45-15: never a condition check of their own)
+    i.with_user(c.clerk).action_return()
     hold = c.env["fix.equipment.oos"].search([("equipment_id", "=", e.id), ("state", "=", "open")])
     assert (i.state, e.operational_status, hold.hold_type) == (
         "returned",
@@ -265,7 +282,12 @@ def test_missing_at_count_takes_the_item_out_of_use_until_found(c):
     e = fit(c, acquisition_cost=4000)
     mark = outbox_mark(c)
     Ver = c.env["fix.equipment.verification"].with_user(c.clerk)
-    lost = Ver.create({"equipment_id": e.id, "campaign_ref": "%s-AUD" % TAG, "found": False})
+    # A07 ERP audit M45-14: a store keeper records the item not found
+    lost = (
+        c.env["fix.equipment.verification"]
+        .with_user(c.keeper)
+        .create({"equipment_id": e.id, "campaign_ref": "%s-AUD" % TAG, "found": False})
+    )
     assert (e.operational_status, e.missing_verification_id) == ("missing", lost)
     with pytest.raises(UserError, match="Lost / Missing"):
         e.with_user(c.clerk).action_assert_usable()
@@ -402,6 +424,7 @@ def test_custody_service_and_loss_changes_publish_events(c):
             "result": "pass",
             "certificate_ref": "C2",
             "performed_by": "Lab",
+            **d7a_evidence(c.env),
         }
     )
     hold.with_user(c.qm).action_resolve()
