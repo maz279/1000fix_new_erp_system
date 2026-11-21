@@ -105,6 +105,12 @@ const PAYMENT_ACTIONS = [
   {m:'action_retry',l:'Re-queue'},
   {m:'action_cancel',l:'Cancel'}
 ];
+/* A05 FIN-12 (I3): a cash instruction never reaches a bank statement. Once
+ * released (state sent) a named cashier / treasury user who did not request,
+ * approve or release it pays it out on a cash voucher, which posts its entry. */
+const CASH_PAYMENT_ACTIONS = PAYMENT_ACTIONS.concat([
+  {m:'action_pay_cash_voucher',l:'Pay Out (Cash Voucher)',states:['sent'],ask:'Who received the cash? (name / ID as signed on the voucher; empty = the payee)',kwarg:'received_by'}
+]);
 
 /* in-workspace data screens (checked before any stock Odoo view) */
 export const SCREENS = {
@@ -181,7 +187,7 @@ export const SCREENS = {
     context: { default_method: 'cheque' }, actions: PAYMENT_ACTIONS },
   'M50-cashpay': { kind: 'model_list', model: 'fix.payment.execution',
     cols: PAYMENT_COLS, stateField: 'state', domain: [['method','=','cash']],
-    context: { default_method: 'cash' }, actions: PAYMENT_ACTIONS },
+    context: { default_method: 'cash' }, actions: CASH_PAYMENT_ACTIONS },
   // ---- Settlement
   'M50-gateway': { kind: 'model_list', model: 'fix.gateway.settlement',
     cols: ['name','provider','settlement_date','line_count','total_gross','total_fee','total_fee_vat','total_net','exception_count','bank_matched','state'],
@@ -793,7 +799,17 @@ Object.assign(SCREENS, {
           { name: 'rail', label: 'Rail' },
           { name: 'journal_id', label: 'Paid From' },
           { name: 'value_date', label: 'Value Date' },
-          { name: 'operating_unit_id', required: true, label: 'Operating Unit' }
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit' },
+          { name: 'branch_id', label: 'Branch' },
+          { name: 'original_payment_ref', label: 'Original Card Transaction (card refunds)' }
+        ] },
+      { tab: 'evidence', title: 'Cash Voucher', note: 'A05 FIN-12: a cash instruction is confirmed by the cash voucher a cashier pays out (Pay Out on the Cash Payments list), never by a bank statement. Written by that hand-over only.',
+        fields: [
+          { name: 'cash_voucher_no', readonly: true, label: 'Cash Voucher No' },
+          { name: 'cash_paid_by_id', readonly: true, label: 'Cash Paid Out By' },
+          { name: 'cash_paid_at', readonly: true, label: 'Cash Paid Out At' },
+          { name: 'cash_received_by', readonly: true, label: 'Cash Received By' },
+          { name: 'confirmation_source', readonly: true, label: 'Confirmed By' }
         ] },
       { tab: 'evidence', title: 'Bank & Justification', note: 'The bank reference helps find the imported statement debit; it confirms nothing by itself.',
         fields: [

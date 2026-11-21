@@ -1,0 +1,183 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A05 printable documents (A05 ERP audit XC-10 / M13-24 / M14-18 / M18-18,
+  20 Nov 2026): the rental agreement, the condition report (outbound and
+  return, with photographs) and the security deposit receipt (M13); the
+  trade-in purchase voucher with the seller declaration, the refurbishment job
+  card and the resale warranty card with the buyer disclosure (M14); the
+  e-waste transfer manifest (Form-1) with the hazmat declaration, the disposal
+  certificate and the DoE statutory return (M18).
+
+  Printed like every commercial document: /report/pdf/<report>/<id>, handed
+  out by /p03/doc/print_url. The body uses the commercial document standard's
+  blocks (cd_doc_suite) and the A02 document sections, and reads one payload
+  per record built in Python (controllers/a05/documents.py); the templates
+  compute nothing. The report actions bind to their model only where the model
+  is installed (binding by search): this module keeps its dependencies.
+-->
+<odoo>
+
+    <!-- photographs of a condition report, two per row, with their seal -->
+    <template id="a05_doc_photos">
+        <t t-if="p.get('photos')">
+            <div class="cds-party-label" style="margin-top: 8px;" t-esc="p.get('photos_title') or 'Photographs'"/>
+            <table class="cds-table" style="width: 100%;">
+                <t t-foreach="[p['photos'][i:i + 2] for i in range(0, len(p['photos']), 2)]" t-as="pair">
+                    <tr>
+                        <td t-foreach="pair" t-as="ph" style="width: 50%; text-align: center; vertical-align: top; padding: 4px;">
+                            <img t-if="ph['src']" t-att-src="ph['src']" style="max-width: 100%; max-height: 220px;"/>
+                            <div t-if="not ph['src']" style="color:#777;">(image not available)</div>
+                            <div class="cds-sub" t-esc="ph['caption']"/>
+                        </td>
+                    </tr>
+                </t>
+            </table>
+        </t>
+    </template>
+
+    <!-- the A4 body: letterhead, head, lines, sections, photos, totals, notes, signatures -->
+    <template id="a05_doc_a4">
+        <t t-call="web.html_container">
+            <t t-foreach="docs" t-as="doc">
+                <t t-call="web.external_layout">
+                    <div class="page cds-doc" style="position: relative;">
+                        <t t-set="p" t-value="payloads[doc.id]"/>
+                        <t t-call="cd_doc_suite.commercial_head"/>
+                        <t t-if="p.get('lines')">
+                            <t t-call="cd_doc_suite.commercial_lines"/>
+                        </t>
+                        <t t-if="p.get('totals')">
+                            <t t-call="cd_doc_suite.commercial_footer"/>
+                        </t>
+                        <t t-call="cd_p03_portal.a02_doc_sections"/>
+                        <t t-call="cd_p03_portal.a05_doc_photos"/>
+                        <t t-call="cd_doc_suite.commercial_notes"/>
+                        <t t-call="cd_doc_suite.commercial_sign"/>
+                    </div>
+                </t>
+            </t>
+        </t>
+    </template>
+
+    <template id="report_a05_rental_agreement"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_condition_report"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_deposit_receipt"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_tradein_voucher"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_refurb_job_card"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_resale_warranty"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_ewaste_manifest"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_disposal_certificate"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+    <template id="report_a05_doe_return"><t t-call="cd_p03_portal.a05_doc_a4"/></template>
+
+    <!-- ============================ M13 rental ============================ -->
+    <record id="action_report_a05_rental_agreement" model="ir.actions.report">
+        <field name="name">Rental Agreement</field>
+        <field name="model">fix.rental.reservation</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_rental_agreement</field>
+        <field name="report_file">cd_p03_portal.report_a05_rental_agreement</field>
+        <field name="print_report_name">'Rental Agreement %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.rental.reservation')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_condition_report" model="ir.actions.report">
+        <field name="name">Rental Condition Report</field>
+        <field name="model">fix.rental.condition</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_condition_report</field>
+        <field name="report_file">cd_p03_portal.report_a05_condition_report</field>
+        <field name="print_report_name">'Condition Report %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.rental.condition')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_deposit_receipt" model="ir.actions.report">
+        <field name="name">Security Deposit Receipt</field>
+        <field name="model">fix.rental.deposit</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_deposit_receipt</field>
+        <field name="report_file">cd_p03_portal.report_a05_deposit_receipt</field>
+        <field name="print_report_name">'Deposit Receipt %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.rental.deposit')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- ============================ M14 trade-in ============================ -->
+    <record id="action_report_a05_tradein_voucher" model="ir.actions.report">
+        <field name="name">Trade-In Purchase Voucher &amp; Seller Declaration</field>
+        <field name="model">fix.tradein.request</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_tradein_voucher</field>
+        <field name="report_file">cd_p03_portal.report_a05_tradein_voucher</field>
+        <field name="print_report_name">'Purchase Voucher %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.tradein.request')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_refurb_job_card" model="ir.actions.report">
+        <field name="name">Refurbishment Job Card</field>
+        <field name="model">fix.refurbishment</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_refurb_job_card</field>
+        <field name="report_file">cd_p03_portal.report_a05_refurb_job_card</field>
+        <field name="print_report_name">'Refurb Job Card %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.refurbishment')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_resale_warranty" model="ir.actions.report">
+        <field name="name">Resale Warranty Card &amp; Buyer Disclosure</field>
+        <field name="model">fix.tradein.warranty</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_resale_warranty</field>
+        <field name="report_file">cd_p03_portal.report_a05_resale_warranty</field>
+        <field name="print_report_name">'Warranty Card %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.tradein.warranty')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- ============================ M18 e-waste ============================ -->
+    <record id="action_report_a05_ewaste_manifest" model="ir.actions.report">
+        <field name="name">E-Waste Transfer Manifest (Form-1)</field>
+        <field name="model">fix.ewaste.manifest</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_ewaste_manifest</field>
+        <field name="report_file">cd_p03_portal.report_a05_ewaste_manifest</field>
+        <field name="print_report_name">'Manifest %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.ewaste.manifest')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_disposal_certificate" model="ir.actions.report">
+        <field name="name">E-Waste Disposal Certificate</field>
+        <field name="model">fix.ewaste.certificate</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_disposal_certificate</field>
+        <field name="report_file">cd_p03_portal.report_a05_disposal_certificate</field>
+        <field name="print_report_name">'Disposal Certificate %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.ewaste.certificate')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_a05_doe_return" model="ir.actions.report">
+        <field name="name">E-Waste Statutory Return (DoE)</field>
+        <field name="model">fix.ewaste.return</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">cd_p03_portal.report_a05_doe_return</field>
+        <field name="report_file">cd_p03_portal.report_a05_doe_return</field>
+        <field name="print_report_name">'DoE Return %s' % object.name</field>
+        <field name="paperformat_id" ref="paperformat_a02_a4"/>
+        <field name="binding_model_id" search="[('model', '=', 'fix.ewaste.return')]"/>
+        <field name="binding_type">report</field>
+    </record>
+
+</odoo>

@@ -31,6 +31,7 @@ from odoo.addons.cd_p03_portal.tests.test_m13_submodule_capture import (  # noqa
     _sub,
     reg,
 )
+from odoo.addons.cd_rental_asset.tests.conftest import configure_rental_money
 from odoo.addons.cd_rental_asset.tests.test_a05_m13_controls import (  # noqa: F401
     _PNG,
     REFUSED,
@@ -51,6 +52,22 @@ from odoo.addons.cd_rental_asset.tests.test_a05_m13_controls import (  # noqa: F
 from odoo.exceptions import UserError
 
 RES = "fix.rental.reservation"
+
+
+@pytest.fixture(autouse=True)
+def _rental_money(request):
+    """A05 ERP D1 (S1): the rental money path fails closed without its
+    account parameters; the test chart's accounts stand in for fix_real's.
+    (Only for the tests that open the database.)"""
+    if "odoo_env" in request.fixturenames or "c" in request.fixturenames:
+        configure_rental_money(request.getfixturevalue("odoo_env"))
+
+
+def _finance(c, login="fin"):
+    """XC-07 / FR-RNT-010 (S1): exposure limits and waiver plans are Rental
+    Finance's to configure, never the counter's."""
+    return _user(c.env, login, ["cd_rental_asset.group_rental_finance"])
+
 
 # --- the pages -----------------------------------------------------------------
 
@@ -178,18 +195,20 @@ def test_page2_switching_the_identity_rule_off_is_a_recorded_policy(c, p03):
 
 
 def test_page2_exposure_limit_blocks_until_another_person_approves_an_override(c, p03):
-    prof = _w(
-        c,
-        p03,
-        "fix.rental.exposure",
-        {
-            "partner_id": c.customer.id,
-            "risk_tier": "standard",
-            "exposure_limit": 10000,
-            "basis": "NID verified; first rental; standard deposit tier",
-        },
+    fin = _finance(c)
+    prof = (
+        c.env["fix.rental.exposure"]
+        .with_user(fin)
+        .create(
+            {
+                "partner_id": c.customer.id,
+                "risk_tier": "standard",
+                "exposure_limit": 10000,
+                "basis": "NID verified; first rental; standard deposit tier",
+            }
+        )
     )
-    assert prof.reviewed_by == c.clerk and prof.current_exposure == 0
+    assert prof.reviewed_by == fin and prof.sudo().current_exposure == 0
     r = res(c)
     _refused(p03, RES, r, "action_reserve", "exposure override")
     ov = _w(
@@ -200,21 +219,30 @@ def test_page2_exposure_limit_blocks_until_another_person_approves_an_override(c
     )
     assert ov.exposure_limit == 10000 and ov.excess == round(ov.exposure_after - 10000, 2) > 0
     assert ov.requested_by == c.clerk and ov.state == "requested"
-    with pytest.raises(UserError, match="another person"):
-        ov.with_user(c.clerk).action_approve()
-    ov.with_user(c.clerk2).action_approve()
+    # A05 XC-02 (S1): a routed M63 approval tiered on the excess, never a
+    # button a second person presses, never decided by whoever asked
+    with pytest.raises(UserError, match="M63 inbox"):
+        ov.with_user(c.clerk2).action_approve()
+    _act(
+        p03,
+        "fix.rental.exposure.override",
+        ov,
+        "action_request_approval",
+        justification="Parent company guarantees the hire",
+    )
+    assert c.clerk not in ov.approval_request_id.task_ids.mapped("assigned_user_id")
+    inbox_approve(ov, c.t2 if ov._dofa_current_tier() == "tier_2" else c.t1)
+    assert ov.state == "approved" and ov.decided_by != c.clerk
     _act(p03, RES, r, "action_reserve")
+    prof = prof.sudo()
     prof.invalidate_recordset()
     assert r.state == "reserved" and prof.current_exposure == pytest.approx(ov.exposure_after)
     assert prof.headroom < 0
 
 
 def test_page2_an_override_is_refused_where_no_limit_is_breached(c, p03):
-    _w(
-        c,
-        p03,
-        "fix.rental.exposure",
-        {"partner_id": c.customer.id, "exposure_limit": 10_000_000, "basis": "Corporate"},
+    c.env["fix.rental.exposure"].with_user(_finance(c)).create(
+        {"partner_id": c.customer.id, "exposure_limit": 10_000_000, "basis": "Corporate"}
     )
     err = _w(
         c,
@@ -302,6 +330,9 @@ def test_page3_extension_into_the_next_booking_of_the_unit_is_refused(c):
 
 
 def _published_plan(c, p03, **kw):
+    """XC-07 (S1): a waiver plan is Rental Finance's product - configured by
+    one Finance user, published by another; the counter only reads it."""
+    fin, fin2 = _finance(c, "fin1"), _finance(c, "fin2")
     vals = {
         "name": "A05M13T Standard Waiver",
         "fee_pct": 10,
@@ -309,20 +340,23 @@ def _published_plan(c, p03, **kw):
         "covers_theft": True,
     }
     vals.update(kw)
-    plan = _w(c, p03, "fix.rental.waiver.plan", vals)
+    _w(c, p03, "fix.rental.waiver.plan", vals, ok=False)  # the counter cannot make one
+    plan = c.env["fix.rental.waiver.plan"].with_user(fin).create(vals)
     with pytest.raises(UserError, match="Legal"):
-        plan.with_user(c.clerk2).action_publish()
-    _w(c, p03, "fix.rental.waiver.plan", {"legal_review_ref": "LEGAL/2026/114"}, record_id=plan.id)
+        plan.with_user(fin2).action_publish()
+    plan.with_user(fin).write({"legal_review_ref": "LEGAL/2026/114"})
     with pytest.raises(UserError, match="another person"):
-        plan.with_user(c.clerk).action_publish()
-    plan.with_user(c.clerk2).action_publish()
-    assert plan.state == "published" and plan.published_by == c.clerk2
+        plan.with_user(fin).action_publish()
+    plan.with_user(fin2).action_publish()
+    assert plan.state == "published" and plan.published_by == fin2
     return plan
 
 
 def test_page4_a_published_plan_never_changes_and_only_published_plans_are_elected(c, p03):
-    draft = _w(
-        c, p03, "fix.rental.waiver.plan", {"name": "Draft plan", "fee_pct": 5, "excess_amount": 0}
+    draft = (
+        c.env["fix.rental.waiver.plan"]
+        .with_user(_finance(c, "fin0"))
+        .create({"name": "Draft plan", "fee_pct": 5, "excess_amount": 0})
     )
     with pytest.raises(REFUSED, match="published"):
         res(c, waiver_plan_id=draft.id)
@@ -359,12 +393,17 @@ def test_page4_close_settles_only_the_excess_and_the_invoice_carries_the_waiver(
     dmg = damage(c, r, cost=9000)
     approve_charge(c, dmg)
     assert dmg.charge_approval_id.amount == 2000
-    r.with_user(c.clerk).action_close()
+    # XC-22 (S1): the settlement is made by someone other than the deposit taker
+    r.with_user(c.clerk2).action_close()
     deducted = ledger(c, r).filtered(lambda d: d.kind == "deduction")
     assert sum(deducted.mapped("amount")) in (0, 2000)  # 0 when the collection did not post
     if deducted:
         assert r.deposit_refunded == 3000 and r.excess_billed == 0 and dmg.settled
-    r.action_issue_rental_invoice()
+    # FIN-07 (S1): the return already billed the charges cumulatively; a
+    # supplementary invoice is raised only for what is still unbilled
+    billable, billed = r._unbilled()
+    if abs(billable - billed) > 0.005:
+        r.action_issue_rental_invoice()
     lines = r.mushak_6_3_id.line_ids
     waiver_line = lines.filtered(lambda line: "Damage waiver" in (line.description or ""))
     assert len(lines) == 2 and waiver_line
@@ -502,12 +541,13 @@ def test_page6_non_return_is_escalated_then_written_off_on_the_units_approval(c,
         {"claim_decision": "no_claim", "no_claim_reason": "Below the fleet policy excess"},
         record_id=loss.id,
     )
+    with pytest.raises(REFUSED):  # the loss's routed write-off approval is not granted
+        loss.with_user(c.clerk2).action_write_off()
+    # XC-04 / M13-13 (S1): the write-off is routed on the LOSS record itself
+    _act(p03, "fix.rental.loss", loss, "action_request_writeoff", justification="Not returned")
+    inbox_approve(loss, c.t2)
     with pytest.raises(UserError, match="another person"):
         loss.with_user(c.clerk).action_write_off()
-    with pytest.raises(REFUSED):  # the unit's routed write-off approval is not granted
-        loss.with_user(c.clerk2).action_write_off()
-    _act(p03, "fix.rental.loss", loss, "action_request_writeoff", justification="Not returned")
-    inbox_approve(c.asset, c.t2)
     held = r._ledger_balance()
     loss.with_user(c.clerk2).action_write_off()
     r.invalidate_recordset()

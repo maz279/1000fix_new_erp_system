@@ -9,7 +9,33 @@
 # figures are what the records say: CO2 avoided is an estimate reported apart
 # from the inventory, counted only once a recycler certificate covers the
 # item; the ESG report lists computed metrics only.
+#
+# A05 ERP audit (20 Nov 2026, XC-06/11/15/18/23, M18-09/10/23/25): every pack
+# honours the period in Dhaka days on its own date (received, dispatched,
+# processed, issued, return period), 'today' is Dhaka's, diversion is GRI
+# 306-4 (recycling diverted, untriaged and in-process weight outside the
+# rate; the M18 engine's method when installed), the material recovery report
+# reads what the recyclers recovered, and the zero-target controls and the
+# spec KPIs are added.
 import datetime
+import logging
+
+from .m13 import (
+    CONTROL_COLS,
+    CONTROL_LABELS,
+    _pack,
+    control_row,
+    dhaka_today,
+    fenced,
+    in_window,
+    param_float,
+    pct,
+    period_note,
+    to_dhaka_date,
+    window,
+)
+
+_logger = logging.getLogger(__name__)
 
 SURFACES = {
     "fix.ewaste.collection": {
@@ -157,9 +183,6 @@ _TRIAGE_LABELS = {
     "harvest": "Parts Harvest",
     "donate": "Donation",
 }
-# GRI 306-4 "diverted from disposal" (preparation for reuse): the M14 routes,
-# parts harvesting and donation (capture pass 2, FR-ESG-008/023)
-_DIVERTED = ("reuse", "refurbish", "harvest", "donate")
 _CO2_NOTE = (
     "CO2e avoided is an ESTIMATE (weight x the configured factor, version stamped), "
     "counted only for items a recycler certificate covers, and reported apart from "
@@ -167,30 +190,22 @@ _CO2_NOTE = (
 )
 
 
-def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
-    return {
-        "title": title,
-        "cols": cols,
-        "labels": labels,
-        "rows": rows,
-        "totals": totals,
-        "notes": notes,
-        "empty": empty,
-    }
-
-
 def _mine(env, model, domain=None, order=None):
-    """The user's own read (record rules apply), inside the user's companies."""
-    return env[model].search(
-        [("company_id", "in", env.companies.ids), *(domain or [])], order=order
-    )
+    """The user's own read (company and OU record rules apply), inside the
+    user's companies (A05 audit E2 / XC-23)."""
+    found = fenced(env, model, domain, order=order)
+    return found if found is not None else env["res.partner"].browse()
 
 
-def _collections(env):
-    return _mine(env, "fix.ewaste.collection")
+def _collections(env, start=None, end=None):
+    recs = _mine(env, "fix.ewaste.collection")
+    if start is None:
+        return recs
+    return recs.filtered(lambda r: in_window(r.collected_on or r.create_date, start, end))
 
 
 def _month_key(value):
+    value = to_dhaka_date(value)
     return value.strftime("%Y-%m") if value else "—"
 
 
@@ -198,9 +213,120 @@ def _certified_co2(recs):
     return sum(r.esg_co2_saved_kg or 0.0 for r in recs if r.state == "certified")
 
 
+def _hazardous(rec):
+    return rec.triage_grade == "hazardous" or rec.material_type == "battery"
+
+
+# GRI 306-4 (A05 ERP audit M18-09 / XC-15): ONE diversion definition, the M18
+# engine's (stream S3: fix.esg.metric._fix_gri_306_4(company, date_from,
+# date_to)), used by the KPI, the ESG metric and this report. Cohort: the items
+# triaged in the period; denominator: their weight; numerator: the items whose
+# final route is reuse, refurbishment, parts harvest, certified recycling or
+# donation. The fallback below applies the same definition when the engine
+# method is not installed.
+_DIVERTED_ROUTES = ("reuse", "refurbish", "harvest", "recycle", "donation")
+_GRI_DEFINITION = (
+    "GRI 306-4 diversion rate = weight of the items triaged in the period whose final "
+    "route is reuse, refurbishment, parts harvest, certified recycling or donation, "
+    "divided by the weight of all items triaged in the period."
+)
+
+
+def _final_route(col):
+    if col.state == "routed":
+        return {"reuse": "reuse", "refurbish": "refurbish", "harvest": "harvest"}.get(
+            col.triage_grade, "in_process"
+        )
+    if col.state == "certified":
+        return "recycle"
+    if col.state == "donated":
+        return "donation"
+    if col.state == "disposed":
+        return "disposal"
+    return "in_process"
+
+
+def _triaged_in(env, start, end):
+    """The caller's items whose triage decision is dated in the period."""
+    return _mine(env, "fix.ewaste.collection", [("triage_id", "!=", False)]).filtered(
+        lambda c: c.triage_id.decided_on and start <= c.triage_id.decided_on <= end
+    )
+
+
+def _gri_fallback(cohort):
+    by_operation = dict.fromkeys((*_DIVERTED_ROUTES, "disposal", "in_process"), 0.0)
+    hazardous = {"diverted": 0.0, "disposal": 0.0}
+    for col in cohort:
+        route = _final_route(col)
+        weight = col.weight_kg or 0.0
+        by_operation[route] += weight
+        if _hazardous(col):
+            if route in _DIVERTED_ROUTES:
+                hazardous["diverted"] += weight
+            elif route == "disposal":
+                hazardous["disposal"] += weight
+    triaged = round(sum(cohort.mapped("weight_kg")), 3)
+    diverted = round(sum(by_operation[r] for r in _DIVERTED_ROUTES), 3)
+    return {
+        "item_count": len(cohort),
+        "triaged_kg": triaged,
+        "diverted_kg": diverted,
+        "directed_to_disposal_kg": round(by_operation["disposal"], 3),
+        "in_process_kg": round(by_operation["in_process"], 3),
+        "diversion_rate_pct": round(diverted / triaged * 100.0, 2) if triaged > 0 else 0.0,
+        "by_operation": {k: round(v, 3) for k, v in by_operation.items()},
+        "hazardous_diverted_kg": round(hazardous["diverted"], 3),
+        "hazardous_disposal_kg": round(hazardous["disposal"], 3),
+        "definition": _GRI_DEFINITION,
+        "method": "report fallback (same definition)",
+    }
+
+
+_SUMMED = (
+    "item_count",
+    "triaged_kg",
+    "diverted_kg",
+    "directed_to_disposal_kg",
+    "in_process_kg",
+    "hazardous_diverted_kg",
+    "hazardous_disposal_kg",
+)
+
+
+def gri_306(env, start, end):
+    """The GRI 306-4 figures of the caller's companies for [start, end]: the
+    M18 engine's method per company (summed), else the same definition here."""
+    Metric = env.get("fix.esg.metric")
+    method = getattr(Metric.sudo(), "_fix_gri_306_4", None) if Metric is not None else None
+    if not callable(method):
+        return _gri_fallback(_triaged_in(env, start, end))
+    out = dict.fromkeys(_SUMMED, 0.0)
+    out["by_operation"] = {}
+    out["definition"] = _GRI_DEFINITION
+    for company in env.companies:
+        try:
+            part = dict(method(company, start, end) or {})
+        except Exception:  # the report falls back, never breaks
+            _logger.exception("M18 GRI 306-4 engine method failed")
+            return _gri_fallback(_triaged_in(env, start, end))
+        for key in _SUMMED:
+            out[key] += part.get(key) or 0.0
+        for key, value in (part.get("by_operation") or {}).items():
+            out["by_operation"][key] = out["by_operation"].get(key, 0.0) + (value or 0.0)
+        out["definition"] = part.get("definition") or out["definition"]
+    out["item_count"] = int(out["item_count"])
+    triaged = out["triaged_kg"]
+    out["diversion_rate_pct"] = (
+        round(out["diverted_kg"] / triaged * 100.0, 2) if triaged > 0 else 0.0
+    )
+    out["method"] = "fix.esg.metric._fix_gri_306_4 (M18 engine)"
+    return out
+
+
 def collection_volume(env, date_from=None, date_to=None, **params):
+    start, end = window(env, date_from, date_to, days=365)
     by_key = {}
-    for rec in _collections(env):
+    for rec in _collections(env, start, end):
         key = (_month_key(rec.collected_on or rec.create_date), rec.material_type or "other")
         row = by_key.setdefault(
             key,
@@ -220,7 +346,7 @@ def collection_volume(env, date_from=None, date_to=None, **params):
         row["weight_kg"] = round(row["weight_kg"], 2)
         row["co2_avoided_kg"] = round(row["co2_avoided_kg"], 2)
     return _pack(
-        "Collection Volume Trend — collections by month and material",
+        "Collection Volume Trend — collected %s to %s" % (start, end),
         ["period", "material", "collections", "weight_kg", "co2_avoided_kg"],
         {
             "period": "Period",
@@ -230,20 +356,25 @@ def collection_volume(env, date_from=None, date_to=None, **params):
             "co2_avoided_kg": "CO2e Avoided (kg, estimate)",
         },
         rows,
-        ["Every collection counts at its intake month (inventory).", _CO2_NOTE],
+        [
+            "Every collection counts at its intake month (inventory).",
+            _CO2_NOTE,
+            period_note(start, end, "date received"),
+        ],
         totals={
             "period": "Total",
             "collections": sum(r["collections"] for r in rows),
             "weight_kg": round(sum(r["weight_kg"] for r in rows), 2),
             "co2_avoided_kg": round(sum(r["co2_avoided_kg"] for r in rows), 2),
         },
-        empty="No collections recorded yet.",
+        empty="No collections in this window.",
     )
 
 
 def disposition_mix(env, date_from=None, date_to=None, **params):
+    start, end = window(env, date_from, date_to, days=90)
     by_grade = {}
-    for rec in _collections(env):
+    for rec in _collections(env, start, end):
         key = rec.triage_grade or "untriaged"
         row = by_grade.setdefault(
             key,
@@ -259,14 +390,12 @@ def disposition_mix(env, date_from=None, date_to=None, **params):
     total_weight = sum(r["weight_kg"] for r in by_grade.values())
     for row in by_grade.values():
         row["weight_kg"] = round(row["weight_kg"], 2)
-        row["share_pct"] = (
-            round((row["weight_kg"] / total_weight) * 100.0, 1) if total_weight else 0.0
-        )
+        row["share_pct"] = pct(row["weight_kg"], total_weight)
         rows.append(row)
     order = [*list(_TRIAGE_LABELS.values()), "Untriaged"]
     rows.sort(key=lambda r: order.index(r["disposition"]) if r["disposition"] in order else 99)
     return _pack(
-        "Disposition Mix — where the collected weight went",
+        "Disposition Mix — collected %s to %s" % (start, end),
         ["disposition", "collections", "weight_kg", "share_pct"],
         {
             "disposition": "Disposition",
@@ -277,73 +406,123 @@ def disposition_mix(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Disposition is the assessor's recorded triage decision (write-once); "
-            "untriaged collections stay visible until a decision is made."
+            "untriaged collections stay visible until a decision is made.",
+            period_note(start, end, "date received"),
         ],
         totals={
             "disposition": "Total",
             "collections": sum(r["collections"] for r in rows),
             "weight_kg": round(total_weight, 2),
         },
-        empty="No collections recorded yet.",
+        empty="No collections in this window.",
     )
 
 
 def material_recovery(env, date_from=None, date_to=None, **params):
-    collections = _collections(env)
+    """A05 ERP audit M18-23: the material the recyclers RECOVERED (fix.ewaste.
+    material.recovery, by spec material class) with its rate and income,
+    against the weight processed in the period."""
+    start, end = window(env, date_from, date_to, days=90)
     batches = _mine(env, "fix.ewaste.batch")
-    rows = []
-    for key, label in _MATERIAL_LABELS.items():
-        col = collections.filtered(lambda r, k=key: r.material_type == k)
-        bat = batches.filtered(lambda r, k=key: r.material_type == k)
-        processed = bat.filtered(lambda r: r.state == "processed")
-        collected_kg = sum(col.mapped("weight_kg"))
-        batch_kg = sum(bat.mapped("weight_kg"))
-        processed_kg = sum(processed.mapped("processed_weight_kg"))
-        rows.append(
+    processed = batches.filtered(
+        lambda b: b.state == "processed" and b.processed_on and start <= b.processed_on <= end
+    )
+    processed_kg = sum(processed.mapped("processed_weight_kg"))
+    lines = (
+        env["fix.ewaste.material.recovery"].sudo().search([("batch_id", "in", batches.ids)])
+        if "fix.ewaste.material.recovery" in env
+        else []
+    )
+    labels = (
+        dict(env["fix.ewaste.material.recovery"]._fields["material_class"].selection)
+        if lines
+        else {}
+    )
+    rows = {}
+    for line in lines:
+        day = line.recorded_on or line.batch_id.processed_on
+        if not (day and start <= day <= end):
+            continue
+        row = rows.setdefault(
+            line.material_class,
             {
-                "material": label,
-                "collections": len(col),
-                "collected_kg": round(collected_kg, 2),
-                "batch_kg": round(batch_kg, 2),
-                "processed_kg": round(processed_kg, 2),
-                "recovery_pct": round((processed_kg / collected_kg) * 100.0, 1)
-                if collected_kg
-                else 0.0,
-            }
+                "material": labels.get(line.material_class, line.material_class),
+                "lines": 0,
+                "recovered_kg": 0.0,
+                "income": 0.0,
+                "raised": 0.0,
+            },
         )
-    rows.sort(key=lambda r: -r["collected_kg"])
+        row["lines"] += 1
+        row["recovered_kg"] += line.weight_kg or 0.0
+        row["income"] += line.income_amount or 0.0
+        if line.state == "raised":
+            row["raised"] += line.income_amount or 0.0
+    out = []
+    for row in rows.values():
+        row["recovered_kg"] = round(row["recovered_kg"], 2)
+        row["income"] = round(row["income"], 2)
+        row["raised"] = round(row["raised"], 2)
+        row["avg_rate"] = (
+            round(row["income"] / row["recovered_kg"], 2) if row["recovered_kg"] else 0.0
+        )
+        row["share_pct"] = pct(row["recovered_kg"], processed_kg)
+        out.append(row)
+    out.sort(key=lambda r: -r["recovered_kg"])
+    recovered = sum(r["recovered_kg"] for r in out)
     return _pack(
-        "Material Recovery — collected vs batched vs processed",
-        ["material", "collections", "collected_kg", "batch_kg", "processed_kg", "recovery_pct"],
+        "Material Recovery — recovered %s to %s" % (start, end),
+        ["material", "lines", "recovered_kg", "share_pct", "avg_rate", "income", "raised"],
         {
-            "material": "Material",
-            "collections": "Collections",
-            "collected_kg": "Collected (kg)",
-            "batch_kg": "Batched (kg)",
-            "processed_kg": "Processed (kg)",
-            "recovery_pct": "Recovery %",
+            "material": "Material Class",
+            "lines": "Recovery Lines",
+            "recovered_kg": "Recovered (kg)",
+            "share_pct": "% of Processed Weight",
+            "avg_rate": "Average Rate (BDT/kg)",
+            "income": "Income (agreed rate)",
+            "raised": "Income Raised",
         },
-        rows,
+        out,
         [
-            "Batched weight is the sum of the batch's items; processed weight is the "
-            "recycler's weighbridge at receipt, within tolerance of what left. Recovery = "
-            "processed ÷ collected for the same material; unbatched weight is the gap."
+            "Recovered material by class as recorded against the recycler's processing "
+            "of each batch; the share is of the weight processed in the period "
+            "(%.2f kg across %d batch(es)). Recovery rate = %.1f%%."
+            % (processed_kg, len(processed), pct(recovered, processed_kg)),
+            "Income raised = recovery lines whose income settlement was raised (M20).",
+            period_note(start, end, "recovery recorded date (else batch processed date)"),
         ],
         totals={
             "material": "Total",
-            "collections": sum(r["collections"] for r in rows),
-            "collected_kg": round(sum(r["collected_kg"] for r in rows), 2),
-            "batch_kg": round(sum(r["batch_kg"] for r in rows), 2),
-            "processed_kg": round(sum(r["processed_kg"] for r in rows), 2),
+            "lines": sum(r["lines"] for r in out),
+            "recovered_kg": round(recovered, 2),
+            "share_pct": pct(recovered, processed_kg),
+            "income": round(sum(r["income"] for r in out), 2),
+            "raised": round(sum(r["raised"] for r in out), 2),
         },
-        empty="No collections recorded yet.",
+        empty="No material recovery recorded in this window.",
+    )
+
+
+def _month_in(period, start, end):
+    try:
+        year, month = (int(x) for x in str(period)[:7].split("-"))
+    except (TypeError, ValueError):
+        return False
+    first = datetime.date(year, month, 1)
+    return (
+        first <= end and (first.replace(day=28) + datetime.timedelta(days=4)).replace(day=1) > start
     )
 
 
 def compliance_pack(env, date_from=None, date_to=None, **params):
-    returns = _mine(env, "fix.ewaste.return")
+    start, end = window(env, date_from, date_to, days=365)
+    returns = _mine(env, "fix.ewaste.return").filtered(
+        lambda r: _month_in(r.period, start, end) or (r.due_date and start <= r.due_date <= end)
+    )
     partners = _mine(env, "fix.ewaste.partner")
-    certificates = _mine(env, "fix.ewaste.certificate", [("state", "=", "issued")])
+    certificates = _mine(env, "fix.ewaste.certificate", [("state", "=", "issued")]).filtered(
+        lambda c: c.issued_on and start <= c.issued_on <= end
+    )
     rows = []
     for rec in returns:
         rows.append(
@@ -359,17 +538,16 @@ def compliance_pack(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: (not r["overdue"], r["period"]), reverse=True)
-    today = datetime.date.today()
     valid_partners = len(
         partners.filtered(
-            lambda p: p.state == "active"
-            and p.approved_by_id
-            and p.valid_to
-            and p.valid_to >= today
+            lambda p: p.state == "active" and p.approved_by_id and p.valid_to and p.valid_to >= end
         )
     )
+    on_time = len(
+        returns.filtered(lambda r: r.submitted_on and r.due_date and r.submitted_on <= r.due_date)
+    )
     return _pack(
-        "Compliance Evidence Pack — DoE / BTRC returns",
+        "Compliance Evidence Pack — %s to %s" % (start, end),
         ["return", "authority", "period", "due", "submitted", "tonnage", "state", "overdue"],
         {
             "return": "Return",
@@ -383,74 +561,116 @@ def compliance_pack(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Evidence in one place: %d statutory returns, %d recycler certificates issued, "
-            "%d approved recycler(s) with an in-date licence today."
-            % (len(returns), len(certificates), valid_partners)
+            "Evidence for the period: %d statutory return(s) (%d filed on time; target "
+            "100%%), %d recycler certificate(s) issued, %d approved recycler(s) with a "
+            "licence in date at %s."
+            % (len(returns), on_time, len(certificates), valid_partners, end),
+            period_note(start, end, "return period / due date and certificate issue date"),
         ],
-        empty="No statutory returns recorded yet.",
+        empty="No statutory returns in this window.",
     )
 
 
 def impact_diversion(env, date_from=None, date_to=None, **params):
-    collections = _collections(env)
+    """GRI 306-4 diversion (A05 ERP audit M18-09 / XC-15): the items triaged
+    in the period by triage disposition and final route; recycling under a
+    certificate counts as diverted; untriaged weight is outside the rate."""
+    start, end = window(env, date_from, date_to, days=365)
+    cohort = _triaged_in(env, start, end)
     rows = []
-    total_weight = 0.0
-    total_co2 = 0.0
-    diverted = 0.0
-    for key, label in [*list(_TRIAGE_LABELS.items()), ("untriaged", "Untriaged")]:
-        if key == "untriaged":
-            recs = collections.filtered(lambda r: not r.triage_grade)
-        else:
-            recs = collections.filtered(lambda r, k=key: r.triage_grade == k)
-        weight = sum(recs.mapped("weight_kg"))
-        co2 = _certified_co2(recs)
-        total_weight += weight
-        total_co2 += co2
-        if key in _DIVERTED:
-            diverted += weight
+    for key, label in _TRIAGE_LABELS.items():
+        recs = cohort.filtered(lambda r, k=key: r.triage_grade == k)
+        if not recs:
+            continue
+        part = _gri_fallback(recs)
         rows.append(
             {
                 "disposition": label,
                 "collections": len(recs),
-                "weight_kg": round(weight, 2),
-                "co2_avoided_kg": round(co2, 2),
-                "share_pct": 0.0,
+                "weight_kg": round(part["triaged_kg"], 2),
+                "diverted_kg": round(part["diverted_kg"], 2),
+                "disposal_kg": round(part["directed_to_disposal_kg"], 2),
+                "in_process_kg": round(part["in_process_kg"], 2),
+                "co2_avoided_kg": round(_certified_co2(recs), 2),
             }
         )
-    for row in rows:
-        row["share_pct"] = (
-            round((row["weight_kg"] / total_weight) * 100.0, 1) if total_weight else 0.0
+    untriaged = _collections(env, start, end).filtered(lambda r: not r.triage_id)
+    if untriaged:
+        rows.append(
+            {
+                "disposition": "Untriaged (received, outside the rate)",
+                "collections": len(untriaged),
+                "weight_kg": round(sum(untriaged.mapped("weight_kg")), 2),
+                "diverted_kg": 0.0,
+                "disposal_kg": 0.0,
+                "in_process_kg": 0.0,
+                "co2_avoided_kg": 0.0,
+            }
         )
+    gri = gri_306(env, start, end)
+    ops = gri.get("by_operation") or {}
     return _pack(
-        "Impact & Diversion — diverted vs recycled vs hazardous",
-        ["disposition", "collections", "weight_kg", "co2_avoided_kg", "share_pct"],
+        "Impact & Diversion (GRI 306-4) — triaged %s to %s" % (start, end),
+        [
+            "disposition",
+            "collections",
+            "weight_kg",
+            "diverted_kg",
+            "disposal_kg",
+            "in_process_kg",
+            "co2_avoided_kg",
+        ],
         {
-            "disposition": "Disposition",
-            "collections": "Collections",
+            "disposition": "Triage Disposition",
+            "collections": "Items",
             "weight_kg": "Weight (kg)",
+            "diverted_kg": "Diverted from Disposal (kg)",
+            "disposal_kg": "Directed to Disposal (kg)",
+            "in_process_kg": "Still in Process (kg)",
             "co2_avoided_kg": "CO2e Avoided (kg, estimate)",
-            "share_pct": "Share %",
         },
         rows,
         [
-            "Diversion rate = (reuse + refurbish) weight ÷ total weight = %.1f%%."
-            % ((diverted / total_weight) * 100.0 if total_weight else 0.0),
+            "KPI-083 diversion rate (GRI 306-4) = %.1f%% (target > 92%%): %.2f kg "
+            "diverted of %.2f kg triaged in the period. By operation: reuse %.2f, "
+            "refurbishment %.2f, parts harvest %.2f, certified recycling %.2f, donation "
+            "%.2f kg; directed to disposal %.2f kg; still in process %.2f kg."
+            % (
+                gri["diversion_rate_pct"],
+                gri["diverted_kg"],
+                gri["triaged_kg"],
+                ops.get("reuse", 0.0),
+                ops.get("refurbish", 0.0),
+                ops.get("harvest", 0.0),
+                ops.get("recycle", 0.0),
+                ops.get("donation", 0.0),
+                gri["directed_to_disposal_kg"],
+                gri["in_process_kg"],
+            ),
+            "Hazardous: %.2f kg diverted, %.2f kg directed to disposal."
+            % (gri["hazardous_diverted_kg"], gri["hazardous_disposal_kg"]),
+            "Definition (%s): %s" % (gri["method"], gri["definition"]),
             _CO2_NOTE,
+            period_note(start, end, "triage decision date (untriaged: date received)"),
         ],
         totals={
-            "disposition": "Total",
-            "collections": sum(r["collections"] for r in rows),
-            "weight_kg": round(total_weight, 2),
-            "co2_avoided_kg": round(total_co2, 2),
+            "disposition": "Total triaged",
+            "collections": gri["item_count"],
+            "weight_kg": round(gri["triaged_kg"], 2),
+            "diverted_kg": round(gri["diverted_kg"], 2),
+            "disposal_kg": round(gri["directed_to_disposal_kg"], 2),
+            "in_process_kg": round(gri["in_process_kg"], 2),
+            "co2_avoided_kg": round(sum(r["co2_avoided_kg"] for r in rows), 2),
         },
-        empty="No collections recorded yet.",
+        empty="No items triaged or received in this window.",
     )
 
 
 def esg_report(env, date_from=None, date_to=None, **params):
+    start, end = window(env, date_from, date_to, days=365)
     metrics = _mine(
         env, "fix.esg.metric", [("computed", "=", True)], order="period desc, metric_type"
-    )
+    ).filtered(lambda m: _month_in(m.period, start, end))
     typed = len(_mine(env, "fix.esg.metric", [("computed", "=", False)]))
     rows = []
     for rec in metrics:
@@ -471,13 +691,14 @@ def esg_report(env, date_from=None, date_to=None, **params):
         "period (BRU-ESG-11); none can be typed. Inventory and avoided figures are "
         "separate rows and are never added together.",
         _CO2_NOTE,
+        period_note(start, end, "metric month"),
     ]
     if typed:
         notes.append(
             "%d metric row(s) typed before the A05 audit are excluded from this report." % typed
         )
     return _pack(
-        "Sustainability Reporting — computed ESG metrics",
+        "Sustainability Reporting — computed ESG metrics %s to %s" % (start, end),
         ["metric", "type", "scope", "period", "value", "unit", "factor", "sources"],
         {
             "metric": "Metric",
@@ -491,7 +712,96 @@ def esg_report(env, date_from=None, date_to=None, **params):
         },
         rows,
         notes,
-        empty="No computed ESG metrics yet (Recompute, or wait for the daily job).",
+        empty="No computed ESG metrics in this window (Recompute, or wait for the daily job).",
+    )
+
+
+def _tolerance(env):
+    return param_float(env, "cd_ewaste.weight_tolerance_pct", 5.0)
+
+
+def zero_target_controls(env, date_from=None, date_to=None, **params):
+    """Spec §15: seven M18 targets are zero or 100% - a partial score is a
+    breach with a percentage attached."""
+    start, end = window(env, date_from, date_to, days=90)
+    batches = _mine(env, "fix.ewaste.batch")
+    dispatched = batches.filtered(lambda b: b.dispatched_on and start <= b.dispatched_on <= end)
+    # 1. items transferred without a destruction certificate (data-bearing)
+    no_cert = [
+        "%s/%s" % (b.name, c.name)
+        for b in dispatched
+        for c in b.collection_ids
+        if (c.wipe_required or c.data_bearing) and not c.wipe_certificate_id
+    ]
+    # 2. transfers to a partner whose certification had lapsed at dispatch
+    lapsed = [
+        b.name
+        for b in dispatched
+        if b.partner_id
+        and (
+            not b.partner_id.valid_to
+            or b.partner_id.valid_to < b.dispatched_on
+            or b.partner_id.state not in ("active", "suspended")
+            or not b.partner_id.approved_by_id
+        )
+    ]
+    # 3. chain-of-custody gaps: received weight outside tolerance, or a batch
+    #    received with no weighbridge reading
+    tol = _tolerance(env)
+    gaps = []
+    for b in batches.filtered(lambda b: b.received_on and start <= b.received_on <= end):
+        off = b.weight_kg and abs(b.received_weight_kg - b.weight_kg) / b.weight_kg * 100.0 > tol
+        if not b.received_weight_kg or off:
+            gaps.append(b.name)
+    # 4. hazmat storage ceiling breaches (position now)
+    breaches = []
+    if "fix.ewaste.collection.point.limit" in env:
+        points = _mine(env, "fix.ewaste.collection.point")
+        limits = (
+            env["fix.ewaste.collection.point.limit"].sudo().search([("point_id", "in", points.ids)])
+        )
+        breaches = [
+            "%s/%s" % (lim.point_id.name, lim.hazard_class)
+            for lim in limits
+            if lim.max_kg and (lim.held_kg or 0.0) > lim.max_kg
+        ]
+    # 5. KPI-084 disposal certificates on file (100%): processed batches with no issued certificate
+    processed = batches.filtered(
+        lambda b: b.state == "processed" and b.processed_on and start <= b.processed_on <= end
+    )
+    uncertified = [
+        b.name for b in processed if not b.certificate_ids.filtered(lambda c: c.state == "issued")
+    ]
+    # 6. statutory returns filed late (100% on time)
+    returns = _mine(env, "fix.ewaste.return").filtered(
+        lambda r: r.due_date and start <= r.due_date <= end
+    )
+    late = [
+        r.name
+        for r in returns
+        if (r.submitted_on and r.submitted_on > r.due_date)
+        or (not r.submitted_on and r.due_date < dhaka_today(env))
+    ]
+    rows = [
+        control_row("Items transferred without a destruction certificate", no_cert),
+        control_row("Transfers to a partner with expired certification", lapsed),
+        control_row("Chain-of-custody gaps (receipt outside %g%% or unweighed)" % tol, gaps),
+        control_row("Hazmat storage ceiling breaches (now)", breaches),
+        control_row("Processed batches without a disposal certificate (KPI-084)", uncertified),
+        control_row("Statutory returns not filed on time", late),
+    ]
+    return _pack(
+        "M18 Zero-Target Controls — %s to %s" % (start, end),
+        CONTROL_COLS,
+        CONTROL_LABELS,
+        rows,
+        [
+            "Spec §15: in a compliance module a partial score is a breach with a "
+            "percentage attached. Weighbridge tolerance cd_ewaste.weight_tolerance_pct = %g%%."
+            % tol,
+            period_note(start, end, "dispatch, receipt, processing and due dates"),
+        ],
+        empty="No control data.",
     )
 
 
@@ -502,39 +812,84 @@ REPORTS = {
     "compliance_pack": compliance_pack,
     "impact_diversion": impact_diversion,
     "esg_report": esg_report,
+    # A05 ERP audit XC-18: spec §15 controls
+    "zero_target_controls": zero_target_controls,
 }
 
 
 def kpis(env):
+    today = dhaka_today(env)
+    year_start = today - datetime.timedelta(days=364)
     collections = _collections(env)
-    today = datetime.date.today()
     month_start = today.replace(day=1)
     open_states = ("collected", "triaged", "destruction", "recycled", "hazmat")
     weight_mtd = sum(
         r.weight_kg or 0.0
         for r in collections
-        if (r.collected_on or (r.create_date and r.create_date.date()) or today) >= month_start
+        if in_window(r.collected_on or r.create_date or today, month_start, today)
     )
     total = sum(r.weight_kg or 0.0 for r in collections)
-    diverted = sum(r.weight_kg or 0.0 for r in collections if r.triage_grade in _DIVERTED)
+    gri = gri_306(env, year_start, today)
     recycled = sum(r.weight_kg or 0.0 for r in collections if r.state in ("recycled", "certified"))
     returns = _mine(env, "fix.ewaste.return", [("state", "=", "draft")])
     due = returns.filtered(
         lambda r: r.due_date and r.due_date <= today + datetime.timedelta(days=30)
     )
-    certs = len(_mine(env, "fix.ewaste.certificate", [("state", "=", "issued")]))
+    certs = _mine(env, "fix.ewaste.certificate", [("state", "=", "issued")])
     co2 = round(_certified_co2(collections), 2)
+    batches = _mine(env, "fix.ewaste.batch")
+    processed = batches.filtered(lambda b: b.state == "processed")
+    certified_batches = processed.filtered(
+        lambda b: b.certificate_ids.filtered(lambda c: c.state == "issued")
+    )
+    items = processed.mapped("collection_ids")
+    covered = items.filtered(lambda c: c.state == "certified")
+    due_days = param_float(env, "cd_ewaste.certificate_due_days", 30.0)
+    timely = [
+        c
+        for c in certs
+        if c.batch_id.dispatched_on
+        and c.issued_on
+        and (c.issued_on - c.batch_id.dispatched_on).days <= due_days
+    ]
+    income_12m = 0.0
+    if "fix.ewaste.material.recovery" in env:
+        income_12m = sum(
+            line.income_amount or 0.0
+            for line in env["fix.ewaste.material.recovery"]
+            .sudo()
+            .search([("batch_id", "in", batches.ids), ("state", "=", "raised")])
+            if (line.recorded_on or year_start) >= year_start
+        )
+    partners = _mine(env, "fix.ewaste.partner")
+    active_partners = partners.filtered(lambda p: p.state == "active")
+    certified_partners = active_partners.filtered(
+        lambda p: p.approved_by_id and p.valid_to and p.valid_to >= today
+    )
+    controls = zero_target_controls(env, str(today - datetime.timedelta(days=89)), str(today))
+    breaches = sum(r["actual"] for r in controls["rows"] if isinstance(r["actual"], int))
     return {
         "open_collections": len(collections.filtered(lambda r: r.state in open_states)),
         "weight_mtd": round(weight_mtd, 2),
-        "diverted_kg": round(diverted, 2),
+        "diverted_kg": round(gri["diverted_kg"], 2),
         "co2_saved_kg": co2,
-        "certificates_issued": certs,
+        "certificates_issued": len(certs),
         "returns_due_30d": len(due),
         # the module home's tiles (static/src/a05/m18.js)
         "total_intake_kg": round(total, 2),
         "recycled_kg": round(recycled, 2),
-        "certs_issued": certs,
-        "diversion_rate": round((diverted / total) * 100.0, 1) if total else 0.0,
+        "certs_issued": len(certs),
+        # KPI-083, GRI 306-4 (M18-09): items triaged in the last 12 months
+        "diversion_rate": gri["diversion_rate_pct"],
         "storage_overdue": len(collections.filtered(lambda r: r.storage_overdue)),
+        # KPI-084 and the spec §15 measures (XC-18)
+        "certificates_on_file_pct": pct(len(certified_batches), len(processed))
+        if processed
+        else None,
+        "certificate_reconciliation_pct": pct(len(covered), len(items)) if items else None,
+        "certificates_in_window_pct": pct(len(timely), len(certs)) if certs else None,
+        "recovery_income_12m": round(income_12m, 2),
+        "partners_certified": len(certified_partners),
+        "partners_active": len(active_partners),
+        "zero_target_breaches_90d": breaches,
     }

@@ -20,8 +20,12 @@ from odoo.addons.cd_p03_portal.controllers.a05.writable import WRITABLE
 from odoo.exceptions import UserError
 
 _SEQ = itertools.count(1)
-# the guard's own refusal, or a module's stricter transition check
-REFUSED = r"changes only through its workflow|cannot be set directly|cannot move|cannot change|can no longer"
+# the guard's own refusal, or a module's stricter transition check, or (A05
+# ERP S1, XC-07 / FR-RNT-010) the record being Rental Finance's to change at all
+REFUSED = (
+    r"changes only through its workflow|cannot be set directly|cannot move|cannot change"
+    r"|can no longer|is Rental Finance's decision"
+)
 ROUTED_MESSAGE = "approver's inbox"
 SIMPLE = {
     "char",
@@ -137,6 +141,14 @@ ROUTED_FLOOR = 6
 # Routed A05 approvals with no workspace surface of their own: the request is
 # raised from the rental's damage screen and decided only from the inbox.
 ROUTED_WITHOUT_SURFACE = ("fix.rental.charge.approval",)
+# Routed A05 approvals whose request is raised on ANOTHER record of the same
+# approval domain (A05 ERP S1, XC-26: a fleet unit's retirement is its own
+# fix.rental.retirement request); that record's surface raises and recalls it.
+ROUTED_ELSEWHERE = {"fix.rental.asset": "fix.rental.retirement"}
+# Routed A05 approvals raised by a checked wrapper of action_request_approval
+# (A05 ERP S1, XC-04: a loss write-off is requested with its gates and the
+# below-book-value justification).
+ROUTED_REQUEST = {"fix.rental.loss": "action_request_writeoff"}
 
 
 def _routed_models(env):
@@ -161,10 +173,12 @@ def test_every_routed_a05_approval_refuses_to_be_pressed_directly(odoo_env, cler
         )
         with pytest.raises(UserError, match=ROUTED_MESSAGE):
             getattr(record, method)()
-        if name in a05.SURFACES:
-            assert {"action_request_approval", "action_recall_approval"} <= set(
-                a05.SURFACES[name]["actions"]
-            ), "%s is routed but its surface cannot raise or recall the request" % name
+        surface = ROUTED_ELSEWHERE.get(name, name)
+        if surface in a05.SURFACES:
+            request = ROUTED_REQUEST.get(name, "action_request_approval")
+            assert {request, "action_recall_approval"} <= set(a05.SURFACES[surface]["actions"]), (
+                "%s is routed but its surface cannot raise or recall the request" % name
+            )
 
 
 def test_the_suite_reaches_the_area(odoo_env):

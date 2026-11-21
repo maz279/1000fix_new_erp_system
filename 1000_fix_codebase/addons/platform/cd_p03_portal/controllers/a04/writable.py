@@ -528,7 +528,6 @@ WRITABLE = {
     ),
     "fix.graded.stock": frozenset(
         {
-            "acquisition_cost",
             "company_id",
             "currency_id",
             "device_id",
@@ -536,9 +535,6 @@ WRITABLE = {
             "location_id",
             "name",
             "operating_unit_id",
-            "refurbishment_cost",
-            "resale_price",
-            "tradein_id",
             "tradein_ref",
         }
     ),

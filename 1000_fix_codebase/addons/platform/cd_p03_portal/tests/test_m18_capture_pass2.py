@@ -261,7 +261,16 @@ def test_battery_ceiling_is_per_point_and_class(m):
             }
         )
     )
-    Bat = m.env["fix.ewaste.battery"].with_user(m.clerk)
+    # A05 S3 M18-22: a hazmat item is recorded by an HSE officer (not the
+    # counter) and names the intake it was found in
+    found_in = m.collection(weight_kg=2.0)
+    hse_batteries = m.env["fix.ewaste.battery"].with_user(m.hse)
+
+    class Bat:
+        @staticmethod
+        def create(vals):
+            return hse_batteries.create({"collection_id": found_in.id, **vals})
+
     # a draft point holds nothing
     assert refused(
         m.env,
@@ -391,8 +400,9 @@ def test_corporate_disposal_closes_only_when_every_asset_reconciles(m):
     cert = m.verified_cert(dev.serial_number, col)
     m.triage(col, "recycle", data_bearing=True)
     col.with_user(m.clerk).write({"wipe_certificate_id": cert.id})
-    col.with_user(m.clerk).action_secure_destruction()
-    col.with_user(m.clerk).action_recycle_estimated()
+    # A05 S3 M18-28: destruction and release are the floor's (dispatcher)
+    col.with_user(m.dispatcher).action_secure_destruction()
+    col.with_user(m.dispatcher).action_recycle_estimated()
     m.issued_certificate(m.processed_batch([col]))
     a1.invalidate_recordset()
     assert a1.line_state == "reconciled"
@@ -583,9 +593,10 @@ def test_donation_is_approved_by_another_officer_and_leaves_through_the_gate(m):
 def test_recycler_qualified_only_with_declared_downstream(m):
     from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
+    # A05 S3 M18-22 / M18-06: registered by the floor, with its business contact
     p = (
         m.env["fix.ewaste.partner"]
-        .with_user(m.clerk)
+        .with_user(m.dispatcher)
         .create(
             {
                 "name": "No Downstream Recycler",
@@ -593,10 +604,11 @@ def test_recycler_qualified_only_with_declared_downstream(m):
                 "valid_from": m.today - timedelta(days=1),
                 "valid_to": m.today + timedelta(days=200),
                 "licence_attachment_id": attachment(m.env, "lic.pdf").id,
+                "partner_id": m.env["res.partner"].create({"name": "ND Recycler Ltd"}).id,
             }
         )
     )
-    err = refused(m.env, lambda: approve_via_inbox(p, m.approver, requester=m.clerk))
+    err = refused(m.env, lambda: approve_via_inbox(p, m.approver, requester=m.dispatcher))
     assert err and "BRU-ESG-18" in str(err)
 
 
@@ -604,10 +616,11 @@ def test_dispatch_needs_a_current_verified_downstream_for_its_material(m):
     p = m.partner()
     from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
-    approve_via_inbox(p, m.approver, requester=m.clerk)
+    approve_via_inbox(p, m.approver, requester=m.dispatcher)
     item = m.ready_item()
     batch = m.batch(partner=p)
     batch.action_load_ready_items()
+    m.weigh_out(batch)  # A05 S3 M18-16: the outbound weighbridge ticket first
     # declared but not verified
     assert "BRU-ESG-18" in str(refused(m.env, lambda: batch.action_dispatch()))
     down = p.downstream_ids
@@ -740,6 +753,10 @@ def test_material_recovery_raised_as_batch_income_with_sod(m):
     batch = m.processed_batch([m.ready_item(weight=1.0)])
     contact = m.env["res.partner"].create({"name": "M18 Recycler Ltd"})
     batch.partner_id.sudo()._guarded().write({"partner_id": contact.id})
+    # A05 S3 FIN-11: the income posts on the batch's operating unit (the
+    # settlement takes it when raised), never the company's first unit
+    ou = m.env["operating.unit"].search([("company_id", "=", m.env.company.id)], limit=1)
+    batch.sudo()._guarded().write({"operating_unit_id": ou.id})
     dual = make_user(m.env, "dispfin", [G.dispatcher, G.finance])
     assert refused(
         m.env,
@@ -790,6 +807,19 @@ def test_material_recovery_raised_as_batch_income_with_sod(m):
     assert err and "recorded the material recovery" in str(err)
     from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 
+    # A05 S3 I2: and on the settlement's branch (in that unit)
+    entity = m.env["fix.entity"].search([("company_id", "=", m.env.company.id)], limit=1) or m.env[
+        "fix.entity"
+    ].create({"code": "M18P2E", "legal_name": "M18 P2 Entity", "company_id": m.env.company.id})
+    branch = m.env["fix.branch"].create(
+        {
+            "name": "M18 P2 Branch",
+            "code": "M18P2B",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
+    )
+    st.with_user(m.dispatcher).write({"branch_id": branch.id})
     approve_via_inbox(st, m.cfo, requester=m.dispatcher)
     assert st.state == "approved"
 
@@ -893,8 +923,13 @@ def test_obligation_reviewed_at_least_quarterly(m):
     obl.invalidate_recordset()
     assert obl.compliance_status == "partial" and obl.last_reviewed == m.today
     assert obl.last_reviewed_by_id == m.compliance2 and not obl.review_note
-    # AUT-ESG-19: an overdue review is flagged
-    obl.with_user(m.compliance).write({"next_review": m.today - timedelta(days=1)})
+    # AUT-ESG-19: an overdue review is flagged. The review date is the
+    # workflow's (A05 S3: never typed); the clock passing it is simulated
+    assert refused(
+        m.env,
+        lambda: obl.with_user(m.compliance).write({"next_review": m.today - timedelta(days=1)}),
+    )
+    obl.sudo()._guarded().write({"next_review": m.today - timedelta(days=1)})
     assert obl.review_overdue
     assert m.env[OBL].cron_review_due() >= 1
     assert obl.message_ids.filtered(

@@ -437,9 +437,13 @@ Object.assign(SCREENS, {
           { name: 'insurance_id', label: 'Insurance Policy (claim made under)' },
           { name: 'insurance_claim_ref', label: 'Insurance Claim' }
         ] },
-      { tab: 'tax', title: 'Tax Book and Physical Disposal',
+      { tab: 'tax', title: 'Tax Book and Physical Disposal', note: 'A05 M18-14: an item routed to M18 travels with its device, weight and material; it is not submitted with a 0 kg weight. A retired rental unit (Transfer to Resale Stock / Recycle) is started by its retirement: M18 receives it from the retirement, not from this tick.',
         fields: [
           { name: 'ewaste_route', label: 'Physical Disposal Through M18 (E-Waste)' },
+          { name: 'ewaste_weight_kg', label: 'E-Waste Weight (kg)' },
+          { name: 'ewaste_material', label: 'E-Waste Material' },
+          { name: 'ewaste_device_res_id', label: 'Device (M17) ID' },
+          { name: 'source_model', readonly: true, label: 'Started By (source document)' },
           { name: 'ewaste_collection_ref', readonly: true, label: 'M18 Collection' },
           { name: 'tax_wdv', readonly: true, label: 'Tax WDV at Disposal' },
           { name: 'tax_balancing', readonly: true, label: 'Balancing Charge (+) / Allowance (-)' }

@@ -323,7 +323,17 @@ for _model, _conf in _A11_SURFACES.items():
     SURFACES[_model] = _conf
 
 # fields never returned over the generic endpoint
-_BLOCKED_FIELDS = {"access_token", "write_uid", "create_uid"}
+_BLOCKED_FIELDS = {
+    "access_token",
+    "write_uid",
+    "create_uid",
+    # A05 ERP M14-30 (spec §13): a seller's national ID never reaches a list
+    # grid or its CSV/Excel/PDF export. The capture form (/p03/model/form)
+    # still shows it to whoever may read the record; the printed voucher masks it.
+    "customer_nid",
+    "payout_approved_nid",
+    "customer_nid_no",
+}
 _FAILED = "The request could not be completed — try again or contact Finance support."
 # Hard ceiling for an explicit limit override (the export path): an artefact
 # must carry the whole grid the screen serves — the real item master is

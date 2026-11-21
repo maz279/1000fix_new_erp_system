@@ -33,6 +33,9 @@ from . import fix_a02_notifications
 # A02 ERP pass 2 X5-14: M27 notices for the SLA, MSP report and M06 events
 # (extends fix.notif.delivery).
 from . import fix_a02r2_notifications
+# A05 ERP audit XC-20: customer notifications for the M13 / M14 milestones
+# (extends fix.notif.delivery, after the M01 helper it reuses).
+from . import fix_a05_notifications
 
 # A11 audit P2: approver notifications for M63 approval events (extends
 # fix.notif.delivery).

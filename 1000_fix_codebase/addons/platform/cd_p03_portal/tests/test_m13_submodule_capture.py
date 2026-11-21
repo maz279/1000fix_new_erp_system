@@ -30,6 +30,7 @@ from pathlib import Path
 
 import pytest
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
+from odoo.addons.cd_rental_asset.tests.conftest import configure_rental_money
 from odoo.addons.cd_rental_asset.tests.test_a05_m13_controls import (  # noqa: F401
     REFUSED,
     c,
@@ -40,6 +41,16 @@ from odoo.addons.cd_rental_asset.tests.test_a05_m13_controls import (  # noqa: F
     walk,
 )
 from odoo.exceptions import UserError
+
+
+@pytest.fixture(autouse=True)
+def _rental_money(request):
+    """A05 ERP D1 (S1): the rental money path fails closed without its
+    account parameters; the test chart's accounts stand in for fix_real's.
+    (Only for the tests that open the database.)"""
+    if "odoo_env" in request.fixturenames or "c" in request.fixturenames:
+        configure_rental_money(request.getfixturevalue("odoo_env"))
+
 
 SRC = Path(__file__).resolve().parents[1] / "static" / "src"
 IMPORT = re.compile(r'from\s+"(\./a\d\d/\w+)"')
@@ -202,7 +213,8 @@ def test_page4_deposit_is_taken_in_its_tender_and_refunded_the_same_way(c, p03):
         5000,
     )
     if collect.gl_state == "posted":
-        r.with_user(c.clerk).action_cancel()
+        # XC-22 (S1): another person than the deposit taker releases it
+        r.with_user(c.clerk2).action_cancel()
         refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
         assert refund.method == "bkash", "a bKash deposit is refunded by bKash"
 
