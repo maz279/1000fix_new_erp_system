@@ -105,7 +105,7 @@ def test_d6_refused_repair_is_billed_then_cancelled_without_refund(books):
     m.shift(as_user=m.so_cashier)
     order = m.job(1000.0)  # ready, approved estimate
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=1150.0, reference="CTR-D6-1", source="counter"
+        amount_bdt=1150.0, reference="CTR-D6-1", source="counter", tender="cash"
     )
     sup = _supervisor(m)
     with pytest.raises(UserError, match="owes the approved estimate"):
@@ -140,7 +140,7 @@ def test_x5_03_estimate_vat_is_m51_per_line_and_equals_the_invoice(books):
     est.invalidate_recordset()
     assert est.grand_total == total
     order.with_user(m.so_cashier).action_mark_settled(
-        amount_bdt=order._fix_amount_due(), reference="CTR-VAT-1", source="counter"
+        amount_bdt=order._fix_amount_due(), reference="CTR-VAT-1", source="counter", tender="cash"
     )
     invoice = m.deliver(order)
     invoice.invalidate_recordset()

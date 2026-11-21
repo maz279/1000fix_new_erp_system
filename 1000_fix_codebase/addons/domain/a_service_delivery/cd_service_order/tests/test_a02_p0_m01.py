@@ -196,6 +196,17 @@ def handover_evidence(w, o):
     otp_verify(w, o)
 
 
+def warranty_photos(w, o):
+    """A02 pass 2 (M01-06, BRU-SRM-17): the intake and after-repair photos a
+    warranty order needs, uploaded on the order before it closes."""
+    vals = {"datas": _PNG_B64, "mimetype": "image/png"}
+    intake = w.env["ir.attachment"].create(dict(vals, name="intake.png"))
+    after = w.env["ir.attachment"].create(dict(vals, name="after-repair.png"))
+    o.with_user(w.clerk).write(
+        {"intake_photo_attachment_id": intake.id, "after_repair_photo_attachment_id": after.id}
+    )
+
+
 def so_request(w, kind, target):
     """The live fix.so.approval request (A02 audit B1) for a target."""
     field = "estimate_id" if kind == "manager_key" else "order_id"
@@ -433,6 +444,11 @@ def test_price_below_list_needs_the_discount_route(w):
 # =========================================================================== QC (M01-6)
 def test_qc_state_is_guarded_and_needs_items(w):
     o = order(w)
+    # A02 pass 2 (M01-09): QC completes only once the repair is in QC Pending,
+    # so the order gets there first and the empty checklist is refused for its items
+    approved(w, o)
+    o.action_start_repair()
+    o.action_submit_qc()
     assert GUARD in attempt(
         w,
         lambda: w.env["fix.qc.checklist"]
@@ -492,7 +508,12 @@ def test_failed_qc_sends_the_order_to_rework(w):
 # =========================================================================== settlement + delivery
 def test_settlement_api_refuses_bad_inputs(w):
     o = to_ready(w, order(w), 10000)  # BDT 11,500 due
-    S = o.with_user(w.cashier)
+    # A02 pass 2 (s2): a counter settlement names its tender; one that does not
+    # is refused, and the other refusals are proved with the tender named
+    assert "never assumed to be cash" in attempt(
+        w, lambda: o.with_user(w.cashier)._fix_record_settlement(11500, "R1", "counter")
+    )
+    S = o.with_user(w.cashier).with_context(fd_settlement_tender="cash")
     assert "reference" in attempt(w, lambda: S._fix_record_settlement(11500, "", "counter"))
     assert "does not settle" in attempt(w, lambda: S._fix_record_settlement(1, "R1", "counter"))
     assert "Unknown settlement source" in attempt(
@@ -729,6 +750,7 @@ def test_warranty_job_is_not_invoiced_to_the_customer(w):
     o = order(w, dev=device(w, warranty="active"), order_category="warranty")
     to_ready(w, o, 4000)
     handover_evidence(w, o)
+    warranty_photos(w, o)
     o.with_user(w.clerk).action_deliver()
     o.with_user(w.clerk).action_close()
     msg = attempt(

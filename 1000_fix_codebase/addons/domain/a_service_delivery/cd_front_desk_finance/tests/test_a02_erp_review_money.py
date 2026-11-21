@@ -344,14 +344,26 @@ def test_a_cash_fee_taken_with_no_shift_is_still_booked(books):
 def test_another_customers_receipt_never_stands_in_for_a_field_trxid(books):
     m = books
     stranger = m.env["res.partner"].create({"name": "Stranger"})
-    _receipt(m, stranger, 575.0, "TRX-SHARED")
+    stranger_receipt = _receipt(m, stranger, 575.0, "TRX-SHARED")
     order = m.job(500.0, state="in_repair")
+    # A02 pass 2 (s2): a wallet/card TrxID pays once, so the stranger's
+    # transaction is refused at recording, before it can be verified at all
+    with pytest.raises(UserError, match="pays once"):
+        order.with_context(fd_settlement_tender="bkash")._fix_record_settlement(
+            575.0, "TRX-SHARED", "field_collection"
+        )
+    order.invalidate_recordset()
+    assert not order.settlement_receipt_id and not order.settlement_verified
+    stranger_receipt.invalidate_recordset()
+    assert stranger_receipt.customer_id == stranger and stranger_receipt.amount == 575.0
+    # the customer's own TrxID settles on a receipt of the order's customer
     order.with_context(fd_settlement_tender="bkash")._fix_record_settlement(
-        575.0, "TRX-SHARED", "field_collection"
+        575.0, "TRX-OWN-575", "field_collection"
     )
     order.with_user(m.so_cashier).action_verify_settlement()
     receipt = order.settlement_receipt_id
     assert receipt and receipt.customer_id == order.customer_id and receipt.amount == 575.0
+    assert receipt != stranger_receipt
 
 
 # ----------------------------------------- 10. the drawer verifier's scope

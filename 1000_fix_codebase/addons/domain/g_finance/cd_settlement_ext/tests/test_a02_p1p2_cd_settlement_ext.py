@@ -834,19 +834,18 @@ def test_an_sla_credit_goes_against_the_contract_invoice(sla):
 
 
 def test_a_forged_sla_event_is_refused(sla):
+    # A02 pass 2 review (s4): an MSP credit's period is a real YYYY-MM month
     draft = (
         sla.env["fix.msp.sla.credit"]
         .with_user(sla.eng)
-        .create(
-            {"msp_contract_id": sla.msp.id, "period_label": "A02-HB-draft", "manual_amount": 500.0}
-        )
+        .create({"msp_contract_id": sla.msp.id, "period_label": "2026-06", "manual_amount": 500.0})
     )
     publish(
         sla.env,
         "msp.sla_credit_applied",
         "fix.msp.sla.credit",
         draft.id,
-        {"contract": sla.msp.name, "period": "A02-HB-draft"},
+        {"contract": sla.msp.name, "period": "2026-06"},
     )
     _relay(sla.env)
     (forged,) = _deliveries(sla.env, "msp.sla_credit_applied", draft.id)

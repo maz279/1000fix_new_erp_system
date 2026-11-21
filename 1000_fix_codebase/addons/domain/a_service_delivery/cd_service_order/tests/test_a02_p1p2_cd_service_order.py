@@ -29,6 +29,7 @@ from odoo.addons.cd_service_order.tests.test_a02_p0_m01 import (  # noqa: F401 (
     to_estimating,
     to_ready,
     w,
+    warranty_photos,
 )
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 
@@ -313,6 +314,12 @@ def test_cancel_after_repair_refunds_and_returns_the_logistics_leg(w):
     )
     leg = _leg(w, o, "delivery")
     leg._guarded().write({"state": "confirmed"})
+    # D6 (A02 pass 2): a customer who refuses a finished repair owes the
+    # approved estimate unless a goodwill waiver is approved; with the waiver
+    # the money taken is owed back
+    o.with_user(w.clerk).action_request_goodwill("Customer refuses the repair: waived")
+    approve_via_inbox(so_request(w, "goodwill", o), w.approver, requester=w.clerk)
+    assert o.goodwill_approved_by == w.approver
     # A02 ERP audit X-05: a paid order is cancelled by a Service Supervisor
     o.with_user(supervisor(w)).action_cancel(reason="customer_declined: will not collect")
     assert (o.state, o.payment_settlement_state) == ("cancelled", "refund_due")
@@ -370,6 +377,7 @@ def test_warranty_job_raises_its_claim_before_it_closes(w):
     qc.with_user(w.inspector).action_complete()
     o.action_ready()
     handover_evidence(w, o)
+    warranty_photos(w, o)  # A02 pass 2 (M01-06): the OEM claim needs both photos
     o.with_user(w.clerk).action_deliver()
     o.with_user(w.clerk).action_close()
     claim = w.env["fix.warranty.claim"].sudo().search([("service_order_id", "=", o.id)])

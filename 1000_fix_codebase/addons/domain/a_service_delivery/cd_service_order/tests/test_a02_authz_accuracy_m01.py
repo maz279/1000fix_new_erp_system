@@ -257,7 +257,10 @@ def test_estimate_vat_rate_follows_the_tax_rate_master(w):
     Rate = w.env.get("fix.tax.rate")
     if Rate is None:
         pytest.skip("cd_tax_engine_bd not installed")
-    in_force = SimpleNamespace(standard=Decimal("17.5"), reduced=frozenset({Decimal("5")}))
+    # D23: the estimate asks M51 per line, which also reports the rates' source
+    in_force = SimpleNamespace(
+        standard=Decimal("17.5"), reduced=frozenset({Decimal("5")}), source="master"
+    )
     with mock.patch.object(type(Rate), "_fix_vat_rates", lambda self, *a, **k: in_force):
         est = estimate(w, order(w), 1000)
         assert est.vat_rate == 17.5

@@ -328,6 +328,18 @@ class FixServiceOrderSettlementReceipts(models.Model):
         finance retries with Invoice Diagnostic Fee."""
         self.ensure_one()
         Invoice = self.env["fix.ar.invoice"].sudo().with_company(self.company_id)
+        # D6: a repair refused after it was done was billed its approved
+        # estimate before the cancel (Bill Refused Repair); that invoice
+        # already applied the intake fee, so there is no fee to charge.
+        billed = Invoice.search(
+            [("source_model", "=", "fix.service.order"), ("source_id", "=", self.id)], limit=1
+        )
+        if billed:
+            self.message_post(
+                body="Repair declined after it was billed (%s): no separate diagnostic fee."
+                % billed.name
+            )
+            return billed
         try:
             with self.env.cr.savepoint():
                 invoice = Invoice.from_declined_service_order(self)

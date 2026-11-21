@@ -215,13 +215,30 @@ def test_a_location_holds_one_device_and_frees_at_handover(m04, ui, screens):
     )
     assert "error" in res
 
-    # the device leaves custody at the hand-off: the location is free again
+    # A02 pass 2 (M04-05): at the hand-off the intake leaves custody but the
+    # device stays on the shelf under its service order, so the location is
+    # still held (by the order) and still refuses a second device
     first.write(
         {"handover_method": "signature", "customer_signature_attachment_id": m04.signature.id}
     )
     first.with_user(m04.cashier).action_submit_for_handover()
     first.with_user(m04.cashier).action_complete_handover()
     loc.invalidate_recordset()
+    order = first.service_order_id
+    assert order and order.storage_location_id == loc
+    assert loc.occupied and not loc.occupied_by_id and loc.occupied_by_order_id == order
+    res = ui.write(
+        m04.cashier,
+        model="fix.walkin.intake",
+        record_id=second.id,
+        values={"storage_location_id": loc.id},
+    )
+    assert "error" in res
+    # the order is closed out (here: the customer declines before any work), so
+    # the device leaves the branch for good: the location is free again
+    order.action_cancel(reason_code="customer_declined")
+    loc.invalidate_recordset()
+    assert order.state == "cancelled"
     assert not loc.occupied
     res = ui.write(
         m04.cashier,
@@ -346,6 +363,15 @@ def test_a_large_petty_expense_and_an_advance_need_an_independent_manager(m04, u
 
 
 def test_a_cash_out_cannot_post_to_a_counted_drawer(m04):
+    # D2 (A02 pass 2): a safe drop needs the branch safe's GL account before the
+    # cash leaves; give it one so the refusal below is the counted drawer's
+    if "account.account" in m04.env:
+        safe = m04.env["account.account"].create(
+            {"code": "M04SAFE1", "name": "Cash in Safe (M04 test)", "account_type": "asset_cash"}
+        )
+        m04.env["ir.config_parameter"].sudo().set_param(
+            "cd_cash_position.account_code.branch_safe", safe.code
+        )
     shift = m04.shift()
     mv = (
         m04.env["fix.cash.movement"]
