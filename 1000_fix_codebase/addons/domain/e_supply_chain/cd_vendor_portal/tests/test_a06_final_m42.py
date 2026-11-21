@@ -107,7 +107,8 @@ def screen(c, s, types_=REQUIRED):
             .with_user(c.steward)
             .create({"supplier_id": s.id, "screening_type": key, "result": "clear"})
         )
-        rec.with_user(c.steward).action_clear()
+        # A06 P20: a second person clears what the steward recorded
+        rec.with_user(c.approver).action_clear()
         out |= rec
     return out
 
@@ -490,11 +491,14 @@ def _ask(c, po):
     po.with_user(c.buyer).action_submit_for_approval(justification="A06F42 stock")
 
 
-def test_b14_gate_is_off_by_default(c):
+def test_b14_gate_is_on_by_default(c):
+    # A06 P08 (lead default, owner O4): on unless the parameter says "0"
+    c.env["ir.config_parameter"].sudo().search([("key", "=", PARAM_CATEGORY)]).unlink()
     s = active_supplier(c)
     tier2 = _user(c.env, "a06f42_t2", ["cd_entity_config.group_dofa_tier_2"])
     assert tier2
-    _ask(c, _po(c, s.partner_id, c.pen))
+    with pytest.raises(UserError, match="BRU-PRO-02"):
+        _ask(c, _po(c, s.partner_id, c.pen))
 
 
 def test_b14_switched_on_it_compares_the_po_with_the_approved_categories(c):
@@ -504,7 +508,16 @@ def test_b14_switched_on_it_compares_the_po_with_the_approved_categories(c):
     # fail closed: nothing approved, nothing supplied
     with pytest.raises(UserError, match="BRU-PRO-02"):
         _ask(c, _po(c, s.partner_id, c.prod))
-    s.with_user(c.steward).write({"approved_category_ids": [(6, 0, c.categ.ids)]})
+    # A06 P08: the categories come from an approved qualification, not a typed edit
+    with pytest.raises(UserError):
+        s.with_user(c.steward).write({"approved_category_ids": [(6, 0, c.categ.ids)]})
+    q = (
+        c.env["fix.supplier.qualification"]
+        .with_user(c.steward)
+        .create({"supplier_id": s.id, "score": 90, "category_ids": [(6, 0, c.categ.ids)]})
+    )
+    q.with_user(c.steward).action_start()
+    q.with_user(c.approver).action_approve()
     _ask(c, _po(c, s.partner_id, c.prod))  # a child of the approved category
     with pytest.raises(UserError, match="A06F42 Stationery"):
         _ask(c, _po(c, s.partner_id, c.pen))

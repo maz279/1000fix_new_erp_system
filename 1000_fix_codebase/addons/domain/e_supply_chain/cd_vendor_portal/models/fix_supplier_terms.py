@@ -74,7 +74,39 @@ class FixSupplierClassified(models.Model):
             locked |= {"segment"}
         return locked
 
+    def _a06_order_problems(self):
+        """A06 P19: an authorised distributor is ordered from only while its
+        brand authorisation is valid (its expiry used to change nothing once
+        the qualification had passed)."""
+        problems = super()._a06_order_problems()
+        if self.classification in AUTHORISED_CLASSES:
+            valid = (
+                self.env["fix.supplier.document"]
+                .sudo()
+                .search_count(
+                    [
+                        ("supplier_id", "=", self.id),
+                        ("doc_type", "=", "brand_authorisation"),
+                        ("is_valid", "=", True),
+                    ]
+                )
+            )
+            if not valid:
+                problems.append("its brand authorisation is missing or expired")
+        return problems
+
     def write(self, vals):
+        # A06 P19: what kind of supplier it is decides the evidence it owes;
+        # it is fixed once the supplier has left prospect
+        if "classification" in vals and not self._fix_guard_has_token() and not self.env.su:
+            for rec in self:
+                if rec.status != "prospect" and rec._fix_guard_differs(
+                    "classification", vals["classification"], rec.classification
+                ):
+                    raise UserError(
+                        "Supplier %s is %s: its classification decides its evidence and changes "
+                        "only through a new qualification." % (rec.supplier_code, rec.status)
+                    )
         if "segment" in vals and not self._fix_guard_has_token() and not self.env.su:
             for rec in self:
                 if rec.status != "prospect" and rec._fix_guard_differs(
@@ -813,25 +845,39 @@ class FixSupplierPriceList(models.Model):
 
     @api.model
     def _a06_agreed(self, partner, product, currency, on_date):
-        """The approved price in force for this supplier, part and currency."""
+        """The approved price in force for this supplier and part: the one in
+        `currency` when there is one, else (A06 P04) the latest in any other
+        currency - an order in another currency no longer escapes the list."""
         supplier = self.env["fix.supplier"]._for_partner(partner)
         if not supplier or not product:
             return self.browse()
-        return self.sudo().search(
+        found = self.sudo().search(
             [
                 ("state", "=", "approved"),
                 ("agreement_id.state", "=", "active"),
                 ("supplier_id", "=", supplier.id),
                 ("product_id", "=", product.id),
-                ("currency_id", "=", currency.id),
                 ("valid_from", "<=", on_date),
                 "|",
                 ("valid_to", "=", False),
                 ("valid_to", ">=", on_date),
             ],
             order="valid_from desc, id desc",
-            limit=1,
         )
+        same = found.filtered(lambda p: p.currency_id == currency)
+        return (same or found)[:1]
+
+    def _a06_price_in(self, currency, company, on_date):
+        """This agreed price in `currency` (converted through BDT at the
+        day's rate when it is agreed in another one)."""
+        self.ensure_one()
+        if self.currency_id == currency:
+            return self.price
+        from odoo.addons.cd_requisition.models.fix_requisition import bdt_rate
+
+        bdt = self.price * bdt_rate(self.env, self.currency_id, company, on_date)
+        rate = bdt_rate(self.env, currency, company, on_date)
+        return round(bdt / rate, 6) if rate else self.price
 
 
 class FixSupplierPriceChange(models.Model):
@@ -1053,16 +1099,133 @@ class FixPurchaseOrderAgreedPrice(models.Model):
                 agreed = Price._a06_agreed(
                     order.vendor_id, line.product_id, order.currency_id, on_date
                 )
-                if agreed and line.unit_price > agreed.price + PRICE_TOLERANCE:
+                if not agreed:
+                    continue
+                ceiling = agreed._a06_price_in(order.currency_id, order.company_id, on_date)
+                if line.unit_price > ceiling + PRICE_TOLERANCE:
                     raise UserError(
-                        "BRU-SRM2-14: PO %s orders %s at %.2f, above the agreed price %.2f "
-                        "(%s). Submit a price change in M42 and have it approved first."
+                        "BRU-SRM2-14: PO %s orders %s at %s %.2f, above the agreed price %s %.2f "
+                        "(%s%s). Submit a price change in M42 and have it approved first."
                         % (
                             order.name,
                             line.product_id.display_name,
+                            order.currency_id.name,
                             line.unit_price,
-                            agreed.price,
+                            order.currency_id.name,
+                            ceiling,
                             agreed.name,
+                            ""
+                            if agreed.currency_id == order.currency_id
+                            else ", agreed as %s %.2f" % (agreed.currency_id.name, agreed.price),
                         )
                     )
         return True
+
+
+class FixPurchaseOrderReferencePrice(models.Model):
+    """A06 P27: the M42 agreed price list is the first reference price of a
+    converted requisition's order line (before the M16 approved source)."""
+
+    _inherit = "fix.purchase.order"
+
+    def _a06_reference_price(self, line):
+        self.ensure_one()
+        on_date = _today(self)
+        agreed = self.env["fix.supplier.price.list"]._a06_agreed(
+            self.vendor_id, line.product_id, self.currency_id, on_date
+        )
+        if agreed:
+            return (
+                agreed._a06_price_in(self.currency_id, self.company_id, on_date),
+                "agreed price %s" % agreed.name,
+            )
+        return super()._a06_reference_price(line)
+
+
+class FixProcurementBlanketAgreement(models.Model):
+    """A06 P27: an M16 blanket is a call-off vehicle UNDER the supplier's M42
+    agreement, never a second, competing contract: where the supplier has an
+    agreement in force the blanket names it and stays inside its term and
+    currency, and one agreement has one active blanket."""
+
+    _inherit = "fix.procurement.blanket"
+
+    agreement_id = fields.Many2one(
+        "fix.supplier.agreement",
+        string="Supplier Agreement (M42)",
+        index=True,
+        ondelete="restrict",
+        help="The M42 agreement this blanket calls off under.",
+    )
+
+    BLANKET_TERMS = (
+        "vendor_id",
+        "cap_amount",
+        "valid_from",
+        "valid_to",
+        "currency_id",
+        "agreement_id",
+    )
+
+    def _a06_agreement_problems(self):
+        self.ensure_one()
+        Agreement = self.env["fix.supplier.agreement"].sudo()
+        supplier = self.env["fix.supplier"]._for_partner(self.vendor_id, self.company_id)
+        in_force = Agreement.browse()
+        if supplier:
+            in_force = Agreement.search(
+                [
+                    ("supplier_id", "=", supplier.id),
+                    ("state", "=", "active"),
+                    ("term_from", "<=", self.valid_to),
+                    ("term_to", ">=", self.valid_from),
+                ]
+            )
+        agreement = self.agreement_id.sudo()
+        if in_force and not agreement:
+            return "%s has agreement %s in force: blanket %s calls off under it" % (
+                self.vendor_id.display_name,
+                ", ".join(in_force.mapped("name")),
+                self.name,
+            )
+        if not agreement:
+            return None
+        if agreement.supplier_id != supplier or agreement.state != "active":
+            return "agreement %s is not an active agreement of %s" % (
+                agreement.name,
+                self.vendor_id.display_name,
+            )
+        if self.valid_from < agreement.term_from or self.valid_to > agreement.term_to:
+            return "blanket %s runs %s to %s, outside agreement %s (%s to %s)" % (
+                self.name,
+                self.valid_from,
+                self.valid_to,
+                agreement.name,
+                agreement.term_from,
+                agreement.term_to,
+            )
+        if agreement.currency_id != self.currency_id:
+            return "blanket %s is in %s but agreement %s is in %s" % (
+                self.name,
+                self.currency_id.name,
+                agreement.name,
+                agreement.currency_id.name,
+            )
+        twin = self.sudo().search(
+            [
+                ("id", "!=", self.id),
+                ("agreement_id", "=", agreement.id),
+                ("state", "=", "active"),
+            ],
+            limit=1,
+        )
+        if twin:
+            return "agreement %s already has active blanket %s" % (agreement.name, twin.name)
+        return None
+
+    def action_activate(self):
+        for rec in self:
+            problem = rec._a06_agreement_problems()
+            if problem:
+                raise UserError("Blanket %s: %s." % (rec.name, problem))
+        return super().action_activate()

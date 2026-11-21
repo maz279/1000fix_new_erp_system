@@ -71,6 +71,10 @@ PARAM_QUAL_TIERS = "cd_vendor_portal.qualification_tier_by_risk"
 # does not exist on this register and "transactional" is reviewed on exception.
 PARAM_REVIEW_CADENCE = "cd_vendor_portal.review_cadence_months"
 DEFAULT_REVIEW_CADENCE = "strategic:3,preferred:6"
+# A06 P44 (FR-SRM2-004): review frequency by risk tier, e.g. "critical:3,high:6".
+# No default: the frequencies are the business's (OWNER); the shorter of the
+# segment's and the risk tier's cadence applies.
+PARAM_REVIEW_CADENCE_RISK = "cd_vendor_portal.review_cadence_by_risk_months"
 REVIEW_TYPE_BY_MONTHS = {3: "quarterly", 6: "half_yearly", 12: "annual"}
 
 
@@ -192,6 +196,8 @@ class FixSupplier(models.Model):
     notes = fields.Text()
 
     SUPPLIER_GUARDED = {
+        # A06 P08: set by an approved qualification only
+        "approved_category_ids",
         "status",
         "status_reason",
         "status_changed_by_id",
@@ -203,7 +209,10 @@ class FixSupplier(models.Model):
         "bank_account_id",
     }
 
-    _partner_unique = models.Constraint("UNIQUE (partner_id)", "One supplier record per partner")
+    # A06 P36: the register is per company (three companies share partners)
+    _partner_unique = models.Constraint(
+        "UNIQUE (partner_id, company_id)", "One supplier record per partner and company"
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self.SUPPLIER_GUARDED
@@ -248,11 +257,17 @@ class FixSupplier(models.Model):
         return super().write(vals)
 
     @api.model
-    def _for_partner(self, partner):
+    def _for_partner(self, partner, company=None):
+        """The supplier record of `partner` in `company` (default: the
+        current company); a register row of another company does not answer
+        for this one (A06 P36)."""
         if not partner:
             return self.browse()
+        company = company or self.env.company
         ids = list({partner.id, partner.commercial_partner_id.id})
-        return self.sudo().search([("partner_id", "in", ids)], limit=1)
+        return self.sudo().search(
+            [("partner_id", "in", ids), ("company_id", "=", company.id)], limit=1
+        )
 
     # ---- compliance -------------------------------------------------------
     def _a06_mandatory_docs(self):
@@ -548,11 +563,11 @@ class FixSupplier(models.Model):
         }
 
     @api.model
-    def _a06_review_cadence(self):
-        """{segment: months} from configuration."""
-        raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_REVIEW_CADENCE)
+    def _a06_review_cadence(self, param=PARAM_REVIEW_CADENCE, default=DEFAULT_REVIEW_CADENCE):
+        """{segment (or risk tier): months} from configuration."""
+        raw = self.env["ir.config_parameter"].sudo().get_param(param)
         cadence = {}
-        for item in (raw or DEFAULT_REVIEW_CADENCE).split(","):
+        for item in (raw or default or "").split(","):
             segment, _sep, months = item.partition(":")
             if segment.strip() and months.strip().isdigit() and int(months) > 0:
                 cadence[segment.strip()] = int(months)
@@ -566,25 +581,31 @@ class FixSupplier(models.Model):
         today = fields.Date.context_today(self)
         Review = self.env["fix.supplier.review"].sudo()
         made = Review
-        for segment, months in self._a06_review_cadence().items():
-            for supplier in self.sudo().search(
-                [("status", "=", "active"), ("segment", "=", segment)]
-            ):
-                reviews = Review.search([("supplier_id", "=", supplier.id)], order="review_date")
-                if reviews.filtered(lambda r: r.state == "scheduled"):
-                    continue
-                last = reviews[-1:].review_date or supplier.onboarded_on
-                last = last or fields.Date.to_date(supplier.create_date)
-                due = last + relativedelta(months=months)
-                if due > today:
-                    continue
-                made |= Review.create(
-                    {
-                        "supplier_id": supplier.id,
-                        "review_type": REVIEW_TYPE_BY_MONTHS.get(months, "annual"),
-                        "review_date": due,
-                    }
-                )
+        by_segment = self._a06_review_cadence()
+        by_risk = self._a06_review_cadence(PARAM_REVIEW_CADENCE_RISK, "")
+        for supplier in self.sudo().search([("status", "=", "active")]):
+            options = [by_segment.get(supplier.segment)]
+            if "risk_tier" in supplier._fields:
+                options.append(by_risk.get(supplier.risk_tier))
+            options = [m for m in options if m]
+            if not options:
+                continue
+            months = min(options)
+            reviews = Review.search([("supplier_id", "=", supplier.id)], order="review_date")
+            if reviews.filtered(lambda r: r.state == "scheduled"):
+                continue
+            last = reviews[-1:].review_date or supplier.onboarded_on
+            last = last or fields.Date.to_date(supplier.create_date)
+            due = last + relativedelta(months=months)
+            if due > today:
+                continue
+            made |= Review.create(
+                {
+                    "supplier_id": supplier.id,
+                    "review_type": REVIEW_TYPE_BY_MONTHS.get(months, "annual"),
+                    "review_date": due,
+                }
+            )
         return made
 
     def _a06_reminder_user(self):
@@ -845,6 +866,15 @@ class FixSupplierQualification(models.Model):
     approved_on = fields.Date(readonly=True, copy=False)
     approved_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     notes = fields.Text()
+    # A06 P08: the product categories this qualification approves the supplier
+    # for; written to the supplier's approved categories when it is approved
+    category_ids = fields.Many2many(
+        "product.category",
+        "fix_supplier_qualification_category_rel",
+        "qualification_id",
+        "category_id",
+        string="Categories Qualified For",
+    )
 
     _score_range = models.Constraint(
         "CHECK (score >= 0 AND score <= 100)", "The score is a 0–100 value"
@@ -861,7 +891,14 @@ class FixSupplierQualification(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(r.state in ("approved", "rejected") for r in self):
-            locked |= {"supplier_id", "score", "stage", "auditor_id", "submitted_on"}
+            locked |= {
+                "supplier_id",
+                "score",
+                "stage",
+                "auditor_id",
+                "submitted_on",
+                "category_ids",
+            }
         return locked
 
     @api.model_create_multi
@@ -878,7 +915,14 @@ class FixSupplierQualification(models.Model):
         return records
 
     def write(self, vals):
-        fixed = {"supplier_id", "score", "stage", "auditor_id", "submitted_on"} & set(vals)
+        fixed = {
+            "supplier_id",
+            "score",
+            "stage",
+            "auditor_id",
+            "submitted_on",
+            "category_ids",
+        } & set(vals)
         rescored = self.browse()
         if fixed and not self._fix_guard_has_token():
             for rec in self:
@@ -916,7 +960,12 @@ class FixSupplierQualification(models.Model):
             .sudo()
             .search([("supplier_id", "=", supplier.id), ("state", "=", "open")])
         )
-        tiers = [by_risk[k] for k in {supplier.segment, *risks.mapped("band")} if k in by_risk]
+        # A06 P44 (FR-SRM2-004): the supplier's own risk tier sets the
+        # qualification authority too, not only its segment and open risks
+        keys = {supplier.segment, *risks.mapped("band")}
+        if "risk_tier" in supplier._fields and supplier.risk_tier:
+            keys.add(supplier.risk_tier)
+        tiers = [by_risk[k] for k in keys if k in by_risk]
         return max(tiers) if tiers else False
 
     def action_start(self):
@@ -960,6 +1009,12 @@ class FixSupplierQualification(models.Model):
                     "approved_by_id": self.env.uid,
                 }
             )
+            # A06 P08: what the supplier is approved to supply comes from the
+            # approved qualification, never from a free edit of the register
+            if rec.category_ids:
+                rec.supplier_id.sudo()._guarded().write(
+                    {"approved_category_ids": [(4, c.id) for c in rec.category_ids]}
+                )
             if rec.supplier_id.status == "prospect":
                 rec.supplier_id.sudo()._a06_set_status(
                     "qualified", "qualification %s approved" % rec.name
@@ -1109,6 +1164,8 @@ class FixSupplierRequalification(models.Model):
     due_on = fields.Date(required=True)
     completed_on = fields.Date(readonly=True, copy=False)
     outcome = fields.Selection([("pass", "Pass"), ("conditional", "Conditional"), ("fail", "Fail")])
+    # A06 P18: who recorded the outcome; another person completes it
+    outcome_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     state = fields.Selection(
         [("due", "Due"), ("scheduled", "Scheduled"), ("done", "Done")],
         required=True,
@@ -1117,7 +1174,7 @@ class FixSupplierRequalification(models.Model):
     notes = fields.Char()
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "completed_on"}
+        return super()._fix_guarded_fields() | {"state", "completed_on", "outcome_by_id"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1142,7 +1199,10 @@ class FixSupplierRequalification(models.Model):
             and any(r.state == "done" for r in self)
         ):
             raise UserError("A completed re-qualification is final.")
-        return super().write(vals)
+        result = super().write(vals)
+        if "outcome" in vals and not self.env.su:
+            self._guarded().write({"outcome_by_id": self.env.uid})
+        return result
 
     def action_complete(self):
         _require(self.env, "Completing a re-qualification", GROUP_STEWARD, GROUP_APPROVER)
@@ -1151,6 +1211,12 @@ class FixSupplierRequalification(models.Model):
                 raise UserError("This re-qualification is already complete")
             if not rec.outcome:
                 raise UserError("Record the outcome before completing the re-qualification")
+            # A06 P18: one steward typed the outcome and completed it alone
+            _not_by(
+                self.env,
+                rec.outcome_by_id | rec.sudo().create_uid,
+                "recorded this re-qualification's outcome",
+            )
             rec._guarded().write({"state": "done", "completed_on": fields.Date.context_today(self)})
             if rec.outcome == "fail":
                 rec.supplier_id.sudo()._a06_auto_suspend("re-qualification %s failed" % rec.name)
@@ -1307,6 +1373,11 @@ class FixSupplierScorecard(models.Model):
         return super().unlink()
 
     # ---- computation from M16 facts ---------------------------------------
+    def _a06_previous_period(self):
+        """The YYYY-MM period right before this one (A06 P45)."""
+        start, _end = self._a06_period_bounds()
+        return (start - relativedelta(months=1)).strftime("%Y-%m")
+
     def _a06_period_bounds(self):
         self.ensure_one()
         try:
@@ -1350,10 +1421,9 @@ class FixSupplierScorecard(models.Model):
                 % (accepted, received, len(judged)),
             )
         receipts = rlines.mapped("receipt_id")
-        dated = [
-            (r, r.purchase_order_id.vendor_confirmed_date or r.purchase_order_id.promised_date)
-            for r in receipts
-        ]
+        # A06 P16: measured against the vendor's own confirmed date, never one a
+        # buyer typed on its behalf
+        dated = [(r, r.purchase_order_id._a06_otd_due_date()) for r in receipts]
         dated = [(r, d) for r, d in dated if d]
         if dated:
             on_time = sum(1 for r, d in dated if r.received_on <= d)
@@ -1399,7 +1469,11 @@ class FixSupplierScorecard(models.Model):
             )
             if prev:
                 compared += 1
-                held += 1 if line.unit_price <= prev.unit_price + 0.005 else 0
+                # A06 P17: compared in BDT at each order's stamped rate, not
+                # a USD price against a BDT one
+                now_bdt = line.unit_price * line.order_id._fix_rate_bdt()
+                prev_bdt = prev.unit_price * prev.order_id._fix_rate_bdt()
+                held += 1 if now_bdt <= prev_bdt + 0.005 else 0
         if compared:
             out["cost"] = (
                 round(100.0 * held / compared, 1),
@@ -1443,7 +1517,10 @@ class FixSupplierScorecard(models.Model):
         published card is never touched."""
         payload = event.get("payload") or {}
         partner = self.env["res.partner"].browse(int(payload.get("vendor_id") or 0)).exists()
-        supplier = self.env["fix.supplier"]._for_partner(partner)
+        order = (
+            self.env["fix.purchase.order"].sudo().browse(int(payload.get("po_id") or 0)).exists()
+        )
+        supplier = self.env["fix.supplier"]._for_partner(partner, order.company_id or None)
         if not supplier:
             return False
         day = None
@@ -1501,6 +1578,10 @@ class FixSupplierScorecard(models.Model):
             limit=1,
         )
         if previous.grade != "d":
+            return False
+        # A06 P45: consecutive means the period right before this one; a D
+        # months ago followed by a gap is not "two periods running"
+        if previous.period != self._a06_previous_period():
             return False
         days = int(_param(self.env, PARAM_CAR_DAYS, 30))
         car = (
@@ -1845,6 +1926,8 @@ class FixSupplierScreening(models.Model):
     def action_clear(self):
         _require(self.env, "Clearing a screening", GROUP_STEWARD, GROUP_APPROVER)
         for rec in self:
+            # A06 P20: the steward who recorded the screening does not also clear it
+            _not_by(self.env, rec.sudo().create_uid, "recorded screening %s" % rec.name)
             if rec.result == "hit":
                 raise UserError("A screening hit cannot be cleared")
             if rec.result != "clear":

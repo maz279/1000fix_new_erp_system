@@ -79,8 +79,9 @@ class TestSupplierRegistration:
         suppliers = Supplier.search([("partner_id", "in", partners.ids)])
         assert len(suppliers) == len(partners)
         for sup in suppliers:
-            # the legacy-mass policy: qualified/transactional, gates NOT bypassed
-            assert sup.status == "qualified"
+            # A06 P35: a legacy vendor arrives a PROSPECT (it was labelled
+            # "qualified" with no qualification behind it); gates NOT bypassed
+            assert sup.status == "prospect"
             assert sup.segment == "transactional"
             assert sup.supplier_code.startswith("SUP/")
         mepro = next(s for s in suppliers if "MEPRO" in s.name)

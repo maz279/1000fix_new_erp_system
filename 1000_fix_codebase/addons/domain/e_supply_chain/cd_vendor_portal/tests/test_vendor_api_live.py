@@ -361,7 +361,8 @@ def test_invoice_list_shows_block_reasons(api):
     api.ctl.invoices(
         invoice_ref="GS/INV/2026/0200",
         po_id=order.id,
-        lines=[_line(api.compressor, 1, 13000.0)],
+        # above the A06 D8 default tolerance (+BDT 500 a unit)
+        lines=[_line(api.compressor, 1, 13100.0)],
     )
     api.ctl.invoices(
         invoice_ref="RP/INV/1",
@@ -380,7 +381,7 @@ def test_invoice_list_shows_block_reasons(api):
     assert row["match_detail"] == (
         "Compressor 1.5T: received 0.00 < invoiced 1.00\nCompressor 1.5T: price above PO"
     )
-    assert row["subtotal_bdt"] == "13,000.00"
+    assert row["subtotal_bdt"] == "13,100.00"
     invoice = api.env["fix.vendor.invoice"].browse(row["id"])
     assert row["tds_bdt"] == vendor_api._fmt_bdt(invoice.tds_amount)
     assert row["payable_bdt"] == vendor_api._fmt_bdt(invoice.total_payable)
