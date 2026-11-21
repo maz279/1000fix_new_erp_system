@@ -128,6 +128,9 @@ export const SCREENS = {
     /* A06 ERP audit: the standard cost is set here by an Inventory Controller
      * (it left M41: no cost in the warehouse workspace) */
     actions: [
+      { m: 'action_discontinue', l: 'Discontinue (controller)' },
+      { m: 'action_mark_obsolete', l: 'Mark Obsolete (controller)' },
+      { m: 'action_reactivate', l: 'Reactivate (controller)' },
       { m: 'action_set_standard_cost', l: 'Set Standard Cost (controller)', asks: [
         { label: 'New standard cost (BDT)', kwarg: 'cost', number: true }
       ] }

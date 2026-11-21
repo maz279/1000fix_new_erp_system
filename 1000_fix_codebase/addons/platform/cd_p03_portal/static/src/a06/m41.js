@@ -894,13 +894,10 @@ export const SCREENS = {
         { label: 'Lines with a discrepancy', kwarg: 'discrepancy_count', number: true }
       ] }
     ] },
+  /* A06 ERP audit integration: the item master and its lifecycle actions
+   * are M15's (Item Master); M41 shows the parts it slots, read-only */
   'M41-spare-part': { kind: 'model_list', model: 'fix.spare.part', stateField: 'state',
-    cols: ['name', 'part_number', 'product_id', 'is_serialized', 'uom', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'],
-    actions: [
-      { m: 'action_discontinue', l: 'Discontinue (controller)' },
-      { m: 'action_mark_obsolete', l: 'Mark Obsolete (controller)' },
-      { m: 'action_reactivate', l: 'Reactivate (controller)' }
-    ] },
+    cols: ['name', 'part_number', 'product_id', 'is_serialized', 'uom', 'state', 'active', 'company_id', 'operating_unit_id', 'name_bn'] },
   'M41-warehouse': { kind: 'model_list', model: 'fix.warehouse',
     cols: ['name', 'code', 'wms_enabled', 'wave_cutoffs', 'shift_pattern', 'active', 'company_id', 'operating_unit_id', 'branch_id'],
     actions: [{ m: 'action_propose_slotting', l: 'Propose Re-slotting Now (supervisor)' }] },
