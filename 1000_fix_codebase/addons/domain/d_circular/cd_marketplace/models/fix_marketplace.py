@@ -530,6 +530,14 @@ class FixMarketplaceOrder(models.Model):
         string="Disclosed Cosmetic / Functional Defects",
         help="Mandatory disclosure under BRU-TRF-04 for transparent marketplace resale",
     )
+    # A05 ERP M14-15: a refurbished listing is SOLD to a buyer, invoiced
+    # through M20 with the M51 VAT, and its unit leaves the M14 ledger
+    refurb_buyer_id = fields.Many2one(
+        "res.partner", string="Refurbished Unit Buyer", readonly=True, copy=False
+    )
+    refurb_invoice_id = fields.Many2one(
+        "fix.ar.invoice", string="Refurbished Sale Invoice (M20)", readonly=True, copy=False
+    )
 
     # Ephemeral Contact Masking (BRU-ECM-05 / EA-04)
     customer_contact_revealed = fields.Boolean(
@@ -618,6 +626,8 @@ class FixMarketplaceOrder(models.Model):
             "review_rating",
             "paid_at",
             "paid_by_id",
+            "refurb_buyer_id",
+            "refurb_invoice_id",
         }
 
     def _fix_frozen_fields(self) -> set:
@@ -940,6 +950,10 @@ class FixMarketplaceOrder(models.Model):
             rec.quote_ids.filtered(lambda q: q.state == "submitted")._guarded().write(
                 {"state": "not_selected"}
             )
+            # M14-15: a withdrawn refurbished listing gives its unit back
+            stock = rec.sudo().graded_stock_id
+            if rec.order_type == "refurb_resale" and stock and stock.state == "reserved":
+                stock.action_release()
 
     def action_list_refurb_resale(
         self,
@@ -958,6 +972,19 @@ class FixMarketplaceOrder(models.Model):
                 "Graded unit %s is not in stock (%s) — only refurbished stock on hand "
                 "can be listed for resale (BRU-TRF-04)." % (graded_stock.name, graded_stock.state)
             )
+        if graded_stock:
+            stock = graded_stock.sudo()
+            # A05 ERP M14-04/15 (D6): listed at the unit's approved price only,
+            # once it may be sold (wipe gate, NEIR, price), and reserved for
+            # the listing so no other channel sells it twice
+            if abs(float(listing_price or 0.0) - stock.resale_price) > 0.005:
+                raise UserError(
+                    "Graded unit %s sells at its approved price BDT %.2f, not BDT %.2f."
+                    % (stock.name, stock.resale_price, float(listing_price or 0.0))
+                )
+            stock._fix_assert_saleable("Listing %s on the marketplace" % stock.name)
+            if len(self) > 1:
+                raise UserError("One refurbished unit is listed on one marketplace order.")
         for rec in self:
             if rec.state != "open":
                 raise UserError(
@@ -973,6 +1000,8 @@ class FixMarketplaceOrder(models.Model):
                     "disclosed_defects": defects,
                 }
             )
+            if graded_stock:
+                graded_stock.sudo().action_reserve()
             publish(
                 self.env,
                 "marketplace.refurb_listed",
@@ -986,6 +1015,51 @@ class FixMarketplaceOrder(models.Model):
                     "price": float(listing_price),
                 },
             )
+
+    def action_sell_refurb(self, buyer_id=None):
+        """A05 ERP M14-15: the listed refurbished unit is sold to its buyer:
+        the M20 invoice at the approved price (the VAT is M51's, D2), the unit
+        sold off the M14 ledger (COGS and the warranty provision), the order
+        completed. Once per order: a second sale is refused."""
+        _assert_role(self.env, OPERATOR_GROUP, "Selling a listed refurbished device")
+        try:
+            buyer = self.env["res.partner"].sudo().browse(int(buyer_id or 0)).exists()
+        except (TypeError, ValueError):
+            buyer = self.env["res.partner"]
+        if not buyer:
+            raise UserError("Name the buyer of the refurbished unit.")
+        for rec in self:
+            if rec.order_type != "refurb_resale" or rec.state not in BIDDING_STATES:
+                raise UserError(
+                    "Order %s is not an open refurbished listing (%s, %s)."
+                    % (rec.name, rec.order_type, rec.state)
+                )
+            stock = rec.sudo().graded_stock_id
+            if not stock or stock.state != "reserved":
+                raise UserError(
+                    "Order %s: its unit is %s, not reserved for this listing."
+                    % (rec.name, stock.state if stock else "missing")
+                )
+            tradein = stock._tradein()
+            stock._fix_assert_saleable("Marketplace sale of %s" % stock.name)
+            invoice = self.env["fix.ar.invoice"]
+            if tradein:
+                invoice = tradein._tradein_invoice_sale(
+                    stock,
+                    buyer,
+                    rec.sudo(),
+                    "Marketplace sale %s of refurbished unit %s" % (rec.name, stock.name),
+                )
+            stock.action_sell()
+            rec._guarded().write(
+                {
+                    "state": "completed",
+                    "completed_at": fields.Datetime.now(),
+                    "refurb_buyer_id": buyer.id,
+                    "refurb_invoice_id": invoice.id or False,
+                }
+            )
+        return True
 
 
 class FixSellerQuote(models.Model):

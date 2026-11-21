@@ -27,7 +27,8 @@ access_fix_wms_task_user,fix.wms.task user,model_fix_wms_task,base.group_user,1,
 access_fix_wms_floor_count_user,fix.wms.floor.count user,model_fix_wms_floor_count,base.group_user,1,0,0,0
 access_fix_wms_wave_template_user,fix.wms.wave.template user,model_fix_wms_wave_template,base.group_user,1,0,0,0
 access_fix_wms_packing_station_user,fix.wms.packing.station user,model_fix_wms_packing_station,base.group_user,1,0,0,0
-access_fix_graded_stock_user,fix.graded.stock user,model_fix_graded_stock,base.group_user,1,1,1,0
+access_fix_graded_stock_user,fix.graded.stock user,model_fix_graded_stock,base.group_user,1,0,0,0
+access_fix_graded_stock_controller,fix.graded.stock controller,model_fix_graded_stock,cd_wms_structure.group_inventory_controller,1,1,0,0
 access_fix_stock_location_storekeeper,fix.stock.location storekeeper,model_fix_stock_location,cd_wms_structure.group_storekeeper,1,1,1,0
 access_fix_spare_part_storekeeper,fix.spare.part storekeeper,model_fix_spare_part,cd_wms_structure.group_storekeeper,1,1,1,0
 access_fix_stock_consumption_storekeeper,fix.stock.consumption storekeeper,model_fix_stock_consumption,cd_wms_structure.group_storekeeper,1,1,1,0

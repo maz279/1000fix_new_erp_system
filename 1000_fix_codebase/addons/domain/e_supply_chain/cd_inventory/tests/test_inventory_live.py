@@ -693,24 +693,30 @@ def _stock_user(env, login, *groups):
 
 def test_a_clerk_cannot_type_a_graded_unit_sold(ctx, graded):
     """A04 integration (M38 gst_01 / p03_06): the state, and once the unit is
-    committed the money, change only through the transitions."""
+    committed the money, change only through the transitions.
+
+    A05 ERP M14-04 / XC-09 (S2, 20 Nov 2026): the money is now frozen in
+    EVERY state - the price is the M14 pricing approval's, never typed, even
+    on the shelf - and a unit is born only from its trade-in's Resale Ready,
+    so a hand-typed one is refused for that reason first."""
     clerk = _stock_user(ctx.env, "gst-clerk")
     stock = graded.make()
     with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
         stock.with_user(clerk).write({"state": "sold", "resale_price": 1.0})
-    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
+    with pytest.raises(UserError, match="not created by hand"), ctx.env.cr.savepoint():
         ctx.env["fix.graded.stock"].with_user(clerk).create(
             {"device_id": graded.device.id, "grade_id": graded.grade.id, "state": "sold"}
         )
     with pytest.raises(UserError, match="Inventory Controller"), ctx.env.cr.savepoint():
         stock.with_user(clerk).action_sell()
-    stock.with_user(clerk).write({"resale_price": 8500.0})  # in stock: still priced freely
+    with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
+        stock.with_user(clerk).write({"resale_price": 8500.0})  # in stock: no longer typed
     controller = _stock_user(ctx.env, "gst-ctl", "cd_wms_structure.group_inventory_controller")
     stock.with_user(controller).action_reserve()
     with pytest.raises(UserError, match="cannot be set directly"), ctx.env.cr.savepoint():
         stock.with_user(controller).write({"resale_price": 1.0})
     stock.with_user(controller).action_release()
-    assert (stock.state, stock.resale_price) == ("in_stock", 8500.0)
+    assert (stock.state, stock.resale_price) == ("in_stock", 8000.0)
     stock.with_user(controller).action_sell()
     assert stock.state == "sold"
     assert _events(ctx.env, "graded_stock.sold", "fix.graded.stock", stock.id)

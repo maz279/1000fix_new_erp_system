@@ -38,6 +38,42 @@ def _policy(odoo_env):
     params = odoo_env["ir.config_parameter"].sudo()
     params.set_param("cd_tradein.allow_neir_unchecked", "1")
     params.set_param("cd_tradein.offer_requires_valuation", "0")
+    # A05 ERP D1: the M14 ledger accounts (the test chart's codes)
+    for role, code in (
+        ("refurb_stock", "110100"),
+        ("seller_payable", "211000"),
+        ("tds_payable", "252000"),
+        ("cogs", "500000"),
+        ("writeoff", "610000"),
+        ("warranty_provision", "201000"),
+        ("warranty_expense", "962000"),
+        ("refurb_absorption", "110400"),
+        ("resale_revenue", "400000"),
+    ):
+        params.set_param("cd_tradein.account_code.%s" % role, code)
+    params.set_param("cd_tax_engine_bd.account_code.tds_payable", "252000")
+
+
+def _priced(rec, price):
+    """A05 ERP D6: the listing price, proposed and approved (the superuser
+    service path; the four-eyes is tested in test_a05_erp_m14.py)."""
+    rec.write({"resale_value": price})
+    rec.action_request_listing_price()
+    rec.action_approve_listing_price()
+    return rec
+
+
+def _intake(env, rec, value):
+    """D3: the confirmed physical intake verification at `value`."""
+    return env["fix.tradein.intake.check"].create(
+        {
+            "tradein_id": rec.id,
+            "verified_condition": "poor",
+            "difference_notes": "as received",
+            "verified_value": value,
+            "state": "confirmed",
+        }
+    )
 
 
 def _events(env, event_type, res_id):
@@ -72,6 +108,11 @@ def _request(env, **vals):
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
     # An identified seller: payout refuses without a Smart NID (AML gate).
     vals.setdefault("customer_nid", _nid())
+    # A05 ERP M14-23: a trade-in is taken in at an operating unit
+    if "operating_unit_id" not in vals:
+        vals["operating_unit_id"] = (
+            env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1).id
+        )
     if vals.get("wipe_certificate_id") and "device_id" not in vals:
         vals["device_id"] = _device(env).id  # the device the certificate certifies
     return env[TRD].create(vals)
@@ -177,6 +218,19 @@ def _approved(env, rec, value):
     customer), then ONE routed approval decided from the approver's M63
     inbox: four-eyes, the payout role and the DOFA tier together."""
     approver = _approver(env)
+    # A05 ERP D3: the payout value is the confirmed physical intake
+    # verification's, capped at the offer the customer accepted
+    if not rec.accepted_offer_value:
+        rec.write({"accepted_offer_value": max(rec.offered_value or 0.0, value)})
+    env["fix.tradein.intake.check"].create(
+        {
+            "tradein_id": rec.id,
+            "verified_condition": "poor",
+            "difference_notes": "as received",
+            "verified_value": value,
+            "state": "confirmed",
+        }
+    )
     rec.write({"graded_value": value})
     if rec.revision_state == "pending":
         rec.action_accept_revision()
@@ -308,11 +362,10 @@ def test_collect_uses_request_ou_and_existing_consignment(odoo_env):
 
 
 def test_collect_without_any_operating_unit_is_refused(odoo_env):
-    odoo_env.user.write({"default_operating_unit_id": False})
-    rec = _in(odoo_env, "accepted")
-    with pytest.raises(UserError, match="has no operating unit"):
-        rec.action_collect()
-    assert rec.state == "accepted"
+    """A05 ERP M14-23: the OU is part of the intake (never the button
+    presser's default): a trade-in without one is not taken in at all."""
+    with pytest.raises(UserError, match="operating unit"):
+        _request(odoo_env, operating_unit_id=False)
 
 
 # --------------------------------------------------------------------------
@@ -521,8 +574,10 @@ def test_resale_ready_books_graded_stock(odoo_env):
         offered_value=40000,
         parts_cost=4500,
         labour_cost=1500,
-        resale_value=58000,
     )
+    _approved(odoo_env, rec, 40000)
+    rec.action_pay()  # A05 ERP D3: on the refurbished-stock ledger at purchase
+    _priced(rec, 58000)
     rec.action_resale_ready()
     stock = rec.graded_stock_id
     assert rec.state == "resale_ready"
@@ -556,8 +611,9 @@ def test_resale_ready_refuses_a_unit_without_device(odoo_env):
 
 
 def test_pay_only_from_graded_or_resale_ready(odoo_env):
-    rec = _in(odoo_env, "refurbished", offered_value=100)
-    with pytest.raises(UserError, match="Payout from graded or resale-ready"):
+    # A05 ERP D3: the seller is paid once the device is received
+    rec = _in(odoo_env, "offered", offered_value=100)
+    with pytest.raises(UserError, match="once the device is received"):
         rec.action_pay()
 
 
@@ -578,7 +634,7 @@ def test_pay_executes_treasury_payout(odoo_env, state):
     _approved(odoo_env, rec, 12500)  # graded below the offer
     rec.action_pay()
     payment = rec.payout_execution_id
-    assert rec.state == "closed"
+    assert rec.state == state  # A05 ERP D3: the payout does not move the unit
     assert rec.payout_amount == 12500  # the APPROVED graded value, not the offer
     # queued with treasury; only bank/MFS evidence marks it executed
     assert payment.state == "pending"
@@ -586,20 +642,27 @@ def test_pay_executes_treasury_payout(odoo_env, state):
     assert payment.method == "mobile_fs"
     assert payment.payee == "Trade-in Customer"
     assert (payment.source_model, payment.source_id) == (TRD, rec.id)
-    assert payment.operating_unit_id == odoo_env.user.default_operating_unit_id
+    assert payment.operating_unit_id == rec.operating_unit_id
     assert payment.display_name.startswith("PEX/")
     assert _events(odoo_env, "tradein.paid", rec.id) == [
-        {"payout": 12500.0, "payment_ref": payment.display_name}
+        {
+            "tradein_id": rec.id,
+            "partner_id": rec.customer_id.id,
+            "amount": 12500.0,
+            "payout": 12500.0,
+            "payment_ref": payment.display_name,
+        }
     ]
 
 
 def test_pay_requires_graded_value_and_approval(odoo_env):
     _approver(odoo_env)  # someone the routed request can go to
-    rec = _in(odoo_env, "graded", offered_value=15000)
-    with pytest.raises(UserError, match="graded payout value"):
+    rec = _in(odoo_env, "graded", offered_value=15000, accepted_offer_value=15000)
+    with pytest.raises(UserError, match="payout value is not set"):
         rec.action_pay()
-    with pytest.raises(UserError, match="graded payout value"):
+    with pytest.raises(UserError, match="payout value is not set"):
         rec.action_request_payout_approval()
+    _intake(odoo_env, rec, 9000)
     rec.write({"graded_value": 9000})
     rec.action_accept_revision()
     with pytest.raises(UserError, match="'none': it must be approved"):
@@ -623,6 +686,7 @@ def test_payout_approval_lifecycle(odoo_env):
         rec.action_request_payout_approval()
     with pytest.raises(UserError, match="Only a pending payout can be approved"):
         rec.action_approve_payout()
+    _intake(odoo_env, rec, 4500)
     rec.write({"graded_value": 4500})  # a new amount voids the old approval
     assert rec.payout_approval_state == "none"
     rec.action_accept_revision()
@@ -633,8 +697,8 @@ def test_payout_approval_lifecycle(odoo_env):
     assert rec.payout_approval_state == "rejected"
     with pytest.raises(UserError, match="Only a pending payout can be rejected"):
         rec.action_reject_payout()
-    with pytest.raises(UserError, match="Payout approval from graded"):
-        _in(odoo_env, "wiped", graded_value=10).action_request_payout_approval()
+    with pytest.raises(UserError, match="once the device is received"):
+        _in(odoo_env, "offered", graded_value=10).action_request_payout_approval()
     with pytest.raises(ValidationError, match="Graded value cannot be negative"):
         rec.write({"graded_value": -1})
 
@@ -661,7 +725,7 @@ def test_pay_reuses_existing_payout(odoo_env):
     rec.write({"payout_execution_id": payment.id})
     _approved(odoo_env, rec, 900)
     rec.action_pay()
-    assert rec.state == "closed"
+    assert rec.state == "resale_ready"  # A05 ERP D3: the payout does not move the unit
     assert rec.payout_execution_id == payment
     assert payment.state == "pending"  # not executed a second time by the trade-in
 
@@ -673,6 +737,10 @@ def test_full_journey(odoo_env):
     _screen(odoo_env, rec)
     rec.action_accept()
     rec.action_collect()
+    # A05 ERP D3: the seller is paid at purchase, before the wipe
+    _approved(odoo_env, rec, 22000)
+    rec.action_pay()
+    assert rec.state == "collected"
     rec.write({"wipe_certificate_id": _cert(odoo_env, device_id=device.id).id})
     rec.action_wipe()
     rec.action_refurbish()
@@ -680,10 +748,9 @@ def test_full_journey(odoo_env):
     _certify(odoo_env, rec, "b")
     rec.action_grade()
     rec.write({"hold_until": fields.Date.today()})  # the hold period has run
+    _priced(rec, 30000)
     rec.action_resale_ready()
-    _approved(odoo_env, rec, 22000)
-    rec.action_pay()
-    assert rec.state == "closed"
+    assert rec.state == "resale_ready"
     assert rec.graded_stock_id.grade_id == _grade(odoo_env, "B")
     assert rec.payout_execution_id.state == "pending"  # queued with treasury
     # M14-15: the stock is capitalised at what the seller is paid

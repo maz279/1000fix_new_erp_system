@@ -20,12 +20,14 @@ from odoo.addons.cd_tradein.tests.test_a05_m14_controls import (  # noqa: F401 -
     _MW,
     TRD,
     accepted,
+    approved,
     cert,
     device,
     graded,
     m,
     p03_action,
     p03_write,
+    paying,
     refused,
 )
 from odoo.exceptions import UserError
@@ -51,6 +53,8 @@ def _client(x):
 
 def _lot(x, serials, **vals):
     vals.setdefault("partner_id", _client(x).id)
+    # A05 ERP M14-23: the lot's intakes are taken in at its operating unit
+    vals.setdefault("operating_unit_id", x.ou.id)
     res = _lot_write(x, vals, [{"serial_number": s} for s in serials])
     assert "error" not in res, res
     return x.env[BBK].browse(res["id"]).with_user(x.clerk)
@@ -79,7 +83,9 @@ def test_receiving_opens_one_trade_in_per_declared_asset(m):
     by_serial = {a.serial_number: a.tradein_id for a in lot.asset_ids}
     assert by_serial[dev.imei_1].device_id == dev
     assert not by_serial["UNREGISTERED-9"].device_id
-    assert lot.matched_count == 2 and lot.pending_count == 0
+    # A05 ERP M14-17: an opened intake is not reconciled until the unit is
+    # collected and its wipe certified
+    assert lot.opened_count == 2 and lot.matched_count == 0 and lot.pending_count == 0
 
 
 def test_an_asset_declared_after_receipt_gets_its_intake_on_the_next_run(m):
@@ -103,6 +109,10 @@ def test_the_lot_closes_only_when_every_asset_is_reconciled(m):
     assert not res.get("success") and "not reconciled" in str(res), res
     refused(lot.action_close, "not reconciled")
     second.write({"exception_reason": "Retained by the client (declined the offer)"})
+    # CL-1's intake is open but not collected and wipe-certified (M14-17)
+    refused(lot.action_close, "wipe-certified")
+    first = lot.asset_ids - second
+    first.write({"exception_reason": "Not delivered with the lot"})
     assert second.status == "exception"
     assert second.exception_by_id == m.clerk and second.exception_at
     res = p03_action(m, BBK, lot, "action_close")
@@ -113,6 +123,7 @@ def test_the_lot_closes_only_when_every_asset_is_reconciled(m):
 def test_a_closed_lot_and_its_asset_list_are_frozen(m):
     lot = _lot(m, ["FZ-1"])
     lot.action_open_intakes()
+    lot.asset_ids.write({"exception_reason": "Not delivered with the lot"})
     lot.action_close()
     refused(lambda: lot.write({"contract_ref": "changed"}), "closed")
     refused(
@@ -141,7 +152,11 @@ def test_lot_pricing_needs_the_agreed_price(m):
 
 def test_the_reconciliation_link_is_never_typed(m):
     lot = _lot(m, ["GD-1"])
-    other = m.env[TRD].with_user(m.clerk).create({"customer_id": lot.partner_id.id})
+    other = (
+        m.env[TRD]
+        .with_user(m.clerk)
+        .create({"customer_id": lot.partner_id.id, "operating_unit_id": m.ou.id})
+    )
     asset = lot.asset_ids
     refused(lambda: asset.write({"tradein_id": other.id}), "changes only through")
     refused(
@@ -193,14 +208,17 @@ def test_the_gate_refuses_an_unverified_or_foreign_certificate(m):
 
 # ------------------------------------------------------------------ resale page
 def test_resale_capture_prepares_the_listing_then_resale_ready_stocks_it(m):
-    rec = graded(m)
-    res = p03_write(
-        m,
-        TRD,
-        rec.id,
-        {"resale_channel": "store", "resale_value": 31000.0, "resale_listed_on": "2026-11-13"},
-    )
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()  # A05 ERP D3: bought in (on the ledger) before it is stocked
+    graded(m, rec)
+    res = p03_write(m, TRD, rec.id, {"resale_channel": "store", "resale_value": 31000.0})
     assert "error" not in res, res
+    # A05 ERP D6: the price is approved by a pricing manager who did not propose it
+    res = p03_action(m, TRD, rec, "action_resale_ready")
+    assert not res.get("success") and "listing price" in str(res), res
+    assert p03_action(m, TRD, rec, "action_request_listing_price").get("success")
+    assert p03_action(m, TRD, rec, "action_approve_listing_price", user=m.pricer).get("success")
     res = p03_action(m, TRD, rec, "action_resale_ready")
     assert res.get("success"), res
     assert rec.state == "resale_ready"

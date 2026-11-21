@@ -33,7 +33,8 @@ class TestTradeinLifecycleAndGates(unittest.TestCase):
 
     def test_ten_state_lifecycle(self):
         state_keys = [s[0] for s in TRADEIN_STATES]
-        self.assertEqual(len(state_keys), 10)
+        # A05 ERP M14-09/21: an approved write-off routes the unit to parts only
+        self.assertEqual(len(state_keys), 11)
         expected_states = (
             "draft",
             "offered",
@@ -43,6 +44,7 @@ class TestTradeinLifecycleAndGates(unittest.TestCase):
             "refurbished",
             "graded",
             "resale_ready",
+            "parts_only",
             "closed",
             "rejected",
         )

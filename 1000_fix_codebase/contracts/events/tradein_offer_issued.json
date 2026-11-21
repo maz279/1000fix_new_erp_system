@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "tradein.offer_issued",
+  "description": "Published by cd_tradein through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code. A05 I5: the trade-in offer and its validity, for the M27 customer notification.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "tradein.offer_issued"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_tradein"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "tradein_id",
+        "partner_id",
+        "amount",
+        "valid_until"
+      ],
+      "properties": {
+        "tradein_id": {
+          "type": "integer"
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "amount": {
+          "type": "number"
+        },
+        "valid_until": {
+          "type": "string",
+          "format": "date"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_tradein",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_tradein/models/fix_tradein.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

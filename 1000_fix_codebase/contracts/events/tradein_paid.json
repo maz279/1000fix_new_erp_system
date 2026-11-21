@@ -32,10 +32,22 @@
     "payload": {
       "type": "object",
       "required": [
+        "tradein_id",
+        "partner_id",
+        "amount",
         "payout",
         "payment_ref"
       ],
       "properties": {
+        "tradein_id": {
+          "type": "integer"
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "amount": {
+          "type": "number"
+        },
         "payout": {
           "type": "number"
         },

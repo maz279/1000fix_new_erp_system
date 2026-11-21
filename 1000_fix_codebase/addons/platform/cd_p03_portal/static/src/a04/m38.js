@@ -386,15 +386,17 @@ export const SCREENS = {
     sections: [
       { tab: 'general', title: '1. General', fields: [
         { name: 'name', label: 'Stock Tag / Serial', required: true },
-        { name: 'tradein_id', label: 'Originating Trade-In ID' },
+        { name: 'tradein_id', label: 'Originating Trade-In ID', readonly: true },
         { name: 'tradein_ref', label: 'Originating Trade-In Ref' },
         { name: 'inventory_valuation', label: 'Inventory Valuation', readonly: true },
         { name: 'state', label: 'Inventory Status (reserved and sold by orders)', readonly: true }
       ] },
       { tab: 'commercial', title: '2. Commercial', fields: [
-        { name: 'acquisition_cost', label: 'Acquisition Cost (Trade-In)', required: true },
-        { name: 'refurbishment_cost', label: 'Refurbishment Cost' },
-        { name: 'resale_price', label: 'Target Resale Price', required: true },
+        /* A05 ERP M14-04 / XC-09: cost and price are set by M14 (payout, refurbishment
+         * absorption, approved listing price / markdown) and guarded on the model */
+        { name: 'acquisition_cost', label: 'Acquisition Cost (Trade-In)', readonly: true },
+        { name: 'refurbishment_cost', label: 'Refurbishment Cost', readonly: true },
+        { name: 'resale_price', label: 'Approved Resale Price (M14)', readonly: true },
         { name: 'projected_margin', label: 'Projected Margin', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [

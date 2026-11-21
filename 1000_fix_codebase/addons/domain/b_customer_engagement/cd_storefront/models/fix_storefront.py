@@ -208,6 +208,11 @@ class FixStorefrontCart(models.Model):
                 raise UserError(
                     "Refurbished item %s is %s and can no longer be sold." % (item.name, item.state)
                 )
+            # A05 ERP audit M14-04: the unit is asked again whether it may be
+            # sold (the M14 wipe gate, the NEIR re-check, the approved listing
+            # price, a write-off), since any of them can change while the
+            # cart waits; the price itself was re-read above.
+            item._fix_assert_saleable("Checkout of cart %s" % rec.name)
         slot = self.env["fix.storefront.slot"].sudo().browse(int(slot_id)) if slot_id else None
         if slot is not None:
             slot._sf_assert_bookable()

@@ -14,3 +14,6 @@ access_fix_tradein_intake_check,fix.tradein.intake.check,model_fix_tradein_intak
 access_fix_refurb_qa_test,fix.refurb.qa.test,model_fix_refurb_qa_test,base.group_user,1,1,1,1
 access_fix_refurb_return,fix.refurb.return,model_fix_refurb_return,base.group_user,1,1,1,0
 access_fix_refurb_writeoff,fix.refurb.writeoff,model_fix_refurb_writeoff,base.group_user,1,1,1,0
+access_fix_refurb_ledger_cost,fix.refurb.ledger cost viewer,model_fix_refurb_ledger,cd_wms_structure.group_stock_cost_viewer,1,0,0,0
+access_fix_refurb_ledger_account,fix.refurb.ledger accountant,model_fix_refurb_ledger,account.group_account_user,1,0,0,0
+access_fix_refurb_markdown,fix.refurb.markdown,model_fix_refurb_markdown,base.group_user,1,1,1,0

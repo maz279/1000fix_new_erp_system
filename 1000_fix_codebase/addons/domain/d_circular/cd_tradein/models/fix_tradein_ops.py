@@ -7,6 +7,7 @@
 # harvest and warranty state, the valuation override) was a free field. Each
 # is now guarded (fix.guarded.mixin) and set by its action, by the role the
 # report names, never by the person whose work it checks.
+from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -35,6 +36,24 @@ def _assert_role(env, group, what):
     if not env.user.has_group(group):
         role = env.ref(group, raise_if_not_found=False)
         raise AccessError("%s needs the %s role." % (what, role.name if role else group))
+
+
+# XC-24: the A05 DOFA ladder for trade-in valuation, payout and write-off
+# (Appraisal Specialist to 50k, Service Hub Lead to 250k, Head of Circular
+# Economy to 1M, CFO above), the one the payout approval already uses.
+_DOFA_LADDER = ((50000.0, 1), (250000.0, 2), (1000000.0, 3), (float("inf"), 4))
+
+
+def _assert_amount_tier(env, amount, what):
+    """The approver's DOFA tier covers `amount` (higher tiers imply lower)."""
+    if env.su or (amount or 0.0) <= 0:
+        return
+    tier = next(t for bound, t in _DOFA_LADDER if amount <= bound)
+    group = "cd_entity_config.group_dofa_tier_%d" % tier
+    if not env.user.has_group(group):
+        raise AccessError(
+            "%s of BDT %.2f needs DOFA tier %d authority (XC-24)." % (what, amount, tier)
+        )
 
 
 class FixTradeinPriceGrid(models.Model):
@@ -355,6 +374,9 @@ class FixTradeinValuation(models.Model):
         for rec in self:
             if rec.override_state != "pending":
                 raise UserError("Only a pending override is approved.")
+            _assert_amount_tier(
+                self.env, rec.final_offer or rec.computed_offer, "Approving a valuation override"
+            )
             if not self.env.su and self.env.user in (
                 rec.create_uid | rec.valuated_by_id | rec.tradein_id.create_uid
             ):
@@ -495,12 +517,24 @@ class FixTradeinProvenance(models.Model):
             ("unregistered", "Unregistered Device"),
             ("stolen", "Reported Stolen / Blacklisted"),
             ("pending", "Pending Query"),
+            # D4: the manual NEIR result a provenance officer records
+            ("clear", "Clear (manual NEIR result)"),
+            ("blocked", "Blocked (manual NEIR result)"),
+            ("not_found", "Not Found (manual NEIR result)"),
         ],
         string="BTRC NEIR Status",
         default="unchecked",
         required=True,
         readonly=True,
     )
+    neir_evidence_attachment_id = fields.Many2one(
+        "ir.attachment", string="NEIR Result Evidence", readonly=True, copy=False
+    )
+    neir_evidence_ref = fields.Char(string="NEIR Lookup Reference", readonly=True, copy=False)
+    neir_result_by_id = fields.Many2one(
+        "res.users", string="NEIR Result Recorded By", readonly=True, copy=False
+    )
+    neir_result_at = fields.Datetime(string="NEIR Result Recorded At", readonly=True, copy=False)
     customer_nid_no = fields.Char(string="Customer Smart NID")
     customer_nid_verified = fields.Boolean(
         string="Customer NID Verified", default=False, readonly=True
@@ -540,6 +574,10 @@ class FixTradeinProvenance(models.Model):
             "cleared_at",
             "flagged_by_id",
             "flag_reason",
+            "neir_evidence_attachment_id",
+            "neir_evidence_ref",
+            "neir_result_by_id",
+            "neir_result_at",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -673,19 +711,61 @@ class FixTradeinProvenance(models.Model):
         return True
 
     def action_run_neir_check(self):
-        """BTRC NEIR lookup. No NEIR integration exists (the register
-        relaunches on 1 January 2027), so this records nothing and clears
-        nothing: the status stays 'unchecked' rather than claiming a check."""
+        """BTRC NEIR lookup. No NEIR integration exists, so this records
+        nothing and clears nothing: the provenance officer records the manual
+        NEIR result with its evidence (action_record_neir_result, D4)."""
         for rec in self:
             if rec.btrc_neir_status not in ("unchecked", "pending"):
                 continue
             rec._guarded().write({"btrc_neir_status": "unchecked", "btrc_neir_checked": False})
         return {
             "neir_status": "unchecked",
-            "message": "BTRC NEIR is not integrated (relaunch 1 January 2027): the status "
-            "stays 'unchecked'. Trading unchecked devices is governed by "
-            "cd_tradein.allow_neir_unchecked.",
+            "message": "BTRC NEIR is not integrated: a provenance officer records the NEIR "
+            "result (clear / blocked / not found) with its evidence.",
         }
+
+    def action_record_neir_result(
+        self, result=None, evidence_ref=None, evidence_attachment_id=None
+    ):
+        """D4 (owner 20 Nov 2026): a provenance officer who did not raise the
+        trade-in records the manual NEIR result with its evidence (an
+        attachment or a lookup reference). 'blocked' flags the screen (a hard
+        stop); only 'clear' passes the gate."""
+        _assert_role(self.env, GROUP_PROVENANCE_OFFICER, "Recording a NEIR result")
+        if result not in ("clear", "blocked", "not_found"):
+            raise UserError("A NEIR result is clear, blocked or not_found.")
+        try:
+            attachment = (
+                self.env["ir.attachment"].browse(int(evidence_attachment_id)).exists()
+                if evidence_attachment_id
+                else self.env["ir.attachment"]
+            )
+        except (TypeError, ValueError):
+            attachment = self.env["ir.attachment"]
+        ref = (evidence_ref or "").strip()
+        if not (attachment or ref):
+            raise UserError("Attach the NEIR lookup evidence or give its reference.")
+        for rec in self:
+            if rec.state == "flagged":
+                raise UserError("Provenance screen %s is flagged: a hit is a hard stop." % rec.name)
+            if not self.env.su and rec.tradein_id.create_uid == self.env.user:
+                raise UserError(
+                    "Segregation of duties: the NEIR result of a trade-in you raised is recorded "
+                    "by another provenance officer."
+                )
+            rec._guarded().write(
+                {
+                    "btrc_neir_status": result,
+                    "btrc_neir_checked": True,
+                    "neir_evidence_attachment_id": attachment.id or False,
+                    "neir_evidence_ref": ref or False,
+                    "neir_result_by_id": self.env.uid,
+                    "neir_result_at": fields.Datetime.now(),
+                }
+            )
+            if result == "blocked":
+                rec._flag("NEIR result: blocked")
+        return True
 
 
 class FixTradeinGrade(models.Model):
@@ -730,6 +810,7 @@ class FixTradeinGrade(models.Model):
     inspector_id = fields.Many2one("hr.employee", string="Inspector")
     graded_on = fields.Date(required=True, default=fields.Date.context_today)
     notes = fields.Text()
+    cycle = fields.Integer(string="Refurbishment Cycle", readonly=True, default=1)
 
     _battery_range = models.Constraint(
         "CHECK (battery_health_pct >= 0 AND battery_health_pct <= 100)",
@@ -758,6 +839,8 @@ class FixTradeinGrade(models.Model):
         records = super().create(vals_list)
         # the grading result is the trade-in's grade: keep the request aligned
         for rec in records:
+            # M14-05: a grade belongs to the unit's current refurbishment cycle
+            rec.sudo()._guarded().write({"cycle": rec.tradein_id.sudo().refurb_cycle or 1})
             if rec.tradein_id.state == "refurbished":
                 rec.tradein_id.write(
                     {"grade": rec.grade, "battery_health_pct": rec.battery_health_pct}
@@ -828,6 +911,7 @@ class FixRefurbQa(models.Model):
     inspected_by_id = fields.Many2one("res.users", string="Submitted By", readonly=True, copy=False)
     checked_on = fields.Date(required=True, default=fields.Date.context_today)
     notes = fields.Text()
+    cycle = fields.Integer(string="Refurbishment Cycle", readonly=True, default=1)
 
     _tests_range = models.Constraint(
         "CHECK (tests_passed >= 0 AND tests_total > 0 AND tests_passed <= tests_total)",
@@ -839,7 +923,12 @@ class FixRefurbQa(models.Model):
     )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"qa_state", "inspected_by_id", "checked_on"}
+        return super()._fix_guarded_fields() | {
+            "qa_state",
+            "inspected_by_id",
+            "checked_on",
+            "cycle",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = set(super()._fix_form_locked_fields())
@@ -869,7 +958,11 @@ class FixRefurbQa(models.Model):
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.refurb.qa") or "RQA/New"
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # M14-05: a QA belongs to the unit's current refurbishment cycle
+        for rec in records.filtered("tradein_id"):
+            rec.sudo()._guarded().write({"cycle": rec.tradein_id.sudo().refurb_cycle or 1})
+        return records
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -1046,15 +1139,12 @@ class FixTradeinHarvest(models.Model):
     def _harvest_denial(self) -> str:
         self.ensure_one()
         tradein = self.tradein_id
-        if tradein.state not in ("graded", "closed"):
-            return "trade-in %s is %s: harvest runs on a graded unit" % (
-                tradein.name,
-                tradein.state,
-            )
-        if tradein.grade != "e":
-            return "trade-in %s is grade %s: only a parts-only (grade E) unit is harvested" % (
-                tradein.name,
-                (tradein.grade or "?").upper(),
+        # A05 ERP M14-09/21: a unit is harvested once its write-off routed it
+        # to parts only (a QA-failed unit included), never from stock
+        if tradein.state != "parts_only":
+            return (
+                "trade-in %s is %s: a unit is harvested once an approved write-off routed it "
+                "to parts only" % (tradein.name, tradein.state)
             )
         stop = tradein._provenance_hard_stop()
         if stop:
@@ -1073,8 +1163,11 @@ class FixTradeinHarvest(models.Model):
                 raise UserError("Harvest refused: %s." % denial)
             vals = {"state": "harvested", "harvested_by_id": self.env.uid}
             if rec.target in ("spare_stock", "refurb"):
+                rec._harvest_assert_value()
                 vals["receipt_id"] = rec._harvest_receipt().id
             rec._guarded().write(vals)
+            if rec.target in ("spare_stock", "refurb"):
+                rec._harvest_relieve()
             publish(
                 self.env,
                 "tradein.harvested",
@@ -1091,6 +1184,58 @@ class FixTradeinHarvest(models.Model):
                 },
             )
         return True
+
+    def _harvest_assert_value(self):
+        """M14-20 / FIN-20: a harvested part enters M15 at a share of the
+        unit's carrying cost, never above what is left of it."""
+        self.ensure_one()
+        tradein = self.tradein_id.sudo()
+        left = tradein._ledger_carrying()
+        if (self.total_value or 0.0) > left + _EPS:
+            raise UserError(
+                "Harvest %s: BDT %.2f is more than the BDT %.2f of %s's cost still in stock. A "
+                "harvested part is valued from the unit's cost, never above it."
+                % (self.name, self.total_value, left, tradein.name)
+            )
+
+    def _harvest_relieve(self):
+        """Move the part's value out of refurbished stock into M15 (its
+        valuation suspense account, where M15 stock is held until the GL
+        cut-over)."""
+        self.ensure_one()
+        from odoo.addons.cd_inventory.models.fix_valuation_suspense import suspense_account_code
+
+        from .fix_tradein_ledger import tradein_account
+
+        tradein = self.tradein_id.sudo()
+        amount = round(self.total_value or 0.0, 2)
+        if amount <= _EPS:
+            return
+        code = suspense_account_code(self.env)
+        m15 = (
+            self.env["account.account"]
+            .sudo()
+            .with_company(tradein.company_id)
+            .search([("code", "=", code), ("company_ids", "in", tradein.company_id.id)], limit=1)
+        )
+        if not m15:
+            raise UserError(
+                "Harvest %s: M15's valuation suspense account %s is not in the chart of %s "
+                "(cd_inventory.valuation_suspense_account_code)."
+                % (self.name, code, tradein.company_id.name)
+            )
+        stock = tradein_account(self.env, tradein.company_id, "refurb_stock")
+        tradein._ledger_post(
+            "harvest",
+            "harvest:%d" % self.id,
+            amount,
+            -amount,
+            [
+                (m15, "Harvest %s into M15 (%s)" % (self.name, tradein.name), amount, 0.0, None),
+                (stock, "Harvest %s out of refurbished stock" % self.name, 0.0, amount, None),
+            ],
+            "harvest %s" % self.name,
+        )
 
     def _harvest_receipt(self):
         """A draft M15 goods receipt for the harvested part (cd_inventory's
@@ -1175,6 +1320,7 @@ class FixTradeinWarranty(models.Model):
         "fix.tradein.request", string="Trade-In", required=True, ondelete="cascade", index=True
     )
     months = fields.Integer(string="Warranty (months)", default=6)
+    sale_no = fields.Integer(string="Sale No.", readonly=True, index=True)
     start_date = fields.Date(required=True, default=fields.Date.context_today)
     end_date = fields.Date(compute="_compute_end", store=True)
     terms = fields.Text()
@@ -1185,7 +1331,13 @@ class FixTradeinWarranty(models.Model):
     )
     void_reason = fields.Text(readonly=True, copy=False)
     state = fields.Selection(
-        [("active", "Active"), ("expired", "Expired"), ("void", "Void")],
+        [
+            ("active", "Active"),
+            ("expired", "Expired"),
+            ("void", "Void"),
+            # M14-05/07: the buyer brought the unit back; this sale's cover ends
+            ("returned", "Closed by Return"),
+        ],
         required=True,
         default="active",
         readonly=True,
@@ -1205,15 +1357,16 @@ class FixTradeinWarranty(models.Model):
             "tradein_id",
             "months",
             "start_date",
+            "sale_no",
         }
 
     @api.depends("start_date", "months")
     def _compute_end(self):
+        """M14-06: calendar months (a sale on 31 August ends on 28/29 February,
+        it no longer crashes on a missing day)."""
         for rec in self:
             if rec.start_date and rec.months:
-                month = rec.start_date.month - 1 + rec.months
-                year = rec.start_date.year + month // 12
-                rec.end_date = rec.start_date.replace(year=year, month=month % 12 + 1)
+                rec.end_date = rec.start_date + relativedelta(months=rec.months)
             else:
                 rec.end_date = False
 
