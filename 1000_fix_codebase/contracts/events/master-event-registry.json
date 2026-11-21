@@ -1635,7 +1635,7 @@
       "producer": "cd_ewaste",
       "filename": "esg_metrics_published.json",
       "kafka_topic": "fix.events.esg",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1643,7 +1643,7 @@
       "producer": "cd_ewaste",
       "filename": "esg_statutory_return_filed.json",
       "kafka_topic": "fix.events.esg",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1683,7 +1683,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_certificate_exception.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1715,7 +1715,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_disposal_certified.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1723,7 +1723,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_hazmat_ceiling_breach.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1731,7 +1731,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_partner_suspended.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1739,7 +1739,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_reuse_routed.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1755,7 +1755,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_transferred.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {
@@ -1763,7 +1763,7 @@
       "producer": "cd_ewaste",
       "filename": "ewaste_triaged.json",
       "kafka_topic": "fix.events.ewaste",
-      "schema_version": "3.0.0",
+      "schema_version": "4.0.0",
       "schema_source": "derived"
     },
     {
@@ -3451,8 +3451,8 @@
       "producer": "cd_rental_asset",
       "filename": "rental_asset_retired.json",
       "kafka_topic": "fix.events.rental",
-      "schema_version": "1.0.0",
-      "schema_source": "curated"
+      "schema_version": "2.0.0",
+      "schema_source": "derived"
     },
     {
       "event_type": "rental.closed",
@@ -3484,7 +3484,7 @@
       "filename": "rental_overdue.json",
       "kafka_topic": "fix.events.rental",
       "schema_version": "1.0.0",
-      "schema_source": "curated"
+      "schema_source": "derived"
     },
     {
       "event_type": "rental.reserved",
@@ -3500,7 +3500,7 @@
       "filename": "rental_return_due.json",
       "kafka_topic": "fix.events.rental",
       "schema_version": "1.0.0",
-      "schema_source": "curated"
+      "schema_source": "derived"
     },
     {
       "event_type": "rental.returned",
@@ -4643,7 +4643,7 @@
       "producer": "cd_tradein",
       "filename": "tradein_offer_issued.json",
       "kafka_topic": "fix.events.tradein",
-      "schema_version": "1.0.0",
+      "schema_version": "2.0.0",
       "schema_source": "derived"
     },
     {

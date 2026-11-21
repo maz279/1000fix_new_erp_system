@@ -61,7 +61,7 @@
           ]
         },
         "serial": {
-          "description": "Type not statically derivable from `rec._fix_serial()` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:405)."
+          "description": "Type not statically derivable from `rec._fix_serial()` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:556)."
         },
         "customer_id": {
           "type": "integer"

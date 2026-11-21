@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "rental.return_due",
-  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() by the daily return-due job, once per rental, cd_rental_asset.return_due_notice_days (default 1, i.e. T-24h) before the unit is due back. due_at is the due date (ISO date, Asia/Dhaka business day). Consumed by M27 customer notifications (A05 interface I5).",
+  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -54,5 +54,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_rental_asset/models/fix_rental_money.py"
   ],
-  "x-derived-from": "hand-written (A05 interface I5), same shape as the derived contracts"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

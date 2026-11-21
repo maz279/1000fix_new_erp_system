@@ -36,7 +36,7 @@
       ],
       "properties": {
         "grade": {
-          "description": "Type not statically derivable from `triage.decision` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:392)."
+          "description": "Type not statically derivable from `triage.decision` (addons/domain/d_circular/cd_ewaste/models/fix_ewaste.py:525)."
         }
       },
       "additionalProperties": false

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "tradein.offer_issued",
-  "description": "Published by cd_tradein through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code. A05 I5: the trade-in offer and its validity, for the M27 customer notification.",
+  "description": "Published by cd_tradein through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -48,8 +48,7 @@
           "type": "number"
         },
         "valid_until": {
-          "type": "string",
-          "format": "date"
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ewaste.hazmat_ceiling_breach",
-  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -51,25 +51,23 @@
         "point_id": {
           "type": [
             "integer",
-            "boolean",
             "null"
           ]
         },
         "hazard_class": {
-          "type": "string"
+          "description": "Type not statically derivable from `hclass` (addons/domain/d_circular/cd_ewaste/models/fix_m18_capture.py:702)."
         },
         "quantity_kg": {
-          "type": "number"
+          "description": "Type not statically derivable from `weight` (addons/domain/d_circular/cd_ewaste/models/fix_m18_capture.py:702)."
         },
         "ceiling_kg": {
           "type": [
             "number",
-            "boolean",
             "null"
           ]
         },
         "reason": {
-          "type": "string"
+          "description": "Type not statically derivable from `reason` (addons/domain/d_circular/cd_ewaste/models/fix_m18_capture.py:702)."
         },
         "company_id": {
           "type": "integer"
@@ -82,5 +80,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_ewaste/models/fix_m18_capture.py"
   ],
-  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

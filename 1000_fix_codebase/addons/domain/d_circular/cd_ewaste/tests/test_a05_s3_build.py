@@ -591,7 +591,7 @@ def test_the_assessor_does_not_authorise_the_transfer(m):
     both = make_user(m.env, "assessdisp", [G.assessor, G.dispatcher], employee=True)
     dev = m.device()
     col = m.collection(device_id=dev.id, weight_kg=0.5)
-    cert = m.verified_cert(dev.serial_number)
+    cert = m.verified_cert(dev.serial_number, col)
     m.env["fix.ewaste.triage"].with_user(both).create(
         {"collection_id": col.id, "decision": "recycle", "data_bearing": True}
     )

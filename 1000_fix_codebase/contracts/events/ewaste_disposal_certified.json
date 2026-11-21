@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "ewaste.disposal_certified",
-  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -51,12 +51,14 @@
         "certificate_no": {
           "type": [
             "string",
-            "boolean",
-            "null"
+            "boolean"
           ]
         },
         "partner_id": {
-          "type": "integer"
+          "type": [
+            "integer",
+            "boolean"
+          ]
         },
         "item_ids": {
           "type": "array"
@@ -78,5 +80,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_ewaste/models/fix_ewaste_ops.py"
   ],
-  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

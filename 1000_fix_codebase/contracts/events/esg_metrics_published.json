@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "esg.metrics_published",
-  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (A05 ERP build S3, M18 spec section 12.3).",
+  "description": "Published by cd_ewaste through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -41,7 +41,7 @@
       ],
       "properties": {
         "period": {
-          "type": "string"
+          "description": "Type not statically derivable from `period` (addons/domain/d_circular/cd_ewaste/models/fix_s3_a05_build.py:413)."
         },
         "company_id": {
           "type": "integer"
@@ -52,7 +52,6 @@
         "factor_version": {
           "type": [
             "string",
-            "boolean",
             "null"
           ]
         },
@@ -60,7 +59,7 @@
           "type": "boolean"
         },
         "definition": {
-          "type": "string"
+          "description": "Type not statically derivable from `GRI_306_4_DEFINITION` (addons/domain/d_circular/cd_ewaste/models/fix_s3_a05_build.py:413)."
         }
       },
       "additionalProperties": false
@@ -70,5 +69,5 @@
   "x-publishers": [
     "addons/domain/d_circular/cd_ewaste/models/fix_s3_a05_build.py"
   ],
-  "x-derived-from": "publish() call (hand-written, A05 ERP build S3)"
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }

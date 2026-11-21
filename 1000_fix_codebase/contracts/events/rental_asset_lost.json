@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "rental.asset_lost",
-  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
   "type": "object",
   "required": [
     "event_id",
@@ -66,7 +66,8 @@
   },
   "x-owner-module": "cd_rental_asset",
   "x-publishers": [
-    "addons/domain/d_circular/cd_rental_asset/models/fix_rental_capture.py"
+    "addons/domain/d_circular/cd_rental_asset/models/fix_rental_capture.py",
+    "addons/domain/d_circular/cd_rental_asset/models/fix_rental_retirement.py"
   ],
   "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
 }
