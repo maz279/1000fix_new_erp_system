@@ -198,30 +198,40 @@ def test_erp_m43_02_release_publishes_min_max_and_m15_raises_the_document(m43):
 
 # ------------------------------------------------------------- M43-04 / M43-15
 def test_erp_m43_04_last_po_price_is_converted_to_bdt(m43):
-    usd = m43.env.ref("base.USD")
-    usd.sudo().active = True
+    """A foreign-currency PO price is converted into the company's currency
+    (BDT on the estate) at the rate table, never taken as it stands. The
+    foreign currency is USD (a local PO is in BDT or USD), or BDT on a test
+    template company that keeps its books in USD."""
+    foreign = m43.env.ref("base.USD")
+    if m43.company.currency_id == foreign:
+        foreign = m43.env.ref("base.BDT")
+    foreign.sudo().active = True
     po = m43.env["fix.purchase.order"].create(
         {
             "operating_unit_id": m43.ou.id,
             "vendor_id": m43.vendor.id,
-            "currency_id": usd.id,
+            "currency_id": foreign.id,
             "line_ids": [(0, 0, {"product_id": m43.prod.id, "qty_ordered": 1, "unit_price": 10})],
         }
     )
+    plan = m43.ready_plan()
+    day = po.date_order.date()
+    if not m43.env["res.currency.rate"].search_count(
+        [("currency_id", "=", foreign.id), ("name", "<=", day)]
+    ):
+        # no rate on or before the day: refused, never read as company currency
+        with pytest.raises(UserError, match="exchange rate"), m43.env.cr.savepoint():
+            plan._pr_price_and_vendor(m43.prod)
     m43.env["res.currency.rate"].create(
         {
-            "currency_id": usd.id,
-            "name": po.date_order.date() - timedelta(days=1),
+            "currency_id": foreign.id,
+            "name": day - timedelta(days=1),
             "company_id": m43.company.id,
             "inverse_company_rate": 120.0,
         }
     )
-    plan = m43.ready_plan()
     price, _vendor = plan._pr_price_and_vendor(m43.prod)
-    if m43.company.currency_id == m43.env.ref("base.BDT"):
-        assert price == pytest.approx(1200.0)
-    else:  # the test company is not BDT: still never the raw USD figure
-        assert price != pytest.approx(10.0)
+    assert price == pytest.approx(1200.0)
 
 
 # ------------------------------------------------------------- M43-10

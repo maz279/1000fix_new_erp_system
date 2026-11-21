@@ -15,6 +15,7 @@ from datetime import date, datetime, time, timedelta
 from math import ceil, sqrt
 from statistics import NormalDist
 
+from odoo.addons.cd_requisition.models.fix_requisition import bdt_rate
 from odoo.exceptions import AccessError, UserError
 
 PLANNER = "cd_demand_plan.group_fix_demand_planner"
@@ -324,20 +325,23 @@ def order_up_to(position, rop, target) -> float:
 
 
 def to_bdt(env, company, amount, currency, on_date, rate=None) -> float:
-    """M43-04 / M43-15: an amount in BDT. A stamped rate (BDT per unit, e.g.
-    the PO's approval rate) wins; else the currency's rate on the date. A
-    foreign amount with no rate is refused, never read as BDT."""
-    bdt = env.ref("base.BDT")
-    if not currency or currency == bdt:
+    """M43-04 / M43-15: an amount in the company's currency (BDT on the
+    estate), the currency of its budget, its requisition estimates and its
+    approval bands. A stamped rate (company-currency units per unit, e.g. the
+    PO's approval rate) wins; else the currency's rate on or before the date
+    (cd_requisition's bdt_rate, the one A06 D5 rate rule). A foreign amount
+    with no rate is refused, never read as the company's currency.
+
+    A06 integration: this converted to base.BDT whatever the company kept its
+    books in, so on a company in another currency a purchase order in the
+    company's own currency was refused for want of a rate, and an estimate
+    compared with company-currency bands came out in BDT."""
+    target = company.currency_id
+    if not currency or currency == target:
         return amount or 0.0
     if rate:
         return round((amount or 0.0) * rate, 2)
-    if not currency.sudo().rate_ids:
-        raise UserError(
-            "No %s rate to convert %.2f to BDT: record the exchange rate first."
-            % (currency.name, amount or 0.0)
-        )
-    return round(currency._convert(amount or 0.0, bdt, company, on_date), 2)
+    return round((amount or 0.0) * bdt_rate(env, currency, company, on_date), 2)
 
 
 def po_line_bdt_price(env, company, line) -> float:
