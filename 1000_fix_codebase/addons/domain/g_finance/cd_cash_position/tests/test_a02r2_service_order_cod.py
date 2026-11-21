@@ -258,3 +258,146 @@ def test_the_rider_settlement_hands_in_the_legs_cod(so):
     assert leg.cod_remitted_at
     assert not Leg._m03_overdue_cod_legs(c.rider)
     Leg._m03_refuse_overdue_cod_rider(c.rider.id)  # no longer blocked
+
+
+def _overdue_leg(c, o, amount, days=4):
+    """A delivered own-rider COD leg, its collection recorded on the order
+    ``days`` ago (cd_consignment stamps cod_collected_at at the POD)."""
+    leg = c.leg(o, amount, delivered_days_ago=days)
+    c.env.cr.execute(
+        "UPDATE fix_consignment SET cod_collected_at = delivered_at WHERE id = %s", (leg.id,)
+    )
+    leg.invalidate_recordset()
+    return leg
+
+
+def _settle(c, amount):
+    s = _cod(c, c.acct)
+    s.with_user(c.acct).action_load_orders()
+    s.with_user(c.acct).write({"remitted_amount": amount})
+    s.with_user(c.acct).action_submit()
+    s.with_user(c.mgr).action_settle()
+    return s
+
+
+def test_n1_a_cod_balance_after_a_verified_part_payment_is_settled(so):
+    """A02 pass 2 review N1: a part payment taken on site and accepted by a
+    cashier left the order's tender 'cash'; the COD balance then never
+    counted as recorded, the leg was never settled, the rider stayed blocked
+    and the order never closed."""
+    c = so
+    o = c.order()
+    due = o._fix_amount_due()
+    # setup: BDT 300 taken on site and counted in by a cashier (verified)
+    o._guarded().write(
+        {
+            "payment_settlement_state": "partial",
+            "amount_settled_bdt": 300.0,
+            "amount_verified_bdt": 300.0,
+            "settlement_verified": True,
+            "settlement_source": "field_collection",
+            "settlement_tender": "cash",
+            "invoice_ref": "COD/FO-N1",
+        }
+    )
+    rest = round(due - 300.0, 2)
+    leg = _overdue_leg(c, o, rest)
+    assert (o.settlement_source, o.settlement_tender) == ("cod", "cash")
+    Leg = c.env["fix.consignment"]
+    assert leg in Leg._m03_overdue_cod_legs(c.rider)
+    s = _settle(c, rest)
+    assert leg in s.consignment_ids and s.state == "settled"
+    o.invalidate_recordset()
+    assert o.settlement_verified and o.amount_verified_bdt == due
+    assert not Leg._m03_overdue_cod_legs(c.rider)
+    assert not c.env["fix.cod.settlement"]._fix_rider_has_open_variance(c.rider)
+    Leg._m03_refuse_overdue_cod_rider(c.rider.id)
+    assert not o._fix_close_problem()
+
+
+def test_n2_the_rider_settlement_confirms_only_the_cod_part(so):
+    """A02 pass 2 review N2: confirming the COD verified the whole settled
+    amount, an unchecked bKash part payment (with no receipt) included."""
+    c = so
+    o = c.order()
+    due = o._fix_amount_due()
+    o.with_context(fd_settlement_tender="bkash")._fix_record_settlement(
+        200.0, "BKASH-N2", source="field_collection"
+    )
+    assert o.payment_settlement_state == "partial" and not o.settlement_verified
+    rest = round(due - 200.0, 2)
+    c.leg(o, rest)
+    _settle(c, rest)
+    o.invalidate_recordset()
+    assert o.amount_verified_bdt == rest and not o.settlement_verified
+    assert "not verified" in o._fix_close_problem()
+
+
+def test_n4_an_unhanded_cod_is_not_cancelled(so):
+    """A02 pass 2 review N4: cancelling voided a COD the rider really holds as
+    an unverified claim, orphaning the leg, the COD clearing and the AR."""
+    c = so
+    o = c.order()
+    due = o._fix_amount_due()
+    c.leg(o, due)
+    with pytest.raises(UserError, match="not handed in"), c.env.cr.savepoint():
+        o.action_cancel(reason_code="customer_declined")
+    o.invalidate_recordset()
+    assert (o.payment_settlement_state, o.amount_settled_bdt) == ("settled", due)
+    assert o.state != "cancelled"
+
+
+def test_n5_a_cod_leg_after_a_price_rise_is_a_top_up(so):
+    """A02 pass 2 review N5: a paid order whose estimate went up went out on a
+    COD leg for the difference; the top-up refused source 'cod' at the door."""
+    c = so
+    o = c.order(1000.0)
+    paid = o._fix_amount_due()
+    o._guarded().write(
+        {
+            "payment_settlement_state": "settled",
+            "amount_settled_bdt": paid,
+            "amount_verified_bdt": paid,
+            "settlement_verified": True,
+            "settlement_source": "counter",
+            "settlement_tender": "cash",
+            "invoice_ref": "POS-N5",
+        }
+    )
+    line = {
+        "description": "Repair, revised",
+        "quantity": 1,
+        "unit_price": 1500.0,
+        "line_type": "labour",
+    }
+    c.env["fix.estimate"].create(
+        {"order_id": o.id, "state": "approved", "line_ids": [(0, 0, line)]}
+    )
+    due = o._fix_amount_due()
+    assert due > paid
+    short = round(due - paid, 2)
+    leg = c.leg(o, short)
+    assert (o.settlement_source, o.settlement_verified) == ("cod", False)
+    assert (o.amount_settled_bdt, o.amount_verified_bdt) == (due, paid)
+    receipt = c.env["fix.ar.receipt"].search(
+        [("source_order_id", "=", o.id), ("method", "=", "cod")]
+    )
+    assert receipt.amount == short and receipt.reference == "COD/%s" % leg.name
+
+
+def test_a_leg_in_a_submitted_settlement_no_longer_blocks_the_rider(so):
+    """A02 pass 2 review: cd_consignment kept a rider blocked while his
+    settlement waited for its approver; the settlement's own check did not."""
+    c = so
+    o = c.order()
+    due = o._fix_amount_due()
+    leg = _overdue_leg(c, o, due)
+    Leg = c.env["fix.consignment"]
+    assert leg in Leg._m03_overdue_cod_legs(c.rider)
+    s = _cod(c, c.acct)
+    s.with_user(c.acct).action_load_orders()
+    s.with_user(c.acct).write({"remitted_amount": due})
+    s.with_user(c.acct).action_submit()
+    assert s.state == "submitted" and not leg.cod_remitted_at
+    assert leg not in Leg._m03_overdue_cod_legs(c.rider)
+    Leg._m03_refuse_overdue_cod_rider(c.rider.id)

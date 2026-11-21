@@ -183,6 +183,65 @@ def test_m02_01_an_accepted_part_payment_is_verified_and_booked(w, monkeypatch):
         assert sum(receipts.mapped("amount")) == 3000.0  # booked once
 
 
+def test_n3_field_cash_counted_after_a_cod_balance_is_not_an_advance(w, monkeypatch):
+    """A02 pass 2 review N3: the part paid on site, then the balance on a COD
+    leg before the cashier counted the field cash: the cash was booked as an
+    advance (lowering the amount due) on top of the part already recorded."""
+    so = w.so()
+    monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: 1000.0)
+    clearing = w.env["account.account"].create(
+        {"code": "R2N3COD", "name": "R2 N3 COD clearing", "account_type": "asset_current"}
+    )
+    w.env["ir.config_parameter"].sudo().set_param(
+        "cd_billing_engine.account_code.cod_clearing", clearing.code
+    )
+    rec = _on_site(w, so)
+    rec.with_user(w.ua).action_record_collection(payment="cash 300")
+    give_evidence(rec)
+    rec.with_user(w.ua).action_complete()
+    rec.with_user(w.ua).action_handover_field_cash()
+    assert so.payment_settlement_state == "partial"
+    # the balance goes home as cash on delivery before the field cash is counted
+    so.with_context(fd_settlement_tender="cod")._fix_record_settlement(
+        700.0, "COD/R2-N3", source="cod"
+    )
+    assert so.settlement_source == "cod" and so.amount_settled_bdt == 1000.0
+    _open_shift(w)
+    cashier = _user(w, "r2_m02_cashier_n3", *CASHIER_GROUPS)
+    rec.with_user(cashier).action_accept_field_cash()
+    assert rec.onsite_payment_state == "settled"
+    receipts = w.env["fix.ar.receipt"].search([("source_order_id", "=", so.id)])
+    assert not receipts.filtered("is_order_advance")
+    assert sum(receipts.mapped("amount")) == 1000.0
+    # the cashier verified the part she counted; the COD waits for the rider
+    assert so.amount_verified_bdt == 300.0 and not so.settlement_verified
+
+
+def test_d20_a_hand_over_after_the_price_fell_keeps_the_excess_as_credit(w, monkeypatch):
+    """A02 pass 2 review (D20): the order took less by the time the cash was
+    handed over (its price fell); the strict hand-over refused the whole
+    amount for good and the technician stayed blocked."""
+    so = w.so()
+    due = {"bdt": 1000.0}
+    monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: due["bdt"])
+    rec = _on_site(w, so)
+    rec.with_user(w.ua).action_record_collection(payment="cash 1000")
+    give_evidence(rec)
+    rec.with_user(w.ua).action_complete()
+    due["bdt"] = 600.0  # the estimate was revised down before the hand-over
+    rec.with_user(w.ua).action_handover_field_cash()
+    assert rec.onsite_payment_state == "pending_acceptance"
+    assert (so.payment_settlement_state, so.amount_settled_bdt) == ("settled", 600.0)
+    shift = _open_shift(w)
+    cashier = _user(w, "r2_m02_cashier_d20", *CASHIER_GROUPS)
+    rec.with_user(cashier).action_accept_field_cash()
+    assert shift.field_cash_deposited == 1000.0 and rec.onsite_payment_state == "settled"
+    receipts = w.env["fix.ar.receipt"].search([("source_order_id", "=", so.id)])
+    assert sum(receipts.filtered(lambda r: not r.is_order_advance).mapped("amount")) == 600.0
+    assert sum(receipts.filtered("is_order_advance").mapped("amount")) == 400.0
+    assert so.settlement_verified
+
+
 # ===================================================== M02-13 receipt
 def test_m02_13_the_collection_is_a_numbered_receipt_recorded_once(w):
     rec = _on_site(w)

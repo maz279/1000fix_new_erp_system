@@ -1610,6 +1610,35 @@ class FixFieldOrder(models.Model):
                 "customer owes and give the difference back." % (amount, outstanding, order.name)
             )
 
+    def _fix_cod_still_held(self) -> float:
+        """Cash on delivery collected for this job's service order and not
+        handed in yet (cd_consignment legs); 0 without the module."""
+        self.ensure_one()
+        Leg = self.env.get("fix.consignment")
+        if Leg is None or "cod_remitted_at" not in Leg._fields or not self.order_id:
+            return 0.0
+        legs = Leg.sudo().search(
+            [
+                ("service_order_id", "=", self.order_id.id),
+                ("cod_collected_at", "!=", False),
+                ("cod_remitted_at", "=", False),
+            ]
+        )
+        return round(sum(legs.mapped("cod_amount")), 2)
+
+    def _fix_handover_recordable(self, amount) -> float:
+        """What the service order takes of ``amount`` handed over: all of it,
+        or what it still has to collect when that is less (an order governed
+        by an estimate)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return round(amount, 2)
+        governed = order._fix_amount_due() > 0.005 or bool(order._fix_governing_estimate())
+        if not governed:
+            return round(amount, 2)
+        return round(max(min(amount, self._fix_order_outstanding()), 0.0), 2)
+
     def _fix_record_order_settlement(self, amount, reference, tender=None, strict=False):
         """Hand the collection to the service order's own settlement method
         (contract with M01: fix.service.order._fix_record_settlement). The
@@ -1758,7 +1787,20 @@ class FixFieldOrder(models.Model):
             # unless the service order records the money (in full, or as a
             # part payment, D3). It used to go on regardless and the cashier
             # then counted the cash into a drawer with no receipt and no GL.
-            rec._fix_record_order_settlement(amount, reference, tender="cash", strict=True)
+            # A02 pass 2 review (D20): the order may take less than was
+            # collected by now (paid at the counter or on delivery, or its
+            # price fell): it records what it still takes and the rest is the
+            # customer's credit when the cashier counts the cash in. Refusing
+            # the whole hand-over kept the technician blocked for good.
+            recordable = rec._fix_handover_recordable(amount)
+            if recordable > 0.005:
+                rec._fix_record_order_settlement(recordable, reference, tender="cash", strict=True)
+            if amount - recordable > 0.005:
+                rec.message_post(
+                    body="%s takes BDT %.2f of the BDT %.2f collected on site now; the other "
+                    "BDT %.2f is booked as the customer's credit when the cash is counted in."
+                    % (rec.order_id.name, recordable, amount, amount - recordable)
+                )
             rec._guarded().write(
                 {
                     "onsite_payment_state": "pending_acceptance",
@@ -1831,8 +1873,9 @@ class FixFieldOrder(models.Model):
             return True
         if order.payment_settlement_state != "partial" or order.settlement_verified:
             return False
+        # all of the cash, or less when the order took less (D20 excess)
         unverified = (order.amount_settled_bdt or 0.0) - (order.amount_verified_bdt or 0.0)
-        return abs(unverified - (self.onsite_collection_amount or 0.0)) <= 0.005
+        return 0.005 < unverified <= (self.onsite_collection_amount or 0.0) + 0.005
 
     def action_accept_field_cash(self, shift_id=None):
         """HS-08, step 2 of 2: a cashier counts the declared cash into the open
@@ -1913,6 +1956,23 @@ class FixFieldOrder(models.Model):
                 # (a part payment is verified for the part paid, D3)
                 order.with_env(self.env).action_verify_settlement()
                 pay_state = "settled" if order.sudo().settlement_verified else "pending_settlement"
+            elif (
+                rec.cash_settlement_ref
+                and order.sudo().settlement_source == "cod"
+                and not order.sudo().settlement_verified
+                and hasattr(order, "_fix_verify_amount")
+            ):
+                # A02 pass 2 review (N3): the balance came in as cash on
+                # delivery after this cash was recorded; the cashier verifies
+                # the field part she counted (the COD part is the rider's
+                # settlement's to confirm)
+                unverified = (order.sudo().amount_settled_bdt or 0.0) - (
+                    order.sudo().amount_verified_bdt or 0.0
+                )
+                part = min(amount, max(unverified - rec._fix_cod_still_held(), 0.0))
+                if part > 0.005:
+                    order.sudo()._fix_verify_amount(part)
+                pay_state = "settled"
             elif rec.cash_settlement_ref and order.sudo().payment_settlement_state != "partial":
                 # no settlement of this cash on the order: the drawer posting
                 # booked it as an advance receipt on the order (_post_field_cash).

@@ -1413,9 +1413,14 @@ class FixServiceOrder(models.Model):
             # books at the door, which read as a paid invoice here; the cash is
             # still with the rider or courier until it is handed in
             return (
-                "Order %s cannot be closed: its cash on delivery (%s, BDT %.2f) is not handed "
-                "in yet; the rider settlement or courier remittance confirms it."
-                % (self.name, self.invoice_ref or "-", self.amount_settled_bdt or 0.0)
+                "Order %s cannot be closed: BDT %.2f of its payments (cash on delivery %s, or a "
+                "part payment before it) is not verified yet; the rider settlement or courier "
+                "remittance confirms the cash on delivery, a cashier the rest."
+                % (
+                    self.name,
+                    (self.amount_settled_bdt or 0.0) - (self.amount_verified_bdt or 0.0),
+                    self.invoice_ref or "-",
+                )
             )
         if not (self._fix_settlement_covers(due) or self._fix_paid_invoice(due)):
             return (

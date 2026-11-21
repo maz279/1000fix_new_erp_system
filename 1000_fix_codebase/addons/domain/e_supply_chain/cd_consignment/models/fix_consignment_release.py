@@ -405,7 +405,7 @@ class FixConsignmentRelease(models.Model):
 
     @api.model
     def _m03_overdue_cod_legs(self, rider):
-        return self.sudo().search(
+        legs = self.sudo().search(
             [
                 ("rider_id", "=", rider.id),
                 ("courier_partner_id", "=", False),
@@ -414,6 +414,22 @@ class FixConsignmentRelease(models.Model):
                 ("cod_remitted_at", "=", False),
             ]
         )
+        return legs._m03_not_handed_in()
+
+    def _m03_not_handed_in(self):
+        """These legs less those already in a rider's COD settlement that is
+        not disputed (cd_cash_position). A02 pass 2 review: a leg the rider
+        had handed in (settlement submitted, waiting for its approver) still
+        blocked him here, while the settlement's own check had let him go."""
+        Settlement = self.env.get("fix.cod.settlement")
+        if not self or Settlement is None or "consignment_ids" not in Settlement._fields:
+            return self
+        handed = (
+            Settlement.sudo()
+            .search([("state", "!=", "disputed"), ("consignment_ids", "in", self.ids)])
+            .mapped("consignment_ids")
+        )
+        return self - handed
 
     @api.model
     def _m03_refuse_overdue_cod_rider(self, rider_id):
@@ -440,13 +456,17 @@ class FixConsignmentRelease(models.Model):
     def _cron_alert_overdue_cod(self):
         """D20: the logistics manager and finance hear of COD cash held past
         the hand-in deadline, once per leg."""
-        legs = self.sudo().search(
-            [
-                ("courier_partner_id", "=", False),
-                ("cod_collected_at", "!=", False),
-                ("cod_collected_at", "<", self._m03_cod_handin_cutoff()),
-                ("cod_remitted_at", "=", False),
-            ]
+        legs = (
+            self.sudo()
+            .search(
+                [
+                    ("courier_partner_id", "=", False),
+                    ("cod_collected_at", "!=", False),
+                    ("cod_collected_at", "<", self._m03_cod_handin_cutoff()),
+                    ("cod_remitted_at", "=", False),
+                ]
+            )
+            ._m03_not_handed_in()
         )
         groups = [
             self.env.ref(GROUP_MANAGER, raise_if_not_found=False),

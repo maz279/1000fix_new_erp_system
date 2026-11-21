@@ -905,11 +905,20 @@ def _cod_remitted(consignment) -> bool:
 
 def _cod_recorded(consignment) -> bool:
     """D1: the leg's order recorded the rider's collection as its settlement
-    (tender cod) and holds a confirmed receipt for it (COD clearing)."""
+    (source cod) and holds a confirmed receipt for it (COD clearing).
+
+    A02 pass 2 review (N1): this read the order's tender, which keeps the
+    first payment's tender once part of the money is verified (a part payment
+    taken on site and accepted by a cashier). The COD balance then never
+    counted as recorded: the leg was never loaded into a settlement, the
+    rider stayed blocked and the order never closed. The settlement source is
+    the last payment's."""
     order = consignment.service_order_id.sudo()
     if not order or order.payment_settlement_state != "settled":
         return False
-    if "settlement_tender" in order._fields and order.settlement_tender != "cod":
+    source = order.settlement_source if "settlement_source" in order._fields else False
+    tender = order.settlement_tender if "settlement_tender" in order._fields else False
+    if "cod" not in (source, tender):
         return False
     Receipt = order.env["fix.ar.receipt"].sudo()
     if "source_order_id" not in Receipt._fields:

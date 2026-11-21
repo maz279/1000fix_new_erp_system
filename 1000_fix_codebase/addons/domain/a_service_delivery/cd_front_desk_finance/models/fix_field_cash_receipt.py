@@ -66,18 +66,33 @@ class FixServiceOrderFieldCashReceipt(models.Model):
         amount = round(amount or 0.0, 2)
         if amount <= 0:
             return self.env["fix.ar.receipt"]
-        recorded = (
+        recorded = self.payment_settlement_state in ("settled", "partial") and (
             # a full settlement or (interface contract, D3) a part payment
-            self.payment_settlement_state in ("settled", "partial")
-            and self.settlement_source == "field_collection"
-            and (self.settlement_tender or "cash") == "cash"
+            (
+                self.settlement_source == "field_collection"
+                and (self.settlement_tender or "cash") == "cash"
+            )
+            # A02 pass 2 review (N3): the part paid on site, then the balance
+            # as cash on delivery before the cashier counted the field cash:
+            # the order still holds the field part, recorded and not yet in
+            # the books. Booked as an advance, it was counted twice.
+            or self.settlement_source == "cod"
         )
-        if recorded:
-            missing = round((self.amount_settled_bdt or 0.0) - self._fdf_settled_in_books(), 2)
-            if missing <= 0.005:
-                return self.env["fix.ar.receipt"]  # already in the books
-            return self._fdf_raise_settlement_receipt(min(amount, missing), tender="cash")
-        return self._fdf_raise_field_advance(amount, reference)
+        if not recorded:
+            return self._fdf_raise_field_advance(amount, reference)
+        missing = round((self.amount_settled_bdt or 0.0) - self._fdf_settled_in_books(), 2)
+        take = round(min(amount, max(missing, 0.0)), 2)
+        receipt = self.env["fix.ar.receipt"]
+        if take > 0.005:
+            receipt = self._fdf_raise_settlement_receipt(take, tender="cash")
+        # A02 pass 2 review (D20): the technician handed in more than the
+        # order still takes (it was paid or its price fell meanwhile). The
+        # drawer has the cash: the rest is the customer's credit on the order
+        # (an advance receipt, refunded or applied later), never off the books.
+        excess = round(amount - take, 2)
+        if excess > 0.005:
+            receipt |= self._fdf_raise_field_advance(excess, reference)
+        return receipt
 
     def _fdf_raise_field_advance(self, amount, reference):
         """A part payment taken on site: an advance receipt on the order."""

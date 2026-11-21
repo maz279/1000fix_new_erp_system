@@ -257,19 +257,67 @@ class FixServiceOrderSettlementRules(models.Model):
                         "Segregation of duties: the person who recorded the collection cannot "
                         "confirm it."
                     )
-            order._guarded().write(
-                {
-                    "settlement_verified": True,
-                    "settlement_verified_by": user.id,
-                    "settlement_verified_at": fields.Datetime.now(),
-                    "amount_verified_bdt": order.amount_settled_bdt,
-                }
-            )
+            # A02 pass 2 review (N2): only the cash on delivery is confirmed.
+            # Verifying the whole settled amount also verified an earlier
+            # part payment no one had checked (and that has no receipt).
+            cod = order._fix_cod_part()
+            order._fix_verify_amount(cod)
             order.message_post(
-                body="Cash on delivery %s (BDT %.2f) confirmed remitted."
-                % (order.invoice_ref, order.amount_settled_bdt)
+                body="Cash on delivery %s (BDT %.2f) confirmed remitted.%s"
+                % (
+                    order.invoice_ref,
+                    cod,
+                    ""
+                    if order.settlement_verified
+                    else " BDT %.2f recorded earlier is still to be verified."
+                    % ((order.amount_settled_bdt or 0.0) - (order.amount_verified_bdt or 0.0)),
+                )
             )
         return True
+
+    def _fix_cod_part(self) -> float:
+        """The unverified money of this order that is cash on delivery: its
+        COD receipts (the finance bridge books one per collection, Dr COD
+        clearing), at most what is still unverified. Without the bridge, all
+        that is unverified."""
+        self.ensure_one()
+        unverified = round((self.amount_settled_bdt or 0.0) - (self.amount_verified_bdt or 0.0), 2)
+        Receipt = self.env.get("fix.ar.receipt")
+        if Receipt is None or "source_order_id" not in Receipt._fields:
+            return max(unverified, 0.0)
+        cod = (
+            Receipt.sudo()
+            .search(
+                [
+                    ("source_order_id", "=", self.id),
+                    ("method", "=", "cod"),
+                    ("state", "=", "confirmed"),
+                ]
+            )
+            .mapped("amount")
+        )
+        if not cod:
+            return max(unverified, 0.0)
+        return max(min(round(sum(cod), 2), unverified), 0.0)
+
+    def _fix_verify_amount(self, amount):
+        """Verify ``amount`` of the money recorded on the order (a part: the
+        cash on delivery, or field cash counted into a drawer). The order is
+        verified once everything recorded is. The caller checked who may."""
+        self.ensure_one()
+        settled = round(self.amount_settled_bdt or 0.0, 2)
+        verified = round(min(settled, (self.amount_verified_bdt or 0.0) + (amount or 0.0)), 2)
+        complete = verified + CENT >= settled
+        vals = {"amount_verified_bdt": verified, "settlement_verified": complete}
+        if complete:
+            vals.update(
+                {
+                    "settlement_verified_by": self.env.user.id,
+                    "settlement_verified_at": fields.Datetime.now(),
+                }
+            )
+        self._guarded().write(vals)
+        return complete
 
     def _fix_m20_receipt_of(self, reference):
         """The receipt this order now holds under ``reference`` (after the
@@ -318,6 +366,30 @@ class FixServiceOrderSettlementRules(models.Model):
                     % (reference, short, self.customer_id.display_name)
                 )
             amount = short
+        elif source == "cod":
+            # A02 pass 2 review (N5): the estimate went up after the order was
+            # paid and the difference went out on a COD leg; it was refused
+            # at the door. Recorded unverified, like any COD, until the rider
+            # settlement or courier remittance confirms it.
+            self._fix_assert_cod_amount(amount, short)
+            self._guarded().write(
+                {
+                    "amount_settled_bdt": round(paid + amount, 2),
+                    "amount_verified_bdt": round(paid, 2),
+                    "settlement_source": "cod",
+                    "invoice_ref": reference,
+                    "settlement_recorded_by": self.env.user.id,
+                    "settlement_verified": False,
+                    "settlement_verified_by": False,
+                    "settlement_verified_at": False,
+                }
+            )
+            self.message_post(
+                body="Settlement top-up (cod): %s, BDT %.2f collected at the door; BDT %.2f now "
+                "recorded against BDT %.2f due - NOT YET HANDED IN."
+                % (reference, amount, paid + amount, due)
+            )
+            return True
         elif source == "counter":
             if not (self.env.su or self.env.user.has_group(GROUP_CASHIER)):
                 raise UserError("Only a Service Order Cashier takes a counter top-up.")
@@ -352,6 +424,16 @@ class FixServiceOrderSettlementRules(models.Model):
         for order in self:
             if order.payment_settlement_state not in ("settled", "partial"):
                 continue
+            if order.settlement_source == "cod" and not order.settlement_verified:
+                # A02 pass 2 review (N4): voiding the unverified claim zeroed a
+                # collection the rider or courier really holds, and orphaned
+                # its leg, the COD clearing and the AR. It is not a claim.
+                raise UserError(
+                    "Order %s holds a cash-on-delivery collection (%s, BDT %.2f) not handed in "
+                    "yet: it is not cancelled until the rider settlement or courier remittance "
+                    "confirms the cash; then a Service Supervisor cancels it, which refunds the "
+                    "customer." % (order.name, order.invoice_ref or "-", order._fix_cod_part())
+                )
             if not order.settlement_verified:
                 # a typed TrxID / field claim is not money: void it, refund
                 # nothing for it. A part payment verified earlier stays.
