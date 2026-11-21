@@ -1410,15 +1410,39 @@ class FixTradeinRequest(models.Model):
         serial = self.env["fix.data.wipe.certificate"]._fix_media_serial(self.device_id)
         if not serial:
             return Request
-        return Request._m06_request_for(
-            self,
-            "m14_refurbishment",
-            serial,
-            "resale",
-            customer_id=self.customer_id.id,
-            device_id=self.device_id.id,
-            company_id=self.company_id.id,
-        )
+        extra = {
+            "customer_id": self.customer_id.id,
+            "device_id": self.device_id.id,
+            "company_id": self.company_id.id,
+        }
+        request = Request._m06_request_for(self, "m14_refurbishment", serial, "resale", **extra)
+        # A05 ERP (e2e fallout): a unit a buyer returned starts a new refurb
+        # cycle and must be wiped again (M14-05). The request of the earlier
+        # cycle is certified and takes no further certificate, so the new
+        # cycle raises its own request - bound to this trade-in exactly as the
+        # first one was (source_ref), only newer than the return.
+        if request and self.refurb_cycle > 1 and request.sudo().certificate_ids:
+            last_return = (
+                self.env["fix.refurb.return"]
+                .sudo()
+                .search([("tradein_id", "=", self.id)], order="id desc", limit=1)
+            )
+            if last_return and request.sudo().create_date <= last_return.create_date:
+                vals = {
+                    "source": "m14_refurbishment",
+                    "source_ref": self.name,
+                    "serial_number": serial,
+                    "confidentiality_level": "high",
+                    "disposition": "resale",
+                    **{k: v for k, v in extra.items() if v},
+                }
+                request = Request.sudo().create([vals]).with_env(self.env)
+                request.message_post(
+                    body="Raised by %s for refurbishment cycle %s (the unit came back from "
+                    "its buyer): the earlier request answered the earlier cycle."
+                    % (self.name, self.refurb_cycle)
+                )
+        return request
 
     def action_raise_wipe_request(self):
         """A trade-in collected before its request was raised automatically
