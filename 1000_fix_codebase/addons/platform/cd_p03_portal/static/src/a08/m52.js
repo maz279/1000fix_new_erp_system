@@ -10,7 +10,7 @@ export const MODULE = {
   bn: 'প্রদেয় ও ব্যয়', icon: '💸',
   desc: 'Vendor bills with 3-way match and an approval matrix, TDS/VDS at source, payment runs, employee expenses & advances.',
   kpis: [
-    { l: 'Payables Open', m: 'vendor_bills_open' },
+    { l: 'Payables Open', m: 'payables_open', prefix: '৳ ' },
     { l: 'Bills To Approve', m: 'bills_to_approve' },
     { l: 'Payment Runs Open', m: 'payment_runs_open' },
     { l: 'Match Exceptions', m: 'match_exceptions' },
