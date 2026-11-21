@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_data_case.tests.m06_verified_mobile import verified_mobile_before
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
     approve_via_inbox,
@@ -72,11 +73,8 @@ def m6(odoo_env):
     )
     # owner decision (verified contacts only): the courier's mobile is verified
     # in the party master (M33); test setup stands for its verified OTP
-    env["fix.contact.point"].create(
-        {"partner_id": contact.id, "contact_type": "mobile", "value": "01711000777"}
-    )._guarded().write(
-        {"state": "verified", "verified_at": fields.Datetime.now(), "verification_method": "otp"}
-    )
+    verified_mobile_before(contact)
+    verified_mobile_before(customer)
     digest = "%064x" % (0xD06 * n)
 
     def undertake(case, *people):

@@ -233,19 +233,15 @@ class FixDataRecoveryCaseA02R2(models.Model):
 
     def _m06_recipient_denial(self, recipient) -> str:
         """Owner decision (A02 pass 2, verified contacts only): '' when
-        ``recipient`` may receive this case's data (and so its hand-over
-        code), else why not.
+        ``recipient`` may receive this case's data (or its media), else why
+        not.
 
-        - the customer itself always may;
-        - another contact of the customer may only when the mobile the code
-          goes to is VERIFIED on that contact in the party master (M33
-          fix.contact.point);
-        - a contact added after the case was opened, or whose verified mobile
-          was added after it, also needs a data steward's verification (M33
-          fix.party.relationship 'authorised representative', four eyes, with
-          its evidence): an operator cannot add his own phone as a contact
-          and route the code to himself. Couriers and representatives go
-          through that verification."""
+        - the customer itself may (its hand-over CODE still goes only to a
+          verified mobile: _m06_mobile_denial, checked when the code is sent);
+        - another contact of the customer may only through its verified
+          mobile (_m06_mobile_denial with the representative path): an
+          operator cannot add, or re-point, a contact to his own phone and
+          route the data or the code to himself."""
         self.ensure_one()
         recipient = recipient.sudo()
         customer = self.customer_id.sudo()
@@ -257,13 +253,33 @@ class FixDataRecoveryCaseA02R2(models.Model):
                 recipient.display_name,
                 customer.display_name,
             )
+        return self._m06_mobile_denial(recipient, representative=True)
+
+    def _m06_mobile_denial(self, recipient, representative=False) -> str:
+        """'' when the mobile on ``recipient`` (where the hand-over code goes)
+        may be trusted for this case, else why not (A02 pass 2 review).
+
+        - it must be a VERIFIED mobile contact point of that party in the
+          party master (M33 fix.contact.point);
+        - it must have been verified BEFORE the case was opened: a point is
+          verified again whenever its number changes, so a number changed,
+          or a contact added (``representative``), after the case was opened
+          is late;
+        - a late number is trusted only once a data steward vouches for it
+          after its verification (four eyes), or, for a contact
+          (``representative``), once a steward verified the contact as the
+          customer's authorised representative (M33 relationship)."""
+        self.ensure_one()
+        recipient = recipient.sudo()
+        how = (
+            "open the party in the party master (M33), add the mobile as a contact point, "
+            "request its verification and complete the one-time code; or hand the data over "
+            "on the recipient's ID number"
+        )
         phone = _bd_mobile(recipient.phone or getattr(recipient, "mobile", False))
         if not phone:
-            return (
-                "%s has no mobile on file: the data goes to the customer, or to a contact "
-                "whose mobile is verified in the party master" % recipient.display_name
-            )
-        points = (
+            return "%s has no mobile on file: %s" % (recipient.display_name, how)
+        point = (
             self.env["fix.contact.point"]
             .sudo()
             .search(
@@ -273,44 +289,67 @@ class FixDataRecoveryCaseA02R2(models.Model):
                     ("state", "=", "verified"),
                 ]
             )
-            .filtered(lambda p: _bd_mobile(p.value) == phone)
+            .filtered(lambda p: _bd_mobile(p.value) == phone)[:1]
         )
-        if not points:
-            return (
-                "the mobile of %s is not verified in the party master (M33): verify the "
-                "contact's mobile there before the data, and the hand-over code, go to it"
-                % recipient.display_name
+        if not point:
+            return "the mobile %s of %s is not verified in the party master: %s" % (
+                phone[:3] + "*****" + phone[-3:],
+                recipient.display_name,
+                how,
             )
         opened = self.create_date
         late = bool(
             opened
             and (
-                (recipient.create_date and recipient.create_date > opened)
-                or min(points.mapped("create_date")) > opened
+                not point.verified_at
+                or point.verified_at > opened
+                or (representative and recipient.create_date and recipient.create_date > opened)
             )
         )
-        if late:
-            vouched = (
+        if not late:
+            return ""
+        if point._m06_steward_vouched():
+            return ""
+        if representative:
+            customer = self.customer_id.sudo()
+            if (
                 self.env["fix.party.relationship"]
                 .sudo()
                 .search_count(
                     [
                         ("party_a_id", "=", recipient.id),
-                        ("party_b_id", "in", (customer | account).ids),
+                        ("party_b_id", "in", (customer | customer.commercial_partner_id).ids),
                         ("relation_type", "=", "authorised_rep"),
                         ("verified", "=", True),
                         ("date_to", "=", False),
                     ]
                 )
+            ):
+                return ""
+            return (
+                "%s, or the mobile verified on it, was added or changed after the case was "
+                "opened: a data steward verifies them as the customer's authorised "
+                "representative (or vouches for that mobile) in the party master (M33) before "
+                "the data can go to them" % recipient.display_name
             )
-            if not vouched:
-                return (
-                    "%s (or the mobile verified on it) was added after the case was opened: "
-                    "a data steward verifies them as the customer's authorised representative "
-                    "in the party master (M33) before the data can go to them"
-                    % recipient.display_name
-                )
-        return ""
+        return (
+            "the mobile of %s was verified or changed after the case was opened: a data "
+            "steward vouches for it in the party master (M33) before the hand-over code goes "
+            "there, or hand the data over on the recipient's ID number" % recipient.display_name
+        )
+
+    def action_request_handover_otp(self):
+        """A02 pass 2 review: the customer is always a valid recipient, but
+        its hand-over code goes only to a mobile verified in the party master
+        before the case was opened (or vouched for by a data steward)."""
+        for rec in self:
+            recipient = rec.handover_recipient_id.sudo()
+            customer = rec.customer_id.sudo()
+            if recipient and recipient in (customer | customer.commercial_partner_id):
+                denial = rec._m06_mobile_denial(recipient)
+                if denial:
+                    raise UserError("Case %s: %s." % (rec.name, denial))
+        return super().action_request_handover_otp()
 
     def action_correct_customer(self, partner_id=None, reason=None):
         """A Data Lab Manager corrects the case's customer after intake. The
@@ -793,6 +832,68 @@ class FixDataRecoveryCaseA02R2(models.Model):
                     user_id=user.id,
                 )
         return purged
+
+
+class FixContactPointM06(models.Model):
+    """A02 pass 2 review: a data steward vouches for a mobile verified after
+    a data case was opened (four eyes, who and when recorded). A changed
+    number loses the vouch with its verification."""
+
+    _inherit = "fix.contact.point"
+
+    steward_vouched_by_id = fields.Many2one(
+        "res.users", string="Vouched By (Data Steward)", readonly=True, copy=False
+    )
+    steward_vouched_at = fields.Datetime(string="Vouched At", readonly=True, copy=False)
+
+    def _fix_guarded_fields(self) -> set:
+        return super()._fix_guarded_fields() | {"steward_vouched_by_id", "steward_vouched_at"}
+
+    def write(self, vals):
+        if {"value", "contact_type"} & set(vals):
+            moved = self.filtered(
+                lambda p: p.steward_vouched_at
+                and (
+                    vals.get("contact_type", p.contact_type) != p.contact_type
+                    or ("value" in vals and _bd_mobile(vals["value"]) != _bd_mobile(p.value))
+                )
+            )
+            if moved:
+                moved._guarded().write(
+                    {"steward_vouched_by_id": False, "steward_vouched_at": False}
+                )
+        return super().write(vals)
+
+    def _m06_steward_vouched(self) -> bool:
+        self.ensure_one()
+        point = self.sudo()
+        return bool(
+            point.state == "verified"
+            and point.verified_at
+            and point.steward_vouched_at
+            and point.steward_vouched_at >= point.verified_at
+        )
+
+    def action_steward_vouch(self):
+        """A data steward vouches for this verified number, never for one he
+        added or verified himself."""
+        steward = "cd_party_master.group_party_data_steward"
+        if not (self.env.su or self.env.user.has_group(steward)):
+            raise AccessError("Vouching for a contact mobile is a data steward's decision.")
+        for point in self.sudo():
+            if point.state != "verified" or not point.verified_at:
+                raise UserError("%s is not verified: verify it first." % point.value)
+            if not self.env.su and self.env.user in (
+                point.create_uid | point.write_uid | point.otp_log_id.create_uid
+            ):
+                raise UserError(
+                    "You added or changed %s: another data steward vouches for it." % point.value
+                )
+            point._guarded().write(
+                {"steward_vouched_by_id": self.env.uid, "steward_vouched_at": fields.Datetime.now()}
+            )
+            point.message_post(body="Vouched for by data steward %s." % self.env.user.name)
+        return True
 
 
 class FixDataQuoteA02R2(models.Model):

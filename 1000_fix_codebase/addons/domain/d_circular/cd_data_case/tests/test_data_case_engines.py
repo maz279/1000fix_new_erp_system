@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_data_case.tests.m06_verified_mobile import verified_mobile_before
 from odoo.exceptions import UserError
 from psycopg2 import IntegrityError
 
@@ -313,6 +314,7 @@ def test_case_journey_with_new_engines(ds):
         sent["code"] = code
         return {"destination": "017*****555"}
 
+    verified_mobile_before(ds.customer, ds.case)  # A02 pass 2 review: verified in M33
     with patch.object(type(ds.case), "_handover_send_code", _send):
         ds.case.action_request_handover_otp()
     ds.case.action_waive_charge(note="test: the hand-over path, charge waived")  # M06-F1

@@ -20,6 +20,7 @@ from datetime import timedelta
 from unittest import mock
 
 import pytest
+from odoo import fields
 from odoo.addons.cd_data_case.tests.test_a02_p1p2_cd_data_case import (  # noqa: F401
     CASE,
     _FakeRequest,
@@ -519,9 +520,9 @@ def _opened_yesterday(m6, case):
         (m6.contact.id,),
     )
     cr.execute(
-        "UPDATE fix_contact_point SET create_date = now() - interval '2 days' "
-        "WHERE partner_id = %s",
-        (m6.contact.id,),
+        "UPDATE fix_contact_point SET create_date = now() - interval '2 days', "
+        "verified_at = now() - interval '2 days' WHERE partner_id IN %s",
+        ((m6.contact.id, m6.customer.id),),
     )
     m6.env.invalidate_all()
 
@@ -551,12 +552,12 @@ def test_owner_an_operator_cannot_route_the_code_to_his_own_new_contact(m6):
     # even with the mobile verified (he holds the phone and answers the OTP):
     # a contact added after the case was opened needs a data steward
     _verified_mobile(m6, own, "01999000111")
-    with pytest.raises(UserError, match="added after the case was opened"):
+    with pytest.raises(UserError, match="after the case was opened"):
         case.write({"handover_recipient_id": own.id})
     assert case.handover_recipient_id == m6.contact
     # a forged choice gets no code either
     case.sudo()._guarded().write({"handover_recipient_id": own.id})
-    with pytest.raises(UserError, match="added after the case was opened"):
+    with pytest.raises(UserError, match="after the case was opened"):
         _sent_codes(m6, case)
     assert not case.handover_code_hash
 
@@ -580,7 +581,7 @@ def test_owner_a_steward_verified_representative_can_be_chosen(m6):
             }
         )
     )
-    with pytest.raises(UserError, match="added after the case was opened"):
+    with pytest.raises(UserError, match="after the case was opened"):
         case.write({"handover_recipient_id": courier.id})
     steward = _user(m6, "steward", "cd_party_master.group_party_data_steward")
     rel.with_user(steward).action_verify()
@@ -629,10 +630,78 @@ def test_owner_media_goes_back_only_to_a_verified_recipient(m6):
     _verified_mobile(m6, own, "01999000444")
     unit = case.media_unit_ids.with_user(m6.tech)
     # the operator passes his own new contact as the return recipient
-    with pytest.raises(UserError, match="added after the case was opened"):
+    with pytest.raises(UserError, match="after the case was opened"):
         unit.action_return(handler=m6.custodian.login, recipient=own.id)
     assert not unit.pending_kind and unit.location != "returned_to_customer"
     # the customer itself takes it back
     unit.action_return(handler=m6.custodian.login, recipient=m6.customer.id)
     unit.with_user(m6.custodian).action_confirm_move()
     assert unit.location == "returned_to_customer" and unit.returned_to_id == m6.customer
+
+
+# ===================================================== round 5 (A03 re-check)
+def _reverified(point, phone):
+    """The point re-pointed to ``phone`` and verified again now (stands for
+    the OTP its new holder completes)."""
+    point.write({"value": phone})
+    assert point.state == "unverified"  # M33: a changed number is verified again
+    point._guarded().write(
+        {"state": "verified", "verification_method": "otp", "verified_at": fields.Datetime.now()}
+    )
+
+
+def test_r5_an_old_contact_repointed_to_an_operators_mobile_is_late(m6):
+    case = _awaiting_handover(m6)
+    _opened_yesterday(m6, case)
+    point = m6.env["fix.contact.point"].search([("partner_id", "=", m6.contact.id)])
+    # the courier existed (and was verified) before the case: the code may go
+    assert not case._m06_recipient_denial(m6.contact)
+    # an operator re-points the courier's verified mobile and phone to his own
+    _reverified(point, "01999000666")
+    m6.contact.sudo().write({"phone": "01999000666"})
+    with pytest.raises(UserError, match="after the case was opened"):
+        case.write({"handover_recipient_id": m6.contact.id})
+    with pytest.raises(UserError, match="after the case was opened"):
+        _sent_codes(m6, case)
+    assert not case.handover_code_hash
+    # a steward-verified authorised representative may still receive it
+    rel = m6.env["fix.party.relationship"].create(
+        {
+            "party_a_id": m6.contact.id,
+            "relation_type": "authorised_rep",
+            "party_b_id": m6.customer.id,
+            "evidence": "Signed authority letter",
+        }
+    )
+    rel.with_user(
+        _user(m6, "r5steward", "cd_party_master.group_party_data_steward")
+    ).action_verify()
+    assert _sent_codes(m6, case)["phone"] == "01999000666"
+
+
+def test_r5_the_customers_code_goes_only_to_its_verified_mobile(m6):
+    case = _awaiting_handover(m6)
+    case.write({"handover_recipient_id": m6.customer.id})
+    _opened_yesterday(m6, case)
+    # the customer's mobile was verified before the case: the code goes there
+    assert _sent_codes(m6, case)["phone"] == "01711000666"
+    # an operator changes the customer's phone to his own: no code goes there
+    m6.customer.sudo().write({"phone": "01999000777"})
+    with pytest.raises(UserError, match="not verified in the party master"):
+        _sent_codes(m6, case)
+    # nor once he adds and verifies that number on the customer himself
+    point = m6.env["fix.contact.point"].create(
+        {"partner_id": m6.customer.id, "contact_type": "mobile", "value": "01999000777"}
+    )
+    point._guarded().write(
+        {"state": "verified", "verification_method": "otp", "verified_at": fields.Datetime.now()}
+    )
+    with pytest.raises(UserError, match="verified or changed after the case was opened"):
+        _sent_codes(m6, case)
+    # a data steward vouches for it (never one who added it): then it may
+    steward = _user(m6, "r5vouch", "cd_party_master.group_party_data_steward")
+    point.with_user(steward).action_steward_vouch()
+    assert _sent_codes(m6, case)["phone"] == "01999000777"
+    # changing the number again loses the vouch with the verification
+    point.write({"value": "01999000888"})
+    assert not point.steward_vouched_at

@@ -37,6 +37,7 @@ import pytest
 from odoo.addons.auth_totp.models import res_users as auth_totp_users
 from odoo.addons.auth_totp.models.totp import TIMESTEP, hotp
 from odoo.addons.cd_data_case.models import fix_data_case
+from odoo.addons.cd_data_case.tests.m06_verified_mobile import verified_mobile_before
 from odoo.exceptions import AccessError, UserError
 
 CASE = "fix.data.recovery.case"
@@ -176,6 +177,7 @@ def j11(odoo_env, monkeypatch):
             sent["code"] = code
             return {"destination": "017*****555"}
 
+        verified_mobile_before(customer, case)  # A02 pass 2 review: verified in M33
         with mock.patch.object(type(case), "_handover_send_code", _send):
             case.action_request_handover_otp()
         # A02 ERP audit M06-F1: a billable case goes out paid, on credit or waived

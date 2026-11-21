@@ -16,6 +16,7 @@ from types import SimpleNamespace
 from unittest import mock
 
 import pytest
+from odoo.addons.cd_data_case.tests.m06_verified_mobile import verified_mobile_before
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.exceptions import AccessError, UserError, ValidationError
 from psycopg2 import IntegrityError
@@ -178,6 +179,7 @@ def m6(odoo_env):
             sent.update(recipient=recipient, code=code)
             return {"destination": "017*****333"}
 
+        verified_mobile_before(case.handover_recipient_id, case)
         with mock.patch.object(type(case), "_handover_send_code", _send):
             case.action_request_handover_otp()
         return sent["code"]
