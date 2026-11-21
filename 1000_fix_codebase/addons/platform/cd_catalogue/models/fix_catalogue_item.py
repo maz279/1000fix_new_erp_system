@@ -10,6 +10,9 @@ from odoo.exceptions import UserError, ValidationError
 from libs.py.fix_events import publish
 
 from .catalogue_roles import (
+    CONTRACT_CHANNELS,
+    CUSTOMER_CHANNELS,
+    PUBLISHED_CHANNELS,
     RESTRICTED_CHANNELS,
     ROLE_OFFICER,
     ROLE_PUBLISHER,
@@ -477,7 +480,11 @@ class FixCatalogueItem(models.Model):
         label = item.name or item.product_tmpl_id.display_name or str(item.id)
         if not item.active:
             return "catalogue item '%s' is archived" % label
-        if item.state in CLOSED_STATES:
+        # A04 ERP audit (20 Nov 2026) M37-F6, BRU-CAT-10: a Discontinued item
+        # is still serviced for a device a live contract covers (support
+        # until end of support); Obsolete ends that too.
+        contract_cover = item.state == "deprecated" and (channel or "") in CONTRACT_CHANNELS
+        if item.state in CLOSED_STATES and not contract_cover:
             return "catalogue item '%s' is %s; it is no longer sold%s" % (
                 label,
                 dict(ITEM_STATES)[item.state],
@@ -502,6 +509,18 @@ class FixCatalogueItem(models.Model):
                 label,
                 dict(ITEM_STATES)[item.state],
             )
+        # A04 ERP audit (20 Nov 2026) M37-F1/F4: a customer buys on these
+        # channels with no salesperson. An item with no VAT class cannot be
+        # taxed correctly on the invoice (BRU-CAT-02), and an item the
+        # publisher never published is not on the public catalogue.
+        if (channel or "") in CUSTOMER_CHANNELS:
+            if not item.vat_class:
+                return (
+                    "catalogue item '%s' has no VAT class; a customer channel sells only "
+                    "classified items (BRU-CAT-02)" % label
+                )
+            if channel in PUBLISHED_CHANNELS and not item.is_published:
+                return "catalogue item '%s' is not published on the web catalogue" % label
         return None
 
     def _fix_assert_sellable(self, channel=None):
@@ -510,6 +529,34 @@ class FixCatalogueItem(models.Model):
             if reason:
                 raise UserError("Cannot sell this: %s (BRU-CAT-14)." % reason)
         return True
+
+    def _fix_check_sale(self, channel=None, unit_price=None, line=None, partner=None):
+        """M37-F4: the one sale check, from a catalogue item (M12 listings, M38
+        storefront lines hold the item): the item's lifecycle and channel
+        rules, then - through its product - the M11 price gate when a price
+        is given (cd_rate_card). Raises UserError when the sale is refused."""
+        for rec in self:
+            variant = rec.sudo().product_tmpl_id.product_variant_id
+            if variant:
+                variant.with_env(self.env)._fix_check_sale(
+                    unit_price=unit_price, channel=channel, line=line, partner=partner
+                )
+            else:
+                rec._fix_assert_sellable(channel)
+        return True
+
+    def _fix_live_successor(self):
+        """M37-F7: the item that sells in place of this one: itself when it is
+        sellable, else the first sellable item down its successor chain, else
+        an empty recordset (supersession resolved, cycles stopped)."""
+        self.ensure_one()
+        item, seen = self.sudo(), set()
+        while item and item.id not in seen:
+            if item.state in SELLABLE_STATES and item.active:
+                return self.browse(item.id)
+            seen.add(item.id)
+            item = item.successor_id
+        return self.browse()
 
     @api.depends("state", "active", "is_out_of_scope", "requires_brand_authorisation")
     def _compute_is_sellable(self):

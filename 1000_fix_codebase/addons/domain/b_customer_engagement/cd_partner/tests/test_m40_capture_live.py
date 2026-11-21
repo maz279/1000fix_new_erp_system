@@ -11,6 +11,12 @@ from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_partner.tests.m40_fixtures import (
+    configure_payout_accounts,
+    guarded_write,
+    make_onboardable,
+    paid_invoice,
+)
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -90,6 +96,8 @@ def _partner(w, ptype="reseller", onboard=True, **kw):
         )
         p.with_user(w.kyc).action_verify_kyc()
     if onboard:
+        # A04 ERP audit M40-F11: programme, agreement, checklist (set-up only)
+        make_onboardable(w.env, p)
         p.with_user(w.manager).action_onboard()
     return p
 
@@ -162,8 +170,10 @@ def test_tier_moves_only_through_the_manager_action(w):
         p.with_user(w.officer).write({"tier_id": prog.tier_ids[1].id})
     with pytest.raises(UserError, match="no tier"), w.env.cr.savepoint():
         p.with_user(w.manager).action_change_tier("T9")
+    # A04 ERP audit M40-F30: the move takes effect after the tier's notice
     p.with_user(w.manager).action_change_tier("T2")
-    assert p.tier_id.code == "T2"
+    assert p.pending_tier_id.code == "T2" and p.tier_id.code != "T2"
+    assert p.tier_effective_on == w.today + timedelta(days=30)
 
 
 def test_programme_type_must_match_the_partner(w):
@@ -196,7 +206,9 @@ def test_onboarding_waits_for_required_steps(w):
     p.with_user(w.officer).action_generate_onboarding()
     p.with_user(w.officer).action_generate_onboarding()  # idempotent
     assert len(p.onboarding_ids) == 6
-    with pytest.raises(ValidationError, match="BRU-PCM-01"), w.env.cr.savepoint():
+    # programme and agreement in place (M40-F11): only the pending steps refuse
+    make_onboardable(w.env, p, checklist=False)
+    with pytest.raises(ValidationError, match="steps are pending"), w.env.cr.savepoint():
         p.with_user(w.manager).action_onboard()
 
 
@@ -217,6 +229,7 @@ def test_a_step_is_completed_on_its_evidence_and_never_waived_if_required(w):
     # done: the evidence is frozen
     with pytest.raises(UserError), w.env.cr.savepoint():
         step.with_user(w.officer).write({"evidence_attachment_id": False})
+    make_onboardable(w.env, p, checklist=False)  # M40-F11: programme + agreement
     p.with_user(w.manager).action_onboard()
     assert p.state == "onboarded"
 
@@ -259,6 +272,8 @@ def test_an_optional_step_is_waived_by_another_manager_with_a_reason(w):
 
 
 def _rebate(w, partner):
+    # A04 ERP audit M40-F12: the basis is the partner's paid M20 invoices
+    paid_invoice(w.env, partner.partner_id, 10000.0, w.today - timedelta(days=5))
     return (
         w.env["fix.partner.rebate"]
         .with_user(w.officer)
@@ -267,7 +282,8 @@ def _rebate(w, partner):
                 "name": "Q4",
                 "partner_id": partner.id,
                 "period": "2026-Q4",
-                "basis": 10000,
+                "period_from": w.today - timedelta(days=30),
+                "period_to": w.today,
                 "rate": 0.02,
             }
         )
@@ -622,13 +638,18 @@ def test_precedence_rule_is_activated_by_another_tier3_and_supersedes(w):
 
 # ============================================================ p7 resellers
 def test_reseller_draws_never_exceed_the_allocation(w):
+    product = (
+        w.env["product.product"].sudo().create({"name": "M40C phone", "default_code": "M40C-P"})
+    )
     alloc = (
         w.env["fix.reseller.allocation"]
         .with_user(w.officer)
         .create(
             {
                 "partner_id": _partner(w, "reseller").id,
+                "allocation_type": "capacity",
                 "item_description": "Refurbished phones grade A",
+                "product_id": product.id,
                 "qty": 10,
                 "period": "2026-11",
             }
@@ -637,7 +658,10 @@ def test_reseller_draws_never_exceed_the_allocation(w):
     assert alloc.name.startswith("RAL/")
     with pytest.raises(UserError), w.env.cr.savepoint():
         alloc.with_user(w.officer).action_record_draw(1)
-    alloc.with_user(w.manager).action_allocate()
+    # A04 ERP audit M40-F16: the price is M11's (price service mocked here)
+    quote = {"price": 100.0, "source": "card", "card_id": False, "reason": ""}
+    with mock.patch.object(type(w.env["fix.rate.card"]), "price_for", return_value=quote):
+        alloc.with_user(w.manager).action_allocate()
     alloc.with_user(w.officer).action_record_draw("6")
     with pytest.raises(ValidationError, match="left"), w.env.cr.savepoint():
         alloc.with_user(w.officer).action_record_draw(5)
@@ -719,28 +743,29 @@ def test_royalty_is_never_self_declared(w):
         fr.with_user(w.officer).write({"royalty_rate": 0.01})
 
 
-def test_royalty_is_computed_from_verified_branch_settlements(w):
+def test_royalty_is_computed_from_the_branchs_m20_revenue(w):
+    """A04 ERP audit M40-F19: the basis is the branch's M20 invoices (ex-VAT,
+    net of credit notes), not settled service-order cash."""
     ou = w.env["operating.unit"].search([], limit=1)
     if not ou:
         pytest.skip("no operating unit on this database")
     fr = _franchise(w, operating_unit_id=ou.id)
     roy = _royalty(w, fr)
     domains = []
+    invoice_cls = type(w.env["fix.ar.invoice"])
+    real_search = invoice_cls.search
 
-    def fake_search(self, domain, *a, **k):
+    def spy(self, domain, *a, **k):
         domains.append(domain)
-        return self.browse()
+        return real_search(self, domain, *a, **k)
 
-    with mock.patch.object(type(w.env["fix.service.order"]), "search", fake_search):
+    with mock.patch.object(invoice_cls, "search", spy):
         roy.with_user(w.officer).action_compute()
-    dom = {c[0]: c[2] for c in domains[-1] if isinstance(c, list | tuple)}
-    assert dom["operating_unit_id"] == ou.id and dom["settlement_verified"] is True
-    assert dom["payment_settlement_state"] == "settled"
-    assert roy.state == "computed" and roy.royalty_rate == 0.06 and roy.revenue_basis == 0.0
+    dom = {c[0]: c[2] for d in domains for c in d if isinstance(c, list | tuple)}
+    assert dom["operating_unit_id"] == ou.id and "paid" in dom["state"]
+    assert roy.state == "computed" and roy.royalty_rate == 0.06
     with pytest.raises(UserError, match="finance"), w.env.cr.savepoint():
-        roy.with_user(w.officer).action_record_invoice("INV-1")
-    roy.with_user(w.finance).action_record_invoice("INV-1")
-    assert roy.state == "invoiced"
+        roy.with_user(w.officer).action_raise_invoice()
 
 
 def test_royalty_amounts_follow_the_basis(w):
@@ -749,7 +774,7 @@ def test_royalty_amounts_follow_the_basis(w):
         pytest.skip("no operating unit on this database")
     roy = _royalty(w, _franchise(w, operating_unit_id=ou.id))
     royalty_cls = type(w.env["fix.franchise.royalty"])
-    with mock.patch.object(royalty_cls, "_erp_revenue", lambda self: (250000.0, 7)):
+    with mock.patch.object(royalty_cls, "_erp_revenue", lambda self: (250000.0, 0.0, 7)):
         roy.with_user(w.officer).action_compute()
     assert roy.royalty_amount == 15000.0 and roy.levy_amount == 2500.0 and roy.order_count == 7
 
@@ -793,6 +818,7 @@ def test_mdf_claim_needs_evidence_and_an_independent_decider(w):
     # the fund's allocator may not decide it
     with pytest.raises(UserError, match="Segregation"), w.env.cr.savepoint():
         claim.with_user(w.manager).action_approve()
+    configure_payout_accounts(w.env)  # A04 ERP audit M40-F3: fail closed without them
     claim.with_user(w.manager2).action_approve()
     assert claim.state == "approved" and fund.approved == 4000 and fund.balance == 6000
 
@@ -813,11 +839,31 @@ def test_mdf_refusal_and_payment(w):
     with pytest.raises(UserError, match="reason"), w.env.cr.savepoint():
         a.with_user(w.manager2).action_refuse("")
     a.with_user(w.manager2).action_refuse("no proof of distribution")
+    configure_payout_accounts(w.env)
     b.with_user(w.manager2).action_approve()
     with pytest.raises(UserError, match="finance"), w.env.cr.savepoint():
-        b.with_user(w.officer).action_record_payment("TRX-1")
-    b.with_user(w.finance).action_record_payment("TRX-1")
-    assert b.state == "paid" and fund.paid == 2000 and fund.balance == 8000
+        b.with_user(w.officer).action_record_payment()
+    # A04 ERP audit M40-F3: paid on the executed M50 instruction only
+    with pytest.raises(UserError, match="no M50 payout"), w.env.cr.savepoint():
+        b.with_user(w.finance).action_record_payment()
+    pay = (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .create(
+            {
+                "company_id": w.env.company.id,
+                "operating_unit_id": w.env["operating.unit"].search([], limit=1).id,
+                "payee": "p",
+                "amount": 2000.0,
+                "source_model": b._name,
+                "source_id": b.id,
+            }
+        )
+    )
+    guarded_write(pay, {"state": "executed", "bank_reference": "TRX-1"})
+    b.with_user(w.finance).action_record_payment()
+    assert b.state == "paid" and b.payment_ref == "TRX-1"
+    assert fund.paid == 2000 and fund.balance == 8000
     with pytest.raises(UserError), w.env.cr.savepoint():
         b.with_user(w.officer).write({"amount": 9000})
 

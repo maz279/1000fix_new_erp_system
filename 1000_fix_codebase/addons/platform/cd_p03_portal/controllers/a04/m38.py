@@ -3,11 +3,20 @@
 # new RMA and slot models. Payment mix and delivery come from the storefront
 # order's own fields; refund GMV by grade is a declared gap (no grade link).
 import datetime
+import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from ._scope import scoped
+
+_logger = logging.getLogger(__name__)
+
+# A04 ERP audit M38-F16: GMV is money taken - paid, dispatched and delivered
+# orders only (never pending or cancelled ones).
+PAID_STATES = ("paid", "dispatched", "delivered")
+RETURN_MODELS = ("fix.storefront.return", "fix.storefront.rma")
 
 # A04 workflow audit (2026-11-04) C3/D2: every M38 surface declared
 # `actions: set()`, so the workspace could only edit the state. The lifecycle
@@ -44,6 +53,10 @@ SURFACES = {
             "action_dispatch",
             "action_deliver",
             "action_cancel",
+            # A04 ERP audit M38-F10: posting that waits on a fixed cause, and
+            # the high-value COD NID, are worked from the order (role-checked)
+            "action_retry_posting",
+            "action_record_customer_nid",
         },
     },
     "fix.storefront.rma": {
@@ -130,17 +143,30 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _orders(env):
-    return env["fix.storefront.order"].sudo().search([])
+def _orders(env, date_from=None, date_to=None, paid_only=False):
+    """A04 ERP audit M38-F16: the caller's companies and the period
+    (order_date, Dhaka days); paid_only for GMV."""
+    domain = [("state", "in", PAID_STATES)] if paid_only else []
+    return scoped(env, "fix.storefront.order", domain, "order_date", date_from, date_to)
 
 
-def _carts(env):
-    return env["fix.storefront.cart"].sudo().search([])
+def _carts(env, date_from=None, date_to=None):
+    return scoped(env, "fix.storefront.cart", [], "create_date", date_from, date_to)
+
+
+def _returns(env, date_from=None, date_to=None):
+    """A04 ERP audit M38-F17: the storefront API raises fix.storefront.return
+    and the workspace fix.storefront.rma; every report reads both."""
+    rows = []
+    for model in RETURN_MODELS:
+        date_field = "requested_on" if model == "fix.storefront.rma" else "create_date"
+        rows.extend(scoped(env, model, [], date_field, date_from, date_to))
+    return rows
 
 
 def funnel_conversion(env, date_from=None, date_to=None, **params):
-    carts = _carts(env)
-    orders = _orders(env)
+    carts = _carts(env, date_from, date_to)
+    orders = _orders(env, date_from, date_to)
     states = ["open", "checkout", "ordered"]
     rows = []
     for state in states:
@@ -167,7 +193,7 @@ def funnel_conversion(env, date_from=None, date_to=None, **params):
 
 
 def merchandising(env, date_from=None, date_to=None, **params):
-    orders = _orders(env)
+    orders = _orders(env, date_from, date_to, paid_only=True)
     by_rail = {}
     for order in orders:
         key = order.payment_rail or "unspecified"
@@ -197,7 +223,7 @@ def merchandising(env, date_from=None, date_to=None, **params):
 
 
 def stock_availability(env, date_from=None, date_to=None, **params):
-    stock = env["fix.graded.stock"].sudo().search([])
+    stock = scoped(env, "fix.graded.stock")
     rows = []
     for item in stock:
         rows.append(
@@ -222,7 +248,7 @@ def stock_availability(env, date_from=None, date_to=None, **params):
 
 
 def checkout_conversion(env, date_from=None, date_to=None, **params):
-    carts = _carts(env)
+    carts = _carts(env, date_from, date_to)
     open_carts = carts.filtered(lambda c: c.state == "open")
     checkout = carts.filtered(lambda c: c.state == "checkout")
     ordered = carts.filtered(lambda c: c.state == "ordered")
@@ -254,8 +280,8 @@ def checkout_conversion(env, date_from=None, date_to=None, **params):
 
 
 def delivery_performance(env, date_from=None, date_to=None, **params):
-    slots = env["fix.storefront.slot"].sudo().search([])
-    orders = _orders(env)
+    slots = scoped(env, "fix.storefront.slot", [], "slot_date", date_from, date_to)
+    orders = _orders(env, date_from, date_to)
     rows = []
     for slot in slots:
         rows.append(
@@ -299,7 +325,7 @@ def delivery_performance(env, date_from=None, date_to=None, **params):
 
 
 def rma_report(env, date_from=None, date_to=None, **params):
-    rmas = env["fix.storefront.rma"].sudo().search([])
+    rmas = _returns(env, date_from, date_to)
     rows = []
     for rma in rmas:
         rows.append(
@@ -335,9 +361,9 @@ def abandonment_recovery(env, date_from=None, date_to=None, **params):
     """Open carts and every cart someone followed up (capture audit 19 Nov
     2026: the recovery contacts are recorded, so recovery is measured as a
     followed-up cart that went on to become an order)."""
-    carts = _carts(env)
-    today = datetime.date.today()
-    contacts = env["fix.storefront.recovery.attempt"].sudo().search([])
+    carts = _carts(env, date_from, date_to)
+    today = fields.Date.context_today(env["fix.storefront.cart"])
+    contacts = scoped(env, "fix.storefront.recovery.attempt")
     by_cart = {}
     for contact in contacts:
         by_cart.setdefault(contact.cart_id.id, env["fix.storefront.recovery.attempt"].sudo())
@@ -387,7 +413,7 @@ def abandonment_recovery(env, date_from=None, date_to=None, **params):
 
 
 def payment_method_mix(env, date_from=None, date_to=None, **params):
-    orders = _orders(env)
+    orders = _orders(env, date_from, date_to, paid_only=True)
     by_rail = {}
     for order in orders:
         key = order.payment_rail or "unspecified"
@@ -482,30 +508,30 @@ REPORTS = {
 def kpis(env):
     carts = _carts(env)
     orders = _orders(env)
-    today = datetime.date.today()
+    paid = orders.filtered(lambda o: o.state in PAID_STATES)
+    # A04 ERP audit M38-F16: the business month is Asia/Dhaka
+    today = fields.Date.context_today(env["fix.storefront.order"])
     month_start = today.replace(day=1)
     open_carts = carts.filtered(lambda c: c.state in ("open", "checkout"))
     ordered = len(orders)
     total = len(carts)
-    orders_mtd = len(orders.filtered(lambda o: o.order_date and o.order_date.date() >= month_start))
-    bkash = len(orders.filtered(lambda o: o.payment_rail == "bkash"))
-    rmas = env["fix.storefront.rma"].sudo().search([])
+    orders_mtd = len(_orders(env, month_start, today))
+    bkash = len(paid.filtered(lambda o: o.payment_rail == "bkash"))
+    rmas = _returns(env)
     return {
         "orders_mtd": orders_mtd,
         "conversion": round(ordered / total * 100.0, 1) if total else None,
         "cart_abandon": round(len(open_carts) / total * 100.0, 1) if total else None,
-        "bkash_share": round(bkash / ordered * 100.0, 1) if ordered else None,
+        "bkash_share": round(bkash / len(paid) * 100.0, 1) if paid else None,
         "refurb_gmv_mtd": round(sum(_refurb_lines(env, since=month_start).mapped("subtotal")), 2),
         "rma_rate": round(len(rmas) / ordered * 100.0, 1) if ordered else None,
         # measured extras
         "carts_open": len(open_carts),
         "orders": ordered,
-        "gmv": round(sum(orders.mapped("total_amount")), 2),
+        "gmv": round(sum(paid.mapped("total_amount")), 2),
         "abandoned_value": round(sum(open_carts.mapped("total")), 2),
         "rma_open": len(
-            rmas.filtered(
-                lambda r: r.state in ("requested", "approved", "received", "refund_approved")
-            )
+            [r for r in rmas if r.state in ("requested", "approved", "received", "refund_approved")]
         ),
     }
 

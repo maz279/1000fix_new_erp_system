@@ -904,7 +904,9 @@ export const SCREENS = {
       { m: 'action_complete', l: 'Job Completed', states: ['in_progress'] },
       { m: 'action_review', l: 'Customer Sign-off', ask: 'Customer rating 1-5 (blank for none)', kwarg: 'rating', states: ['completed'] },
       { m: 'action_earn_commission', l: 'Earn Commission', states: ['reviewed'] },
-      { m: 'action_paid', l: 'Release Payout', states: ['commissioned'] },
+      /* A04 ERP audit M12-F1: the customer's payment is its M20 receipt, linked by finance.
+       * M12-F2: no Release Payout button - the order is paid out by the M53 payout run. */
+      { m: 'action_record_customer_receipt', l: 'Record Customer Receipt (M20)', ask: 'M20 receipt number or reference', kwarg: 'receipt', states: ['selected', 'in_progress', 'completed', 'reviewed'] },
       { m: 'action_cancel', l: 'Cancel Order', states: ['open', 'quoted', 'selected'] }
     ] },
   'M12-seller-score': { kind: 'model_list', model: 'fix.seller.score', create: false,
@@ -972,7 +974,10 @@ export const SCREENS = {
         { name: 'budget', label: 'Customer Budget / Listing Price' },
         { name: 'commission_amount', label: 'Commission Earned', readonly: true },
         { name: 'awarded_price', label: 'Awarded Price (pinned at award)', readonly: true },
-        { name: 'commission_rate', label: 'Commission Rate (seller tier, pinned at award)', readonly: true }
+        { name: 'commission_rate', label: 'Commission Rate (commission scheme, pinned at award)', readonly: true },
+        { name: 'customer_receipt_id', label: 'Customer Receipt (M20)', readonly: true },
+        { name: 'customer_paid_at', label: 'Customer Payment Recorded', readonly: true },
+        { name: 'refund_credit_ref', label: 'Customer Refund (M20)', readonly: true }
       ] },
       { tab: 'schedule', title: '3. Schedule', fields: [
         { name: 'my_activity_date_deadline', label: 'My Activity Deadline', readonly: true },

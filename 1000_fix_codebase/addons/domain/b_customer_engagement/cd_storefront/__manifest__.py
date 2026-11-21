@@ -5,7 +5,7 @@
     "description": """
 CD-M38-02 (P10) — E-Commerce & Digital Storefront.
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.2.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "E-Commerce & Digital Storefront",
@@ -25,6 +25,9 @@ CD-M38-02 (P10) — E-Commerce & Digital Storefront.
         "cd_billing_engine",
         "cd_inventory",
         "cd_workflow_engine",
+        # A04 ERP audit (20 Nov 2026) M38-F1: storefront lines are priced by the
+        # M11 price service (fix.rate.card.price_for, channel 'storefront').
+        "cd_rate_card",
     ],
     "data": [
         "security/cd_storefront_groups.xml",

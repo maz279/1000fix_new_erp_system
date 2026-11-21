@@ -765,7 +765,7 @@ export const SCREENS = {
      * the totals and no lines, so an estimate raised in M01 could never be
      * sent (2026-11-12). Same grid as M36's estimate form. */
     lines: { field: 'line_ids', title: 'Estimate Lines (parts from inventory, service / labour / transport charges)',
-      note: 'SL numbers the lines. A Spare Part, Accessory or Finished Product line takes an inventory item by its part number; a Service, Labour, Support, Diagnostic, Call-out, Transport, Installation or Fee line takes a charge code (left empty: the generic code of its type). A line left without a type is a Part and without a quantity is 1. Each line is quoted at or above its list price; a lower price is a discount, which the DOFA tiers approve.',
+      note: 'SL numbers the lines. A Spare Part, Accessory or Finished Product line takes an inventory item by its part number; a Service, Labour, Support, Diagnostic, Call-out, Transport, Installation or Fee line takes a charge code (left empty: the generic code of its type). A line left without a type is a Part and without a quantity is 1. An item with a released M11 price takes it as the unit price; a different price needs a reason, and a lower one is a discount that counts toward the DOFA tier. No line is priced below the M11 price floor or the item\'s M15 cost without an approved override for that line.',
       /* no `defaults`: a starter row carrying values is SENT on save, and a
        * row with no description is refused - a header could not be saved alone */
       fields: [
@@ -776,7 +776,9 @@ export const SCREENS = {
         { name: 'serial_ref', label: 'Serial / IMEI' },
         { name: 'quantity', label: 'Qty', required: true },
         { name: 'uom_id', label: 'Unit' },
+        { name: 'card_price', label: 'Released Price', readonly: true },
         { name: 'unit_price', label: 'Unit Price', required: true },
+        { name: 'price_override_reason', label: 'Reason (price differs from released)' },
         { name: 'line_total', label: 'Total', readonly: true },
       ] },
     tabs: [

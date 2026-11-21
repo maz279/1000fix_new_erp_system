@@ -41,4 +41,10 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <!-- A04 ERP audit M08-F1 (20 Nov 2026): the suspension windows -->
+    <record id="rule_fix_contract_suspension_company" model="ir.rule">
+        <field name="name">fix.contract.suspension: allowed companies</field>
+        <field name="model_id" ref="model_fix_contract_suspension"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

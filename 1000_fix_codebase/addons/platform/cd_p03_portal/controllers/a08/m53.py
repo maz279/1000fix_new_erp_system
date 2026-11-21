@@ -26,8 +26,10 @@ SURFACES = {
     "fix.subscription": {
         "order": "next_invoice_date, id desc",
         "limit": 200,
+        # A04 ERP audit (2026-11-21) M39-F9: a cycle is billed only by a
+        # reviewed billing run (BRU-SUB-17), never by a button on one
+        # subscription - action_generate_charge needs the run's token.
         "actions": {
-            "action_generate_charge",
             "action_trigger_dunning",
             "action_reinstate",
             "action_request_refund",

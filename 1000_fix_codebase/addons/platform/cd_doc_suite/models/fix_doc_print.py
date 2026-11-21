@@ -16,7 +16,7 @@ The payload is computed here (never in the template), from the records'
 own stored figures, so the PDF states exactly what the books hold.
 """
 
-from odoo import models
+from odoo import fields, models
 from odoo.addons.cd_catalogue.models.fix_commercial_line import LINE_TYPE_LABELS
 
 from .fix_doc_words import _safe_words
@@ -335,13 +335,47 @@ class FixSalesProformaPrint(models.Model):
         }
 
 
+def _dhaka(record, value):
+    """A stored UTC datetime as the Asia/Dhaka calendar day."""
+    if not value:
+        return value
+    return fields.Datetime.context_timestamp(record.with_context(tz="Asia/Dhaka"), value)
+
+
+_TERM_HEADINGS = {"term": "Term", "assumption": "Assumption", "exclusion": "Exclusion"}
+
+
+def _quotation_term_notes(quote):
+    """A04 ERP audit M36-F13: the terms, assumptions and exclusions recorded on
+    the quotation (fix.quotation.term) are what the customer accepts, so the
+    PDF prints them - in the document language when a Bengali wording exists.
+    A deviation still awaiting approval, or rejected, is not offered."""
+    if "term_ids" not in quote._fields:
+        return []
+    bangla = (quote.document_lang if "document_lang" in quote._fields else "") == "bn_BD"
+    notes = []
+    for term in quote.sudo().term_ids.sorted(lambda t: (t.sequence, t.id)):
+        if term.deviation_state in ("pending", "rejected"):
+            continue
+        text = ((term.text_bn if bangla else "") or term.text_en or term.text_bn or "").strip()
+        if text:
+            notes.append("%s: %s" % (_TERM_HEADINGS.get(term.term_type, "Term"), text))
+    return notes
+
+
 def _quotation_payload(self):
     self.ensure_one()
     types = dict(self._fields["quote_type"].selection)
     meta = [
         ("Quotation No.", self.name or "(draft)"),
         ("Version", str(self.version or 1)),
-        ("Date", fmt_date(self.create_date)),
+        # A04 ERP audit M36-F13: the date a quotation carries is the day it
+        # was issued to the customer (sent_at, Asia/Dhaka), not the day the
+        # draft was keyed in; an unsent draft shows its creation day.
+        (
+            "Issue Date" if self.sent_at else "Date",
+            fmt_date(_dhaka(self, self.sent_at or self.create_date)),
+        ),
     ]
     if self.valid_until:
         meta.append(("Valid Until", fmt_date(self.valid_until)))
@@ -369,7 +403,7 @@ def _quotation_payload(self):
         "vat_columns": False,
         "totals": self._fix_print_totals(),
         "words": _safe_words(self.amount_total),
-        "notes": [],
+        "notes": _quotation_term_notes(self),
         "policy": "",
         "sign": [
             "Accepted by (Customer) — name, signature & date",

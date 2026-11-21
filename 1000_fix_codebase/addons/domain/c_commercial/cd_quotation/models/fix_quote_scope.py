@@ -123,32 +123,76 @@ class FixQuotationLine(models.Model):
                 raise ValidationError("A unit cost cannot be negative.")
 
     # ---- pricing -----------------------------------------------------------
-    def _resolve_price(self, product):
-        """(price, source) for a product: the released M11 rate card for its
-        code, else its catalogue list price. None when there is no product."""
+    def _resolve_price(self, product, quotation=None, qty=1.0):
+        """(price, source, list) for a product from the M11 price service
+        (fix.rate.card.price_for): the contract, customer, tier or standard
+        card of the quotation's customer, company and date, less an active
+        promotion. `list` is the released price before the promotion: the
+        base the off-list discount is measured from (FR-PRC-031).
+
+        A04 ERP audit (20 Nov 2026) M11-F1/F3: it read the rate card with no
+        customer, contract, date or company and fell back to the catalogue
+        list price - the 1.00 placeholder on every real item. No released
+        price now means no price: (None, 'manual', None)."""
         if not product:
-            return None, "manual"
+            return None, "manual", None
         Card = self.env.get("fix.rate.card")
-        if Card is not None and product.default_code:
-            card = Card._resolve(product.default_code)
-            if card:
-                return card.unit_price, "rate_card"
-        # a charge code with no standard rate (the generic CHG-* codes) has
-        # no list price: the price is the one typed on the line
-        if (
-            "fix_charge_code_id" in product._fields
-            and product.sudo().fix_charge_code_id
-            and not (product.lst_price or 0.0)
-        ):
-            return None, "manual"
-        return product.lst_price, "list"
+        if Card is None or not hasattr(Card, "price_for"):
+            return None, "manual", None
+        quotation = quotation or self.env["fix.quotation"]
+        partner = None
+        if quotation:
+            partner = (
+                quotation._fix_doc_partner() if hasattr(quotation, "_fix_doc_partner") else None
+            )
+            if not partner:
+                partner = next(
+                    (quotation[f] for f in ("partner_id", "customer_id") if f in quotation._fields),
+                    None,
+                )
+        contract = None
+        if quotation and "contract_id" in quotation._fields:
+            contract = quotation.contract_id or None
+        date = None
+        for name in ("date", "quote_date", "date_quote", "issue_date"):
+            if quotation and name in quotation._fields and quotation[name]:
+                date = quotation[name]
+                break
+        res = Card.price_for(
+            product,
+            partner=partner or None,
+            channel="quotation",
+            qty=qty or 1.0,
+            date=date,
+            company=(quotation.company_id if quotation else None) or self.env.company,
+            contract=contract,
+            currency=(quotation.currency_id if quotation else None) or None,
+        )
+        if res["price"] is None:
+            return None, "manual", None
+        return res["price"], "rate_card", res["list_price"]
 
     def _priced_vals(self, vals, product):
-        """Price a line: an empty price takes the resolved one; a typed price
-        (zero included) is kept, and marked as entered when it differs."""
-        price, source = self._resolve_price(product)
+        """Price a line: an empty price takes the released M11 price; a typed
+        price (zero included) is kept, and recorded as entered ('manual') with
+        the released price beside it (list_price) when it differs. With no
+        released price a price must be typed: it is recorded as entered, and
+        the floor gate (_check_sellable -> check_sale_price: M11 floor, M15
+        cost margin floor) still decides whether it may stand."""
+        quotation = self.env["fix.quotation"].browse(
+            vals.get("quotation_id") or self.quotation_id.id
+        )
+        price, source, list_price = self._resolve_price(
+            product, quotation.exists(), vals.get("quantity") or self.quantity or 1.0
+        )
         typed = vals.get("unit_price")
         blank = typed is None or typed is False or typed == ""
+        if blank and price is None and product and not self.env.context.get(FROM_ESTIMATE):
+            raise UserError(
+                "%s has no released M11 price for this customer and date: type the price "
+                "(it is recorded as entered and checked against the floor), or have a rate "
+                "card released." % product.display_name
+            )
         if blank and price is not None:
             vals["unit_price"] = price
             vals["price_source"] = source
@@ -159,7 +203,7 @@ class FixQuotationLine(models.Model):
         else:
             vals["price_source"] = "manual"
         unit = vals.get("unit_price") or 0.0
-        vals["list_price"] = price if price is not None else unit
+        vals["list_price"] = list_price if list_price is not None else unit
         return vals
 
     # ---- guards ------------------------------------------------------------
@@ -180,7 +224,16 @@ class FixQuotationLine(models.Model):
         for line in self.filtered(lambda r: r.product_id and not r.display_type):
             product = line.product_id
             if hasattr(product, "_fix_check_sale"):
-                product._fix_check_sale(unit_price=line.unit_price or 0.0, channel="quotation")
+                # A04 ERP audit (20 Nov 2026) M11-F7: the line binds a
+                # below-floor override approved for it, and only it.
+                quote = line.quotation_id
+                partner = quote["customer_id"] if "customer_id" in quote._fields else None
+                product._fix_check_sale(
+                    unit_price=line.unit_price or 0.0,
+                    channel="quotation",
+                    line=line,
+                    partner=partner or None,
+                )
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -458,8 +511,7 @@ class FixQuotationScope(models.Model):
         vals = {}
         if abs((self.discount_amount or 0.0) - (est.discount or 0.0)) > 0.005:
             vals["discount_amount"] = est.discount or 0.0
-        if abs((self.vat_rate or 0.0) - (est.vat_rate or 0.0)) > 0.0001:
-            vals["vat_rate"] = est.vat_rate
+        # (the VAT rate is M51's on the lines, never copied: A04 ERP audit M36-F2)
         if vals:
             self.write(vals)
         self._sync_from_lines()

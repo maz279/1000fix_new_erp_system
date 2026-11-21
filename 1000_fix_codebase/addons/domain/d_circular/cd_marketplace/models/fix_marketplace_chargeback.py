@@ -11,7 +11,7 @@
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -212,6 +212,26 @@ class FixMarketplaceChargeback(models.Model):
                     },
                 )
         return True
+
+    @api.model
+    def consume_chargeback_lost(self, event: dict) -> dict:
+        """A04 ERP audit M12-F3 / X5: the R8 consumer of
+        marketplace.chargeback_lost. The gateway already took the money back
+        from 1000 FiX, so the customer is not refunded again; the seller's
+        share is recovered (an M53 escrow flagged for forfeit, or a draft
+        clawback when the seller was already paid). Idempotent."""
+        if not self.env.su:
+            raise AccessError("The chargeback consumer runs only from the event relay.")
+        try:
+            cb_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            cb_id = 0
+        cb = self.sudo().browse(cb_id).exists()
+        if not cb:
+            raise UserError("There is no marketplace chargeback #%s." % cb_id)
+        if cb.state not in ("lost", "accepted"):
+            return {"skipped": "chargeback %s is %s" % (cb.name, cb.state)}
+        return cb.order_id.sudo()._mkp_seller_recovery(cb.amount, cb.name)
 
     def action_mark_won(self, note=None):
         return self._close("won", note)

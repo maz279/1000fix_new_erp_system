@@ -11,12 +11,20 @@ never touches a gateway at all.
 import pytest
 from odoo.exceptions import UserError
 
+from .test_a04_c2_c13_storefront import cod_rule, released_card
+
 
 @pytest.fixture
 def shop(odoo_env):
     env = odoo_env
     product = env["product.template"].create({"name": "A12 Router", "list_price": 1200.0})
     partner = env["res.partner"].create({"name": "A12 Checkout Customer"})
+    # A04 ERP M38-F1/F12/F13: a released M11 price, the callback secrets and
+    # an approved COD rule (configuration)
+    released_card(env, product, 1043.48)
+    cod_rule(env)
+    for rail in ("bkash", "nagad"):
+        env["ir.config_parameter"].sudo().set_param("cd_storefront.gateway_secret.%s" % rail, "s")
 
     def gateway(state="active", mode="live"):
         """Build a gateway through the SANCTIONED lifecycle (P1-4): every
@@ -86,10 +94,12 @@ def test_cash_on_delivery_never_touches_the_gateway(shop):
     assert order.state == "pending_payment"
 
 
-def test_an_unconfigured_rail_keeps_todays_behaviour(shop):
-    # no fix.payment.gateway row exists for this rail: nothing to enforce
-    # against, so the order proceeds exactly as before M65 was wired in.
-    _env, cart, _gateway = shop
-    order = cart().action_place_order(shipping_address="House 3, Dhaka", payment_rail="nagad")
-    assert order.state == "pending_payment"
-    assert order.payment_rail == "nagad"
+def test_an_unconfigured_rail_takes_no_order(shop):
+    # A04 ERP audit M38-F13 (supersedes the A12 "keeps today's behaviour"):
+    # a rail with no gateway master took orders nobody could ever pay.
+    env, cart, _gateway = shop
+    env["fix.payment.gateway"].sudo().with_context(active_test=False).search(
+        [("provider", "=ilike", "nagad")]
+    ).unlink()
+    with pytest.raises(UserError, match="not configured"):
+        cart().action_place_order(shipping_address="House 3, Dhaka", payment_rail="nagad")

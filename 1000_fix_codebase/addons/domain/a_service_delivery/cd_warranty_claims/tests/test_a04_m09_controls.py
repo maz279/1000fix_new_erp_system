@@ -88,12 +88,13 @@ def test_a_clerk_claims_only_a_closed_warranty_job_for_its_approved_estimate(wc)
     with wc.refused(ValidationError, "not a typed figure"):
         Claim.create({**base, "service_order_id": job.id, "claim_amount": 99000.0})
     claim = Claim.create({**base, "service_order_id": job.id})
-    assert claim.claim_amount == 2300.0  # the approved estimate, VAT inclusive
+    # A04 ERP M09-F4: no brand rate released -> the estimate EX-VAT (it was 2300)
+    assert (claim.claim_amount, claim.valuation_basis) == (2000.0, "estimate")
     # the amount is fixed when the claim is raised
     with wc.refused(UserError, "approved estimate"):
         _as(claim, wc.clerk).write({"claim_amount": 500000.0})
     assert _as(claim, wc.clerk).action_refresh_amount() is True
-    assert claim.claim_amount == 2300.0
+    assert claim.claim_amount == 2000.0
 
 
 def test_a_user_cannot_drive_the_aut018_intake(wc):

@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A04 ERP audit (20 Nov 2026), stream B5.
+     - partner.authorisation_expiring (X3, M40-F14): the T-180/90/30
+       escalation opens to-dos for its audience.
+     - partner.mdf_claim_approved (M40-F3): an approved MDF claim is accrued
+       and raised as a pending M50 payout by the M53 finance consumers
+       (cd_settlement_ext, which depends on this module), like the rebate.
+     - the daily jobs: staged tier moves (M40-F30) and dormancy (M40-F24; a
+       no-op until cd_partner.dormancy_days is set). -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_partner_authorisation_expiring" model="fix.event.consumer">
+            <field name="name">M40: an expiring brand authorisation escalates (T-180/90/30)</field>
+            <field name="event_type">partner.authorisation_expiring</field>
+            <field name="model">fix.partner.authorisation</field>
+            <field name="method">consume_partner_authorisation_expiring</field>
+            <field name="module">cd_partner</field>
+        </record>
+        <record id="consumer_partner_mdf_claim_approved" model="fix.event.consumer">
+            <field name="name">M53/M50: an approved MDF claim accrues and raises its payout instruction</field>
+            <field name="event_type">partner.mdf_claim_approved</field>
+            <field name="model">fix.a04.finance.consumers</field>
+            <field name="method">consume_partner_mdf_claim_approved</field>
+            <field name="module">cd_settlement_ext</field>
+        </record>
+        <record id="ir_cron_partner_tier_changes" model="ir.cron">
+            <field name="name">Partners: apply tier moves after their notice</field>
+            <field name="model_id" ref="model_fix_partner"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_apply_tier_changes()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_partner_dormancy" model="ir.cron">
+            <field name="name">Partners: set inactive partners dormant</field>
+            <field name="model_id" ref="model_fix_partner"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_partner_dormancy()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

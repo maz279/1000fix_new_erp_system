@@ -1,0 +1,64 @@
+# Read-only readiness probe of the A04 fix on fix_real_a04 (rolled back).
+from odoo.exceptions import UserError
+
+out = []
+P = lambda *a: out.append(" ".join(str(x) for x in a))  # noqa: E731
+Card = env["fix.rate.card"]
+# 1. prices: a real stocked part with M15 cost, and what each channel does with BDT 1.00
+part = env["fix.spare.part"].search([("average_cost", ">", 1000)], limit=1) if "fix.spare.part" in env else None
+prod = part.product_id if part and "product_id" in part._fields else env["product.product"].search([("sale_ok", "=", True)], limit=1)
+res = Card.price_for(prod, channel="quotation")
+P("1 price_for", prod.default_code, "->", res.get("price"), res.get("source"), "floor", res.get("floor"), "cost", res.get("cost"), "|", (res.get("reason") or "")[:80])
+user = env["res.users"].search([("share", "=", False), ("id", ">", 2), ("active", "=", True)], limit=1)
+for ch in ("quotation", "service", "storefront"):
+    try:
+        with env.cr.savepoint():
+            Card.with_user(user).check_sale_price(prod, 1.0, ch)
+        P("1 check_sale_price 1.00", ch, "ACCEPTED")
+    except UserError as e:
+        P("1 check_sale_price 1.00", ch, "refused:", str(e)[:110])
+# 2. storefront catalogue: priced items only
+if "fix.storefront.order" in env:
+    priced = env["fix.rate.card"].search_count([("state", "=", "released")])
+    P("2 released rate cards", priced)
+# 3. AR ageing cron resolves
+cron = env.ref("cd_billing_engine.ir_cron_ar_aging_snapshot", raise_if_not_found=False)
+P("3 ageing cron", cron and cron.id, cron and cron.active, cron and cron.code)
+if cron:
+    with env.cr.savepoint():
+        made = env["fix.ar.aging.snapshot"]._cron_monthly_snapshot()
+        P("3 ageing snapshots captured", len(made), set(made.mapped("as_of_date")))
+# 4. A04 reports run and honour the period
+import importlib  # noqa: E402
+
+errors = 0
+ran = 0
+for mod in ("m08", "m09", "m11", "m12", "m36", "m37", "m38", "m39", "m40"):
+    m = importlib.import_module("odoo.addons.cd_p03_portal.controllers.a04.%s" % mod)
+    for name, fn in (getattr(m, "REPORTS", {}) or {}).items():
+        try:
+            with env.cr.savepoint():
+                fn(env(user=user.id), date_from="2026-01-01", date_to="2026-12-31")
+            ran += 1
+        except Exception as e:  # noqa: BLE001
+            errors += 1
+            P("4 report error", mod, name, type(e).__name__, str(e)[:100])
+P("4 reports ran", ran, "errors", errors)
+# 5. owner settings still unset (fail closed)
+ICP = env["ir.config_parameter"].sudo()
+for key in (
+    "cd_partner.account_code.royalty_income",
+    "cd_partner.account_code.franchise_fee_income",
+    "cd_settlement_ext.account_code.partner_rebate_payout",
+    "cd_settlement_ext.account_code.partner_mdf_expense",
+    "cd_billing_engine.account_code.contract_revenue_amc",
+    "cd_quotation.account_code.bond_margin",
+    "cd_storefront.payment_timeout_minutes",
+    "cd_contract_core.labour_cost_per_hour",
+    "cd_rate_card.margin_floor_pct",
+):
+    P("5 param", key, "=", ICP.get_param(key) or "(unset)")
+brands = env["fix.brand"].search([])
+P("5 brands with billing partner", len(brands.filtered("partner_id")), "of", len(brands))
+env.cr.rollback()
+print("\n".join(out))

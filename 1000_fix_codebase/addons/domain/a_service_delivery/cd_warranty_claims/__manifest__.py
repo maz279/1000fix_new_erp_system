@@ -16,7 +16,7 @@ CD-M09-01..05: the warranty and claims engine.
   diagnostic, parts, serial, technician certification, purchase proof
 - Events: warranty_claim.submitted/decided/remitted (AS-08)
 """,
-    "version": "19.0.2.3.0",
+    "version": "19.0.2.3.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Warranty",
@@ -36,6 +36,10 @@ CD-M09-01..05: the warranty and claims engine.
         # A04 C4/C9: the routed claim decision (fix.approvable.mixin, M63).
         # Already loaded before this module (cd_service_order depends on it).
         "cd_workflow_engine",
+        # A04 ERP M09-F4: a brand claim is valued at the M11 brand
+        # reimbursement rate (fix.rate.card.reimbursement_for). No cycle:
+        # cd_rate_card's closure does not reach this module.
+        "cd_rate_card",
     ],
     "data": [
         "security/cd_warranty_claims_groups.xml",

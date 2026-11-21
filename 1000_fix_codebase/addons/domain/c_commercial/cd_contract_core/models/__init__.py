@@ -10,3 +10,6 @@ from . import (
 
 # M08 capture pass 2 (18 Nov 2026): extends the models above, so it loads last
 from . import fix_contract_capture  # isort: skip
+
+# A04 ERP audit (20 Nov 2026): extends the capture pass above, so it loads last
+from . import fix_contract_a04erp  # isort: skip

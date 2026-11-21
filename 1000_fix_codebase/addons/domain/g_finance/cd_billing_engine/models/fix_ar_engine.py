@@ -1399,6 +1399,34 @@ class FixArAgingSnapshot(models.Model):
                 sum(getattr(line, b) for b in self.BUCKETS) for line in rec.line_ids
             )
 
+    @api.model
+    def _cron_monthly_snapshot(self):
+        """Month-end AR ageing evidence (FR-ARB-029): one captured snapshot
+        per company, as of the last day of the previous Asia/Dhaka month.
+
+        The monthly ir.cron (cd_billing_engine.ir_cron_ar_aging_snapshot, a
+        noupdate record already live on fix_real / fix_dev) called this
+        method, which no longer existed: every run failed and no month-end
+        ageing was ever kept (found by the A07 wiring check, 21 Nov 2026).
+        A month already captured is not captured twice."""
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
+        as_of = today.replace(day=1) - timedelta(days=1)
+        made = self.browse()
+        for company in self.env["res.company"].sudo().search([]):
+            Snap = self.sudo().with_company(company)
+            if Snap.search_count(
+                [
+                    ("company_id", "=", company.id),
+                    ("as_of_date", "=", as_of),
+                    ("state", "=", "captured"),
+                ]
+            ):
+                continue
+            snap = Snap.create({"company_id": company.id, "as_of_date": as_of})
+            snap.action_capture(as_of=as_of)
+            made |= snap
+        return made
+
     def action_capture(self, as_of=None):
         """Capture per-customer buckets for every open issued invoice, aged
         as of `as_of` (backdated ageing supported, the D365 pattern), plus

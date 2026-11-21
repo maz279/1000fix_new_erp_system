@@ -31,7 +31,25 @@ GROUP_TIER3 = "cd_entity_config.group_dofa_tier_3"
 # A08 B4 (F6 / M53-4): the referral lifecycle's roles and guarded stamps
 GROUP_REFERRAL_MANAGER = "cd_partner.group_fix_referral_manager"
 GROUP_ACCOUNTANT = "account.group_account_user"
-REFERRAL_GUARDED = {"state", "base_amount", "commission_amount"}
+REFERRAL_GUARDED = {"state", "base_amount", "commission_amount", "commission_rate"}
+# A04 ERP audit M40-F4: who the referral credits, who was referred, when and on
+# what consent are fixed once the referral is submitted (BRU-PCM-04).
+REFERRAL_ATTRIBUTION = frozenset(
+    {
+        "partner_id",
+        "referred_partner_id",
+        "referred_on",
+        "consent_given",
+        "consent_method",
+        "consent_at",
+        "company_id",
+    }
+)
+CONSENT_METHODS = [
+    ("written", "Written form"),
+    ("digital", "Digital (OTP / click)"),
+    ("recorded_call", "Recorded call"),
+]
 
 # FLAW-40.1: the technical-audit pass mark that gates rebate payouts.
 AUDIT_PASS_SCORE = 85.0
@@ -43,8 +61,17 @@ PARTNER_STATES = [
     ("prospective", "Prospective"),
     ("qualifying", "Qualifying (KYC under review)"),
     ("onboarded", "Onboarded"),
+    # A04 ERP audit M40-F24 (FR-PCM-010): the standings the spec names.
+    ("probation", "Probation"),
+    ("dormant", "Dormant"),
     ("suspended", "Suspended"),
+    ("exiting", "Exiting"),
+    ("exited", "Exited"),
 ]
+# A04 ERP audit M40-F9 (BRU-PCM-01): the standings in which a partner refers,
+# earns and is paid. A prospect, a dormant, suspended or exiting partner earns
+# nothing (probation is active under a remediation plan).
+EARNING_STATES = ("onboarded", "probation")
 
 PARTNER_GUARDED = frozenset(
     {
@@ -75,7 +102,10 @@ def fix_require(env, xmlids, what):
     (crons, seeds, the finance bridge) is trusted."""
     if env.su or any(env.user.has_group(x) for x in xmlids):
         return
-    names = " or ".join(env.ref(x).name for x in xmlids)
+    # A04 ERP audit M40-F29: the role names are read as the system - a portal
+    # caller has no read access to res.groups and got an AccessError instead
+    # of the refusal.
+    names = " or ".join(env.ref(x).sudo().name for x in xmlids)
     raise UserError("%s needs the %s role." % (what, names))
 
 
@@ -113,7 +143,9 @@ class FixPartner(models.Model):
         required=True,
         default="referral",
     )
-    commission_rate = fields.Float(string="Commission Rate", default=0.05)
+    # A04 ERP audit M40-F5: no hard-coded 5%. A partner earns nothing until
+    # its rate is approved through a routed rate change (fix.partner.rate.change).
+    commission_rate = fields.Float(string="Commission Rate", default=0.0, readonly=True)
     territory = fields.Char(string="Territory")
     # Technical Quality & ESD Compliance Score (FLAW-40.1). A04 audit M40-2:
     # the score is the latest APPROVED technical audit, never typed; no audit
@@ -437,8 +469,8 @@ class FixPartner(models.Model):
         if not reason:
             raise UserError("State why the partner is suspended.")
         for rec in self:
-            if rec.state != "onboarded":
-                raise UserError("Only an onboarded partner can be suspended.")
+            if rec.state not in EARNING_STATES:
+                raise UserError("Only an onboarded partner (or one on probation) can be suspended.")
             rec._guarded().write(
                 {
                     "state": "suspended",
@@ -466,9 +498,14 @@ class FixPartner(models.Model):
             rec.message_post(body="Reinstated: %s" % (reason or "no reason given"))
         return True
 
-    def action_set_commission_rate(self, rate=None):
+    def action_set_commission_rate(self, rate=None, reason=None):
         """A04 audit (report §7.5): the referral commission rate is the
-        company's decision, set by a channel manager, between 0 and 100%."""
+        company's decision, between 0 and 100%.
+
+        A04 ERP audit M40-F5: one channel manager set a 100% rate alone. A
+        manager now PROPOSES the rate; it takes effect only when a DOFA Tier 3
+        approver other than the proposer approves it from the M63 inbox
+        (fix.partner.rate.change, routed). Returns the pending change."""
         fix_require(self.env, [GROUP_MANAGER], "Changing a partner's commission rate")
         try:
             value = float(rate)
@@ -476,13 +513,19 @@ class FixPartner(models.Model):
             raise UserError("The commission rate must be a fraction, e.g. 0.05 for 5%.") from None
         if not 0 < value <= 1:
             raise UserError("The commission rate must be above 0 and at most 1 (100%).")
+        Change = self.env["fix.partner.rate.change"]
+        changes = Change
         for rec in self:
-            old = rec.commission_rate
-            rec._guarded().write({"commission_rate": value})
-            rec.message_post(
-                body="Commission rate %.4f -> %.4f by %s." % (old, value, self.env.user.name)
+            note = (str(reason).strip() if reason else "") or (
+                "Commission rate of %s: %.4f -> %.4f, proposed by %s."
+                % (rec.name, rec.commission_rate, value, self.env.user.name)
             )
-        return True
+            change = Change.create(
+                {"partner_id": rec.id, "proposed_rate": value, "dofa_justification": note}
+            )
+            change.action_request_approval(justification=note)
+            changes |= change
+        return {"res_model": Change._name, "res_ids": changes.ids}
 
     # --- REQ-33.6 PDPA right to erasure ----------------------------------
     # Erasure is not unconditional: the Income Tax Act and the Companies Act
@@ -689,6 +732,17 @@ class FixReferral(models.Model):
         required=True,
         tracking=True,
     )
+    # A04 ERP audit M40-F6: the rate the commission was earned at, frozen at
+    # earning. M53 accrues at THIS rate (one rate source), not a scheme's.
+    commission_rate = fields.Float(string="Commission Rate Earned", readonly=True, copy=False)
+    # A04 ERP audit M40-F7: the referral date the attribution window runs from.
+    referred_on = fields.Date(
+        string="Referred On", default=fields.Date.context_today, required=True, copy=False
+    )
+    # A04 ERP audit M40-F10 (BRU-PCM-06): the referred customer's consent.
+    consent_given = fields.Boolean(string="Customer Consent Recorded", copy=False)
+    consent_method = fields.Selection(CONSENT_METHODS, copy=False)
+    consent_at = fields.Datetime(string="Consent Given At", copy=False)
 
     # A04 audit C1 (M40-7): what a portal partner may say when submitting a
     # referral. The state, the referred revenue and the commission are the
@@ -737,16 +791,19 @@ class FixReferral(models.Model):
         partner_id = vals.get("partner_id") or 0
         if not referred_id or not partner_id:
             return
-        own = self.env["fix.partner"].browse(partner_id)
-        referred = self.env["res.partner"].browse(referred_id)
-        if own.partner_id and own.partner_id.id == referred_id:
+        own = self.env["fix.partner"].sudo().browse(partner_id)
+        referred = self.env["res.partner"].sudo().browse(referred_id)
+        # A04 ERP audit M40-F17: the gate compares COMMERCIAL entities - a
+        # child contact of a customer under an open referral is that customer.
+        commercial = referred.commercial_partner_id or referred
+        if own.partner_id and own.partner_id.commercial_partner_id == commercial:
             raise UserError(
                 "%s cannot refer themselves: a referral names a different customer."
                 % (own.name or "A partner")
             )
         open_dup = self.sudo().search_count(
             [
-                ("referred_partner_id", "=", referred_id),
+                ("referred_partner_id", "child_of", commercial.id),
                 ("state", "in", ("submitted", "converted")),
                 ("id", "!=", skip_id),
             ]
@@ -759,7 +816,7 @@ class FixReferral(models.Model):
         own_dup = self.sudo().search_count(
             [
                 ("partner_id", "=", partner_id),
-                ("referred_partner_id", "=", referred_id),
+                ("referred_partner_id", "child_of", commercial.id),
                 ("id", "!=", skip_id),
             ]
         )
@@ -780,10 +837,51 @@ class FixReferral(models.Model):
                         % ", ".join(sorted(extra))
                     )
         for vals in vals_list:
+            # A04 ERP audit M40-F9 (BRU-PCM-01): only a partner in good
+            # standing refers; a prospect or a suspended partner does not.
+            partner = self.env["fix.partner"].sudo().browse(vals.get("partner_id") or [])
+            if partner and partner.state not in EARNING_STATES:
+                raise ValidationError(
+                    "%s is %s: only an onboarded partner refers (BRU-PCM-01)."
+                    % (partner.name, partner.state)
+                )
+            # A04 ERP audit M40-F10 (BRU-PCM-06): no consent, no record.
+            if not self.env.su and not (vals.get("consent_given") and vals.get("consent_method")):
+                raise ValidationError(
+                    "Record the referred customer's consent and how it was given before the "
+                    "referral is created (BRU-PCM-06, PDPA)."
+                )
+            if vals.get("consent_given"):
+                vals.setdefault("consent_at", fields.Datetime.now())
             self._referral_reject_dup_and_self(vals)
         return super().create(vals_list)
 
+    def _fix_form_locked_fields(self) -> set:
+        locked = super()._fix_form_locked_fields()
+        if self[:1]:
+            locked |= set(REFERRAL_ATTRIBUTION)
+        return locked
+
     def write(self, vals):
+        # A04 ERP audit M40-F4: the attribution is written once. A plain user
+        # moved a converted referral from partner P (5%) to Q (50%); now no one
+        # re-points it (trusted code - a party merge - still may).
+        if self and not self._fix_guard_open() and not self.env.su:
+            for rec in self:
+                changed = [
+                    n
+                    for n in REFERRAL_ATTRIBUTION & set(vals)
+                    if n in rec._fields and rec._fix_guard_differs(n, vals[n], rec[n])
+                ]
+                if changed:
+                    raise UserError(
+                        "%s cannot be changed on referral %s: the attribution is fixed when "
+                        "the referral is submitted (BRU-PCM-04)."
+                        % (
+                            ", ".join(sorted(rec._fields[n].string or n for n in changed)),
+                            rec.name,
+                        )
+                    )
         # re-pointing an existing referral's attribution runs the same gate
         if self and ("partner_id" in vals or "referred_partner_id" in vals):
             for rec in self:
@@ -859,6 +957,11 @@ class FixReferral(models.Model):
         for rec in self:
             if rec.state != "converted":
                 raise UserError("Convert before commissioning")
+            if rec.partner_id.state not in EARNING_STATES:
+                raise ValidationError(
+                    "Partner %s is %s: only a partner in good standing earns (BRU-PCM-01)."
+                    % (rec.partner_id.name, rec.partner_id.state)
+                )
             if rec.base_amount <= 0:
                 raise UserError(
                     "Referral %s has no referred revenue: the commission base is required"
@@ -872,7 +975,9 @@ class FixReferral(models.Model):
             # the partner's agreed rate on the real base - never a flat amount
             commission = rec.currency_id.round(rec.base_amount * rate)
             # role checked above; the system records the figure it computed
-            rec.sudo()._guarded().write({"state": "commissioned", "commission_amount": commission})
+            rec.sudo()._guarded().write(
+                {"state": "commissioned", "commission_amount": commission, "commission_rate": rate}
+            )
             publish(
                 self.env,
                 "commission.earned",

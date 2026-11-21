@@ -353,12 +353,22 @@ def test_a_scheduled_change_waits_for_its_date_then_applies_and_rolls_back(odoo_
     change._guarded().write({"effective_date": _today(odoo_env)})
     Mass.cron_apply_due()
     assert change.state == "applied"
-    assert (cards["a"].unit_price, cards["b"].unit_price) == (1100.0, 2200.0)
+    # A04 ERP audit M11-F4: the new price is a dated version from the
+    # effective date; the rate in force keeps its history
+    Card = odoo_env["fix.rate.card"]
+    assert (cards["a"].unit_price, cards["b"].unit_price) == (1000.0, 2000.0)
+    assert (
+        Card._resolve(cards["a"].product_code).unit_price,
+        Card._resolve(cards["b"].product_code).unit_price,
+    ) == (1100.0, 2200.0)
     with pytest.raises(REFUSED), odoo_env.cr.savepoint():
         change.with_user(ppl.officer).action_rollback(reason="wrong")
     change.with_user(ppl.releaser).action_rollback(reason="Board reversed the review")
     assert change.state == "rolled_back"
-    assert (cards["a"].unit_price, cards["b"].unit_price) == (1000.0, 2000.0)
+    assert (
+        Card._resolve(cards["a"].product_code).unit_price,
+        Card._resolve(cards["b"].product_code).unit_price,
+    ) == (1000.0, 2000.0)
 
 
 def test_rollback_refuses_when_a_rate_moved_since(odoo_env, ppl, cards):
@@ -366,7 +376,8 @@ def test_rollback_refuses_when_a_rate_moved_since(odoo_env, ppl, cards):
     change.with_user(ppl.officer).action_submit()
     approve_via_inbox(change, ppl.cco, requester=ppl.officer)
     assert change.state == "applied"
-    cards["a"]._guarded().write({"unit_price": 1500.0})
+    version = change.line_ids.filtered(lambda r: r.rate_card_id == cards["a"]).new_rate_card_id
+    version._guarded().write({"unit_price": 1500.0})
     with pytest.raises(UserError, match="changed again"), odoo_env.cr.savepoint():
         change.with_user(ppl.releaser).action_rollback(reason="undo")
 
@@ -378,7 +389,7 @@ def test_an_immediate_change_is_the_ccos_decision(odoo_env, ppl, cards):
     assert not inbox_task(change, ppl.releaser)
     approve_via_inbox(change, ppl.cco, requester=ppl.officer)
     assert change.state == "applied"
-    assert cards["a"].unit_price == 1100.0
+    assert odoo_env["fix.rate.card"]._resolve(cards["a"].product_code).unit_price == 1100.0
 
 
 def test_approved_terms_are_pinned(odoo_env, ppl, cards):

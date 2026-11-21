@@ -21,6 +21,12 @@ from unittest import mock
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_partner.tests.m40_fixtures import (
+    configure_payout_accounts,
+    guarded_write,
+    make_onboardable,
+    paid_invoice,
+)
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -80,7 +86,10 @@ def _partner(w, user=None, **kw):
         "trade_license_no": "TL-1",
     }
     vals.update(kw)
-    return w.env["fix.partner"].with_user(user or w.officer).create(vals)
+    p = w.env["fix.partner"].with_user(user or w.officer).create(vals)
+    # A04 ERP audit M40-F11: programme, agreement and checklist (set-up only)
+    make_onboardable(w.env, p)
+    return p
 
 
 def _onboarded(w, **kw):
@@ -227,7 +236,12 @@ def test_the_commission_rate_is_a_managers_bounded_decision(w):
         p.with_user(w.officer).action_set_commission_rate(rate=0.1)
     with pytest.raises(UserError, match="at most 1"), w.env.cr.savepoint():
         p.with_user(w.manager).action_set_commission_rate(rate=2.5)
-    p.with_user(w.manager).action_set_commission_rate(rate="0.075")
+    # A04 ERP audit M40-F5: the manager proposes; a Tier 3 approver decides
+    res = p.with_user(w.manager).action_set_commission_rate(rate="0.075")
+    change = w.env["fix.partner.rate.change"].browse(res["res_ids"])
+    assert p.commission_rate == 0.0 and change.approval_state == "pending"
+    approve_via_inbox(change, w.dir3, requester=w.manager)
+    p.invalidate_recordset()
     assert p.commission_rate == 0.075
 
 
@@ -259,11 +273,15 @@ def test_the_audit_score_comes_from_an_approved_audit(w):
 
 # ============================================================ rebates
 def _rebate(w, partner, **kw):
+    # A04 ERP audit M40-F12: the basis is the partner's paid M20 invoices of
+    # the period (BDT 100,000 here), never typed
+    paid_invoice(w.env, partner.partner_id, 100000.0, w.today - timedelta(days=10))
     vals = {
         "name": "A4PA rebate",
         "partner_id": partner.id,
         "period": "2026-Q4",
-        "basis": 100000.0,
+        "period_from": w.today - timedelta(days=30),
+        "period_to": w.today,
         "rate": 0.03,
     }
     vals.update(kw)
@@ -306,6 +324,7 @@ def test_the_payout_is_a_routed_dofa_approval_behind_a_real_audit(w):
     with pytest.raises(ValidationError, match="technical audit score is 0.0"), w.env.cr.savepoint():
         task.with_user(w.approver).with_context(skip_audit_score_check=True).action_approve()
     _audit(w, p, score=88.0)
+    configure_payout_accounts(w.env)  # M40-F13: fail closed without them
     task.with_user(w.approver).action_approve()
     r.invalidate_recordset()
     assert (r.state, r.dofa_approved_by, r.dofa_approved_amount) == ("approved", w.approver, 3000.0)
@@ -315,9 +334,25 @@ def test_the_payout_is_a_routed_dofa_approval_behind_a_real_audit(w):
     # paid only by finance, with the payout reference
     with pytest.raises(UserError, match="finance"), w.env.cr.savepoint():
         r.with_user(w.approver).action_record_payout(payment_ref="PAY-1")
-    with pytest.raises(UserError, match="reference"), w.env.cr.savepoint():
-        r.with_user(w.finance).action_record_payout()
-    r.with_user(w.finance).action_record_payout(payment_ref="AP/2026/0001")
+    # A04 ERP audit M40-F13: paid only on the executed M50 instruction
+    with pytest.raises(UserError, match="no M50 payout"), w.env.cr.savepoint():
+        r.with_user(w.finance).action_record_payout(payment_ref="AP/2026/0001")
+    pay = (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .create(
+            {
+                "company_id": w.env.company.id,
+                "operating_unit_id": w.env["operating.unit"].search([], limit=1).id,
+                "payee": p.partner_id.name,
+                "amount": 3000.0,
+                "source_model": r._name,
+                "source_id": r.id,
+            }
+        )
+    )
+    guarded_write(pay, {"state": "executed", "bank_reference": "AP/2026/0001"})
+    r.with_user(w.finance).action_record_payout()
     assert (r.state, r.paid_ref, r.paid_by_id) == ("paid", "AP/2026/0001", w.finance)
     with pytest.raises(REFUSED), w.env.cr.savepoint():
         r.with_user(w.officer).write({"basis": 10000000.0})
@@ -495,8 +530,10 @@ def test_a_franchise_activates_on_a_verified_partner_and_bills_its_fee(w):
     )
     p.with_user(w.kyc).action_verify_kyc()
     p.with_user(w.manager).action_onboard()
+    configure_payout_accounts(w.env)  # M40-F2: the fee is invoiced at activation
     f.with_user(w.manager).action_activate()
     assert f.state == "active"
+    assert f.fee_invoice_id.sudo().taxable_amount == 500000.0
     [event] = _events(w, "partner.franchise_activated", f)
     assert '"fee": 500000.0' in event.payload
     with pytest.raises(UserError, match="is active"), w.env.cr.savepoint():

@@ -42,9 +42,9 @@
 
     <!-- Seller sees open marketplace orders (to quote), or orders where they are the awarded seller -->
     <record id="rule_fix_marketplace_order_seller" model="ir.rule">
-        <field name="name">P07 Seller: open or awarded orders only</field>
+        <field name="name">P07 Seller: open or quoted (still bidding) or awarded orders only</field>
         <field name="model_id" ref="model_fix_marketplace_order"/>
-        <field name="domain_force">['|', ('state', '=', 'open'), ('revealed_seller_id.partner_id', '=', user.partner_id.id)]</field>
+        <field name="domain_force">['|', ('state', 'in', ('open', 'quoted')), ('revealed_seller_id.partner_id', '=', user.partner_id.id)]</field>
         <field name="groups" eval="[(4, ref('group_fix_marketplace_seller'))]"/>
         <field name="perm_read" eval="True"/>
         <field name="perm_write" eval="False"/>

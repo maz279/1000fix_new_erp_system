@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A04 ERP audit (20 Nov 2026) M12-F3 / X5: a ruled dispute refund and a lost
+  chargeback were published and nothing acted on them (a 4,000 refund was
+  ruled, the hold lifted, and the commission stayed earned).
+  - dispute_resolved: the refund goes back to the customer as an M20 refund
+    of the order's customer receipt; the seller side is raised for Finance
+    (escrow flagged for forfeit, or a draft clawback).
+  - chargeback_lost: the seller's share is recovered the same way.
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_marketplace_dispute_resolved" model="fix.event.consumer">
+            <field name="name">M12: refund the customer and recover from the seller on a dispute ruling</field>
+            <field name="event_type">marketplace.dispute_resolved</field>
+            <field name="model">fix.marketplace.dispute</field>
+            <field name="method">consume_dispute_resolved</field>
+            <field name="module">cd_marketplace</field>
+        </record>
+        <record id="consumer_marketplace_chargeback_lost" model="fix.event.consumer">
+            <field name="name">M12: recover a lost chargeback from the seller</field>
+            <field name="event_type">marketplace.chargeback_lost</field>
+            <field name="model">fix.marketplace.chargeback</field>
+            <field name="method">consume_chargeback_lost</field>
+            <field name="module">cd_marketplace</field>
+        </record>
+    </data>
+</odoo>

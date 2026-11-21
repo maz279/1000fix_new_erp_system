@@ -1,8 +1,8 @@
 id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
 access_fix_partner,fix.partner,model_fix_partner,base.group_user,1,0,0,0
-access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,1,1,0
+access_fix_referral,fix.referral,model_fix_referral,base.group_user,1,0,0,0
 access_fix_partner_portal,fix.partner,model_fix_partner,group_fix_partner_portal,1,0,0,0
-access_fix_referral_portal,fix.referral,model_fix_referral,group_fix_partner_portal,1,0,1,0
+access_fix_referral_portal,fix.referral,model_fix_referral,group_fix_partner_portal,1,0,0,0
 access_fix_partner_authorisation,fix.partner.authorisation,model_fix_partner_authorisation,base.group_user,1,0,0,0
 access_fix_partner_deal,fix.partner.deal,model_fix_partner_deal,base.group_user,1,0,0,0
 access_fix_partner_rebate,fix.partner.rebate,model_fix_partner_rebate,base.group_user,1,0,0,0
@@ -55,3 +55,8 @@ access_fix_mdf_fund_user,fix.mdf.fund user,model_fix_mdf_fund,base.group_user,1,
 access_fix_mdf_fund_officer,fix.mdf.fund officer,model_fix_mdf_fund,group_fix_channel_officer,1,1,1,0
 access_fix_mdf_claim_user,fix.mdf.claim user,model_fix_mdf_claim,base.group_user,1,0,0,0
 access_fix_mdf_claim_officer,fix.mdf.claim officer,model_fix_mdf_claim,group_fix_channel_officer,1,1,1,0
+access_fix_referral_officer,fix.referral officer,model_fix_referral,group_fix_channel_officer,1,1,1,0
+access_fix_partner_rate_change_user,fix.partner.rate.change user,model_fix_partner_rate_change,base.group_user,1,0,0,0
+access_fix_partner_rate_change_manager,fix.partner.rate.change manager,model_fix_partner_rate_change,group_fix_channel_manager,1,1,1,0
+access_fix_reseller_draw_user,fix.reseller.draw user,model_fix_reseller_draw,base.group_user,1,0,0,0
+access_fix_partner_rate_change_tier3,fix.partner.rate.change tier 3,model_fix_partner_rate_change,cd_entity_config.group_dofa_tier_3,1,1,0,0

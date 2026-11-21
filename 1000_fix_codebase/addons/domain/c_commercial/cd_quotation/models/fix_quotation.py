@@ -50,6 +50,7 @@ ESTIMATE_QUOTE_STAMPS = frozenset(
         "declined_at",
         "quotation_accepted_by",
         "quotation_decline_reason",
+        "quotation_acceptance_ref",
     }
 )
 
@@ -122,6 +123,11 @@ class FixEstimate(models.Model):
     )
     quotation_decline_reason = fields.Char(
         string="Quotation Decline Reason", readonly=True, copy=False
+    )
+    # A04 ERP audit M36-F12: what the customer's acceptance rests on (signed
+    # slip, message, call reference). It was accepted on nobody's word.
+    quotation_acceptance_ref = fields.Char(
+        string="Customer Acceptance Evidence", readonly=True, copy=False
     )
     approval_ids = fields.One2many(
         "fix.discount.approval", "quotation_id", string="Discount Approvals"
@@ -219,10 +225,20 @@ class FixEstimate(models.Model):
                 raise UserError("Only a quoted quotation goes into negotiation")
             estimate._guarded().write({"quotation_state": "negotiating"})
 
-    def action_accept(self):
+    def action_accept(self, evidence=None):
         """Record the customer's acceptance, inside the validity window
         (BRU-QTE-03; A04 audit M36 eq_07: a quote sent 30 days ago on a
-        15-day window was accepted)."""
+        15-day window was accepted). A04 ERP audit M36-F12: the acceptance
+        names its evidence (the customer's signed slip, message or call
+        reference), and announces itself as an ESTIMATE acceptance - it used
+        to publish quotation.accepted with an estimate id, which M39's
+        quotation consumer read as a quotation."""
+        evidence = (evidence or "").strip()
+        if not evidence:
+            raise UserError(
+                "Record what the customer's acceptance rests on (signed estimate slip, "
+                "message or call reference)."
+            )
         today = dhaka_today(self)
         for estimate in self:
             if estimate.quotation_state not in ("quoted", "negotiating"):
@@ -244,11 +260,12 @@ class FixEstimate(models.Model):
                     "quotation_state": "accepted",
                     "accepted_at": fields.Datetime.now(),
                     "quotation_accepted_by": self.env.user.id,
+                    "quotation_acceptance_ref": evidence[:250],
                 }
             )
             publish(
                 self.env,
-                "quotation.accepted",
+                "estimate.quotation_accepted",
                 "fix.estimate",
                 estimate.id,
                 {

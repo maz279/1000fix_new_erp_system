@@ -412,6 +412,9 @@ def test_kyc_verification_needs_the_types_identity(mc):
         {"name": "MC New Shop", "partner_id": mc.env["res.partner"].create({"name": "S"}).id}
     )
     assert shop.seller_type == "business"
+    mc.env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": shop._name, "res_id": shop.id}
+    )  # A04 ERP M12-F8: KYC is submitted with its documents
     shop.with_user(mc.operator).action_submit_kyc(trade_license_no="TL-9")
     with _refused(mc.env, UserError, "e-TIN"):
         shop.with_user(mc.compliance).action_verify_kyc()
@@ -425,6 +428,9 @@ def test_kyc_verification_needs_the_types_identity(mc):
             "partner_id": mc.env["res.partner"].create({"name": "E"}).id,
         }
     )
+    mc.env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": solo._name, "res_id": solo.id}
+    )  # A04 ERP M12-F8: KYC is submitted with its documents
     solo.with_user(mc.operator).action_submit_kyc()
     with _refused(mc.env, UserError, "National ID"):
         solo.with_user(mc.compliance).action_verify_kyc()

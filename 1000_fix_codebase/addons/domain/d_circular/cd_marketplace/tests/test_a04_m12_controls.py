@@ -19,6 +19,8 @@ from odoo.addons.cd_workflow_engine.tests.approval_helpers import (
 )
 from odoo.exceptions import AccessError, UserError, ValidationError
 
+from .b4_helpers import customer_receipt, seller_scheme
+
 REFUSED = (UserError, AccessError, ValidationError)
 SELLER, ORDER, QUOTE = "fix.marketplace.seller", "fix.marketplace.order", "fix.seller.quote"
 DISPUTE, LISTING = "fix.marketplace.dispute", "fix.marketplace.listing"
@@ -120,7 +122,10 @@ def mk(odoo_env):
         _job_evidence(o)
         as_op.action_complete()
         as_op.action_review(rating=5)
+        customer_receipt(env, o)  # A04 ERP M12-F1: the customer paid (M20)
         return o
+
+    seller_scheme(env)  # A04 ERP M12-F4: Finance configured the scheme
 
     ns.user, ns.seller, ns.order, ns.awarded, ns.reviewed = user, seller, order, awarded, reviewed
     ns.refused = lambda exc=REFUSED, match=None: _refused(env, exc, match)
@@ -155,6 +160,9 @@ def test_plain_users_read_the_marketplace_and_the_roles_do_the_work(mk):
 def test_kyc_is_a_compliance_decision_and_cfo_approval_a_routed_one(mk):
     env = mk.env
     s = mk.seller(ready=False, partner=mk.seller_user.partner_id, seller_type="individual")
+    mk.env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": SELLER, "res_id": s.id}
+    )  # A04 ERP M12-F8
     s.with_user(mk.operator).action_submit_kyc(nid_number="1990123456789")
     assert s.kyc_status == "in_review"
     with mk.refused(AccessError, "Compliance Reviewer"):
@@ -267,6 +275,7 @@ def test_price_and_tier_rate_are_pinned_at_award(mk):
     _job_evidence(o)
     as_op.action_complete()
     as_op.action_review(rating=4)
+    customer_receipt(env, o)  # A04 ERP M12-F1: the customer paid (M20)
     as_op.action_earn_commission()
     assert o.commission_amount == pytest.approx(960.0)
     payload = _event(env, "commission.earned", o.id)
@@ -319,10 +328,11 @@ def test_the_payout_waits_for_escrow_disputes_and_the_seller_hold(mk):
     with mk.refused(UserError, "payout hold"):
         as_op.action_paid()
     s.sudo()._guarded().write({"payout_hold": False})
-    as_op.action_paid()
-    assert (o.state, o.paid_by_id) == ("paid", mk.operator)
-    with mk.refused(UserError, "the order is"):
-        as_op.write({"description": "edited after payout"})
+    # A04 ERP audit M12-F2: every guard met, and still not by hand - the
+    # order is paid out by the M53 payout run's bank-confirmed discharge
+    with mk.refused(UserError, "payout run"):
+        as_op.action_paid()
+    assert o.state == "commissioned"
 
 
 # ---------------------------------------------------------------- disputes (M12-3/-4)
@@ -492,6 +502,9 @@ def test_the_workspace_runs_the_marketplace_lifecycles(mk):
     import odoo.addons.cd_p03_portal.controllers.p03_generic_api as g
 
     s = mk.seller(ready=False, trade_license_no="TL-77", tin_number="123456789012")
+    mk.env["ir.attachment"].create(
+        {"name": "kyc.pdf", "datas": "UERG", "res_model": SELLER, "res_id": s.id}
+    )  # A04 ERP M12-F8
     s.with_user(mk.operator).action_submit_kyc()
     ctl = g.P03GenericApiController()
     action = g.P03GenericApiController.model_action.original_endpoint

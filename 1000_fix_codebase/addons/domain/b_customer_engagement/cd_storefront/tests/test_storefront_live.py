@@ -15,6 +15,8 @@ from odoo.addons.cd_storefront.controllers import storefront_api
 from odoo.addons.cd_storefront.controllers.storefront_api import StorefrontApiController
 from odoo.exceptions import UserError
 
+from .test_a04_c2_c13_storefront import released_card, storefront_world
+
 
 class _Browser:
     def __init__(self, env, user):
@@ -43,6 +45,10 @@ def world(odoo_env):
     cable = env["product.template"].create(
         {"name": "SF USB-C Cable", "list_price": 300.0, "sale_ok": True}
     )
+    # A04 ERP M38-F1/F12/F13: M11 prices (excl. VAT; 1,250.00 and 300.00 with
+    # 15% VAT), live gateways with callback secrets, an approved COD rule
+    storefront_world(env, charger, price=1086.96)
+    released_card(env, cable, 260.87)
     return SimpleNamespace(env=env, alice=alice, staff=staff, charger=charger, cable=cable)
 
 

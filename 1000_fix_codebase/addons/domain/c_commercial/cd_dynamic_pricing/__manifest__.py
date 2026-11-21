@@ -5,7 +5,7 @@
     "description": """
 CD-M11-01 (P10) — Dynamic Pricing (W7).
 """,
-    "version": "19.0.0.1.0",
+    "version": "19.0.0.1.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Dynamic Pricing (W7)",

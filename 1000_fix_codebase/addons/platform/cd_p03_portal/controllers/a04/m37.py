@@ -3,12 +3,15 @@
 # fix.rental.sku / contract.template and the new fix.rbom.line. Margin uses
 # the product template's list vs standard price; an unreadable cost stays
 # blank instead of being estimated.
-import datetime
+import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
+from ._scope import scoped
+
+_logger = logging.getLogger(__name__)
 
 SURFACES = {
     # Commercial document standard (17 Nov 2026): non-stock charge codes.
@@ -118,7 +121,9 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 
 def _items(env):
-    return env["fix.catalogue.item"].sudo().search([])
+    # A04 ERP audit (20 Nov 2026) M37-F8: every pack read every company's
+    # items with sudo; now only the caller's companies.
+    return scoped(env, "fix.catalogue.item")
 
 
 def _product_price(item, field):
@@ -181,7 +186,7 @@ def coverage_by_brand(env, date_from=None, date_to=None, **params):
 
 def rbom_completeness(env, date_from=None, date_to=None, **params):
     items = _items(env).filtered(lambda i: i.item_type == "service")
-    lines = env["fix.rbom.line"].sudo().search([])
+    lines = scoped(env, "fix.rbom.line")
     by_item = {}
     for line in lines:
         by_item.setdefault(line.item_id.id, []).append(line)
@@ -206,7 +211,7 @@ def rbom_completeness(env, date_from=None, date_to=None, **params):
             "quantities": "Total Quantity",
             "complete": "Has rBOM",
         },
-        rows[:100],
+        rows,
         [
             "A service with no rBOM line cannot explode parts demand. Completeness: "
             "%d of %d service items (%.1f%%)."
@@ -255,14 +260,52 @@ def srt_variance(env, date_from=None, date_to=None, **params):
     )
 
 
+def _released_prices(env, items):
+    """{product code: released standard (tier 0) M11 price in force today} for
+    the caller's companies, read in one search (M37-F8: the pack read
+    list_price, the 1.00 placeholder)."""
+    if "fix.rate.card" not in env:
+        return {}
+    today = fields.Date.context_today(env.user)
+    cards = scoped(
+        env,
+        "fix.rate.card",
+        [
+            ("state", "=", "released"),
+            ("min_tier", "=", 0),
+            ("partner_id", "=", False),
+            "|",
+            ("valid_from", "=", False),
+            ("valid_from", "<=", today),
+            "|",
+            ("valid_to", "=", False),
+            ("valid_to", ">=", today),
+        ],
+    )
+    return {c.product_code: c.unit_price for c in cards}
+
+
+def _m15_costs(env, items):
+    """{product.product id: M15 average cost} in one search (the template's
+    standard_price is empty on fix_real and gave a 100% margin)."""
+    if "fix.spare.part" not in env:
+        return {}
+    variants = items.mapped("product_tmpl_id.product_variant_ids")
+    parts = scoped(env, "fix.spare.part", [("product_id", "in", variants.ids)])
+    return {p.product_id.id: float(p.average_cost or p.unit_cost or 0.0) for p in parts}
+
+
 def item_margin(env, date_from=None, date_to=None, **params):
     items = _items(env)
+    prices = _released_prices(env, items)
+    costs = _m15_costs(env, items)
     rows = []
     for item in items:
-        price = _product_price(item, "list_price")
-        cost = _product_price(item, "standard_price")
+        tmpl = item.product_tmpl_id
+        price = prices.get((tmpl.default_code or "").strip())
         if price is None:
             continue
+        cost = costs.get(tmpl.product_variant_id.id) or None
         margin = None if cost is None else round(price - cost, 2)
         rows.append(
             {
@@ -279,23 +322,24 @@ def item_margin(env, date_from=None, date_to=None, **params):
     rows.sort(key=lambda r: -(r["margin"] if isinstance(r["margin"], int | float) else -(10**9)))
     priced = [r for r in rows if isinstance(r["margin"], int | float)]
     return _pack(
-        "Item Margin Analysis — list price vs standard cost",
+        "Item Margin Analysis — released M11 price vs M15 cost",
         ["item", "type", "price", "cost", "margin", "margin_pct"],
         {
             "item": "Item",
             "type": "Type",
-            "price": "List Price",
-            "cost": "Standard Cost",
+            "price": "Released Price",
+            "cost": "M15 Average Cost",
             "margin": "Margin",
             "margin_pct": "Margin %",
         },
-        rows[:100],
+        rows,
         [
-            "Margin = list_price − standard_price from the product template. Items "
-            "without a cost show '—' — no margin is estimated. %d of %d items are "
-            "fully costed." % (len(priced), len(rows))
+            "Margin = the released M11 standard price − the M15 average cost. Items "
+            "without an M15 cost show '—' — no margin is estimated. %d of %d priced "
+            "items are fully costed; %d of %d catalogue items have no released price "
+            "and are not listed." % (len(priced), len(rows), len(items) - len(rows), len(items))
         ],
-        empty="No catalogue items have a list price yet.",
+        empty="No catalogue item has a released M11 price yet.",
     )
 
 
@@ -354,7 +398,7 @@ def bilingual_gaps(env, date_from=None, date_to=None, **params):
             "description_bn": "Bengali Description",
             "published": "Published",
         },
-        rows[:200],
+        rows,
         [
             "Bengali is the customer-facing language: %d of %d items are missing at "
             "least one Bengali field." % (missing, len(items))
@@ -364,7 +408,7 @@ def bilingual_gaps(env, date_from=None, date_to=None, **params):
 
 
 def category_tree(env, date_from=None, date_to=None, **params):
-    cats = env["product.category"].sudo().search([])
+    cats = scoped(env, "product.category")
     items = _items(env)
     rows = []
     for cat in cats:
@@ -465,7 +509,7 @@ def approval_queue(env, date_from=None, date_to=None, **params):
             "brand": "Brand",
             "submitted_by": "Submitted By",
         },
-        rows[:200],
+        rows,
         [
             "Items In Review await a Catalogue Publisher who neither authored nor "
             "submitted them; the decision is taken from the M63 approval inbox."
@@ -550,19 +594,33 @@ REPORTS = {
 
 def kpis(env):
     items = _items(env)
-    fault_codes = env["fix.fault.code"].sudo().search_count([])
+    fault_codes = len(scoped(env, "fix.fault.code")) if "fix.fault.code" in env else 0
     published = len(items.filtered(lambda i: i.is_published))
     bilingual = len(items.filtered(lambda i: (i.name_bn or "").strip()))
     deprecated = len(
         items.filtered(lambda i: i.state in ("deprecated", "obsolete") or not i.active)
     )
     services = items.filtered(lambda i: i.item_type == "service")
-    with_rbom = len(env["fix.rbom.line"].sudo().search([]).mapped("item_id"))
-    today = datetime.date.today()
+    # M37-F8: services WITH an rBOM over services (it counted every item that
+    # has an rBOM line, of any type, over the services)
+    rbom_items = scoped(env, "fix.rbom.line", [("item_id", "in", services.ids)]).mapped("item_id")
+    with_rbom = len(rbom_items & services)
+    today = fields.Date.context_today(env.user)
     month_start = today.replace(day=1)
-    new_skus = len(items.filtered(lambda i: i.create_date and i.create_date.date() >= month_start))
+    # M37-F8: a new SKU is one ACTIVATED this month (Dhaka); counting create
+    # dates counted the 16,178 migrated items as new.
+    new_skus = len(
+        scoped(
+            env,
+            "fix.catalogue.item",
+            [("approved_at", "!=", False)],
+            "approved_at",
+            month_start,
+            today,
+        )
+    )
     # third pass: the matrix itself (FR-CAT-033), not the count of models
-    compat_rows = env["fix.model.compatibility"].sudo().search_count([])
+    compat_rows = len(scoped(env, "fix.model.compatibility"))
     return {
         # A04 audit (2026-11-04): Active means approved (sellable), not merely
         # "not discontinued"; Pending means awaiting a publisher (In Review).

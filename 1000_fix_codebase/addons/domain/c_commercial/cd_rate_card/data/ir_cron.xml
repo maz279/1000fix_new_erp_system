@@ -33,6 +33,18 @@
             <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:02:00')"/>
             <field name="active" eval="True"/>
         </record>
+        <!-- A04 ERP audit (20 Nov 2026) M11-F7: an approved below-floor
+             override the line has not used by its use-by date lapses. -->
+        <record id="ir_cron_m11_expire_overrides" model="ir.cron">
+            <field name="name">M11: expire unused below-floor price overrides</field>
+            <field name="model_id" ref="model_fix_price_override"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_expire_overrides()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="nextcall" eval="(DateTime.now() + timedelta(days=1)).strftime('%Y-%m-%d 18:04:00')"/>
+            <field name="active" eval="True"/>
+        </record>
         <record id="ir_cron_m11_mass_change_apply" model="ir.cron">
             <field name="name">M11: apply approved mass price changes on their effective date</field>
             <field name="model_id" ref="model_fix_price_mass_change"/>

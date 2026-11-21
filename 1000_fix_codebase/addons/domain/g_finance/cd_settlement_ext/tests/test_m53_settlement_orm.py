@@ -11,6 +11,11 @@ from datetime import date
 from types import SimpleNamespace
 
 import pytest
+from odoo.addons.cd_partner.tests.m40_fixtures import approved_rate, make_onboardable
+from odoo.addons.cd_settlement_ext.tests.b4_marketplace_fixtures import (
+    link_paid_order,
+    marketplace_ready,
+)
 from odoo.addons.cd_settlement_ext.tests.test_a08_m53_controls import (
     declare_marketplace_agent,
 )
@@ -106,10 +111,13 @@ def _partner_with_referral(co, base=20000.0, rate=0.05, kind="referral"):
             "name": party.name,
             "partner_id": party.id,
             "partner_type": kind,
-            "commission_rate": rate,
             "company_id": co.company.id,
         }
     )
+    # A04 ERP audit M40-F5/F9/F11 set-up: onboarded, with an approved rate
+    make_onboardable(env, partner)
+    partner.action_onboard()
+    approved_rate(partner, rate)
     referral = env["fix.referral"].create(
         {"name": f"REF-{TAG}", "partner_id": partner.id, "company_id": co.company.id}
     )
@@ -361,8 +369,12 @@ class TestEscrow:
                 "company_id": co.company.id,
             }
         )
+        # A04 ERP M12-F1/F9: the customer paid into M20; VAT on the commission
+        marketplace_ready(env, co.company)
+        link_paid_order(row)
         row.action_post_to_gl()
-        assert row.state == "accrued" and row.net_payable == 4500.0
+        # 5,000 - 500 commission - 75 VAT on it (15%)
+        assert row.state == "accrued" and row.net_payable == 4425.0
         # FLAW-12.2: a marketplace commission is also held for a 7-day buyer
         # dispute window. This test is about the DISPUTE escrow, and a quality
         # dispute raised, investigated and released inside 7 days is not the
@@ -395,7 +407,7 @@ class TestEscrow:
             }
         )
         escrow.with_user(clerk).action_activate()
-        assert (escrow.state, escrow.amount, row.escrow_hold) == ("active", 4500.0, True)
+        assert (escrow.state, escrow.amount, row.escrow_hold) == ("active", 4425.0, True)
 
         run = env["fix.payout.run"].create({"period": "2026-10", "company_id": co.company.id})
         with pytest.raises(UserError, match="No accrued commissions"), env.cr.savepoint():
@@ -424,6 +436,8 @@ class TestEscrow:
                 "company_id": co.company.id,
             }
         )
+        marketplace_ready(env, co.company)  # A04 ERP M12-F1/F9
+        link_paid_order(row)
         row.action_post_to_gl()
         clerk = co.user("ff-clerk", "account.group_account_user")
         manager = co.user("ff-manager", "account.group_account_manager")
@@ -439,8 +453,9 @@ class TestEscrow:
         with pytest.raises(AccessError, match="finance manager"), env.cr.savepoint():
             escrow.with_user(clerk).action_forfeit()
         escrow.with_user(manager).action_forfeit()
-        # seller share 1800.00 (= net 1750 + TDS 50) leaves the seller payable
-        assert _postings(escrow.move_id) == [("200200", 1800.0, 0.0), ("200400", 0.0, 1800.0)]
+        # seller share 1770.00 (= net 1720 + TDS 50; the 30.00 VAT on the 200.00
+        # commission is 1000 FiX's) leaves the seller payable
+        assert _postings(escrow.move_id) == [("200200", 1770.0, 0.0), ("200400", 0.0, 1770.0)]
         assert (escrow.state, row.state) == ("forfeited", "forfeited")
 
 

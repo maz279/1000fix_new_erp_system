@@ -313,8 +313,9 @@ def test_quote_from_an_estimate_charges_vat_once(c):
 def test_a_standalone_quote_value_is_before_vat(c):
     """A contract quote's typed value is the base VAT is added to (the base
     fix.contract bills VAT on)."""
-    q = _quote(c, value=15000.0, vat_rate=15.0)
-    assert (q.vat_amount, q.amount_total) == (2250.0, 17250.0)
+    # A04 ERP audit M36-F2: the rate is M51's on the line, never typed
+    q = _quote(c, value=15000.0)
+    assert (q.vat_rate, q.vat_amount, q.amount_total) == (15.0, 2250.0, 17250.0)
 
 
 def test_quotation_numbers_come_from_a_sequence(c):
@@ -505,12 +506,14 @@ def test_estimate_quote_accept_decline_rules(c):
     )
     est.invalidate_recordset()
     with pytest.raises(UserError, match="BRU-QTE-03"), c.env.cr.savepoint():
-        est.with_user(c.clerk).action_accept()
+        est.with_user(c.clerk).action_accept(evidence="slip")
     est2 = _approved_estimate(c)
     est2.with_user(c.clerk).action_quote()
     with pytest.raises(UserError, match="why"), c.env.cr.savepoint():
         est2.with_user(c.clerk).action_decline()
-    est2.with_user(c.clerk).action_accept()
+    with pytest.raises(UserError, match="acceptance rests on"), c.env.cr.savepoint():
+        est2.with_user(c.clerk).action_accept()  # A04 ERP audit M36-F12: no evidence
+    est2.with_user(c.clerk).action_accept(evidence="signed slip 7")
     with pytest.raises(UserError), c.env.cr.savepoint():
         est2.with_user(c.clerk).action_decline(reason="changed mind")
     assert est2.quotation_state == "accepted"
@@ -638,7 +641,8 @@ def test_bid_decision_is_the_committees(c):
     with pytest.raises(UserError, match="Score"), c.env.cr.savepoint():
         unscored.with_user(c.member).action_decide_bid(reason="x")
     t.with_user(c.member).action_decide_bid(reason="fits our AMC capability")
-    assert (t.bid_decision, t.bid_decision_by, t.bid_score) == ("bid", c.member, 3.2)
+    # A04 ERP audit M36-F16: competition 3 and risk 2 count as 6-3 and 6-2
+    assert (t.bid_decision, t.bid_decision_by, t.bid_score) == ("bid", c.member, 3.6)
     nb = _tender(c)
     nb.with_user(c.member).action_decide_no_bid(reason="capacity")
     assert nb.state == "no_bid"
@@ -691,7 +695,11 @@ def test_award_is_a_committee_decision_and_creates_the_contract(c):
     if "fix.contract" in c.env:
         contract = c.env["fix.contract"].browse(t.converted_res_id)
         assert contract.customer_id == c.agency and contract.state == "draft"
-        assert round(contract.annual_value, 2) == 700000.0
+        # A04 ERP audit M36-F1: the award (like the bid) includes VAT and the
+        # contract bills VAT on top of its value, so the contract carries the
+        # award before VAT (M51's 15%): 700,000 / 1.15
+        assert round(contract.annual_value, 2) == round(700000.0 / 1.15, 2) == 608695.65
+        assert contract.term_value == 608695.65 and contract.accepted_total == 700000.0
     perf = t._bonds("performance")
     assert perf.state == "draft" and perf.amount == 70000.0
     with pytest.raises(UserError), c.env.cr.savepoint():
@@ -894,7 +902,7 @@ def test_quotation_lines_run_the_one_selling_check(c, monkeypatch):
     est.action_approve()
     seen = []
 
-    def refuse(self, unit_price=None, channel=None):
+    def refuse(self, unit_price=None, channel=None, **kw):
         seen.append(channel)
         if channel == "quotation":
             raise UserError("item discontinued")
@@ -1027,15 +1035,27 @@ def test_the_value_is_the_lines_less_the_discount(c):
         q.line_ids[1].with_user(c.author).write({"unit_price": -5.0})
 
 
-def test_a_line_is_priced_from_the_rate_card_else_the_list(c):
-    listed = _product(c, "M36P1 Toner", 2500.0)
-    carded = _product(c, "M36P1 Labour Hr", 800.0, code="M36P1-LAB")
+def _released_card(c, code, price, line_type):
     card = (
         c.env["fix.rate.card"]
         .sudo()
-        .create({"product_code": "M36P1-LAB", "unit_price": 1200.0, "line_type": "labour"})
+        .create({"product_code": code, "unit_price": price, "line_type": line_type})
     )
     card._guarded().write({"state": "released"})
+    return card
+
+
+def test_a_line_is_priced_from_the_rate_card_else_the_list(c):
+    """A line takes its released M11 price; with none, the price is typed
+    (A04 ERP audit M11-F1/F3: the catalogue list-price fallback is gone - an
+    item with no released price is not priced from its placeholder)."""
+    listed = _product(c, "M36P1 Toner", 2500.0, code="M36P1-TON")
+    carded = _product(c, "M36P1 Labour Hr", 800.0, code="M36P1-LAB")
+    unpriced = _product(c, "M36P1 Unpriced", 999.0, code="M36P1-NONE")
+    _released_card(c, "M36P1-TON", 2500.0, "part")
+    _released_card(c, "M36P1-LAB", 1200.0, "labour")
+    with pytest.raises(UserError, match="no released M11 price"), c.env.cr.savepoint():
+        _quote(c, line_ids=[(0, 0, {"product_id": unpriced.id, "line_type": "part"})])
     q = _quote(
         c,
         line_ids=[
@@ -1047,8 +1067,8 @@ def test_a_line_is_priced_from_the_rate_card_else_the_list(c):
     toner, labour, courier = q.line_ids.sorted("id")
     assert (toner.unit_price, toner.price_source, toner.description) == (
         2500.0,
-        "list",
-        listed.display_name,
+        "rate_card",
+        listed.name,
     )
     assert (labour.unit_price, labour.price_source, labour.subtotal) == (
         1200.0,
@@ -1064,7 +1084,8 @@ def test_a_line_is_priced_from_the_rate_card_else_the_list(c):
 
 
 def test_a_deep_discount_raises_the_approval_tier(c):
-    item = _product(c, "M36P1 Panel", 10000.0)
+    item = _product(c, "M36P1 Panel", 10000.0, code="M36P1-PNL")
+    _released_card(c, "M36P1-PNL", 10000.0, "part")
     q = _quote(c, line_ids=[(0, 0, {"product_id": item.id, "unit_price": 6000.0})])
     assert (q.value, q.discount_pct) == (6000.0, 40.0)
     by_value = q._dofa_tier_for_amount(q.value)

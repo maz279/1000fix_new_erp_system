@@ -11,6 +11,8 @@ from odoo import http
 from odoo.exceptions import UserError, ValidationError
 from odoo.http import request
 
+from ..models.fix_partner import CONSENT_METHODS, EARNING_STATES
+
 
 def _fmt_bdt(amount):
     """BN-007 South Asian grouping (``1,23,45,678.00``) - the portal receives the
@@ -60,7 +62,12 @@ def _partner_profile(kwargs):
             return None
         return profile
     partner = request.env.user.partner_id
-    return request.env["fix.partner"].search([("partner_id", "=", partner.id)], limit=1) or None
+    profile = request.env["fix.partner"].search([("partner_id", "=", partner.id)], limit=1)
+    # A04 ERP audit M40-F9 (BRU-PCM-13): a suspended, dormant or exiting
+    # partner's portal user acts for no profile.
+    if profile and user.share and profile.sudo().state not in EARNING_STATES:
+        return None
+    return profile or None
 
 
 class PartnerApiController(http.Controller):
@@ -95,47 +102,87 @@ class PartnerApiController(http.Controller):
             return _error("no_partner_profile", "No partner profile for this account")
         if kwargs.get("referred_name"):
             return self._submit_referral(profile, **kwargs)
+        # A04 ERP audit M40-F8: what the partner itself submitted is all it
+        # sees - the lead as it typed it, never the party master's record.
+        leads = (
+            request.env["fix.partner.lead"]
+            .sudo()
+            .search([("partner_id", "=", profile.id)], limit=100, order="id desc")
+        )
         rows = request.env["fix.referral"].search(
             [("partner_id", "=", profile.id)], limit=100, order="id desc"
         )
-        # the referred party's NAME is read through the (access-checked) referral
-        # row: the portal partner rule hides other customers' res.partner rows
+        typed = {lead.referral_id.id: lead.customer_name for lead in leads if lead.referral_id}
         result = [
             {
                 "id": r.id,
                 "name": r.name,
-                "referred": r.sudo().referred_partner_id.name or "",
+                "referred": typed.get(r.id, ""),
                 "state": r.state,
                 "commission_bdt": _fmt_bdt(r.commission_amount),
             }
             for r in rows
         ]
-        return {"referrals": result, "total": len(result)}
+        lead_rows = [
+            {
+                "lead": lead.name,
+                "referred": lead.customer_name,
+                "state": lead.state,
+                "loss_reason": lead.loss_reason or "",
+            }
+            for lead in leads
+        ]
+        return {"referrals": result, "total": len(result), "leads": lead_rows}
 
     def _submit_referral(self, profile, **kwargs):
-        """Referral submission: who was referred (the attribution pair).
-        The model gates duplicate/self referrals server-side (AS-09)."""
-        referred_partner_id = kwargs.get("referred_partner_id")
-        if not referred_partner_id:
+        """A04 ERP audit M40-F8/F10: a partner submits a LEAD - the customer's
+        name and phone as the partner knows them, and the customer's consent
+        (BRU-PCM-06). The portal never names an existing party: it used to take
+        any res.partner id, echo that party's name back (a lookup of every
+        customer) and reserve the customer against other partners (first in
+        wins). The company links the lead to the customer when it converts."""
+        if profile.state not in EARNING_STATES:
+            return _error("partner_not_active", "This partner account is not active.")
+        if kwargs.get("referred_partner_id"):
             return _error(
-                "missing_referred",
-                "referred_partner_id is required " "(attribution lands on the referred party)",
+                "referred_party_not_accepted",
+                "Name and phone the customer: the portal does not take party ids.",
             )
-        referred = request.env["res.partner"].browse(_to_int(referred_partner_id) or 0).exists()
-        if not referred:
-            return _error("no_referred_party", "Referred party not found")
+        phone = (kwargs.get("referred_phone") or "").strip()
+        if not phone:
+            return _error("missing_phone", "referred_phone is required")
+        consent = kwargs.get("consent_given") in (True, "true", "1", 1, "yes")
+        method = kwargs.get("consent_method")
+        if not consent or method not in dict(CONSENT_METHODS):
+            return _error(
+                "missing_consent",
+                "Record the customer's consent and how it was given (consent_given, "
+                "consent_method: %s) - BRU-PCM-06." % ", ".join(dict(CONSENT_METHODS)),
+            )
         try:
-            with request.env.cr.savepoint():  # a refused referral leaves no row behind
-                referral = request.env["fix.referral"].create(
-                    {
-                        "partner_id": profile.id,
-                        "referred_partner_id": referred.id,
-                        "name": kwargs.get("referred_name"),
-                    }
+            with request.env.cr.savepoint():  # a refused lead leaves no row behind
+                # sudo after the profile check: the partner is the session's own
+                # profile and every field is whitelisted here
+                lead = (
+                    request.env["fix.partner.lead"]
+                    .sudo()
+                    .create(
+                        {
+                            "partner_id": profile.id,
+                            "company_id": profile.company_id.id,
+                            "customer_name": str(kwargs.get("referred_name"))[:120],
+                            "customer_phone": phone[:32],
+                            "customer_email": (kwargs.get("referred_email") or "")[:120] or False,
+                            "service_interest": (kwargs.get("service_interest") or "")[:120]
+                            or False,
+                            "consent_given": True,
+                            "consent_method": method,
+                        }
+                    )
                 )
         except (UserError, ValidationError) as exc:
             return _error("referral_rejected", str(exc))
-        return {"referral": {"id": referral.id, "state": referral.state}}
+        return {"lead": {"name": lead.name, "state": lead.state}}
 
     @http.route("/partner/commissions", type="jsonrpc", auth="user", readonly=True)
     def commissions(self, **kwargs):
@@ -151,7 +198,7 @@ class PartnerApiController(http.Controller):
         lines = [
             {
                 "referral": r.name,
-                "referred": r.sudo().referred_partner_id.name or "",
+                "referred": r.name,
                 "state": r.state,
                 "commission_bdt": _fmt_bdt(r.commission_amount),
             }

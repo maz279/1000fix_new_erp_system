@@ -101,8 +101,14 @@ export const SCREENS = {
    * server checks the role, the M20 receipt (or the signed gateway callback),
    * the consignment and its POD for each. */
   'M38-orders': { kind: 'model_list', create: false, model: 'fix.storefront.order', stateField: 'state',
-    cols: ['name', 'customer_id', 'order_date', 'payment_rail', 'total_amount', 'shipping_method', 'delivery_sla_status', 'state'],
+    /* A04 ERP audit M38-F10: the books state is on the grid; an order whose
+     * posting waits on a fixed cause is retried here, and the high-value COD
+     * customer NID is recorded here. Dispatch is refused while the invoice is
+     * owed. */
+    cols: ['name', 'customer_id', 'order_date', 'payment_rail', 'total_amount', 'shipping_method', 'delivery_sla_status', 'posting_state', 'state'],
     actions: [
+      { m: 'action_retry_posting', l: 'Retry Posting', states: ['paid', 'dispatched', 'delivered', 'cancelled'] },
+      { m: 'action_record_customer_nid', l: 'Record Customer NID (COD)', ask: 'National ID shown at delivery (10, 13 or 17 digits)', kwarg: 'nid', states: ['dispatched', 'delivered'] },
       { m: 'action_confirm_payment', l: 'Confirm Payment (M20 Receipt)', ask: 'M20 receipt number or reference', kwarg: 'payment_ref', states: ['draft', 'pending_payment'] },
       { m: 'action_dispatch', l: 'Dispatch on Consignment', ask: 'M03 consignment reference (blank for branch pickup)', kwarg: 'carrier_consignment_id', states: ['pending_payment', 'paid'] },
       { m: 'action_deliver', l: 'Mark Delivered (needs POD)', states: ['dispatched'] },
@@ -218,7 +224,9 @@ export const SCREENS = {
         { name: 'product_id', label: 'Product', readonly: true },
         { name: 'graded_stock_id', label: 'Refurbished Item', readonly: true },
         { name: 'quantity', label: 'Qty', readonly: true },
-        { name: 'unit_price', label: 'Unit Price', readonly: true },
+        { name: 'unit_price', label: 'Unit Price (incl. VAT)', readonly: true },
+        { name: 'unit_price_excl', label: 'M11 Price (excl. VAT)', readonly: true },
+        { name: 'price_card_id', label: 'M11 Rate Card', readonly: true },
         { name: 'subtotal', label: 'Subtotal', readonly: true }
       ]
     },
@@ -264,6 +272,9 @@ export const SCREENS = {
           { name: 'amount_paid', readonly: true, label: 'Amount Paid (BDT)' },
           { name: 'shipping_method', required: true, label: 'Logistics SLA Tier' },
           { name: 'carrier_consignment_id', readonly: true, label: 'M03 Consignment' },
+          { name: 'payment_expires_at', readonly: true, label: 'Pay By (unpaid prepaid orders are cancelled after)' },
+          { name: 'stock_location_id', label: 'Issue From Location (M15)' },
+          { name: 'cod_customer_nid', label: 'Customer NID (cash above BDT 50,000)' },
           { name: 'slot_id', readonly: true, label: 'Delivery Slot' },
           { name: 'delivered_at', readonly: true, label: 'Delivered At (POD)' },
           { name: 'return_deadline', readonly: true, label: 'Returnable Until' },
@@ -273,12 +284,18 @@ export const SCREENS = {
       { tab: 'tax_invoice', title: 'NBR Mushak 6.3 Tax Invoice Generation',
         note: 'The payment is proved by its M20 receipt or the signed gateway callback; the Mushak 6.3 invoice is raised by M20 from storefront.payment_confirmed.',
         fields: [
-          { name: 'payment_receipt_id', readonly: true, label: 'M20 Receipt' }
+          { name: 'payment_receipt_id', readonly: true, label: 'M20 Receipt' },
+          { name: 'posting_state', readonly: true, label: 'Books' },
+          { name: 'posting_note', readonly: true, label: 'Posting Note' },
+          { name: 'ar_invoice_id', readonly: true, label: 'M20 Invoice (Mushak 6.3)' },
+          { name: 'ar_receipt_id', readonly: true, label: 'Applied M20 Receipt' }
         ] },
       { tab: 'reverse_rma', title: 'Customer Returns & Mushak 6.7 Credit Notes',
         note: 'Returns run from the Returns screens; an approved refund completes on its M20 Mushak 6.7 credit note. A cancelled paid order shows the refund sent to finance.',
         fields: [
-          { name: 'refund_due', readonly: true, label: 'Refund Due on Cancellation (BDT)' }
+          { name: 'refund_due', readonly: true, label: 'Refund Due on Cancellation (BDT)' },
+          { name: 'ar_credit_note_id', readonly: true, label: 'Cancellation Credit Note (M20)' },
+          { name: 'ar_refund_id', readonly: true, label: 'Cancellation Refund (M20)' }
         ] },
       { tab: 'vault', title: 'Storefront Order Vault',
         note: 'Customer proof of payment, digital receipts, courier air waybills, and inspection logs.',
@@ -669,7 +686,7 @@ export const SCREENS = {
         { name: 'enabled', label: 'Sold Online' }
       ] },
       { tab: 'buffer', title: 'Where From, What Is Kept Back', note: 'Online sale is limited to the stock on hand in these locations less the buffer (the larger of the units and the share).', fields: [
-        { name: 'location_ids', label: 'Locations Sold From (empty: all internal)' },
+        { name: 'stock_location_ids', label: 'Stores Sold From (M15; empty: every branch and central store)' },
         { name: 'buffer_qty', label: 'Buffer (units)' },
         { name: 'buffer_pct', label: 'Buffer (%)' },
         { name: 'max_promise_days', label: 'Longest Promise (days)' }

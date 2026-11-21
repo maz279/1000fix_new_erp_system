@@ -497,6 +497,18 @@ class FixServiceOrder(models.Model):
     )
     fault_description = fields.Text(string="Fault Description", required=True, tracking=True)
     catalog_item_id = fields.Many2one("fix.catalogue.item", string="Service Catalogue Item")
+
+    # A04 ERP audit (20 Nov 2026) M37-F4: intake took any catalogue item - a
+    # discontinued, archived or out-of-scope one included. The item's own
+    # sale check now runs when the order names it; an order on a device a
+    # live contract covers may still use a Discontinued item (BRU-CAT-10).
+    @api.constrains("catalog_item_id")
+    def _check_catalog_item_lifecycle(self):
+        for order in self.filtered("catalog_item_id"):
+            contract = order["contract_id"] if "contract_id" in order._fields else None
+            channel = "service_contract" if contract else "service"
+            order.catalog_item_id._fix_assert_sellable(channel)
+
     priority = fields.Selection(
         [("normal", "Normal"), ("high", "High"), ("urgent", "Urgent"), ("emergency", "Emergency")],
         default="normal",

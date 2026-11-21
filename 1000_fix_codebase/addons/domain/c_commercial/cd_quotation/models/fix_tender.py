@@ -299,9 +299,17 @@ class FixTender(models.Model):
 
     @api.depends("score_fit", "score_capacity", "score_competition", "score_margin", "score_risk")
     def _compute_bid_score(self):
+        """A04 ERP audit M36-F16: competition and risk are scored 1 (low) to
+        5 (high) and count AGAINST the bid: a high-risk, crowded tender used
+        to score higher. They enter the average as 6 - score."""
         for rec in self:
             scores = rec._bid_scores()
-            rec.bid_score = round(sum(scores) / len(scores), 2) if all(scores) else 0.0
+            if not all(scores):
+                rec.bid_score = 0.0
+                continue
+            fit, capacity, competition, margin, risk = scores
+            adjusted = [fit, capacity, 6 - competition, margin, 6 - risk]
+            rec.bid_score = round(sum(adjusted) / len(adjusted), 2)
 
     def _bid_scores(self):
         return [
@@ -645,6 +653,7 @@ class FixTender(models.Model):
             if rec.approval_state == "pending":
                 rec._approval_void("the tender was recorded as lost")
             rec._guarded().write({"state": "lost", "loss_reason": reason})
+            rec._fix_close_pricing_quotation("tender %s lost: %s" % (rec.name, reason))
             publish(
                 self.env,
                 "tender.outcome_recorded",
@@ -680,6 +689,7 @@ class FixTender(models.Model):
             if rec.approval_state == "pending":
                 rec._approval_void("the tender was cancelled")
             rec._guarded().write({"state": "cancelled", "cancel_reason": reason})
+            rec._fix_close_pricing_quotation("tender %s withdrawn: %s" % (rec.name, reason))
         return True
 
     # ---- C8 hand-off --------------------------------------------------------
@@ -696,6 +706,10 @@ class FixTender(models.Model):
             raise UserError("M08 Contracts is not installed; the contract cannot be created.")
         months = self.contract_months or 12
         start = self.award_date or dhaka_today(self)
+        # A04 ERP audit M36-F1: the award (like the bid) INCLUDES VAT, and the
+        # contract bills VAT on top of its value: 115,000 awarded was billed
+        # 132,250. The contract carries the award before VAT.
+        ex_vat = self._award_ex_vat()
         contract = (
             self.env["fix.contract"]
             .sudo()
@@ -709,10 +723,13 @@ class FixTender(models.Model):
                     "currency_id": self.currency_id.id,
                     "date_start": start,
                     "date_end": start + relativedelta(months=months) - timedelta(days=1),
-                    "annual_value": round((self.awarded_value or 0.0) * 12.0 / months, 2),
+                    "annual_value": round(ex_vat * 12.0 / months, 2),
+                    "term_value": ex_vat,
+                    "accepted_total": round(self.awarded_value or 0.0, 2),
                 }
             )
         )
+        self._fix_contract_terms_from_award(contract)
         self._guarded().write(
             {
                 "converted_res_model": contract._name,
@@ -732,6 +749,73 @@ class FixTender(models.Model):
                 }
             )
         return contract.id
+
+    def _award_ex_vat(self) -> float:
+        """The awarded value before VAT: in the proportion of the pricing
+        quotation (its value over its total payable), else M51's rate."""
+        self.ensure_one()
+        awarded = self.awarded_value or 0.0
+        quote = self.quotation_id.sudo() if "quotation_id" in self._fields else None
+        if quote and (quote.amount_total or 0.0) > 0.0:
+            return round(awarded * (quote.value or 0.0) / quote.amount_total, 2)
+        from decimal import Decimal
+
+        from odoo.addons.cd_billing_engine.models.fix_billing_engine import m51_determine
+        from odoo.addons.cd_tax_engine_bd.models import tax_logic
+
+        det = m51_determine(
+            self.env,
+            [tax_logic.TaxLine(product_code="AMC", qty=Decimal("1"), unit_price=Decimal("100"))],
+            on_date=self.award_date or dhaka_today(self),
+            company=self.company_id,
+        ).lines[0]
+        rate = float(det.rate or 0.0) / 100.0
+        return round(awarded / (1.0 + rate), 2)
+
+    def _fix_contract_terms_from_award(self, contract):
+        """A04 ERP audit M36-F9: the won tender's contract carries the BOQ as
+        its scope and the tender's retention and liquidated-damages terms, and
+        the pricing quotation is closed as accepted by the award (it stayed
+        'approved' for ever)."""
+        self.ensure_one()
+        vals = {}
+        for name in ("retention_pct", "ld_rate_pct_per_day", "ld_cap_pct"):
+            if name in self._fields and name in contract._fields:
+                vals[name] = self[name] or 0.0
+        if "tender_id" in contract._fields:
+            vals["tender_id"] = self.id
+        if vals:
+            contract.sudo().write(vals)
+        quote = self.quotation_id.sudo() if "quotation_id" in self._fields else None
+        if not quote:
+            return
+        if hasattr(quote, "_fulfil_contract_scope") and not contract.scope_line_ids:
+            quote._fulfil_contract_scope(contract)
+        if quote.state not in ("accepted", "cancelled", "superseded"):
+            quote._guarded().write(
+                {
+                    "state": "accepted",
+                    "accepted_at": fields.Datetime.now(),
+                    "acceptance_method": "tender_award",
+                    "acceptance_ref": "NoA %s" % (self.award_ref or self.name),
+                    "accepted_value": quote.value,
+                    "accepted_total": self.awarded_value,
+                    "accepted_version": quote.version,
+                    "converted_res_model": contract._name,
+                    "converted_res_id": contract.id,
+                    "converted_ref": contract.display_name,
+                    "converted_at": fields.Datetime.now(),
+                }
+            )
+
+    def _fix_close_pricing_quotation(self, reason):
+        """A lost or withdrawn tender closes its pricing quotation."""
+        for rec in self:
+            quote = rec.quotation_id.sudo() if "quotation_id" in rec._fields else None
+            if quote and quote.state in ("draft", "approved", "sent"):
+                if quote.approval_state in ("pending", "approved"):
+                    quote._approval_void(reason)
+                quote._guarded().write({"state": "cancelled", "cancel_reason": reason})
 
     def _create_contract_safely(self):
         try:
@@ -1007,6 +1091,10 @@ BOND_STAMPS = frozenset(
         "claimed_at",
         "claimed_by",
         "expiry_alerted_on",
+        # A04 ERP audit M36-F6: the GL entries of the bond's cash legs
+        "funding_move_id",
+        "release_move_id",
+        "claim_move_id",
     }
 )
 # What the bank issued: frozen once the guarantee is active.
@@ -1020,6 +1108,9 @@ BOND_TERMS = frozenset(
         "guarantee_no",
         "issued_on",
         "expires_on",
+        "instrument",
+        "margin_amount",
+        "charges_amount",
     }
 )
 

@@ -87,12 +87,22 @@ class FixChargeCode(models.Model):
         string="Charged Per",
         help="Hour, visit, km, job, month... Empty: per unit (job).",
     )
+    # A04 ERP audit (20 Nov 2026) M37-F10, BRU-CAT-01: a price is M11's. This
+    # figure is reference only: no document prices from it (the M11 price
+    # service reads released rate cards, never list_price), and changing it
+    # needs the Pricing Officer role (cd_rate_card guards list_price).
     default_rate = fields.Monetary(
-        string="Standard Rate (excl. VAT)",
+        string="Reference Rate (excl. VAT)",
         currency_field="currency_id",
         tracking=True,
-        help="The price a line takes when no M11 rate card covers the code. Zero: the "
-        "price is entered on each document line.",
+        help="Reference only. A line is priced by the M11 rate card released for this "
+        "code; with none, the price is entered on the line.",
+    )
+    company_id = fields.Many2one(
+        "res.company",
+        index=True,
+        default=lambda self: self.env.company,
+        help="Empty = shared by every company (the generic codes).",
     )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")

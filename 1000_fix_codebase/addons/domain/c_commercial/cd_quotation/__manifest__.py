@@ -21,7 +21,7 @@ CD-M36-02/03: quotation and estimation.
   guarantees with routed DOFA release / claim and an expiry cron; roles
   (Quotation Author, Bid Coordinator, Tender Committee, Commercial Manager)
 """,
-    "version": "19.0.1.5.1",
+    "version": "19.0.1.5.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Sales/Quotations",
@@ -49,6 +49,8 @@ CD-M36-02/03: quotation and estimation.
         "data/ir_cron.xml",
         "data/ir_cron_capture3.xml",
         "data/fix_quotation_template_data.xml",
+        # A04 ERP audit (20 Nov 2026, B2): decline and variation consumers.
+        "data/fix_a04_quote_consumers.xml",
         "views/fix_quotation_views.xml",
     ],
     "installable": True,

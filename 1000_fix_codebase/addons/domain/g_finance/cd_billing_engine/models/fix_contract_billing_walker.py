@@ -56,40 +56,59 @@ class FixContractBillingWalker(models.Model):
     )
     invoice_state = fields.Selection(related="invoice_id.state", string="Invoice State")
 
+    # A04 ERP audit (20 Nov 2026): how the period was billed and the revenue
+    # account its income belongs to (M08-F5). In arrears the service is
+    # already rendered: the invoice credits the family's revenue account
+    # directly. In advance it is a contract liability, and M53's recognition
+    # moves it to this account as the period is served.
+    billing_timing = fields.Selection(
+        [("arrears", "In arrears"), ("advance", "In advance")], readonly=True
+    )
+    revenue_account_id = fields.Many2one(
+        "account.account",
+        string="Revenue Account",
+        readonly=True,
+        help="The contract family's revenue account (cd_billing_engine.account_code."
+        "contract_revenue_<family>): credited at issue in arrears, by M53's "
+        "recognition when billed in advance.",
+    )
+
     # ------------------------------------------------------------------ job
     @api.model
     def cron_bill_contracts(self):
         """Daily: invoice every due, unbilled period of every in-force
-        contract. Returns the number of invoices raised. Off until Finance
-        sets cd_billing_engine.contract_auto_billing = 1."""
+        contract, and the last periods of a contract that expired before the
+        walk reached them (A04 ERP audit M08-F18). Returns the number of
+        invoices raised. Off until Finance sets
+        cd_billing_engine.contract_auto_billing = 1."""
         self._assert_hand_off()
         param = self.env["ir.config_parameter"].sudo().get_param(AUTO_BILLING_PARAM, "0")
         if param != "1":
             return 0
         today = fields.Date.context_today(self)
-        contracts = (
-            self.env["fix.contract"]
-            .sudo()
-            .search(
-                [
-                    ("state", "in", BILLABLE_STATES),
-                    ("annual_value", ">", 0.0),
-                    ("date_start", "!=", False),
-                    ("date_end", "!=", False),
-                ],
-            )
+        Contract = self.env["fix.contract"].sudo()
+        base = [
+            ("annual_value", ">", 0.0),
+            ("date_start", "!=", False),
+            ("date_end", "!=", False),
+        ]
+        contracts = Contract.search([("state", "in", BILLABLE_STATES), *base])
+        # M08-F18: an expired contract whose last period the walk never
+        # reached (the cron missed the end date) is still billed to its end.
+        contracts |= Contract.search([("state", "=", "expired"), *base]).filtered(
+            lambda c: not c.billed_through_date or c.billed_through_date < c.date_end
         )
         raised = 0
         for contract in contracts:
             try:
                 with self.env.cr.savepoint():
-                    raised += self._bill_contract(contract, today)
-            except (UserError, ValidationError):
+                    raised += self._bill_contract(contract, min(today, contract.date_end))
+            except (UserError, ValidationError) as exc:
                 # One refusing contract (bad term, unbillable schedule) must
                 # not stop the others; the contract's chatter carries the why.
                 contract.message_post(
-                    body="Billing hand-off skipped this contract (its schedule refused; "
-                    "see the run's dead letters)."
+                    body="Billing hand-off skipped this contract: %s"
+                    % (exc.args[0] if exc.args else exc)
                 )
                 continue
         return raised
@@ -101,6 +120,14 @@ class FixContractBillingWalker(models.Model):
                 "(report C10); a person issues the drafts it leaves behind."
             )
 
+    @staticmethod
+    def _row_due(contract, row, today):
+        """In arrears a period is due once it has ended; in advance once it
+        has started (A04 ERP audit M08-F6)."""
+        if contract.billing_timing == "advance":
+            return row["period_start"] <= today
+        return row["period_end"] <= today
+
     def _bill_contract(self, contract, today):
         """Raise the draft invoices for one contract's due periods and
         advance its billed-through date. Returns the invoices raised."""
@@ -109,7 +136,7 @@ class FixContractBillingWalker(models.Model):
         due = [
             row
             for row in schedule
-            if row["period_end"] <= today and not row["billed"] and row["amount"] > 0.0
+            if not row["billed"] and row["amount"] > 0.0 and self._row_due(contract, row, today)
         ]
         if not due:
             return 0
@@ -117,21 +144,18 @@ class FixContractBillingWalker(models.Model):
         for row in due:
             period = self._period_for(contract, row)
             if not period.invoice_id:
-                period.invoice_id = self._period_invoice(contract, period)
+                period.invoice_id = self._period_invoice(contract, period, schedule)
                 raised += 1
+        through = max(row["period_end"] for row in due)
         contract.message_post(
-            body="Billing hand-off (C10): %d draft invoice(s) for the periods ending "
-            "%s to %s. Finance reviews and issues them; the billed-through date is now "
-            "%s, so amendments cannot reach inside a billed period."
-            % (
-                raised,
-                min(row["period_end"] for row in due),
-                max(row["period_end"] for row in due),
-                max(row["period_end"] for row in due),
-            )
+            body="Billing hand-off (C10): %d draft invoice(s) for the periods %s to %s. "
+            "Finance reviews and issues them; the contract is billed through %s, so "
+            "amendments cannot reach inside a billed period."
+            % (raised, min(row["period_start"] for row in due), through, through)
         )
         # The hand-off's own service (su-only, refuses to move backwards).
-        contract.mark_billed_through(max(row["period_end"] for row in due))
+        if not contract.billed_through_date or through > contract.billed_through_date:
+            contract.mark_billed_through(through)
         return raised
 
     def _period_for(self, contract, row):
@@ -150,28 +174,83 @@ class FixContractBillingWalker(models.Model):
                 "period_start": row["period_start"],
                 "period_end": row["period_end"],
                 "amount": row["amount"],
+                "billing_timing": contract.billing_timing or "arrears",
             }
         )
 
-    def _period_invoice(self, contract, period):
-        """The period's draft invoice: one line, VAT by M51's synchronous
-        determination (the M39 subscription-charge pattern, product code
-        AMC), a truthful manual_reason so finance's action_issue has its
-        FR-ARB-010 reason, and the arrears invoice date (_period_invoice_date)."""
-        invoice_date = self._period_invoice_date(contract, period)
-        determination = m51_determine(
+    def _contract_invoices(self, contract, exclude=None):
+        periods = self.sudo().search([("contract_id", "=", contract.id)])
+        if exclude:
+            periods -= exclude
+        return periods.mapped("invoice_id").filtered(lambda i: i.state != "cancelled")
+
+    def _period_vat(self, contract, period, det, schedule, invoice_date):
+        """M51's VAT on the period. The LAST period of the term carries the
+        rounding of the term's VAT, so per-period rounding never leaves the
+        term a paisa away from the VAT on its value (M08-F6: 17,100.01)."""
+        vat = Decimal(str(det.vat_amount))
+        last = bool(schedule) and schedule[-1]["period_start"] == period.period_start
+        if not last:
+            return vat
+        target = contract._fix_billing_target()
+        term = m51_determine(
             self.env,
             [
                 tax_logic.TaxLine(
                     product_code="AMC",
                     qty=Decimal("1"),
-                    unit_price=Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP),
+                    unit_price=Decimal(str(target)).quantize(TWO, ROUND_HALF_UP),
                 )
             ],
             on_date=invoice_date,
             company=contract.company_id,
+        ).lines[0]
+        billed = sum(
+            (Decimal(str(inv.vat_amount)) for inv in self._contract_invoices(contract, period)),
+            Decimal("0"),
+        )
+        adjusted = Decimal(str(term.vat_amount)) - billed
+        # only a rounding residue is absorbed (a rate change mid-term is not)
+        if abs(adjusted - vat) <= TWO * len(schedule) and adjusted >= 0:
+            return adjusted.quantize(TWO, ROUND_HALF_UP)
+        return vat
+
+    def _assert_within_accepted(self, contract, period, line_total):
+        """M36-F2: what the term invoices never exceeds the total the customer
+        accepted (quotation / tender award), unless the term itself moved."""
+        accepted = contract.accepted_total or 0.0
+        if accepted <= 0.0 or contract.amendment_version or contract.terminated_on:
+            return
+        billed = sum(self._contract_invoices(contract, period).mapped("total_payable"))
+        if billed + line_total > accepted + 0.01:
+            raise UserError(
+                "Contract %s would invoice BDT %.2f over its term, above the BDT %.2f the "
+                "customer accepted: the schedule and the accepted price disagree."
+                % (contract.code, billed + line_total, accepted)
+            )
+
+    def _period_invoice(self, contract, period, schedule=None):
+        """The period's draft invoice: one line, VAT by M51's synchronous
+        determination (the M39 subscription-charge pattern, product code
+        AMC), a truthful manual_reason so finance's action_issue has its
+        FR-ARB-010 reason, the branch of the contract's unit (M08-F4) and the
+        family's revenue account (M08-F5)."""
+        from .fix_a04_contract_billing import contract_revenue_account
+
+        schedule = schedule if schedule is not None else contract._fix_billing_schedule()
+        invoice_date = self._period_invoice_date(contract, period)
+        taxable = Decimal(str(period.amount)).quantize(TWO, ROUND_HALF_UP)
+        determination = m51_determine(
+            self.env,
+            [tax_logic.TaxLine(product_code="AMC", qty=Decimal("1"), unit_price=taxable)],
+            on_date=invoice_date,
+            company=contract.company_id,
         )
         det = determination.lines[0]
+        vat = self._period_vat(contract, period, det, schedule, invoice_date)
+        line_total = Decimal(str(det.taxable_amount)) + vat
+        self._assert_within_accepted(contract, period, float(line_total))
+        branch = contract._fix_billing_branch()
         invoice = (
             self.env["fix.ar.invoice"]
             .sudo()
@@ -180,6 +259,7 @@ class FixContractBillingWalker(models.Model):
                     "company_id": contract.company_id.id,
                     "customer_id": contract.customer_id.id,
                     "operating_unit_id": contract.operating_unit_id.id,
+                    "branch_id": branch.id or False,
                     "currency_id": contract.currency_id.id,
                     "source_model": period._name,
                     "source_id": period.id,
@@ -194,21 +274,26 @@ class FixContractBillingWalker(models.Model):
                                 "description": "%s — %s to %s"
                                 % (contract.name, period.period_start, period.period_end),
                                 "taxable_amount": float(det.taxable_amount),
-                                "vat_amount": float(det.vat_amount),
-                                "line_total": float(det.line_total),
+                                "vat_amount": float(vat),
+                                "line_total": float(line_total),
                             },
                         )
                     ],
                 }
             )
         )
+        account = contract_revenue_account(self.env, contract)
+        timing = contract.billing_timing or "arrears"
+        period.sudo().write({"billing_timing": timing, "revenue_account_id": account.id or False})
+        if timing == "arrears" and account:
+            invoice._guarded().write({"revenue_account_id": account.id})
         return invoice
 
     def _period_invoice_date(self, contract, period):
-        """E3-04 (third rehearsal): the period is billed in ARREARS, so its
-        invoice is dated at the period END - never at its start, which pushed
-        the GL entry and the Mushak 6.3 into an earlier month - and never
-        inside a locked period: once that month is closed the date moves to
-        the first open day after the lock (the C8 rule action_issue enforces,
-        read from the same lock source)."""
-        return ar_first_open_date(self.env, contract.company_id, period.period_end)
+        """E3-04 (third rehearsal): a period billed in ARREARS is invoiced at
+        its END, one billed in ADVANCE at its START (M08-F6); never inside a
+        locked period: once that month is closed the date moves to the first
+        open day after the lock (the C8 rule action_issue enforces, read from
+        the same lock source)."""
+        day = period.period_start if contract.billing_timing == "advance" else period.period_end
+        return ar_first_open_date(self.env, contract.company_id, day)

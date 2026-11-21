@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Month-end AR ageing snapshot (FR-ARB-029). The record already lives on
+     fix_real / fix_dev (noupdate); its method was missing and every run
+     failed. Declared here again so a fresh install has it too. -->
+<odoo noupdate="1">
+    <record id="ir_cron_ar_aging_snapshot" model="ir.cron">
+        <field name="name">AR: month-end ageing snapshot</field>
+        <field name="model_id" ref="model_fix_ar_aging_snapshot"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_monthly_snapshot()</field>
+        <field name="interval_number">1</field>
+        <field name="interval_type">months</field>
+        <field name="active" eval="True"/>
+    </record>
+</odoo>

@@ -11,9 +11,10 @@
 #     Price-Book Releaser's decision, not the author's;
 #   - the explanation is append-only (BRU-PRC-02).
 from datetime import datetime
-from decimal import ROUND_HALF_EVEN, Decimal
+from decimal import Decimal
 
 from odoo import api, fields, models
+from odoo.addons.cd_rate_card.models.pricing_money import money
 from odoo.addons.cd_rate_card.models.pricing_roles import (
     ROLE_OFFICER,
     ROLE_RELEASER,
@@ -33,6 +34,8 @@ CORRIDOR_DEFAULT = (-50.0, 100.0)
 RULE_TERMS = frozenset(
     {"adjustment_pct", "surge_multiplier", "min_adjustment", "max_adjustment", "rate_card_id"}
 )
+# M11-F17: the rule types that raise a price; every other type lowers it.
+RAISING_TYPES = ("demand_surge",)
 
 
 def _corridor(env):
@@ -116,6 +119,26 @@ class FixDynamicPriceRule(models.Model):
                     % (rec.name, rec.min_adjustment, rec.max_adjustment, lo, hi)
                 )
 
+    @api.constrains("rule_type", "adjustment_pct", "surge_multiplier")
+    def _check_direction(self):
+        """A04 ERP audit (20 Nov 2026) M11-F17: the rule type did not
+        constrain the sign, so an 'Off-Peak Discount' raised prices and a
+        'Demand Surge' cut them. A surge only raises; an off-peak,
+        clearance or loyalty rule only lowers."""
+        for rec in self:
+            mult = rec.surge_multiplier if rec.surge_multiplier > 0 else 1.0
+            factor = (1.0 + rec.adjustment_pct / 100.0) * mult
+            if rec.rule_type in RAISING_TYPES and factor < 1.0 - 1e-9:
+                raise ValidationError(
+                    "Rule %s is a %s: it raises a price, it never lowers it."
+                    % (rec.name, dict(rec._fields["rule_type"].selection)[rec.rule_type])
+                )
+            if rec.rule_type not in RAISING_TYPES and factor > 1.0 + 1e-9:
+                raise ValidationError(
+                    "Rule %s is a %s: it lowers a price, it never raises it."
+                    % (rec.name, dict(rec._fields["rule_type"].selection)[rec.rule_type])
+                )
+
     @api.constrains("adjustment_pct", "surge_multiplier")
     def _check_never_free(self):
         for rec in self:
@@ -180,13 +203,16 @@ class FixDynamicPriceRule(models.Model):
         if base_price > 0 and adjusted <= 0:
             # A04 audit M11-7 (dr_01): never a free price.
             raise UserError("Rule %s would price an item at zero or less." % self.name)
-        return float(adjusted.quantize(Decimal("0.01"), rounding=ROUND_HALF_EVEN))
+        # M11-F16: the one M11 rounding (half-up to the paisa)
+        return money(adjusted)
 
     def _floor_for(self, product_code):
+        """The floor a dynamic price stops at: the M11 price floors on the
+        code OR its catalogue item, and the M15 cost margin floor
+        (A04 ERP audit 20 Nov 2026, M11-F9: it matched floors by code only)."""
         if not product_code:
             return 0.0
-        floors = self.env["fix.price.floor"].sudo().search([("product_code", "=", product_code)])
-        return max(floors.mapped("floor_price") or [0.0])
+        return self.env["fix.rate.card"]._floor_info(product_code, company=self.company_id)["floor"]
 
     def calculate_and_explain(self, base_price, context_info=None, product_code=None):
         """Calculate dynamic price and persist audit explanation trail.
@@ -331,3 +357,33 @@ class FixPriceExplanation(models.Model):
             "tag": "display_notification",
             "params": {"title": "Price explanation", "message": message, "type": kind},
         }
+
+
+class FixRateCardDynamic(models.Model):
+    """M11-F10: the M11 price service applies the channel's dynamic rule
+    (storefront / marketplace), inside the corridor and never below the
+    floor (AUT-PRC-14: the static price applies instead)."""
+
+    _inherit = "fix.rate.card"
+
+    def _price_for_dynamic(self, price, card, channel, company, code):
+        price, rule = super()._price_for_dynamic(price, card, channel, company, code)
+        if channel not in ("storefront", "marketplace") or not price:
+            return price, rule
+        Rule = self.env["fix.dynamic.price.rule"].sudo()
+        domain = [
+            ("active", "=", True),
+            ("company_id", "=", company.id),
+            ("channel", "in", (channel, "both")),
+            ("rate_card_id", "in", [card.id, False] if card else [False]),
+        ]
+        found = Rule.search(domain, order="rate_card_id, id desc")
+        # a rule on this card wins over a channel-wide one
+        dynamic = found.filtered("rate_card_id")[:1] or found[:1]
+        if not dynamic:
+            return price, rule
+        moved = dynamic.apply_to(price)
+        floor = dynamic._floor_for(code)
+        if floor and moved + 0.005 < floor:
+            return price, rule
+        return moved, dynamic

@@ -99,7 +99,7 @@ export const SCREENS = {
   'M53-subscriptions': { kind: 'model_list', model: 'fix.subscription',
     cols: ['name','customer_id','plan','billing_cycle','recurring_amount','contract_value','next_invoice_date','dunning_step','state'],
     stateField: 'state',
-    actions: [{m:'action_generate_charge',l:'Generate Charge'},{m:'action_trigger_dunning',l:'Run Dunning'},
+    actions: [{m:'action_trigger_dunning',l:'Run Dunning'},
       {m:'action_reinstate',l:'Reinstate'},{m:'action_allocate_price',l:'Allocate Price (IFRS 15)'},
       {m:'action_generate_revrec_schedule',l:'Generate Revenue Schedule'},
       {m:'action_request_contract_value',l:'Request Transaction Price',asks:[{label:'Transaction price (BDT, VAT excluded)',kwarg:'contract_value',number:true},{label:'Where it comes from (the contract)',kwarg:'reason'}]},
@@ -368,11 +368,11 @@ export const SCREENS = {
           { name: 'billing_cycle', required: true, label: "Billing Cycle" },
           { name: 'recurring_amount', required: true, label: "Recurring Amount" },
           { name: 'start_date', required: true, label: "Start Date" },
-          { name: 'next_invoice_date', required: true, label: "Next Invoice" },
-          { name: 'grace_period_days', label: "Grace Period (days)" },
+          { name: 'next_invoice_date', label: "First Invoice Date (afterwards moved only by the billing run)" },
+          { name: 'grace_period_days', label: "Grace Period (days, set at creation)" },
           { name: 'consolidated', label: "Consolidated Billing" },
           { name: 'contract_value', label: "Transaction Price (at creation; then Request Transaction Price)" },
-          { name: 'contract_end_date', label: "Contract End" },
+          { name: 'contract_end_date', label: "Contract End (afterwards changed only by an approved renewal)" },
           { name: 'pending_contract_value', readonly: true, label: "Requested Transaction Price" },
           { name: 'state', readonly: true, label: "State" }
         ] }

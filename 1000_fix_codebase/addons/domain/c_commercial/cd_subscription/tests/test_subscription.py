@@ -43,7 +43,8 @@ class TestCycleCharges(unittest.TestCase):
         body = SOURCE[
             SOURCE.index("def action_generate_charge") : SOURCE.index("def action_trigger_dunning")
         ]
-        self.assertIn('state != "active"', body)
+        # A04 ERP M39-F15: active and past-due bill; held / paused / closed do not
+        self.assertIn("sub.state not in BILLABLE_STATES", body)
 
     def test_charge_publishes(self):
         self.assertIn('"subscription.charged"', SOURCE)

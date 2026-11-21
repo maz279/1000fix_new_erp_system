@@ -567,7 +567,13 @@ def test_expiry_cron_ends_cover_and_is_idempotent(c):
 
 
 def test_expiry_cron_announces_each_window_once_and_drafts_the_renewal(c):
-    k = _active(c, date_start=c.today - timedelta(days=300), date_end=c.today + timedelta(days=20))
+    # A04 ERP audit M08-F17: renewing is a choice (auto_renew defaults off)
+    k = _active(
+        c,
+        date_start=c.today - timedelta(days=300),
+        date_end=c.today + timedelta(days=20),
+        auto_renew=True,
+    )
     Contract = c.env["fix.contract"]
     Contract.cron_expiring_contracts()
     Contract.cron_expiring_contracts()

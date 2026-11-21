@@ -6,11 +6,17 @@
 # co-marketing partners (fix.campaign.partner_ids), the MDF's campaign key
 # (fix.partner.rebate.campaign_id) and the M35 touch attribution.
 import datetime
+import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _company_domain, _require_internal
+from ._scope import scoped
+
+_logger = logging.getLogger(__name__)
+# A04 ERP audit M40-F22: the standings in which a partner is active.
+ACTIVE_STATES = ("onboarded", "probation")
 
 # A04 workflow audit (2026-11-04) C3/D2: every M40 surface declared
 # `actions: set()`, so the workspace could only edit the state. The
@@ -35,7 +41,26 @@ SURFACES = {
             # M40 capture audit (19 Nov 2026)
             "action_generate_onboarding",
             "action_change_tier",
+            # A04 ERP audit (20 Nov 2026) M40-F24: the spec's standings
+            "action_probation",
+            "action_end_probation",
+            "action_reactivate",
+            "action_start_exit",
+            "action_complete_exit",
         },
+    },
+    # A04 ERP audit M40-F5: a proposed commission rate, applied from the M63
+    # inbox (never by a button here).
+    "fix.partner.rate.change": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_request_approval", "action_recall_approval", "action_cancel"},
+    },
+    # A04 ERP audit M40-F16: the draws of a reseller allocation (read only).
+    "fix.reseller.draw": {
+        "order": "allocation_id, sequence",
+        "limit": 300,
+        "actions": set(),
     },
     # fix.referral is owned by M53 (a08 surface) — read through the merge.
     "fix.partner.authorisation": {
@@ -162,7 +187,7 @@ SURFACES = {
     "fix.franchise.royalty": {
         "order": "period_from desc, id desc",
         "limit": 300,
-        "actions": {"action_compute", "action_record_invoice"},
+        "actions": {"action_compute", "action_raise_invoice"},
     },
     "fix.mdf.fund": {
         "order": "id desc",
@@ -189,138 +214,175 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _partners(env):
-    return env["fix.partner"].sudo().search([])
+def _partners(env, active_only=False):
+    domain = [("state", "in", ACTIVE_STATES)] if active_only else []
+    return scoped(env, "fix.partner", domain, order="name")
+
+
+def _today(env):
+    return fields.Date.context_today(env.user)
 
 
 def brand_partners(env, date_from=None, date_to=None, **params):
-    auths = env["fix.partner.authorisation"].sudo().search([])
-    by_brand = {}
-    for auth in auths:
-        key = auth.brand_id.name if auth.brand_id else "No brand"
-        row = by_brand.setdefault(
-            key, {"brand": key, "authorisations": 0, "active": 0, "partners": set()}
-        )
-        row["authorisations"] += 1
-        if auth.state == "active":
-            row["active"] += 1
-        row["partners"].add(auth.partner_id.id)
+    """A04 ERP audit M40-F22: one row per BRAND PARTNER (fix.partner of type
+    brand), with its authorisations - not a count of authorisations."""
+    partners = scoped(env, "fix.partner", [("partner_type", "=", "brand")], order="name")
+    auths = scoped(
+        env,
+        "fix.partner.authorisation",
+        [("partner_id", "in", partners.ids)],
+        "valid_to",
+        date_from,
+        date_to,
+    )
     rows = []
-    for row in by_brand.values():
+    for partner in partners:
+        mine = auths.filtered(lambda a, pid=partner.id: a.partner_id.id == pid)
+        active = mine.filtered(lambda a: a.state == "active")
         rows.append(
             {
-                "brand": row["brand"],
-                "authorisations": row["authorisations"],
-                "active": row["active"],
-                "partners": len(row["partners"]),
+                "partner": partner.name,
+                "brand": partner.brand_id.name if partner.brand_id else "—",
+                "state": partner.state,
+                "authorisations": len(mine),
+                "active": len(active),
+                "next_expiry": str(min(active.mapped("valid_to"))) if active else "—",
             }
         )
-    rows.sort(key=lambda r: -r["authorisations"])
     return _pack(
         "Brand Partner Relations",
-        ["brand", "authorisations", "active", "partners"],
+        ["partner", "brand", "state", "authorisations", "active", "next_expiry"],
         {
-            "brand": "Brand",
-            "authorisations": "Authorisations",
+            "partner": "Brand Partner",
+            "brand": "Brand (M37)",
+            "state": "Standing",
+            "authorisations": "Authorisations (period)",
             "active": "Active",
-            "partners": "Partners",
+            "next_expiry": "Next Expiry",
         },
         rows,
         [
-            "Authorisations group the partner's brand credentials; an expired or revoked "
-            "authorisation stays visible."
+            "One row per brand partner; the authorisations counted are those whose validity "
+            "ends in the requested period."
         ],
-        empty="No brand authorisations recorded yet.",
+        empty="No brand partners recorded yet.",
     )
 
 
 def brand_audit_calendar(env, date_from=None, date_to=None, **params):
-    auths = env["fix.partner.authorisation"].sudo().search([])
-    today = datetime.date.today()
-    horizon = today + datetime.timedelta(days=90)
+    """A04 ERP audit M40-F22: the calendar is the brand audits scheduled in the
+    period (fix.brand.audit) AND the authorisations expiring in it (180 days
+    ahead when no period is given), not the expiries alone."""
+    today = _today(env)
+    start = date_from or today
+    end = date_to or (today + datetime.timedelta(days=180))
     rows = []
-    for auth in auths.filtered(lambda a: a.state == "active" and a.valid_to):
-        due = (auth.valid_to - today).days
-        if auth.valid_to <= horizon:
-            rows.append(
-                {
-                    "partner": auth.partner_id.name,
-                    "brand": auth.brand_id.name if auth.brand_id else "—",
-                    "valid_to": str(auth.valid_to),
-                    "days_left": due,
-                    "state": auth.state,
-                }
-            )
+    for audit in scoped(
+        env,
+        "fix.brand.audit",
+        [("state", "!=", "closed")],
+        "scheduled_on",
+        start,
+        end,
+        company_field="__none__",
+    ):
+        rows.append(
+            {
+                "kind": "Brand audit",
+                "partner": audit.authorisation_id.partner_id.name or "—",
+                "brand": audit.brand_id.name or "—",
+                "date": str(audit.scheduled_on),
+                "days_left": (audit.scheduled_on - today).days,
+                "state": audit.state,
+            }
+        )
+    for auth in scoped(
+        env, "fix.partner.authorisation", [("state", "=", "active")], "valid_to", start, end
+    ):
+        rows.append(
+            {
+                "kind": "Authorisation expiry",
+                "partner": auth.partner_id.name,
+                "brand": auth.brand_id.name if auth.brand_id else "—",
+                "date": str(auth.valid_to),
+                "days_left": (auth.valid_to - today).days,
+                "state": auth.state,
+            }
+        )
     rows.sort(key=lambda r: r["days_left"])
     return _pack(
-        "Brand Audit Calendar — authorisations due within 90 days",
-        ["partner", "brand", "valid_to", "days_left", "state"],
+        "Brand Audit Calendar — audits and expiries %s to %s" % (start, end),
+        ["kind", "partner", "brand", "date", "days_left", "state"],
         {
+            "kind": "Event",
             "partner": "Partner",
             "brand": "Brand",
-            "valid_to": "Valid To",
+            "date": "Date",
             "days_left": "Days Left",
             "state": "State",
         },
         rows,
         [
-            "Audits are the authorisation expiry dates — the calendar reads the "
-            "recorded validity window, nothing else."
+            "Scheduled brand audits (FR-PCM-016) and authorisation expiries in the period; "
+            "expiries escalate at T-180, T-90 and T-30 days (AUT-PCM-04)."
         ],
-        empty="No authorisation expires within 90 days.",
+        empty="No brand audit or authorisation expiry in the period.",
     )
 
 
 def referral_conversion(env, date_from=None, date_to=None, **params):
-    referrals = env["fix.referral"].sudo().search([])
+    referrals = scoped(env, "fix.referral", None, "referred_on", date_from, date_to)
     states = {}
     for ref in referrals:
         state = ref.state or "unknown"
-        row = states.setdefault(state, {"state": state, "referrals": 0, "commission": 0.0})
+        row = states.setdefault(
+            state, {"state": state, "referrals": 0, "revenue": 0.0, "commission": 0.0}
+        )
         row["referrals"] += 1
+        row["revenue"] += ref.base_amount or 0.0
         row["commission"] += ref.commission_amount or 0.0
     rows = []
     for row in states.values():
+        row["revenue"] = round(row["revenue"], 2)
         row["commission"] = round(row["commission"], 2)
         rows.append(row)
     rows.sort(key=lambda r: -r["referrals"])
     return _pack(
         "Referral Conversion",
-        ["state", "referrals", "commission"],
-        {"state": "Referral State", "referrals": "Referrals", "commission": "Commission"},
+        ["state", "referrals", "revenue", "commission"],
+        {
+            "state": "Referral State",
+            "referrals": "Referrals",
+            "revenue": "Referred Revenue",
+            "commission": "Commission",
+        },
         rows,
         [
-            "Commission is the referral's recorded ledger amount; conversion is the "
-            "state distribution, not an assumption."
+            "Referrals dated (referred on) in the period. Referred revenue is the paid M20 "
+            "invoice the referral converted on; commission is what it earned."
         ],
         totals={
             "state": "Total",
             "referrals": len(referrals),
+            "revenue": round(sum(r["revenue"] for r in rows), 2),
             "commission": round(sum(r["commission"] for r in rows), 2),
         }
         if rows
         else None,
-        empty="No partner referrals yet.",
+        empty="No partner referrals in the period.",
     )
 
 
 def partner_revenue(env, date_from=None, date_to=None, **params):
-    referrals = env["fix.referral"].sudo().search([])
-    deals = env["fix.partner.deal"].sudo().search([])
-    today = datetime.date.today()
-    month_start = today.replace(day=1)
+    """A04 ERP audit M40-F22: partner REVENUE is the referred revenue (the
+    paid invoices referrals converted on) and won deal value - the commission
+    is shown beside it as the cost of that revenue, not as the revenue."""
+    referrals = scoped(env, "fix.referral", None, "referred_on", date_from, date_to)
+    deals = scoped(env, "fix.partner.deal", None, "registered_on", date_from, date_to)
     rows = []
     for partner in _partners(env):
-        partner_refs = referrals.filtered(
-            lambda r, pid=partner.id: r.partner_id.id == pid if hasattr(r, "partner_id") else False
-        )
+        partner_refs = referrals.filtered(lambda r, pid=partner.id: r.partner_id.id == pid)
         partner_deals = deals.filtered(lambda d, pid=partner.id: d.partner_id.id == pid)
-        commission_mtd = sum(
-            (r.commission_amount or 0.0)
-            for r in partner_refs
-            if getattr(r, "create_date", None) and r.create_date.date() >= month_start
-        )
-        won_value = sum((d.value or 0.0) for d in partner_deals if d.state == "won")
         if not partner_refs and not partner_deals:
             continue
         rows.append(
@@ -328,40 +390,45 @@ def partner_revenue(env, date_from=None, date_to=None, **params):
                 "partner": partner.name,
                 "type": partner.partner_type,
                 "referrals": len(partner_refs),
-                "commission_mtd": round(commission_mtd, 2),
-                "deals_won": round(won_value, 2),
+                "referred_revenue": round(sum(partner_refs.mapped("base_amount")), 2),
+                "commission": round(sum(partner_refs.mapped("commission_amount")), 2),
+                "deals_won": round(
+                    sum((d.value or 0.0) for d in partner_deals if d.state == "won"), 2
+                ),
             }
         )
-    rows.sort(key=lambda r: -(r["commission_mtd"] + r["deals_won"]))
+    rows.sort(key=lambda r: -(r["referred_revenue"] + r["deals_won"]))
     return _pack(
         "Partner Revenue Contribution",
-        ["partner", "type", "referrals", "commission_mtd", "deals_won"],
+        ["partner", "type", "referrals", "referred_revenue", "commission", "deals_won"],
         {
             "partner": "Partner",
             "type": "Type",
             "referrals": "Referrals",
-            "commission_mtd": "Commission MTD",
+            "referred_revenue": "Referred Revenue",
+            "commission": "Commission (cost)",
             "deals_won": "Deals Won Value",
         },
         rows,
         [
-            "Commission MTD comes from referral ledger lines; deal value is the "
-            "registered deal's own amount for won deals."
+            "Referred revenue = the paid M20 invoices the period's referrals converted on; "
+            "commission is the expense of it; deal value is the won registrations' own amount."
         ],
         totals={
             "partner": "Total",
             "referrals": sum(r["referrals"] for r in rows),
-            "commission_mtd": round(sum(r["commission_mtd"] for r in rows), 2),
+            "referred_revenue": round(sum(r["referred_revenue"] for r in rows), 2),
+            "commission": round(sum(r["commission"] for r in rows), 2),
             "deals_won": round(sum(r["deals_won"] for r in rows), 2),
         }
         if rows
         else None,
-        empty="No partner activity recorded yet.",
+        empty="No partner activity in the period.",
     )
 
 
 def rebate_accruals(env, date_from=None, date_to=None, **params):
-    rebates = env["fix.partner.rebate"].sudo().search([])
+    rebates = scoped(env, "fix.partner.rebate", None, "accrued_at", date_from, date_to)
     rows = []
     for rebate in rebates:
         rows.append(
@@ -392,16 +459,20 @@ def rebate_accruals(env, date_from=None, date_to=None, **params):
             "state": "State",
         },
         rows,
-        ["Amount = basis × rate (computed and stored). Accrued: %s." % round(accrued, 2)],
+        [
+            "Rebates accrued in the period. Basis = the partner's paid M20 invoices of the "
+            "rebate period (ex-VAT, net of credit notes); amount = basis × rate. Accrued: %s."
+            % round(accrued, 2)
+        ],
         totals={"rebate": "Total", "amount": round(sum(r["amount"] for r in rows), 2)}
         if rows
         else None,
-        empty="No rebates or MDF accruals yet.",
+        empty="No rebates accrued in the period.",
     )
 
 
 def conflict_log(env, date_from=None, date_to=None, **params):
-    conflicts = env["fix.partner.conflict"].sudo().search([])
+    conflicts = scoped(env, "fix.partner.conflict", None, "create_date", date_from, date_to)
     rows = []
     for conflict in conflicts:
         rows.append(
@@ -426,72 +497,81 @@ def conflict_log(env, date_from=None, date_to=None, **params):
             "resolution": "Resolution",
         },
         rows,
-        [
-            "A conflict is a recorded dispute between partners over a customer; "
-            "resolution is the outcome narrative."
-        ],
-        empty="No channel conflicts recorded.",
+        ["Conflicts raised in the period and their DOFA ruling."],
+        empty="No channel conflicts in the period.",
     )
 
 
 def alliance_report(env, date_from=None, date_to=None, **params):
-    partners = _partners(env).filtered(lambda p: p.partner_type == "alliance")
+    partners = scoped(env, "fix.partner", [("partner_type", "=", "alliance")], order="name")
+    schemes = scoped(
+        env,
+        "fix.alliance.scheme",
+        [("partner_id", "in", partners.ids)],
+        "valid_from",
+        None,
+        date_to,
+    )
     rows = []
     for partner in partners:
+        mine = schemes.filtered(lambda sc, pid=partner.id: sc.partner_id.id == pid)
         rows.append(
             {
                 "partner": partner.name,
                 "territory": partner.territory or "—",
                 "commission": round((partner.commission_rate or 0.0) * 100.0, 2),
+                "schemes": len(mine.filtered(lambda sc: sc.state == "active")),
                 "state": partner.state,
             }
         )
     return _pack(
         "Alliance Benefits — strategic alliance partners",
-        ["partner", "territory", "commission", "state"],
+        ["partner", "territory", "commission", "schemes", "state"],
         {
             "partner": "Partner",
             "territory": "Territory",
             "commission": "Commission %",
+            "schemes": "Active Schemes",
             "state": "State",
         },
         rows,
-        [
-            "Alliance partners and their recorded commission rate; a dedicated "
-            "alliance-benefit schedule is not modelled (declared gap)."
-        ],
+        ["Alliance partners, their approved commission rate and their active schemes."],
         empty="No strategic alliance partners yet.",
     )
 
 
 def reseller_report(env, date_from=None, date_to=None, **params):
-    partners = _partners(env).filtered(lambda p: p.partner_type == "reseller")
-    deals = env["fix.partner.deal"].sudo().search([])
+    partners = scoped(env, "fix.partner", [("partner_type", "=", "reseller")], order="name")
+    deals = scoped(env, "fix.partner.deal", None, "registered_on", date_from, date_to)
+    draws = scoped(env, "fix.reseller.draw", None, "create_date", date_from, date_to)
     rows = []
     for partner in partners:
         mine = deals.filtered(lambda d, pid=partner.id: d.partner_id.id == pid)
+        drawn = draws.filtered(lambda d, pid=partner.id: d.partner_id.id == pid)
         rows.append(
             {
                 "partner": partner.name,
                 "territory": partner.territory or "—",
                 "deals": len(mine),
                 "won_value": round(sum((d.value or 0.0) for d in mine if d.state == "won"), 2),
+                "drawn_value": round(sum(d.qty * d.unit_price for d in drawn), 2),
                 "state": partner.state,
             }
         )
-    rows.sort(key=lambda r: -r["won_value"])
+    rows.sort(key=lambda r: -(r["won_value"] + r["drawn_value"]))
     return _pack(
         "Resellers",
-        ["partner", "territory", "deals", "won_value", "state"],
+        ["partner", "territory", "deals", "won_value", "drawn_value", "state"],
         {
             "partner": "Reseller",
             "territory": "Territory",
             "deals": "Deals",
             "won_value": "Won Value",
+            "drawn_value": "Drawn (M11 price)",
             "state": "State",
         },
         rows,
-        ["Resellers with their registered deals and won value."],
+        ["Resellers with the period's registered deals and their draws at the M11 price."],
         empty="No reseller partners yet.",
     )
 
@@ -646,47 +726,142 @@ def comarketing(env, date_from=None, date_to=None, model=None, **params):
     return pack
 
 
-def health(env, date_from=None, date_to=None, **params):
-    deals = env["fix.partner.deal"].sudo().search([])
-    conflicts = env["fix.partner.conflict"].sudo().search([])
-    rows = []
-    for partner in _partners(env):
-        partner_deals = deals.filtered(lambda d, pid=partner.id: d.partner_id.id == pid)
-        partner_conflicts = conflicts.filtered(lambda c, pid=partner.id: c.partner_a_id.id == pid)
-        score = len(partner_deals) * 2 - len(partner_conflicts) * 3
-        rows.append(
-            {
-                "partner": partner.name,
-                "type": partner.partner_type,
-                "state": partner.state,
-                "deals": len(partner_deals),
-                "conflicts": len(partner_conflicts),
-                "health": "healthy" if score >= 2 else ("watch" if score >= 0 else "at risk"),
-            }
+# A04 ERP audit M40-F22 (FR-PCM-018, T-08, BRU-PCM-18): the health score
+# decomposes into named factors with their weights. Equal weights over the
+# factors that have data are an OWNER default until the CCO rules them.
+HEALTH_FACTORS = [
+    ("audit", "Technical audit"),
+    ("obligations", "Obligation compliance"),
+    ("brand_audit", "Brand audit findings"),
+    ("claims", "Claim performance (M09)"),
+    ("volume", "Volume trend"),
+    ("engagement", "Contact engagement"),
+]
+
+
+def _health_factors(env, partner, start, end):
+    """{factor: 0..100 or None (no data)} for one partner over [start, end]."""
+    span = max((end - start).days, 1)
+    prev_start = start - datetime.timedelta(days=span)
+    out = dict.fromkeys(k for k, _l in HEALTH_FACTORS)
+    out["audit"] = partner.technical_audit_score if partner.technical_audit_id else None
+    obligations = (
+        env["fix.brand.obligation"]
+        .sudo()
+        .search([("partner_id", "=", partner.id), ("due_date", "<=", end), ("state", "!=", "open")])
+    )
+    if obligations:
+        out["obligations"] = (
+            100.0 * len(obligations.filtered(lambda o: o.state == "met")) / len(obligations)
         )
-    rows.sort(key=lambda r: r["health"])
+    if partner.brand_id:
+        audits = (
+            env["fix.brand.audit"]
+            .sudo()
+            .search(
+                [
+                    ("brand_id", "=", partner.brand_id.id),
+                    ("state", "in", ("conducted", "responded", "closed")),
+                    ("scheduled_on", ">=", start),
+                    ("scheduled_on", "<=", end),
+                ]
+            )
+        )
+        if audits:
+            clean = audits.filtered(lambda a: not (a.findings or "").strip())
+            out["brand_audit"] = 100.0 * len(clean) / len(audits)
+        if "fix.warranty.claim" in env:
+            Claim = env["fix.warranty.claim"].sudo()
+            decided = Claim.search(
+                [
+                    ("brand_id", "=", partner.brand_id.id),
+                    ("state", "in", ("approved", "partially_approved", "rejected")),
+                    ("create_date", ">=", fields.Datetime.to_datetime(start)),
+                    (
+                        "create_date",
+                        "<",
+                        fields.Datetime.to_datetime(end) + datetime.timedelta(days=1),
+                    ),
+                ]
+            )
+            if decided:
+                approved = decided.filtered(lambda c: c.state != "rejected")
+                out["claims"] = 100.0 * len(approved) / len(decided)
+
+    def _volume(a, b):
+        return env["fix.referral"].sudo().search_count(
+            [("partner_id", "=", partner.id), ("referred_on", ">=", a), ("referred_on", "<=", b)]
+        ) + env["fix.partner.deal"].sudo().search_count(
+            [
+                ("partner_id", "=", partner.id),
+                ("registered_on", ">=", a),
+                ("registered_on", "<=", b),
+            ]
+        )
+
+    now, before = _volume(start, end), _volume(prev_start, start - datetime.timedelta(days=1))
+    if now or before:
+        out["volume"] = 100.0 if now >= before else 100.0 * now / before
+    engaged = (
+        env["fix.partner.engagement"]
+        .sudo()
+        .search_count([("partner_id", "=", partner.id), ("date", ">=", start), ("date", "<=", end)])
+    )
+    out["engagement"] = 100.0 if engaged else 0.0
+    return out
+
+
+def health(env, date_from=None, date_to=None, **params):
+    today = _today(env)
+    end = fields.Date.to_date(date_to) if date_to else today
+    start = fields.Date.to_date(date_from) if date_from else end - datetime.timedelta(days=90)
+    rows = []
+    for partner in _partners(env, active_only=True):
+        factors = _health_factors(env, partner, start, end)
+        known = {k: v for k, v in factors.items() if v is not None}
+        weight = round(100.0 / len(known), 2) if known else 0.0
+        score = round(sum(known.values()) / len(known), 1) if known else None
+        row = {
+            "partner": partner.name,
+            "type": partner.partner_type,
+            "score": score if score is not None else "—",
+            "health": "no data"
+            if score is None
+            else ("healthy" if score >= 75 else ("watch" if score >= 50 else "at risk")),
+            "weights": ", ".join("%s %.0f%%" % (k, weight) for k in known) or "—",
+        }
+        for key, _label in HEALTH_FACTORS:
+            row[key] = round(factors[key], 1) if factors[key] is not None else "—"
+        rows.append(row)
+    rows.sort(key=lambda r: (r["score"] if isinstance(r["score"], float) else 999))
+    labels = {
+        "partner": "Partner",
+        "type": "Type",
+        "score": "Health Score",
+        "health": "Band",
+        "weights": "Weights Applied",
+    }
+    labels.update(dict(HEALTH_FACTORS))
     return _pack(
-        "Health & Risk",
-        ["partner", "type", "state", "deals", "conflicts", "health"],
-        {
-            "partner": "Partner",
-            "type": "Type",
-            "state": "Onboarding State",
-            "deals": "Deals",
-            "conflicts": "Conflicts",
-            "health": "Health",
-        },
+        "Health & Risk — %s to %s" % (start, end),
+        ["partner", "type", *[k for k, _l in HEALTH_FACTORS], "weights", "score", "health"],
+        labels,
         rows[:200],
         [
-            "Health is a stated derivation: 2 × deals − 3 × conflicts, with bands "
-            "healthy/watch/at-risk. No opaque model score is claimed."
+            "FR-PCM-018: each factor is 0-100 from source data - technical audit score; "
+            "obligations met of those due; brand audits without findings; M09 claims approved "
+            "of those decided (brand partners); referrals + deals against the previous period "
+            "of equal length; engagement logged in the period. Quality (M23) has no per-partner "
+            "measure yet and is not counted.",
+            "Score = the weighted mean of the factors with data, equal weights (an owner "
+            "default until the CCO rules the weights); bands 75 / 50.",
         ],
-        empty="No partners yet.",
+        empty="No active partners.",
     )
 
 
 def ranking(env, date_from=None, date_to=None, **params):
-    pack = partner_revenue(env)
+    pack = partner_revenue(env, date_from=date_from, date_to=date_to)
     rows = []
     for rank, row in enumerate(pack["rows"], start=1):
         rows.append(
@@ -694,31 +869,31 @@ def ranking(env, date_from=None, date_to=None, **params):
                 "rank": rank,
                 "partner": row["partner"],
                 "type": row["type"],
-                "commission_mtd": row["commission_mtd"],
+                "referred_revenue": row["referred_revenue"],
                 "deals_won": row["deals_won"],
             }
         )
     return _pack(
         "Ranking & Scorecards",
-        ["rank", "partner", "type", "commission_mtd", "deals_won"],
+        ["rank", "partner", "type", "referred_revenue", "deals_won"],
         {
             "rank": "Rank",
             "partner": "Partner",
             "type": "Type",
-            "commission_mtd": "Commission MTD",
+            "referred_revenue": "Referred Revenue",
             "deals_won": "Deals Won Value",
         },
         rows[:100],
         [
-            "Ranking = commission MTD + won deal value, descending. Tie-break is the "
-            "partner name."
+            "Ranking = referred revenue + won deal value in the period, descending. "
+            "Tie-break is the partner name."
         ],
-        empty="No partner activity to rank yet.",
+        empty="No partner activity to rank in the period.",
     )
 
 
 def deal_register(env, date_from=None, date_to=None, **params):
-    deals = env["fix.partner.deal"].sudo().search([])
+    deals = scoped(env, "fix.partner.deal", None, "registered_on", date_from, date_to)
     rows = []
     for deal in deals:
         rows.append(
@@ -750,7 +925,7 @@ def deal_register(env, date_from=None, date_to=None, **params):
 
 
 def franchises(env, date_from=None, date_to=None, **params):
-    franchises = env["fix.partner.franchise"].sudo().search([])
+    franchises = scoped(env, "fix.partner.franchise", None, "start_date", None, date_to)
     rows = []
     for franchise in franchises:
         rows.append(
@@ -800,28 +975,84 @@ REPORTS = {
 
 
 def kpis(env):
-    partners = _partners(env)
-    auths = env["fix.partner.authorisation"].sudo().search([("state", "=", "active")])
-    deals = env["fix.partner.deal"].sudo().search([])
-    rebates = env["fix.partner.rebate"].sudo().search([("state", "=", "accrued")])
-    referrals = env["fix.referral"].sudo().search([])
-    today = datetime.date.today()
-    horizon = today + datetime.timedelta(days=90)
-    audits_due = len(auths.filtered(lambda a: a.valid_to and today <= a.valid_to <= horizon))
+    """A04 ERP audit M40-F21/F22: company-scoped, and each figure measures
+    what its label says. A failing figure is logged and shown as None."""
+    today = _today(env)
     month_start = today.replace(day=1)
-    commission_mtd = sum(
-        (r.commission_amount or 0.0)
-        for r in referrals
-        if getattr(r, "create_date", None) and r.create_date.date() >= month_start
+    horizon = today + datetime.timedelta(days=90)
+    out = {}
+
+    def _kpi(key, fn):
+        try:
+            out[key] = fn()
+        except Exception:  # a KPI never takes the workspace down, but it is logged
+            _logger.exception("M40 KPI %s failed", key)
+            out[key] = None
+
+    active = [("state", "in", ACTIVE_STATES)]
+    _kpi(
+        "brand_partners",
+        lambda: len(scoped(env, "fix.partner", [("partner_type", "=", "brand"), *active])),
     )
-    return {
-        "brand_partners": len(auths),
-        "referral_partners": len(partners.filtered(lambda p: p.partner_type == "referral")),
-        "deal_registrations": len(deals),
-        "partner_revenue_mtd": round(commission_mtd, 2),
-        "audits_due_90d": audits_due,
-        "rebates_accrued": round(sum(rebates.mapped("amount")), 2),
-    }
+    _kpi(
+        "referral_partners",
+        lambda: len(scoped(env, "fix.partner", [("partner_type", "=", "referral"), *active])),
+    )
+    _kpi(
+        "deal_registrations",
+        lambda: len(
+            scoped(
+                env, "fix.partner.deal", [("state", "in", ("registered", "conflict", "approved"))]
+            )
+        ),
+    )
+    _kpi(
+        "partner_revenue_mtd",
+        lambda: round(
+            sum(
+                scoped(
+                    env,
+                    "fix.referral",
+                    [("state", "in", ("converted", "commissioned"))],
+                    "referred_on",
+                    month_start,
+                    today,
+                ).mapped("base_amount")
+            ),
+            2,
+        ),
+    )
+    _kpi(
+        "audits_due_90d",
+        lambda: len(
+            scoped(
+                env,
+                "fix.partner.authorisation",
+                [("state", "=", "active")],
+                "valid_to",
+                today,
+                horizon,
+            )
+        )
+        + len(
+            scoped(
+                env,
+                "fix.brand.audit",
+                [("state", "=", "scheduled")],
+                "scheduled_on",
+                today,
+                horizon,
+                company_field="__none__",
+            )
+        ),
+    )
+    _kpi(
+        "rebates_accrued",
+        lambda: round(
+            sum(scoped(env, "fix.partner.rebate", [("state", "=", "accrued")]).mapped("amount")), 2
+        ),
+    )
+    return out
 
 
 class P03PartnerApi(http.Controller):

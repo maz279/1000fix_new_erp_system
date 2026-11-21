@@ -19,6 +19,7 @@
 # contract leaves Draft: a value change on a live contract is an amendment.
 from datetime import timedelta
 
+from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -31,6 +32,31 @@ FAMILIES = [
     ("rental", "Rental"),
     ("marketplace", "Marketplace Agreement"),
 ]
+
+# A04 ERP audit M08-F8 (20 Nov 2026): the spec names 14 product families and
+# the workspace said so, while the engine carries these five. The registry is
+# the one place a family's behaviour is read from (cover, order category of
+# its work, revenue role, PM interval), so a new family is a selection_add plus
+# one row here - and the screens list what the registry holds, nothing more.
+#   covers_assets   its work on a covered device is contract work (M01 order
+#                   category "amc" = "AMC / Contract"), drawing entitlement
+#   revenue_role    cd_billing_engine.account_code.contract_revenue_<role>
+CONTRACT_FAMILY_PROFILES = {
+    "amc": {"covers_assets": True, "revenue_role": "amc", "pm_interval": 90},
+    "ramc": {"covers_assets": True, "revenue_role": "ramc", "pm_interval": 120},
+    "managed": {"covers_assets": True, "revenue_role": "managed", "pm_interval": 30},
+    "rental": {"covers_assets": True, "revenue_role": "rental", "pm_interval": 180},
+    "marketplace": {"covers_assets": False, "revenue_role": "marketplace", "pm_interval": 0},
+}
+COVER_FAMILIES = tuple(k for k, v in CONTRACT_FAMILY_PROFILES.items() if v["covers_assets"])
+
+
+def family_profile(family):
+    """The registry row of a family (an unknown family covers nothing)."""
+    return CONTRACT_FAMILY_PROFILES.get(
+        family or "", {"covers_assets": False, "revenue_role": "other", "pm_interval": 0}
+    )
+
 
 CONTRACT_STATES = [
     ("draft", "Draft"),
@@ -85,6 +111,13 @@ CONTRACT_TERM_FIELDS = frozenset(
         "operating_unit_id",
         "currency_id",
         "annual_value",
+        "term_value",
+        "accepted_total",
+        "billing_frequency",
+        "billing_timing",
+        "retention_pct",
+        "ld_rate_pct_per_day",
+        "ld_cap_pct",
         "escalation_pct",
         "date_start",
         "date_end",
@@ -158,12 +191,52 @@ class FixContract(models.Model):
     annual_value = fields.Monetary(
         string="Annual Value", currency_field="currency_id", required=True
     )
+    # A04 ERP audit M36-F3 / M08-F6 (20 Nov 2026): the contract carries the
+    # price of its WHOLE term (what the customer accepted, before VAT) and how
+    # it is billed. The schedule bills calendar-month periods at
+    # annual_value / 12 a month and the last period of the term absorbs the
+    # rounding, so the periods total term_value exactly (a 6-month quote of
+    # 120,000 bills 120,000, not 119,013.70 on a days/365 basis).
+    term_value = fields.Monetary(
+        string="Term Value (excl. VAT)",
+        currency_field="currency_id",
+        copy=False,
+        help="The contract's price for its whole term, before VAT. Set from the "
+        "accepted quotation or tender; otherwise the annual value over the term.",
+    )
+    accepted_total = fields.Monetary(
+        string="Accepted Total (incl. VAT)",
+        currency_field="currency_id",
+        copy=False,
+        help="What the customer accepted including VAT (quotation / tender award). "
+        "The contract's invoices over the term never exceed it.",
+    )
+    billing_frequency = fields.Selection(
+        [
+            ("monthly", "Monthly"),
+            ("quarterly", "Quarterly"),
+            ("semiannual", "Half-yearly"),
+            ("annual", "Annually"),
+        ],
+        default="monthly",
+        required=True,
+    )
+    billing_timing = fields.Selection(
+        [("arrears", "In arrears (period end)"), ("advance", "In advance (period start)")],
+        default="arrears",
+        required=True,
+    )
     escalation_pct = fields.Float(
         string="Annual Escalation (%)",
         default=0.0,
         help="Applied at renewal (T05): next-term value = value * (1 + pct/100)",
     )
-    auto_renew = fields.Boolean(default=True, help="AUT-015: renewal opp auto-created at lead time")
+    # A04 ERP audit M08-F17: auto-renew defaulted ON, so every contract drafted
+    # its next term silently at lead time (and that draft blocked the M36
+    # renewal quotation). Renewing is a decision: off unless chosen.
+    auto_renew = fields.Boolean(
+        default=False, help="AUT-015: the next term is drafted at lead time"
+    )
     renewal_lead_days = fields.Integer(
         default=90, help="AUT-015: −90/−60/−30/−15 escalation ladder"
     )
@@ -362,31 +435,45 @@ class FixContract(models.Model):
         return locked
 
     # ---- DOFA: the contract value -------------------------------------------
+    # A04 ERP audit M08-F12: the value approved and reviewed is the TOTAL
+    # contract value (the whole term), not one year of it: a 3-year 2.7M
+    # contract was tested as 900k and skipped Legal.
     def _dofa_amount(self) -> float:
         self.ensure_one()
-        return abs(self.annual_value or 0.0)
+        return abs(self._fix_term_value())
 
     def _dofa_thresholds(self):
         return CONTRACT_VALUE_DOFA_THRESHOLDS
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "BDT %.2f (annual contract value)" % self._dofa_amount()
+        return "BDT %.2f (total contract value over the term)" % self._dofa_amount()
 
-    @api.depends("annual_value")
+    @api.depends("annual_value", "term_value", "date_start", "date_end")
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
-    @api.depends("annual_value", "family")
+    @api.depends("annual_value", "term_value", "date_start", "date_end", "family")
     def _compute_legal_review_required(self):
         for rec in self:
             rec.legal_review_required = bool(
-                (rec.annual_value or 0.0) >= LEGAL_REVIEW_THRESHOLD_BDT
+                rec._fix_term_value() >= LEGAL_REVIEW_THRESHOLD_BDT
                 or rec.family in LEGAL_REVIEW_FAMILIES
             )
 
+    def _fix_term_value(self) -> float:
+        """The total contract value (excl. VAT): the stored term value, else
+        the annual value over the term on the calendar-month basis."""
+        self.ensure_one()
+        if self.term_value:
+            return self.term_value
+        if not (self.date_start and self.date_end):
+            return self.annual_value or 0.0
+        return round(self._fix_fee_between(self.date_start, self.date_end, suspended=False), 2)
+
     @api.depends(
         "annual_value",
+        "term_value",
         "service_order_ids.delivery_cost_bdt",
         "pm_visit_ids.service_order_id.delivery_cost_bdt",
     )
@@ -408,13 +495,13 @@ class FixContract(models.Model):
             delivery_cost = sum(delivered.mapped("delivery_cost_bdt"))
             contract.delivered_order_count = len(delivered)
             contract.total_delivery_cost = delivery_cost
-            net_val = (contract.annual_value or 0.0) - delivery_cost
+            # A04 ERP audit M08-F13: the cost is every order of the contract's
+            # life, so the revenue it is set against is the whole term's value
+            # (one year's revenue against lifetime cost understated the margin).
+            revenue = contract.term_value or contract.annual_value or 0.0
+            net_val = revenue - delivery_cost
             contract.contract_margin_bdt = net_val
-            contract.contract_margin_pct = (
-                round((net_val / contract.annual_value) * 100.0, 2)
-                if contract.annual_value
-                else 0.0
-            )
+            contract.contract_margin_pct = round((net_val / revenue) * 100.0, 2) if revenue else 0.0
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -558,8 +645,13 @@ class FixContract(models.Model):
                 "date_end": contract.date_end,
                 "code": contract.code,
             }
+            # A04 ERP audit M08-F22: the OCA record is a reference only. M08's
+            # own walker bills the contract through M20; an ACTIVE OCA contract
+            # sat in the scope of OCA's recurring-invoice cron, so a line added
+            # to it would bill the customer a second time. It is kept archived.
+            vals["active"] = False
             if contract.oca_contract_id:
-                contract.oca_contract_id.sudo().write(vals)
+                contract.oca_contract_id.sudo().with_context(active_test=False).write(vals)
             else:
                 contract.sudo()._guarded().write({"oca_contract_id": Contract.create(vals).id})
         return True
@@ -1046,36 +1138,180 @@ class FixContract(models.Model):
         return True
 
     # ---- billing hand-off (C7, for the finance bridge) ------------------------------
-    def _fix_billing_schedule(self, periods_per_year=12):
-        """The contract's billing schedule for the M20 bridge: the in-force
-        term split into equal periods of the annual value, each with the
-        amount pro-rated to its days. Read-only; no invoice is created here."""
+    # A04 ERP audit M08-F6 / M36-F3 / M08-F1 (20 Nov 2026). The schedule used
+    # fixed 30-day steps at days/365 of the annual value: a 12-month AMC got
+    # 13 invoices plus a 5-day stub, a 6-month quote billed 986.30 short, a
+    # leap year 328.77 long - and a suspended contract was back-billed for
+    # its suspension on resume. Now:
+    #   * the term is cut into CALENDAR-MONTH slots anchored on the start day
+    #     (start + n months, never drifting), and a period is 1/3/6/12 slots;
+    #   * a slot is worth annual_value / 12 (the rate in force that day, after
+    #     applied pricing amendments); a part-slot is worth its share of the
+    #     slot's days;
+    #   * a day inside a suspension window is never billed;
+    #   * the last period of the term absorbs the rounding so the term bills
+    #     exactly term_value, less the value of suspended days that were not
+    #     compensated by a term extension.
+    FREQUENCY_MONTHS = {"monthly": 1, "quarterly": 3, "semiannual": 6, "annual": 12}
+
+    def _fix_slot_bounds(self, day):
+        """(slot start, slot end) of the calendar-month slot holding `day`."""
         self.ensure_one()
-        start, end = self.date_start, self.date_end
-        if not (start and end):
+        start = self.date_start
+        months = (day.year - start.year) * 12 + (day.month - start.month)
+        slot = start + relativedelta(months=months)
+        if slot > day:
+            months -= 1
+            slot = start + relativedelta(months=months)
+        nxt = start + relativedelta(months=months + 1)
+        return slot, nxt - timedelta(days=1)
+
+    def _fix_rate_steps(self):
+        """[(effective from, annual value)] of the applied pricing amendments,
+        oldest first; empty when the value never changed."""
+        self.ensure_one()
+        if not self.id:
             return []
-        term_days = (end - start).days + 1
-        step = max(int(round(365.0 / periods_per_year)), 1)
-        rows, cursor = [], start
-        while cursor <= end:
-            period_end = min(cursor + timedelta(days=step - 1), end)
-            days = (period_end - cursor).days + 1
+        applied = (
+            self.env["fix.contract.amendment"]
+            .sudo()
+            .search(
+                [
+                    ("contract_id", "=", self.id),
+                    ("state", "=", "applied"),
+                    ("kind", "in", ("pricing", "scope")),
+                ],
+                order="effective_from, id",
+            )
+            .filtered(lambda a: abs((a.value_after or 0.0) - (a.value_before or 0.0)) > 0.005)
+        )
+        if not applied:
+            return []
+        steps = [(None, applied[0].value_before or 0.0)]
+        steps += [(a.effective_from, a.value_after or 0.0) for a in applied]
+        return steps
+
+    def _fix_rate_on(self, day, steps=None):
+        """The annual value in force on `day`: the applied pricing amendments
+        move it from their effective date."""
+        self.ensure_one()
+        steps = self._fix_rate_steps() if steps is None else steps
+        if not steps:
+            return self.annual_value or 0.0
+        rate = steps[0][1]
+        for since, value in steps[1:]:
+            if since <= day:
+                rate = value
+        return rate
+
+    def _fix_suspension_windows(self):
+        self.ensure_one()
+        if "fix.contract.suspension" not in self.env or not self.id:
+            return []
+        rows = self.env["fix.contract.suspension"].sudo().search([("contract_id", "=", self.id)])
+        return [
+            (row.date_from, row.date_to or self.date_end, row.compensated)
+            for row in rows
+            if row.date_from
+        ]
+
+    def _fix_day_fee(self, day, slot_cache, steps):
+        slot = slot_cache.get(day)
+        if slot is None:
+            slot = self._fix_slot_bounds(day)
+            cursor = slot[0]
+            while cursor <= slot[1]:
+                slot_cache[cursor] = slot
+                cursor += timedelta(days=1)
+        days_in_slot = (slot[1] - slot[0]).days + 1
+        return self._fix_rate_on(day, steps) / 12.0 / days_in_slot
+
+    def _fix_fee_between(self, date_from, date_to, suspended=True, compensated=None):
+        """The unrounded fee for the days [date_from, date_to].
+
+        suspended=True    leave out the days inside a suspension window
+        suspended='only'  the fee of the suspended days only (compensated:
+                          None = all, True/False = only those windows)."""
+        self.ensure_one()
+        if not (date_from and date_to and self.date_start) or date_to < date_from:
+            return 0.0
+        windows = self._fix_suspension_windows() if suspended else []
+        steps = self._fix_rate_steps()
+        cache, total, day = {}, 0.0, date_from
+        while day <= date_to:
+            inside = [w for w in windows if w[0] <= day <= w[1]]
+            if suspended == "only":
+                hit = [w for w in inside if compensated is None or w[2] == compensated]
+                if hit:
+                    total += self._fix_day_fee(day, cache, steps)
+            elif not inside:
+                total += self._fix_day_fee(day, cache, steps)
+            day += timedelta(days=1)
+        return total
+
+    def _fix_billing_target(self) -> float:
+        """What the whole term bills (excl. VAT): the term value less the
+        suspended days no term extension compensated."""
+        self.ensure_one()
+        lost = self._fix_fee_between(
+            self.date_start, self.date_end, suspended="only", compensated=False
+        )
+        return round(self._fix_term_value() - lost, 2)
+
+    def _fix_billing_periods(self):
+        """[(period start, period end)] by the billing frequency."""
+        self.ensure_one()
+        step = self.FREQUENCY_MONTHS.get(self.billing_frequency or "monthly", 1)
+        start, end = self.date_start, self.date_end
+        out, n = [], 0
+        while True:
+            p_start = start + relativedelta(months=n * step)
+            if p_start > end:
+                break
+            p_end = min(start + relativedelta(months=(n + 1) * step) - timedelta(days=1), end)
+            out.append((p_start, p_end))
+            n += 1
+        return out
+
+    def _fix_billing_schedule(self, periods_per_year=None):
+        """The contract's billing schedule for the M20 bridge (read-only; no
+        invoice is created here). A period already billed (its billing period
+        row exists) keeps the amount it was billed; the last period absorbs
+        the rounding to the term's billing target, never below zero."""
+        self.ensure_one()
+        if not (self.date_start and self.date_end):
+            return []
+        billed = {
+            p.period_start: p
+            for p in self.env["fix.contract.billing.period"]
+            .sudo()
+            .search([("contract_id", "=", self.id)])
+        }
+        rows = []
+        for p_start, p_end in self._fix_billing_periods():
+            row = billed.get(p_start)
             rows.append(
                 {
-                    "period_start": cursor,
-                    "period_end": period_end,
-                    "amount": round((self.annual_value or 0.0) * days / 365.0, 2),
-                    "billed": bool(
-                        self.billed_through_date and period_end <= self.billed_through_date
+                    "period_start": p_start,
+                    "period_end": row.period_end if row else p_end,
+                    "amount": round(
+                        row.amount if row else self._fix_fee_between(p_start, p_end), 2
                     ),
+                    "billed": bool(row),
                 }
             )
-            cursor = period_end + timedelta(days=1)
-        if rows and term_days:
-            # the last row absorbs rounding so the schedule totals the term value
-            total = round((self.annual_value or 0.0) * term_days / 365.0, 2)
-            rows[-1]["amount"] = round(total - sum(r["amount"] for r in rows[:-1]), 2)
+        if rows and not rows[-1]["billed"]:
+            others = sum(r["amount"] for r in rows[:-1])
+            rows[-1]["amount"] = round(max(self._fix_billing_target() - others, 0.0), 2)
         return rows
+
+    def _fix_billed_total(self) -> float:
+        """The amount (excl. VAT) of every period billed so far."""
+        self.ensure_one()
+        periods = (
+            self.env["fix.contract.billing.period"].sudo().search([("contract_id", "=", self.id)])
+        )
+        return round(sum(periods.mapped("amount")), 2)
 
     def mark_billed_through(self, day):
         """Called by the M20 billing hand-off (as a service) when a period is
@@ -1169,11 +1405,16 @@ class FixContract(models.Model):
                 if days_left > 0
                 else None
             )
-            # BRU-CTR-12: a contract in dispute neither escalates nor auto-renews
-            if window is None or not contract.auto_renew or contract.in_dispute:
+            # BRU-CTR-12: a contract in dispute neither escalates nor auto-renews.
+            # A04 ERP audit M08-F17: the expiry ladder was announced only for
+            # auto-renew contracts, so a contract nobody renews expired with
+            # no alert at all. Every in-force contract is announced; only the
+            # renewal draft below depends on auto_renew.
+            if window is None or contract.in_dispute:
                 continue
             if contract.expiry_notified_window and contract.expiry_notified_window <= window:
                 continue
+            contract._fix_expiry_alert(window)
             publish(
                 self.env,
                 "contract.expiring",
@@ -1187,9 +1428,40 @@ class FixContract(models.Model):
             )
             contract._guarded().write({"expiry_notified_window": window})
             notified += 1
-            if days_left <= (contract.renewal_lead_days or 0) and not contract.renewal_ids:
+            if (
+                contract.auto_renew
+                and days_left <= (contract.renewal_lead_days or 0)
+                and not contract.renewal_ids
+                and not contract._fix_open_renewal_quote()
+            ):
                 contract._fix_create_renewal_term()
         return notified
+
+    def _fix_open_renewal_quote(self):
+        """A04 ERP audit M08-F17: a renewal being quoted (an M08 renewal quote
+        or an M36 quotation still with the customer) is the renewal path; the
+        cron does not draft a second term beside it."""
+        self.ensure_one()
+        quotes = (
+            self.env["fix.contract.renewal"]
+            .sudo()
+            .search_count([("contract_id", "=", self.id), ("state", "in", ("draft", "quoted"))])
+        )
+        return bool(quotes)
+
+    def _fix_expiry_alert(self, window):
+        """A to-do for the contract's owner on each expiry window (AUT-015)."""
+        self.ensure_one()
+        owner = self.owner_id if "owner_id" in self._fields else self.env["res.users"]
+        owner = owner or self.create_uid
+        if owner and owner.active and not owner.share:
+            self.sudo().activity_schedule(
+                "mail.mail_activity_data_todo",
+                date_deadline=self.date_end,
+                summary="Contract %s ends in %d days" % (self.code, window),
+                note="Renew, re-quote or let it expire on %s (AUT-015)." % self.date_end,
+                user_id=owner.id,
+            )
 
     # --- T06: preventive maintenance scheduler -------------------------
 
@@ -1566,9 +1838,12 @@ class FixContractEntitlement(models.Model):
         # M08 capture pass 2: a device is covered when it is listed OR caught
         # by a coverage rule (asset type / brand / site, FR-CTR-014), so the
         # device is no longer part of the search
+        # A04 ERP audit M08-F10: M01's "AMC / Contract" category is contract
+        # work under ANY family that covers assets, not the AMC family alone.
+        families = list(COVER_FAMILIES) if category == "amc" else [category]
         domain = [
             ("state", "in", IN_FORCE),
-            ("family", "=", category),
+            ("family", "in", families),
             ("date_start", "<=", day),
             ("date_end", ">=", day),
         ]
@@ -1682,12 +1957,18 @@ class FixContractPmVisit(models.Model):
                     "Contract %s is not in force, so its PM visit cannot be dispatched."
                     % contract.code
                 )
-            category = "amc" if contract.family == "amc" else "standard"
+            # A04 ERP audit M08-F10: only an AMC visit was contract work; a
+            # RAMC, managed-service or rental visit was opened as a standard
+            # (paid) order and drew no entitlement. Every family that covers
+            # assets opens its visit as contract work ("AMC / Contract").
+            category = "amc" if family_profile(contract.family)["covers_assets"] else "standard"
             order = Order.create(
                 {
                     "device_id": visit.device_id.id,
                     "customer_id": contract.customer_id.id,
-                    "branch_id": visit.device_id.branch_id.id,
+                    # a device registered without a branch is served by the
+                    # branch of the contract's unit (A04 ERP audit, B2)
+                    "branch_id": visit.device_id.branch_id.id or contract._fix_billing_branch().id,
                     "fault_description": "Preventive maintenance visit (%s)" % contract.code,
                     "order_category": category,
                     "contract_id": contract.id,

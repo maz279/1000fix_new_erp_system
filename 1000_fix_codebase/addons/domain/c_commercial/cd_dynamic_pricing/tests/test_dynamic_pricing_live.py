@@ -20,6 +20,10 @@ def _events(env, rule):
 def _rule(env, **overrides):
     vals = {"name": "Eid Surge", "adjustment_pct": 10.0, "surge_multiplier": 1.5}
     vals.update(overrides)
+    # A04 ERP audit M11-F17: the rule type follows the direction it moves
+    mult = vals["surge_multiplier"] if vals["surge_multiplier"] > 0 else 1.0
+    if "rule_type" not in vals and (1 + vals["adjustment_pct"] / 100.0) * mult < 1.0:
+        vals["rule_type"] = "off_peak"
     return env["fix.dynamic.price.rule"].create(vals)
 
 
@@ -90,11 +94,14 @@ def test_calculate_and_explain_persists_the_audit_trail(odoo_env):
 
 
 def test_explanation_without_unit_or_context(odoo_env):
-    rule = _rule(odoo_env, name="Night", rule_type="off_peak", adjustment_pct=-10.0)
+    # M11-F17: an off-peak rule lowers the price, so it carries no surge
+    rule = _rule(
+        odoo_env, name="Night", rule_type="off_peak", adjustment_pct=-10.0, surge_multiplier=1.0
+    )
     out = rule.calculate_and_explain(500.0)
     explanation = odoo_env["fix.price.explanation"].browse(out["explanation_id"])
-    # 500 * 0.90 * 1.5 = 675.00
-    assert out["final_price"] == 675.0
+    # 500 * 0.90 = 450.00
+    assert out["final_price"] == 450.0
     assert out["text"].endswith("Context: Standard dispatch request")
     assert explanation.model_driven is False
     assert not explanation.operating_unit_id

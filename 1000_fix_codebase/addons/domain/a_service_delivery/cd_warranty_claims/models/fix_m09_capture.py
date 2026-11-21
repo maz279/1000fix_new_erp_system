@@ -718,6 +718,9 @@ class FixProtectionReserve(models.Model):
         return super().create(vals_list)
 
     def write(self, vals):
+        # A04 ERP M09-F2: the movement's own GL posting stamps its move once
+        if self.env.su and set(vals) <= {"move_id", "gl_note"} and not self.filtered("move_id"):
+            return super().write(vals)
         raise UserError("The reserve ledger is append-only (T-09).")
 
     def unlink(self):
@@ -1150,7 +1153,11 @@ class FixProtectionClaim(models.Model):
             if release > 0.005:
                 policy._reserve("release", -release, "Claim %s settled" % claim.name, claim)
             policy.invalidate_recordset(["claimed_amount", "remaining_limit", "reserve_balance"])
-            if policy.claim_limit and policy.remaining_limit <= 0.005:
+            # A04 ERP M09-F6: remaining_limit nets approved claims too, so the
+            # policy is exhausted (and its reserve released) only once no
+            # approved claim is still waiting to be settled
+            pending = claim.policy_id.claim_ids.filtered(lambda c: c.state == "approved")
+            if policy.claim_limit and policy.remaining_limit <= 0.005 and not pending:
                 policy._guarded().write({"state": "exhausted"})
                 policy._release_reserve("Released: limit exhausted")
             publish(

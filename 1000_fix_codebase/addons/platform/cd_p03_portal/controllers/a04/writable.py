@@ -238,6 +238,8 @@ WRITABLE = {
         {
             "annual_value",
             "auto_renew",
+            "billing_frequency",
+            "billing_timing",
             "company_id",
             "covered_device_ids",
             "currency_id",
@@ -253,6 +255,7 @@ WRITABLE = {
             "owner_id",
             "parent_contract_id",
             "renewal_lead_days",
+            "retention_pct",
             "signature_method",
             "sla_policy_ids",
             "stamp_act_article",
@@ -314,7 +317,9 @@ WRITABLE = {
             "contract_id",
             "device_id",
             "entitlement_type",
+            "exhaustion_policy",
             "quantity_included",
+            "reset_period",
         }
     ),
     "fix.contract.entitlement.movement": frozenset(),
@@ -395,6 +400,7 @@ WRITABLE = {
         }
     ),
     "fix.contract.scope.line": frozenset(),
+    "fix.contract.suspension": frozenset(),
     "fix.contract.template": frozenset(
         {
             "active",
@@ -665,6 +671,7 @@ WRITABLE = {
             "audit_ids",
             "bank_solvency_attachment_id",
             "bank_solvency_ref",
+            "brand_id",
             "comarketing_campaign_ids",
             "contract_id",
             "name",
@@ -811,15 +818,23 @@ WRITABLE = {
             "valid_from",
         }
     ),
+    "fix.partner.rate.change": frozenset(
+        {
+            "dofa_justification",
+            "partner_id",
+            "proposed_rate",
+        }
+    ),
     "fix.partner.rebate": frozenset(
         {
-            "basis",
             "campaign_id",
             "dofa_justification",
             "kind",
             "name",
             "partner_id",
             "period",
+            "period_from",
+            "period_to",
             "rate",
         }
     ),
@@ -877,6 +892,7 @@ WRITABLE = {
     "fix.price.change": frozenset(
         {
             "change_type",
+            "effective_from",
             "floor_id",
             "proposed_value",
             "rate_card_id",
@@ -911,6 +927,17 @@ WRITABLE = {
         }
     ),
     "fix.price.mass.change.line": frozenset(),
+    "fix.price.override": frozenset(
+        {
+            "dofa_justification",
+            "estimate_line_id",
+            "product_id",
+            "requested_price",
+            "res_id",
+            "res_model",
+            "valid_until",
+        }
+    ),
     "fix.price.simulation": frozenset(
         {
             "catalogue_item_id",
@@ -1000,6 +1027,7 @@ WRITABLE = {
             "billing_line_ids",
             "contract_family",
             "contract_months",
+            "contract_sla_policy_ids",
             "contract_start",
             "cost_amount",
             "customer_id",
@@ -1026,7 +1054,6 @@ WRITABLE = {
             "tds_rate",
             "template_id",
             "valid_until",
-            "vat_rate",
             "warranty_terms",
         }
     ),
@@ -1060,6 +1087,14 @@ WRITABLE = {
             "recipient",
             "sent_at",
             "view_count",
+        }
+    ),
+    "fix.quotation.entitlement": frozenset(
+        {
+            "device_id",
+            "entitlement_type",
+            "quantity_included",
+            "quotation_id",
         }
     ),
     "fix.quotation.handoff": frozenset(),
@@ -1119,11 +1154,13 @@ WRITABLE = {
             "contract_id",
             "line_type",
             "min_tier",
+            "partner_id",
             "product_code",
             "proposed_unit_price",
             "unit_price",
             "valid_from",
             "valid_to",
+            "version_id",
         }
     ),
     "fix.rbom.line": frozenset(
@@ -1188,12 +1225,14 @@ WRITABLE = {
             "currency_id",
             "item_description",
             "item_ref",
+            "location_id",
             "partner_id",
             "period",
+            "product_id",
             "qty",
-            "unit_price",
         }
     ),
+    "fix.reseller.draw": frozenset(),
     "fix.sales.proforma": frozenset(
         {
             "advance_pct",
@@ -1340,10 +1379,10 @@ WRITABLE = {
             "buffer_qty",
             "category_id",
             "enabled",
-            "location_ids",
             "max_promise_days",
             "name",
             "product_id",
+            "stock_location_ids",
         }
     ),
     "fix.storefront.cart": frozenset(
@@ -1414,9 +1453,11 @@ WRITABLE = {
     ),
     "fix.storefront.order": frozenset(
         {
+            "cod_customer_nid",
             "line_ids",
             "shipping_address",
             "shipping_method",
+            "stock_location_id",
         }
     ),
     "fix.storefront.order.change": frozenset(
@@ -1677,10 +1718,13 @@ WRITABLE = {
             "amount",
             "bank",
             "bond_type",
+            "charges_amount",
             "currency_id",
             "expires_on",
             "guarantee_no",
+            "instrument",
             "issued_on",
+            "margin_amount",
             "tender_id",
         }
     ),
@@ -1733,6 +1777,7 @@ WRITABLE = {
             "currency_id",
             "evidence_ids",
             "operating_unit_id",
+            "repair_level",
             "service_order_id",
             "warranty_product_id",
         }

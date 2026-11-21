@@ -4,12 +4,15 @@
 # simulation/policy models. Margin needs a catalogue link; unlinked lines are
 # counted, never guessed. Brand reimbursement reads the M09 warranty-claim
 # ledger and the OEM invoices raised from it (fix.ar.invoice).
-import datetime
+import logging
 
-from odoo import http
+from odoo import fields, http
 from odoo.http import request
 
 from ..p03_service_order_api import _company_domain, _require_internal
+from ._scope import scoped
+
+_logger = logging.getLogger(__name__)
 
 SURFACES = {
     # A04 audit (2026-11-04) C3/D2: every M11 surface declared `actions:
@@ -126,6 +129,13 @@ SURFACES = {
         "limit": 200,
         "actions": set(),
     },
+    # A04 ERP audit (20 Nov 2026) M11-F7: a below-floor price for one
+    # document line, approved from the M63 inbox, used once.
+    "fix.price.override": {
+        "order": "id desc",
+        "limit": 300,
+        "actions": {"action_submit", "action_recall_approval"},
+    },
 }
 
 
@@ -141,64 +151,94 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def _cards(env):
-    return env["fix.rate.card"].sudo().search([])
+def _cards(env, date_from=None, date_to=None):
+    """Rate cards of the caller's companies (A04 ERP audit M11-F18: every
+    pack read every company's cards). A card is a standing record, so the
+    period does not filter it."""
+    return scoped(env, "fix.rate.card")
 
 
 def _cost_of(card):
-    item = card.catalogue_item_id
-    if not item or not item.product_tmpl_id:
-        return None
-    value = getattr(item.product_tmpl_id, "standard_price", None)
-    try:
-        return float(value) if value is not None else None
-    except (TypeError, ValueError):
-        return None
+    """The M15 average cost behind the card's item (product.standard_price is
+    empty on fix_real and gave a 100% margin), or None when M15 has none."""
+    env = card.env
+    Card = env["fix.rate.card"]
+    variant, _code, _item = Card._price_target(card.catalogue_item_id or card.product_code)
+    cost = Card._m15_cost(variant, card.company_id)
+    return cost or None
+
+
+def _realised_lines(env, date_from=None, date_to=None):
+    """Sold lines with the released price they were measured against, in the
+    period and the caller's companies: M01 estimate lines (card_price) and
+    M36 quotation lines (list_price)."""
+    out = []
+    if "fix.estimate.line" in env and "card_price" in env["fix.estimate.line"]._fields:
+        # an estimate line carries no company of its own: fence on its estimate's
+        for line in scoped(
+            env,
+            "fix.estimate.line",
+            [("card_price", ">", 0), ("estimate_id.company_id", "in", env.companies.ids)],
+            "create_date",
+            date_from,
+            date_to,
+        ):
+            out.append(("Estimate", line.estimate_id.display_name, line, line.card_price))
+    if "fix.quotation.line" in env:
+        for line in scoped(
+            env,
+            "fix.quotation.line",
+            [("price_source", "in", ("rate_card", "manual")), ("list_price", ">", 0)],
+            "create_date",
+            date_from,
+            date_to,
+        ):
+            out.append(("Quotation", line.quotation_id.display_name, line, line.list_price))
+    return out
 
 
 def realised_vs_card(env, date_from=None, date_to=None, **params):
-    explanations = env["fix.price.explanation"].sudo().search([])
     rows = []
-    for exp in explanations:
-        base = exp.base_price or 0.0
-        final = exp.final_price or 0.0
-        variance = final - base
+    for kind, doc, line, card in _realised_lines(env, date_from, date_to):
+        final = line.unit_price or 0.0
+        variance = final - card
         rows.append(
             {
-                "explanation": exp.name,
-                "base": round(base, 2),
+                "document": "%s %s" % (kind, doc or ""),
+                "item": line.product_id.display_name or line.description or "",
+                "base": round(card, 2),
                 "final": round(final, 2),
                 "variance": round(variance, 2),
-                "variance_pct": round(variance / base * 100.0, 1) if base else 0.0,
-                "model_driven": "✓" if exp.model_driven else "✗",
+                "variance_pct": round(variance / card * 100.0, 1) if card else 0.0,
             }
         )
-    rows.sort(key=lambda r: -abs(r["variance"]))
+    rows.sort(key=lambda r: r["variance"])
     return _pack(
         "Realised Price vs Card",
-        ["explanation", "base", "final", "variance", "variance_pct", "model_driven"],
+        ["document", "item", "base", "final", "variance", "variance_pct"],
         {
-            "explanation": "Price Explanation",
-            "base": "Card / Base Price",
-            "final": "Final Price",
+            "document": "Document",
+            "item": "Item",
+            "base": "Released Price",
+            "final": "Price Sold At",
             "variance": "Variance",
             "variance_pct": "Variance %",
-            "model_driven": "Model Driven",
         },
         rows,
         [
-            "Each row is a recorded price explanation: the base (card) price against the "
-            "final applied price and the variance."
+            "Each row is a sold line (M01 estimate, M36 quotation) in the period: the M11 "
+            "released price it was measured against and the price it carries. A negative "
+            "variance is a discount off the released price."
         ],
-        totals={"explanation": "Total", "variance": round(sum(r["variance"] for r in rows), 2)}
+        totals={"document": "Total", "variance": round(sum(r["variance"] for r in rows), 2)}
         if rows
         else None,
-        empty="No price explanations recorded yet.",
+        empty="No line was sold against a released M11 price in this period.",
     )
 
 
 def discount_register(env, date_from=None, date_to=None, **params):
-    approvals = env["fix.discount.approval"].sudo().search([])
+    approvals = scoped(env, "fix.discount.approval", None, "create_date", date_from, date_to)
     rows = []
     for a in approvals:
         rows.append(
@@ -234,7 +274,7 @@ def discount_register(env, date_from=None, date_to=None, **params):
 
 
 def rate_card_utilisation(env, date_from=None, date_to=None, **params):
-    cards = _cards(env)
+    cards = _cards(env).filtered(lambda c: c.state == "released")
     by_type = {}
     for card in cards:
         row = by_type.setdefault(
@@ -288,7 +328,7 @@ def rate_card_utilisation(env, date_from=None, date_to=None, **params):
 
 
 def margin_by_line(env, date_from=None, date_to=None, **params):
-    cards = _cards(env)
+    cards = _cards(env).filtered(lambda c: c.state == "released")
     rows = []
     unlinked = 0
     for card in cards:
@@ -323,16 +363,23 @@ def margin_by_line(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Margin = rate − the linked catalogue item's standard cost. %d of %d rate "
-            "lines have no catalogue link and are therefore excluded, never guessed."
+            "Margin = rate − the item's M15 average cost. %d of %d released rate "
+            "lines have no M15 cost and are therefore excluded, never guessed."
             % (unlinked, len(cards))
         ],
-        empty="No rate line has a catalogue link with a cost yet.",
+        empty="No released rate line has an M15 cost yet.",
     )
 
 
 def promotion_effectiveness(env, date_from=None, date_to=None, **params):
-    promos = env["fix.promotion"].sudo().search([])
+    promos = scoped(env, "fix.promotion")
+    if date_from or date_to:
+        start = fields.Date.to_date(date_from) if date_from else None
+        end = fields.Date.to_date(date_to) if date_to else None
+        promos = promos.filtered(
+            lambda p: (not end or not p.valid_from or p.valid_from <= end)
+            and (not start or not p.valid_until or p.valid_until >= start)
+        )
     rows = []
     for p in promos:
         rows.append(
@@ -345,11 +392,13 @@ def promotion_effectiveness(env, date_from=None, date_to=None, **params):
                 "channel": p.channel,
                 "state": p.state,
                 "window": "%s → %s" % (p.valid_from or "—", p.valid_until or "—"),
+                "uses": p.use_count,
+                "given": round(p.budget_used or 0.0, 2),
             }
         )
     return _pack(
         "Promotion Effectiveness",
-        ["promotion", "code", "discount", "channel", "state", "window"],
+        ["promotion", "code", "discount", "channel", "state", "window", "uses", "given"],
         {
             "promotion": "Promotion",
             "code": "Code",
@@ -357,11 +406,13 @@ def promotion_effectiveness(env, date_from=None, date_to=None, **params):
             "channel": "Channel",
             "state": "State",
             "window": "Validity",
+            "uses": "Times Used",
+            "given": "Discount Given (BDT)",
         },
         rows,
         [
-            "Redemption/usage telemetry is not modelled — this pack lists the live "
-            "promotions and their windows. Effectiveness per redemption is a declared gap."
+            "Promotions of your companies whose window meets the period, with the uses and "
+            "the discount given recorded by the pricing path (fix.promotion.consume)."
         ],
         empty="No promotions configured yet.",
     )
@@ -412,7 +463,7 @@ def _brand_cards_in_force(env):
     if "fix.brand.reimbursement.rate" not in env:
         return {}
     Rate = env["fix.brand.reimbursement.rate"]
-    today = datetime.date.today()
+    today = fields.Date.context_today(env.user)
     rates = Rate.search(
         [
             *_company_domain(env, "fix.brand.reimbursement.rate"),
@@ -584,8 +635,8 @@ def brand_reimbursement(env, date_from=None, date_to=None, **params):
 
 
 def pricing_engine(env, date_from=None, date_to=None, **params):
-    explanations = env["fix.price.explanation"].sudo().search([])
-    rules = env["fix.dynamic.price.rule"].sudo().search([])
+    explanations = scoped(env, "fix.price.explanation", None, "create_date", date_from, date_to)
+    rules = scoped(env, "fix.dynamic.price.rule")
     model_driven = len(explanations.filtered(lambda e: e.model_driven))
     variances = [(e.final_price or 0.0) - (e.base_price or 0.0) for e in explanations]
     rows = [
@@ -619,8 +670,8 @@ def pricing_engine(env, date_from=None, date_to=None, **params):
 
 
 def floors_vs_rate(env, date_from=None, date_to=None, **params):
-    floors = env["fix.price.floor"].sudo().search([])
-    cards = _cards(env)
+    floors = scoped(env, "fix.price.floor")
+    cards = _cards(env).filtered(lambda c: c.state == "released")
     rows = []
     for floor in floors:
         linked = cards.filtered(lambda c, code=floor.product_code: c.product_code == code)
@@ -670,15 +721,21 @@ def _brand_rates_in_force(env):
     return (
         env["fix.brand.reimbursement.rate"]
         .sudo()
-        .search_count([("state", "=", "active"), ("valid_from", "<=", datetime.date.today())])
+        .search_count(
+            [
+                *_company_domain(env, "fix.brand.reimbursement.rate"),
+                ("state", "=", "active"),
+                ("valid_from", "<=", fields.Date.context_today(env.user)),
+            ]
+        )
     )
 
 
 def kpis(env):
-    cards = _cards(env)
-    floors = env["fix.price.floor"].sudo().search([])
-    approvals = env["fix.discount.approval"].sudo().search([])
-    simulations = env["fix.price.simulation"].sudo().search([])
+    cards = _cards(env).filtered(lambda c: c.state == "released")
+    floors = scoped(env, "fix.price.floor")
+    approvals = scoped(env, "fix.discount.approval")
+    simulations = scoped(env, "fix.price.simulation")
     breaches = 0
     for floor in floors:
         for card in cards.filtered(lambda c, code=floor.product_code: c.product_code == code):
@@ -686,14 +743,18 @@ def kpis(env):
                 breaches += 1
     margins = []
     for card in cards:
-        cost = _cost_of(card)
+        try:
+            cost = _cost_of(card)
+        except Exception:  # a KPI never breaks the workspace, but says why
+            _logger.exception("M11 KPI: cost of rate card %s", card.id)
+            continue
         if cost is not None and card.unit_price:
             margins.append((card.unit_price - cost) / card.unit_price * 100.0)
-    policies = env["fix.discount.policy"].sudo().search([("active", "=", True)])
+    policies = scoped(env, "fix.discount.policy", [("active", "=", True)])
     max_by_role = {}
     for policy in policies:
         max_by_role[policy.role] = max(max_by_role.get(policy.role, 0.0), policy.max_pct)
-    today = datetime.date.today()
+    today = fields.Date.context_today(env.user)
     month_start = today.replace(day=1)
     # a count: no discount policy means no band to leak past, so 0, not None
     leaks = 0

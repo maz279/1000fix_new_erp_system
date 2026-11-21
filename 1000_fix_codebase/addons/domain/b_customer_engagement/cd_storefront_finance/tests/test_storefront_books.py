@@ -22,6 +22,7 @@ from odoo.addons.cd_storefront.tests.test_a04_c2_c13_storefront import (  # noqa
     _consignment,
     _events,
     _mk,
+    released_card,
     w,
 )
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox
@@ -91,6 +92,7 @@ def sf(w):
     w.acct2 = _mk(env, "sfb_acct2_%d" % n, "account.group_account_user")
     variant = w.product.product_variant_id
     variant.default_code = "SFB-CHG-%d" % n
+    released_card(env, w.product)  # A04 ERP M38-F1: its M11 price under the new code
     w.part = env["fix.spare.part"].create(
         {
             "name": "SF charger %d" % n,
@@ -225,17 +227,20 @@ def test_a_paid_order_is_invoiced_in_m20_and_its_receipt_applied(sf):
 
 
 def test_the_invoice_uses_the_order_line_prices(sf):
-    """fix_real D2-05: every list price is 1.00. The bridge invents nothing:
-    2 x 1.00 is invoiced as 1.74 + 0.26, and a later catalogue change does
-    not reach an order already placed."""
+    """fix_real D2-05: every list price is 1.00. A04 ERP M38-F1: the order is
+    priced from M11 (2,173.91 excl. VAT, 2,500.00 with it), never from
+    list_price; the bridge invents nothing and invoices the order's own lines,
+    and a later price change does not reach an order already placed."""
     w = sf
-    w.product.list_price = 1.0
+    w.product.sudo().with_context(install_mode=True).write({"list_price": 1.0})
     order = w.placed(2)
-    w.product.list_price = 9999.0
+    w.env["fix.rate.card"].sudo().search(
+        [("product_code", "=", w.product.product_variant_id.default_code)]
+    )._guarded().write({"state": "retired"})
     rcpt = w.receipt(order, "BKX-SFB-PRICE-%d" % order.id)
     order.with_user(w.cashier).action_confirm_payment(payment_ref=rcpt.reference)
     inv = order.sudo().ar_invoice_id
-    assert (inv.taxable_amount, inv.vat_amount, inv.total_payable) == (1.74, 0.26, 2.0)
+    assert (inv.taxable_amount, inv.vat_amount, inv.total_payable) == (4347.83, 652.17, 5000.0)
     assert inv.state == "paid"
 
 

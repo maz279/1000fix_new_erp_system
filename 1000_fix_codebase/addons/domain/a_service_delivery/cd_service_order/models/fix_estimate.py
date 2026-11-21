@@ -122,9 +122,28 @@ class FixEstimate(models.Model):
     # and the agent's own authority there. The bands are now READ from M11
     # (fix.discount.policy.discount_ladder(), cd_rate_card): the company's
     # released bands, the spec's BRU-PRC-06 default while none is released.
+    #
+    # A04 ERP audit (20 Nov 2026) M11-F6, FR-PRC-031: the ladder read only
+    # the header discount, so typing a lower line price (or a promotion)
+    # escaped it. The amount is now the CUMULATIVE discount off the released
+    # M11 prices: each line at the higher of its released price (card_price,
+    # set by cd_rate_card) and its own price, against what the estimate
+    # charges after the header discount. With no released price on a line
+    # its own price is its list, so the header discount alone counts.
     def _dofa_amount(self) -> float:
         self.ensure_one()
-        return self.discount_pct or 0.0
+        header = self.discount_pct or 0.0
+        list_total = net_lines = 0.0
+        for line in self.line_ids:
+            qty = line.quantity or 0.0
+            unit = line.unit_price or 0.0
+            ref = line["card_price"] if "card_price" in line._fields else 0.0
+            list_total += qty * max(ref or 0.0, unit)
+            net_lines += qty * unit
+        if list_total <= 0.0:
+            return header
+        net = net_lines - (self.discount or 0.0)
+        return round(max(header, (list_total - net) / list_total * 100.0), 2)
 
     def _dofa_thresholds(self):
         company = self.company_id[:1] or self.env.company
@@ -139,7 +158,10 @@ class FixEstimate(models.Model):
 
     def _dofa_amount_label(self) -> str:
         self.ensure_one()
-        return "a %.1f%% discount (BDT %.2f)" % (self.discount_pct or 0.0, self.discount or 0.0)
+        return "a %.1f%% cumulative discount off the released prices (header BDT %.2f)" % (
+            self._dofa_amount(),
+            self.discount or 0.0,
+        )
 
     _order = "order_id, version desc"
 
@@ -1038,7 +1060,51 @@ class FixEstimateLine(models.Model):
     description = fields.Char(required=True)
     quantity = fields.Float(default=1.0, digits="Product Unit of Measure")
     # AS-10: Monetary
-    unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id")
+    # A04 ERP audit (20 Nov 2026) M11-F1/F2: a line named an item and took a
+    # typed price. A line whose price is not given now takes the RELEASED M11
+    # price (fix.rate.card.price_for, channel 'service') for the order's
+    # customer and contract; with no released price it stays as typed (the
+    # M15 cost floor still applies, _fix_check_price_floor). Never the
+    # list_price placeholder. line_total stays quantity x unit_price.
+    unit_price = fields.Monetary(
+        string="Unit Price",
+        currency_field="currency_id",
+        compute="_compute_unit_price_default",
+        store=True,
+        readonly=False,
+        precompute=True,
+    )
+
+    @api.depends("product_id")
+    def _compute_unit_price_default(self):
+        Card = self.env.get("fix.rate.card")
+        for line in self:
+            price = None
+            if line.product_id and Card is not None and hasattr(Card, "price_for"):
+                price = Card.price_for(**line._fix_price_context())["price"]
+            if price is not None:
+                line.unit_price = price
+            elif not line.unit_price:
+                line.unit_price = 0.0
+
+    def _fix_price_context(self) -> dict:
+        """The price_for arguments of this line: the customer, contract,
+        company and date of its estimate and order."""
+        self.ensure_one()
+        est = self.estimate_id
+        order = est.order_id if est else None
+        contract = order["contract_id"] if order and "contract_id" in order._fields else None
+        return {
+            "product": self.product_id,
+            "partner": est._fix_doc_partner() if est else None,
+            "channel": "service",
+            "qty": self.quantity or 1.0,
+            "company": (est.company_id if est and "company_id" in est._fields else None)
+            or self.env.company,
+            "contract": contract or None,
+            "currency": self.currency_id or None,
+        }
+
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -1071,16 +1137,43 @@ class FixEstimateLine(models.Model):
             )
 
     def _fix_check_price_floor(self) -> None:
-        if self.env.su or not _param_on(self.env, PRICE_FLOOR_PARAM):
+        """A04 ERP audit (20 Nov 2026) M11-F1/F6: the M11 price gate, always
+        on (the old list-price floor read the 1.00 placeholder and could be
+        switched off). fix.rate.card.check_sale_price refuses a price below
+        the floor - the M11 price floor or the M15 cost margin floor - unless
+        a below-floor override approved for THIS line covers it. A price
+        typed below the released price is a discount: it is allowed, needs a
+        stated reason (price_override_reason, cd_rate_card) and counts in the
+        cumulative discount the DOFA ladder reads (FixEstimate._dofa_amount).
+        With no released price (no rate cards yet) a typed price stands,
+        checked against the M15 cost floor whenever the cost is known."""
+        if self.env.su:
             return
-        for line in self:
-            floor = line.product_id.lst_price if line.product_id else 0.0
-            if floor and (line.unit_price or 0.0) + 0.005 < floor:
-                raise UserError(
-                    "%s is listed at BDT %.2f; it cannot be quoted at BDT %.2f. Quote the "
-                    "list price and give a discount, which the DOFA tiers approve."
-                    % (line.product_id.display_name, floor, line.unit_price or 0.0)
-                )
+        Card = self.env.get("fix.rate.card")
+        if Card is None or not hasattr(Card, "check_sale_price"):
+            return
+        for line in self.filtered("product_id"):
+            ctx = line._fix_price_context()
+            if "card_price" in line._fields:
+                card = line.card_price or 0.0
+                if (
+                    card
+                    and abs((line.unit_price or 0.0) - card) > 0.005
+                    and not (line.price_override_reason or "").strip()
+                ):
+                    raise UserError(
+                        "%s has a released price of BDT %.2f; state why this line is priced at "
+                        "BDT %.2f (Price Change Reason)."
+                        % (line.product_id.display_name, card, line.unit_price or 0.0)
+                    )
+            Card.check_sale_price(
+                line.product_id,
+                line.unit_price or 0.0,
+                "estimate",
+                partner=ctx["partner"],
+                company=ctx["company"],
+                line=line,
+            )
 
     def _fix_check_not_negative(self) -> None:
         """The floor every line has, product or not: zero. A negative price or

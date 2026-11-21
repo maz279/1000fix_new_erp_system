@@ -19,6 +19,17 @@ SALE_GATE_PARAM = "cd_catalogue.sale_requires_active_item"
 # possible, which is what "existing customers only" means for a repair house.
 RESTRICTED_CHANNELS = frozenset({"storefront", "marketplace", "web", "quotation"})
 
+# A04 ERP audit (20 Nov 2026) M37-F1: channels a customer buys on with no
+# salesperson. An item with no VAT class is refused there (the bulk
+# classification of the 16,178 migrated items is the owner's, not invented
+# here). PUBLISHED_CHANNELS also need the item published (M37-F4: M38 sold
+# unpublished items).
+CUSTOMER_CHANNELS = frozenset({"storefront", "marketplace", "web"})
+PUBLISHED_CHANNELS = frozenset({"storefront", "web"})
+# BRU-CAT-10: work under a live service contract (M08 contract, or an M01
+# order on a contract-covered device) may still use a Discontinued item.
+CONTRACT_CHANNELS = frozenset({"contract", "service_contract"})
+
 
 def has_role(env, *xmlids) -> bool:
     return env.su or any(env.user.has_group(x) for x in xmlids)

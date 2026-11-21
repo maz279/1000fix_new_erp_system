@@ -118,6 +118,35 @@ def _guest_partner(env):
     return partner
 
 
+def normalise_bd_mobile(value):
+    """'01XXXXXXXXX' for a Bangladesh mobile number given in any common form
+    (+880 / 880 prefix, spaces, dashes), else ''."""
+    digits = "".join(ch for ch in str(value or "") if ch.isdigit())
+    if digits.startswith("880"):
+        digits = digits[2:]
+    if len(digits) == 11 and digits.startswith("01") and digits[2] in "3456789":
+        return digits
+    return ""
+
+
+def guest_customer_for_phone(env, phone):
+    """A04 ERP audit M38-F12: the customer of a guest order is the partner of
+    its mobile number (one per number, found again on the next order), never
+    one partner shared by every guest. Empty when the number is not a
+    Bangladesh mobile number."""
+    mobile = normalise_bd_mobile(phone)
+    if not mobile:
+        return env["res.partner"]
+    ref = "sf-guest:%s" % mobile
+    Partner = env["res.partner"].sudo()
+    partner = Partner.search([("ref", "=", ref)], limit=1)
+    if not partner:
+        partner = Partner.create(
+            {"name": "Storefront customer %s" % mobile, "phone": mobile, "ref": ref}
+        )
+    return partner
+
+
 def _scoped_customer(kwargs):
     """Resolve customer partner ID for current request.
     Anti-IDOR: only internal staff may act for another customer (``customer_id`` /
@@ -207,22 +236,36 @@ class StorefrontApiController(http.Controller):
             domain.append(("name", "ilike", search))
 
         limit = min(max(_to_int(limit) or 50, 1), CATALOGUE_MAX_LIMIT)
-        products = env["product.template"].search(domain, limit=limit)
-        items = []
-        for p in products:
-            items.append(
-                {
-                    "id": p.id,
-                    "name": p.name,
-                    "code": p.default_code or "",
-                    "type": p.type,
-                    "list_price": float(p.list_price),
-                    "price_bdt": _fmt_bdt(p.list_price),
-                    "category": p.categ_id.name if p.categ_id else "General",
-                    # no "in_stock": this module does not depend on stock, so
-                    # availability is unknown here and is never asserted
-                }
-            )
+        # A04 ERP audit M38-F1: only items with a released M11 storefront
+        # price are listed, at that price (VAT included); list_price is never
+        # shown. A page is scanned in batches until it is full.
+        Line = env["fix.storefront.cart.line"]
+        partner = env["res.partner"].browse(_scoped_customer(kwargs))
+        items, offset, batch = [], 0, max(limit * 2, 50)
+        while len(items) < limit:
+            products = env["product.template"].search(domain, limit=batch, offset=offset)
+            if not products:
+                break
+            offset += batch
+            for p in products:
+                try:
+                    info = Line._sf_m11_price(p, partner=partner)
+                except UserError:
+                    continue  # no released price: not sold online
+                items.append(
+                    {
+                        "id": p.id,
+                        "name": p.name,
+                        "code": p.default_code or "",
+                        "type": p.type,
+                        "price": float(info["incl"]),
+                        "price_bdt": _fmt_bdt(info["incl"]),
+                        "price_excl_vat": float(info["excl"]),
+                        "category": p.categ_id.name if p.categ_id else "General",
+                    }
+                )
+                if len(items) >= limit:
+                    break
         return {"products": items, "count": len(items)}
 
     @http.route("/storefront/cart", type="jsonrpc", auth="public")
@@ -245,6 +288,9 @@ class StorefrontApiController(http.Controller):
                 qty = float("nan")
             if not math.isfinite(qty) or qty <= 0:
                 return _error("INVALID_QUANTITY", "quantity must be a positive number")
+            if abs(qty - round(qty)) > 1e-9:
+                # A04 ERP audit M38-F4: whole units only
+                return _error("INVALID_QUANTITY", "quantity must be a whole number of units")
 
             if not cart:
                 cart = env["fix.storefront.cart"].create(
@@ -257,22 +303,18 @@ class StorefrontApiController(http.Controller):
                     request.session[SESSION_CART_KEY] = cart.id
             # check if line already in cart
             existing_line = cart.line_ids.filtered(lambda line: line.product_id.id == product.id)
-            if existing_line:
-                existing_line.write({"quantity": existing_line.quantity + qty})
-            else:
-                try:
-                    # A04 audit: the M37 lifecycle / M11 floor sale check
-                    with env.cr.savepoint():
+            try:
+                with env.cr.savepoint():
+                    if existing_line:
+                        existing_line.write({"quantity": existing_line.quantity + qty})
+                    else:
+                        # A04 audit: the M37 lifecycle / M11 price and floor
+                        # check; the price is the server's (M38-F1)
                         env["fix.storefront.cart.line"].create(
-                            {
-                                "cart_id": cart.id,
-                                "product_id": product.id,
-                                "quantity": qty,
-                                "unit_price": product.list_price,
-                            }
+                            {"cart_id": cart.id, "product_id": product.id, "quantity": qty}
                         )
-                except UserError as exc:
-                    return _error("PRODUCT_NOT_SELLABLE", str(exc))
+            except (UserError, ValidationError) as exc:
+                return _error("PRODUCT_NOT_SELLABLE", str(exc))
 
         return _cart_payload(cart)
 
@@ -307,10 +349,31 @@ class StorefrontApiController(http.Controller):
         if payment_rail not in _selection_keys(env, "fix.storefront.order", "payment_rail"):
             return _error("INVALID_PAYMENT_RAIL", f"Unknown payment rail '{payment_rail}'")
 
+        guest_customer = None
+        if _caller_user() is None:
+            # A04 ERP audit M38-F12: every guest order was booked to ONE
+            # shared partner. A guest order now belongs to the customer of
+            # its mobile number; with no OTP verification on the storefront
+            # yet, cash on delivery (money collected against an unverified
+            # identity) is offered to signed-in customers only.
+            if payment_rail == "cod":
+                return _error(
+                    "COD_NOT_ALLOWED",
+                    "Cash on delivery needs a signed-in customer; please pay online or sign in.",
+                )
+            guest_customer = guest_customer_for_phone(env, kwargs.get("phone"))
+            if not guest_customer:
+                return _error(
+                    "PHONE_REQUIRED",
+                    "A guest order needs the customer's mobile number (01XXXXXXXXX).",
+                )
+
         try:
             # all-or-nothing: a failed placement must not strand the cart in
             # "checkout" (the caller could never reach it again)
             with env.cr.savepoint():
+                if guest_customer:
+                    cart.write({"customer_id": guest_customer.id})
                 cart.action_checkout()
                 order = cart.action_place_order(
                     shipping_address=shipping_address,

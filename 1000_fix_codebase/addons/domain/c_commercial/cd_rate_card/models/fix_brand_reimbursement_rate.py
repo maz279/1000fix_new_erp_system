@@ -16,6 +16,7 @@ from datetime import timedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
+from .pricing_money import money
 from .pricing_roles import ROLE_OFFICER, ROLE_RELEASER, require_releaser_not_author, require_role
 
 REPAIR_LEVELS = [
@@ -315,4 +316,4 @@ class FixBrandReimbursementRate(models.Model):
         cost plus the markup, rounded once to the paisa."""
         self.ensure_one()
         parts = float(parts_cost or 0.0)
-        return round(self.labour_rate + parts * (1.0 + (self.parts_markup_pct or 0.0) / 100.0), 2)
+        return money(self.labour_rate + parts * (1.0 + (self.parts_markup_pct or 0.0) / 100.0))

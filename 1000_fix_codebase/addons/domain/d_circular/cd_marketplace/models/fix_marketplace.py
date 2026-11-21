@@ -26,6 +26,10 @@ import logging
 from datetime import datetime, timedelta
 
 from odoo import api, fields, models
+from odoo.addons.cd_billing_engine.models.fix_finance_approval import (
+    GROUP_ACCOUNTANT,
+    has_role,
+)
 from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.fields import Domain
 from odoo.tools import SQL
@@ -80,6 +84,28 @@ COMMISSION_RATE_PARAM = "cd_marketplace.platform_commission_rate"
 TIER_RATE_PARAM = "cd_marketplace.commission_rate.%s"
 # FLAW-12.2 / Digital Commerce Guidelines 2021: the statutory inspection hold.
 ESCROW_DAYS = 7
+
+
+TIER_BANDS = ((0.85, "platinum"), (0.70, "gold"), (0.50, "silver"))
+
+
+def tier_for_score(composite) -> str:
+    """The seller tier of a measured composite score (0-1 scale)."""
+    for floor, tier in TIER_BANDS:
+        if (composite or 0.0) >= floor:
+            return tier
+    return "at_risk"
+
+
+# The M20 refund method (fix.ar.refund) for the M20 receipt method the customer
+# paid by (A04 ERP M12-F3): the money goes back the way it came.
+RECEIPT_REFUND_METHOD = {
+    "bkash": "bkash",
+    "nagad": "nagad",
+    "rocket": "rocket",
+    "cash": "cash",
+    "cheque": "cheque",
+}
 
 
 def _assert_role(env, xmlid, what):
@@ -241,6 +267,21 @@ class FixMarketplaceSeller(models.Model):
                         "%s is KYC-verified: its identity documents change only through a new "
                         "KYC submission (reject, then re-submit)." % rec.name
                     )
+            # A04 ERP audit M12-F11: the categories a seller may quote in were
+            # approved by the CFO with the seller; changing them withdraws that
+            # approval, to be decided again.
+            if "category_ids" in vals and not self.env.su:
+                before = {
+                    rec.id: set(rec.category_ids.ids) for rec in self.filtered("cfo_approved")
+                }
+                result = super().write(vals)
+                for rec in self.filtered(lambda r: r.id in before):
+                    if set(rec.category_ids.ids) != before[rec.id]:
+                        rec._approval_clear_stamp(
+                            "the approved service categories changed (by %s); CFO approval is "
+                            "requested again" % self.env.user.name
+                        )
+                return result
         return super().write(vals)
 
     # ---- approval-engine hooks ----------------------------------------------
@@ -301,22 +342,12 @@ class FixMarketplaceSeller(models.Model):
             if identity:
                 rec.write(identity)
 
-            # Route through Z4 resident vault client (FF-09 invariant)
-            z4_ref = None
-            if doc_payload:
-                try:
-                    from libs.py.fix_residency import ResidencyClient
-
-                    client = ResidencyClient()
-                    res = client.put(f"seller_kyc_{rec.id}", str(doc_payload))
-                    z4_ref = res.get(
-                        "key", f"z4-token-{rec.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-                    )
-                except Exception as exc:
-                    logger.warning("fix_residency put fallback for seller %s: %s", rec.id, exc)
-                    z4_ref = f"z4-token-{rec.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
-            else:
-                z4_ref = f"z4-token-{rec.id}-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+            # A04 ERP audit M12-F8: KYC was "verified" on a made-up
+            # z4-token-<id>-<ts> with no document behind it. The reference is
+            # now the Z4 vault key of the documents actually stored (FF-09),
+            # or the documents attached to the seller record; with neither,
+            # nothing is submitted.
+            z4_ref = rec._kyc_document_ref(doc_payload)
 
             rec._guarded().write(
                 {
@@ -340,6 +371,44 @@ class FixMarketplaceSeller(models.Model):
                     "z4_ref": rec.kyc_doc_z4_ref,
                 },
             )
+
+    def _kyc_attachments(self):
+        self.ensure_one()
+        return (
+            self.env["ir.attachment"]
+            .sudo()
+            .search([("res_model", "=", self._name), ("res_id", "=", self.id)])
+        )
+
+    def _kyc_document_ref(self, doc_payload=None):
+        """The reference of the seller's KYC documents: the Z4 vault key of a
+        payload stored now, else the attachments on the seller. Refused when
+        there is no document, or the vault does not answer (never a token
+        invented in its place)."""
+        self.ensure_one()
+        if doc_payload:
+            try:
+                from libs.py.fix_residency import ResidencyClient
+
+                res = ResidencyClient().put(f"seller_kyc_{self.id}", str(doc_payload)) or {}
+            except Exception as exc:
+                logger.warning("Z4 put failed for seller %s: %s", self.id, exc)
+                res = {}
+            key = res.get("key") if isinstance(res, dict) else None
+            if not key:
+                raise UserError(
+                    "The KYC documents of %s could not be stored in the Z4 vault: nothing is "
+                    "submitted until they are (A04 ERP M12-F8)." % self.name
+                )
+            return key
+        docs = self._kyc_attachments()
+        if not docs:
+            raise UserError(
+                "Attach the seller's KYC documents (NID, trade licence, TIN certificate) to %s "
+                "before submitting KYC: a submission without documents is not reviewed "
+                "(A04 ERP M12-F8)." % self.name
+            )
+        return "attachment:%s" % ",".join(str(i) for i in sorted(docs.ids))
 
     def action_cfo_approve(self):
         """CFO operational sign-off gate (BRU-ECM-01). The M63 apply method:
@@ -410,6 +479,17 @@ class FixMarketplaceSeller(models.Model):
                 raise UserError(
                     "%s is %s: KYC is verified from compliance review (submit it first)."
                     % (rec.name, rec.kyc_status)
+                )
+            # A04 ERP audit M12-F8: verified only on documents that exist
+            ref = rec.kyc_doc_z4_ref or ""
+            if not self.env.su and (
+                not ref
+                or ref.startswith("z4-token-")
+                or (ref.startswith("attachment:") and not rec._kyc_attachments())
+            ):
+                raise UserError(
+                    "%s has no KYC documents on file (%s): resubmit KYC with its documents "
+                    "before it is verified." % (rec.name, ref or "none")
                 )
             rec._guarded().write(
                 {
@@ -588,6 +668,31 @@ class FixMarketplaceOrder(models.Model):
     )
     paid_at = fields.Datetime(string="Payout Released", readonly=True, copy=False)
     paid_by_id = fields.Many2one("res.users", string="Payout Released By", readonly=True)
+    # A04 ERP audit M12-F1: the customer's money, received in M20. Nothing
+    # is earned or accrued on a sale whose money never arrived.
+    customer_receipt_id = fields.Many2one(
+        "fix.ar.receipt",
+        string="Customer Receipt (M20)",
+        readonly=True,
+        copy=False,
+        index=True,
+        ondelete="restrict",
+        help="The confirmed M20 receipt of the customer's payment of the awarded price.",
+    )
+    customer_paid_at = fields.Datetime(
+        string="Customer Payment Recorded", readonly=True, copy=False
+    )
+    refund_credit_ref = fields.Char(
+        string="Customer Refund (M20)",
+        readonly=True,
+        copy=False,
+        help="The M20 refund raised when a dispute or a lost chargeback returned the money.",
+    )
+
+    _customer_receipt_unique = models.UniqueIndex(
+        "(customer_receipt_id) WHERE customer_receipt_id IS NOT NULL",
+        "This M20 receipt already pays another marketplace order.",
+    )
 
     # Dispute Integration & Payout Lock (BRU-BIL-03)
     dispute_ids = fields.One2many("fix.marketplace.dispute", "order_id", string="Linked Disputes")
@@ -618,7 +723,191 @@ class FixMarketplaceOrder(models.Model):
             "review_rating",
             "paid_at",
             "paid_by_id",
+            "customer_receipt_id",
+            "customer_paid_at",
+            "refund_credit_ref",
         }
+
+    # ---- A04 ERP audit M12-F1/F4/F10 ---------------------------------------
+    def _award_commission_rate(self, seller) -> float:
+        """The rate the order earns: the seller commission scheme in force
+        (M53 fix.commission.scheme), its rate - else, a scheme with no rate,
+        the seller tier's configured rate. No scheme: no award (fail closed,
+        the scheme and its TDS are Finance's to configure)."""
+        self.ensure_one()
+        Scheme = self.env.get("fix.commission.scheme")
+        today = fields.Date.context_today(self)
+        scheme = (
+            Scheme.sudo()._find("seller", today, self.company_id, seller_tier=seller.tier)
+            if Scheme is not None
+            else None
+        )
+        if not scheme:
+            raise UserError(
+                "No seller commission scheme is in force for %s (tier %s) in %s: Finance "
+                "configures it in M53 Commission Schemes before any job is awarded "
+                "(A04 ERP M12-F4)." % (seller.name, seller.tier, self.company_id.name)
+            )
+        rate = scheme.commission_rate or seller._tier_commission_rate()
+        if not 0 < rate <= 1:
+            raise UserError(
+                "Commission scheme %s states no rate and no tier rate is configured for %s: "
+                "nothing can be earned on an award." % (scheme.display_name, seller.tier)
+            )
+        return rate
+
+    def _find_customer_receipt(self, receipt):
+        Receipt = self.env["fix.ar.receipt"].sudo()
+        if isinstance(receipt, models.BaseModel):
+            return receipt.sudo().exists()
+        try:
+            return Receipt.browse(int(receipt)).exists()
+        except (TypeError, ValueError):
+            pass
+        ref = str(receipt or "").strip()
+        if not ref:
+            return Receipt
+        return Receipt.search(["|", ("name", "=", ref), ("reference", "=", ref)], limit=1)
+
+    def action_record_customer_receipt(self, receipt=None):
+        """A04 ERP audit M12-F1: the customer's payment of the awarded price is
+        an M20 receipt (Dr channel clearing / Cr AR, recorded and confirmed in
+        M20 by finance); finance links it here. Confirmed, from this
+        customer, covering the awarded price, paying no other order."""
+        if not has_role(self.env, GROUP_ACCOUNTANT):
+            raise AccessError("Recording a marketplace customer payment needs the Accountant role.")
+        found = self._find_customer_receipt(receipt)
+        if not found:
+            raise UserError("No M20 receipt %r exists." % (receipt,))
+        for rec in self:
+            if rec.customer_receipt_id:
+                raise UserError("%s already carries its customer receipt." % rec.name)
+            if rec.state not in ("selected", "in_progress", "completed", "reviewed"):
+                raise UserError(
+                    "%s is %s: the customer pays an awarded, uncancelled job."
+                    % (rec.name, dict(ORDER_STATES).get(rec.state))
+                )
+            if found.state != "confirmed":
+                raise UserError("Receipt %s is %s, not confirmed." % (found.name, found.state))
+            if found.customer_id.commercial_partner_id != rec.customer_id.commercial_partner_id:
+                raise UserError(
+                    "Receipt %s is from %s, not from the customer of %s."
+                    % (found.name, found.customer_id.display_name, rec.name)
+                )
+            due = rec.awarded_price or 0.0
+            if (found.amount or 0.0) + 0.005 < due:
+                raise UserError(
+                    "Receipt %s is BDT %.2f; the awarded price of %s is BDT %.2f."
+                    % (found.name, found.amount, rec.name, due)
+                )
+            other = self.sudo().search(
+                [("customer_receipt_id", "=", found.id), ("id", "!=", rec.id)], limit=1
+            )
+            if other:
+                raise UserError("Receipt %s already pays %s." % (found.name, other.name))
+            rec._guarded().write(
+                {"customer_receipt_id": found.id, "customer_paid_at": fields.Datetime.now()}
+            )
+            rec.message_post(body="Customer payment: M20 receipt %s." % found.name)
+        return True
+
+    def _mkp_refund_customer(self, amount, source_ref):
+        """A04 ERP M12-F3: refund `amount` to the customer from the order's
+        M20 customer receipt (fix.ar.refund, authorised by another accountant,
+        paid by treasury). Idempotent per source; nothing when the money never
+        reached M20."""
+        self.ensure_one()
+        receipt = self.customer_receipt_id.sudo()
+        if not receipt:
+            self.message_post(
+                body="%s rules a refund of BDT %.2f, but the order holds no M20 customer "
+                "receipt: there is no collected money to refund (finance decides)."
+                % (source_ref, amount)
+            )
+            return {"skipped": "no customer receipt"}
+        Refund = self.env["fix.ar.refund"].sudo()
+        reason = ("Marketplace %s: %s" % (self.name, source_ref))[:250]
+        existing = Refund.search(
+            [("receipt_id", "=", receipt.id), ("reason", "=", reason), ("state", "!=", "rejected")],
+            limit=1,
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        receipt.invalidate_recordset(["unapplied_amount"])
+        take = round(min(amount, receipt.unapplied_amount), 2)
+        if take <= 0.005:
+            raise UserError(
+                "Receipt %s has nothing on account left to refund %s." % (receipt.name, source_ref)
+            )
+        refund = Refund.create(
+            {
+                "receipt_id": receipt.id,
+                "amount": take,
+                "method": RECEIPT_REFUND_METHOD.get(receipt.method, "bank_transfer"),
+                "reason": reason,
+            }
+        )
+        refunds = [r for r in (self.refund_credit_ref or "").split(", ") if r] + [refund.name]
+        self._guarded().write({"refund_credit_ref": ", ".join(refunds)})
+        return {"model": refund._name, "id": refund.id, "created": True}
+
+    def _mkp_seller_recovery(self, amount, source_ref, dispute=None):
+        """A04 ERP M12-F3: what the seller owes back. An escrow still holding
+        the order's commissions is flagged for Finance to forfeit (commission
+        forfeit, M53); a seller already paid gets a DRAFT clawback of their
+        share for a finance manager to approve. Nothing is decided here."""
+        self.ensure_one()
+        Adjustment = self.env.get("fix.settlement.adjustment")
+        seller = self.selected_quote_id.seller_id.sudo()
+        if Adjustment is None or not seller:
+            return {"skipped": "M53 not installed or no awarded seller"}
+        Adjustment = Adjustment.sudo()
+        if dispute is not None:
+            escrow = Adjustment.search(
+                [
+                    ("dispute_id", "=", dispute.id),
+                    ("adjustment_type", "=", "escrow"),
+                    ("state", "=", "active"),
+                ],
+                limit=1,
+            )
+            if escrow:
+                escrow.message_post(
+                    body="%s was ruled for the customer (refund BDT %.2f): forfeit this escrow "
+                    "(the held commissions are not paid)." % (source_ref, amount)
+                )
+                escrow.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    summary="Forfeit escrow %s (%s)" % (escrow.name, source_ref),
+                )
+                return {"model": escrow._name, "id": escrow.id, "action": "forfeit_requested"}
+        Ledger = self.env.get("fix.commission.ledger")
+        paid = (
+            Ledger.sudo().search([("marketplace_order_id", "=", self.id), ("state", "=", "paid")])
+            if Ledger is not None
+            else None
+        )
+        if not paid:
+            return {"skipped": "the seller was not paid on %s" % self.name}
+        reason = "Recovery of %s on %s" % (source_ref, self.name)
+        existing = Adjustment.search(
+            [("reason", "=", reason), ("adjustment_type", "=", "clawback")], limit=1
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        share = round(amount * (1.0 - (self.commission_rate or 0.0)), 2)
+        claw = Adjustment.create(
+            {
+                "company_id": self.company_id.id,
+                "operating_unit_id": self.operating_unit_id.id or False,
+                "adjustment_type": "clawback",
+                "seller_partner_id": seller.partner_id.id,
+                "dispute_id": dispute.id if dispute is not None else False,
+                "amount": share,
+                "reason": reason,
+            }
+        )
+        return {"model": claw._name, "id": claw.id, "created": True, "amount": share}
 
     def _fix_frozen_fields(self) -> set:
         self.ensure_one()
@@ -737,6 +1026,10 @@ class FixMarketplaceOrder(models.Model):
                 raise UserError(
                     f"Seller {seller.name} is not certified for category {rec.category_id.name} (BRU-ECM-07)."
                 )
+            # A04 ERP audit M12-F4/F10: no award before Finance configured the
+            # seller commission scheme in force (M53); its rate is THE rate
+            # the order earns, pinned here (the ledger keeps it).
+            rate = rec._award_commission_rate(seller)
 
             # Update quote states
             rec.quote_ids.filtered(lambda q: q.id != quote.id)._guarded().write(
@@ -750,7 +1043,7 @@ class FixMarketplaceOrder(models.Model):
                     "state": "selected",
                     "selected_quote_id": quote.id,
                     "awarded_price": quote.quoted_price,
-                    "commission_rate": seller._tier_commission_rate(),
+                    "commission_rate": rate,
                     "customer_contact_revealed": True,
                     "revealed_seller_id": seller.id,
                 }
@@ -855,6 +1148,13 @@ class FixMarketplaceOrder(models.Model):
             quote = rec.selected_quote_id
             if not quote:
                 raise UserError("Order %s has no awarded seller to earn on." % rec.name)
+            # A04 ERP audit M12-F1: commission is earned on money received
+            receipt = rec.customer_receipt_id.sudo()
+            if not receipt or receipt.state != "confirmed":
+                raise UserError(
+                    "Order %s has no confirmed M20 receipt of the customer's payment: nothing is "
+                    "earned on money never received (record the receipt first)." % rec.name
+                )
             seller = quote.seller_id
             # Pinned at award; orders awarded before the pin read the tier now.
             rate = rec.commission_rate or seller._tier_commission_rate()
@@ -925,6 +1225,21 @@ class FixMarketplaceOrder(models.Model):
                     "Digital Commerce Operational Guidelines 2021 Escrow Hold: Payout blocked until %s "
                     "(mandatory 7-day post-delivery customer inspection window)."
                     % rec.payout_available_date
+                )
+            # A04 ERP audit M12-F2: "Payout Complete" was set with no payout
+            # run and no M50 instruction while the ledger stayed earned. The
+            # order is paid only when its M53 commission row was discharged by
+            # a bank-confirmed payout run (the discharge calls this).
+            Ledger = self.env.get("fix.commission.ledger")
+            rows = (
+                Ledger.sudo().search([("marketplace_order_id", "=", rec.id)])
+                if Ledger is not None
+                else None
+            )
+            if not rows or any(r.state != "paid" for r in rows):
+                raise UserError(
+                    "Order %s is paid out when its M53 payout run has paid the seller (the "
+                    "bank-confirmed discharge), not by marking it here." % rec.name
                 )
             rec._guarded().write(
                 {"state": "paid", "paid_at": fields.Datetime.now(), "paid_by_id": self.env.uid}
@@ -1259,16 +1574,7 @@ class FixSellerScore(models.Model):
         tier = False
         for rec in self:
             _assert_role(self.env, OPERATOR_GROUP, "Ranking a seller")
-            if not rec.metrics_measured:
-                tier = "unrated"
-            elif rec.composite >= 0.85:
-                tier = "platinum"
-            elif rec.composite >= 0.70:
-                tier = "gold"
-            elif rec.composite >= 0.50:
-                tier = "silver"
-            else:
-                tier = "at_risk"
+            tier = tier_for_score(rec.composite) if rec.metrics_measured else "unrated"
 
             rec.seller_id._guarded().write({"tier": tier})
             publish(
@@ -1692,6 +1998,7 @@ class FixMarketplaceDispute(models.Model):
                 }
             )
             rec.seller_id._recompute_payout_hold()
+            rec._restore_tier_after_resolution()
             unlocked = not rec.seller_id.payout_hold
 
             publish(
@@ -1735,6 +2042,66 @@ class FixMarketplaceDispute(models.Model):
                     "seller": rec.seller_id.name,
                 },
             )
+
+    # ---- A04 ERP audit M12-F16: the tier after the escalation is resolved ----
+    def _restore_tier_after_resolution(self):
+        """An escalation set the seller at_risk and nothing ever lifted it.
+        Once no escalated dispute remains, the seller takes the tier of their
+        latest measured score again (unrated when never measured)."""
+        Score = self.env["fix.seller.score"].sudo()
+        for seller in self.mapped("seller_id").sudo():
+            if seller.tier != "at_risk":
+                continue
+            if self.sudo().search_count(
+                [("seller_id", "=", seller.id), ("state", "=", "escalated")]
+            ):
+                continue
+            score = Score.search(
+                [("seller_id", "=", seller.id), ("metrics_measured", "=", True)],
+                order="period desc, id desc",
+                limit=1,
+            )
+            tier = tier_for_score(score.composite) if score else "unrated"
+            seller._guarded().write({"tier": tier})
+            seller.message_post(
+                body="Tier %s after the escalated dispute was resolved (latest measured score %s)."
+                % (tier, score.period if score else "none")
+            )
+
+    # ---- A04 ERP audit M12-F3 / X5: the money consequences of a ruling -------
+    @api.model
+    def consume_dispute_resolved(self, event: dict) -> dict:
+        """R8 consumer of marketplace.dispute_resolved. The ruling was decided
+        by an arbitrator; its money follows here, from the record (the
+        payload is a claim):
+          * the refund ruled goes back to the customer as an M20 refund of the
+            order's customer receipt (another accountant authorises it; M50
+            pays it on the rail it came by);
+          * the seller side is left to Finance as an M53 decision: an active
+            escrow of the dispute is flagged for forfeit, or - when the seller
+            was already paid - a DRAFT clawback of the seller's share is raised
+            for a finance manager to approve.
+        Idempotent per dispute."""
+        if not self.env.su:
+            raise AccessError("The dispute consumer runs only from the event relay.")
+        try:
+            dispute_id = int(event.get("aggregate_id") or 0)
+        except (TypeError, ValueError):
+            dispute_id = 0
+        dispute = self.sudo().browse(dispute_id).exists()
+        if not dispute:
+            raise UserError("There is no marketplace dispute #%s." % dispute_id)
+        if dispute.state != "resolved":
+            return {"skipped": "dispute %s is %s" % (dispute.name, dispute.state)}
+        refund = dispute.refund_amount or 0.0
+        if refund <= 0.005:
+            return {"skipped": "dispute %s refunds nothing" % dispute.name}
+        order = dispute.order_id.sudo()
+        out = {
+            "refund": order._mkp_refund_customer(refund, dispute.name),
+            "seller": order._mkp_seller_recovery(refund, dispute.name, dispute=dispute),
+        }
+        return out
 
     @api.model
     def cron_dispute_sla_escalation(self) -> int:

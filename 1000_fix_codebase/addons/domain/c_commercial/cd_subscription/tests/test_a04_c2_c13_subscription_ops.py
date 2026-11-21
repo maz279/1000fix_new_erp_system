@@ -82,7 +82,9 @@ def _sub(c, **kw):
 
 
 def _bill(c, sub):
-    sub.with_user(c.billing).action_generate_charge()
+    # A04 ERP M39-F9: a cycle is billed with a reviewed run's authority (the
+    # guard token the run's commit carries), never from the plain button
+    sub.with_user(c.billing)._guarded().action_generate_charge()
     return sub.charge_ids.sorted("period_start")[-1]
 
 
@@ -104,7 +106,7 @@ def test_charge_is_frozen_once_invoiced(c, p03):
 def test_charge_cannot_be_backdated_or_bill_a_cycle_twice(c):
     sub = _sub(c, next_invoice_date=c.today - timedelta(days=365))
     with pytest.raises(UserError, match="backdated"):
-        sub.with_user(c.billing).action_generate_charge()
+        sub.with_user(c.billing)._guarded().action_generate_charge()
     sub2 = _sub(c)
     charge = _bill(c, sub2)
     with pytest.raises(ValidationError, match="billed once"):
@@ -255,9 +257,16 @@ def test_proration_credit_is_approved_under_dofa_and_applied(c):
     approve_via_inbox(p, c.tier1, requester=c.officer)
     p.invalidate_recordset()
     sub.invalidate_recordset()
-    assert p.state == "approved" and p.applied_to_subscription
-    assert sub.recurring_amount == 15000.0 and sub.plan == "basic"
+    # A04 ERP M39-F7: dated 15 days ahead, it applies on its date, not at approval
+    assert p.state == "approved" and not p.applied_to_subscription
+    assert sub.recurring_amount == 30000.0
     assert _events(c.env, "subscription.proration_approved", p.id)[0]["amount"] == -7500.0
+    p.sudo()._guarded().write({"effective_date": c.today})  # the date comes
+    assert c.env["fix.subscription.proration"].cron_apply_due_prorations() >= 1
+    p.invalidate_recordset()
+    sub.invalidate_recordset()
+    assert p.applied_to_subscription
+    assert sub.recurring_amount == 15000.0 and sub.plan == "basic"
     with pytest.raises(UserError):
         p.with_user(c.billing)._fix_mark_invoiced()  # the finance bridge only
 
@@ -417,12 +426,18 @@ def test_billing_job_is_off_until_finance_switches_it_on(c):
     Charge = c.env["fix.subscription.charge"]
     assert Charge.cron_generate_due_charges() == 0 and not sub.charge_ids
     c.env["ir.config_parameter"].sudo().set_param("cd_subscription.auto_billing", "1")
+    Run = c.env["fix.subscription.billing.run"]
+    Run.search(
+        [("state", "in", ("draft", "dry_run", "reviewed", "partial"))]
+    ).sudo()._guarded().write({"state": "void"})
+    # A04 ERP M39-F9 (BRU-SUB-17): switched on, the job prepares a dry run for
+    # review; it bills nothing itself, and prepares one open run at a time
     assert Charge.cron_generate_due_charges() >= 1
     sub.invalidate_recordset()
-    assert len(sub.charge_ids) == 1
-    Charge.cron_generate_due_charges()
-    sub.invalidate_recordset()
-    assert len(sub.charge_ids) == 1, "a cycle is billed once"
+    assert not sub.charge_ids
+    assert Charge.cron_generate_due_charges() == 0
+    run = Run.search([("state", "=", "dry_run")], limit=1)
+    assert sub in run.unit_ids.mapped("subscription_id")
 
 
 @pytest.fixture
