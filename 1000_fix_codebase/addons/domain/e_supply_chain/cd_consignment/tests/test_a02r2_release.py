@@ -139,6 +139,40 @@ def test_m03_02_an_order_paid_meanwhile_collects_nothing(w, monkeypatch):
     assert leg.state == "delivered" and not calls and not leg.cod_amount
 
 
+def test_b1_the_real_m01_rule_makes_an_unpaid_order_a_cod_leg(w, monkeypatch):
+    """A02 pass 2 review B1: M01's _fix_delivery_leg_allowed returns
+    (ok, reason); bool((False, reason)) is True, so the unpaid Ready order
+    left on a leg collecting nothing. The rule is M01's own here, unstubbed."""
+    _due(w, monkeypatch, 2300.0)
+    order = w.make_ready(_unready_order(w))
+    ok, why = order._fix_delivery_leg_allowed()
+    assert ok is False and "owes BDT 2300.00" in why
+    leg = w.cons(service_order_id=order.id)
+    assert leg.cod_amount == 2300.0
+    # a leg that collects nothing is refused, with M01's reason
+    leg.sudo()._guarded().write({"cod_amount": 0.0})
+    monkeypatch.setattr(type(leg), "_m03_set_cod_amount", lambda self: None)
+    err = refused(w.env, lambda: leg.with_user(w.hub).action_confirm())
+    assert err and "neither paid, credit-released nor a cash-on-delivery leg" in err
+    assert "owes BDT 2300.00" in err and leg.state == "draft"
+
+
+def test_b1_a_cod_leg_collects_only_what_is_still_to_collect(w, monkeypatch):
+    """A02 pass 2 review: a part payment taken on site (D3) was collected
+    again at the door (the COD was the full amount due), and M01 then refused
+    the COD as more than is still to collect."""
+    _due(w, monkeypatch, 2300.0)
+    order = w.make_ready(_unready_order(w))
+    # setup: BDT 500 recorded on site as a part payment (M01's own record)
+    order._fix_record_settlement(500.0, "FIELD/R2-PART", source="field_collection")
+    assert order.payment_settlement_state == "partial"
+    assert order._fix_amount_outstanding() == 1800.0
+    leg = w.cons(service_order_id=order.id)
+    assert leg.cod_amount == 1800.0
+    leg.with_user(w.hub).action_confirm()
+    assert leg.state == "confirmed"
+
+
 # ================================================== M03-03 courier booking
 def _partner(w, **kw):
     n = next(_SEQ)
@@ -223,6 +257,40 @@ def test_m03_04_a_pickup_leaves_the_door_only_with_its_proof(w):
         and leg.pickup_otp_verified_at
         and leg.pickup_proof_by_id == w.rider
     )
+
+
+def test_m03_04_the_door_seal_and_weight_are_recorded_on_the_confirmed_pickup(w):
+    """A02 pass 2 review (P2): the pickup proof needs the seal and weight put
+    on the parcel at the door, but the confirmed leg locked them."""
+    w.env["ir.config_parameter"].sudo().set_param(PICKUP_PROOF_PARAM, "1")
+    leg = w.cons(ctype="pickup", outbound_seal_number=False, dispatch_weight_g=0.0)
+    leg.with_user(w.hub).action_confirm()
+    rider = leg.with_user(w.rider)
+    rider.write({"outbound_seal_number": "SEAL-DOOR", "dispatch_weight_g": 350.0})
+    assert leg.outbound_seal_number == "SEAL-DOOR" and leg.dispatch_weight_g == 350.0
+    assert "outbound_seal_number" not in leg._fix_form_locked_fields()
+    # the declared value checked at confirm stays fixed
+    err = refused(w.env, lambda: rider.write({"declared_value_bdt": 1.0}))
+    assert err and "confirmed for dispatch" in err
+    # a delivery leg keeps all of its dispatch evidence fixed once confirmed
+    out = w.cons()
+    out.with_user(w.hub).action_confirm()
+    err = refused(w.env, lambda: out.with_user(w.hub).write({"outbound_seal_number": "X"}))
+    assert err and "confirmed for dispatch" in err
+    # once the parcel left the door its seal and weight are fixed
+    rider.action_send_pickup_otp()
+    rider.action_verify_pickup_otp(otp=w.sms[-1][1])
+    rider.action_scan_pickup_serial(serial=leg.service_order_id.device_serial)
+    photo = (
+        w.env["ir.attachment"]
+        .with_user(w.rider)
+        .create({"name": "parcel.png", "raw": PNG, "mimetype": "image/png"})
+    )
+    photo.sudo().write({"res_model": leg._name, "res_id": leg.id})
+    rider.action_attach_pickup_evidence(attachment_id=photo.id)
+    rider.action_start_transit()
+    err = refused(w.env, lambda: rider.write({"outbound_seal_number": "SEAL-SWAP"}))
+    assert err and leg.outbound_seal_number == "SEAL-DOOR"
 
 
 # ================================================== M03-05 tariff charge

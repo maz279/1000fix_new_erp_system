@@ -634,7 +634,25 @@ class FixCourierRemittance(models.Model):
             rec._fix_mark_bookings_settled()
             # D1: the service-order legs' COD is handed in
             rec.consignment_ids.sudo()._m03_mark_cod_remitted()
+            rec._fix_confirm_service_order_cod()
         return True
+
+    def _fix_confirm_service_order_cod(self):
+        """D1 (A02 pass 2 review): the courier's settled remittance is the
+        hand-in of each service order's cash on delivery: M01's own COD
+        confirmation, as the system. The legs were marked handed in, but the
+        orders' COD stayed unverified, so they could never close."""
+        self.ensure_one()
+        for leg in self.consignment_ids.sudo():
+            order = leg.service_order_id
+            if (
+                order
+                and hasattr(order, "action_confirm_cod_remitted")
+                and order.settlement_source == "cod"
+                and order.payment_settlement_state == "settled"
+                and not order.settlement_verified
+            ):
+                order.action_confirm_cod_remitted()
 
     def _fix_mark_bookings_settled(self):
         """M03's courier bookings of the settled consignments show their COD

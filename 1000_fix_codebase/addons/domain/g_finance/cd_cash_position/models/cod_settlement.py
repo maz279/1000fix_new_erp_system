@@ -432,7 +432,13 @@ class FixCodSettlement(models.Model):
             if order.sudo().payment_settlement_state == "settled" and not (
                 order.sudo().settlement_verified
             ):
-                order.action_verify_settlement()
+                if order.sudo().settlement_source == "cod":
+                    # the settled rider cash is the remittance: M01's own COD
+                    # confirmation, as the system (the settling user is
+                    # finance, not a counter cashier)
+                    order.sudo().action_confirm_cod_remitted()
+                else:
+                    order.action_verify_settlement()
                 order.sudo().message_post(
                     body="Cash on delivery of BDT %.2f verified: rider %s's COD settlement %s."
                     % (sleg.cod_amount, self.rider_id.name, self.name)

@@ -1392,6 +1392,19 @@ class FixServiceOrder(models.Model):
         due = self._fix_amount_due()
         if due <= 0 or self._fix_credit_covers(due):
             return ""
+        if (
+            self.settlement_source == "cod"
+            and self.payment_settlement_state == "settled"
+            and not self.settlement_verified
+        ):
+            # D1 (A02 pass 2 review): the COD receipt pays the invoice in the
+            # books at the door, which read as a paid invoice here; the cash is
+            # still with the rider or courier until it is handed in
+            return (
+                "Order %s cannot be closed: its cash on delivery (%s, BDT %.2f) is not handed "
+                "in yet; the rider settlement or courier remittance confirms it."
+                % (self.name, self.invoice_ref or "-", self.amount_settled_bdt or 0.0)
+            )
         if not (self._fix_settlement_covers(due) or self._fix_paid_invoice(due)):
             return (
                 "Order %s cannot be closed: BDT %.2f is due and no verified settlement, "
@@ -2301,6 +2314,13 @@ class FixServiceOrder(models.Model):
         self.ensure_one()
         if self.settlement_verified or not self.invoice_ref:
             return bool(self.settlement_verified)
+        if self.settlement_source == "cod":
+            # D1 (A02 pass 2 review): the COD receipt is booked at the door
+            # (Dr COD clearing) while the rider or courier still holds the
+            # cash, so it found itself here and verified the collection on
+            # the spot. COD is verified when that cash is handed in: the rider
+            # settlement or courier remittance (action_confirm_cod_remitted).
+            return False
         unverified = (self.amount_settled_bdt or 0.0) - (self.amount_verified_bdt or 0.0)
         receipt = self._fix_find_m20_receipt(self.invoice_ref, max(unverified, 0.0))
         if not receipt:

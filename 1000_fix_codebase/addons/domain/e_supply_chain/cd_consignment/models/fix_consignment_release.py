@@ -22,6 +22,12 @@
 #
 # M03-09: a rider assigned legs to himself. The rider and the courier of a leg
 # are a hub decision.
+#
+# A02 pass 2 review (P2): the outbound seal and dispatch weight of a pickup are
+# put on the parcel at the customer's door, after the hub confirmed the leg,
+# but the confirmed leg locked them, so the pickup proof could never be
+# completed. They stay open on a confirmed pickup leg of a service order and
+# lock when transit starts (the receiving hub checks what left the door).
 import hmac
 import logging
 import os
@@ -47,6 +53,11 @@ PICKUP_PROOF_PARAM = "cd_consignment.pickup_proof_required"
 # next business day; after that the rider takes no new COD leg.
 COD_HANDIN_DAYS_PARAM = "cd_consignment.cod_handin_business_days"
 
+# what a pickup leg records at the customer's door (open until transit)
+PICKUP_DOOR_EVIDENCE = frozenset(
+    {"outbound_seal_number", "security_bag_barcode", "dispatch_weight_g"}
+)
+
 _RELEASE_GUARDED = frozenset(
     {
         "cod_amount",
@@ -70,23 +81,50 @@ def _param_on(env, key, default="1"):
     return str(raw if raw is not None else default).strip().lower() in ("1", "true", "yes", "on")
 
 
-def order_released_for_delivery(order) -> bool:
-    """D1: the order may leave on a prepaid delivery leg. M01's rule
-    (_fix_delivery_leg_allowed: Ready + paid or credit-released) decides when
-    it is installed; this fallback asks the same questions of the order."""
+def delivery_release_verdict(order):
+    """D1: may the order leave on a prepaid delivery leg? ``(ok, reason)``.
+    M01's rule (_fix_delivery_leg_allowed: Ready + paid or credit-released)
+    decides when it is installed; this fallback asks the same questions of
+    the order.
+
+    A02 pass 2 review B1: M01's rule returns ``(ok, reason)``; reading that
+    tuple as a bool made every refusal True, so an unpaid Ready order left on
+    a leg collecting nothing. A plain bool is still accepted."""
     order = order.sudo()
     rule = getattr(order, "_fix_delivery_leg_allowed", None)
     if rule is not None:
-        return bool(rule())
+        result = rule()
+        if isinstance(result, tuple | list):
+            ok = bool(result[0]) if result else False
+            reason = str(result[1] or "") if len(result) > 1 else ""
+            return ok, reason
+        return bool(result), ""
     if order.state != "ready":
-        return False
+        return False, "order %s is %s, not Ready" % (order.name, order.state)
     due = order._fix_amount_due()
-    return bool(
+    ok = bool(
         order._fix_zero_charge_basis()
         or due <= 0.005
         or order.payment_settlement_state == "credit_approved"
         or order._fix_settlement_covers(due)
     )
+    return ok, ""
+
+
+def order_released_for_delivery(order) -> bool:
+    """D1: the order may leave on a prepaid delivery leg."""
+    return delivery_release_verdict(order)[0]
+
+
+def order_cod_amount(order) -> float:
+    """What a cash-on-delivery leg collects: what is still to collect on the
+    order - the amount due less every payment already recorded on it (a part
+    payment taken on site, D3). Collecting the full amount due again
+    over-collected and the order then refused the COD at the door."""
+    order = order.sudo()
+    outstanding = getattr(order, "_fix_amount_outstanding", None)
+    amount = outstanding() if outstanding is not None else order._fix_amount_due()
+    return round(max(amount or 0.0, 0.0), 2)
 
 
 class FixConsignmentRelease(models.Model):
@@ -143,17 +181,17 @@ class FixConsignmentRelease(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | _RELEASE_GUARDED
 
+    def _fix_dispatch_locked(self) -> set:
+        locked = super()._fix_dispatch_locked()
+        if (
+            self.state == "confirmed"
+            and self.consignment_type == "pickup"
+            and self.service_order_id
+        ):
+            locked = locked - PICKUP_DOOR_EVIDENCE
+        return locked
+
     def write(self, vals):
-        # M03-09: a rider (who is not also a hub operator) changes only the
-        # legs assigned to him: he started transit and closed PODs on other
-        # riders' legs of his unit.
-        if self and not self.env.su and not self.env.user.has_group(GROUP_HUB):
-            foreign = self.filtered(lambda c: c.sudo().rider_id.user_id != self.env.user)
-            if foreign and self.env.user.has_group(GROUP_RIDER):
-                raise UserError(
-                    "%s is not assigned to you: a rider works only his own legs."
-                    % ", ".join(foreign.sudo().mapped("name"))
-                )
         # M03-09: the rider / courier of a leg is a hub decision (a rider
         # assigned legs to himself). The custody lock in fix_consignment
         # still fixes the carrier once the leg is on the road.
@@ -172,6 +210,16 @@ class FixConsignmentRelease(models.Model):
                 )
             if changed and vals.get("rider_id"):
                 self._m03_refuse_overdue_cod_rider(vals["rider_id"])
+        # M03-09: a rider (who is not also a hub operator) changes only the
+        # legs assigned to him: he started transit and closed PODs on other
+        # riders' legs of his unit.
+        if self and not self.env.su and not self.env.user.has_group(GROUP_HUB):
+            foreign = self.filtered(lambda c: c.sudo().rider_id.user_id != self.env.user)
+            if foreign and self.env.user.has_group(GROUP_RIDER):
+                raise UserError(
+                    "%s is not assigned to you: a rider works only his own legs."
+                    % ", ".join(foreign.sudo().mapped("name"))
+                )
         return super().write(vals)
 
     @api.model_create_multi
@@ -208,7 +256,7 @@ class FixConsignmentRelease(models.Model):
             order = rec.service_order_id.sudo()
             amount = 0.0
             if order.state == "ready" and not order_released_for_delivery(order):
-                amount = round(max(order._fix_amount_due(), 0.0), 2)
+                amount = order_cod_amount(order)
             if abs((rec.cod_amount or 0.0) - amount) > 0.005:
                 # system-derived (the front desk raising the leg holds no
                 # consignment write right)
@@ -225,9 +273,10 @@ class FixConsignmentRelease(models.Model):
                 "service order %s is %s: a device goes out on a delivery leg only once the "
                 "order is Ready (repaired and passed QC)" % (order.name, order.state)
             )
-        if order_released_for_delivery(order):
+        released, reason = delivery_release_verdict(order)
+        if released:
             return ""
-        due = order._fix_amount_due()
+        due = order_cod_amount(order)
         if self.cod_amount > 0.005 and abs(self.cod_amount - due) <= 0.005:
             if self.courier_partner_id and not self.courier_partner_id.cod_supported:
                 return "courier %s does not collect cash on delivery" % (
@@ -239,9 +288,11 @@ class FixConsignmentRelease(models.Model):
                 "the leg collects BDT %.2f but BDT %.2f is due on %s now: return the leg and "
                 "raise a new one" % (self.cod_amount, due, order.name)
             )
+        # M01's own reason says what would release it
+        why = " (%s)" % reason.rstrip(".") if reason else ""
         return (
             "BDT %.2f is due on %s and it is neither paid, credit-released nor a "
-            "cash-on-delivery leg" % (due, order.name)
+            "cash-on-delivery leg%s" % (due, order.name, why)
         )
 
     def _m03_check_delivery_release(self):
@@ -446,6 +497,10 @@ class FixConsignmentRelease(models.Model):
 
     def _m03_check_pickup_proof(self):
         for rec in self:
+            if rec.state != "confirmed":
+                # not at the door yet (or already gone): the transit itself
+                # refuses a leg that is not confirmed, with its own reason
+                continue
             missing = rec._m03_pickup_proof_missing()
             if missing:
                 raise UserError(

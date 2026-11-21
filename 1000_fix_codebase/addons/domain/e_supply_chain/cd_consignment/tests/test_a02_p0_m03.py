@@ -9,6 +9,7 @@ by the guards, so it would hide a gap; it is used only for setup.
 ``odoo_env`` (addons/conftest.py) rolls back after every test.
 """
 
+import base64
 import json
 import types
 
@@ -18,6 +19,9 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, AccessError, ValidationError, ValueError)
 GUARD = "changes only through its workflow"
+PNG = base64.b64decode(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
+)
 
 
 @pytest.fixture
@@ -173,10 +177,45 @@ def w(odoo_env, monkeypatch):
             rec.write({"state": state})  # setup by the superuser
         return rec
 
+    def door_proof(rec):
+        """A02 pass 2 M03-04: what a pickup of a service order records at the
+        customer's door before it leaves - the customer's code, a package
+        photo, the device serial, and the outbound seal and weight (those two
+        only when the leg has none). Recorded by the leg's rider, or by the
+        hub for a courier leg; the leg is confirmed."""
+        if rec.consignment_type != "pickup" or not rec.service_order_id:
+            return rec
+        actor = rec.with_user(rec.rider_id.user_id or hub)
+        actor.action_send_pickup_otp()
+        actor.action_verify_pickup_otp(otp=sms[-1][1])
+        serial = rec.service_order_id.device_serial
+        if serial:
+            actor.action_scan_pickup_serial(serial=serial)
+        photo = env["ir.attachment"].create(
+            {
+                "name": "parcel.png",
+                "raw": PNG,
+                "mimetype": "image/png",
+                "res_model": rec._name,
+                "res_id": rec.id,
+            }
+        )
+        actor.action_attach_pickup_evidence(attachment_id=photo.id)
+        door = {}
+        if not rec.outbound_seal_number:
+            door["outbound_seal_number"] = "SEAL-DOOR-%s" % rec.id
+        if not rec.dispatch_weight_g:
+            door["dispatch_weight_g"] = 500.0
+        if door:
+            actor.write(door)
+        return rec
+
     def moving(ctype="delivery", **kw):
-        """A consignment confirmed by the hub and taken into custody by the rider."""
+        """A consignment confirmed by the hub and taken into custody by the
+        rider (a pickup with its proof from the customer's door)."""
         rec = cons(ctype=ctype, **kw)
         rec.with_user(hub).action_confirm()
+        door_proof(rec)
         rec.with_user(rider).action_start_transit()
         return rec
 
@@ -216,6 +255,7 @@ def w(odoo_env, monkeypatch):
         free_order=free_order,
         make_ready=make_ready,
         cons=cons,
+        door_proof=door_proof,
         moving=moving,
         at_door=at_door,
         claim=claim,
@@ -578,10 +618,13 @@ def test_a_code_that_cannot_be_sent_is_not_issued(w, monkeypatch):
 def test_a_branch_leg_closes_with_the_hub_receipt(w):
     """Pickup and branch-transfer legs end at our branch: hub intake, then
     the receiving hub signs; the rider cannot."""
-    c = w.moving(ctype="pickup", outbound_seal_number="SEAL-P1")
+    c = w.moving(ctype="pickup", outbound_seal_number="SEAL-P1", dispatch_weight_g=420.0)
     assert refused(w.env, lambda: c.with_user(w.rider).action_generate_otp())
     assert refused(w.env, lambda: c.with_user(w.hub).action_confirm_receipt())  # no intake yet
-    assert c.with_user(w.hub).action_verify_hub_intake(inbound_seal="SEAL-P1") is True
+    assert (
+        c.with_user(w.hub).action_verify_hub_intake(inbound_seal="SEAL-P1", receive_weight_g=420)
+        is True
+    )
     assert c.seal_status == "verified"
     assert refused(w.env, lambda: c.with_user(w.rider).action_confirm_receipt())
     c.with_user(w.hub).action_confirm_receipt()
@@ -780,21 +823,34 @@ def test_the_approver_group_ships_empty(w):
 
 # =================================================================== courier
 def test_courier_booking_needs_a_pod(w):
-    """M03-10 (probe): a booking delivered with no POD."""
+    """M03-10 (probe): a booking delivered with no POD. A02 pass 2 M03-03: a
+    booking is for a leg the courier carries (not our rider's)."""
     partner = w.env["fix.courier.partner"].create({"name": "A2P0 Courier", "code": "A2P0C"})
-    c, code = w.at_door()
+    c = w.cons(rider_id=False)
+    c.with_user(w.hub).action_confirm()
     b = (
         w.env["fix.courier.booking"]
         .with_user(w.hub)
         .create({"partner_id": partner.id, "consignment_id": c.id})
     )
+    b.with_user(w.hub).action_pick_up()
+    assert c.state == "in_transit"
     assert refused(w.env, lambda: b.with_user(w.hub).write({"state": "delivered"}))
     err = refused(w.env, lambda: b.with_user(w.hub).action_deliver())
     assert err and "no proof of delivery" in err
     assert refused(w.env, lambda: b.with_user(w.clerk).action_deliver())
-    c.with_user(w.rider).action_verify_pod(otp=code)
+    pod = w.env["ir.attachment"].create(
+        {
+            "name": "courier-pod.pdf",
+            "raw": b"%PDF-1.4 signed",
+            "mimetype": "application/pdf",
+            "res_model": b._name,
+            "res_id": b.id,
+        }
+    )
+    b.with_user(w.hub).action_record_pod(attachment_id=pod.id)
     b.with_user(w.hub).action_deliver()
-    assert b.state == "delivered" and b.delivered_on
+    assert b.state == "delivered" and b.delivered_on and c.state == "delivered"
 
 
 # =================================================================== P03

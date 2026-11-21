@@ -558,6 +558,7 @@ class FixFieldOrder(models.Model):
 
     def write(self, vals):
         if not self._fix_guard_open() and not self._fix_is_dispatcher():
+            self._fix_refuse_foreign_write()
             for names, editable, what in (
                 (_COORDINATE_FIELDS & set(vals), ("draft",), "draft"),
                 (_SCHEDULE_FIELDS & set(vals), _SITE_EDITABLE_STATES, "dispatch"),
@@ -612,6 +613,27 @@ class FixFieldOrder(models.Model):
         return super().write(vals)
 
     # ------------------------------------------------------- authority checks
+    def _fix_refuse_foreign_write(self):
+        """A02 pass 2 review (M02-08): a technician changes only the orders
+        assigned to him, or an unassigned one he raised. The record rule for
+        it (fix_field_a02r2_rules.xml) is ORed with the operating-unit rule of
+        every internal user, so it restricted nothing; the check is made here.
+        Workflow actions open the guard and run their own checks (an action
+        that hands the order back to dispatch still posts on it)."""
+        user = self.env.user
+        # an unsaved record (new()) belongs to nobody yet: the guard and the
+        # access rules judge it, not this check
+        foreign = self.sudo().filtered(
+            lambda r: isinstance(r.id, int)
+            and r.technician_id.user_id != user
+            and not (not r.technician_id and r.create_uid == user)
+        )
+        if foreign:
+            raise AccessError(
+                "%s is not assigned to you: a technician changes only his own field orders. "
+                "A dispatcher changes the others." % ", ".join(foreign.mapped("name"))
+            )
+
     def _fix_is_dispatcher(self) -> bool:
         return self.env.su or self.env.user.has_group(DISPATCHER_GROUP)
 
@@ -1505,6 +1527,12 @@ class FixFieldOrder(models.Model):
                         rec.onsite_collection_amount,
                     )
                 )
+            # A02 pass 2 review (D20): more than the order still owes was
+            # accepted here, then the cash hand-over refused it for ever (M01
+            # records no more than is due) and the technician got no new cash
+            # job. The customer gets the difference back on the spot.
+            if amount > 0:
+                rec._fix_refuse_over_collection(amount)
             vals = {
                 "onsite_collection_amount": amount,
                 "onsite_payment_method": method,
@@ -1523,19 +1551,13 @@ class FixFieldOrder(models.Model):
             rec._guarded().write(vals)
             if amount <= 0:
                 continue
-            # M02-01 (D3): the amount due decides what the money is. Less is a
-            # part payment (the rest stays due); more is refused by M01.
-            due = rec.order_id.sudo()._fix_amount_due() if rec.order_id else 0.0
+            # M02-01 (D3): what is still to collect decides what the money is.
+            # Less is a part payment (the rest stays due); more was refused above.
+            due = rec._fix_order_outstanding() if rec.order_id else 0.0
             if amount + 0.005 < due:
                 warnings.append(
                     "%s: BDT %.2f is a part payment; BDT %.2f stays due on %s."
                     % (rec.name, amount, due - amount, rec.order_id.sudo().name)
-                )
-            elif amount > due + 0.005:
-                warnings.append(
-                    "%s: BDT %.2f is more than the BDT %.2f due on %s; the service order "
-                    "records only what it is owed - return the difference to the customer."
-                    % (rec.name, amount, due, rec.order_id.sudo().name)
                 )
             publish(
                 rec.env,
@@ -1557,6 +1579,36 @@ class FixFieldOrder(models.Model):
         if warnings:
             return {"warning": " ".join(warnings)}
         return True
+
+    def _fix_order_outstanding(self) -> float:
+        """What the service order still has to collect: the amount due less
+        what is already recorded on it (M01's _fix_amount_outstanding; the
+        amount due itself when that is not installed)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return 0.0
+        outstanding = getattr(order, "_fix_amount_outstanding", None)
+        return round(outstanding() if outstanding is not None else order._fix_amount_due(), 2)
+
+    def _fix_refuse_over_collection(self, amount):
+        """Refuse an on-site collection the service order would not record:
+        more than it still owes, or anything once its estimate is covered.
+        An order with no estimate yet records what is collected (M01)."""
+        self.ensure_one()
+        order = self.order_id.sudo()
+        if not order:
+            return
+        due = order._fix_amount_due()
+        governed = due > 0.005 or bool(order._fix_governing_estimate())
+        if not governed:
+            return
+        outstanding = self._fix_order_outstanding()
+        if amount > outstanding + 0.005:
+            raise UserError(
+                "BDT %.2f is more than the BDT %.2f still to collect on %s: record what the "
+                "customer owes and give the difference back." % (amount, outstanding, order.name)
+            )
 
     def _fix_record_order_settlement(self, amount, reference, tender=None, strict=False):
         """Hand the collection to the service order's own settlement method
@@ -1762,15 +1814,25 @@ class FixFieldOrder(models.Model):
                 )
 
     def _fix_field_cash_settlement_recorded(self) -> bool:
-        """The service order holds the settlement the declaration recorded."""
+        """The service order holds the settlement the declaration recorded:
+        in full, or (D3) as a part payment whose only unverified money is
+        this field order's cash. A02 pass 2 review: a part payment was
+        marked settled at acceptance and never verified, so the order still
+        held it as a claim and the balance never verified the order."""
         self.ensure_one()
         order = self.order_id.sudo()
-        return bool(
+        if not (
             order
-            and order.payment_settlement_state == "settled"
             and order.settlement_source == "field_collection"
             and (order.invoice_ref or "") == f"COD/{self.name}"
-        )
+        ):
+            return False
+        if order.payment_settlement_state == "settled":
+            return True
+        if order.payment_settlement_state != "partial" or order.settlement_verified:
+            return False
+        unverified = (order.amount_settled_bdt or 0.0) - (order.amount_verified_bdt or 0.0)
+        return abs(unverified - (self.onsite_collection_amount or 0.0)) <= 0.005
 
     def action_accept_field_cash(self, shift_id=None):
         """HS-08, step 2 of 2: a cashier counts the declared cash into the open
@@ -1848,11 +1910,13 @@ class FixFieldOrder(models.Model):
             pay_state = "pending_settlement"
             if rec._fix_field_cash_settlement_recorded():
                 # as the cashier: segregation of duties and the M20 receipt
+                # (a part payment is verified for the part paid, D3)
                 order.with_env(self.env).action_verify_settlement()
                 pay_state = "settled" if order.sudo().settlement_verified else "pending_settlement"
-            elif rec.cash_settlement_ref:
-                # D3: a part payment, held on the order as an advance; the
-                # drawer posting raised its M20 receipt (_post_field_cash)
+            elif rec.cash_settlement_ref and order.sudo().payment_settlement_state != "partial":
+                # no settlement of this cash on the order: the drawer posting
+                # booked it as an advance receipt on the order (_post_field_cash).
+                # A part payment holding other unverified money is finance's.
                 pay_state = "settled"
             rec.sudo()._guarded().write({"onsite_payment_state": pay_state})
             rec.sudo().message_post(

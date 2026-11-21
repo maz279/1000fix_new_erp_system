@@ -207,3 +207,54 @@ def test_the_hand_in_deadline_skips_the_weekend(so):
     assert thursday.weekday() == 3
     # delivered Thursday: Friday is the weekend, Saturday is the deadline
     assert Settlement._fix_handin_deadline(thursday) == fields.Date.to_date("2026-11-21")
+
+
+def test_the_cod_receipt_books_only_the_balance_of_a_part_paid_order(so):
+    """A02 pass 2 review (COD contract): the COD receipt counted the money
+    recorded before only when that was COD too, so the balance of an order
+    part-paid on site in cash debited COD clearing with the technician's part
+    as well, and the rider's remittance could never clear it."""
+    c = so
+    o = c.order(1000.0)
+    due = o._fix_amount_due()
+    balance = round(due - 300.0, 2)
+    o.with_context(fd_settlement_tender="cash")._fix_record_settlement(
+        300.0, "FIELD/R2-PART", source="field_collection"
+    )
+    assert o.payment_settlement_state == "partial" and o._fix_amount_outstanding() == balance
+    leg = c.leg(o, balance)
+    receipt = c.env["fix.ar.receipt"].search(
+        [("source_order_id", "=", o.id), ("method", "=", "cod")]
+    )
+    assert receipt.amount == balance and receipt.reference == "COD/%s" % leg.name
+    assert bal(c, c.acc["cod_clearing"]) == balance
+    assert o.payment_settlement_state == "settled" and o.amount_settled_bdt == due
+
+
+def test_the_rider_settlement_hands_in_the_legs_cod(so):
+    """A02 pass 2 review (rider COD): an own rider's leg is handed in by the
+    rider's COD settlement; without cod_remitted_at on the leg, cd_consignment
+    blocked the rider from every new leg from day 2, for ever."""
+    c = so
+    o = c.order()
+    due = o._fix_amount_due()
+    leg = c.leg(o, due, delivered_days_ago=4)
+    # the collection at the POD (cd_consignment stamps it)
+    c.env.cr.execute(
+        "UPDATE fix_consignment SET cod_collected_at = delivered_at WHERE id = %s", (leg.id,)
+    )
+    leg.invalidate_recordset()
+    Leg = c.env["fix.consignment"]
+    assert leg in Leg._m03_overdue_cod_legs(c.rider)
+    with pytest.raises(UserError, match="hand-in deadline"):
+        Leg._m03_refuse_overdue_cod_rider(c.rider.id)
+    s = _cod(c, c.acct)
+    s.with_user(c.acct).action_load_orders()
+    assert leg in s.consignment_ids
+    s.with_user(c.acct).write({"remitted_amount": due})
+    s.with_user(c.acct).action_submit()
+    s.with_user(c.mgr).action_settle()
+    leg.invalidate_recordset()
+    assert leg.cod_remitted_at
+    assert not Leg._m03_overdue_cod_legs(c.rider)
+    Leg._m03_refuse_overdue_cod_rider(c.rider.id)  # no longer blocked

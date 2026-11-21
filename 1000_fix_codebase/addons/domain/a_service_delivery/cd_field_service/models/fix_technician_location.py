@@ -103,6 +103,17 @@ class FixTechnicianLocation(models.Model):
                 if vals.get("technician_id") not in own:
                     raise UserError("A technician records only his own location.")
                 vals["timestamp"] = fields.Datetime.now()
+            if not vals.get("operating_unit_id"):
+                # a ping from the app names no unit (the column is required):
+                # the technician's own unit, else the user's default unit
+                tech = self.env["hr.employee"].sudo().browse(vals.get("technician_id") or 0)
+                unit = (
+                    tech.exists().operating_unit_id
+                    if "operating_unit_id" in tech._fields
+                    else False
+                ) or self.env.user.default_operating_unit_id
+                if unit:
+                    vals["operating_unit_id"] = unit.id
             if vals.get("name", "/") == "/":
                 seq = self.env["ir.sequence"].next_by_code("fix.technician.location")
                 vals["name"] = (

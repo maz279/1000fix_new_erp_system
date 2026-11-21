@@ -121,8 +121,15 @@ class FixServiceOrderSettlementReceipt(models.Model):
         )
         if source == "cod":
             # interface contract: the COD receipt counts what was recorded
-            # before (verified or not), so only this call's money is booked
-            before = self.amount_settled_bdt or 0.0 if self.settlement_tender == "cod" else 0.0
+            # before (verified or not), so only this call's money is booked.
+            # A02 pass 2 review: this counted it only when the earlier
+            # payment was itself COD, so the balance of an order part-paid on
+            # site in cash booked the technician's part to COD clearing too.
+            before = (
+                self.amount_settled_bdt or 0.0
+                if self.payment_settlement_state in ("settled", "partial")
+                else 0.0
+            )
         result = super()._fix_record_settlement(amount_bdt, reference, source)
         if source == "counter" and self.settlement_verified:
             taken = round((self.amount_settled_bdt or 0.0) - before, 2)

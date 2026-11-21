@@ -13,12 +13,38 @@ w = p0.w
 refused = p0.refused
 
 
+def _approved_for(w, product, qty=5.0):
+    """A02 pass 2 M02-04 (D5): only what the customer approved is fitted.
+    Setup: the jobs' service order (w.order) has an approved estimate
+    covering the part; the M15 issue is what these tests are about."""
+    est = w.env["fix.estimate"].create(
+        {
+            "order_id": w.order.id,
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "line_type": "part",
+                        "product_id": product.id,
+                        "quantity": qty,
+                        "unit_price": 400.0,
+                    },
+                )
+            ],
+        }
+    )
+    est.sudo().write({"state": "approved"})
+    return est
+
+
 def _m15(w, tech, qty=3.0, cost=400.0, **part_vals):
     """A product mapped to an M15 part, and a van in the technician's custody."""
     env = w.env
     product = env["product.product"].create(
         {"name": "A06F field part", "default_code": "A6FP-%s" % tech.id, "standard_price": 1.0}
     )
+    _approved_for(w, product)
     part = env["fix.spare.part"].create(
         {
             "name": "A06F field part",
@@ -112,6 +138,7 @@ def test_b2_a_serialized_part_needs_its_serial(w):
 
 def test_b2_an_unmapped_product_is_unchanged_unless_the_param_is_on(w):
     product = w.env["product.product"].create({"name": "A06F unmapped"})
+    _approved_for(w, product)
     rec = w.fo("in_progress", w.ea)
     line = _line(w, rec, product)
     line.with_user(w.ua).action_consume()

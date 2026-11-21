@@ -57,7 +57,7 @@ def _deliver(w, o, amount=3000):
     """Ready -> paid at the counter -> handed over."""
     to_ready(w, o, amount)
     due = o._fix_amount_due()
-    o.with_user(w.cashier).action_mark_settled("POS-%d" % o.id, due)
+    o.with_user(w.cashier).action_mark_settled("POS-%d" % o.id, due, tender="cash")
     handover_evidence(w, o)
     o.with_user(w.clerk).action_deliver()
     assert o.state == "delivered"
@@ -186,10 +186,19 @@ def test_m01_05_cron_closes_a_paid_delivered_order_once(w):
 
 
 def test_m01_05_cron_leaves_an_order_the_gate_refuses(w):
+    # Since the A02 ERP audit a delivery raises the tax invoice and pays it
+    # from the receipt, and the delivery gate refuses an unpaid order, so a
+    # delivered order the close gate refuses cannot be built through the
+    # flow. The cron must still respect the gate: it is made to refuse.
+    from unittest import mock
+
     o = _deliver(w, order(w))
-    o.sudo()._guarded().write({"settlement_verified": False})  # money not proven
-    w.env["fix.service.order"]._cron_close_delivered()
+    Order = type(o)
+    with mock.patch.object(Order, "_fix_close_problem", return_value="money not proven"):
+        w.env["fix.service.order"]._cron_close_delivered()
     assert o.state == "delivered"
+    w.env["fix.service.order"]._cron_close_delivered()  # the gate passes: it closes
+    assert o.state == "closed"
 
 
 # ================================================= M01-06: before/after photos
@@ -319,7 +328,7 @@ def test_m01_12_warranty_days_come_from_the_policy(w):
 
 def test_m01_12_signed_report_must_be_on_the_order(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-R", o._fix_amount_due())
+    o.with_user(w.cashier).action_mark_settled("POS-R", o._fix_amount_due(), tender="cash")
     handover_evidence(w, o)
     other = order(w)
     foreign = w.env["ir.attachment"].create(
@@ -366,7 +375,22 @@ def test_m01_13_one_policy(w):
 
 
 # ============================================== D1: cash on delivery / the leg
+def _cod_clearing(w):
+    """D1: a COD collection books an M20 receipt Dr COD clearing / Cr AR (the
+    finance bridge). The clearing account is the test's, as in the finance
+    fixtures: no chart is configured in the test database."""
+    if "fix.ar.receipt" not in w.env:
+        return
+    account = w.env["account.account"].create(
+        {"code": "R2M01COD", "name": "R2 M01 COD clearing", "account_type": "asset_current"}
+    )
+    w.env["ir.config_parameter"].sudo().set_param(
+        "cd_billing_engine.account_code.cod_clearing", account.code
+    )
+
+
 def test_d1_delivery_leg_needs_payment_or_goes_cod(w):
+    _cod_clearing(w)
     o = to_ready(w, order(w), 3000)
     ok, why = o._fix_delivery_leg_allowed()
     assert not ok and "cash-on-delivery" in why
@@ -390,7 +414,7 @@ def test_d1_delivery_leg_needs_payment_or_goes_cod(w):
 
 def test_d1_a_paid_order_may_travel(w):
     o = to_ready(w, order(w), 3000)
-    o.with_user(w.cashier).action_mark_settled("POS-L", o._fix_amount_due())
+    o.with_user(w.cashier).action_mark_settled("POS-L", o._fix_amount_due(), tender="cash")
     assert o._fix_delivery_leg_allowed() == (True, "")
 
 
@@ -417,10 +441,12 @@ def test_d3_part_payment_is_recorded_not_refused(w):
     assert "balance" in attempt(
         w,
         lambda: o.with_user(w.cashier2).action_mark_settled(
-            reference="POS-OVER", amount_bdt=due, source="counter"
+            reference="POS-OVER", amount_bdt=due, source="counter", tender="cash"
         ),
     )
-    o.with_user(w.cashier2).action_mark_settled(reference="POS-BAL", amount_bdt=due - 1500)
+    o.with_user(w.cashier2).action_mark_settled(
+        reference="POS-BAL", amount_bdt=due - 1500, tender="cash"
+    )
     assert o.payment_settlement_state == "settled" and o.settlement_verified
     assert o.amount_settled_bdt == pytest.approx(due) and o._fix_amount_outstanding() == 0.0
     o.with_user(w.clerk).action_deliver()
@@ -428,6 +454,7 @@ def test_d3_part_payment_is_recorded_not_refused(w):
 
 
 def test_d1_cod_is_exactly_what_is_outstanding(w):
+    _cod_clearing(w)
     o = to_ready(w, order(w), 3000)
     tech = _user(w.env, "fieldtech_cod")
     o.with_user(tech)._fix_record_settlement(1000, "BKASH-C1", "field_collection")

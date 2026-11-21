@@ -5,6 +5,9 @@
   A technician changes only the orders assigned to him (or unassigned ones he
   raised); a dispatcher changes any. A ping is created for the technician's
   own employee (checked in fix.technician.location.create) and never edited.
+  A02 pass 2 review: group rules are ORed with the operating-unit rule every
+  internal user holds, so these two restrict nothing on their own; the
+  technician's own-orders check is fix.field.order._fix_refuse_foreign_write.
 -->
 <odoo>
     <record id="rule_fix_field_order_technician_own" model="ir.rule">

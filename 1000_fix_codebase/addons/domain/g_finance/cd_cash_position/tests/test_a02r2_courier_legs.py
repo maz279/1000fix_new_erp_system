@@ -92,6 +92,55 @@ def test_m03_02_service_order_cod_legs_are_remitted_once(cr):
         again.with_user(c.acct).action_load_orders(references=leg.name)
 
 
+def test_d1_the_courier_remittance_confirms_the_orders_cod(cr):
+    """A02 pass 2 review (D1): the COD receipt booked at the door verified the
+    order's COD on the spot (it found its own receipt), while the courier
+    still held the cash; and the courier remittance never confirmed it. The
+    order's COD is verified when the remittance that hands the cash in is
+    settled, not before."""
+    c = cr
+    params = c.env["ir.config_parameter"].sudo()
+    ar = c.env["account.account"].create(
+        {"code": "R2CRAR%d" % c.n, "name": "R2 courier AR", "account_type": "asset_receivable"}
+    )
+    params.set_param("cd_billing_engine.account_code.ar", ar.code)
+    params.set_param("cd_billing_engine.account_code.cod_clearing", c.acc["cod_clearing"].code)
+    leg = _cod_leg(c, c.pathao, 1.0)
+    order = leg.service_order_id
+    c.env["fix.estimate"].create(
+        {
+            "order_id": order.id,
+            "state": "approved",
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {"description": "Repair", "quantity": 1, "unit_price": 2000.0,
+                     "line_type": "labour"},
+                )
+            ],
+        }
+    )  # fmt: skip
+    due = order._fix_amount_due()
+    leg._guarded().write({"cod_amount": due})
+    order.with_context(fd_settlement_tender="cod")._fix_record_settlement(
+        due, leg.cod_reference, source="cod"
+    )
+    receipt = c.env["fix.ar.receipt"].search([("source_order_id", "=", order.id)])
+    assert receipt.method == "cod" and receipt.amount == due
+    # the courier still holds the cash: its own receipt does not verify it
+    assert not order._fix_try_verify_from_receipt()
+    assert order.settlement_source == "cod" and not order.settlement_verified
+    r = _remittance(c, net_amount=due)
+    r.with_user(c.acct).action_load_orders()
+    assert leg in r.consignment_ids
+    r.with_user(c.acct).action_submit()
+    r.with_user(c.mgr).action_settle()
+    order.invalidate_recordset()
+    assert leg.cod_remitted_at and order.settlement_verified
+    assert order.amount_verified_bdt == due
+
+
 def test_m03_06_deducted_charges_are_checked_against_the_rate_card(cr):
     c = cr
     _courier_orders(c, c.pathao, [3000.0])  # one consignment: rate card BDT 200

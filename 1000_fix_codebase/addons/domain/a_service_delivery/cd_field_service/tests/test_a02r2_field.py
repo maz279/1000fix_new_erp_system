@@ -24,6 +24,7 @@
 from datetime import timedelta
 from unittest.mock import patch
 
+import pytest
 from odoo import fields
 from odoo.addons.cd_field_service.tests.test_a02_erp_m02 import (  # noqa: F401 (fixture)
     CASHIER_GROUPS,
@@ -34,7 +35,7 @@ from odoo.addons.cd_field_service.tests.test_a02_erp_m02 import (  # noqa: F401 
     refused,
     w,
 )
-from odoo.exceptions import UserError
+from odoo.exceptions import AccessError, UserError
 
 PNG = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR4nGNgAAIAAAUAAXpeqz8AAAAASUVORK5CYII="
 
@@ -133,6 +134,53 @@ def test_m02_01_a_part_payment_is_warned_and_handed_over(w, monkeypatch):
     cashier = _user(w, "r2_m02_cashier2", *CASHIER_GROUPS)
     rec.with_user(cashier).action_accept_field_cash()
     assert posted == [3000.0] and rec.onsite_payment_state == "settled"
+
+
+def test_m02_01_more_than_is_still_to_collect_is_refused_on_site(w, monkeypatch):
+    """A02 pass 2 review (D20): an over-collection was recorded, the cash
+    hand-over then refused it for ever (M01 records no more than is due) and
+    the technician got no new cash job."""
+    so = w.so()
+    monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: 1000.0)
+    rec = _on_site(w, so)
+    err = refused(w.env, lambda: rec.with_user(w.ua).action_record_collection(payment="cash 1500"))
+    assert err and "more than the BDT 1000.00 still to collect" in err
+    assert not rec.onsite_receipt_no and not rec.onsite_collection_amount
+    # a part payment already recorded on the order lowers what is still to collect
+    so._fix_record_settlement(400.0, "FIELD/R2-EARLIER", source="field_collection")
+    err = refused(w.env, lambda: rec.with_user(w.ua).action_record_collection(payment="cash 1000"))
+    assert err and "BDT 600.00 still to collect" in err
+    # the amount still due is recorded and handed over
+    rec.with_user(w.ua).action_record_collection(payment="cash 600")
+    give_evidence(rec)
+    rec.with_user(w.ua).action_complete()
+    rec.with_user(w.ua).action_handover_field_cash()
+    assert rec.onsite_payment_state == "pending_acceptance"
+    assert so.payment_settlement_state == "settled" and so.amount_settled_bdt == 1000.0
+
+
+def test_m02_01_an_accepted_part_payment_is_verified_and_booked(w, monkeypatch):
+    """A02 pass 2 review: a part payment (D3) was marked settled at the
+    cashier's acceptance but never verified on the order, so the order kept
+    it as a claim and the balance could never verify it."""
+    so = w.so()
+    monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: 5000.0)
+    rec = _on_site(w, so)
+    rec.with_user(w.ua).action_record_collection(payment="cash 3000")
+    give_evidence(rec)
+    rec.with_user(w.ua).action_complete()
+    rec.with_user(w.ua).action_handover_field_cash()  # M01 records the part payment
+    assert (so.payment_settlement_state, so.settlement_verified) == ("partial", False)
+    _open_shift(w)
+    cashier = _user(w, "r2_m02_cashier3", *CASHIER_GROUPS)
+    rec.with_user(cashier).action_accept_field_cash()
+    assert rec.onsite_payment_state == "settled"
+    assert so.payment_settlement_state == "partial" and so.settlement_verified
+    assert so.amount_verified_bdt == 3000.0 and so.settlement_verified_by == cashier
+    assert so._fix_amount_outstanding() == 2000.0
+    if "fix.ar.receipt" in w.env:
+        receipts = w.env["fix.ar.receipt"].search([("source_order_id", "=", so.id)])
+        assert sum(receipts.mapped("amount")) == 3000.0  # booked once
 
 
 # ===================================================== M02-13 receipt
@@ -320,7 +368,23 @@ def test_m02_08_a_technician_changes_only_his_own_orders(w):
     mine = w.fo("dispatched", w.ea)
     theirs = w.fo("dispatched", w.eb)
     mine.with_user(w.ua).write({"work_summary": "note"})
-    assert refused(w.env, lambda: theirs.with_user(w.ua).write({"work_summary": "x"}))
+    # A02 pass 2 review: the own-orders rule was ORed with the operating-unit
+    # rule and restricted nothing. The field order's write check refuses now.
+    with pytest.raises(AccessError), w.env.cr.savepoint():
+        theirs.with_user(w.ua).write({"work_summary": "x"})
+    theirs.invalidate_recordset()
+    assert theirs.work_summary != "x"
+    # he still reads them (his unit), and a dispatcher changes any of them
+    assert theirs.with_user(w.ua).read(["name"])
+    theirs.with_user(w.ud).write({"work_summary": "dispatcher note"})
+    assert theirs.work_summary == "dispatcher note"
+    # an unassigned order he raised is his to change
+    raised = (
+        w.env["fix.field.order"]
+        .with_user(w.ua)
+        .create({"order_id": w.so().id, "zone_id": w.zone.id, "operating_unit_id": w.ou.id})
+    )
+    raised.with_user(w.ua).write({"work_summary": "raised by me"})
     err = refused(
         w.env,
         lambda: mine.with_user(w.ua).write(

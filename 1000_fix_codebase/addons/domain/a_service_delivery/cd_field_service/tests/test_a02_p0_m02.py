@@ -70,6 +70,18 @@ def w(odoo_env):
         return env["fix.service.order"].create(vals)
 
     order = so()
+    # D20 (A02 pass 2): a confirmed field cash shortage posts Dr payroll
+    # recovery / Cr cash shortage; the accounts are the fixture's, as in the
+    # finance fixtures (no chart is configured in the test database)
+    params = env["ir.config_parameter"].sudo()
+    for key, code, kind, name in (
+        ("rider_shortage_payroll", "P0M02PAY", "liability_current", "salary payable"),
+        ("cash_shortage", "P0M02SHT", "expense", "cash shortage"),
+    ):
+        account = env["account.account"].create(
+            {"code": code, "name": "P0 M02 %s" % name, "account_type": kind}
+        )
+        params.set_param("cd_cash_position.account_code.%s" % key, account.code)
     g_tech = env.ref("cd_field_service.group_fix_field_service_user")
     g_disp = env.ref("cd_field_service.group_fix_field_service_manager")
 
