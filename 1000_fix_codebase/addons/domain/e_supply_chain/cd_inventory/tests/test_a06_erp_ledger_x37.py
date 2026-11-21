@@ -85,7 +85,13 @@ def _cogs_moves(env, ref):
 
 @pytest.fixture
 def counter(odoo_env, request):
-    if "fix.counter.sale" not in odoo_env:
+    # fix.counter.sale itself is cd_front_desk's (installed on the test
+    # template); its posting legs (stock_state, the stock issue and its
+    # valuation row) are the cd_front_desk_finance bridge's. Without the
+    # bridge a confirmed sale posts nothing, so there is nothing to test.
+    if "fix.counter.sale" not in odoo_env or (
+        "stock_state" not in odoo_env["fix.counter.sale"]._fields
+    ):
         pytest.skip("cd_front_desk_finance is not installed on this database")
     m = request.getfixturevalue("fin")
     _realtime(m.env)
@@ -107,7 +113,9 @@ def test_x37_counter_sale_posts_its_parts_cost_at_sale_time_once(counter):
     m = counter
     env = m.env
     sale = m.confirmed(1150.0, "cash", shift=m.shift())
-    (row,) = _rows(env, sale.name)
+    rows = _rows(env, sale.name)
+    assert len(rows) == 1, (sale.stock_state, sale.posting_state, sale.posting_note)
+    row = rows
     assert (row.entry_type, row.status) == ("counter_sale", "posted")
     cogs = row.move_id
     assert cogs.state == "posted" and cogs.date == row.posting_date
