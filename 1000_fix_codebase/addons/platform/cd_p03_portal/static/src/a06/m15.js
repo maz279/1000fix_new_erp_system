@@ -864,6 +864,7 @@ export const SCREENS = {
 
 export const REPORT_ROUTES = {
   'M15:Stock Valuation by Class': 'M15-rpt-valuation',
+  'M15:Stock to GL Tie-out': 'M15-stock-gl-tieout',
   'M15:Inventory Accuracy Audit': 'M15-rpt-accuracy',
   'M15:Ageing & Dead Stock': 'M15-rpt-ageing',
   'M15:Van Stock Variance': 'M15-rpt-van',
