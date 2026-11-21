@@ -219,6 +219,8 @@ def request(c, b, amount=100000.0, by=None, **kw):
         "budget_id": b.id if b else False,
         "amount": amount,
         "justification": "Bench for the Dhaka hub",
+        # FIN-01/02: an M49 entry posts on its own branch, never the first OU
+        "operating_unit_id": c.ou.id,
     }
     vals.update(kw)
     return c.as_(by or c.acc1)["fix.capex.request"].create(vals)

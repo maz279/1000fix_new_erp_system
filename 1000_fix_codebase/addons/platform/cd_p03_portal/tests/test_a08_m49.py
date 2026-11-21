@@ -177,11 +177,24 @@ def m49_data(odoo_env):
             "loss_account_id": acc["loss"].id,
         }
     )
+    # A07 ERP audit (2026-11-20, FIN-01/02): an M49 entry posts on the record's own
+    # branch and is refused without one (never the company's first OU)
+    ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
+    if not ou:
+        ou = env["operating.unit"].create(
+            {
+                "name": f"P49 Branch {tag}",
+                "code": f"P49B{tag}",
+                "company_id": env.company.id,
+                "partner_id": env.company.partner_id.id,
+            }
+        )
     Asset = env["fix.fixed.asset"]
     kept = Asset.create(
         {
             "name": "Kept",
             "category_id": cat.id,
+            "operating_unit_id": ou.id,
             "gross": 10000.0,
             "salvage": 0.0,
             "purchase_date": datetime.date(2025, 6, 10),
@@ -192,6 +205,7 @@ def m49_data(odoo_env):
         {
             "name": "Sold",
             "category_id": cat.id,
+            "operating_unit_id": ou.id,
             "gross": 5000.0,
             "salvage": 0.0,
             "purchase_date": datetime.date(2025, 8, 1),
@@ -293,6 +307,7 @@ def m49_data(odoo_env):
                 "budget_id": budget.id,
                 "amount": 40000.0,
                 "request_date": datetime.date(2025, 10, 1),
+                "operating_unit_id": ou.id,
             }
         )
     )
@@ -303,6 +318,7 @@ def m49_data(odoo_env):
         {
             "name": f"P49 Branch {tag}",
             "category_id": rou_cat.id,
+            "operating_unit_id": ou.id,
             "commencement_date": datetime.date(2025, 7, 1),
             "term_months": 12,
             "payment_amount": 10000.0,

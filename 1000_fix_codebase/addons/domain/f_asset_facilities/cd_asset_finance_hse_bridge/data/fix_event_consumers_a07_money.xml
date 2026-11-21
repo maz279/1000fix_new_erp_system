@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 ERP audit (2026-11-20), S6 money paths: the A07 money events that had no consumer
+     (FIN-10, FIN-12, M45-05, M45-06, D5c). Each method is idempotent per source. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_equipment_recharge_requested" model="fix.event.consumer">
+            <field name="name">M52/D9: a recharged equipment loss becomes an employee recovery for HR</field>
+            <field name="event_type">equipment.recharge_requested</field>
+            <field name="model">fix.asset.recovery</field>
+            <field name="method">consume_equipment_recharge_requested</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_equipment_disposed" model="fix.event.consumer">
+            <field name="name">M49/D10: an M45 disposal carries its route and sale proceeds to the disposal request</field>
+            <field name="event_type">equipment.disposed</field>
+            <field name="model">fix.asset.finance.request</field>
+            <field name="method">consume_equipment_disposed</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+        <record id="consumer_lease_terminated" model="fix.event.consumer">
+            <field name="name">M49/D5c: a terminated M47 lease is derecognised from the IFRS 16 book</field>
+            <field name="event_type">lease.terminated</field>
+            <field name="model">fix.lease</field>
+            <field name="method">consume_lease_terminated</field>
+            <field name="module">cd_asset_finance_hse_bridge</field>
+        </record>
+
+    </data>
+</odoo>

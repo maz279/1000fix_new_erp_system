@@ -41,12 +41,60 @@ def require_role(env, xmlids, what):
 
 def event_source(env, event, model=None):
     """The record an event is about (its aggregate), as superuser; empty when
-    the record is gone or the model is not installed."""
-    model = model or event.get("aggregate")
+    the record is gone or the model is not installed.
+
+    A07 FIN-04 / M47-14 (2026-11-20): an event names the model its id belongs
+    to. When the consumer expects another model, the id means nothing there:
+    the result is empty, never the unrelated record that happens to carry the
+    same number (a loss read as a verification, a lease event as a lease)."""
+    aggregate = event.get("aggregate")
+    model = model or aggregate
     if not model or model not in env:
         return None
+    if aggregate and aggregate != model:
+        return env[model].sudo().browse()
     rid = event.get("aggregate_id")
     return env[model].sudo().browse(int(rid)).exists() if rid else env[model].sudo().browse()
+
+
+def dhaka_today(env):
+    """The business day in Dhaka, whatever the user's (or the cron user's)
+    time zone (A07 D4)."""
+    return fields.Date.context_today(env["res.users"].with_context(tz="Asia/Dhaka"))
+
+
+def param_str(env, key, default=""):
+    return (env["ir.config_parameter"].sudo().get_param(PARAM_PREFIX + key) or default).strip()
+
+
+def role_account(env, company, key, required_for=None):
+    """The account of an A07 account role (decision D3): the system parameter
+    cd_asset_finance_hse_bridge.account.<key> holds an account CODE of the
+    company's chart. Unset or unknown: an empty recordset, or, when
+    `required_for` names what needs it, a refusal (fail closed, nothing is
+    posted to a guessed account)."""
+    code = param_str(env, "account.%s" % key)
+    account = env["account.account"]
+    if code:
+        account = (
+            env["account.account"]
+            .sudo()
+            .with_company(company)
+            .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+        )
+    if not account and required_for:
+        raise UserError(
+            "%s cannot be posted: set system parameter %saccount.%s to an account code of %s's "
+            "chart%s."
+            % (
+                required_for,
+                PARAM_PREFIX,
+                key,
+                company.name,
+                " (%s is not in it)" % code if code else "",
+            )
+        )
+    return account
 
 
 def noted(record, text) -> bool:
@@ -109,6 +157,7 @@ class FixBridgeException(models.Model):
             ("m59_hazard", "M59 Hazard"),
             ("m60_risk", "M60 Risk Entry"),
             ("m09_claim", "M09 Warranty Claim"),
+            ("m52_recovery", "M52 Recovery Receivable"),
             ("hook", "Bridge Hook"),
         ],
         required=True,
@@ -127,7 +176,7 @@ class FixBridgeException(models.Model):
     source_ref = fields.Char(string="Source", readonly=True)
     message = fields.Text(string="What Is Needed", readonly=True)
     role_xmlid = fields.Char(string="Resolved By (Role)", readonly=True)
-    role_label = fields.Char(string="Resolved By", compute="_compute_role_label")
+    role_label = fields.Char(string="Deciding Role", compute="_compute_role_label")
     # the one fact a person supplies for the M59 route: the worker involved
     employee_id = fields.Many2one(
         "hr.employee",

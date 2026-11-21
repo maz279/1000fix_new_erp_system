@@ -75,6 +75,8 @@ def _active_asset(m49, **vals):
         "life_months": 50,
         "purchase_date": date(2026, 1, 1),
         "state": "active",
+        # FIN-01: depreciation posts on the asset's own branch (no first-OU fallback)
+        "operating_unit_id": m49["ou"].id,
     }
     base.update(vals)
     return m49["env"]["fix.fixed.asset"].create(base)
@@ -127,6 +129,7 @@ class TestCapex:
                     "amount": 400000.0,
                     "request_date": date(2026, 8, 1),
                     "justification": "Mirpur hub opening",
+                    "operating_unit_id": m49["ou"].id,
                 }
             )
         )
@@ -395,6 +398,8 @@ class TestLease:
             "liability_account_id": acc["liability"].id,
             "interest_account_id": acc["interest"].id,
             "payment_account_id": acc["rent"].id,
+            # FIN-02: a lease books on its branch (activation refuses none)
+            "operating_unit_id": m49["ou"].id,
         }
         base.update(vals)
         return env["fix.lease"].create(base)

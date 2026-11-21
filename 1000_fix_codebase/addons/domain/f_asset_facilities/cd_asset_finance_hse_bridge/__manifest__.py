@@ -31,7 +31,7 @@ A separate module on purpose (P0 lesson, cd_vehicle_dispatch): the asset
 modules keep their dependencies, and a server that has not installed this
 bridge never loads it.
 """,
-    "version": "19.0.0.1.1",
+    "version": "19.0.0.1.3",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Asset & Facilities",
@@ -52,8 +52,11 @@ bridge never loads it.
         "security/ir.model.access.csv",
         "security/fix_bridge_rules.xml",
         "data/ir_sequence.xml",
+        "data/ir_sequence_a07.xml",
         "data/ir_config_parameter.xml",
         "data/fix_event_consumers.xml",
+        "data/fix_event_consumers_a07_money.xml",
+        "data/fix_bridge_cron.xml",
         "views/fix_bridge_views.xml",
     ],
     "installable": True,

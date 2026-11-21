@@ -23,6 +23,7 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_asset_common import (
     USER_GROUP,
     assert_period_open,
+    dhaka_today,
     month_end,
     month_start,
     post_entry,
@@ -70,7 +71,7 @@ class FixAssetDepreciationRun(models.Model):
     period_start = fields.Date(
         string="Period (Month)",
         required=True,
-        default=lambda self: month_start(fields.Date.context_today(self)),
+        default=lambda self: month_start(dhaka_today(self.env)),
         tracking=True,
     )
     asset_ids = fields.Many2many(
@@ -248,36 +249,51 @@ class FixAssetDepreciationRun(models.Model):
         return True
 
     def _post_book(self):
+        """A07 FIN-01 (2026-11-20): the charge is posted on each asset's own
+        branch. One Dr/Cr pair per category AND branch, every line carrying
+        that branch as its operating unit; an asset without a branch is
+        refused (it used to land on the company's first operating unit)."""
         self.ensure_one()
-        by_cat = defaultdict(lambda: self.env["fix.asset.depreciation.line"])
+        by_key = defaultdict(lambda: self.env["fix.asset.depreciation.line"])
         for line in self.line_ids:
-            if not line.asset_id.category_id:
+            asset = line.asset_id
+            if not asset.category_id:
                 raise UserError(
-                    self.env._("Choose the asset category of %s first.", line.asset_id.display_name)
+                    self.env._("Choose the asset category of %s first.", asset.display_name)
                 )
-            by_cat[line.asset_id.category_id] |= line
-        for cat in by_cat:
+            if not asset.operating_unit_id:
+                raise UserError(
+                    self.env._(
+                        "%s has no branch: its depreciation is posted on the asset's own branch, "
+                        "never on the company's first one. Record its branch (asset transfer) "
+                        "first.",
+                        asset.display_name,
+                    )
+                )
+            by_key[(asset.category_id, asset.operating_unit_id)] |= line
+        cats = {cat for cat, _ou in by_key}
+        for cat in cats:
             require_accounts(
                 cat,
                 ["journal_id", "expense_account_id", "accumulated_account_id"],
                 "Depreciation",
             )
         by_journal = defaultdict(list)
-        for cat in by_cat:
-            by_journal[cat.journal_id].append(cat)
+        for cat, ou in by_key:
+            by_journal[cat.journal_id].append((cat, ou))
         moves = self.env["account.move"]
-        for journal, cats in by_journal.items():
+        for journal, keys in by_journal.items():
             entry = []
-            for cat in cats:
-                amount = sum(by_cat[cat].mapped("amount"))
-                label = "%s — %s" % (self.name, cat.name)
-                entry.append((cat.expense_account_id, amount, 0.0, label))
-                entry.append((cat.accumulated_account_id, 0.0, amount, label))
+            for cat, ou in sorted(keys, key=lambda k: (k[0].id, k[1].id)):
+                amount = sum(by_key[(cat, ou)].mapped("amount"))
+                label = "%s — %s — %s" % (self.name, cat.name, ou.name)
+                entry.append((cat.expense_account_id, amount, 0.0, label, ou))
+                entry.append((cat.accumulated_account_id, 0.0, amount, label, ou))
             move = post_entry(
                 self.env, self.company_id, journal, month_end(self.period_start), self.name, entry
             )
-            for cat in cats:
-                by_cat[cat].sudo().write({"move_id": move.id})
+            for key in keys:
+                by_key[key].sudo().write({"move_id": move.id})
             moves |= move
         self._guarded().write({"move_ids": [(4, m.id) for m in moves]})
         for line in self.line_ids:

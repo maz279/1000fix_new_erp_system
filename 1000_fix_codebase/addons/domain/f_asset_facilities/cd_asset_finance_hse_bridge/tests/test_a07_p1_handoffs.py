@@ -299,19 +299,17 @@ def test_vehicle_acquisition_and_archive_reach_m49_once(c):
     cap = Req.search([("source_model", "=", "fleet.vehicle"), ("source_res_id", "=", van.id)])
     assert len(cap) == 1 and cap.kind == "capitalise" and cap.source_amount == 2500000.0
     van.write({"active": False})
-    disp = Req.search(
-        [
-            ("source_model", "=", "fleet.vehicle"),
-            ("source_res_id", "=", van.id),
-            ("kind", "=", "dispose"),
-        ]
-    )
-    assert len(disp) == 1 and "archived" in disp.basis
-    # a vehicle never costed or capitalised raises nothing to derecognise
-    bike = c.env["fleet.vehicle"].create({"model_id": model.id, "license_plate": "A7BRG-11-0002"})
-    bike.write({"active": False})
-    assert not Req.search([("source_model", "=", "fleet.vehicle"), ("source_res_id", "=", bike.id)])
-    # disposal needs the M49 asset: never capitalised -> refused, finance rejects with a reason
+    domain = [
+        ("source_model", "=", "fleet.vehicle"),
+        ("source_res_id", "=", van.id),
+        ("kind", "=", "dispose"),
+    ]
+    assert not Req.search(domain)  # D10: archiving never raises a disposal
+    van.write({"active": True, "write_off_date": c.today})
+    assert not Req.search(domain)  # nor a cancelled plate: only an M46 Vehicle Disposal
+    # a request raised for a vehicle M49 does not hold: finance rejects it with a reason
+    disp = Req._m49_dispose_vehicle(van, "test disposal")
+    assert len(disp) == 1
     mine = _as(c, c.acct, "fix.asset.finance.request").browse(disp.id)
     mine.write({"disposal_kind": "sale"})
     _refused(mine.action_accept, match="M49 asset")
@@ -356,7 +354,9 @@ def _site_lease(c, **kw):
         "deposit": 720000.0,
     }
     vals.update(kw)
-    return c.env["fix.site.lease"].with_user(c.fm).create(vals)
+    # D6 (S4): a lease a person records awaits its DOFA approval; one recorded by
+    # trusted code (the migration of signed leases) is active, as these tests need
+    return c.env["fix.site.lease"].sudo().create(vals)
 
 
 def test_recorded_lease_becomes_one_draft_ifrs16_contract(c):
@@ -402,8 +402,11 @@ def test_later_extract_updates_the_draft_then_raises_a_modification_item(c):
     )
     mine = _as(c, c.acct, "fix.lease.modification.item").browse(item.id)
     _refused(mine.action_mark_remeasured)
-    mine.action_mark_remeasured("liability remeasured at the revised rent, IBR unchanged")
-    assert item.state == "remeasured" and item.decided_by_id == c.acct
+    # A07 FIN-07: "remeasured" is a posted remeasurement, never a tick
+    _refused(mine.action_mark_remeasured, "remeasured by hand", match="remeasurement")
+    _refused(mine.action_mark_no_change)
+    mine.action_mark_no_change("rent change handled on the replacement contract")
+    assert item.state == "no_change" and item.decided_by_id == c.acct
 
 
 def test_lease_with_no_rent_waits_as_an_exception_not_a_fabricated_contract(c):
@@ -468,7 +471,23 @@ def _bill(c, vendor, gross):
     )
 
 
+def _repair_account(c):
+    account = c.env["account.account"].create(
+        {
+            "code": "A7R%s" % c.co.id,
+            "name": "A07 Repair & Maintenance",
+            "account_type": "expense",
+            "company_ids": [(6, 0, c.co.ids)],
+        }
+    )
+    c.env["ir.config_parameter"].sudo().set_param(
+        "cd_asset_finance_hse_bridge.account.facility_work_order", "A7R%s" % c.co.id
+    )
+    return account
+
+
 def test_closed_work_order_becomes_one_pending_cost_entry_matched_to_its_bill(c):
+    _repair_account(c)
     wo = _work_order(c)
     _wo_closed(c, wo, 45000.0)
     _deliver(c, "consumer_facility_work_order_closed", "facility.work_order_closed", wo)
@@ -488,7 +507,7 @@ def test_closed_work_order_becomes_one_pending_cost_entry_matched_to_its_bill(c)
     other = c.env["res.partner"].create({"name": "A7BRG Other Vendor"})
     _refused(mine.action_match_bill, _bill(c, other, 47000.0).id, match="vendor")
     small = _bill(c, c.vendor, 1000.0)
-    _refused(mine.action_match_bill, small.id, match="above the bill")
+    _refused(mine.action_match_bill, small.id, match="above the")
     _refused(_as(c, c.clerk, "fix.asset.cost.entry").browse(entry.id).action_match_bill, small.id)
     bill = _bill(c, c.vendor, 47000.0)
     mine.action_match_bill(bill.id)

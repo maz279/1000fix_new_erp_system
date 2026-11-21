@@ -18,7 +18,7 @@ import pytest
 from odoo import fields
 from odoo.exceptions import UserError, ValidationError
 
-from .conftest import balance
+from .conftest import balance, fixture_ou
 
 pytestmark = [pytest.mark.financial]
 
@@ -44,6 +44,8 @@ def _asset(env, **vals):
         "salvage": 20000.0,
         "life_months": 50,
         "purchase_date": date(2026, 7, 1),
+        # FIN-01: depreciation posts on the asset's own branch (no first-OU fallback)
+        "operating_unit_id": fixture_ou(env).id,
     }
     base.update(vals)
     return env["fix.fixed.asset"].create(base)
@@ -342,6 +344,7 @@ def _approved_request(env, amount, category=None):
             "dofa_approved": True,
             "dofa_approved_tier": "tier_5",
             "dofa_approved_amount": amount,
+            "operating_unit_id": fixture_ou(env).id,
         }
     )
 
@@ -354,7 +357,8 @@ class TestCwip:
         cat = category or m49["category"]
         req = _approved_request(env, max(amount, 1.0) * 2, category)
         cw = env["fix.cwip.entry"].browse(req.action_create_cwip()["cwip_ids"])
-        cw.write({"name": name, "operating_unit_id": ou.id if ou else False, "category_id": cat.id})
+        ou = ou or fixture_ou(env)
+        cw.write({"name": name, "operating_unit_id": ou.id, "category_id": cat.id})
         if amount:
             bill = _post(
                 env,
