@@ -19,6 +19,7 @@ from psycopg2 import Error as PgError
 
 REFUSED = (UserError, ValidationError, AccessError, PgError)
 FM = "cd_facility.group_facility_manager"
+DIRECTOR = "cd_facility.group_operations_director"
 OFFICER = "fleet.fleet_group_user"
 WO = "fix.facility.work.order"
 DEMAND = "fix.maintenance.demand"
@@ -119,6 +120,8 @@ def _deliver(c, event_type, record):
     sub = c.env["fix.event.consumer"].search(
         [("event_type", "=", event_type), ("module", "=", MODULE)]
     )
+    if len(sub) > 1:  # A07 ERP: iot.rule_alert_raised also reaches the asset alert
+        sub = sub.filtered(lambda s: s.model == DEMAND)
     assert len(sub) == 1 and sub.active
     assert Outbox._relay_deliver(sub, row) == ""
     return row
@@ -378,7 +381,43 @@ def test_an_unroutable_demand_waits_with_what_it_needs_and_a_facility_manager_ro
 
 
 # ------------------------------------------------------------ M48
+def _govern(env, code="m26.predictive.maintenance"):
+    """A07 ERP audit (2026-11-20) M48-02: only a score of a governed model version
+    (deployed, accuracy gate passed) drives work. Give the serving version its gate."""
+    version = env["fix.ml.model"].search([("code", "=", code)], limit=1)._serving_version()
+    if not version.gate_ids.filtered(lambda g: g.gate == "accuracy" and g.result == "passed"):
+        env["fix.ml.evaluation.gate"].create(
+            {"version_id": version.id, "gate": "accuracy", "result": "passed"}
+        )
+    return version
+
+
+def _director(c):
+    """Someone the M63 engine can route an M48 approval to."""
+    Users = c.env["res.users"].with_context(active_test=False)
+    found = Users.search([("login", "=", "a07spine_director")], limit=1)
+    return found or Users.with_context(no_reset_password=True).create(
+        {
+            "name": "a07spine_director",
+            "login": "a07spine_director",
+            "group_ids": [(6, 0, [c.env.ref("base.group_user").id, c.env.ref(DIRECTOR).id])],
+            "company_ids": [(6, 0, c.co.ids)],
+            "company_id": c.co.id,
+        }
+    )
+
+
+def _request(c, p, user=None):
+    """M48-03: request the preventive work order and approve it (the M63 routing
+    of the approval is proven in cd_stream_registry's suite)."""
+    _director(c)
+    p.with_user(user or c.env.user).action_create_preventive_wo("bearing failing")
+    p.preventive_action_id.sudo().action_approve()
+    return p.preventive_action_id
+
+
 def _m48(c, partner=None, site=None):
+    _govern(c.env)
     e = _equipment(c, "A7SPN-IOT-%s" % ("C" if partner else "I"))
     c.env["fix.iot.device"].create(
         {
@@ -421,9 +460,9 @@ def test_m48_dispatch_on_an_internal_asset_raises_the_spine_work_order(c):
     assert (wo.spine_origin, wo.spine_asset_kind) == ("m48_action", "iot")
     assert (wo.site_id, wo.assigned_to) == (c.site, c.tech)
     assert a.spine_work_order_id == wo and not a.spine_service_order_id
-    # the prediction's own preventive-WO request is covered by that order
-    p.action_create_preventive_wo()
-    _deliver(c, "predictive_maintenance.wo_created", p)
+    # A07 ERP audit (2026-11-20) M48-03: with an action under way, a preventive
+    # request is refused (the action's order is the work)
+    _refused(c.env, p.action_create_preventive_wo, "bearing failing")
     _deliver(c, "iot.action_dispatched", a)
     assert c.env[WO].search_count([("prediction_id", "=", p.id)]) == 1
     # verification gives the action its evidence; the outcome stays M48's step
@@ -436,11 +475,14 @@ def test_m48_dispatch_on_an_internal_asset_raises_the_spine_work_order(c):
 
 def test_m48_predicted_failure_first_then_the_action_joins_the_same_work_order(c):
     _e, p = _m48(c)
-    p.action_create_preventive_wo()
+    request = _request(c, p)
     _deliver(c, "predictive_maintenance.wo_created", p)
     wo = c.env[WO].search([("prediction_id", "=", p.id)])
     assert len(wo) == 1 and wo.spine_origin == "m48_prediction" and not wo.iot_action_id
-    a = _dispatch(c, p)
+    # the approved request itself is dispatched and joins its own order
+    request.write({"technician_id": c.tech.id})
+    request.action_dispatch()
+    a = request
     _deliver(c, "iot.action_dispatched", a)
     assert c.env[WO].search([("prediction_id", "=", p.id)]) == wo
     assert wo.iot_action_id == a and wo.assigned_to == c.tech
@@ -453,7 +495,7 @@ def test_m48_on_customer_premises_raises_a_draft_m01_order_on_the_customers_devi
     _deliver(c, "iot.action_dispatched", a)
     demand = _demands(c, a)
     assert demand.target == "service_order" and demand.partner_id == customer
-    assert demand.state == "pending" and "registered device" in demand.blocker
+    assert demand.state == "pending" and demand.commercial_route == "opportunity"  # A07 ERP M48-04
     assert not c.env[WO].search_count([("iot_action_id", "=", a.id)])
     brand = c.env["fix.brand"].create({"name": "A7SPNBrand", "code": "A7SB"})
     model = c.env["fix.device.model"].create({"name": "A7SPN Chiller", "brand_id": brand.id})

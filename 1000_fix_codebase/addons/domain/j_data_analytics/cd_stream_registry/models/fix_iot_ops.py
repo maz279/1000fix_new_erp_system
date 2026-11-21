@@ -6,7 +6,8 @@ import hmac
 import math
 import re
 import secrets
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -42,6 +43,23 @@ class IngestRefused(UserError):
         self.code = code
 
 
+def parse_source_timestamp(value, zone=None):
+    """The source's own time stamp as naive UTC, as Odoo stores it. A stamp with
+    no zone is taken in `zone` (an IANA name; UTC when none is given). Raises
+    ValueError when it is not a date and time.
+
+    A07 ERP audit (2026-11-20) M48-12: the file batch path now uses this too, with
+    the batch's source time zone, instead of cutting the offset off."""
+    if not isinstance(value, str):
+        raise ValueError("not text")
+    moment = datetime.fromisoformat(value.strip().replace("Z", "+00:00"))
+    if not moment.tzinfo and zone:
+        moment = moment.replace(tzinfo=ZoneInfo(zone))
+    if moment.tzinfo:
+        moment = moment.astimezone(UTC).replace(tzinfo=None)
+    return moment.replace(microsecond=0)
+
+
 # A generated key carries 256 bits, so a plain digest is enough: there is nothing
 # to guess, and a slow hash would be paid on every reading.
 MIN_ADAPTER_KEY_LENGTH = 32
@@ -60,6 +78,30 @@ def _flag(env, param, default="0"):
     return (env["ir.config_parameter"].sudo().get_param(param) or default).strip() == "1"
 
 
+def _param_int(env, param, default=0):
+    """A whole-number setting; unset, blank or unreadable gives `default`."""
+    raw = env["ir.config_parameter"].sudo().get_param(param)
+    try:
+        return int(str(raw).strip()) if raw not in (None, False, "") else default
+    except ValueError:
+        return default
+
+
+# A07 ERP audit (2026-11-20) M48-16 / decision D4: the business day is Asia/Dhaka.
+# The gateway path and the crons run as the superuser, whose time zone is
+# Europe/Brussels on fix_real, so "today" there ran 5 hours behind Dhaka at every
+# consent expiry and suppression end. Every business date here is the Dhaka day.
+DHAKA = "Asia/Dhaka"
+
+
+def _dhaka_today(env):
+    return fields.Date.context_today(env["res.users"].with_context(tz=DHAKA))
+
+
+def _dhaka_default_today(self):
+    return _dhaka_today(self.env)
+
+
 # A07 P1 (2026-11-04) business switches (ir.config_parameter, safe default):
 # - dwell: FR-IOT-031 "sustained for N minutes" before a rule alerts. Off by
 #   default, so a breach always alerts on the first reading (nothing is held
@@ -68,11 +110,16 @@ def _flag(env, param, default="0"):
 DWELL_PARAM = "cd_stream_registry.rule_dwell_enforced"
 # - retention purge: the retention cron always rolls raw readings up into the
 #   policy's aggregates and measures the compression; it DELETES raw readings
-#   past the stream's retention (only where an aggregate covers them,
-#   BRU-IOT-07) and aggregates past the policy's retention only when this is
-#   "1". Deletion is irreversible and the retention periods on fix_dev are seed
-#   defaults nobody has confirmed (B5: retention per stream).
+#   past the stream's retention (only where an aggregate computed after the
+#   reading arrived covers it, BRU-IOT-07) and aggregates past the policy's
+#   retention. A07 ERP audit (2026-11-20) decision D17(b): raw purge is ON by
+#   default; "0" switches it off.
 RETENTION_PURGE_PARAM = "cd_stream_registry.retention_purge_enabled"
+RETENTION_PURGE_DEFAULT = "1"
+# M48-11: a reading dated more than this many days before its arrival is refused
+# (a setting; unset = no limit). A late reading inside the window re-opens the
+# aggregates of its bucket, which the next retention run recomputes.
+LATE_WINDOW_PARAM = "cd_stream_registry.late_reading_window_days"
 # A stream is silent when no reading arrived for SILENCE_FACTOR sample
 # intervals, and never sooner than SILENCE_MIN_SECONDS (AUT-IOT-03). Defaults
 # the business must confirm (B2); the spec gives no number.
@@ -194,7 +241,7 @@ class FixIotStream(models.Model):
     def _fix_guarded_fields(self) -> set:
         # A07 P0 recipe (2026-11-03): a stream could be born `active` or have
         # its state written directly, skipping the activate/suspend checks.
-        guarded = super()._fix_guarded_fields() | {"state", "activated_on"}
+        guarded = super()._fix_guarded_fields() | {"state", "activated_on", "suspension_cause"}
         # A07 P1 (2026-11-04) BRU-IOT-06: an existing stream's raw retention
         # changes only through an approved fix.iot.retention.change. A new
         # stream is born with its retention (an empty recordset is a create).
@@ -244,6 +291,15 @@ class FixIotStream(models.Model):
         default="draft",
     )
     activated_on = fields.Datetime(string="Activated On", readonly=True, copy=False)
+    # A07 ERP audit (2026-11-20) M48-01: why a suspended stream is suspended. A
+    # stream the consent gate stopped is resumed only by the Consent Officer, and
+    # only once a valid consent covers it again.
+    suspension_cause = fields.Selection(
+        [("consent", "Consent Revoked or Lapsed"), ("manual", "Suspended by Hand")],
+        string="Suspended Because",
+        readonly=True,
+        copy=False,
+    )
     last_seen = fields.Datetime(related="device_id.last_telemetry", string="Last Seen")
     # A07 audit (2026-11-03) M48-8: this was One2many(..., "device_id"), which
     # matched the STREAM's id against telemetry.device_id and so listed another
@@ -348,15 +404,21 @@ class FixIotStream(models.Model):
             return "the consent policy (%s=%s) covers every stream" % (CONSENT_SCOPE_PARAM, scope)
         if device.partner_id:
             return "the device belongs to customer %s" % device.partner_id.display_name
+        customer = device._fix_customer_binding()
+        if customer:
+            return customer
         if device.device_type == "tracker" or _is_location_metric(self.metric):
             return "the stream carries a location signal"
-        if not (device.equipment_id or device.site_id):
+        if not device._fix_company_asset():
             # Not shown to be company equipment or a company site, so it
             # cannot claim the facility-sensor exemption.
             return "the device is bound to no company equipment or site"
-        if consents:
+        if consents or device.consent_ever_recorded:
             # Once a consent was recorded for the subject, its revocation or
             # expiry must stop collection; the exemption cannot outlive it.
+            # A07 ERP audit (2026-11-20) M48-01: the device remembers it, so
+            # clearing its customer or moving its site does not bring the
+            # exemption back.
             return "a consent was recorded for this device"
         return ""
 
@@ -369,6 +431,8 @@ class FixIotStream(models.Model):
         Consent = self.env["fix.iot.consent"]
         for rec in self:
             consents = Consent._fix_for_device(rec.device_id).filtered(lambda c: c._fix_counts())
+            if consents and not rec.device_id.consent_ever_recorded:
+                rec.device_id.sudo()._guarded().write({"consent_ever_recorded": True})
             reason = rec._fix_consent_reason(consents)
             if not reason:
                 continue
@@ -396,11 +460,11 @@ class FixIotStream(models.Model):
         asset identity. The device must monitor M45 equipment or an M47 site."""
         for rec in self:
             device = rec.device_id
-            if not (device.equipment_id or device.site_id):
+            if not device._fix_bound_asset():
                 raise UserError(
                     "Stream %s cannot be activated: device %s is bound to no asset. Set its "
-                    "M45 equipment or M47 site first (BRU-IOT-02)."
-                    % (rec.name, device.display_name)
+                    "M45 equipment, M47 site, M46 vehicle or M17 customer device first "
+                    "(BRU-IOT-02)." % (rec.name, device.display_name)
                 )
 
     def action_activate(self):
@@ -408,19 +472,35 @@ class FixIotStream(models.Model):
             if rec.state in ("active", "silent"):
                 raise UserError("Stream is already active")
             rec._fix_check_bound()
-            rec._guarded().write({"state": "active", "activated_on": fields.Datetime.now()})
+            if rec.state == "suspended":
+                # A07 ERP audit (2026-11-20) M48-01: resuming was a bare state flip,
+                # so a stream the customer's revocation stopped was turned back on
+                # by the administrator. The consent gate runs first, and a stream
+                # the gate stopped is resumed only by the Consent Officer.
+                if rec.suspension_cause == "consent":
+                    _require_role(
+                        self.env, IOT_CONSENT, "Resuming a stream its consent gate suspended"
+                    )
+                rec._fix_check_consent()
+            rec._guarded().write(
+                {
+                    "state": "active",
+                    "activated_on": fields.Datetime.now(),
+                    "suspension_cause": False,
+                }
+            )
 
     def action_suspend(self):
         for rec in self:
             if rec.state not in ("active", "silent"):
                 raise UserError("Suspend an active stream")
-            rec._guarded().write({"state": "suspended"})
+            rec._guarded().write({"state": "suspended", "suspension_cause": "manual"})
 
     def _fix_suspend(self, reason):
         """Suspend these streams as the platform (consent revoked or lapsed),
         and tell M05/M07/M60 (spec §12.3 telemetry.stream_suspended)."""
         for rec in self.sudo().filtered(lambda s: s.state in ("active", "silent")):
-            rec.write({"state": "suspended"})
+            rec._guarded().write({"state": "suspended", "suspension_cause": "consent"})
             rec.gap_ids.filtered(lambda g: g.state == "open")._fix_close(fields.Datetime.now())
             publish(
                 rec.env,
@@ -485,6 +565,15 @@ class FixIotStream(models.Model):
             raise IngestRefused("invalid_value", "A telemetry reading must be a number.") from exc
         if not math.isfinite(value):
             raise IngestRefused("invalid_value", "A telemetry reading must be a finite number.")
+        if timestamp:
+            late = _param_int(self.env, LATE_WINDOW_PARAM)
+            stamp = fields.Datetime.to_datetime(timestamp)
+            if late and stamp < fields.Datetime.now() - timedelta(days=late):
+                raise IngestRefused(
+                    "too_late",
+                    "Reading refused on stream %s: dated %s, more than %d day(s) before it "
+                    "arrived (setting %s)." % (self.name, stamp, late, LATE_WINDOW_PARAM),
+                )
         stream = self.sudo()
         vals = {
             "company_id": stream.device_id.company_id.id,
@@ -501,6 +590,7 @@ class FixIotStream(models.Model):
         # own checks. The record handed back carries no token and no sudo.
         reading = self.env["fix.iot.telemetry"].sudo()._guarded().create(vals)
         ts = reading.timestamp
+        stream._fix_mark_late(ts)
         stream.device_id._fix_telemetry_received("online", ts)
         if stream.state == "silent":
             # FR-IOT-028: the gap is recorded permanently; the stream resumes.
@@ -516,6 +606,23 @@ class FixIotStream(models.Model):
             self.env["fix.iot.telemetry"].browse(reading.id),
             self.env["fix.iot.alert"].browse(raised.ids),
         )
+
+    def _fix_mark_late(self, ts):
+        """A07 ERP audit (2026-11-20) M48-11: a reading older than what was
+        already aggregated re-opens its buckets (they are recomputed by the next
+        retention run, so the purge never drops a reading no aggregate holds)."""
+        for policy in (
+            self.env["fix.iot.downsample"]
+            .sudo()
+            .search([("stream_id", "in", self.ids), ("state", "=", "active")])
+        ):
+            if policy.rolled_until and ts < policy.rolled_until:
+                dirty = min(policy.dirty_from, ts) if policy.dirty_from else ts
+                policy._guarded().write({"dirty_from": dirty})
+        for stream in self.sudo():
+            if stream.tier_rolled_until and ts < stream.tier_rolled_until:
+                dirty = min(stream.tier_dirty_from, ts) if stream.tier_dirty_from else ts
+                stream._guarded().write({"tier_dirty_from": dirty})
 
     # ---- liveness (AUT-IOT-03, BRU-IOT-09) ------------------------------------
     def _fix_silence_after(self):
@@ -594,6 +701,9 @@ class FixIotStream(models.Model):
             )
             if not live and device.status != "offline":
                 device._fix_mark_offline()
+            elif live and device.status == "online":
+                # M48-18: some streams silent, some still reporting.
+                device._fix_mark_degraded()
         return len(silenced)
 
 
@@ -723,7 +833,7 @@ class FixIotAdapter(models.Model):
                 "api_key_hash": adapter_key_hash(secret),
                 "key_rotated_by": self.env.uid,
                 "key_rotated_on": fields.Datetime.now(),
-                "credential_rotated_on": fields.Date.context_today(self),
+                "credential_rotated_on": _dhaka_today(self.env),
             }
         )
         if supplied:
@@ -781,7 +891,8 @@ class FixIotAdapter(models.Model):
 # change through action_change_settings, on the same terms as the threshold.
 _RULE_SETTINGS = ("severity", "duration_min", "cooldown_min")
 _RULE_TERMS = frozenset({"threshold", "operator", "stream_id", *_RULE_SETTINGS})
-_SEVERITY_RANK = {"minor": 0, "major": 1}
+# A07 ERP audit (2026-11-20) M48-15: a "critical" class above major (T-10).
+_SEVERITY_RANK = {"minor": 0, "major": 1, "critical": 2}
 # The suppression proposal the requester fills in; frozen while it is pending
 # approval or in force.
 _RULE_PROPOSAL = frozenset({"suppression_reason", "suppression_until"})
@@ -863,7 +974,9 @@ class FixIotRule(models.Model):
     )
     threshold = fields.Float(required=True)
     severity = fields.Selection(
-        [("minor", "Minor"), ("major", "Major")], required=True, default="minor"
+        [("minor", "Minor"), ("major", "Major"), ("critical", "Critical")],
+        required=True,
+        default="minor",
     )
     duration_min = fields.Integer(string="For (minutes)", default=0)
     cooldown_min = fields.Integer(string="Cooldown (minutes)", default=15)
@@ -892,7 +1005,7 @@ class FixIotRule(models.Model):
         copy=False,
         help="Restored when a loosened-threshold suppression is lifted or expires.",
     )
-    _SEVERITIES = [("minor", "Minor"), ("major", "Major")]
+    _SEVERITIES = [("minor", "Minor"), ("major", "Major"), ("critical", "Critical")]
     proposed_severity = fields.Selection(
         _SEVERITIES, string="Proposed Severity", readonly=True, copy=False
     )
@@ -1115,7 +1228,7 @@ class FixIotRule(models.Model):
         """End every suppression on these rules whose expiry has passed. Runs
         as superuser: an expiry takes effect whoever triggers it (ingest now; a
         scheduler in P1)."""
-        today = fields.Date.context_today(self)
+        today = _dhaka_today(self.env)
         for rec in self.sudo():
             if (
                 rec._fix_suppression_in_force()
@@ -1125,7 +1238,7 @@ class FixIotRule(models.Model):
                 rec.write(rec._fix_lift_vals())
 
     def _fix_request_suppression(self, kind, reason=None, proposed_threshold=0.0, proposed=None):
-        today = fields.Date.context_today(self)
+        today = _dhaka_today(self.env)
         for rec in self:
             why = (reason or rec.suppression_reason or "").strip()
             if not why:
@@ -1225,7 +1338,7 @@ class FixIotRule(models.Model):
         self.ensure_one()
         wanted = (severity or "").strip().lower() or self.severity
         if wanted not in _SEVERITY_RANK:
-            raise UserError("Severity is minor or major.")
+            raise UserError("Severity is minor, major or critical.")
         out = {"severity": wanted}
         for name, value in (("duration_min", duration_min), ("cooldown_min", cooldown_min)):
             text = str(value).strip() if value not in (None, False) else ""
@@ -1268,7 +1381,7 @@ class FixIotRule(models.Model):
         """The M63 apply method: put the requested suppression in force."""
         self._approval_assert_routed()
         acting = self._approval_acting_users()
-        today = fields.Date.context_today(self)
+        today = _dhaka_today(self.env)
         now = fields.Datetime.now()
         for rec in self:
             if not rec.suppression_kind or rec._fix_suppression_in_force():
@@ -1341,6 +1454,7 @@ class FixIotDownsample(models.Model):
             "rollup_points",
             "measured_compression_pct",
             "last_rollup_on",
+            "dirty_from",
         }
 
     def _fix_change_open(self):
@@ -1413,6 +1527,8 @@ class FixIotDownsample(models.Model):
         "retention cron's own counts. Empty until it has aggregated something.",
     )
     last_rollup_on = fields.Datetime(string="Last Aggregation Run", readonly=True, copy=False)
+    # M48-11: the earliest late reading that arrived after its bucket was written.
+    dirty_from = fields.Datetime(string="Recompute From", readonly=True, copy=False)
     rollup_ids = fields.One2many("fix.iot.telemetry.rollup", "downsample_id", string="Aggregates")
 
     _target_ge_raw = models.Constraint(
@@ -1503,7 +1619,13 @@ class FixIotDownsample(models.Model):
     def _fix_rollup(self, now):
         """Aggregate every COMPLETE bucket since rolled_until into
         fix.iot.telemetry.rollup, and measure the compression. Idempotent: a
-        bucket is written once (unique per policy and bucket start)."""
+        bucket is written once (unique per policy and bucket start).
+
+        A07 ERP audit (2026-11-20) M48-11: a late reading for a bucket already
+        written re-opens it (dirty_from). The bucket is recomputed from the raw
+        readings while they are all still held; once some were purged, the late
+        readings are merged into the stored aggregate, so nothing a purge already
+        removed is lost from it."""
         self.ensure_one()
         stream = self.stream_id
         Telemetry = self.env["fix.iot.telemetry"].sudo()
@@ -1514,38 +1636,67 @@ class FixIotDownsample(models.Model):
             ("metric", "=", stream.metric),
             ("timestamp", "<", upto),
         ]
-        if self.rolled_until:
-            domain.append(("timestamp", ">=", self.rolled_until))
+        start = self.rolled_until
+        if self.dirty_from and self.rolled_until:
+            start = self._fix_bucket(self.dirty_from)
+        if start:
+            domain.append(("timestamp", ">=", start))
         buckets = {}
         for reading in Telemetry.search(domain, order="timestamp"):
-            buckets.setdefault(self._fix_bucket(reading.timestamp), []).append(reading.value)
-        existing = set(
-            Rollup.search(
+            buckets.setdefault(self._fix_bucket(reading.timestamp), []).append(reading)
+        existing = {
+            r.bucket_start: r
+            for r in Rollup.search(
                 [("downsample_id", "=", self.id), ("bucket_start", "in", list(buckets))]
-            ).mapped("bucket_start")
-        )
+            )
+        }
         agg = {
             "avg": lambda v: sum(v) / len(v),
             "min": min,
             "max": max,
             "last": lambda v: v[-1],
         }[self.aggregation]
-        new = [
-            {
-                "downsample_id": self.id,
-                "bucket_start": start,
-                "bucket_seconds": self.target_interval_sec,
-                "aggregation": self.aggregation,
-                "value": agg(values),
-                "points": len(values),
-            }
-            for start, values in sorted(buckets.items())
-            if start not in existing
-        ]
-        if new:
-            Rollup._guarded().create(new)
-        raw = self.raw_points_rolled + sum(v["points"] for v in new)
-        rolled = self.rollup_points + len(new)
+        raw_delta = rolled_delta = 0
+        rows = []
+        for begin, readings in sorted(buckets.items()):
+            values = [r.value for r in readings]
+            stored = existing.get(begin)
+            if stored:
+                late = [r for r in readings if _arrived_after(r, stored)]
+                if not late:
+                    continue
+                if len(values) >= stored.points + len(late):
+                    value, points = agg(values), len(values)
+                else:
+                    # some raw readings of the bucket were purged: merge
+                    extra = [r.value for r in late]
+                    value = _merge(self.aggregation, stored, extra)
+                    points = stored.points + len(extra)
+                high = max([stored.max_reading_id or 0, *(r.id for r in late)])
+                raw_delta += points - stored.points
+                rolled_delta -= 1
+                stored.unlink()
+            else:
+                value, points = agg(values), len(values)
+                raw_delta += points
+            if not stored or len(values) >= points:
+                high = max(r.id for r in readings)
+            rolled_delta += 1
+            rows.append(
+                {
+                    "downsample_id": self.id,
+                    "bucket_start": begin,
+                    "bucket_seconds": self.target_interval_sec,
+                    "aggregation": self.aggregation,
+                    "value": value,
+                    "points": points,
+                    "max_reading_id": high,
+                }
+            )
+        if rows:
+            Rollup._guarded().create(rows)
+        raw = max(self.raw_points_rolled + raw_delta, 0)
+        rolled = max(self.rollup_points + rolled_delta, 0)
         self._guarded().write(
             {
                 "rolled_until": upto,
@@ -1553,9 +1704,33 @@ class FixIotDownsample(models.Model):
                 "rollup_points": rolled,
                 "measured_compression_pct": round((1 - rolled / raw) * 100, 1) if raw else 0.0,
                 "last_rollup_on": now,
+                "dirty_from": False,
             }
         )
-        return len(new)
+        return len(rows)
+
+    def _fix_purgeable(self, readings):
+        """M48-11 / BRU-IOT-07: the readings among `readings` that an aggregate of
+        this policy holds - its bucket was written after the reading arrived."""
+        self.ensure_one()
+        buckets = {}
+        for reading in readings:
+            buckets.setdefault(self._fix_bucket(reading.timestamp), []).append(reading)
+        written = {
+            r.bucket_start: r
+            for r in self.env["fix.iot.telemetry.rollup"]
+            .sudo()
+            .search([("downsample_id", "=", self.id), ("bucket_start", "in", list(buckets))])
+        }
+        keep = readings.browse()
+        for start, rows in buckets.items():
+            rollup = written.get(start)
+            if not rollup:
+                continue
+            for reading in rows:
+                if not _arrived_after(reading, rollup):
+                    keep |= reading
+        return keep
 
     @api.model
     def cron_retention(self):
@@ -1566,7 +1741,7 @@ class FixIotDownsample(models.Model):
         Raw readings of a stream with no active policy are never dropped.
         Returns {"aggregates": n, "raw_dropped": n, "aggregates_dropped": n}."""
         now = fields.Datetime.now()
-        purge = _flag(self.env, RETENTION_PURGE_PARAM)
+        purge = _flag(self.env, RETENTION_PURGE_PARAM, RETENTION_PURGE_DEFAULT)
         out = {"aggregates": 0, "raw_dropped": 0, "aggregates_dropped": 0}
         for policy in self.sudo().search([("state", "=", "active")]):
             out["aggregates"] += policy._fix_rollup(now)
@@ -1585,6 +1760,8 @@ class FixIotDownsample(models.Model):
                     ]
                 )
             )
+            # M48-11: time alone dropped late readings no aggregate held.
+            raw = policy._fix_purgeable(raw)
             out["raw_dropped"] += len(raw)
             raw.unlink()
             old = policy.rollup_ids.filtered(
@@ -1598,13 +1775,46 @@ class FixIotDownsample(models.Model):
 _EPOCH = fields.Datetime.to_datetime("1970-01-01 00:00:00")
 
 
+def _merge(aggregation, stored, extra):
+    """A stored policy aggregate with late values merged in (M48-11). For "last"
+    the latest late value stands (late readings are the newest to arrive)."""
+    if aggregation == "avg":
+        return (stored.value * stored.points + sum(extra)) / (stored.points + len(extra))
+    if aggregation == "min":
+        return min([stored.value, *extra])
+    if aggregation == "max":
+        return max([stored.value, *extra])
+    return extra[-1]
+
+
+def _arrived_after(reading, aggregate):
+    """M48-11: did `reading` arrive after `aggregate` was computed? By reading id
+    (ids grow with arrival); an aggregate written before the id was kept falls
+    back to the time stamps."""
+    if aggregate.max_reading_id:
+        return reading.id > aggregate.max_reading_id
+    return bool(
+        reading.create_date
+        and aggregate.create_date
+        and reading.create_date > aggregate.create_date
+    )
+
+
 # What an approval covers: changing one voids it (approved) or is refused
 # (dispatched and later).
-_ACTION_PINNED = frozenset({"action_type", "priority", "prediction_id"})
+# A07 ERP audit (2026-11-20) M48-22 / decision D17(c): the approval pins the
+# scheduled date too (Revise Terms moves it).
+_ACTION_PINNED = frozenset({"action_type", "priority", "prediction_id", "scheduled_on"})
 # Also frozen once the action is done or cancelled.
-_ACTION_CLOSED = _ACTION_PINNED | {"technician_id", "scheduled_on", "outcome_evidence_ref"}
-# action_done outcome -> the prediction's recorded outcome.
-_ACTION_OUTCOME = {"confirmed": "confirmed", "not_confirmed": "false_alarm"}
+_ACTION_CLOSED = _ACTION_PINNED | {"technician_id", "outcome_evidence_ref"}
+# action_done outcome -> the prediction's recorded outcome. M48-09: an
+# intervention that replaced a degrading part before it failed PREVENTED the
+# failure; it was recorded as confirmed or false alarm, distorting precision.
+_ACTION_OUTCOME = {
+    "confirmed": "confirmed",
+    "not_confirmed": "false_alarm",
+    "prevented": "prevented",
+}
 
 
 class FixIotPrescriptiveAction(models.Model):
@@ -1660,6 +1870,7 @@ class FixIotPrescriptiveAction(models.Model):
             "cancelled_by",
             "cancelled_on",
             "cancel_reason",
+            "preventive_request",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -1735,7 +1946,7 @@ class FixIotPrescriptiveAction(models.Model):
                     "approved_by": False,
                     "approved_on": False,
                     "revision_note": "%s (%s, %s)"
-                    % (why, self.env.user.name, fields.Date.context_today(self)),
+                    % (why, self.env.user.name, _dhaka_today(self.env)),
                 }
             )
         return True
@@ -1763,6 +1974,12 @@ class FixIotPrescriptiveAction(models.Model):
                     "cancel_reason": why,
                 }
             )
+            if rec.preventive_request:
+                prediction = rec.prediction_id.sudo()
+                if prediction.preventive_action_id == rec:
+                    prediction._fix_release_preventive_request(
+                        "action %s cancelled: %s" % (rec.name, why)
+                    )
         return True
 
     name = fields.Char(required=True, default="New")
@@ -1771,6 +1988,11 @@ class FixIotPrescriptiveAction(models.Model):
     cancelled_by = fields.Many2one("res.users", string="Cancelled By", readonly=True, copy=False)
     cancelled_on = fields.Datetime(string="Cancelled On", readonly=True, copy=False)
     cancel_reason = fields.Char(string="Why Cancelled", readonly=True, copy=False)
+    # M48-03: raised by Request Preventive Work Order; its approval publishes
+    # predictive_maintenance.wo_created.
+    preventive_request = fields.Boolean(
+        string="Preventive Work Order Request", readonly=True, copy=False
+    )
     prediction_id = fields.Many2one(
         "fix.predictive.maintenance",
         string="Prediction",
@@ -1802,7 +2024,7 @@ class FixIotPrescriptiveAction(models.Model):
         default="medium",
     )
     technician_id = fields.Many2one("hr.employee", string="Technician")
-    scheduled_on = fields.Date(required=True, default=fields.Date.context_today)
+    scheduled_on = fields.Date(required=True, default=_dhaka_default_today)
     state = fields.Selection(
         [
             ("proposed", "Proposed"),
@@ -1821,7 +2043,11 @@ class FixIotPrescriptiveAction(models.Model):
     completed_by = fields.Many2one("res.users", string="Completed By", readonly=True, copy=False)
     completed_on = fields.Datetime(string="Completed On", readonly=True, copy=False)
     outcome = fields.Selection(
-        [("confirmed", "Failure Confirmed"), ("not_confirmed", "Failure Not Confirmed")],
+        [
+            ("confirmed", "Failure Confirmed"),
+            ("not_confirmed", "Failure Not Confirmed"),
+            ("prevented", "Failure Prevented"),
+        ],
         string="Outcome",
         readonly=True,
         copy=False,
@@ -1839,6 +2065,8 @@ class FixIotPrescriptiveAction(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # A07 ERP audit (2026-11-20) M48-22: any internal user proposed actions.
+        _require_role(self.env, IOT_OPERATOR, "Proposing a prescriptive action")
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = self.env["ir.sequence"].next_by_code("fix.iot.action") or "IACT/New"
@@ -1912,6 +2140,46 @@ class FixIotPrescriptiveAction(models.Model):
                     "approved_on": fields.Datetime.now(),
                 }
             )
+            if rec.preventive_request:
+                # M48-03: the approved request is what raises the preventive
+                # work order (the spine reads the action's pinned date).
+                prediction = rec.prediction_id.sudo()
+                publish(
+                    rec.env,
+                    "predictive_maintenance.wo_created",
+                    "fix.predictive.maintenance",
+                    prediction.id,
+                    {
+                        "equipment": prediction.asset_label or "",
+                        "days": prediction.estimated_days_to_failure,
+                        "action": rec.name,
+                        "scheduled_on": fields.Date.to_string(rec.scheduled_on),
+                        "approved_by": self.env.uid,
+                    },
+                )
+
+    def _fix_dispatch_payload(self):
+        """What iot.action_dispatched carries (the capture layer adds parts and
+        skill, M48-07)."""
+        self.ensure_one()
+        prediction = self.prediction_id.sudo()
+        return {
+            "action": self.name,
+            "action_type": self.action_type,
+            "priority": self.priority,
+            "scheduled_on": fields.Date.to_string(self.scheduled_on),
+            "technician_id": self.technician_id.id,
+            "equipment_id": prediction.equipment_id.id or False,
+            "equipment_code": prediction.equipment_id.code or "",
+            "company_id": prediction.company_id.id,
+            "operating_unit_id": prediction.operating_unit_id.id or False,
+            "prediction": prediction.name,
+            "predicted": prediction.prediction,
+            "days_to_failure": prediction.estimated_days_to_failure,
+            "model": prediction.model_name or "",
+            "approved_by": self.approved_by.id or False,
+            "notes": self.notes or "",
+        }
 
     def action_dispatch(self):
         """A07 P1 (2026-11-04): dispatch is the IoT operator's (spec R13), and
@@ -1924,31 +2192,24 @@ class FixIotPrescriptiveAction(models.Model):
                 raise UserError("Dispatch an approved action")
             if not rec.technician_id:
                 raise UserError("Assign a technician before dispatching action %s." % rec.name)
+            rec._fix_check_dispatchable()
             rec._guarded().write({"state": "dispatched", "dispatched_on": fields.Datetime.now()})
-            prediction = rec.prediction_id.sudo()
             publish(
                 rec.env,
                 "iot.action_dispatched",
                 "fix.iot.action",
                 rec.id,
-                {
-                    "action": rec.name,
-                    "action_type": rec.action_type,
-                    "priority": rec.priority,
-                    "scheduled_on": fields.Date.to_string(rec.scheduled_on),
-                    "technician_id": rec.technician_id.id,
-                    "equipment_id": prediction.equipment_id.id,
-                    "equipment_code": prediction.equipment_id.code or "",
-                    "company_id": prediction.company_id.id,
-                    "operating_unit_id": prediction.operating_unit_id.id or False,
-                    "prediction": prediction.name,
-                    "predicted": prediction.prediction,
-                    "days_to_failure": prediction.estimated_days_to_failure,
-                    "model": prediction.model_name or "",
-                    "approved_by": rec.approved_by.id or False,
-                    "notes": rec.notes or "",
-                },
+                rec._fix_dispatch_payload(),
             )
+            rec._fix_after_dispatch()
+
+    def _fix_check_dispatchable(self):
+        """Hook: the capture layer checks the technician's M22 competency."""
+        return True
+
+    def _fix_after_dispatch(self):
+        """Hook: the spine raises the order synchronously (M48-08)."""
+        return True
 
     def action_done(self, outcome=None, note=None):
         """Complete the intervention and record what it found on the
@@ -1956,7 +2217,8 @@ class FixIotPrescriptiveAction(models.Model):
         with a note. The prediction's outcome changes only here."""
         if outcome not in _ACTION_OUTCOME:
             raise UserError(
-                "Record the outcome: was the predicted failure confirmed or not confirmed?"
+                "Record the outcome: was the predicted failure confirmed, not confirmed, or "
+                "prevented by the intervention?"
             )
         note = (note or "").strip()
         if not note:
@@ -2020,6 +2282,11 @@ class FixIotPrescriptiveAction(models.Model):
     def action_done_not_confirmed(self, note=None):
         return self.action_done(outcome="not_confirmed", note=note)
 
+    def action_done_prevented(self, note=None):
+        """M48-09: the intervention replaced or repaired what was degrading
+        before it failed (counted as a true positive for precision)."""
+        return self.action_done(outcome="prevented", note=note)
+
 
 # What a revoked consent may still have changed: nothing but its notes.
 _CONSENT_TERMS = frozenset(
@@ -2028,6 +2295,7 @@ _CONSENT_TERMS = frozenset(
 # What a verification covers: changing any of it sends the consent back to
 # pending verification (A07 P1).
 _CONSENT_GRANT = _CONSENT_TERMS | {
+    "proactive_service",
     "signal_groups_permitted",
     "disclosure_document_id",
     "granted_by",
@@ -2153,8 +2421,16 @@ class FixIotConsent(models.Model):
         required=True,
         default="service",
     )
-    granted_on = fields.Date(required=True, default=fields.Date.context_today)
+    granted_on = fields.Date(required=True, default=_dhaka_default_today)
     valid_to = fields.Date()
+    # A07 ERP audit (2026-11-20) M48-04 / BRU-IOT-13: the customer also agreed to
+    # be serviced proactively on what the telemetry shows. Without it, a
+    # prediction on the customer's device raises an M07 opportunity, never work.
+    proactive_service = fields.Boolean(
+        string="Proactive Service Agreed",
+        help="The customer agrees that a predicted failure raises a preventive visit "
+        "under their contract.",
+    )
     state = fields.Selection(
         [("active", "Active"), ("revoked", "Revoked")], required=True, default="active"
     )
@@ -2256,7 +2532,20 @@ class FixIotConsent(models.Model):
             rec._guarded().write(
                 {"verified_by": self.env.uid, "verified_on": fields.Datetime.now()}
             )
+        records.filtered(lambda c: c._fix_counts())._fix_mark_covered_devices()
         return records
+
+    def _fix_mark_covered_devices(self):
+        """A07 ERP audit (2026-11-20) M48-01: the devices a counting consent covers
+        remember it for good (fix.iot.device.consent_ever_recorded)."""
+        devices = self.env["fix.iot.device"].sudo()
+        for rec in self:
+            devices |= rec._fix_covered_streams().device_id
+            if rec.device_id:
+                devices |= rec.device_id.sudo()
+        devices.filtered(lambda d: not d.consent_ever_recorded)._guarded().write(
+            {"consent_ever_recorded": True}
+        )
 
     # A07 audit (2026-11-03) M48-1: a customer consent naming no customer and a
     # device consent naming no device were accepted, and so was a validity
@@ -2291,7 +2580,7 @@ class FixIotConsent(models.Model):
         """Active, verified and in date: granted_on <= day <= valid_to
         (open-ended when valid_to is empty)."""
         self.ensure_one()
-        day = day or fields.Date.context_today(self)
+        day = day or _dhaka_today(self.env)
         return (
             self.state == "active"
             and self.verification == "verified"
@@ -2416,6 +2705,7 @@ class FixIotConsent(models.Model):
                     "verified_on": fields.Datetime.now(),
                 }
             )
+        self._fix_mark_covered_devices()
 
     def action_revoke(self, evidence_ref=None):
         """A07 audit (2026-11-03) M48-1 / AUT-IOT-02: revoking used only to flip
@@ -2444,6 +2734,7 @@ class FixIotConsent(models.Model):
                     "revocation_evidence_ref": (evidence_ref or "").strip() or False,
                 }
             )
+        self._fix_mark_covered_devices()
         for rec in self:
             covered = rec._fix_covered_streams()
             stopped = rec._fix_uncovered(covered)
@@ -2538,7 +2829,7 @@ class FixIotConsent(models.Model):
         every live stream it covered that no other valid consent covers - and
         that needs one - is suspended. Idempotent: a suspended stream is not
         touched again."""
-        today = fields.Date.context_today(self)
+        today = _dhaka_today(self.env)
         lapsed = self.sudo().search(
             [("state", "=", "active"), ("valid_to", "!=", False), ("valid_to", "<", today)]
         )
@@ -2830,9 +3121,12 @@ class FixIotGap(models.Model):
 
     def _fix_close(self, at):
         for gap in self.sudo():
+            # A07 ERP audit (2026-11-20) M48-21: a replayed, back-dated reading
+            # closed the gap before it opened (gap_to < gap_from).
+            end = max(at, gap.gap_from)
             interval = max(gap.stream_id.sample_interval_sec or 60, 1)
-            missed = max(int((at - gap.gap_from).total_seconds() // interval) - 1, 0)
-            gap.write({"gap_to": at, "state": "closed", "points_expected": missed})
+            missed = max(int((end - gap.gap_from).total_seconds() // interval) - 1, 0)
+            gap.write({"gap_to": end, "state": "closed", "points_expected": missed})
 
 
 class FixIotTelemetryRollup(models.Model):
@@ -2844,8 +3138,10 @@ class FixIotTelemetryRollup(models.Model):
     _inherit = ["fix.iot.insert.only.mixin"]
     _order = "bucket_start desc"
 
+    # A07 ERP audit (2026-11-20) M48-14: deleting a policy (or its stream or
+    # device) deleted the aggregates that outlive the raw data. Decommission it.
     downsample_id = fields.Many2one(
-        "fix.iot.downsample", string="Policy", required=True, ondelete="cascade", index=True
+        "fix.iot.downsample", string="Policy", required=True, ondelete="restrict", index=True
     )
     stream_id = fields.Many2one(related="downsample_id.stream_id", store=True, string="Stream")
     company_id = fields.Many2one(
@@ -2856,6 +3152,8 @@ class FixIotTelemetryRollup(models.Model):
     aggregation = fields.Char(required=True)
     value = fields.Float(required=True)
     points = fields.Integer(string="Raw Readings", required=True)
+    # M48-11: the newest reading the aggregate holds (ids grow with arrival).
+    max_reading_id = fields.Integer(string="Holds Readings Up To", readonly=True)
 
     _bucket_unique = models.Constraint(
         "UNIQUE (downsample_id, bucket_start)", "A policy writes each bucket once."

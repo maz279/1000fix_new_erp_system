@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 ERP audit (2026-11-20) M45-09: equipment.operating_unit_id is now the
+  branch's OU (stored compute). Rows registered before it read no OU, so the OU
+  record rules admitted everyone: this sets them from their branch on every
+  upgrade (idempotent: only rows whose OU differs from their branch's).
+-->
+<odoo>
+    <function model="fix.equipment" name="_m45_backfill_operating_unit"/>
+</odoo>

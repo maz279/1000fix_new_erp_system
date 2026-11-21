@@ -440,39 +440,28 @@ def test_8_vehicle_value_and_disposal_on_the_form_with_role_checks(f, ui, m46_js
     assert "Logistics Manager" in res["error"]
 
 
-def test_8_retire_takes_a_reason_a_role_and_reaches_m49(f, ui, m46_js):  # noqa: F811
-    assert buttons(m46_js, "M46-vehicles")["action_retire"]["kwarg"] == "reason"
+def test_8_a_vehicle_leaves_through_a_disposal_and_stays_listed(f, ui, m46_js):  # noqa: F811
+    """A07 ERP audit M46-10 (D10): Retire on its own is gone from the screen and
+    refused; the vehicle leaves through a CFO-approved disposal, whose last
+    step retires it (test_a07_erp_m46 walks the approval). Retired, the gate
+    refuses it by name and the register still lists it."""
+    acts = buttons(m46_js, "M46-vehicles")
+    assert "action_retire" not in acts and "action_commission" in acts
     van = f.vehicle("A7M46-RETIRE")
-    van.sudo().write({"net_car_value": 1800000})
     args = {"model": van._name, "ids": van.ids, "method": "action_retire"}
-    assert not ui.action(f.officer, **args, kwargs={"reason": "Sold"})["success"]
-    assert "reason" in ui.action(f.lm, **args)["error"].lower()
-    # direct archiving is not a way round the reason
+    assert not ui.action(f.lm, **args, kwargs={"reason": "Sold"}).get("success")
+    assert "Vehicle Disposal" in refused(f.env, lambda: van.with_user(f.lm).action_retire("Sold"))
+    # direct archiving is not a way round it
     res = ui.write(f.lm, model=van._name, record_id=van.id, values={"active": False})
     assert "error" in res
     assert refused(f.env, lambda: van.with_user(f.lm).write({"active": False}))
-
     tomorrow = f.today + timedelta(days=1)
     booking = f.assign(van, user=f.officer, date=tomorrow)
-    res = ui.action(f.lm, **args, kwargs={"reason": "Sold at auction"})
-    assert "booked" in res["error"]
+    assert "booked" in refused(f.env, lambda: van.sudo().action_retire(reason="Sold at auction"))
     booking.with_user(f.officer).action_release(reason="Van is being sold")
-
-    res = ui.action(f.lm, **args, kwargs={"reason": "Sold at auction"})
-    assert res["success"], res
+    van.sudo().action_retire(reason="Sold at auction")
     van.invalidate_recordset()
     assert not van.active and van.fix_retire_reason == "Sold at auction"
-    assert van.fix_retired_by_id == f.lm and van.fix_retired_on == f.today
-    if "fix.asset.finance.request" in f.env:
-        disp = f.env["fix.asset.finance.request"].search(
-            [
-                ("source_model", "=", van._name),
-                ("source_res_id", "=", van.id),
-                ("kind", "=", "dispose"),
-            ]
-        )
-        assert len(disp) == 1
-    # the gate refuses it by name, and the list still shows it
     blockers = van._fix_dispatch_blockers()[van.id]
     assert any("retired" in b for b in blockers)
     assert "retired" in refused(
@@ -524,6 +513,8 @@ def test_11_a_hard_exception_says_what_to_do_and_can_be_held(f, ui, m46_js):  # 
         "litres": 35,
         "amount": 4000,
         "filled_on": str(f.today),
+        "payment_method": "fuel_card",
+        "fuel_card_ref": "CARD-UI",
     }
     res = ui.write(f.clerk, model="fix.vehicle.fuel", values=typed)
     msg = res["error"]
@@ -780,7 +771,18 @@ def test_17_open_jobs_are_not_maintenance_cost(f):  # noqa: F811
     van = f.vehicle("A7M46-KPI3")
     PM = f.env["fix.vehicle.pm"].with_user(f.officer)
     PM.create({"vehicle_id": van.id, "cost": 7000, "odometer": 100})  # an estimate, still open
-    done = PM.create({"vehicle_id": van.id, "cost": 500, "odometer": 100})
+    garage = f.env["res.partner"].create({"name": "A7M46 KPI Garage", "is_company": True})
+    # A07 ERP audit (money contract): a paid service names its payment
+    done = PM.create(
+        {
+            "vehicle_id": van.id,
+            "cost": 500,
+            "odometer": 100,
+            "payment_method": "vendor_bill",
+            "provider_id": garage.id,
+            "invoice_ref": "KPI-1",
+        }
+    )
     done.action_done()
     f.fill(van, 1000, amount=100)
     f.fill(van, 1200, amount=100)
@@ -808,7 +810,11 @@ def test_18_a_new_model_can_be_made_on_screen(f, ui, m46_js):  # noqa: F811
     res = ui.write(
         f.officer,
         model="fleet.vehicle",
-        values={"model_id": res["id"], "license_plate": "A7M46-NEWMODEL"},
+        values={
+            "model_id": res["id"],
+            "license_plate": "A7M46-NEWMODEL",
+            "operating_unit_id": f.ou.id,  # A07 ERP audit M46-04
+        },
     )
     assert "error" not in res, res
     assert f.env["fleet.vehicle"].browse(res["id"]).model_id.name == "A7M46 Hiace"
@@ -868,6 +874,8 @@ def test_21_evidence_keeps_its_own_file_name(f, ui, m46_js, screen, model, file_
             "odometer": 100,
             "litres": 5,
             "amount": 500,
+            "payment_method": "fuel_card",
+            "fuel_card_ref": "CARD-UI",
         },
     }[model]
     res = ui.write(
@@ -948,7 +956,8 @@ def test_gate_needs_a_driver_when_the_switch_requires_one(f, ui):  # noqa: F811
 
 def test_receipt_evidence_is_a_setting_default_off(f, ui):  # noqa: F811
     param = "cd_vehicle_ext.require_fuel_receipt"
-    assert f.env["ir.config_parameter"].sudo().get_param(param) == "False"
+    # D14 turns it on in production (data); the switch itself is tested here
+    f.env["ir.config_parameter"].sudo().set_param(param, "False")
     van = f.vehicle("A7M46-RCPT")
     typed = {
         "vehicle_id": van.id,
@@ -956,6 +965,8 @@ def test_receipt_evidence_is_a_setting_default_off(f, ui):  # noqa: F811
         "odometer": 100,
         "litres": 5,
         "amount": 500,
+        "payment_method": "fuel_card",
+        "fuel_card_ref": "CARD-UI",
     }
     assert "error" not in ui.write(f.clerk, model="fix.vehicle.fuel", values=typed)
     f.env["ir.config_parameter"].sudo().set_param(param, "True")

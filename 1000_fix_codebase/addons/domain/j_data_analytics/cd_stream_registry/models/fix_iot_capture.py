@@ -28,12 +28,38 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from libs.py.fix_events import publish
 
 from .fix_iot_ops import (
+    DHAKA,
     IOT_ADMIN,
     IOT_MANAGER,
     IOT_OPERATOR,
     IngestRefused,
+    _dhaka_default_today,
+    _dhaka_today,
+    _param_int,
     _require_role,
 )
+from .fix_iot_ops import (
+    parse_source_timestamp as _parse_timestamp,
+)
+
+# A07 ERP audit (2026-11-20) decision D17(b): raw readings are kept 30 / 90 / 365
+# days by the criticality of their signal (low / medium / high; critical counts as
+# high). Each is a setting with the decided value as its default.
+RAW_RETENTION_PARAMS = {
+    "low": ("cd_stream_registry.raw_retention_days_low", 30),
+    "medium": ("cd_stream_registry.raw_retention_days_medium", 90),
+    "high": ("cd_stream_registry.raw_retention_days_high", 365),
+    "critical": ("cd_stream_registry.raw_retention_days_high", 365),
+}
+
+
+def raw_retention_days(env, criticality):
+    param, default = RAW_RETENTION_PARAMS.get(
+        criticality or "medium", RAW_RETENTION_PARAMS["medium"]
+    )
+    days = _param_int(env, param, default)
+    return days if days > 0 else default
+
 
 _logger = logging.getLogger(__name__)
 
@@ -105,7 +131,13 @@ class FixIotSignal(models.Model):
     sampling_interval_sec = fields.Integer(
         string="Sampling Interval (s)", default=60, required=True
     )
-    criticality_class = fields.Selection(CRITICALITY, required=True, default="medium")
+    criticality_class = fields.Selection(
+        CRITICALITY,
+        required=True,
+        default="medium",
+        help="Also sets the raw retention of a new stream on this signal (decision D17(b)): "
+        "low 30 days, medium 90, high and critical 365.",
+    )
     retention_class = fields.Selection(
         [
             ("short", "Short (raw 30 days)"),
@@ -177,11 +209,11 @@ class FixIotMonitoringScope(models.Model):
 
     _name = "fix.iot.monitoring.scope"
     _description = "IoT Monitoring Scope (Criticality Assessment)"
-    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "review_due, id desc"
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"assessed_by_id"}
+        return super()._fix_guarded_fields() | {"assessed_by_id", "review_flagged_for"}
 
     name = fields.Char(required=True, default="New", readonly=True, copy=False)
     company_id = fields.Many2one(
@@ -197,10 +229,9 @@ class FixIotMonitoringScope(models.Model):
     signal_ids = fields.Many2many("fix.iot.signal", string="Signals Selected")
     selection_rationale = fields.Text(string="Why These Signals")
     assessed_by_id = fields.Many2one("res.users", string="Assessed By", readonly=True, copy=False)
-    assessed_on = fields.Date(
-        string="Assessed On", required=True, default=fields.Date.context_today
-    )
+    assessed_on = fields.Date(string="Assessed On", required=True, default=_dhaka_default_today)
     review_due = fields.Date(string="Review Due", required=True, tracking=True)
+    review_flagged_for = fields.Date(string="Review Task Raised For", readonly=True, copy=False)
     active = fields.Boolean(default=True, tracking=True)
     device_count = fields.Integer(compute="_compute_devices", string="Devices")
     health_ids = fields.One2many("fix.iot.health", "scope_id", string="Health History")
@@ -293,6 +324,46 @@ class FixIotMonitoringScope(models.Model):
         return True
 
     @api.model
+    def cron_review_due(self):
+        """A07 ERP audit (2026-11-20) M48-19 / BRU-IOT-20: a criticality
+        assessment whose review date has passed gets a review task for the IoT
+        Administrators, once per review date."""
+        today = _dhaka_today(self.env)
+        group = self.env.ref(IOT_ADMIN, raise_if_not_found=False)
+        holders = (
+            group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+            if group
+            else self.env["res.users"]
+        )
+        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        flagged = 0
+        for scope in self.sudo().search([("review_due", "<", today)]):
+            if scope.review_flagged_for == scope.review_due:
+                continue
+            for user in holders:
+                scope.activity_schedule(
+                    activity_type_id=todo.id if todo else False,
+                    summary="Review criticality assessment %s (due %s)"
+                    % (scope.name, scope.review_due),
+                    user_id=user.id,
+                )
+            scope.message_post(
+                body="Review due %s has passed: the assessment is out of date and its "
+                "streams cannot be activated until it is reviewed." % scope.review_due
+            )
+            scope._guarded().write({"review_flagged_for": scope.review_due})
+            flagged += 1
+        return flagged
+
+    def _fix_covers_stream(self, stream, day):
+        """In force on `day` and listing the stream's signal (any signal when the
+        stream names none)."""
+        self.ensure_one()
+        if not self.active or (self.review_due and self.review_due < day):
+            return False
+        return not stream.signal_id or stream.signal_id in self.signal_ids
+
+    @api.model
     def cron_health(self):
         """AUT-IOT-11: nightly, score every device of every active scope.
         A failure on one scope keeps the previous index and moves on."""
@@ -350,6 +421,29 @@ class FixIotHealth(models.Model):
     readings_24h = fields.Integer(string="Readings 24h")
     device_status = fields.Char(string="Device Status")
     factors = fields.Text(string="Contributing Factors")
+    # A07 ERP audit (2026-11-20) M48-13 / FR-IOT-037: the inputs the spec names
+    # that the index ignored - repair history and asset age.
+    repairs_90d = fields.Integer(string="Repairs (90 days)")
+    asset_age_years = fields.Float(string="Asset Age (years)", digits=(6, 1))
+
+    @api.model
+    def _fix_fault_history(self, device, since):
+        """Repairs on the device's asset since `since` (the spine counts its
+        repair demands)."""
+        return 0
+
+    @api.model
+    def _fix_asset_age_years(self, device, today):
+        equipment = device.equipment_id
+        start = False
+        for name in ("commissioned_on", "purchase_date", "acquired_on", "installed_on"):
+            if equipment and name in equipment._fields and equipment[name]:
+                start = equipment[name]
+                break
+        start = start or device.installed_on
+        if not start:
+            return 0.0
+        return max((today - fields.Date.to_date(start)).days, 0) / 365.25
 
     @api.model
     def _fix_score(self, devices, scope=None):
@@ -384,6 +478,17 @@ class FixIotHealth(models.Model):
             if not readings:
                 score -= 20
                 factors.append("-20: no reading in 24 hours")
+            # M48-13: repair history and age, each capped.
+            repairs = self._fix_fault_history(device, now - timedelta(days=90))
+            if repairs:
+                cut = min(repairs * 10, 20)
+                score -= cut
+                factors.append("-%d: %d repair(s) in 90 days" % (cut, repairs))
+            age = self._fix_asset_age_years(device, _dhaka_today(self.env))
+            if age >= 5:
+                cut = min(int(age) - 4, 10)
+                score -= cut
+                factors.append("-%d: asset %.1f years old" % (cut, age))
             score = max(min(score, 100), 0)
             band = _band(score)
             previous = self.sudo().search(
@@ -411,6 +516,8 @@ class FixIotHealth(models.Model):
                         "trend": trend,
                         "open_alerts": alerts,
                         "readings_24h": readings,
+                        "repairs_90d": repairs,
+                        "asset_age_years": round(age, 1),
                         "device_status": dict(device._fields["status"].selection).get(
                             device.status
                         ),
@@ -583,11 +690,16 @@ class FixIotStreamCapture(models.Model):
         for vals in vals_list:
             if vals.get("device_id") and Device.browse(vals["device_id"]).decommissioned:
                 raise UserError("The device is decommissioned: it takes no new stream.")
-            if vals.get("signal_id"):
-                signal = Signal.browse(vals["signal_id"])
+            signal = Signal.browse(vals["signal_id"]) if vals.get("signal_id") else Signal
+            if signal:
                 self._fix_from_signal(vals, signal)
                 if "sample_interval_sec" not in vals:
                     vals["sample_interval_sec"] = signal.sampling_interval_sec
+            if not vals.get("retention_days"):
+                # D17(b): the raw retention follows the signal's criticality.
+                vals["retention_days"] = raw_retention_days(
+                    self.env, signal.criticality_class if signal else "medium"
+                )
         return super().create(vals_list)
 
     def write(self, vals):
@@ -614,7 +726,45 @@ class FixIotStreamCapture(models.Model):
                 )
             if rec.device_id.decommissioned:
                 raise UserError("Device %s is decommissioned." % rec.device_id.name)
+            if not self.env.su:
+                rec._fix_check_scope()
         return super().action_activate()
+
+    def _fix_scopes(self):
+        """The criticality assessments of the stream's asset."""
+        self.ensure_one()
+        device = self.device_id
+        if device.equipment_id:
+            domain = [("equipment_id", "=", device.equipment_id.id)]
+        elif device.site_id:
+            domain = [("site_id", "=", device.site_id.id)]
+        else:
+            return self.env["fix.iot.monitoring.scope"]
+        return self.env["fix.iot.monitoring.scope"].sudo().search(domain)
+
+    def _fix_check_scope(self):
+        """A07 ERP audit (2026-11-20) M48-19 / FR-IOT-007 / BRU-IOT-20: collection
+        starts only for an asset whose criticality was assessed, in an assessment
+        not past its review date that lists the stream's signal. (Superuser code -
+        seeds, data loading - is trusted, as for the other lifecycle guards.) An
+        asset the spec gives no assessment model (vehicle, customer device) is
+        assessed by its owning module."""
+        self.ensure_one()
+        device = self.device_id
+        if not (device.equipment_id or device.site_id):
+            return
+        today = _dhaka_today(self.env)
+        if not self._fix_scopes().filtered(lambda s: s._fix_covers_stream(self, today)):
+            raise UserError(
+                "Stream %s cannot be activated: no criticality assessment in force for %s "
+                "lists signal %s. Record (or review) the asset's monitoring scope first "
+                "(BRU-IOT-20)."
+                % (
+                    self.name,
+                    (device.equipment_id or device.site_id).display_name,
+                    self.signal_id.code or self.metric,
+                )
+            )
 
     def action_decommission(self, reason=None):
         """FR-IOT-008: stop ingestion, close open alerts and gaps, and mark the
@@ -721,7 +871,7 @@ class FixIotAdapterChannels(models.Model):
     file_batch_ids = fields.One2many("fix.iot.file.batch", "adapter_id", string="File Batches")
 
 
-_BATCH_TERMS = frozenset({"adapter_id", "batch_file", "batch_filename", "source_ref"})
+_BATCH_TERMS = frozenset({"adapter_id", "batch_file", "batch_filename", "source_ref", "source_tz"})
 
 
 class FixIotFileBatch(models.Model):
@@ -753,6 +903,14 @@ class FixIotFileBatch(models.Model):
     )
     adapter_id = fields.Many2one(
         "fix.iot.adapter", string="Protocol Adapter", required=True, ondelete="restrict", index=True
+    )
+    # A07 ERP audit (2026-11-20) M48-12: the zone of a stamp that carries none.
+    source_tz = fields.Char(
+        string="Source Time Zone",
+        required=True,
+        default=DHAKA,
+        help="IANA zone of time stamps written without an offset (an export from a Dhaka "
+        "system is local time). A stamp with an offset or Z keeps its own zone.",
     )
     source_ref = fields.Char(
         string="Export Reference", help="The sender's file or export reference."
@@ -837,12 +995,18 @@ class FixIotFileBatch(models.Model):
                         adapter.name,
                     )
                 else:
+                    # M48-12: the offset was cut off, so a +06:00 stamp was stored
+                    # six hours late. The same parser as the HTTP route, with the
+                    # batch's zone for a stamp written without one.
                     try:
-                        stamp = fields.Datetime.to_datetime(row["timestamp"].replace("T", " ")[:19])
-                    except ValueError:
+                        stamp = _parse_timestamp(row["timestamp"], rec.source_tz or DHAKA)
+                    except (ValueError, KeyError):
                         stamp = None
                     if not stamp:
-                        why = "timestamp '%s' is not YYYY-MM-DD HH:MM:SS" % row["timestamp"]
+                        why = (
+                            "timestamp '%s' is not an ISO date and time (YYYY-MM-DD HH:MM:SS, "
+                            "optionally with an offset)" % row["timestamp"]
+                        )
                     else:
                         try:
                             with self.env.cr.savepoint():
@@ -1110,8 +1274,12 @@ class FixPredictionCapture(models.Model):
     rul_low_days = fields.Integer(string="RUL Low (days)")
     rul_high_days = fields.Integer(string="RUL High (days)")
     outcome = fields.Selection(
-        selection_add=[("unknown", "Unknown (excluded from precision)")],
-        ondelete={"unknown": "set default"},
+        selection_add=[
+            ("unknown", "Unknown (excluded from precision)"),
+            # A07 ERP audit (2026-11-20) M48-09: an intervention fixed it first.
+            ("prevented", "Failure Prevented by Intervention"),
+        ],
+        ondelete={"unknown": "set default", "prevented": "set default"},
     )
     outcome_evidence_ref = fields.Char(string="Outcome Evidence", readonly=True, copy=False)
     horizon_end = fields.Date(compute="_compute_horizon_end", string="Horizon Ends")
@@ -1157,7 +1325,7 @@ class FixPredictionCapture(models.Model):
         if not why:
             raise UserError("Describe how the outcome was established.")
         evidence = _text(evidence_ref)
-        today = fields.Date.context_today(self)
+        today = _dhaka_today(self.env)
         for rec in self:
             pred = rec.sudo()
             if pred.prediction == "healthy":
@@ -1307,6 +1475,74 @@ class FixIotActionCapture(models.Model):
     )
     recommended_action = fields.Text(string="Recommended Action")
 
+    skill_override_reason = fields.Char(
+        string="Skill Override Reason",
+        help="Why a technician without the required M22 competency is dispatched anyway.",
+    )
+
+    def _fix_technician_qualified(self):
+        """Does the technician hold a valid M22 certification of the required
+        competency? None when M22 is not installed or no skill is required."""
+        self.ensure_one()
+        comp = self._fix_competency()
+        Cert = self.env.get("fix.certification")
+        if not comp or Cert is None:
+            return None
+        today = _dhaka_today(self.env)
+        return bool(
+            Cert.sudo().search_count(
+                [
+                    ("employee_id", "=", self.technician_id.id),
+                    ("competency_id", "=", comp.id),
+                    ("state", "=", "valid"),
+                    "|",
+                    ("expires_on", "=", False),
+                    ("expires_on", ">=", today),
+                ],
+                limit=1,
+            )
+        )
+
+    def _fix_check_dispatchable(self):
+        """A07 ERP audit (2026-11-20) M48-07: the skill named was never compared
+        with the dispatched technician. Without the competency, dispatch needs an
+        override reason."""
+        res = super()._fix_check_dispatchable()
+        for rec in self:
+            if rec._fix_technician_qualified() is False and not _text(rec.skill_override_reason):
+                raise UserError(
+                    "Technician %s holds no valid M22 certification for skill %s. Assign a "
+                    "qualified technician, or record the Skill Override Reason first."
+                    % (rec.technician_id.name, _text(rec.skill_code))
+                )
+        return res
+
+    def _fix_dispatch_payload(self):
+        payload = super()._fix_dispatch_payload()
+        payload.update(
+            {
+                "skill": _text(self.skill_code),
+                "skill_override_reason": _text(self.skill_override_reason),
+                "parts": [
+                    {
+                        "product_id": p.product_id.id,
+                        "product": p.product_id.display_name,
+                        "quantity": p.quantity,
+                        "availability": p.availability,
+                    }
+                    for p in self.part_ids
+                ],
+            }
+        )
+        return payload
+
+    def _fix_commercial_route(self):
+        """Who pays for the intervention (spec §12.3 intervention.proposed). The
+        spine knows the customer device and its contract; alone, M48 equipment is
+        the company's own."""
+        self.ensure_one()
+        return {"entitlement_state": "internal", "commercial_route": "internal"}
+
     def _fix_competency(self):
         self.ensure_one()
         if "fix.competency" not in self.env or not _text(self.skill_code):
@@ -1380,8 +1616,7 @@ class FixIotActionCapture(models.Model):
                         }
                         for p in rec.part_ids
                     ],
-                    # M45 equipment is the company's own: no M08 entitlement or M07 route.
-                    "commercial_route": "internal",
+                    **rec._fix_commercial_route(),
                 },
             )
         return res

@@ -64,6 +64,9 @@
         },
         "commercial_route": {
           "type": "string"
+        },
+        "entitlement_state": {
+          "type": "string"
         }
       },
       "additionalProperties": false

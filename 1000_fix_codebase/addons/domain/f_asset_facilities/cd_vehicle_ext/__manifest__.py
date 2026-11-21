@@ -37,7 +37,7 @@ CD-M46-01 (P08-M08):
   register (FR-FLT-035), traffic fines with a recover-or-absorb decision
   (FR-FLT-043, BRU-FLT-16) and the vehicle's ownership basis (FR-FLT-003)
 """,
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Fleet",

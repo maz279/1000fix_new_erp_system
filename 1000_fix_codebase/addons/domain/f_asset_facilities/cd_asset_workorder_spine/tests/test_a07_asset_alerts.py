@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import itertools
+import json
 
 import pytest
 from odoo.addons.cd_asset_workorder_spine.models.fix_asset_alert import ROUTES
@@ -37,13 +38,68 @@ def _event(event_type, aggregate="res.partner", aggregate_id=0, event_id="e1"):
     }
 
 
+def _routed():
+    # A07 ERP audit (2026-11-20) M48-15/18: the M48 events routed to the owner of
+    # the asset (fix_m48_routing.ROUTED_TEXT) are consumed here too
+    from odoo.addons.cd_asset_workorder_spine.models.fix_m48_routing import ROUTED_TEXT
+
+    return set(ROUTES) | set(ROUTED_TEXT)
+
+
+# what makes a gated event a routed one (M47-17: _route reads the payload)
+_ROUTING_PAYLOAD = {
+    "site.outage": {"branch_stopped": True},
+    "site.status_changed": {"to_status": "closed"},
+}
+
+
 def test_every_routed_event_has_a_consumer_and_a_real_role(odoo_env):
+    from odoo.addons.cd_asset_workorder_spine.models.fix_m48_routing import OWNER_ROLE
+
+    # A07 ERP finishing pass (R2b): inactive records too, so a consumer that is
+    # registered but switched off is caught instead of silently not listed
     consumers = (
-        odoo_env["fix.event.consumer"].sudo().search([("method", "=", "consume_asset_alert")])
+        odoo_env["fix.event.consumer"]
+        .sudo()
+        .with_context(active_test=False)
+        .search([("method", "=", "consume_asset_alert")])
     )
-    assert set(consumers.mapped("event_type")) == set(ROUTES)
+    routed = _routed()
+    # no routed event without a consumer, no consumer for an event nobody routes
+    assert set(consumers.mapped("event_type")) == routed
+    for event_type in sorted(routed):
+        mine = consumers.filtered(lambda c, e=event_type: c.event_type == e)
+        assert mine.filtered("active"), "%s has no ACTIVE consumer" % event_type
+        assert set(mine.mapped("model")) == {"fix.asset.alert"}, event_type
     for _module, group, _text in ROUTES.values():
         assert odoo_env.ref(group, raise_if_not_found=False), group
+    for group in OWNER_ROLE.values():
+        assert odoo_env.ref(group, raise_if_not_found=False), group
+
+
+def test_every_routed_event_reaches_an_alert_through_its_consumer(odoo_env):
+    """Each routed event, handed to its active consumer record as the relay hands
+    it, leaves one open alert row (the consumer is wired, not just listed)."""
+    env = odoo_env
+    Relay = env["fix.event.outbox"].sudo()
+    consumers = env["fix.event.consumer"].sudo().search([("method", "=", "consume_asset_alert")])
+    partner = env["res.partner"].create({"name": "A07 Routed Subject"})
+    for n, event_type in enumerate(sorted(_routed()), start=1):
+        sub = consumers.filtered(lambda c, e=event_type: c.event_type == e)[:1]
+        row = Relay.create(
+            {
+                "event_type": event_type,
+                "aggregate": "res.partner",
+                "aggregate_id": partner.id,
+                "payload": json.dumps(_ROUTING_PAYLOAD.get(event_type, {})),
+                "event_id": "a07-routed-%s" % n,
+            }
+        )
+        assert Relay._relay_deliver(sub, row) == "", event_type
+        alerts = env["fix.asset.alert"].search(
+            [("event_type", "=", event_type), ("res_id", "=", partner.id)]
+        )
+        assert alerts and set(alerts.mapped("state")) == {"open"}, event_type
 
 
 def test_an_expiring_document_gives_each_role_holder_a_to_do(odoo_env):

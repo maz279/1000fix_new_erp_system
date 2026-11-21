@@ -21,11 +21,16 @@ from odoo.addons.cd_device_registry.tests.test_a07_m17_operability import (
     ui,  # noqa: F401 - the fixture
 )
 from odoo.addons.cd_device_registry.tests.test_a07_p1_controls import (
+    _user,
     c,  # noqa: F401 - the fixture
     dev,
     doc,
     refused,
 )
+
+# A07 ERP audit (2026-11-20) M17-17: a requested population change applies
+# when an Operations Director (R05) who did not request it approves it.
+POP_APPROVER = "cd_device_registry.group_device_population_approver"
 
 
 def _err(out):
@@ -271,6 +276,9 @@ def test_population_changes_only_by_a_reason_coded_change(c, ui):  # noqa: F811
     change = c.env["fix.device.population.change"].browse(
         saved(ui.write(c.agent, model="fix.device.population.change", values=dict(vals)))
     )
+    assert change.state == "requested" and d.population == "customer_owned"
+    director = _user(c.env, "m17p2_opsdir", c.ou, [POP_APPROVER])
+    change.with_user(director).action_approve()
     d.invalidate_recordset()
     assert d.population == "rental_pool" and change.from_population == "customer_owned"
     assert change.recorded_by_id == c.agent
@@ -308,11 +316,16 @@ def test_population_changes_only_by_a_reason_coded_change(c, ui):  # noqa: F811
             }
         )
     )
-    saved(
-        ui.write(
-            c.agent, model="fix.device.population.change", values=dict(back, ownership_id=own.id)
+    back_change = c.env["fix.device.population.change"].browse(
+        saved(
+            ui.write(
+                c.agent,
+                model="fix.device.population.change",
+                values=dict(back, ownership_id=own.id),
+            )
         )
     )
+    back_change.with_user(director).action_approve()
     d.invalidate_recordset()
     assert d.population == "customer_owned"
     # the same value again, a forged origin, an edit: refused
@@ -575,11 +588,13 @@ def test_the_stewardship_worklist_is_worked_by_assignee_or_branch_manager(c, ui)
                     "device_id": d.id,
                     "issue_type": "incomplete",
                     "description": "no model photo",
-                    "assigned_to_id": c.clerk2.id,
                 },
             )
         )
     )
+    # A07 ERP audit M17-12: the assignee is a Branch Manager's to set
+    assert refused(c.env, lambda: issue.with_user(c.clerk).write({"assigned_to_id": c.clerk.id}))
+    issue.with_user(c.bm).action_assign(c.clerk2.id)
     assert issue.state == "open" and issue.raised_by_id == c.clerk
     # someone else (not assignee, not BM) cannot work it
     assert not ui.action(

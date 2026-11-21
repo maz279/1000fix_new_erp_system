@@ -141,6 +141,19 @@ def c(odoo_env):
     x.site.sudo().write({"state": "active"})
     x.landlord = env["res.partner"].create({"name": "A7M47 Landlord"})
     x.vendor = env["res.partner"].create({"name": "A7M47 Vendor"})
+    # A07 ERP audit (2026-11-20, D3): a cost entry posts on its cost type's
+    # account role and is refused (fail closed) while the role is unset. The
+    # test company's chart holds the accounts the seed maps on fix_real.
+    icp = env["ir.config_parameter"].sudo()
+    for key, code, name, kind in (
+        ("facility_work_order", "A7M4701", "Repair & Maintenance Expense", "expense"),
+        ("site_utility", "A7M4702", "Utilities Expense", "expense"),
+        ("lease_rent", "A7M4703", "Office Rent", "expense"),
+    ):
+        env["account.account"].create(
+            {"code": code, "name": name, "account_type": kind, "company_ids": [(6, 0, x.co.ids)]}
+        )
+        icp.set_param("%s.account.%s" % (BRIDGE, key), code)
     return x
 
 
@@ -349,6 +362,8 @@ def test_3_every_handoff_queue_has_a_screen_a_form_and_no_new_button(js):
         "fix.bridge.exception",
         "fix.lease.modification.item",
         "fix.asset.finance.request",
+        # A07 ERP audit FIN-07: the remeasurement a modification item needs
+        "fix.lease.remeasurement",
     }
     seen = set()
     by_screen = js["m47"]["chips"]["M47:__by_screen__"]
@@ -367,7 +382,7 @@ def test_3_cost_entry_is_matched_and_rejected_by_the_accountant(c, ui):
     # a clerk and a facility manager do not decide it
     ui.no(c.clerk, entry._name, entry, "action_reject", reason="no")
     ui.no(c.fm, entry._name, entry, "action_match_bill")
-    bill = _bill(c, c.vendor, 5000.0)
+    bill = _bill(c, c.vendor, 5000.0, ref="INV-77")
     # the accountant finds it, chooses the bill on the form, and matches it
     rows = ui.records(c.acct, model=entry._name, cols=["name", "state"])["rows"]
     assert entry.id in [r["id"] for r in rows]
@@ -456,15 +471,83 @@ def test_3_bridge_exception_resolved_by_hand_needs_a_note(c, ui):
     assert row.state == "resolved" and row.resolved_by_id == c.acct
 
 
+def _commence(c, contract):
+    """Finance completes the drafted IFRS 16 contract and commences it."""
+    env = c.env
+
+    def acc(code, name, kind):
+        return env["account.account"].create(
+            {"code": code, "name": name, "account_type": kind, "company_ids": [(6, 0, c.co.ids)]}
+        )
+
+    journal = env["account.journal"].create(
+        {"name": "A7M47 FA", "code": "A7FA", "type": "general", "company_id": c.co.id}
+    )
+    category = env["fix.asset.category"].create(
+        {
+            "company_id": c.co.id,
+            "code": "A7ROU",
+            "name": "A7M47 Right of Use",
+            "journal_id": journal.id,
+            "asset_account_id": acc("A7M4710", "Right of use Asset", "asset_fixed").id,
+            "accumulated_account_id": acc("A7M4711", "Acc. Dep. ROU", "asset_fixed").id,
+            "expense_account_id": acc("A7M4712", "Dep. ROU", "expense_depreciation").id,
+        }
+    )
+    contract.write(
+        {
+            "ibr_percent": 12.0,
+            "category_id": category.id,
+            "liability_account_id": acc("A7M4713", "Lease Liability", "liability_non_current").id,
+            "interest_account_id": acc("A7M4714", "Lease Interest", "expense").id,
+            "payment_account_id": acc("A7M4715", "Rent Clearing", "liability_current").id,
+        }
+    )
+    contract.with_company(c.co).action_activate()
+    assert contract.state == "active"
+    return contract
+
+
 def test_3_lease_modification_item_is_decided_by_finance(c, ui):
     site_lease = _lease(c)
     _deliver(c, "consumer_lease_recorded", "lease.recorded", site_lease)
     contract = c.env["fix.lease"].search([("site_lease_id", "=", site_lease.id)])
     assert contract
     Item = c.env["fix.lease.modification.item"]
-    one = Item._bridge_raise(contract, site_lease, 7, {"reason": "modified", "extract": {}})
+    revised = {
+        "commencement": str(site_lease.start_date),
+        "end_date": str(site_lease.end_date),
+        "monthly_rent": 55000.0,
+        "escalation_pct": 0.0,
+        "effective_date": str(c.today),
+    }
+    one = Item._bridge_raise(contract, site_lease, 7, {"reason": "modified", "extract": revised})
     two = Item._bridge_raise(contract, site_lease, 8, {"reason": "modified", "extract": {}})
     ui.no(c.fm, one._name, one, "action_mark_remeasured", note="x")
+    # FIN-07: "remeasured" is never a tick; a POSTED remeasurement of this
+    # version comes first (prepared by one accountant, posted by another)
+    ui.no(
+        c.acct,
+        one._name,
+        one,
+        "action_mark_remeasured",
+        match="post the remeasurement",
+        note="Remeasured in June",
+    )
+    _commence(c, contract)
+    # the months before the modification are on the book first
+    month = c.today.replace(day=1)
+    for line in contract.schedule_line_ids.sorted("sequence"):
+        if line.period_start < month:
+            line.with_company(c.co).action_post()
+    rem = one.with_user(c.acct).action_new_remeasurement()
+    assert rem.state == "draft" and rem.payment_amount == 55000.0
+    assert one.remeasurement_id == rem
+    acct2 = _user(c.env, "a7m47_acct2", c.co, c.ou, ACCOUNTANT)
+    with pytest.raises(UserError, match="Segregation"), c.env.cr.savepoint():
+        rem.with_user(c.acct).action_post()
+    rem.with_user(acct2).action_post()
+    assert rem.state == "posted" and contract.payment_amount == 55000.0
     ui.no(c.acct, one._name, one, "action_mark_remeasured", match="decision note", note=" ")
     ui.ok(c.acct, one._name, one, "action_mark_remeasured", note="Remeasured in June")
     assert one.state == "remeasured" and one.decided_by_id == c.acct
@@ -922,10 +1005,20 @@ def test_8_the_requester_recalls_through_the_endpoint(c, ui, which):
 # ===================================================== 9 / 10: reaching AP
 def _bills(c, last=20000.0):
     """Three ordinary months, then the bill under test."""
+    # A07 ERP audit (2026-11-20) M47-12/18: a bill is recorded by a Facility
+    # Manager against its supply account, whose provider is the only payee
+    c.env["fix.site.utility.account"].with_user(c.fm).create(
+        {
+            "site_id": c.site.id,
+            "utility_type": "power",
+            "provider_id": c.vendor.id,
+            "account_no": "A7-1",
+        }
+    )
     Utility = c.env["fix.site.utility"]
     for month in ("2026-01", "2026-02", "2026-03"):
         Utility.create({"site_id": c.site.id, "period": month, "amount": 10000.0})
-    return Utility.with_user(c.clerk).create(
+    return Utility.with_user(c.fm).create(
         {"site_id": c.site.id, "period": "2026-04", "amount": last}
     )
 
@@ -934,7 +1027,7 @@ def test_10_a_held_bill_stays_out_of_ap_and_its_release_sends_it(c, ui, js):
     bill = _bills(c, last=30000.0)
     assert bill.review_state == "held"
     assert not _events(c, "site.utility_payable", bill)
-    ui.no(c.fm, bill._name, bill, "action_release", notes="fine")
+    ui.no(c.fm2, bill._name, bill, "action_release", notes="fine")
     ui.no(c.clerk, bill._name, bill, "action_release", notes="fine")
     ui.ok(c.bol, bill._name, bill, "action_release", notes="Tariff rise confirmed with DESCO")
     assert bill.review_state == "released"
@@ -951,8 +1044,12 @@ def test_10_a_held_bill_stays_out_of_ap_and_its_release_sends_it(c, ui, js):
     ui.write(c.acct, model=entry._name, record_id=entry.id, values={"match_invoice_id": invoice.id})
     ui.ok(c.acct, entry._name, entry, "action_match_bill")
     bill.invalidate_recordset()
-    assert bill.paid_amount == 30000.0 and bill.invoice_ref == "DESCO-44"
-    assert bill.paid_on == invoice.invoice_date
+    # M47-06: matched to the provider's bill is billed, not paid
+    assert bill.matched_on and bill.invoice_ref == "DESCO-44"
+    assert not bill.paid_on and not bill.paid_amount
+    invoice.sudo()._guarded().write({"payment_state": "paid"})
+    bill.invalidate_recordset()
+    assert bill.paid_on and bill.paid_amount == 30000.0
     for name in ("paid_amount", "paid_on", "invoice_ref"):
         assert form_fields(js, "M47-form-utility")[name]["readonly"] is True
     # a paid bill keeps its figures
@@ -994,7 +1091,8 @@ def test_10_a_bill_from_before_this_rule_is_sent_by_hand(c, ui):
 
 
 def test_9_a_rent_row_reaches_ap_and_its_match_stamps_the_schedule(c, ui, js):
-    lease = _lease(c)
+    # rent from the start is payable here (M47-27 makes earlier months history by default)
+    lease = _lease(c, schedule_from=c.today - timedelta(days=30))
     row = lease.schedule_ids.sorted("due_date")[0]
     assert button(js, "M47-lease-schedule", "action_send_to_ap")
     ui.no(c.clerk, row._name, row, "action_send_to_ap")
@@ -1014,8 +1112,13 @@ def test_9_a_rent_row_reaches_ap_and_its_match_stamps_the_schedule(c, ui, js):
     ui.write(c.acct, model=entry._name, record_id=entry.id, values={"match_invoice_id": right.id})
     ui.ok(c.acct, entry._name, entry, "action_match_bill")
     row.invalidate_recordset()
-    assert row.paid_amount == row.rent_due and row.invoice_ref == "RENT-1" and row.paid_on
+    # M47-06: billed by the landlord's bill, paid only when that bill is paid
+    assert row.matched_on and row.invoice_ref == "RENT-1" and not row.paid_on
     assert row.variance == 0.0
+    # paid only when the landlord's bill is paid (FIN-19), at the bill's amount
+    right.sudo()._guarded().write({"payment_state": "paid"})
+    row.invalidate_recordset()
+    assert row.paid_on and row.paid_amount == row.rent_due and entry.paid_on
 
 
 # ===================================================== 11: incidents reach M59 / M60
@@ -1082,7 +1185,14 @@ def test_13_cost_per_site_counts_a_pm_once_and_only_when_done(c, ui):
     order = raised.work_order_id
     order._guarded().write({"state": "verified", "actual_cost": 3500.0})
     raised._guarded().write({"state": "done", "done_on": c.today})
-    out = ui.report(c.fm, module="M47", report="cost_per_site")
+    order._guarded().write({"completed_at": fields.Datetime.now()})
+    # M47-21: one period for every column (today's, here)
+    out = ui.report(
+        c.fm,
+        module="M47",
+        report="cost_per_site",
+        params={"date_from": str(c.today), "date_to": str(c.today)},
+    )
     row = next(r for r in out["rows"] if r["site"] == site.name)
     assert (row["pm"], row["work_orders"]) == (200.0, 3500.0), row
     assert row["total"] == row["rent"] + row["utilities"] + 200.0 + 3500.0
@@ -1321,8 +1431,19 @@ def test_cancel_and_reopen_need_the_facility_manager(c, ui):
 def test_terminate_needs_the_role_a_reason_and_tells_finance(c, ui):
     lease = _lease(c)
     ui.no(c.fm, lease._name, lease, "action_terminate", reason="x", match="Branch Operations Lead")
-    ui.no(c.bol, lease._name, lease, "action_terminate", reason=" ", match="why")
-    ui.ok(c.bol, lease._name, lease, "action_terminate", reason="Landlord sold the building")
+    # D6: an early end is requested, approved on the commitment, then executed
+    ui.no(c.bol, lease._name, lease, "action_terminate", match="request the termination")
+    ui.no(c.bol, lease._name, lease, "action_request_termination", reason=" ", match="why")
+    ui.ok(
+        c.bol,
+        lease._name,
+        lease,
+        "action_request_termination",
+        reason="Landlord sold the building",
+        deposit_outcome="refund",
+    )
+    approve_via_inbox(lease, c.cfo, requester=c.bol)
+    ui.ok(c.bol, lease._name, lease, "action_terminate")
     assert lease.state == "terminated"
     events = _events(c, "lease.terminated", lease)
     assert len(events) == 1 and events[0]["reason"] == "Landlord sold the building"

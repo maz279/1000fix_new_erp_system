@@ -18,6 +18,25 @@ def make_user(env, *groups):
     )
 
 
+def fixture_ou(env, company=None):
+    """The branch (operating unit) a fixture asset, CWIP project or lease is
+    booked on. A07 ERP audit (2026-11-20, FIN-01/02): an M49 entry is posted
+    on the record's own branch and is refused without one (never the
+    company's first OU), so every fixture names its branch."""
+    company = company or env.company
+    ou = env["operating.unit"].search([("company_id", "=", company.id)], limit=1)
+    if not ou:
+        ou = env["operating.unit"].create(
+            {
+                "name": "M49 Test Branch",
+                "code": "M49TB%s" % next(_SEQ),
+                "company_id": company.id,
+                "partner_id": company.partner_id.id,
+            }
+        )
+    return ou
+
+
 @pytest.fixture
 def m49(odoo_env):
     """Accounts, journal, a configured category and three users."""
@@ -86,6 +105,7 @@ def m49(odoo_env):
     return {
         "env": env,
         "company": company,
+        "ou": fixture_ou(env),
         "accounts": accounts,
         "journal": journal,
         "category": category,

@@ -9,9 +9,12 @@ records on the running Odoo:
 
 - stage 2: whether services/ml-gateway exposes a predictive-maintenance inference
   entry point at all (introspection of the imported module);
-- stage 3: whether fix.predictive.maintenance.action_create_preventive_wo publishes
-  `predictive_maintenance.wo_created` (AST of the addon source) and whether any
-  consumer in addons/ or services/ turns that event into a work order (source scan);
+- stage 3: whether fix.predictive.maintenance.action_create_preventive_wo raises a
+  preventive request (a fix.iot.action with preventive_request=True) and the M63 apply
+  method fix.iot.action.action_approve publishes `predictive_maintenance.wo_created`
+  for it (AST of the addon source; A07 ERP audit M48-03 moved the publish to the
+  approval), and whether any consumer in addons/ or services/ turns that event into
+  a work order (source scan);
 - stage 4: M02 dispatch ranking, executed in-process through ml_gateway.rank_technicians
   on fixture candidates, checked against the certification gate and feature dominance.
 
@@ -47,6 +50,9 @@ PDM_MODEL_FILE = (
     / "models"
     / "fix_stream_registry.py"
 )
+# A07 ERP audit (2026-11-20) M48-03: the request is raised on the prediction, and
+# the work-order event is published when the M63 approver approves the request.
+APPROVAL_MODEL_FILE = PDM_MODEL_FILE.with_name("fix_iot_ops.py")
 CONSUMER_SCAN_ROOTS = [REPO_ROOT / "addons", REPO_ROOT / "services"]
 CONSUMER_SCAN_SUFFIXES = {".py", ".js", ".ts", ".go", ".xml"}
 CONSUMER_SCAN_SKIP_DIRS = {"node_modules", "__pycache__", "tests", "test", ".venv", "dist"}
@@ -54,6 +60,9 @@ CONSUMER_SCAN_SKIP_DIRS = {"node_modules", "__pycache__", "tests", "test", ".ven
 WO_EVENT = "predictive_maintenance.wo_created"
 PDM_MODEL = "fix.predictive.maintenance"
 PDM_ACTION = "action_create_preventive_wo"
+APPROVAL_MODEL = "fix.iot.action"
+APPROVAL_ACTION = "action_approve"
+REQUEST_FLAG = "preventive_request"
 PDM_NAME_TOKENS = {"predict", "prediction", "failure", "maintenance", "pdm", "rul", "anomaly"}
 
 EXIT_CODES = {"PASS": 0, "FAIL": 1, "INCOMPLETE": 2}
@@ -201,11 +210,13 @@ class PredictiveMaintenanceClosedLoopVerifier:
     # ------------------------------------------------------------------
     # Stage 3: preventive work-order trigger (static wiring + consumer scan)
     # ------------------------------------------------------------------
-    def _publisher_wired(self) -> tuple[bool, str]:
+    @staticmethod
+    def _method(path: Path, model: str, method: str) -> tuple[ast.FunctionDef | None, str]:
+        """The AST of `model.method` in `path`, or None and why it was not found."""
         try:
-            tree = ast.parse(PDM_MODEL_FILE.read_text(encoding="utf-8"))
+            tree = ast.parse(path.read_text(encoding="utf-8"))
         except (OSError, SyntaxError) as exc:
-            return False, f"cannot parse {PDM_MODEL_FILE.name}: {exc}"
+            return None, f"cannot parse {path.name}: {exc}"
         for node in ast.walk(tree):
             if not isinstance(node, ast.ClassDef):
                 continue
@@ -217,23 +228,69 @@ class PredictiveMaintenanceClosedLoopVerifier:
                 and isinstance(stmt.targets[0], ast.Name)
                 and isinstance(stmt.value, ast.Constant)
             }
-            if names.get("_name") != PDM_MODEL:
+            if names.get("_name") != model:
                 continue
             for fn in node.body:
-                if isinstance(fn, ast.FunctionDef) and fn.name == PDM_ACTION:
-                    publishes = any(
-                        isinstance(sub, ast.Constant) and sub.value == WO_EVENT
-                        for sub in ast.walk(fn)
-                    )
-                    if publishes:
-                        return True, f"{PDM_MODEL}.{PDM_ACTION} publishes {WO_EVENT}"
-                    return False, f"{PDM_MODEL}.{PDM_ACTION} does not publish {WO_EVENT}"
-            return False, f"{PDM_MODEL} has no {PDM_ACTION} method"
-        return False, f"model {PDM_MODEL} not found in {PDM_MODEL_FILE.name}"
+                if isinstance(fn, ast.FunctionDef) and fn.name == method:
+                    return fn, ""
+            return None, f"{model} has no {method} method"
+        return None, f"model {model} not found in {path.name}"
+
+    @staticmethod
+    def _publishes_event(node: ast.AST) -> bool:
+        """A call `publish(..., WO_EVENT, ...)` (the event name as a literal argument)."""
+        for sub in ast.walk(node):
+            if not isinstance(sub, ast.Call):
+                continue
+            func = sub.func
+            name = func.id if isinstance(func, ast.Name) else getattr(func, "attr", "")
+            if "publish" not in name:
+                continue
+            if any(isinstance(a, ast.Constant) and a.value == WO_EVENT for a in sub.args):
+                return True
+        return False
+
+    def _publisher_wired(self) -> tuple[bool, str]:
+        # 1. the prediction raises a preventive request (an action marked as one)
+        request, why = self._method(PDM_MODEL_FILE, PDM_MODEL, PDM_ACTION)
+        if request is None:
+            return False, why
+        marks_request = any(
+            isinstance(sub, ast.Dict)
+            and any(
+                isinstance(k, ast.Constant)
+                and k.value == REQUEST_FLAG
+                and isinstance(v, ast.Constant)
+                and v.value is True
+                for k, v in zip(sub.keys, sub.values, strict=False)
+            )
+            for sub in ast.walk(request)
+        )
+        if not marks_request:
+            return False, f"{PDM_MODEL}.{PDM_ACTION} does not raise a {REQUEST_FLAG} action"
+        # 2. approving that request publishes the work-order event, under the flag
+        approve, why = self._method(APPROVAL_MODEL_FILE, APPROVAL_MODEL, APPROVAL_ACTION)
+        if approve is None:
+            return False, why
+        guarded = any(
+            isinstance(sub, ast.If)
+            and REQUEST_FLAG in ast.unparse(sub.test)
+            and any(self._publishes_event(stmt) for stmt in sub.body)
+            for sub in ast.walk(approve)
+        )
+        if not guarded:
+            return False, (
+                f"{APPROVAL_MODEL}.{APPROVAL_ACTION} does not publish {WO_EVENT} for an "
+                f"approved {REQUEST_FLAG}"
+            )
+        return True, (
+            f"{PDM_MODEL}.{PDM_ACTION} raises a {REQUEST_FLAG} action and "
+            f"{APPROVAL_MODEL}.{APPROVAL_ACTION} publishes {WO_EVENT} when it is approved"
+        )
 
     def _event_consumers(self) -> list[str]:
         found: list[str] = []
-        publisher = PDM_MODEL_FILE.resolve()
+        publishers = {PDM_MODEL_FILE.resolve(), APPROVAL_MODEL_FILE.resolve()}
         for root in CONSUMER_SCAN_ROOTS:
             if not root.is_dir():
                 continue
@@ -242,7 +299,7 @@ class PredictiveMaintenanceClosedLoopVerifier:
                     continue
                 if CONSUMER_SCAN_SKIP_DIRS & set(path.relative_to(root).parts[:-1]):
                     continue
-                if path.resolve() == publisher:
+                if path.resolve() in publishers:
                     continue
                 try:
                     text = path.read_text(encoding="utf-8", errors="ignore")

@@ -160,4 +160,29 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>
+    <!--
+      A07 ERP audit FIN-26 (R2a, 2026-11-21): the kit, the physical audit and the
+      branch equipment profile were fenced by company only, so a user of one branch
+      read (and could act on) another branch's kits, audits and par levels. They
+      carry a branch (fix.branch), whose operating unit fences them. A kit's branch
+      is optional: a kit with no branch stays visible across the company.
+    -->
+    <record id="rule_fix_equipment_kit_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.kit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_kit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_equipment_audit_operating_unit" model="ir.rule">
+        <field name="name">fix.equipment.audit: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_equipment_audit"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('branch_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_branch_equipment_profile_operating_unit" model="ir.rule">
+        <field name="name">fix.branch.equipment.profile: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_branch_equipment_profile"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">[('branch_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

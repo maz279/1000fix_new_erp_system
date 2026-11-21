@@ -120,6 +120,31 @@ def test_qc_without_instrument_follows_the_business_switch(m31, ready_job):
 
     ICP.set_param(PARAM, "1")
     job = ready_job()
+    # D7(c): the switch binds only a QC whose protocol is a measurement
+    device = job.device_id or job.order_id.device_id
+    if not device.device_model_id.device_type:
+        model = device.device_model_id.sudo()
+        model.write({"device_type": model._fields["device_type"].get_values(m31.env)[0]})
+    m31.env["fix.workshop.test.protocol"].create(
+        {
+            "code": "A7QC-PR-SWITCH",
+            "name": "Charging rail check",
+            "device_type": device.device_type,
+            "step_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": "5V rail",
+                        "unit": "V",
+                        "has_limits": True,
+                        "lower_limit": 4.75,
+                        "upper_limit": 5.25,
+                    },
+                )
+            ],
+        }
+    )
     with refused(m31.env, UserError, "BRU-EAM-15"):
         _as(m31, m31.qc, job).action_pass_qc()
     assert job.state == "qc_pending"

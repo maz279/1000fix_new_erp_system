@@ -23,3 +23,8 @@ from . import fix_device_bulk
 # configuration, population, estate nodes and placements, end-of-life
 # decisions, stewardship worklist. Extends the models above, so it is last.
 from . import fix_device_capture
+
+# isort: split
+# A07 ERP audit (2026-11-20): disputed flag, quarantine, custody state,
+# end-of-life closure, event consumers and genealogy from M15 issues.
+from . import fix_device_erp

@@ -13,7 +13,8 @@
     stream that receives no reading (BRU-IOT-16).
   - Retention (daily): raw readings are aggregated per active downsampling
     policy and the compression is measured; raw / aggregate deletion runs only
-    when cd_stream_registry.retention_purge_enabled = 1 (default off).
+    unless cd_stream_registry.retention_purge_enabled = 0 (A07 ERP decision D17(b):
+    default ON), and hourly / daily tier aggregates are written for every stream.
 -->
 <odoo>
     <data noupdate="1">
@@ -60,6 +61,52 @@
             <field name="model_id" ref="model_fix_iot_monitoring_scope"/>
             <field name="state">code</field>
             <field name="code">model.cron_health()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A07 ERP audit (2026-11-20) M48-10 / M48-19: the jobs the spec requires. -->
+        <record id="ir_cron_iot_alert_escalation" model="ir.cron">
+            <field name="name">M48: escalate alerts not acknowledged within their severity SLA</field>
+            <field name="model_id" ref="model_fix_iot_alert"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_escalate()</field>
+            <field name="interval_number">15</field>
+            <field name="interval_type">minutes</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_horizon_sweep" model="ir.cron">
+            <field name="name">M48: flag predictions whose horizon passed with no outcome</field>
+            <field name="model_id" ref="model_fix_predictive_maintenance"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_horizon_sweep()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_rule_performance" model="ir.cron">
+            <field name="name">M48: measure rule acknowledgement and flag ignored rules</field>
+            <field name="model_id" ref="model_fix_iot_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rule_performance()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_key_rotation_due" model="ir.cron">
+            <field name="name">M48: adapter keys due for rotation</field>
+            <field name="model_id" ref="model_fix_iot_adapter"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rotation_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_iot_scope_review_due" model="ir.cron">
+            <field name="name">M48: criticality assessments past their review date</field>
+            <field name="model_id" ref="model_fix_iot_monitoring_scope"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_review_due()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>

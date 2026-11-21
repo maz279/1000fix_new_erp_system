@@ -85,6 +85,16 @@ def c(odoo_env):
     )
     x.stream.action_activate()
     x.tech = env["hr.employee"].create({"name": f"R48 Technician {TAG}"})
+    # A07 ERP audit (2026-11-20) M48-19: collection starts on an assessed asset
+    env["fix.iot.monitoring.scope"].create(
+        {
+            "equipment_id": x.equipment.id,
+            "criticality": "medium",
+            "failure_consequence": "downtime",
+            "selection_rationale": "the signals of its streams",
+            "review_due": fields.Date.today() + timedelta(days=365),
+        }
+    )
     return x
 
 
@@ -98,13 +108,25 @@ def pred(c, user=None, **kw):
         "model_name": MODEL,
     }
     vals.update(kw)
-    return c.env["fix.predictive.maintenance"].with_user(user or c.clerk).create(vals)
+    # A07 ERP audit (2026-11-20) M48-02: a score a person types never drives work,
+    # so the suites about the action workflow record the engine's score.
+    Pred = c.env["fix.predictive.maintenance"]
+    return (Pred.with_user(user) if user else Pred).create(vals)
 
 
 def act(c, user=None, prediction=None, **kw):
-    vals = {"prediction_id": (prediction or pred(c, user)).id, "action_type": "replace"}
+    vals = {"prediction_id": (prediction or pred(c)).id, "action_type": "replace"}
     vals.update(kw)
     return c.env["fix.iot.action"].with_user(user or c.clerk).create(vals)
+
+
+def settle_order(c, action):
+    """A07 ERP audit (2026-11-20) M48-08: the spine raised the action's demand at
+    dispatch. The equipment here names no site, so it waits; it is settled (done
+    under the job card) before the outcome is recorded."""
+    demand = c.env["fix.maintenance.demand"].search([("iot_action_id", "=", action.id)])
+    assert demand, "dispatch raised the action's demand"
+    demand.filtered(lambda d: d.state == "pending").action_dismiss("done under the job card")
 
 
 def rule(c, user=None, **kw):
@@ -231,6 +253,7 @@ def test_action_full_path_records_the_outcome(c, p03):
     # A07 P1: and outcome evidence.
     assert refused(c.env, lambda: a.with_user(c.clerk).action_done_confirmed(note="worn"))
     a.with_user(c.clerk).write({"outcome_evidence_ref": "JC-48-001"})
+    settle_order(c, a)
     r = p03.action(
         model="fix.iot.action",
         ids=[a.id],
@@ -253,6 +276,7 @@ def test_not_confirmed_outcome_is_a_false_alarm(c):
     approve_via_inbox(a, c.mgr, requester=c.clerk, justification="bearing noise rising")
     a.with_user(c.clerk2).action_dispatch()
     a.with_user(c.clerk2).write({"outcome_evidence_ref": "JC-48-002"})
+    settle_order(c, a)
     a.with_user(c.clerk2).action_done_not_confirmed(note="no wear found")
     assert a.outcome == "not_confirmed" and a.prediction_id.outcome == "false_alarm"
 
@@ -438,13 +462,13 @@ def test_prediction_outcome_and_wo_flag_set_only_by_actions(c, p03):
     p = pred(c)
     for vals in ({"outcome": "confirmed"}, {"work_order_created": True}):
         assert refused(c.env, lambda vals=vals: p.with_user(c.clerk2).write(vals)), vals
-    assert refused(c.env, lambda: pred(c, outcome="confirmed"))
+    assert refused(c.env, lambda: pred(c, user=c.clerk, outcome="confirmed"))
     res = p03.write(
         model="fix.predictive.maintenance", record_id=p.id, values={"outcome": "confirmed"}
     )
     p.invalidate_recordset()
     assert "error" in res and p.outcome == "pending"
-    p.with_user(c.clerk2).action_create_preventive_wo()
+    p.with_user(c.clerk2).action_create_preventive_wo("bearing noise rising")
     assert p.work_order_created is True
 
 

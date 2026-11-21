@@ -72,5 +72,25 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A07 ERP audit (2026-11-20) M47-07 / AUT-FAC-06: rent falling due reaches AP -->
+        <record id="ir_cron_site_rent_due_to_ap" model="ir.cron">
+            <field name="name">M47: send rent that has fallen due to accounts payable</field>
+            <field name="model_id" ref="model_fix_site_lease_schedule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rent_due_to_ap()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- M47-16 / D15: facility work-order SLA escalation -->
+        <record id="ir_cron_facility_wo_sla_escalation" model="ir.cron">
+            <field name="name">M47: escalate facility work orders past their SLA</field>
+            <field name="model_id" ref="model_fix_facility_work_order"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_wo_sla_escalation()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>

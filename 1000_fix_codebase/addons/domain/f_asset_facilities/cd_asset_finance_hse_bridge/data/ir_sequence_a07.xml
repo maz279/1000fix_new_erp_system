@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <data noupdate="1">
+        <record id="seq_fix_asset_recovery" model="ir.sequence">
+            <field name="name">A07 Recovery Receivable</field>
+            <field name="code">fix.asset.recovery</field>
+            <field name="prefix">A07REC/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_lease_remeasurement" model="ir.sequence">
+            <field name="name">IFRS 16 Lease Remeasurement</field>
+            <field name="code">fix.lease.remeasurement</field>
+            <field name="prefix">REM/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
+    </data>
+</odoo>

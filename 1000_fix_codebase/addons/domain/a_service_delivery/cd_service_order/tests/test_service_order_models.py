@@ -236,6 +236,15 @@ def test_swap_device_requires_an_existing_replacement(base):
     with _refused(base.env, UserError, "does not exist"):
         order.action_swap_device(999999999)
     spare = _device(base, "SN-SOM-SWAP")
+    if "fix.device.population.change" in base.env:
+        # A07 ERP audit M17-07: a swap unit must be 1000FiX refurbishment stock
+        base.env["fix.device.population.change"].sudo()._guarded().create(
+            {
+                "device_id": spare.id,
+                "to_population": "refurbishment_stock",
+                "reason_code": "correction",
+            }
+        )
     order.action_swap_device(spare.id, reason="sla_breach_risk", grade="grade_b")
     assert (order.is_swap_out, order.swap_device_id, order.swap_reason) == (
         True,

@@ -42,6 +42,14 @@ LIFECYCLE_STAGES = ("active", "vintage", "end_of_life", "obsolete")
 # A07 operability (2026-11-07): which M24 document types can stand as evidence.
 # FR-AST-017/018 ask for a supporting document; the transfer picker offered an
 # Employment Contract. A sale deed is uploaded on the form (asset_document).
+# BRU-AST-11 (A07 ERP audit M17-18): populations that are 1000FiX's stock; a
+# device in one becomes customer-owned with the transfer that sold or gave it.
+COMPANY_STOCK_POPULATIONS = (
+    "rental_pool",
+    "refurbishment_stock",
+    "trade_in_intake",
+    "marketplace_listed",
+)
 TRANSFER_EVIDENCE_TYPES = ("asset_document", "invoice", "signature_certificate", "evidence_pack")
 CUSTODY_EVIDENCE_TYPES = ("custody_photo", "evidence_pack")
 WARRANTY_PROOF_TYPES = ("warranty_card", "invoice", "asset_document")
@@ -170,6 +178,8 @@ class FixDevice(models.Model):
             "lost_flagged_at",
             "lost_cleared_by_id",
             "lost_cleared_at",
+            "lost_flag_type",
+            "lost_police_ref",
             "scrapped_by_id",
             "scrapped_at",
             # A07 P1/P2 (2026-11-04) M17-8, BRU-AST-19: the hardware lifecycle
@@ -252,7 +262,11 @@ class FixDevice(models.Model):
         tracking=True,
         help="The party currently owning this device",
     )
-    purchase_date = fields.Date(string="Purchase Date")
+    # A07 ERP audit (2026-11-20) M17-11: the purchase date drives warranty and
+    # protection-plan eligibility (M09 max device age), and any clerk rewrote it
+    # with no trace. First capture stays open; after that it changes only by
+    # action_correct_purchase_date (Warranty Officer, reason, proof).
+    purchase_date = fields.Date(string="Purchase Date", tracking=True)
     purchase_channel = fields.Selection(
         [
             ("1000fix", "1000FiX"),
@@ -310,6 +324,20 @@ class FixDevice(models.Model):
         "res.users", string="Lost Flag Cleared By", readonly=True, copy=False
     )
     lost_cleared_at = fields.Datetime(string="Lost Flag Cleared At", readonly=True, copy=False)
+    # A07 ERP audit (2026-11-20) M17-22 / D12(b): lost and stolen are told apart,
+    # and a theft carries the GD / police reference. The two *_pending fields are
+    # what the Report Lost / Stolen form stages for action_mark_lost.
+    lost_flag_type = fields.Selection(
+        [("lost", "Lost"), ("stolen", "Stolen")],
+        string="Lost or Stolen",
+        readonly=True,
+        copy=False,
+    )
+    lost_police_ref = fields.Char(string="GD / Police Reference", readonly=True, copy=False)
+    lost_flag_type_pending = fields.Selection(
+        [("lost", "Lost"), ("stolen", "Stolen")], string="Report As", copy=False
+    )
+    lost_police_ref_pending = fields.Char(string="GD / Police Report No.", copy=False)
     scrapped_by_id = fields.Many2one("res.users", string="Scrapped By", readonly=True, copy=False)
     scrapped_at = fields.Datetime(string="Scrapped At", readonly=True, copy=False)
     identity_confirmed_by_id = fields.Many2one(
@@ -357,6 +385,11 @@ class FixDevice(models.Model):
         copy=False,
     )
     transfer_reason = fields.Char(string="Transfer Reason", copy=False)
+    transfer_effective_date = fields.Date(
+        string="Transfer Effective On",
+        copy=False,
+        help="FR-AST-018: when the new owner took the device (default: today).",
+    )
     transfer_evidence_document_id = fields.Many2one(
         "fix.document",
         string="Transfer Evidence",
@@ -453,13 +486,18 @@ class FixDevice(models.Model):
         # the refusal quoting the contradictory label back at the user
         # (A04 audit, 2026-11-01). One date basis, and it is the business's.
         for rec in self:
-            today = fields.Date.context_today(rec)
+            today = rec._dhaka_today()
             # Any running active warranty wins: the old loop stopped at the FIRST
             # active record in iteration order, so an expired-by-date record read
             # before a running one made a covered device "out_of_warranty".
             active = rec.warranty_id.filtered(lambda w: w.status == "active")
-            if any(w.end_date and w.end_date >= today for w in active):
+            running = active.filtered(lambda w, t=today: w.end_date and w.end_date >= t)
+            # A07 ERP audit M17-28: "extended" was never computed. A device whose
+            # only running cover is a 1000FiX extended warranty reads Extended.
+            if running.filtered(lambda w: w.warranty_type != "extended"):
                 rec.warranty_status = "in_warranty"
+            elif running:
+                rec.warranty_status = "extended"
             elif active:
                 rec.warranty_status = "out_of_warranty"
             else:
@@ -469,14 +507,18 @@ class FixDevice(models.Model):
         if operator not in ("=", "!=", "in", "not in"):
             raise UserError("Unsupported search on Warranty Status: %s" % operator)
         wanted = {value} if operator in ("=", "!=") else set(value or ())
-        today = fields.Date.context_today(self)
+        today = self._dhaka_today()
         Warranty = self.env["fix.warranty"].sudo().with_context(active_test=False)
         active = Warranty.search([("status", "=", "active")])
-        running = set(active.filtered(lambda w: w.end_date and w.end_date >= today).device_id.ids)
+        live = active.filtered(lambda w: w.end_date and w.end_date >= today)
+        running = set(live.device_id.ids)
+        base = set(live.filtered(lambda w: w.warranty_type != "extended").device_id.ids)
         with_active = set(active.device_id.ids)
         ids = set()
         if "in_warranty" in wanted:
-            ids |= running
+            ids |= base
+        if "extended" in wanted:
+            ids |= running - base
         if "out_of_warranty" in wanted:
             ids |= with_active - running
         domain = [("id", "in", list(ids))]
@@ -712,7 +754,7 @@ class FixDevice(models.Model):
         """The owner/identifier fields in ``vals`` that would CHANGE a value
         already set on one of these devices. Filling an empty one is first
         capture (registration, or the first IMEI read at intake) and stays open."""
-        names = {"owner_id", *IDENTIFIER_FIELDS} & set(vals)
+        names = {"owner_id", "purchase_date", *IDENTIFIER_FIELDS} & set(vals)
         return {
             name
             for rec in self
@@ -723,7 +765,7 @@ class FixDevice(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1:
-            locked |= {n for n in ("owner_id", *IDENTIFIER_FIELDS) if self[n]}
+            locked |= {n for n in ("owner_id", "purchase_date", *IDENTIFIER_FIELDS) if self[n]}
             # recorded once, at registration
             locked |= {"register_provisional", "provisional_reason"}
         return locked
@@ -743,6 +785,12 @@ class FixDevice(models.Model):
                 raise UserError(
                     "The owner of a device changes only through an ownership transfer, "
                     "which records who it passed from and to."
+                )
+            if "purchase_date" in locked:
+                raise UserError(
+                    "The purchase date of a device decides its warranty and plan eligibility: "
+                    "once recorded it changes only through Correct Purchase Date (Warranty "
+                    "Officer, with a reason and the purchase proof)."
                 )
             if locked:
                 raise UserError(
@@ -771,9 +819,6 @@ class FixDevice(models.Model):
         if "owner_id" in vals:
             for rec in self:
                 self._emit("device.transferred", rec)
-        if "warranty_id" in vals:
-            for rec in self:
-                self._emit("device.warranty_updated", rec)
         return result
 
     def _assert_role(self, xmlid, what):
@@ -793,6 +838,19 @@ class FixDevice(models.Model):
             if rec.state in NOT_SCRAPPABLE or rec.state in NOT_RESOLVED:
                 raise UserError(
                     "%s is %s and cannot %s." % (rec.display_name, rec._state_label(), what)
+                )
+            # A07 ERP audit M17-22 (D12) and M17-13: a disputed ownership and an
+            # identifier in conflict hold the device as a lost flag does.
+            if rec.ownership_disputed:
+                raise UserError(
+                    "%s has its ownership disputed (%s) and cannot %s until a Branch Manager "
+                    "clears the dispute." % (rec.display_name, rec.dispute_reason or "-", what)
+                )
+            if rec.identifier_quarantined:
+                raise UserError(
+                    "%s is quarantined: an identifier it carries is also on another device "
+                    "(BRU-AST-05). It cannot %s until the Quality Manager resolves the conflict."
+                    % (rec.display_name, what)
                 )
             rec._neir_assert_not_blocked(what)
 
@@ -817,6 +875,7 @@ class FixDevice(models.Model):
         channel=None,
         evidence_file=None,
         evidence_filename=None,
+        effective_date=None,
     ):
         """Transfer ownership (T05: portal P01 exposes this in Phase 5).
 
@@ -842,6 +901,11 @@ class FixDevice(models.Model):
         evidence may also arrive as an uploaded file (``evidence_file``), filed
         on this device exactly as the asset form's upload is."""
         self.ensure_one()
+        # A07 ERP audit M17-29: the P03 model action passes any keyword, so a
+        # back-office user stamped "customer_portal" on the trail. A person
+        # records a back-office transfer; other channels are service code's.
+        if not self.env.su and channel not in (None, False, "", "back_office"):
+            raise UserError("A transfer recorded here is a back-office transfer.")
         if evidence_file and not evidence_document_id:
             evidence_document_id = self._attach_transfer_evidence(
                 evidence_file, (evidence_filename or "").strip() or "transfer-evidence"
@@ -874,6 +938,14 @@ class FixDevice(models.Model):
         old_owner = self.owner_id
         if old_owner == new_owner:
             raise UserError("%s already belongs to %s." % (self.display_name, new_owner.name))
+        effective = self._transfer_effective_date(effective_date or self.transfer_effective_date)
+        if channel == "customer_portal":
+            self._assert_portal_transfer(new_owner)
+        elif self.population == "ewaste_pending" and not self.env.su:
+            raise UserError(
+                "%s is routed to e-waste (an approved end-of-life decision): it is not handed "
+                "on to anyone (M17-10)." % self.display_name
+            )
         if not self.env.su:
             self._assert_role(REGISTRY_AGENT_GROUP, "Recording an ownership transfer")
             if not reason:
@@ -902,13 +974,14 @@ class FixDevice(models.Model):
             "transfer_type_pending": False,
             "transfer_reason": False,
             "transfer_evidence_document_id": False,
+            "transfer_effective_date": False,
         }
         if self.estate_id and not self._owner_is_partner(new_owner, self.estate_id.client_id):
             # The new owner is outside the corporate client: the device leaves
             # the estate with its owner (FR-AST-038 placement ends).
             vals["estate_id"] = False
         self._guarded().write(vals)
-        today = fields.Date.context_today(self)
+        today = effective
         row = (
             self.env["fix.device.ownership"]
             ._guarded()
@@ -930,6 +1003,7 @@ class FixDevice(models.Model):
         # A scrap requested for the old owner's device is not the new owner's.
         self._approval_void("the device changed owner while scrap approval was pending")
         self._neir_on_transfer(old_owner, new_owner)
+        self._a07_after_transfer(old_owner, new_owner, row)
         self._publish(
             "device.ownership_transferred",
             {
@@ -945,6 +1019,83 @@ class FixDevice(models.Model):
             },
         )
         return True
+
+    def _transfer_effective_date(self, value):
+        """FR-AST-018 / M17-30: the transfer's effective date (default: the Dhaka
+        business day). Not in the future, and not before the device's last
+        recorded transfer, so the ownership trail stays in order."""
+        self.ensure_one()
+        today = self._dhaka_today()
+        try:
+            day = fields.Date.to_date(value) if value else today
+        except (TypeError, ValueError) as exc:
+            raise UserError("Give the transfer's effective date as YYYY-MM-DD.") from exc
+        if day > today:
+            raise UserError("A transfer cannot take effect in the future (%s)." % day)
+        last = (
+            self.env["fix.device.ownership"]
+            .sudo()
+            .search([("device_id", "=", self.id)], order="transfer_date desc, id desc", limit=1)
+        )
+        if last and last.transfer_date and day < last.transfer_date:
+            raise UserError(
+                "%s last changed owner on %s; a later transfer cannot take effect earlier (%s)."
+                % (self.display_name, last.transfer_date, day)
+            )
+        return day
+
+    def _assert_portal_transfer(self, new_owner):
+        """M17-23: an owner gives a device away in the portal only to another
+        individual customer: never to a company, a 1000FiX user or the company
+        itself, and never a device in 1000FiX's stock or routed to e-waste."""
+        self.ensure_one()
+        if self.population not in ("customer_owned", "company_issued"):
+            raise UserError(
+                "%s is not a customer-owned device (%s) and is not transferred in the portal."
+                % (self.display_name, self._population_label())
+            )
+        partner = new_owner.sudo()
+        internal = partner.user_ids.filtered(lambda u: u._is_internal())
+        companies = self.env["res.company"].sudo().search([]).partner_id
+        if partner.is_company or internal or partner in companies or not partner.active:
+            raise UserError(
+                "A device is transferred in the portal only to another individual customer."
+            )
+
+    def _a07_after_transfer(self, old_owner, new_owner, row):
+        """What else changes with the owner (A07 ERP audit M17-18, owner
+        decision D12). Extended in the A07 spine for M08/M09 records.
+
+        - D12(a): a manufacturer or brand warranty follows the device; a 1000FiX
+          extended warranty follows it only through the M09 four-eyes warranty
+          transfer (context fix_m09_warranty_ids), otherwise it lapses now.
+        - BRU-AST-11: a device leaving 1000FiX's stock for a customer becomes
+          customer-owned in the same transaction, the transfer as its evidence."""
+        self.ensure_one()
+        carried = set(self.env.context.get("fix_m09_warranty_ids") or ())
+        lapsing = self.sudo().warranty_id.filtered(
+            lambda w: w.warranty_type == "extended"
+            and w.status in ("active", "pending")
+            and w.id not in carried
+        )
+        lapsing._a07_lapse(
+            "Lapsed at the ownership change %s: a 1000FiX extended warranty passes to a new "
+            "owner only through an M09 warranty transfer (owner decision D12)." % row.display_name
+        )
+        companies = self.env["res.company"].sudo().search([]).partner_id
+        if (
+            self.population in COMPANY_STOCK_POPULATIONS
+            and new_owner.commercial_partner_id not in companies
+        ):
+            self.env["fix.device.population.change"].sudo()._guarded().create(
+                {
+                    "device_id": self.id,
+                    "to_population": "customer_owned",
+                    "reason_code": "sale_to_customer",
+                    "ownership_id": row.id,
+                    "notes": "Ownership transfer %s to %s" % (row.display_name, new_owner.name),
+                }
+            )
 
     @staticmethod
     def _owner_is_partner(owner, partner) -> bool:
@@ -1131,16 +1282,30 @@ class FixDevice(models.Model):
     def _state_label(self):
         return dict(self._fields["state"].selection).get(self.state, self.state)
 
-    def action_mark_lost(self, reason=None):
+    def action_mark_lost(self, reason=None, flag_type=None, police_ref=None):
         """Flag the device lost or stolen (BRU-AST-09). Any internal user may
         raise the flag - holding a reported device is the safe side - but who
-        and when are stamped, and someone else must clear it."""
+        and when are stamped, and someone else must clear it.
+
+        A07 ERP audit (2026-11-20) M17-22 / owner decision D12(b): "stolen" is
+        recorded as such, and only with the GD / police report reference; a
+        plain "lost" needs none. With no type given the staged form values
+        (lost_flag_type, lost_police_ref) are read, else it is "lost"."""
         if not (reason or "").strip():
             raise UserError("Say how the loss or theft was reported.")
         for rec in self:
+            kind = flag_type or rec.lost_flag_type_pending or "lost"
+            ref = (police_ref or rec.lost_police_ref_pending or "").strip()
+            if kind not in ("lost", "stolen"):
+                raise UserError("A device is flagged lost or stolen, not %r." % (kind,))
+            if kind == "stolen" and not ref:
+                raise UserError(
+                    "A theft is flagged only with the GD / police report reference (owner "
+                    "decision D12). Give the reference, or flag the device lost."
+                )
             if rec.state in NOT_SCRAPPABLE:
                 raise UserError("%s is already %s." % (rec.display_name, rec._state_label()))
-            rec._flag_lost(reason.strip(), "registry")
+            rec._flag_lost(reason.strip(), "registry", kind, ref or False)
             rec._custody_flag_event("lost", reason.strip())
         return True
 
@@ -1164,7 +1329,7 @@ class FixDevice(models.Model):
             }
         )
 
-    def _flag_lost(self, reason, source):
+    def _flag_lost(self, reason, source, flag_type="lost", police_ref=False):
         """Put the device in the lost/stolen register (FR-AST-023), from the
         registry button or a 'Reported Lost' custody event (A07 audit M17-4:
         custody said lost while the registry said registered)."""
@@ -1174,6 +1339,10 @@ class FixDevice(models.Model):
                 "lost_prior_state": self.state,
                 "state": "lost",
                 "lost_reason": reason,
+                "lost_flag_type": flag_type,
+                "lost_police_ref": police_ref or False,
+                "lost_flag_type_pending": False,
+                "lost_police_ref_pending": False,
                 "lost_flagged_by_id": self.env.uid,
                 "lost_flagged_at": fields.Datetime.now(),
                 "lost_cleared_by_id": False,
@@ -1181,12 +1350,20 @@ class FixDevice(models.Model):
             }
         )
         self._approval_void("the device was flagged lost while scrap approval was pending")
-        self.message_post(body="Flagged lost/stolen by %s: %s" % (self.env.user.name, reason))
+        self.message_post(
+            body="Flagged %s by %s: %s%s"
+            % (
+                flag_type,
+                self.env.user.name,
+                reason,
+                " (GD / police ref %s)" % police_ref if police_ref else "",
+            )
+        )
         self._publish(
             "device.flagged",
             {
                 "device_id": self.id,
-                "flag": "lost",
+                "flag": flag_type,
                 "reason": reason,
                 "source": source,
                 "serial_number": self.serial_number or None,
@@ -1300,6 +1477,11 @@ class FixDevice(models.Model):
                 body="Scrapped by %s. Reason: %s"
                 % (self.env.user.name, rec.approval_request_id.sudo().justification or "-")
             )
+            rec._a07_close_for_end_of_life(
+                "the device was scrapped (%s)"
+                % (rec.approval_request_id.sudo().justification or "scrap approved"),
+                route="scrapped",
+            )
         return True
 
     def _emit(self, event_type: str, rec) -> None:
@@ -1362,7 +1544,12 @@ class FixDevice(models.Model):
         if self.state in NOT_RESOLVED:
             # BRU-AST-03: a provisional identity reaches no warranty claim.
             return False
-        day = on_date or fields.Date.context_today(self)
+        if self.state in NOT_SCRAPPABLE or self.identifier_quarantined:
+            # A07 ERP audit M17-09 / M17-13: a scrapped identity (a fraud signal
+            # when the unit reappears), a device flagged lost or stolen, and one
+            # whose identifier is in conflict draw no free warranty repair.
+            return False
+        day = on_date or self._dhaka_today()
         return any(
             w.status == "active"
             and w.start_date
@@ -1391,6 +1578,10 @@ class FixDevice(models.Model):
                 and w.verification_state == "unverified"
             )
         )
+
+    def _dhaka_today(self):
+        """The business day (Asia/Dhaka), whoever the user or cron user is."""
+        return fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
 
     def get_compatible_parts(self, category=None):
         """M17 W2: Query spare parts compatibility matrix for this device model."""

@@ -18,7 +18,10 @@
 # fields are guarded, and only the consumers and the re-dispatch write them.
 from odoo import api, fields, models
 from odoo.addons.cd_field_service.models.fix_field_order import DISPATCHER_GROUP
-from odoo.addons.cd_vehicle_ext.models.fix_vehicle_ops import dhaka_today
+from odoo.addons.cd_vehicle_ext.models.fix_vehicle_ops import dhaka_today, param_on
+from odoo.exceptions import UserError
+
+from .fix_field_order_vehicle import REQUIRE_VEHICLE_PARAM
 
 _CLOSED = ("completed", "cancelled")
 REDISPATCH_FIELDS = frozenset(
@@ -166,6 +169,54 @@ class FixFieldOrderRedispatch(models.Model):
                     self.env.user,
                 )
         return res
+
+    # ------------------------------------------------------- job progress gate
+    def _fix_assert_vehicle_usable(self, what, on_the_day):
+        """A07 ERP audit M46-06/07 (BRU-FLT-02/07, AUT-FLT-02/07): the van is
+        gated again when the job moves, not only at dispatch.
+
+        - an order flagged for re-dispatch (its van went off the road after
+          dispatch) does not move until the dispatcher re-dispatches it;
+        - the M46 gate runs on the van and driver: on the job's day when it
+          is accepted, and on TODAY when travel or work starts, so a job
+          dispatched the evening before needs today's passed pre-use check
+          (with cd_vehicle_ext.require_passed_preuse_check on) before the van
+          leaves. Reads as superuser: the technician need not read the van."""
+        for rec in self:
+            srec = rec.sudo()
+            if not srec.vehicle_id:
+                continue
+            if srec.redispatch_required:
+                off = srec.redispatch_offroad_id
+                raise UserError(
+                    "Cannot %s %s: vehicle %s was taken off the road (%s). The dispatcher "
+                    "re-dispatches it with another vehicle first."
+                    % (what, rec.name, _label(srec.vehicle_id), off.name or "off-road")
+                )
+            day = dhaka_today(rec) if on_the_day else srec._fix_vehicle_day()
+            driver = srec.vehicle_driver_id or srec.vehicle_id.fix_driver_id
+            blockers = srec.vehicle_id._fix_dispatch_blockers(
+                driver=driver or None,
+                day=day,
+                require_driver=param_on(self.env, REQUIRE_VEHICLE_PARAM),
+            ).get(srec.vehicle_id.id)
+            if blockers:
+                raise UserError(
+                    "Cannot %s %s: vehicle %s is not usable: %s."
+                    % (what, rec.name, _label(srec.vehicle_id), "; ".join(blockers))
+                )
+
+    def action_accept(self):
+        self._fix_assert_vehicle_usable("accept", on_the_day=False)
+        return super().action_accept()
+
+    def action_start_travel(self):
+        self._fix_assert_vehicle_usable("start travel on", on_the_day=True)
+        return super().action_start_travel()
+
+    def action_start_work(self):
+        self._fix_assert_vehicle_usable("start work on", on_the_day=True)
+        return super().action_start_work()
 
     # ------------------------------------------------------------ helpers
     @api.model

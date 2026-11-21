@@ -15,6 +15,7 @@ from odoo.addons.cd_asset_workorder_spine.tests.test_a07_p1_spine import (
     _deliver,
     _dispatch,
     _m48,
+    _request,
     _run_wo,
     c,  # noqa: F401 - the fixture
 )
@@ -57,20 +58,20 @@ def _waiting_prediction(c):  # noqa: F811
 def test_15_dismissing_the_demand_frees_the_request(c, op):  # noqa: F811
     env = c.env
     p = _waiting_prediction(c)
-    p.with_user(op).action_create_preventive_wo()
+    _request(c, p, op)
     assert p.work_order_created is True
     _deliver(c, "predictive_maintenance.wo_created", p)
     first = _demand(c, p)
     assert len(first) == 1 and first.state == "pending"
     # while it is live, a second request is refused
     with pytest.raises(REFUSED), env.cr.savepoint():
-        p.with_user(op).action_create_preventive_wo()
+        p.with_user(op).action_create_preventive_wo("again")
     first.with_user(c.fm).action_dismiss("the asset is being retired")
     assert first.state == "dismissed"
     assert p.work_order_created is False, "the flag followed the dismissal"
     assert any("retired" in str(b) for b in p.message_ids.mapped("body"))
     # the request can be made again, and it raises a new demand
-    p.with_user(op).action_create_preventive_wo()
+    _request(c, p, op)
     assert p.work_order_created is True
     _deliver(c, "predictive_maintenance.wo_created", p)
     demands = _demand(c, p)
@@ -83,7 +84,7 @@ def test_15_dismissing_the_demand_frees_the_request(c, op):  # noqa: F811
 
 def test_15_a_redelivered_event_after_dismissal_raises_nothing(c, op):  # noqa: F811
     p = _waiting_prediction(c)
-    p.with_user(op).action_create_preventive_wo()
+    _request(c, p, op)
     _deliver(c, "predictive_maintenance.wo_created", p)
     first = _demand(c, p)
     first.with_user(c.fm).action_dismiss("not needed")
@@ -131,18 +132,22 @@ def test_an_action_cannot_finish_while_its_demand_has_no_order(c, op):  # noqa: 
     assert a.state == "dispatched" and p.outcome == "pending"
 
 
-def test_an_action_with_no_routed_order_completes(c, op):  # noqa: F811
+def test_an_action_never_completes_before_its_order(c, op):  # noqa: F811
+    """A07 ERP audit (2026-11-20) M48-08: this completed an action the moment it was
+    dispatched, before the relay raised any order; the order then never came. The
+    order is raised at dispatch now, and the action waits for it."""
     _e, p = _m48(c)
     a = _dispatch(c, p)
     a.write({"outcome_evidence_ref": "JC-9"})
-    a.with_user(op).action_done(outcome="not_confirmed", note="nothing found")
-    assert a.state == "done" and p.outcome == "false_alarm"
+    with pytest.raises(REFUSED, match="still open"), c.env.cr.savepoint():
+        a.with_user(op).action_done(outcome="not_confirmed", note="nothing found")
+    assert a.state == "dispatched" and p.outcome == "pending"
 
 
 def test_the_facility_manager_role_is_still_what_dismisses(c, op):  # noqa: F811
     assert c.env.ref(FM)
     p = _waiting_prediction(c)
-    p.with_user(op).action_create_preventive_wo()
+    _request(c, p, op)
     _deliver(c, "predictive_maintenance.wo_created", p)
     with pytest.raises(REFUSED), c.env.cr.savepoint():
         _demand(c, p).with_user(op).action_dismiss("not mine to dismiss")

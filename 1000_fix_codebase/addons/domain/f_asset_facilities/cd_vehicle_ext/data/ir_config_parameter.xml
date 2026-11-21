@@ -82,4 +82,21 @@
         <field name="key">cd_vehicle_ext.pm_overdue_takes_offroad</field>
         <field name="value">False</field>
     </record>
+    <!-- A07 ERP audit (2026-11-20) M46-14, owner decision D11: a traffic fine's
+         recover-or-absorb decision: up to this amount the Logistics Manager,
+         up to the next the Operations Director (DOFA Tier 3), above it the CFO. -->
+    <record id="param_fine_decision_lm_limit_bdt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fine_decision_lm_limit_bdt</field>
+        <field name="value">10000</field>
+    </record>
+    <record id="param_fine_decision_director_limit_bdt" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.fine_decision_director_limit_bdt</field>
+        <field name="value">50000</field>
+    </record>
+    <!-- M46-25: commissioning a registered vehicle needs a fitted telematics
+         device. Off: no business decision yet. -->
+    <record id="param_commission_requires_telematics" model="ir.config_parameter">
+        <field name="key">cd_vehicle_ext.commission_requires_telematics</field>
+        <field name="value">False</field>
+    </record>
 </odoo>

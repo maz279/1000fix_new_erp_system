@@ -56,6 +56,12 @@
         },
         "horizon_days": {
           "description": "Type not statically derivable from `horizon` (addons/domain/f_asset_facilities/cd_equipment_register/models/fix_equipment.py:605)."
+        },
+        "escalate_to": {
+          "type": [
+            "string",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

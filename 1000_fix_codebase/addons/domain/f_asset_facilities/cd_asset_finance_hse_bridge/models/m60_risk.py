@@ -13,6 +13,7 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .fix_bridge_exception import event_source
+from .m49_asset_request import lost_subject
 
 # A07 operability (2026-11-07): the site incidents the risk register holds.
 INCIDENT_RISK_TYPES = ("fire", "theft", "trespass", "injury")
@@ -296,14 +297,16 @@ class FixRiskRegisterBridge(models.Model):
         """equipment.lost (M45: not found at a physical verification) -> ONE
         open operational risk entry per item (a lost test instrument is a loss
         and a custody failure until the risk owner closes it)."""
-        verification = event_source(self.env, event, "fix.equipment.verification")
-        if not verification:
+        # A07 FIN-04: a verification or a loss-register report, by the event's
+        # own aggregate (never one read as the other)
+        found = lost_subject(self.env, event)
+        if not found:
             return False
+        equipment, where, _day = found
         payload = event.get("payload") or {}
-        subject, label, company, ou = self._bridge_equipment(verification.equipment_id)
-        trigger = "missing at verification %s (campaign %s), last custodian %s, value %.2f" % (
-            verification.name,
-            payload.get("campaign") or verification.campaign_ref or "-",
+        subject, label, company, ou = self._bridge_equipment(equipment)
+        trigger = "missing (%s), last custodian %s, value %.2f" % (
+            where,
             payload.get("custodian") or "-",
             float(payload.get("value") or 0.0),
         )
@@ -313,7 +316,7 @@ class FixRiskRegisterBridge(models.Model):
             company,
             ou,
             trigger,
-            "lost:%s" % verification.id,
+            "lost:%s:%s" % (event.get("aggregate") or "", event.get("aggregate_id")),
             category="operational",
         )
 
@@ -322,17 +325,18 @@ class FixRiskRegisterBridge(models.Model):
         """equipment.recovered -> the recovery goes on the item's open entry.
         It never closes the entry: how the item went missing is the risk
         owner's to review."""
-        verification = event_source(self.env, event, "fix.equipment.verification")
-        if not verification:
+        found = lost_subject(self.env, event)
+        if not found:
             return False
-        risk = self._bridge_open_entry(verification.equipment_id)
+        equipment, where, _day = found
+        risk = self._bridge_open_entry(equipment)
         if not risk:
             return False
         payload = event.get("payload") or {}
         return risk._bridge_log(
-            "found at verification %s (missing since %s): the entry stays open for the risk "
-            "owner" % (verification.name, payload.get("missing_since") or "-"),
-            "rec:%s" % verification.id,
+            "found (%s, missing since %s): the entry stays open for the risk owner"
+            % (where, payload.get("missing_since") or "-"),
+            "rec:%s:%s" % (event.get("aggregate") or "", event.get("aggregate_id")),
         )
 
     @api.model
@@ -373,9 +377,15 @@ class FixRiskRegisterBridge(models.Model):
 
     @api.model
     def consume_lease_critical_date_due(self, event):
-        """lease.critical_date_due (M47 expiry horizons) -> the same entry per
-        lease, each alert logged on it."""
-        site_lease = event_source(self.env, event, "fix.site.lease")
+        """lease.critical_date_due (M47 expiry horizons, or a lease critical
+        event: rent review, break option, deposit return) -> the same entry
+        per lease, each alert logged on it. A07 M47-14: an event about a
+        fix.site.lease.event is resolved to ITS lease."""
+        if event.get("aggregate") == "fix.site.lease.event":
+            lease_event = event_source(self.env, event, "fix.site.lease.event")
+            site_lease = lease_event.lease_id if lease_event else None
+        else:
+            site_lease = event_source(self.env, event, "fix.site.lease")
         if not site_lease:
             return False
         payload = event.get("payload") or {}

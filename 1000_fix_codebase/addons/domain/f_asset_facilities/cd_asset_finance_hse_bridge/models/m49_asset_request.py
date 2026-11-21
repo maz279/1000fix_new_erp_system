@@ -16,10 +16,12 @@ from odoo.exceptions import UserError
 from .fix_bridge_exception import (
     ACCOUNTANT,
     ACCOUNTING_MANAGER,
+    dhaka_today,
     event_source,
     noted,
     param_float,
     require_role,
+    role_account,
     run_hook,
     source_key,
 )
@@ -30,6 +32,40 @@ from .fix_bridge_exception import (
 CAP_MIN_PARAM = "capitalisation_min_bdt"
 
 DISPOSAL_KINDS = [("sale", "Sale"), ("scrap", "Scrap"), ("write_off", "Write-Off (Lost / Missing)")]
+
+
+def lost_subject(env, event):
+    """(equipment, where, day) of an equipment.lost / equipment.recovered
+    event, whichever M45 record published it: a physical verification or a
+    loss-register report (A07 FIN-04). None when the record is gone, or when
+    the payload names another item than the record does."""
+    aggregate = event.get("aggregate") or "fix.equipment.verification"
+    if aggregate == "fix.equipment.loss":
+        loss = event_source(env, event, "fix.equipment.loss")
+        if not loss:
+            return None
+        equipment = loss.equipment_id.sudo()
+        where = "loss report %s (%s)" % (loss.name, loss.kind)
+        day = loss.reported_on and fields.Date.context_today(
+            loss.with_context(tz="Asia/Dhaka"), loss.reported_on
+        )
+    elif aggregate == "fix.equipment.verification":
+        verification = event_source(env, event, "fix.equipment.verification")
+        if not verification:
+            return None
+        payload = event.get("payload") or {}
+        equipment = verification.equipment_id.sudo()
+        where = "verification %s, campaign %s" % (
+            verification.name,
+            payload.get("campaign") or verification.campaign_ref or "-",
+        )
+        day = verification.verified_on
+    else:
+        return None
+    code = (event.get("payload") or {}).get("equipment")
+    if not equipment or (code and code != equipment.code):
+        return None
+    return equipment, where, day
 
 
 class FixAssetFinanceRequest(models.Model):
@@ -91,6 +127,10 @@ class FixAssetFinanceRequest(models.Model):
         "M19 capitalisation seam that puts the asset into service (A08 BRU-FXA-01).",
     )
     disposal_kind = fields.Selection(DISPOSAL_KINDS, string="Disposal Type")
+    # A07 D10 (FIN-12, M45-06): a sale's proceeds and buyer, from the source
+    sale_proceeds = fields.Monetary(string="Sale Proceeds", readonly=True)
+    buyer_id = fields.Many2one("res.partner", string="Buyer", readonly=True)
+    disposal_ref = fields.Char(string="Sale / Disposal Reference", readonly=True)
     disposal_id = fields.Many2one("fix.asset.disposal", string="Draft Disposal", readonly=True)
     state = fields.Selection(
         [
@@ -126,6 +166,9 @@ class FixAssetFinanceRequest(models.Model):
         "basis",
         "custodian_id",
         "disposal_id",
+        "sale_proceeds",
+        "buyer_id",
+        "disposal_ref",
         "state",
         "decided_by_id",
         "decided_on",
@@ -172,6 +215,9 @@ class FixAssetFinanceRequest(models.Model):
                         "event_type",
                         "disposal_kind",
                         "operating_unit_id",
+                        "sale_proceeds",
+                        "buyer_id",
+                        "disposal_ref",
                     )
                 }
                 reopen.update(
@@ -189,13 +235,30 @@ class FixAssetFinanceRequest(models.Model):
                 update = {
                     k: v
                     for k, v in vals.items()
-                    if k in ("source_amount", "basis", "acquisition_date", "event_type")
+                    if k
+                    in (
+                        "source_amount",
+                        "basis",
+                        "acquisition_date",
+                        "event_type",
+                        "disposal_kind",
+                        "sale_proceeds",
+                        "buyer_id",
+                        "disposal_ref",
+                    )
                 }
                 if "source_amount" in update and (
                     not existing.amount or existing.amount == existing.source_amount
                 ):
                     update["amount"] = update["source_amount"]
-                if any(existing[k] != v for k, v in update.items() if k in existing._fields):
+
+                def _differs(k, v):
+                    cur = existing[k]
+                    if existing._fields[k].type == "many2one":
+                        return (cur.id or False) != (v or False)
+                    return (cur or False) != (v or False)
+
+                if any(_differs(k, v) for k, v in update.items() if k in existing._fields):
                     existing.write(update)
                     existing.message_post(body="The source register changed: request refreshed.")
             elif vals.get("source_amount") not in (None, existing.source_amount):
@@ -260,8 +323,16 @@ class FixAssetFinanceRequest(models.Model):
                 {
                     "event_type": "equipment.registered",
                     "source_amount": eq.acquisition_cost,
-                    "acquisition_date": fields.Date.to_date(eq.create_date)
-                    or fields.Date.context_today(self),
+                    # FIN-23 / M45-12: the date it was acquired, else the Dhaka
+                    # day it was registered (never the UTC create date)
+                    "acquisition_date": getattr(eq, "acquired_on", False)
+                    or (
+                        fields.Date.context_today(
+                            self.with_context(tz="Asia/Dhaka"), eq.create_date
+                        )
+                        if eq.create_date
+                        else dhaka_today(self.env)
+                    ),
                     "basis": "Equipment %s registered with an acquisition cost." % eq.code,
                 }
             )
@@ -290,27 +361,25 @@ class FixAssetFinanceRequest(models.Model):
 
     @api.model
     def consume_equipment_lost(self, event):
-        """equipment.lost (M45: not found at a physical verification) -> a
-        pending write-off request for a CAPITALISED item (spec §10.2: M49
-        derecognises a lost asset). An item never accepted into M49 has
-        nothing to derecognise: its pending capitalisation is told instead.
-        Idempotent: one disposal request per item (shared with the write-off,
-        so a later DOFA write-off refreshes the same request)."""
-        verification = event_source(self.env, event, "fix.equipment.verification")
-        if not verification:
+        """equipment.lost (M45: not found at a physical verification, or a loss
+        reported in the loss register) -> a pending write-off request for a
+        CAPITALISED item (spec §10.2: M49 derecognises a lost asset). An item
+        never accepted into M49 has nothing to derecognise: its pending
+        capitalisation is told instead. Idempotent: one disposal request per
+        item (shared with the write-off, so a later DOFA write-off refreshes
+        the same request). A07 FIN-04: the event's own aggregate says which
+        record it is about."""
+        found = lost_subject(self.env, event)
+        if not found:
             return False
-        equipment = verification.equipment_id.sudo()
+        equipment, where, day = found
         payload = event.get("payload") or {}
         if not equipment.fixed_asset_id:
             pending = self.sudo().search(
                 [("key", "=", source_key("m49:capitalise", equipment)), ("state", "=", "pending")],
                 limit=1,
             )
-            note = "%s was reported missing at verification %s (campaign %s)." % (
-                equipment.code,
-                verification.name,
-                payload.get("campaign") or verification.campaign_ref or "-",
-            )
+            note = "%s was reported missing (%s)." % (equipment.code, where)
             if pending and not noted(pending, note):
                 pending.message_post(body=note)
             return pending
@@ -319,36 +388,32 @@ class FixAssetFinanceRequest(models.Model):
             {
                 "event_type": event.get("event_type") or "equipment.lost",
                 "source_amount": float(payload.get("value") or equipment.acquisition_cost or 0.0),
-                "basis": "Not found at physical verification %s (campaign %s); last custodian "
-                "%s. Withdrawn automatically if the item is found before finance decides."
-                % (
-                    verification.name,
-                    payload.get("campaign") or verification.campaign_ref or "-",
-                    payload.get("custodian") or "-",
-                ),
+                "basis": "Reported missing (%s); last custodian %s. Withdrawn automatically if "
+                "the item is found before finance decides."
+                % (where, payload.get("custodian") or "-"),
                 "disposal_kind": "write_off",
-                "acquisition_date": verification.verified_on or fields.Date.context_today(self),
+                "acquisition_date": day or dhaka_today(self.env),
             }
         )
         return self._m49_queue("dispose", equipment, vals)
 
     @api.model
     def consume_equipment_recovered(self, event):
-        """equipment.recovered (M45: a count found the missing item) -> the
-        disposal request the loss raised is withdrawn while still pending. A
-        request finance already decided, or one a DOFA write-off raised, is
-        left alone and told."""
-        verification = event_source(self.env, event, "fix.equipment.verification")
-        if not verification:
+        """equipment.recovered (M45: a count or the loss register found the
+        missing item) -> the disposal request the loss raised is withdrawn
+        while still pending. A request finance already decided, or one a DOFA
+        write-off raised, is left alone and told."""
+        found = lost_subject(self.env, event)
+        if not found:
             return False
-        equipment = verification.equipment_id.sudo()
+        equipment, where, _day = found
         req = self.sudo().search([("key", "=", source_key("m49:dispose", equipment))], limit=1)
         if not req or req.state == "withdrawn":
             return req
         payload = event.get("payload") or {}
-        text = "%s found at verification %s (missing since %s)" % (
+        text = "%s found (%s, missing since %s)" % (
             equipment.code,
-            verification.name,
+            where,
             payload.get("missing_since") or "-",
         )
         if req.state == "pending" and req.event_type == "equipment.lost":
@@ -362,6 +427,45 @@ class FixAssetFinanceRequest(models.Model):
             req.message_post(body="Withdrawn: %s. Nothing to derecognise." % text)
         elif not noted(req, text):
             req.message_post(body="%s: finance reviews this request (%s)." % (text, req.state))
+        return req
+
+    @api.model
+    def consume_equipment_disposed(self, event):
+        """equipment.disposed (M45 retirement disposed: resale, scrap, e-waste)
+        -> the item's disposal request carries the route, and for a resale the
+        sale proceeds and buyer (D10, M45-06): a request still pending is
+        updated, a draft M49 disposal already raised takes the sale terms."""
+        retirement = event_source(self.env, event, "fix.equipment.retirement")
+        if not retirement:
+            return False
+        equipment = retirement.equipment_id.sudo()
+        payload = event.get("payload") or {}
+        route = getattr(retirement, "disposal_route", None) or payload.get("route")
+        proceeds = float(getattr(retirement, "sale_amount", 0.0) or 0.0)
+        buyer = getattr(retirement, "buyer_partner_id", None)
+        sale = route == "resale" and proceeds > 0
+        vals = self._m49_equipment_vals(equipment)
+        vals.update(
+            {
+                "event_type": "equipment.disposed",
+                "source_amount": float(equipment.acquisition_cost or 0.0),
+                "basis": "Disposed in M45 by %s (reference %s)."
+                % (route or "-", payload.get("reference") or "-"),
+                "disposal_kind": "sale" if sale else "scrap",
+                "sale_proceeds": proceeds if sale else 0.0,
+                "buyer_id": buyer.id if sale and buyer else False,
+                "disposal_ref": payload.get("reference") or False,
+                "acquisition_date": getattr(retirement, "disposed_on", False)
+                or dhaka_today(self.env),
+            }
+        )
+        req = self._m49_queue("dispose", equipment, vals)
+        if req.state == "accepted" and req.disposal_id.state == "draft":
+            req._m49_disposal_terms(req.disposal_id)
+        elif req.state != "pending":
+            text = "M45 disposed of %s by %s (proceeds %.2f)." % (equipment.code, route, proceeds)
+            if not noted(req, text):
+                req.message_post(body=text)
         return req
 
     @api.model
@@ -397,8 +501,43 @@ class FixAssetFinanceRequest(models.Model):
             self._m49_queue("capitalise", v, vals)
 
     @api.model
-    def _m49_dispose_vehicle(self, vehicles, how):
+    def _m49_dispose_vehicle_from_m46(self, vehicles):
+        reqs = self.browse()
+        for v in vehicles.sudo().with_context(active_test=False):
+            disposal = getattr(v, "fix_disposal_id", None)
+            facts = getattr(disposal, "_m49_disposal_facts", None) if disposal else None
+            if not facts:
+                continue
+            f = facts()
+            if not v.fixed_asset_id or f.get("kind") == "lease_return":
+                continue  # M46-26: only a capitalised vehicle concerns M49
+            kind = {"sale": "sale", "scrap": "scrap", "write_off": "write_off"}.get(
+                f.get("kind"), "scrap"
+            )
+            reqs |= self._m49_dispose_vehicle(
+                v,
+                "%s %s" % (f.get("route") or "disposed", f.get("disposal_ref") or ""),
+                proceeds=float(f.get("proceeds") or 0.0) if kind == "sale" else 0.0,
+                buyer_id=f.get("buyer_id") or False,
+                reference=f.get("disposal_ref") or False,
+                kind=kind,
+                on_date=f.get("disposal_date") or False,
+            )
+        return reqs
+
+    @api.model
+    def _m49_dispose_vehicle(
+        self,
+        vehicles,
+        how,
+        proceeds=0.0,
+        buyer_id=False,
+        reference=False,
+        kind=False,
+        on_date=False,
+    ):
         floor = max(self._m49_min(), 0.0)
+        reqs = self.browse()
         for v in vehicles.sudo().with_context(active_test=False):
             if not (v.fixed_asset_id or (v.net_car_value or 0.0) > floor):
                 continue  # never costed nor capitalised: nothing for M49 to derecognise
@@ -407,11 +546,21 @@ class FixAssetFinanceRequest(models.Model):
                 {
                     "event_type": "vehicle.disposed",
                     "source_amount": v.net_car_value or 0.0,
-                    "acquisition_date": v.write_off_date or fields.Date.context_today(self),
+                    "acquisition_date": on_date or v.write_off_date or dhaka_today(self.env),
                     "basis": "Vehicle %s left the fleet (%s)." % (v.license_plate or v.name, how),
                 }
             )
-            self._m49_queue("dispose", v, vals)
+            if kind:
+                vals["disposal_kind"] = kind
+            if proceeds:
+                vals.update(
+                    disposal_kind="sale",
+                    sale_proceeds=proceeds,
+                    buyer_id=buyer_id,
+                    disposal_ref=reference,
+                )
+            reqs |= self._m49_queue("dispose", v, vals)
+        return reqs
 
     @api.model
     def _m49_site_asset_vals(self, asset):
@@ -508,6 +657,13 @@ class FixAssetFinanceRequest(models.Model):
             raise UserError("The asset category belongs to another company.")
         if not (self.amount or 0.0) > 0.0:
             raise UserError("The amount to capitalise must be above zero.")
+        if not self.operating_unit_id:
+            # FIN-16: never the company's first operating unit
+            raise UserError(
+                "Choose the branch (operating unit) %s belongs to before accepting: the "
+                "asset is booked and depreciated on its own branch."
+                % (self.source_ref or self.name)
+            )
         seam = self._m49_acquisition_seam()
         asset = self.env["fix.fixed.asset"].create(
             {
@@ -560,9 +716,27 @@ class FixAssetFinanceRequest(models.Model):
         Seam = self.env["fix.fixed.asset.seam"].sudo()
         if Seam.search_count([("move_line_id", "=", line.id)]):
             raise UserError("%s is already the source of another asset." % line.display_name)
-        ou = self.operating_unit_id or self.env["operating.unit"].sudo().search(
-            [("company_id", "=", self.company_id.id)], limit=1
-        )
+        # FIN-06: one ledger debit, one asset. A line of another company, or of
+        # an entry that already put an asset in service (a CWIP capitalisation,
+        # an IFRS 16 recognition, an earlier acquisition) is not a new cost.
+        if line.company_id != self.company_id:
+            raise UserError("%s belongs to another company." % line.display_name)
+        move = line.move_id
+        Asset = self.env["fix.fixed.asset"].sudo().with_context(active_test=False)
+        taken = Asset.search([("acquisition_move_id", "=", move.id)], limit=1)
+        if not taken and "fix.cwip.entry" in self.env:
+            cwip = self.env["fix.cwip.entry"].sudo().search([("move_id", "=", move.id)], limit=1)
+            taken = cwip.asset_id or cwip
+        if not taken:
+            taken = self.env["fix.lease"].sudo().search([("move_id", "=", move.id)], limit=1)
+        if taken:
+            raise UserError(
+                "%s already brought %s into the register: it cannot capitalise %s again."
+                % (move.display_name, taken.display_name, self.source_ref or self.name)
+            )
+        ou = self.operating_unit_id
+        if not ou:
+            raise UserError("Choose the branch of %s first." % self.name)
         return Seam.create(
             {
                 "company_id": self.company_id.id,
@@ -578,14 +752,34 @@ class FixAssetFinanceRequest(models.Model):
     def _m49_accept_dispose(self):
         self.ensure_one()
         source = self._m49_source()
-        asset = self.fixed_asset_id or (
-            source.fixed_asset_id if source and "fixed_asset_id" in source._fields else None
-        )
+        linked = source.fixed_asset_id if source and "fixed_asset_id" in source._fields else None
+        asset = self.fixed_asset_id or linked
         if not asset:
             raise UserError(
                 "Choose the M49 asset %s derecognises. If it was never capitalised in M49, "
                 "reject the request and say so." % self.name
             )
+        # FIN-17: the source's own asset, of this company, nobody else's
+        if linked and asset != linked:
+            raise UserError(
+                "%s is registered in M49 as %s: the request derecognises that asset, not %s."
+                % (self.source_ref, linked.display_name, asset.display_name)
+            )
+        if asset.company_id != self.company_id:
+            raise UserError("%s belongs to another company." % asset.display_name)
+        if not linked:
+            for model in ("fix.equipment", "fleet.vehicle", "fix.site.asset"):
+                other = (
+                    self.env[model]
+                    .sudo()
+                    .with_context(active_test=False)
+                    .search([("fixed_asset_id", "=", asset.id)], limit=1)
+                )
+                if other and (other._name, other.id) != (self.source_model, self.source_res_id):
+                    raise UserError(
+                        "%s is the M49 asset of %s, not of %s."
+                        % (asset.display_name, other.display_name, self.source_ref)
+                    )
         if not self.disposal_kind:
             raise UserError("Choose the disposal type (sale, scrap or write-off) first.")
         if asset.state != "active":
@@ -596,17 +790,36 @@ class FixAssetFinanceRequest(models.Model):
         result = asset.action_dispose()
         disposal = self.env["fix.asset.disposal"].browse(result.get("disposal_ids") or [])[:1]
         if disposal.state == "draft":
-            disposal.write(
-                {
-                    "kind": self.disposal_kind,
-                    "reason": "%s (%s): %s" % (self.source_ref, self.name, self.basis or "-"),
-                }
-            )
+            self._m49_disposal_terms(disposal)
         self.sudo()._guarded().write({"disposal_id": disposal.id, "fixed_asset_id": asset.id})
         self.message_post(
             body="Accepted: draft disposal %s on %s. M49 approves (another person) and posts it."
             % (disposal.display_name, asset.display_name)
         )
+
+    def _m49_disposal_terms(self, disposal):
+        """D10: the disposal carries the source's route, and for a sale the
+        proceeds, the buyer and the proceeds clearing account (the M20 sale
+        invoice credits it with output VAT per M51; the M49 posting debits it
+        against the gain 400116 / loss 500901 of the category)."""
+        self.ensure_one()
+        vals = {
+            "kind": self.disposal_kind,
+            "reason": "%s (%s): %s" % (self.source_ref, self.name, self.basis or "-"),
+        }
+        if self.disposal_kind == "sale" and self.sale_proceeds:
+            account = role_account(
+                self.env,
+                self.company_id,
+                "disposal_proceeds",
+                required_for="The sale of %s" % self.source_ref,
+            )
+            vals.update(
+                proceeds=self.sale_proceeds,
+                partner_id=self.buyer_id.id,
+                proceeds_account_id=account.id,
+            )
+        disposal.write(vals)
 
     def action_reject(self, reason=None):
         require_role(self.env, [ACCOUNTANT, ACCOUNTING_MANAGER], "Rejecting an M49 request")
@@ -698,17 +911,16 @@ class FleetVehicleM49(_BridgeFixedAssetLink, models.Model):
 
     def write(self, vals):
         self._bridge_refuse_link_write(vals)
-        leaving = self.browse()
-        if vals.get("write_off_date") or ("active" in vals and not vals["active"]):
-            leaving = self.filtered(lambda v: v.active and not v.write_off_date)
         result = super().write(vals)
         Req = self.env["fix.asset.finance.request"].sudo()
         # an owned basis reached later capitalises then (M46 FR-FLT-003)
         if "net_car_value" in vals or "fix_ownership_basis" in vals:
             run_hook(self.env, "m49_capitalise_vehicle", Req._m49_capitalise_vehicle, self)
-        if leaving:
-            how = "licence plate cancelled" if vals.get("write_off_date") else "archived"
-            run_hook(self.env, "m49_dispose_vehicle", Req._m49_dispose_vehicle, leaving, how)
+        if vals.get("fix_disposal_id"):
+            # D10 / M46-10/26: a vehicle leaves M49 only through a completed M46
+            # Vehicle Disposal (route, proceeds, buyer, CFO approval); archiving
+            # or a cancelled plate raises nothing
+            run_hook(self.env, "m49_dispose_vehicle", Req._m49_dispose_vehicle_from_m46, self)
         return result
 
 

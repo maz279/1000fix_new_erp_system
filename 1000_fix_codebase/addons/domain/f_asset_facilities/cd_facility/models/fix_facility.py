@@ -1,10 +1,70 @@
 # fix_facility — M47: facility, branch infrastructure & maintenance work orders (P10-M05 / R08-M03).
-from datetime import datetime
+import logging
+from datetime import datetime, timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
+
+_logger = logging.getLogger(__name__)
+
+# ---- the business day (A07 ERP audit 2026-11-20, M47-36 / D4) ---------------
+# Every M47 date is a Dhaka date. The crons run as __system__, whose time zone
+# was Europe/Brussels: between 00:00 and 06:00 Dhaka the user's "today" was the
+# previous Dhaka day. Nothing business-dated reads the user's zone any more.
+DHAKA_TZ = "Asia/Dhaka"
+
+
+def dhaka_today(record):
+    """Today in Dhaka, whoever (or whichever cron) runs the code."""
+    return fields.Date.context_today(record.with_context(tz=DHAKA_TZ))
+
+
+def dhaka_date(record, moment):
+    """The Dhaka date of a UTC datetime (e.g. a verification time)."""
+    if not moment:
+        return dhaka_today(record)
+    return fields.Date.context_today(
+        record.with_context(tz=DHAKA_TZ), timestamp=fields.Datetime.to_datetime(moment)
+    )
+
+
+def site_cost_centre(site, what):
+    """The operating unit a site's cost is charged to (BRU-FAC-20, M47-13): the
+    site's own, else its branch's. A cost with no cost centre is refused, never
+    left for the ledger to put on the company's first unit."""
+    site = site.sudo()
+    ou = site.operating_unit_id or site.branch_id.operating_unit_id
+    if not ou:
+        raise UserError(
+            "%s has no operating unit (cost centre), and neither has its branch: %s cannot "
+            "go to accounts payable until the site's operating unit is set (BRU-FAC-20)."
+            % (site.name, what)
+        )
+    return ou
+
+
+def queue_cost(record, vals):
+    """The A07 money hand-off: one pending M52 cost entry per source record
+    (cd_asset_finance_hse_bridge `fix.asset.cost.entry._m52_queue`). M47 states
+    the facts (cost type, vendor, invoice reference, payment method, operating
+    unit, date); the bridge resolves the account and posts. A fact the installed
+    cost entry has no field for yet is logged and left out, never invented."""
+    env = record.env
+    if "fix.asset.cost.entry" not in env:
+        return None
+    Entry = env["fix.asset.cost.entry"].sudo()
+    unknown = sorted(k for k in vals if k not in Entry._fields)
+    if unknown:
+        _logger.warning(
+            "M47 cost hand-off for %s: the M52 cost entry has no field for %s",
+            record.display_name,
+            ", ".join(unknown),
+        )
+        vals = {k: v for k, v in vals.items() if k in Entry._fields}
+    return Entry._m52_queue(record, vals)
+
 
 # ---- DOFA ladders (A07 audit 2026-11-03, decision B2) ---------------------
 # The M47 spec names the deciding roles but gives no BDT figures, so each
@@ -116,6 +176,28 @@ WO_PRIORITIES = [
     ("high", "High"),
     ("normal", "Normal"),
     ("low", "Low"),
+]
+# D15 / BRU-FAC-08 (owner decision 20 Nov 2026): the response and restore clocks
+# of a triaged work order, in hours, per priority. Parameters, these defaults:
+#   emergency 2 h / 8 h · high 8 h / 48 h · normal 24 h / 5 days · low 72 h / 15 days.
+WO_SLA_PARAM = "cd_facility.wo_sla_%s_%s_hours"  # (priority, "response" | "restore")
+WO_SLA_DEFAULTS = {
+    "emergency": (2.0, 8.0),
+    "high": (8.0, 48.0),
+    "normal": (24.0, 120.0),
+    "low": (72.0, 360.0),
+}
+WO_SLA_STAMPS = ("response_due_at", "restore_due_at", "sla_escalation_level")
+BRANCH_LEAD_GROUP = "cd_facility.group_branch_operations_lead"
+OPS_DIRECTOR_GROUP = "cd_facility.group_operations_director"
+WEEKDAYS = [
+    ("0", "Monday"),
+    ("1", "Tuesday"),
+    ("2", "Wednesday"),
+    ("3", "Thursday"),
+    ("4", "Friday"),
+    ("5", "Saturday"),
+    ("6", "Sunday"),
 ]
 
 
@@ -285,6 +367,52 @@ class FixSite(models.Model):
         copy=False,
         help="This suspended site is being closed rather than resumed",
     )
+    # A07 ERP audit (2026-11-20) M47-24 / FR-FAC-001: the branch's opening hours
+    # (Dhaka wall clock). An outage counts as operating hours lost only inside
+    # them; a site with no hours recorded counts the whole outage, as before.
+    opening_hour = fields.Float(
+        string="Opens At (hour)", help="Dhaka time, e.g. 9.5 = 09:30. Empty: hours not recorded."
+    )
+    closing_hour = fields.Float(string="Closes At (hour)", help="Dhaka time, e.g. 20.0 = 20:00")
+    weekly_off_day = fields.Selection(WEEKDAYS, string="Weekly Closed Day")
+
+    @api.constrains("opening_hour", "closing_hour")
+    def _check_opening_hours(self):
+        for rec in self:
+            if not (rec.opening_hour or rec.closing_hour):
+                continue
+            if not (0.0 <= rec.opening_hour < rec.closing_hour <= 24.0):
+                raise ValidationError(
+                    "%s opens at %.2f and closes at %.2f: opening comes before closing, within "
+                    "the day (0-24)." % (rec.name, rec.opening_hour, rec.closing_hour)
+                )
+
+    def _site_open_hours_between(self, start, end) -> float:
+        """Hours between two UTC datetimes that fall inside the site's opening
+        hours (Dhaka), skipping its weekly closed day. No hours recorded: the
+        whole interval."""
+        self.ensure_one()
+        if not (start and end) or end <= start:
+            return 0.0
+        if not (self.opening_hour or self.closing_hour):
+            return (end - start).total_seconds() / 3600.0
+        import pytz
+
+        zone = pytz.timezone(DHAKA_TZ)
+        local_start = pytz.utc.localize(start).astimezone(zone).replace(tzinfo=None)
+        local_end = pytz.utc.localize(end).astimezone(zone).replace(tzinfo=None)
+        total = 0.0
+        day = local_start.date()
+        while day <= local_end.date():
+            if str(day.weekday()) != (self.weekly_off_day or ""):
+                base = datetime.combine(day, datetime.min.time())
+                win_start = base + timedelta(hours=self.opening_hour)
+                win_end = base + timedelta(hours=self.closing_hour)
+                lo, hi = max(win_start, local_start), min(win_end, local_end)
+                if hi > lo:
+                    total += (hi - lo).total_seconds() / 3600.0
+            day += timedelta(days=1)
+        return total
 
     def _fix_guarded_fields(self) -> set:
         return (
@@ -442,6 +570,9 @@ class FixSite(models.Model):
         out = []
         if not self.accountable_manager_id:
             out.append("an accountable manager (BRU-FAC-06)")
+        # M47-13 / BRU-FAC-20: an operational site's costs need a cost centre
+        if not (self.operating_unit_id or self.branch_id.sudo().operating_unit_id):
+            out.append("an operating unit (cost centre) for the site's costs (BRU-FAC-20)")
         if self.occupancy_basis != "owned" and not env["fix.site.lease"].sudo().search_count(
             [("site_id", "=", self.id), ("state", "=", "active")]
         ):
@@ -637,7 +768,7 @@ class FixSite(models.Model):
             rec._site_check_ready()
             rec._site_assert_status_approved("Opening")
             signatory = rec.status_opsdir_approved_by_id.name
-            rec._guarded().write({"state": "active", "opened_on": fields.Date.context_today(rec)})
+            rec._guarded().write({"state": "active", "opened_on": dhaka_today(rec)})
             rec._site_consume_status_approval()
             rec.message_post(body="Readiness gate passed; site operational (%s)." % signatory)
             publish(
@@ -806,7 +937,7 @@ class FixFacilityWorkOrder(models.Model):
     )
     description = fields.Text(required=True)
     assigned_to = fields.Many2one("hr.employee", string="Assigned Engineer")
-    scheduled_date = fields.Date(default=fields.Date.context_today)
+    scheduled_date = fields.Date(default=lambda self: dhaka_today(self))
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
@@ -892,9 +1023,84 @@ class FixFacilityWorkOrder(models.Model):
     priority = fields.Selection(WO_PRIORITIES, string="Priority", readonly=True, copy=False)
     triaged_by_id = fields.Many2one("res.users", string="Triaged By", readonly=True, copy=False)
     triaged_on = fields.Datetime(string="Triaged On", readonly=True, copy=False)
+    # A07 ERP audit (2026-11-20) M47-16 / D15: the SLA clocks start at triage.
+    # Response = someone accepts the job; restore = the work is completed. An
+    # unanswered clock escalates (Branch Operations Lead, then Operations Director).
+    response_due_at = fields.Datetime(string="Response Due", readonly=True, copy=False)
+    restore_due_at = fields.Datetime(string="Restore Due", readonly=True, copy=False)
+    accepted_by_id = fields.Many2one("res.users", string="Accepted By", readonly=True, copy=False)
+    accepted_at = fields.Datetime(string="Accepted At", readonly=True, copy=False)
+    sla_escalation_level = fields.Integer(
+        string="SLA Escalation Level",
+        readonly=True,
+        copy=False,
+        help="0 none; 1 response overdue (Branch Operations Lead told); 2 restore overdue "
+        "(Operations Director told)",
+    )
+    sla_response_breached = fields.Boolean(
+        string="Response SLA Breached", compute="_compute_sla_breach"
+    )
+    sla_restore_breached = fields.Boolean(
+        string="Restore SLA Breached", compute="_compute_sla_breach"
+    )
+    # M47-29: the building plant the job is on, so its history (MTBF, cost) is per asset
+    site_asset_id = fields.Many2one(
+        "fix.site.asset",
+        string="Infrastructure Asset",
+        index=True,
+        ondelete="restrict",
+        domain="[('site_id', '=', site_id)]",
+    )
+
+    @api.depends("response_due_at", "restore_due_at", "accepted_at", "completed_at")
+    def _compute_sla_breach(self):
+        now = fields.Datetime.now()
+        for rec in self:
+            answered = rec.accepted_at or rec.completed_at
+            rec.sla_response_breached = bool(
+                rec.response_due_at and (answered or now) > rec.response_due_at
+            )
+            rec.sla_restore_breached = bool(
+                rec.restore_due_at and (rec.completed_at or now) > rec.restore_due_at
+            )
+
+    @api.constrains("site_asset_id", "site_id")
+    def _check_site_asset(self):
+        for rec in self.filtered("site_asset_id"):
+            if rec.site_asset_id.sudo().site_id != rec.site_id:
+                raise ValidationError(
+                    "%s is not at %s." % (rec.site_asset_id.sudo().name, rec.site_id.sudo().name)
+                )
+
+    @api.model
+    def _wo_sla_hours(self, priority):
+        """(response hours, restore hours) of a priority: the D15 parameters."""
+        response, restore = WO_SLA_DEFAULTS.get(priority, WO_SLA_DEFAULTS["normal"])
+        params = self.env["ir.config_parameter"].sudo()
+        out = []
+        for kind, default in (("response", response), ("restore", restore)):
+            raw = params.get_param(WO_SLA_PARAM % (priority, kind))
+            try:
+                value = float(raw) if raw not in (None, False, "") else default
+            except ValueError:
+                value = default
+            out.append(value if value > 0 else default)
+        return tuple(out)
+
+    @api.model
+    def _wo_sla_vals(self, priority, start):
+        response, restore = self._wo_sla_hours(priority)
+        return {
+            "response_due_at": start + timedelta(hours=response),
+            "restore_due_at": start + timedelta(hours=restore),
+            "sla_escalation_level": 0,
+        }
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
+            *WO_SLA_STAMPS,
+            "accepted_by_id",
+            "accepted_at",
             "priority",
             "triaged_by_id",
             "triaged_on",
@@ -961,6 +1167,9 @@ class FixFacilityWorkOrder(models.Model):
                 )
             if system and not vals.get("priority"):
                 vals.update(priority="normal", triaged_on=now)
+            if system and vals.get("priority") and not vals.get("response_due_at"):
+                vals.setdefault("triaged_on", now)
+                vals.update(self._wo_sla_vals(vals["priority"], vals["triaged_on"]))
         self._wo_check_site_open({v["site_id"] for v in vals_list if v.get("site_id")})
         records = super().create(vals_list)
         for rec in records:
@@ -1063,14 +1272,90 @@ class FixFacilityWorkOrder(models.Model):
         if wanted not in dict(WO_PRIORITIES):
             raise UserError("Give the priority: emergency, high, normal or low.")
         for rec in self:
+            now = fields.Datetime.now()
+            # the clocks run from the first triage; a re-triage re-times them
+            # from that same moment, so a downgrade cannot reset an overdue clock
+            start = rec.triaged_on or now
             rec._guarded().write(
                 {
                     "priority": wanted,
                     "triaged_by_id": self.env.uid,
-                    "triaged_on": fields.Datetime.now(),
+                    "triaged_on": start,
+                    **self._wo_sla_vals(wanted, start),
                 }
             )
-            rec.message_post(body="Triaged as %s by %s." % (wanted, self.env.user.name))
+            rec.message_post(
+                body="Triaged as %s by %s: response due %s, restore due %s (UTC)."
+                % (wanted, self.env.user.name, rec.response_due_at, rec.restore_due_at)
+            )
+        return True
+
+    def action_accept(self):
+        """The engineer (or a Facility Manager) takes the job: the response
+        clock is met (BRU-FAC-08)."""
+        self._wo_require_worker("Accepting the job")
+        self._wo_require_state(WO_OPEN_STATES, "be accepted")
+        self._wo_assert_triaged()
+        for rec in self:
+            if rec.accepted_at:
+                raise UserError(
+                    "%s was already accepted by %s." % (rec.name, rec.accepted_by_id.name)
+                )
+            rec._guarded().write(
+                {"accepted_by_id": self.env.uid, "accepted_at": fields.Datetime.now()}
+            )
+            rec.message_post(body="Accepted by %s." % self.env.user.name)
+        return True
+
+    def _wo_role_holders(self, group_xmlid):
+        group = self.env.ref(group_xmlid, raise_if_not_found=False)
+        if not group:
+            return self.env["res.users"]
+        users = group.sudo().all_user_ids.filtered(
+            lambda u: u.active and not u.share and self.company_id in u.company_ids
+        )
+        ou = self.operating_unit_id or self.site_id.operating_unit_id
+        if ou and "operating_unit_ids" in users._fields:
+            users = users.filtered(lambda u: ou in u.operating_unit_ids) or users
+        return users
+
+    @api.model
+    def cron_wo_sla_escalation(self):
+        """Hourly (BRU-FAC-08, D15): a job whose response clock ran out with
+        nobody accepting it goes to the Branch Operations Leads of its unit; one
+        whose restore clock ran out unfinished goes to the Operations Director.
+        Each step once per job; the to-do is scheduled even if an earlier one
+        is still open."""
+        now = fields.Datetime.now()
+        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        steps = (
+            (1, "response_due_at", "accepted_at", BRANCH_LEAD_GROUP, "nobody has accepted it"),
+            (2, "restore_due_at", "completed_at", OPS_DIRECTOR_GROUP, "it is not restored"),
+        )
+        for rec in self.sudo().search(
+            [("state", "in", WO_OPEN_STATES), ("response_due_at", "!=", False)]
+        ):
+            for level, due_field, done_field, group, why in steps:
+                if rec.sla_escalation_level >= level or rec[done_field] or rec[due_field] > now:
+                    continue
+                summary = "%s %s: %s priority SLA overdue since %s (%s)" % (
+                    rec.name,
+                    rec.site_id.name,
+                    rec.priority,
+                    rec[due_field],
+                    why,
+                )
+                holders = rec._wo_role_holders(group)
+                if todo:
+                    for user in holders:
+                        rec.activity_schedule(
+                            activity_type_id=todo.id, summary=summary[:200], user_id=user.id
+                        )
+                rec._guarded().write({"sla_escalation_level": level})
+                rec.message_post(
+                    body="SLA escalation: %s. Told: %s."
+                    % (summary, ", ".join(holders.mapped("name")) or "nobody holds the role")
+                )
         return True
 
     def action_request_approval(self, justification=None):
@@ -1179,6 +1464,9 @@ class FixFacilityWorkOrder(models.Model):
                 )
             # what is closed is what was approved
             rec._dofa_assert_approved("Verifying work order %s" % rec.name)
+            # M47-13: a job with a cost needs a cost centre before it is closed
+            if (rec.actual_cost or 0.0) > 0.0:
+                site_cost_centre(rec.site_id, "the cost of %s" % rec.name)
             rec._guarded().write(
                 {
                     "state": "verified",
@@ -1189,6 +1477,12 @@ class FixFacilityWorkOrder(models.Model):
             )
             # BRU-FAC-20 / AUT-FAC-09: the cost hand-off to M52 (the bridge
             # consumes it); the actual cost, never the estimate in its place.
+            # A07 ERP audit (2026-11-20): the event states the facts the cost
+            # entry needs: M47-19 whether anybody is owed (`payable`: only a
+            # vendor's job; an internal job is the branch's own labour and
+            # stock, `payment_method` internal), M47-13 the cost centre, M47-23
+            # the Dhaka day of the verification, M47-35 the vehicle and its unit.
+            facts = rec._m52_cost_facts()
             publish(
                 self.env,
                 "facility.work_order_closed",
@@ -1210,13 +1504,52 @@ class FixFacilityWorkOrder(models.Model):
                     "verified_by": self.env.user.name,
                     "completed_at": fields.Datetime.to_string(rec.completed_at),
                     "verified_at": fields.Datetime.to_string(rec.verified_at),
+                    "payable": facts["payment_method"] == "vendor_bill",
+                    "payment_method": facts["payment_method"],
+                    "operating_unit_id": facts["operating_unit_id"],
+                    "cost_date": str(facts["cost_date"]),
+                    "vehicle_id": facts.get("vehicle_id") or None,
+                    "site_asset_id": rec.site_asset_id.id or None,
                 },
             )
         return True
 
+    def _m52_cost_facts(self):
+        """The facts of a verified job's cost for M52 (M47-13/19/23/35)."""
+        self.ensure_one()
+        site = self.site_id.sudo()
+        vendor_job = self.assigned_type == "vendor"
+        ou = site.operating_unit_id or site.branch_id.operating_unit_id
+        vals = {
+            "cost_type": "facility_work_order",
+            "company_id": self.company_id.id,
+            "operating_unit_id": ou.id or False,
+            "branch_id": site.branch_id.id,
+            "site_id": site.id,
+            "amount": float(self.actual_cost or 0.0),
+            "currency_id": self.currency_id.id,
+            # M47-23: the Dhaka day of the verification, not the UTC one
+            "cost_date": dhaka_date(self, self.verified_at),
+            "vendor_id": self.vendor_id.id if vendor_job else False,
+            "invoice_ref": (self.invoice_ref or False) if vendor_job else False,
+            # M47-19: only a vendor is owed; an internal job is recorded, not paid
+            "payment_method": "vendor_bill" if vendor_job else "internal",
+            "detail": "%s / %s" % (self.work_type or "-", self.assigned_type),
+        }
+        # M47-35: a vehicle's job (the work-order spine links it) is the vehicle's cost
+        vehicle = self.vehicle_id if "vehicle_id" in self._fields else None
+        if vehicle:
+            vehicle = vehicle.sudo()
+            vals["vehicle_id"] = vehicle.id
+            v_ou = vehicle.operating_unit_id or vehicle.branch_id.operating_unit_id
+            if v_ou:
+                vals["operating_unit_id"] = v_ou.id
+                vals["branch_id"] = vehicle.branch_id.id
+        return vals
+
     # ---- permit to work ----------------------------------------------------
     def _wo_assert_permit(self):
-        today = fields.Date.context_today(self)
+        today = dhaka_today(self)
         for rec in self:
             if not rec.high_risk:
                 continue
@@ -1234,7 +1567,7 @@ class FixFacilityWorkOrder(models.Model):
     def action_approve_permit(self, valid_to=None):
         """Approve the permit to work for a high-risk job. Valid for the day
         unless a later date is given; no permit period is invented."""
-        today = fields.Date.context_today(self)
+        today = dhaka_today(self)
         try:
             until = fields.Date.to_date(valid_to) if valid_to else today
         except ValueError as exc:

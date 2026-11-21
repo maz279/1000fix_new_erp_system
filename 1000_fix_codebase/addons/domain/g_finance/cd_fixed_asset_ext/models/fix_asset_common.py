@@ -81,6 +81,12 @@ def add_months(day: date, months: int) -> date:
     return day + relativedelta(months=months)
 
 
+def dhaka_today(env) -> date:
+    """The business day (Asia/Dhaka), whatever the user's or the cron user's
+    time zone (A07 D4: the cron user runs on Europe/Brussels)."""
+    return fields.Date.context_today(env["res.users"].with_context(tz="Asia/Dhaka"))
+
+
 def float_param(env, key):
     raw = env["ir.config_parameter"].sudo().get_param(key)
     if raw in (None, False, ""):
@@ -188,7 +194,7 @@ def assert_period_open(env, company, day, what="This posting"):
     lock dates, or an M19 period close marked closed) nor into a month not yet
     reached. Odoo used to re-date a locked entry silently while the register
     kept the old month."""
-    today = fields.Date.context_today(env["res.users"])
+    today = dhaka_today(env)
     if day > month_end(today):
         raise UserError(env._("%s is dated %s, a period not yet reached: refused.", what, day))
     comp = company.sudo()
@@ -228,15 +234,21 @@ def post_entry(env, company, journal, entry_date, ref, lines, operating_unit=Non
     (post_with_dimensions, source fixed_asset: chart rules, dimensions and the
     posting log — A08 M49-10), after the period gate.
 
-    lines: [(account, debit, credit, label)]; zero lines are dropped. Raises
-    UserError (nothing created — callers run inside the request savepoint)
-    when the entry would not balance or has nothing to post."""
+    lines: [(account, debit, credit, label)] or [(account, debit, credit,
+    label, operating_unit)]; zero lines are dropped. A line's own operating
+    unit wins over `operating_unit`. A07 FIN-01/02 (2026-11-20): every line
+    carries a branch, never the company's first operating unit: a line with
+    none is refused. Raises UserError (nothing created — callers run inside
+    the request savepoint) when the entry would not balance or has nothing
+    to post."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
     assert_period_open(env, company, entry_date, ref)
-    vals = []
+    vals, line_ous = [], []
     total_d = total_c = 0.0
-    for account, debit, credit, label in lines:
+    for line in lines:
+        account, debit, credit, label = line[:4]
+        line_ou = line[4] if len(line) > 4 and line[4] else operating_unit
         debit, credit = money(debit), money(credit)
         if not debit and not credit:
             continue
@@ -249,13 +261,19 @@ def post_entry(env, company, journal, entry_date, ref, lines, operating_unit=Non
         vals.append(
             (0, 0, {"account_id": account.id, "debit": debit, "credit": credit, "name": label})
         )
+        line_ous.append(line_ou)
     if not vals:
         raise UserError(env._("Nothing to post for %s.", ref))
     if abs(money(total_d) - money(total_c)) > 0.001:
         raise UserError(env._("%s does not balance — nothing was posted.", ref))
-    ou = operating_unit or env["operating.unit"].sudo().search(
-        [("company_id", "=", company.id)], limit=1
-    )
+    if not all(line_ous):
+        raise UserError(
+            env._(
+                "%s has no branch (operating unit): an M49 entry is posted on the asset's or "
+                "lease's own branch, never on the company's first one. Set the branch first.",
+                ref,
+            )
+        )
     move_vals = {
         "move_type": "entry",
         "company_id": company.id,
@@ -264,7 +282,7 @@ def post_entry(env, company, journal, entry_date, ref, lines, operating_unit=Non
         "ref": ref,
         "line_ids": vals,
     }
-    dims = {i: {"operating_unit_id": ou.id} for i in range(len(vals))} if ou else {}
+    dims = {i: {"operating_unit_id": ou.id} for i, ou in enumerate(line_ous)}
     post_env = (
         env(context=dict(env.context, allowed_company_ids=company.ids))
         if env.su or company in env.user.company_ids

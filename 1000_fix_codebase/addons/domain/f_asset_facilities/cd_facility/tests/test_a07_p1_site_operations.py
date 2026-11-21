@@ -59,6 +59,8 @@ def c(odoo_env):
     x.clerk2 = _user(env, "a07p1_m47o_clerk2", x.co, x.ou)
     x.fm = _user(env, "a07p1_m47o_fm", x.co, x.ou, FM)
     x.bol = _user(env, "a07p1_m47o_bol", x.co, x.ou, BOL)
+    # A07 ERP audit (2026-11-20) M47-18: a utility bill is recorded by a Facility Manager
+    x.ufm = _user(env, "a07p1_m47o_ufm", x.co, x.ou, FM)
     x.cenv = env(user=x.clerk.id, context=dict(env.context, allowed_company_ids=x.co.ids))
     x.site = env["fix.site"].create(
         {"name": "A07P1O Branch", "company_id": x.co.id, "state": "active"}
@@ -98,7 +100,7 @@ def p03(c):
 
 # ------------------------------------------------------------------ utilities
 def test_a_spike_is_held_and_only_a_reviewer_who_did_not_record_it_clears_it(c, p03):
-    U = c.env["fix.site.utility"].with_user(c.clerk)
+    U = c.env["fix.site.utility"].with_user(c.ufm)
     U.create({"site_id": c.site.id, "period": "2026-08", "amount": 10000.0, "usage": 1000.0})
     U.create({"site_id": c.site.id, "period": "2026-09", "amount": 11000.0, "usage": 1100.0})
     normal = U.create(
@@ -124,7 +126,7 @@ def test_a_spike_is_held_and_only_a_reviewer_who_did_not_record_it_clears_it(c, 
     _refused(spike.with_user(c.clerk2).action_release, notes="fine", match="Branch Operations")
     _refused(spike.with_user(c.bol).action_release, match="basis")
     # the figures under review are frozen
-    _refused(spike.with_user(c.clerk2).write, {"amount": 12000.0}, match="reviewed on")
+    _refused(spike.with_user(c.fm).write, {"amount": 12000.0}, match="reviewed on")
     spike.with_user(c.bol).action_confirm_anomaly(notes="Meter fault confirmed by DESCO")
     assert (spike.review_state, spike.flagged, spike.reviewed_by_id) == ("confirmed", True, c.bol)
     _refused(spike.with_user(c.bol).action_release, notes="x", match="not held")
@@ -133,7 +135,7 @@ def test_a_spike_is_held_and_only_a_reviewer_who_did_not_record_it_clears_it(c, 
 def test_a_manual_hold_is_released_by_a_reviewer(c):
     u = (
         c.env["fix.site.utility"]
-        .with_user(c.clerk)
+        .with_user(c.ufm)
         .create(
             {"site_id": c.site.id, "period": "2026-10", "utility_type": "water", "amount": 500.0}
         )
@@ -147,7 +149,7 @@ def test_a_manual_hold_is_released_by_a_reviewer(c):
 
 def test_the_anomaly_factor_is_a_business_parameter(c):
     c.env["ir.config_parameter"].sudo().set_param("cd_facility.utility_anomaly_factor", "1.2")
-    U = c.env["fix.site.utility"].with_user(c.clerk)
+    U = c.env["fix.site.utility"].with_user(c.ufm)
     U.create({"site_id": c.site.id, "period": "2026-09", "amount": 1000.0})
     held = U.create({"site_id": c.site.id, "period": "2026-10", "amount": 1300.0})
     assert held.review_state == "held"
@@ -330,7 +332,7 @@ def test_p03_offers_the_new_actions_and_surfaces(c):
 def test_p03_review_and_decision_buttons_run_with_the_callers_rights(c, p03):
     u = (
         c.env["fix.site.utility"]
-        .with_user(c.clerk)
+        .with_user(c.ufm)
         .create({"site_id": c.site.id, "period": "2026-10", "amount": 900.0})
     )
     u.action_flag()

@@ -61,10 +61,18 @@ class FixMaintenanceDemandVehicleWiring(models.Model):
     # ------------------------------------------------------------ defect
     @api.model
     def consume_vehicle_defect_raised(self, event):
-        """vehicle.defect_raised -> the repair of the defect a failed pre-use
-        check found: one demand per check; a further failed check of the same
-        vehicle while that repair is open is logged on it. Idempotent per
-        check."""
+        """vehicle.defect_raised -> the repair of the defect. Two publishers:
+        a failed pre-use check (aggregate fix.vehicle.check) and a defect
+        reported on the Defects page (aggregate fix.vehicle.defect).
+
+        A07 ERP audit M46-09: the consumer read every aggregate id as a CHECK
+        id, so a reported defect got no repair (or, when a failed check had
+        the same id, another vehicle got one). It now reads the aggregate the
+        event names. One demand per source; a further failure of the same
+        vehicle while that repair is open is logged on it. A deferrable
+        defect raises nothing: it is repaired at the next service (FR-FLT-025)."""
+        if (event.get("aggregate") or "fix.vehicle.check") == "fix.vehicle.defect":
+            return self._spine_vehicle_defect(event)
         check = self.env["fix.vehicle.check"].sudo().browse(event.get("aggregate_id")).exists()
         if not check or check.passed:
             return False
@@ -104,6 +112,104 @@ class FixMaintenanceDemandVehicleWiring(models.Model):
             label="%s defect (%s)" % (_plate(vehicle), check.name),
         )
         demand._spine_log(marker, "Raised for %s." % what)
+        return True
+
+    @api.model
+    def _spine_vehicle_defect(self, event):
+        """A reported safety-critical defect -> its repair demand (M46-09)."""
+        defect = self.env["fix.vehicle.defect"].sudo().browse(event.get("aggregate_id")).exists()
+        if not defect or defect.state != "open" or not defect.safety_critical:
+            return False
+        vehicle = defect.vehicle_id
+        marker = "defect:%s" % defect.id
+        mine = self.sudo().search([("vehicle_id", "=", vehicle.id), ("origin", "=", "m46_defect")])
+        if self._spine_find(defect) or any("[%s]" % marker in (d.source_log or "") for d in mine):
+            return True
+        what = "safety-critical defect %s (%s) reported on %s: %s" % (
+            defect.name,
+            defect.category,
+            defect.raised_on,
+            defect.description or "-",
+        )
+        host = self._spine_vehicle_host(vehicle, "m46_defect")
+        if host:
+            host[0]._spine_log(marker, "Also %s." % what)
+            return True
+        description = (
+            "Vehicle %s: %s%s. Repair the defect. The vehicle returns to service in M46 only "
+            "once the defect is cleared on a passed pre-use check: this work order does not "
+            "stand in for it."
+            % (
+                _plate(vehicle),
+                what,
+                "; off-road record %s" % defect.offroad_id.name if defect.offroad_id else "",
+            )
+        )
+        demand = self._spine_raise(
+            "m46_defect",
+            defect,
+            self._spine_vehicle_vals(vehicle, "repair", description),
+            label="%s defect (%s)" % (_plate(vehicle), defect.name),
+        )
+        demand._spine_log(marker, "Raised for %s." % what)
+        return True
+
+    # ------------------------------------------------------------ cargo
+    @api.model
+    def consume_vehicle_incident_cargo(self, event):
+        """vehicle.incident with cargo_affected (A07 ERP audit M46-23,
+        BRU-FLT-14): each customer device named in the accident's cargo list
+        (serial or IMEI, one per line) is told on its M17 record, with an
+        activity for the registry to inspect it. Idempotent per accident and
+        device (the chatter marker). Lines that match no device are reported
+        on the accident for the branch to resolve."""
+        accident = (
+            self.env["fix.vehicle.accident"].sudo().browse(event.get("aggregate_id")).exists()
+        )
+        if not accident or not accident.cargo_affected:
+            return False
+        Device = self.env["fix.device"].sudo()
+        marker = "[m46-cargo:%s]" % accident.id
+        unmatched = []
+        for line in (accident.cargo_note or "").splitlines():
+            ref = line.strip()
+            if not ref:
+                continue
+            device = Device.search(
+                [
+                    "|",
+                    "|",
+                    ("serial_number", "=ilike", ref),
+                    ("imei_1", "=ilike", ref),
+                    ("imei_2", "=ilike", ref),
+                ],
+                limit=1,
+            )
+            if not device:
+                unmatched.append(ref)
+                continue
+            if any(marker in (m.body or "") for m in device.message_ids):
+                continue
+            text = (
+                "%s Carried in vehicle %s when accident %s happened on %s: inspect the device "
+                "for damage before it is handed back."
+                % (
+                    marker,
+                    _plate(accident.vehicle_id),
+                    accident.name,
+                    accident.occurred_on,
+                )
+            )
+            device.message_post(body=text)
+            device.activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Inspect after vehicle accident %s" % accident.name,
+                note=text,
+            )
+        if unmatched:
+            accident.message_post(
+                body="Cargo not found in the device registry (M17): %s." % ", ".join(unmatched)
+            )
         return True
 
     # ------------------------------------------------------------ telematics

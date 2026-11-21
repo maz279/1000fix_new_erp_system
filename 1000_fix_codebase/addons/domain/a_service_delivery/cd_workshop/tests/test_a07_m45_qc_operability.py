@@ -104,6 +104,34 @@ def test_a_qc_inspector_names_the_instrument_on_the_form_and_passes(m31, ui, for
     meta = next(f for f in out["fields"] if f["name"] == "equipment_id")
     assert meta["readonly"] is False
 
+    # A07 ERP audit D7(c): the instrument rule applies when the job's QC
+    # protocol is a measurement - give the job's device type one
+    device = job.device_id or job.order_id.device_id
+    dmodel = device.device_model_id.sudo()
+    if not dmodel.device_type:
+        dmodel.write(
+            {"device_type": dmodel._fields["device_type"]._description_selection(job.env)[0][0]}
+        )
+    job.env["fix.workshop.test.protocol"].sudo().create(
+        {
+            "code": "A7QCOP-PR-%d" % job.id,
+            "name": "Charging rail check",
+            "device_type": device.device_type,
+            "step_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": "5V rail",
+                        "unit": "V",
+                        "has_limits": True,
+                        "lower_limit": 4.75,
+                        "upper_limit": 5.25,
+                    },
+                )
+            ],
+        }
+    )
     # the switch refuses a pass with no instrument, and says what to do
     refused = ui.action(
         m31.qc,

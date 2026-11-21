@@ -9,6 +9,8 @@ from odoo.exceptions import UserError
 
 from libs.py.fix_events import publish
 
+from .fix_facility import dhaka_today, site_cost_centre
+
 # Who takes the continue-or-suspend decision (spec §8.1 "Operations Director
 # / CEO", §13 R01 CEO). No CEO group exists: DOFA Tier 5 "Managing Director /
 # Board" stands for the CEO, as in the P0 site-closure sign-off.
@@ -20,7 +22,7 @@ class FixSiteRiskException(models.Model):
 
     _name = "fix.site.risk.exception"
     _description = "Site Operating-Risk Exception"
-    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
     _order = "raised_at desc, id desc"
 
     name = fields.Char(required=True, default="New", readonly=True)
@@ -220,7 +222,7 @@ class FixSiteRiskException(models.Model):
 
     def action_decide_continue(self, review_due_on=None, notes=None):
         """Continue operating on the lapse until a named review date."""
-        today = fields.Date.context_today(self)
+        today = dhaka_today(self)
         try:
             review = fields.Date.to_date(review_due_on) if review_due_on else None
         except ValueError as exc:
@@ -242,7 +244,7 @@ class FixSiteRiskException(models.Model):
     # ---- daily escalation (AUT-FAC-03: escalate daily until decided) ------
     @api.model
     def _exception_escalate(self):
-        today = fields.Date.context_today(self)
+        today = dhaka_today(self)
         lapsed = self.sudo().search([("state", "=", "continue"), ("review_due_on", "<", today)])
         for rec in lapsed:
             rec._guarded().write({"state": "open", "decision_notes": False})
@@ -254,15 +256,41 @@ class FixSiteRiskException(models.Model):
         self.sudo().search(
             [("state", "in", ("open", "continue", "suspend")), ("site_id.state", "=", "closed")]
         )._exception_resolve("the site is closed")
+        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
         for rec in self.sudo().search([("state", "=", "open")]):
             if rec.last_escalated_on == today:
                 continue
             rec._guarded().write({"last_escalated_on": today})
+            # A07 ERP audit (2026-11-20) M47-15 / AUT-FAC-03: the escalation
+            # reaches the people who decide (Operations Director, CEO), each day
+            # a new to-do, not a chatter line nobody is told about
+            deciders = rec._exception_decider_users()
+            summary = (
+                "Decide: %s is operating on a lapsed licence (%s) with no continue-or-suspend "
+                "decision" % (rec.site_id.name, rec.licence_id.name or "-")
+            )
+            if todo:
+                for user in deciders:
+                    rec.activity_schedule(
+                        activity_type_id=todo.id, summary=summary[:200], user_id=user.id
+                    )
             rec.message_post(
-                body="Escalation: %s is still operating on a lapsed licence with no decision."
-                % rec.site_id.name
+                body="Escalation: %s is still operating on a lapsed licence with no decision. "
+                "Told: %s." % (rec.site_id.name, ", ".join(deciders.mapped("name")) or "nobody")
             )
         return True
+
+    def _exception_decider_users(self):
+        self.ensure_one()
+        users = self.env["res.users"]
+        for xmlid in EXCEPTION_DECIDERS:
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                users |= group.sudo().all_user_ids
+        company = self.site_id.sudo().company_id
+        return users.filtered(
+            lambda u: u.active and not u.share and (not company or company in u.company_ids)
+        )
 
 
 class _InsertOnly(models.AbstractModel):
@@ -307,54 +335,216 @@ class FixSiteLeaseSchedule(models.Model):
     due_date = fields.Date(required=True)
     escalation_year = fields.Integer(help="Lease years completed when the rent falls due")
     currency_id = fields.Many2one(related="lease_id.currency_id")
+    # A07 ERP audit (2026-11-20) M47-28: a payment covers `months` of rent (its
+    # frequency) and carries the service charge; the advance rent the landlord
+    # adjusts is taken off what is owed (M47-08).
+    months = fields.Integer(default=1, help="Months of rent this payment covers")
     rent_due = fields.Monetary(currency_field="currency_id")
-    paid_amount = fields.Monetary(currency_field="currency_id", help="Matched by M52")
+    service_charge_due = fields.Monetary(currency_field="currency_id", string="Service Charge")
+    advance_adjusted = fields.Monetary(
+        currency_field="currency_id",
+        string="Advance Adjusted",
+        help="Advance rent the landlord adjusted against this payment",
+    )
+    amount_payable = fields.Monetary(
+        currency_field="currency_id",
+        string="Payable",
+        compute="_compute_amount_payable",
+        store=True,
+        help="Rent plus service charge, less the advance adjusted",
+    )
+    # M47-03: what the current terms would charge for a payment already sent
+    revised_rent_due = fields.Monetary(
+        currency_field="currency_id",
+        string="Revised (after modification)",
+        help="The amount under the lease's current terms, where it differs from what was sent",
+    )
+    # M47-27: rent before `schedule_from` (paid outside the system): never sent
+    historical = fields.Boolean(string="History (not payable here)")
+    cancelled = fields.Boolean(string="Cancelled (lease ended)")
+    paid_amount = fields.Monetary(currency_field="currency_id", help="Paid on the vendor bill")
     paid_on = fields.Date()
     invoice_ref = fields.Char(string="Invoice Ref (M52)")
     ap_requested_on = fields.Date(string="Sent to AP On", readonly=True, copy=False)
+    ap_block_reason = fields.Char(string="Not Sent Because", readonly=True, copy=False)
+    # M47-06: a match to the landlord's bill is not a payment
+    matched_on = fields.Date(string="Billed / Matched On")
     variance = fields.Monetary(
-        currency_field="currency_id", compute="_compute_variance", help="Paid minus due"
+        currency_field="currency_id",
+        compute="_compute_variance",
+        help="Paid (on the landlord's bill) minus payable",
     )
 
-    @api.depends("rent_due", "paid_amount")
+    @api.depends("rent_due", "service_charge_due", "advance_adjusted")
+    def _compute_amount_payable(self):
+        for rec in self:
+            rec.amount_payable = round(
+                (rec.rent_due or 0.0)
+                + (rec.service_charge_due or 0.0)
+                - (rec.advance_adjusted or 0.0),
+                2,
+            )
+
+    @api.depends("amount_payable", "paid_amount", "paid_on")
     def _compute_variance(self):
         for rec in self:
-            rec.variance = (rec.paid_amount or 0.0) - (rec.rent_due or 0.0) if rec.paid_on else 0.0
+            rec.variance = (
+                (rec.paid_amount or 0.0) - (rec.amount_payable or 0.0) if rec.paid_on else 0.0
+            )
 
-    def action_send_to_ap(self):
-        """Send this month's rent to AP as a pending cost entry (BRU-FAC-12).
-        Accounts payable matches it to the landlord's bill, and the match
-        stamps the row. Sending it twice is one entry."""
-        if not self.env.su and not self.env.user.has_group("cd_facility.group_facility_manager"):
-            raise UserError("Rent is sent to accounts payable by a Facility Manager.")
+    def _schedule_m52_vals(self):
+        self.ensure_one()
+        lease = self.lease_id.sudo()
+        site = lease.site_id
+        detail = "Rent %s, lease %s" % (self.period, lease.name)
+        if self.service_charge_due:
+            detail += ", service charge %.2f" % self.service_charge_due
+        if self.advance_adjusted:
+            detail += ", advance adjusted %.2f" % self.advance_adjusted
+        return {
+            "cost_type": "lease_rent",
+            "company_id": (site.company_id or self.env.company).id,
+            "operating_unit_id": site_cost_centre(site, "the rent of %s" % lease.name).id,
+            "branch_id": site.branch_id.id,
+            "site_id": site.id,
+            "amount": self.amount_payable,
+            "currency_id": self.currency_id.id,
+            "cost_date": self.due_date,
+            "vendor_id": lease.lessor_id.id,
+            "payment_method": "vendor_bill",
+            "detail": detail[:250],
+        }
+
+    def _schedule_refusal(self):
+        """Why this payment cannot go to accounts payable, or None."""
+        self.ensure_one()
+        lease = self.lease_id.sudo()
+        if self.historical:
+            return (
+                "%s of %s is before the lease's Rent Payable From date (%s): it is history, "
+                "paid outside the system (M47-27)." % (self.period, lease.name, lease.schedule_from)
+            )
+        if self.cancelled:
+            return "%s of %s was cancelled when the lease ended." % (self.period, lease.name)
+        if lease.state != "active":
+            return "Lease %s is %s: no rent is sent." % (
+                lease.name,
+                dict(lease._fields["state"].selection)[lease.state],
+            )
+        return None
+
+    def _schedule_send(self):
+        """Send the payment (service write): the advance the landlord adjusts is
+        taken off, and the event states what AP owes, to whom, on which unit."""
         for rec in self.sudo():
-            if rec.paid_on or rec.ap_requested_on:
+            if rec.paid_on or rec.matched_on or rec.ap_requested_on:
                 continue
-            if rec.lease_id.state == "terminated":
-                raise UserError("Lease %s is terminated: no rent is due." % rec.lease_id.name)
-            rec._guarded().write({"ap_requested_on": fields.Date.context_today(rec)})
+            why = rec._schedule_refusal()
+            if why:
+                raise UserError(why)
+            lease = rec.lease_id
+            if lease.advance_adjust_monthly and lease.advance_balance > 0.005:
+                adjust = min(
+                    lease.advance_adjust_monthly * (rec.months or 1),
+                    lease.advance_balance,
+                    (rec.rent_due or 0.0) + (rec.service_charge_due or 0.0),
+                )
+                rec._guarded().write({"advance_adjusted": round(adjust, 2)})
+            vals = rec._schedule_m52_vals()
+            rec._guarded().write({"ap_requested_on": dhaka_today(rec), "ap_block_reason": False})
             publish(
                 self.env,
                 "lease.rent_payment_requested",
                 rec._name,
                 rec.id,
                 {
-                    "lease": rec.lease_id.name,
+                    "lease": lease.name,
                     "site": rec.site_id.name,
                     "site_id": rec.site_id.id,
                     "period": rec.period,
                     "due_date": str(rec.due_date),
-                    "amount": float(rec.rent_due or 0.0),
-                    "lessor_id": rec.lease_id.lessor_id.id,
+                    "amount": float(rec.amount_payable or 0.0),
+                    "lessor_id": lease.lessor_id.id,
+                    "rent": float(rec.rent_due or 0.0),
+                    "service_charge": float(rec.service_charge_due or 0.0),
+                    "advance_adjusted": float(rec.advance_adjusted or 0.0),
+                    "operating_unit_id": vals["operating_unit_id"],
                 },
             )
+
+    def action_send_to_ap(self):
+        """Send this payment's rent to AP as a pending cost entry (BRU-FAC-12).
+        Accounts payable matches it to the landlord's bill. Sending it twice is
+        one entry. The daily job sends what falls due (M47-07)."""
+        if not self.env.su and not self.env.user.has_group("cd_facility.group_facility_manager"):
+            raise UserError("Rent is sent to accounts payable by a Facility Manager.")
+        self._schedule_send()
         return True
 
-    def _m52_mark_paid(self, amount, paid_on, invoice_ref):
-        """Accounts payable matched this rent to the landlord's bill."""
+    @api.model
+    def _schedule_due_domain(self, today):
+        return [
+            ("due_date", "<=", today),
+            ("ap_requested_on", "=", False),
+            ("matched_on", "=", False),
+            ("paid_on", "=", False),
+            ("historical", "=", False),
+            ("cancelled", "=", False),
+            ("lease_id.state", "=", "active"),
+        ]
+
+    @api.model
+    def cron_rent_due_to_ap(self):
+        """Daily (AUT-FAC-06, M47-07): every payment of an active lease that has
+        fallen due (Dhaka day) and is not yet with accounts payable is sent. One
+        that cannot go (no cost centre) keeps the reason on the row, and the next
+        run tries again. Idempotent."""
+        today = dhaka_today(self)
+        sent = 0
+        for row in self.sudo().search(self._schedule_due_domain(today), order="due_date, id"):
+            try:
+                with self.env.cr.savepoint():
+                    row._schedule_send()
+                sent += 1
+            except UserError as exc:
+                reason = str(exc)[:250]
+                if row.ap_block_reason != reason:
+                    row._guarded().write({"ap_block_reason": reason})
+                    row.lease_id.message_post(
+                        body="Rent %s could not go to accounts payable: %s" % (row.period, reason)
+                    )
+        return sent
+
+    def _m52_match_refusal(self):
+        self.ensure_one()
+        return self._schedule_refusal() if (self.historical or self.cancelled) else None
+
+    # ---- the M52 source contract (cd_asset_finance_hse_bridge m52_cost.py) --
+    def _m52_mark_billed(self, bill_date=None, invoice_ref=None):
+        """AP matched this rent to the landlord's bill (M47-06): billed, not paid."""
         self.sudo()._guarded().write(
-            {"paid_amount": amount, "paid_on": paid_on, "invoice_ref": invoice_ref}
+            {"matched_on": bill_date or dhaka_today(self), "invoice_ref": invoice_ref or False}
         )
+
+    def _m52_mark_paid(self, amount, paid_on, invoice_ref=None):
+        """M47-05: the landlord's bill is paid: paid = the bill's amount for this
+        payment, so a landlord who over-bills shows as a variance."""
+        vals = {"paid_amount": amount, "paid_on": paid_on}
+        if invoice_ref:
+            vals["invoice_ref"] = invoice_ref
+        self.sudo()._guarded().write(vals)
+
+    def _m52_mark_unbilled(self, reason=None):
+        """M47-06: the bill was rejected or reset: the rent is owed again (its
+        cost entry is back with AP), neither billed nor paid."""
+        for rec in self.sudo():
+            rec._guarded().write(
+                {"matched_on": False, "paid_amount": 0.0, "paid_on": False, "invoice_ref": False}
+            )
+            rec.lease_id.message_post(
+                body="Rent %s is owed again: its landlord bill was %s."
+                % (rec.period, reason or "rejected or reset")
+            )
 
 
 class FixSiteLeaseExtract(models.Model):

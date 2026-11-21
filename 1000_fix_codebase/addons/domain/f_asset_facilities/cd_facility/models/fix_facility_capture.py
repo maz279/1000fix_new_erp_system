@@ -27,6 +27,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .fix_facility import dhaka_today
 from .fix_facility_ops import _PERIOD_RE, BRANCH_LEAD, FACILITY_MANAGER, LEASE_ALERT_DAYS
 
 OPS_DIRECTOR = "cd_facility.group_operations_director"
@@ -79,7 +80,7 @@ def _pct(value, what):
 
 
 def _today(record):
-    return fields.Date.context_today(record)
+    return dhaka_today(record)
 
 
 class FixSiteCaptureMixin(models.AbstractModel):
@@ -264,7 +265,7 @@ class FixSiteLicenceRenewal(models.Model):
         "res.users", string="Responsible Person", required=True, ondelete="restrict"
     )
     authority = fields.Char(string="Issuing Authority")
-    initiated_on = fields.Date(required=True, default=fields.Date.context_today)
+    initiated_on = fields.Date(required=True, default=lambda self: dhaka_today(self))
     documents_assembled = fields.Boolean(
         string="Documents Assembled",
         help="Proof of occupancy (the lease), TIN, the current fire licence for a trade "
@@ -307,6 +308,74 @@ class FixSiteLicenceRenewal(models.Model):
     completed_by_id = fields.Many2one("res.users", string="Completed By", readonly=True, copy=False)
     completed_on = fields.Date(readonly=True, copy=False)
     cancel_reason = fields.Char(string="Cancellation Reason", readonly=True, copy=False)
+    # A07 ERP audit (2026-11-20) M47-10 / FR-FAC-021: the fee, the agent's cost
+    # and a late penalty reach accounts payable / the ledger as charges, each
+    # with its payee and how it was paid. The fee and agent cost go when the
+    # renewal is submitted (the challan is paid), the penalty when it completes.
+    authority_partner_id = fields.Many2one(
+        "res.partner",
+        string="Authority (payee)",
+        help="The authority the fee and any penalty are paid to (City Corporation, FSCD …)",
+    )
+    agent_id = fields.Many2one("res.partner", string="Agent (payee of the agent cost)")
+    payment_method = fields.Selection(
+        [
+            ("vendor_bill", "Vendor Bill (Accounts Payable)"),
+            ("petty_cash", "Petty Cash"),
+            ("employee_expense", "Employee Expense Claim"),
+        ],
+        string="Paid By",
+        default="vendor_bill",
+        required=True,
+    )
+    employee_id = fields.Many2one("hr.employee", string="Employee Who Paid (expense claim)")
+    charge_ids = fields.One2many("fix.site.charge", "renewal_id", string="Charges Raised")
+
+    def _renewal_raise_charges(self, kinds):
+        """M47-10: one confirmed charge per non-zero component, queued to M52."""
+        Charge = self.env["fix.site.charge"].sudo()._guarded()
+        for rec in self.sudo():
+            site = rec.site_id
+            parts = {
+                "licence_fee": (rec.government_fee, rec.authority_partner_id),
+                "licence_other": (rec.other_cost, rec.agent_id or rec.authority_partner_id),
+                "licence_penalty": (rec.penalty, rec.authority_partner_id),
+            }
+            for kind in kinds:
+                amount, payee = parts[kind]
+                if (amount or 0.0) <= 0.0:
+                    continue
+                if rec.charge_ids.filtered(
+                    lambda c, k=kind: c.kind == k and c.state != "cancelled"
+                ):
+                    continue
+                Charge._charge_raise(
+                    site,
+                    kind,
+                    amount,
+                    renewal=rec,
+                    vendor=payee or None,
+                    payment_method=rec.payment_method,
+                    employee=rec.employee_id or None,
+                    invoice_ref=rec.challan_ref,
+                    reason="%s %s (%s)"
+                    % (
+                        rec.name,
+                        rec.licence_id.name,
+                        rec.penalty_reason if kind == "licence_penalty" else rec.authority or "-",
+                    ),
+                )
+
+    def _renewal_check_payment_facts(self, amounts):
+        for rec in self:
+            if not any((a or 0.0) > 0 for a in amounts(rec)):
+                continue
+            if rec.payment_method == "vendor_bill" and not rec.authority_partner_id:
+                raise UserError(
+                    "Name the authority %s pays (its payee in accounts payable)." % rec.name
+                )
+            if rec.payment_method == "employee_expense" and not rec.employee_id:
+                raise UserError("Name the employee who paid the fees of %s." % rec.name)
 
     @api.depends("government_fee", "other_cost", "penalty")
     def _compute_total_cost(self):
@@ -350,6 +419,22 @@ class FixSiteLicenceRenewal(models.Model):
                 "receipt_file",
                 "receipt_filename",
                 "new_licence_id",
+                "authority_partner_id",
+                "agent_id",
+                "payment_method",
+                "employee_id",
+            }
+        if self.state == "submitted":
+            # the fee and the agent cost went to accounts payable at submission
+            return {
+                "licence_id",
+                "government_fee",
+                "other_cost",
+                "challan_ref",
+                "authority_partner_id",
+                "agent_id",
+                "payment_method",
+                "employee_id",
             }
         return {"licence_id"}
 
@@ -405,6 +490,7 @@ class FixSiteLicenceRenewal(models.Model):
                 )
             if rec.government_fee and not (rec.challan_ref or "").strip():
                 raise UserError("Record the fee challan or receipt reference of %s." % rec.name)
+        self._renewal_check_payment_facts(lambda r: (r.government_fee, r.other_cost))
         self._m47_check_fire_first()
         for rec in self:
             rec._guarded().write(
@@ -414,6 +500,7 @@ class FixSiteLicenceRenewal(models.Model):
                     "submitted_by_id": self.env.uid,
                 }
             )
+        self._renewal_raise_charges(("licence_fee", "licence_other"))
         return True
 
     def action_complete(self):
@@ -463,9 +550,12 @@ class FixSiteLicenceRenewal(models.Model):
                     "Segregation of duties: a penalty arose from your renewal; another "
                     "Facility Manager completes it."
                 )
+            rec._renewal_check_payment_facts(lambda r: (r.penalty,))
             rec._guarded().write(
                 {"state": "completed", "completed_by_id": self.env.uid, "completed_on": today}
             )
+            # M47-10: the late penalty is owed (the fee went at submission)
+            rec._renewal_raise_charges(("licence_fee", "licence_other", "licence_penalty"))
             rec.message_post(
                 body="Renewed by %s (valid to %s); total cost %.2f."
                 % (new.name, new.valid_to, rec.total_cost)
@@ -601,7 +691,8 @@ class FixSiteLeaseEvent(models.Model):
             lease = Lease.browse(vals.get("lease_id")).exists()
             if not lease:
                 continue
-            if lease.state == "terminated":
+            # the termination consumer opens the deposit return itself (M47-17)
+            if lease.state == "terminated" and not self._fix_guard_open():
                 raise UserError("%s is terminated: it has no obligations left." % lease.name)
             due = fields.Date.to_date(vals.get("due_on"))
             if due and lease.start_date and due < lease.start_date:
@@ -762,7 +853,7 @@ class FixSiteUtilityAccount(models.Model):
         required=True,
     )
     connection_capacity = fields.Char(string="Connection Capacity", help="e.g. 20 kW, 50 Mbps")
-    active_from = fields.Date(required=True, default=fields.Date.context_today)
+    active_from = fields.Date(required=True, default=lambda self: dhaka_today(self))
     state = fields.Selection(
         [("active", "Active"), ("closed", "Closed")], required=True, default="active", tracking=True
     )
@@ -1046,14 +1137,26 @@ class FixSiteOutage(models.Model):
     recorded_by_id = fields.Many2one("res.users", string="Recorded By", readonly=True, copy=False)
     ended_by_id = fields.Many2one("res.users", string="Ended By", readonly=True, copy=False)
 
-    @api.depends("started_at", "ended_at", "branch_stopped")
+    @api.depends(
+        "started_at",
+        "ended_at",
+        "branch_stopped",
+        "site_id.opening_hour",
+        "site_id.closing_hour",
+        "site_id.weekly_off_day",
+    )
     def _compute_hours(self):
         for rec in self:
             hours = 0.0
             if rec.started_at and rec.ended_at:
                 hours = max((rec.ended_at - rec.started_at).total_seconds() / 3600.0, 0.0)
             rec.duration_hours = round(hours, 2)
-            rec.operating_hours_lost = round(hours, 2) if rec.branch_stopped else 0.0
+            # A07 ERP audit (2026-11-20) M47-24: only the hours the branch was
+            # open count as operating hours lost (a night outage loses none)
+            lost = 0.0
+            if rec.branch_stopped and hours:
+                lost = rec.site_id.sudo()._site_open_hours_between(rec.started_at, rec.ended_at)
+            rec.operating_hours_lost = round(lost, 2)
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -1159,7 +1262,9 @@ class FixSitePowerTest(models.Model):
         "fix.site", related="asset_id.site_id", store=True, string="Site", index=True
     )
     asset_type = fields.Selection(related="asset_id.asset_type", store=True, string="Asset Type")
-    tested_on = fields.Date(string="Tested On", required=True, default=fields.Date.context_today)
+    tested_on = fields.Date(
+        string="Tested On", required=True, default=lambda self: dhaka_today(self)
+    )
     test_type = fields.Selection(
         [
             ("load_test", "Load Test"),
@@ -1263,6 +1368,15 @@ class FixSitePowerTest(models.Model):
         if site.state not in ("active", "suspended"):
             return
         labels = dict(self._fields["test_type"]._description_selection(self.env))
+        # A07 ERP audit (2026-11-20) M47-34: a failed generator / UPS test is
+        # urgent; an emergency while the site has no grid power right now
+        no_grid = (
+            self.env["fix.site.outage"]
+            .sudo()
+            .search_count(
+                [("site_id", "=", site.id), ("service", "=", "power"), ("state", "=", "open")]
+            )
+        )
         order = (
             self.env["fix.facility.work.order"]
             .sudo()
@@ -1283,6 +1397,8 @@ class FixSitePowerTest(models.Model):
                     ),
                     "scheduled_date": self.tested_on,
                     "assigned_type": "internal",
+                    "priority": "emergency" if no_grid else "high",
+                    "site_asset_id": self.asset_id.id,
                 }
             )
         )

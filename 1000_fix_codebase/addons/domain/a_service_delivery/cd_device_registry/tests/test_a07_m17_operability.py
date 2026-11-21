@@ -1048,7 +1048,9 @@ def test_data_quality_does_not_mark_an_individual_down_for_having_no_estate(c, u
     rows = {r["device"]: r for r in out["rows"]}
     assert "no estate" not in rows[person.name]["problems"]
     assert "no estate" in rows[corporate.name]["problems"]
-    assert rows[person.name]["score_pct"] == rows[corporate.name]["score_pct"] + 20
+    # A07 ERP audit M17-25: 15 points per problem (serial OR IMEI, verification,
+    # evidence and completeness are all scored now)
+    assert rows[person.name]["score_pct"] == rows[corporate.name]["score_pct"] + 15
 
 
 def test_a_blank_transfer_type_is_refused_on_the_form_path(c, ui):  # noqa: F811

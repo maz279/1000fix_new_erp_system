@@ -172,7 +172,7 @@ def test_a_silent_customer_device_waits_for_its_registered_m17_device(c):
     _deliver(c, "telemetry.stream_silent", stream)
     demand = c.env[DEMAND].search([("iot_device_id", "=", device.id)])
     assert demand.target == "service_order" and demand.partner_id == customer
-    assert demand.state == "pending" and "registered device" in demand.blocker
+    assert demand.state == "pending" and demand.commercial_route == "opportunity"  # A07 ERP M48-04
     assert not demand.work_order_id and not demand.service_order_id
 
 
@@ -266,6 +266,10 @@ def test_an_intervention_outcome_becomes_one_m26_ground_truth_row(c):
     _e, p = _m48(c)
     a = _dispatch(c, p)
     a.write({"outcome_evidence_ref": "JC-A7WIR-1"})
+    # A07 ERP audit (2026-11-20) M48-08: the order raised at dispatch is done first
+    wo = c.env[WO].search([("iot_action_id", "=", a.id)])
+    _run_wo(c, wo, notes="Bearing within limits")
+    wo.with_user(c.fm2).action_verify()
     a.action_done(outcome="not_confirmed", note="Bearing within limits")
     _deliver(c, "iot.intervention_outcome_recorded", a)
     _deliver(c, "iot.intervention_outcome_recorded", a)

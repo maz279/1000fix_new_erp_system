@@ -37,6 +37,24 @@
       "properties": {
         "equipment": {
           "type": "string"
+        },
+        "due_date": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "branch": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "holder_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

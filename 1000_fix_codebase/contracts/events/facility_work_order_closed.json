@@ -111,6 +111,34 @@
         },
         "verified_at": {
           "type": "string"
+        },
+        "payable": {
+          "type": "boolean"
+        },
+        "payment_method": {
+          "type": "string"
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "boolean",
+            "null"
+          ]
+        },
+        "cost_date": {
+          "type": "string"
+        },
+        "vehicle_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "site_asset_id": {
+          "type": [
+            "integer",
+            "null"
+          ]
         }
       },
       "additionalProperties": false

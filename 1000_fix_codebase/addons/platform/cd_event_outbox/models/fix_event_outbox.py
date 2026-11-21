@@ -107,7 +107,8 @@ class FixEventOutbox(models.Model):
         (AS-08). The publisher drains this table asynchronously.
 
         Authorization: employees hold READ-only access to the outbox, so the
-        row is written with sudo() - for the CALLER'S company (env.company).
+        row is written with sudo(). Company: the aggregate record's own company
+        when it has one (FIN-24), else the caller's company (env.company).
         The method is @api.private: server code only, never callable over
         RPC (an employee cannot forge events into the bus).
         """
@@ -128,7 +129,7 @@ class FixEventOutbox(models.Model):
         }
         return self.sudo().create(
             {
-                "company_id": self.env.company.id,
+                "company_id": self._fix_event_company(aggregate, aggregate_id).id,
                 "event_type": event_type,
                 "aggregate": aggregate,
                 "aggregate_id": aggregate_id,
@@ -138,6 +139,32 @@ class FixEventOutbox(models.Model):
                 "bus_target": "dual",
             }
         )
+
+    @api.model
+    def _fix_event_company(self, aggregate, aggregate_id):
+        """FIN-24 (A07 ERP audit 2026-11-20): the company an event belongs to.
+
+        An event about a company-B record raised by a user working in company A
+        belonged to A (env.company), so the outbox and every consumer the relay
+        runs `with_company(event.company_id)` saw it in the wrong company. The
+        record's own company wins when the aggregate is a model with a company
+        field and the record exists and names one (a res.company aggregate is
+        its own company); otherwise the caller's company, as before."""
+        fallback = self.env.company
+        try:
+            record_id = int(aggregate_id or 0)
+        except (TypeError, ValueError):
+            return fallback
+        if not aggregate or record_id <= 0 or aggregate not in self.env:
+            return fallback
+        Model = self.env[aggregate].sudo()
+        if aggregate == "res.company":
+            return Model.browse(record_id).exists() or fallback
+        field = Model._fields.get("company_id")
+        if field is None or field.type != "many2one" or field.comodel_name != "res.company":
+            return fallback
+        record = Model.browse(record_id).exists()
+        return record.company_id[:1] or fallback
 
     @api.private
     @api.model
