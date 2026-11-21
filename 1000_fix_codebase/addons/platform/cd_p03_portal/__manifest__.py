@@ -6,7 +6,7 @@
 # four persona role centers (A1).
 {
     "name": "P03 Admin Operations Portal",
-    "version": "19.0.1.5.1",
+    "version": "19.0.1.5.2",
     "category": "Platform/Portal",
     "author": "1000FiX Services Ltd",
     "license": "LGPL-3",
@@ -29,6 +29,10 @@
         # A02 ERP audit X-17: the A02 printable documents (counter receipt, wipe
         # certificate, field service report, waybill, workshop job card)
         "report/p03_a02_documents.xml",
+        # A05 ERP audit XC-10: the A05 printable documents (rental agreement,
+        # condition report, deposit receipt, trade-in voucher, refurb job card,
+        # warranty card, e-waste manifest, disposal certificate, DoE return).
+        "report/p03_a05_documents.xml",
     ],
     "assets": {
         "web.assets_backend": [

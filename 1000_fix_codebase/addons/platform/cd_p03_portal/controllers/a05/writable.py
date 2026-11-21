@@ -59,6 +59,9 @@ WRITABLE = {
             "material_type",
             "notes",
             "operating_unit_id",
+            "outbound_gross_kg",
+            "outbound_tare_kg",
+            "outbound_ticket_ref",
             "partner_id",
             "processing_file",
             "processing_filename",
@@ -194,7 +197,6 @@ WRITABLE = {
             "frequency",
             "instrument",
             "name",
-            "next_review",
             "obligation_text",
             "owner_id",
             "review_note",
@@ -205,6 +207,7 @@ WRITABLE = {
         {
             "capability",
             "certificate_no",
+            "certificate_window_days",
             "certification",
             "company_id",
             "licence_file",
@@ -248,6 +251,7 @@ WRITABLE = {
             "authority_ack_ref",
             "company_id",
             "due_date",
+            "epr_base_kg",
             "form_type",
             "nil_return_reason",
             "notes",
@@ -260,10 +264,14 @@ WRITABLE = {
         {
             "amount",
             "batch_id",
+            "branch_id",
             "collection_id",
             "kind",
             "notes",
+            "operating_unit_id",
+            "partner_bank_id",
             "partner_id",
+            "payment_method",
             "rate_per_kg",
         }
     ),
@@ -292,6 +300,13 @@ WRITABLE = {
             "name",
             "recycle_criteria",
             "reuse_criteria",
+        }
+    ),
+    "fix.refurb.markdown": frozenset(
+        {
+            "new_price",
+            "reason",
+            "tradein_id",
         }
     ),
     "fix.refurb.qa": frozenset(
@@ -355,10 +370,10 @@ WRITABLE = {
         {
             "acquisition_date",
             "battery_health_pct",
+            "branch_id",
             "category",
             "condition_grade",
             "device_id",
-            "dofa_justification",
             "fixed_asset_id",
             "name",
             "notes",
@@ -366,11 +381,11 @@ WRITABLE = {
             "purchase_cost",
             "rental_sku_id",
             "residual_value",
-            "retirement_reason",
             "serial_no",
             "useful_life_days",
         }
     ),
+    "fix.rental.billing": frozenset(),
     "fix.rental.condition": frozenset(
         {
             "battery_health_pct",
@@ -424,6 +439,13 @@ WRITABLE = {
         {
             "note",
             "reference",
+        }
+    ),
+    "fix.rental.deposit.reduction": frozenset(
+        {
+            "reason",
+            "reduced_amount",
+            "reservation_id",
         }
     ),
     "fix.rental.exposure": frozenset(
@@ -492,16 +514,12 @@ WRITABLE = {
             "branch_id",
             "contract_id",
             "customer_id",
-            "daily_rate",
             "date_from",
             "date_to",
             "deposit_collected",
             "device_id",
-            "ifrs16_classification",
             "kit_id",
             "liability_cap_amount",
-            "monthly_rate",
-            "operating_unit_id",
             "rental_asset_id",
             "rental_sku_id",
             "service_order_id",
@@ -509,7 +527,16 @@ WRITABLE = {
             "special_terms",
             "stamp_duty_cert_no",
             "waiver_plan_id",
-            "weekly_rate",
+        }
+    ),
+    "fix.rental.retirement": frozenset(
+        {
+            "asset_id",
+            "data_wipe_certificate_id",
+            "material",
+            "reason",
+            "route",
+            "weight_kg",
         }
     ),
     "fix.rental.swap": frozenset(
@@ -627,7 +654,7 @@ WRITABLE = {
             "acc_earphones",
             "acceptance_channel",
             "accessories_notes",
-            "battery_health_pct",
+            "branch_id",
             "company_id",
             "condition_photo_id",
             "currency_id",
@@ -639,7 +666,6 @@ WRITABLE = {
             "device_id",
             "dofa_justification",
             "grade",
-            "graded_value",
             "intake_channel",
             "marketplace_seller_id",
             "oem_warranty_status",
@@ -648,7 +674,6 @@ WRITABLE = {
             "psr_attachment_id",
             "refurb_grade_id",
             "resale_channel",
-            "resale_listed_on",
             "resale_value",
             "settlement_bank_account_id",
             "settlement_method",

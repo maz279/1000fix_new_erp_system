@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A05 ERP audit XC-20 / M13-26 (20 Nov 2026): the customer is told of the A05
+     milestones - a rental due back, a rental overdue (1st / 3rd / 7th day), a
+     trade-in offer with its expiry, a trade-in payout - by SMS and e-mail in
+     their language, through fix.notif.delivery.queue(). The wording is in
+     transactional templates a contact-centre supervisor maintains. -->
+<odoo>
+    <data noupdate="1">
+
+        <!-- ============================== templates ============================== -->
+        <record id="notif_tmpl_a05_rental_return_due_sms" model="fix.cc.notif.template">
+            <field name="name">A05 rental due back (SMS)</field>
+            <field name="name_bn">ভাড়া ফেরতের সময় (এসএমএস)</field>
+            <field name="channel">sms</field>
+            <field name="consent_class">transactional</field>
+            <field name="body">1000FiX: your rental {{ref}} is due back on {{due}}. Please return the equipment with its accessories, or call 16743 to extend.</field>
+            <field name="body_bn">1000FiX: আপনার ভাড়া {{ref}}-এর যন্ত্রটি {{due}} তারিখে ফেরত দেওয়ার কথা। আনুষঙ্গিকসহ ফেরত দিন, অথবা মেয়াদ বাড়াতে 16743-এ কল করুন।</field>
+        </record>
+        <record id="notif_tmpl_a05_rental_return_due_email" model="fix.cc.notif.template">
+            <field name="name">A05 rental due back (e-mail)</field>
+            <field name="name_bn">ভাড়া ফেরতের সময় (ই-মেইল)</field>
+            <field name="channel">email</field>
+            <field name="consent_class">transactional</field>
+            <field name="subject">Your 1000FiX rental {{ref}} is due back on {{due}}</field>
+            <field name="subject_bn">আপনার 1000FiX ভাড়া {{ref}} ফেরতের তারিখ {{due}}</field>
+            <field name="body">Dear customer,
+
+Your rental {{ref}} is due back on {{due}}. Please return the equipment with all its accessories to the branch, or call 16743 before the due date if you need to extend. A late return is charged at the rate in your rental agreement.
+
+1000FiX Services Ltd. · Hotline 16743</field>
+            <field name="body_bn">প্রিয় গ্রাহক,
+
+আপনার ভাড়া {{ref}}-এর যন্ত্রটি {{due}} তারিখে ফেরত দেওয়ার কথা। সকল আনুষঙ্গিকসহ শাখায় ফেরত দিন, অথবা মেয়াদ বাড়াতে নির্ধারিত তারিখের আগে 16743-এ কল করুন। বিলম্বে ফেরতের জন্য চুক্তি অনুযায়ী চার্জ প্রযোজ্য।
+
+1000FiX Services Ltd. · হটলাইন 16743</field>
+        </record>
+
+        <record id="notif_tmpl_a05_rental_overdue_sms" model="fix.cc.notif.template">
+            <field name="name">A05 rental overdue (SMS)</field>
+            <field name="name_bn">ভাড়া মেয়াদোত্তীর্ণ (এসএমএস)</field>
+            <field name="channel">sms</field>
+            <field name="consent_class">transactional</field>
+            <field name="body">1000FiX: rental {{ref}} was due back on {{due}} and is {{days}} day(s) overdue. Late charges apply until it is returned. Call 16743.</field>
+            <field name="body_bn">1000FiX: ভাড়া {{ref}}-এর যন্ত্রটি {{due}} তারিখে ফেরত দেওয়ার কথা ছিল, {{days}} দিন পেরিয়ে গেছে। ফেরত না দেওয়া পর্যন্ত বিলম্ব চার্জ প্রযোজ্য। 16743-এ কল করুন।</field>
+        </record>
+        <record id="notif_tmpl_a05_rental_overdue_email" model="fix.cc.notif.template">
+            <field name="name">A05 rental overdue (e-mail)</field>
+            <field name="name_bn">ভাড়া মেয়াদোত্তীর্ণ (ই-মেইল)</field>
+            <field name="channel">email</field>
+            <field name="consent_class">transactional</field>
+            <field name="subject">Rental {{ref}} is {{days}} day(s) overdue</field>
+            <field name="subject_bn">ভাড়া {{ref}} {{days}} দিন মেয়াদোত্তীর্ণ</field>
+            <field name="body">Dear customer,
+
+Your rental {{ref}} was due back on {{due}} and is now {{days}} day(s) overdue. Late charges apply under your rental agreement until the equipment is returned. Please return it to the branch or call 16743 to arrange a collection.
+
+1000FiX Services Ltd. · Hotline 16743</field>
+            <field name="body_bn">প্রিয় গ্রাহক,
+
+আপনার ভাড়া {{ref}}-এর যন্ত্রটি {{due}} তারিখে ফেরত দেওয়ার কথা ছিল এবং এখন {{days}} দিন মেয়াদোত্তীর্ণ। যন্ত্রটি ফেরত না দেওয়া পর্যন্ত চুক্তি অনুযায়ী বিলম্ব চার্জ প্রযোজ্য। শাখায় ফেরত দিন অথবা সংগ্রহের জন্য 16743-এ কল করুন।
+
+1000FiX Services Ltd. · হটলাইন 16743</field>
+        </record>
+
+        <record id="notif_tmpl_a05_tradein_offer_sms" model="fix.cc.notif.template">
+            <field name="name">A05 trade-in offer issued (SMS)</field>
+            <field name="name_bn">ট্রেড-ইন প্রস্তাব (এসএমএস)</field>
+            <field name="channel">sms</field>
+            <field name="consent_class">transactional</field>
+            <field name="body">1000FiX: our trade-in offer {{ref}} for your device is BDT {{amount}}, valid until {{valid_until}}. Call 16743 or visit a branch to accept.</field>
+            <field name="body_bn">1000FiX: আপনার ডিভাইসের জন্য আমাদের ট্রেড-ইন প্রস্তাব {{ref}}: {{amount}} টাকা, {{valid_until}} পর্যন্ত বৈধ। গ্রহণ করতে 16743-এ কল করুন বা শাখায় আসুন।</field>
+        </record>
+        <record id="notif_tmpl_a05_tradein_offer_email" model="fix.cc.notif.template">
+            <field name="name">A05 trade-in offer issued (e-mail)</field>
+            <field name="name_bn">ট্রেড-ইন প্রস্তাব (ই-মেইল)</field>
+            <field name="channel">email</field>
+            <field name="consent_class">transactional</field>
+            <field name="subject">Your 1000FiX trade-in offer {{ref}}: BDT {{amount}}</field>
+            <field name="subject_bn">আপনার 1000FiX ট্রেড-ইন প্রস্তাব {{ref}}: {{amount}} টাকা</field>
+            <field name="body">Dear customer,
+
+Our offer {{ref}} for your device is BDT {{amount}}, valid until {{valid_until}}. The final value is confirmed when we inspect the device; the device must be your own and is checked against the BTRC NEIR register. Call 16743 or visit a branch to accept.
+
+1000FiX Services Ltd. · Hotline 16743</field>
+            <field name="body_bn">প্রিয় গ্রাহক,
+
+আপনার ডিভাইসের জন্য আমাদের প্রস্তাব {{ref}}: {{amount}} টাকা, {{valid_until}} পর্যন্ত বৈধ। ডিভাইস পরিদর্শনের পর চূড়ান্ত মূল্য নিশ্চিত করা হবে; ডিভাইসটি আপনার নিজের হতে হবে এবং বিটিআরসি এনইআইআর তালিকায় যাচাই করা হবে। গ্রহণ করতে 16743-এ কল করুন বা শাখায় আসুন।
+
+1000FiX Services Ltd. · হটলাইন 16743</field>
+        </record>
+
+        <record id="notif_tmpl_a05_tradein_paid_sms" model="fix.cc.notif.template">
+            <field name="name">A05 trade-in paid (SMS)</field>
+            <field name="name_bn">ট্রেড-ইন পরিশোধ (এসএমএস)</field>
+            <field name="channel">sms</field>
+            <field name="consent_class">transactional</field>
+            <field name="body">1000FiX: BDT {{amount}} for your trade-in {{ref}} has been paid. Thank you for choosing 1000FiX. Queries: 16743.</field>
+            <field name="body_bn">1000FiX: আপনার ট্রেড-ইন {{ref}}-এর জন্য {{amount}} টাকা পরিশোধ করা হয়েছে। 1000FiX বেছে নেওয়ার জন্য ধন্যবাদ। প্রশ্ন: 16743।</field>
+        </record>
+        <record id="notif_tmpl_a05_tradein_paid_email" model="fix.cc.notif.template">
+            <field name="name">A05 trade-in paid (e-mail)</field>
+            <field name="name_bn">ট্রেড-ইন পরিশোধ (ই-মেইল)</field>
+            <field name="channel">email</field>
+            <field name="consent_class">transactional</field>
+            <field name="subject">Payment for your trade-in {{ref}}: BDT {{amount}}</field>
+            <field name="subject_bn">আপনার ট্রেড-ইন {{ref}}-এর পরিশোধ: {{amount}} টাকা</field>
+            <field name="body">Dear customer,
+
+BDT {{amount}} for your trade-in {{ref}} has been paid by the method you chose. Any tax withheld is shown on your purchase voucher. Thank you for choosing 1000FiX.
+
+1000FiX Services Ltd. · Hotline 16743</field>
+            <field name="body_bn">প্রিয় গ্রাহক,
+
+আপনার ট্রেড-ইন {{ref}}-এর জন্য {{amount}} টাকা আপনার নির্বাচিত মাধ্যমে পরিশোধ করা হয়েছে। কর্তিত কর (যদি থাকে) আপনার ক্রয় ভাউচারে দেখানো আছে। 1000FiX বেছে নেওয়ার জন্য ধন্যবাদ।
+
+1000FiX Services Ltd. · হটলাইন 16743</field>
+        </record>
+
+        <!-- ============================== consumers ============================== -->
+        <record id="consumer_rental_return_due_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: remind the customer a rental is due back (M13, T-24h)</field>
+            <field name="event_type">rental.return_due</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_rental_return_due</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_rental_overdue_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: tell the customer a rental is overdue (M13, days 1/3/7)</field>
+            <field name="event_type">rental.overdue</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_rental_overdue</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_tradein_offer_issued_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: send the customer the M14 trade-in offer and its expiry</field>
+            <field name="event_type">tradein.offer_issued</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_tradein_offer_issued</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+        <record id="consumer_tradein_paid_notify_customer" model="fix.event.consumer">
+            <field name="name">M27: tell the seller the M14 trade-in payout was made</field>
+            <field name="event_type">tradein.paid</field>
+            <field name="model">fix.notif.delivery</field>
+            <field name="method">consume_tradein_paid</field>
+            <field name="module">cd_contact_centre</field>
+        </record>
+
+    </data>
+</odoo>

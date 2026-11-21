@@ -204,6 +204,10 @@ def surfaces() -> dict[str, tuple[set[str], str]]:
 SCREEN = re.compile(r"^[ \t]{2,6}'([A-Za-z0-9:_-]+)':\s*\{", re.M)
 MODEL = re.compile(r"\bmodel:\s*'([a-z0-9_.]+)'")
 BUTTON = re.compile(r"\{\s*m:\s*'([a-z0-9_]+)'")
+# Fragment buttons the workspace runs client-side (p03_workspace.js): the
+# document print opens /p03/doc/print_url and calls no model method, so no
+# SURFACES action can or should allow it.
+CLIENT_ACTIONS = {"p03_print_document"}
 
 
 def fragment_buttons():
@@ -317,6 +321,8 @@ def findings() -> dict[str, set[str]]:
         for action in actions - known:
             result["surface_action_missing"].add("%s:%s (%s)" % (model, action, rel))
     for rel, sid, model, button in fragment_buttons():
+        if button in CLIENT_ACTIONS:
+            continue  # handled by the workspace itself, never sent to the server
         allowed = surf.get(model, (set(), ""))[0]
         if button not in allowed:
             result["button_not_allowed"].add("%s:%s:%s:%s" % (rel, sid, model, button))

@@ -27,6 +27,8 @@ SURFACES = {
             "action_mark_failed",
             "action_retry",
             "action_cancel",
+            # A05 FIN-12 (I3): the cash instruction's confirmation path
+            "action_pay_cash_voucher",
         },
     },
     "fix.bank.statement.import": {"order": "id desc", "limit": 100, "actions": {"action_import"}},

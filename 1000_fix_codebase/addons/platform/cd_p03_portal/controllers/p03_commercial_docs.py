@@ -277,6 +277,16 @@ class P03CommercialDocs(http.Controller):
             "fix.field.order": "cd_p03_portal.report_a02_field_service",
             "fix.consignment": "cd_p03_portal.report_a02_consignment_note",
             "fix.workshop.job": "cd_p03_portal.report_a02_workshop_job",
+            # A05 ERP audit XC-10: the A05 documents (report/p03_a05_documents.xml)
+            "fix.rental.reservation": "cd_p03_portal.report_a05_rental_agreement",
+            "fix.rental.condition": "cd_p03_portal.report_a05_condition_report",
+            "fix.rental.deposit": "cd_p03_portal.report_a05_deposit_receipt",
+            "fix.tradein.request": "cd_p03_portal.report_a05_tradein_voucher",
+            "fix.refurbishment": "cd_p03_portal.report_a05_refurb_job_card",
+            "fix.tradein.warranty": "cd_p03_portal.report_a05_resale_warranty",
+            "fix.ewaste.manifest": "cd_p03_portal.report_a05_ewaste_manifest",
+            "fix.ewaste.certificate": "cd_p03_portal.report_a05_disposal_certificate",
+            "fix.ewaste.return": "cd_p03_portal.report_a05_doe_return",
         }
         receipts = {
             "fix.ar.invoice": "cd_doc_suite.report_invoice_receipt",

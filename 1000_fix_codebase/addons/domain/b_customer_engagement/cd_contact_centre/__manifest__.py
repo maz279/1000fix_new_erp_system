@@ -18,7 +18,7 @@ CD-M27-nn + CD-M32-nn (P07-M05):
   infra/observability/ollama; this module is the Odoo-side register
 - The M27<->M32 co-design pair is one increment here (AR-006 pair 16)
 """,
-    "version": "19.0.1.3.1",
+    "version": "19.0.1.3.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Customer/Contact Centre",
@@ -43,6 +43,8 @@ CD-M27-nn + CD-M32-nn (P07-M05):
         # A02 audit B2: customer SMS on estimate.sent / service_order.ready.
         "data/fix_m01_notif_consumers.xml",
         "data/fix_a02_notif_consumers.xml",
+        # A05 ERP audit XC-20: customer SMS/e-mail on rental / trade-in milestones.
+        "data/fix_a05_notif_consumers.xml",
         # A11 audit P2: approver e-mail/SMS on approval.* events.
         "data/fix_approval_notify_consumers.xml",
         # A10 S6 (M61 -> M27 hand-off): sync knowledge bindings on publish.

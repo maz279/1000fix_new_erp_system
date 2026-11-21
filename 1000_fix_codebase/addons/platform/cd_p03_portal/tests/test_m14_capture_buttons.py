@@ -152,16 +152,23 @@ def test_gate_and_resale_pages_list_the_units_waiting_with_their_buttons(m14):
     assert gate["actions"] == ["action_wipe", "action_refurbish"]
     prep = m14["screens"]["M14-resale-prep"]
     assert prep["domain"] == [["state", "=", "graded"]] and prep["create"] is False
-    assert prep["actions"] == ["action_resale_ready"]
+    # A05 ERP D6 (S2): the listing price is proposed, then approved four-eyes
+    # by a pricing manager, before Resale Ready stocks and lists the unit
+    assert prep["actions"] == [
+        "action_request_listing_price",
+        "action_approve_listing_price",
+        "action_resale_ready",
+    ]
     resale = m14["screens"]["M14-form-resale"]
     assert ["grade", "!=", "e"] in resale["pickRecord"]["domain"]
     editable = {n for n, f in resale["fields"].items() if not f["readonly"]}
+    # the listing date is stamped by Resale Ready (S2), never typed
     assert editable == {
         "resale_channel",
         "resale_value",
         "marketplace_seller_id",
-        "resale_listed_on",
     }
+    assert resale["fields"]["resale_listed_on"]["readonly"]
 
 
 def test_bulk_buy_back_is_a_lot_with_its_declared_assets(m14):
@@ -181,7 +188,8 @@ PICKERS = {
     "M14-form-refurb": [["state", "=", "refurbished"]],
     "M14-form-qa": [["state", "=", "refurbished"]],
     "M14-form-grade": [["state", "=", "refurbished"]],
-    "M14-form-harvest": [["state", "in", ["graded", "closed"]], ["grade", "=", "e"]],
+    # A05 ERP (S2): only a unit written off to the parts-only path is harvested
+    "M14-form-harvest": [["state", "=", "parts_only"]],
 }
 
 
@@ -195,7 +203,12 @@ def test_every_capture_button_is_whitelisted():
     assert {"action_wipe", "action_refurbish", "action_resale_ready"} <= surfaces[
         "fix.tradein.request"
     ]["actions"]
-    assert surfaces["fix.bulk.buyback"]["actions"] == {"action_open_intakes", "action_close"}
+    # A05 ERP (S2, M14-25): a lot priced as a whole is allocated to its units
+    assert surfaces["fix.bulk.buyback"]["actions"] == {
+        "action_open_intakes",
+        "action_close",
+        "action_allocate_lot_price",
+    }
 
 
 # ============================================ capture pass 2 (2026-11-19)
@@ -300,7 +313,8 @@ def test_pass2_lists_and_whitelists(m14):
         assert set(actions) == surfaces[model]["actions"]
     picks = {
         "M14-form-return": [["graded_stock_id.state", "=", "sold"]],
-        "M14-form-writeoff": [["state", "in", ["refurbished", "graded"]]],
+        # A05 ERP (S2, M14-21): a unit is written off from intake onwards
+        "M14-form-writeoff": [["state", "in", ["collected", "wiped", "refurbished", "graded"]]],
     }
     for form, domain in picks.items():
         assert m14["screens"][form]["fields"]["tradein_id"]["domain"] == domain

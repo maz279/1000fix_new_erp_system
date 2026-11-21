@@ -31,7 +31,7 @@ import subprocess
 from pathlib import Path
 
 import pytest
-from odoo.addons.cd_ewaste.tests.m18_fixtures import M18, refused
+from odoo.addons.cd_ewaste.tests.m18_fixtures import M18, G, make_user, refused
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as api
 from odoo.addons.cd_p03_portal.controllers.a05.writable import WRITABLE
 
@@ -238,10 +238,11 @@ def test_page3_destruction_gate_bind_start_release(m):
     assert col.state == "triaged"
     cert = m.verified_cert(dev.serial_number)
     _ok(m.p03_write(m.clerk, COL, col.id, {"wipe_certificate_id": cert.id}))
-    _ok(m.p03_action(m.clerk, COL, [col.id], "action_secure_destruction"))
+    # A05 S3 M18-28: destruction and release are the e-waste floor's (dispatcher)
+    _ok(m.p03_action(m.dispatcher, COL, [col.id], "action_secure_destruction"))
     col.invalidate_recordset()
     assert col.state == "destruction" and col.wipe_certificate_id == cert
-    _ok(m.p03_action(m.clerk, COL, [col.id], "action_recycle_estimated"))
+    _ok(m.p03_action(m.dispatcher, COL, [col.id], "action_recycle_estimated"))
     col.invalidate_recordset()
     assert col.state == "recycled" and col.esg_co2_saved_kg > 0
 
@@ -251,9 +252,9 @@ def test_page3_release_without_a_verified_certificate_is_refused(m):
     col = m.collection(device_id=dev.id, weight_kg=0.5)
     m.triage(col, "recycle", data_bearing=True)
     _ok(
-        m.p03_action(m.clerk, COL, [col.id], "action_secure_destruction")
+        m.p03_action(m.dispatcher, COL, [col.id], "action_secure_destruction")
     )  # raises an unverified one
-    out = m.p03_action(m.clerk, COL, [col.id], "action_recycle_estimated")
+    out = m.p03_action(m.dispatcher, COL, [col.id], "action_recycle_estimated")
     assert not out.get("success")
     col.invalidate_recordset()
     assert col.state == "destruction"
@@ -308,9 +309,10 @@ def test_certificate_is_still_never_typed(m):
 
 
 def test_recycler_licence_scan_uploaded_makes_it_approvable_and_dispatchable(m):
+    # A05 S3 M18-22: a recycler is registered by the e-waste floor, not any user
     out = _ok(
         m.p03_write(
-            m.clerk,
+            m.dispatcher,
             "fix.ewaste.partner",
             None,
             {
@@ -353,12 +355,31 @@ def test_processing_evidence_is_uploaded_only_once_received(m):
 
 
 def test_battery_photo_uploaded_on_intake_lets_hse_inspect(m):
+    # A05 S3: a hazmat item is recorded by an HSE officer; another inspects it.
+    # BRU-ESG-07: it is quarantined only at a point designated for its class.
+    recorder = make_user(m.env, "hserec", [G.hse])
+    point = (
+        m.env["fix.ewaste.collection.point"]
+        .with_user(m.clerk)
+        .create(
+            {
+                "name": "M18 Hazmat Store (photo)",
+                "kind": "hazmat_store",
+                "capacity_kg": 100.0,
+                "responsible_id": m.env["hr.employee"].create({"name": "Store Lead"}).id,
+                "limit_ids": [(0, 0, {"hazard_class": "li_sound", "max_kg": 10.0})],
+            }
+        )
+    )
+    point.with_user(m.hse).action_activate()
     _ok(
         m.p03_write(
-            m.clerk,
+            recorder,
             "fix.ewaste.battery",
             None,
             {
+                "collection_id": m.collection(weight_kg=0.3).id,  # the intake it came in
+                "collection_point_id": point.id,
                 "chemistry": "li_ion",
                 "weight_kg": 0.3,
                 "inspection_file": SCAN,

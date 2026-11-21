@@ -4,7 +4,11 @@ from odoo import http
 from odoo.http import request
 
 from ..p03_service_order_api import _require_internal
-from . import m13, m14, m18
+
+# A05 ERP audit XC-10: `documents` holds the A05 printable documents'
+# report.* payload models, registered with this module when its controllers
+# load (as the A02 ones are).
+from . import documents, m13, m14, m18
 from .writable import WRITABLE
 
 MODULES = {
@@ -39,8 +43,24 @@ def kpis(env, module=None):
     return {}
 
 
+def gated_kpis(env, module=None):
+    """A05 ERP audit XC-23: the KPI tiles are gated like the module's
+    reports - the M29 per-module 'view' permission (/p03/model/report applies
+    the same gate) - so a user refused a module's reports cannot read its
+    figures off the home tiles."""
+    from ..p03_generic_api import _gate
+
+    code = module or "M13"
+    if code not in MODULES:
+        return {}
+    refused = _gate(env, "view", module=code)
+    if refused:
+        return {"error": refused}
+    return kpis(env, code)
+
+
 class P03CircularApi(http.Controller):
     @http.route("/p03/circular/kpis", type="jsonrpc", auth="user", readonly=True)
     def circular_kpis(self, module=None, **kw):
         _require_internal(request.env)
-        return kpis(request.env, module)
+        return gated_kpis(request.env, module)
