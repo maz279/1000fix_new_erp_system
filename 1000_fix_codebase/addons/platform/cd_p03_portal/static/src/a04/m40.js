@@ -716,7 +716,7 @@ export const SCREENS = {
       ] }
     ] },
   'M40-form-draw': { kind: 'model_form', model: 'fix.reseller.draw',
-    title: 'Reseller Draw', back: 'M40-draws',
+    title: 'Reseller Draw', back: 'M40-draws', create: false, pick: true,
     tabs: [
       { id: 'general', label: '1. Draw', bn: '১. উত্তোলন', icon: '📦' }
     ],

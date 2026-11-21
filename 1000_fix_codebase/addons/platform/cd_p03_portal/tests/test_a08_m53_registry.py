@@ -124,7 +124,6 @@ def test_wired_actions_are_on_the_screens(registry):
         ("fix.seller.statement", "action_settle_statement"),
         ("fix.payout.run", "action_query_status"),
         ("fix.revenue.schedule", "action_recognize_period"),
-        ("fix.subscription", "action_generate_charge"),
         ("fix.subscription", "action_trigger_dunning"),
         ("fix.subscription", "action_reinstate"),
         ("fix.subscription", "action_request_refund"),
@@ -132,6 +131,9 @@ def test_wired_actions_are_on_the_screens(registry):
         ("fix.warranty.provision", "action_post"),
     ):
         assert pair in wired, pair
+    # A04 ERP M39-F9 (BRU-SUB-17): a subscription cycle is billed only by a
+    # reviewed billing run, never by a button on one subscription
+    assert ("fix.subscription", "action_generate_charge") not in wired
 
 
 def test_table_reports_name_real_report_functions(registry):
