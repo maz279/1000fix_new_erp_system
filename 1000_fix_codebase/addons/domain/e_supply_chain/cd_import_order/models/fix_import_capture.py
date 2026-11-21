@@ -550,6 +550,13 @@ class FixImportLcPaymentDiscrepancy(models.Model):
                     "LC %s has an undecided discrepancy: accept or refuse it before a "
                     "payment is recorded (FR-ITC-016)." % lc.lc_no
                 )
+            # M44-18: documents we refused are not paid under the LC
+            if lc_id and Disc.search_count([("lc_id", "=", lc_id), ("state", "=", "refused")]):
+                lc = self.env["fix.import.lc"].sudo().browse(lc_id)
+                raise UserError(
+                    "LC %s has a refused discrepancy: the discrepant documents are not paid "
+                    "under the LC. Amend the LC or settle outside it (M44-18)." % lc.lc_no
+                )
         return super().create(vals_list)
 
 

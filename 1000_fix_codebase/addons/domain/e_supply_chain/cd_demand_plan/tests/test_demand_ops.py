@@ -43,9 +43,10 @@ def test_segment_unique_per_product(m43):
 
 def test_policy_computes_safety_stock_rop_and_target(m43):
     policy = m43.policy(4, 2, 9, service="95", review=30, state="draft")
-    assert policy.safety_stock == pytest.approx(9.9)
-    assert policy.reorder_point == pytest.approx(45.9)
-    assert policy.target_level == pytest.approx(165.9)
+    # A06 ERP M43-08: z(95%) is the inverse normal 1.6449, not 1.65
+    assert policy.safety_stock == pytest.approx(9.87)
+    assert policy.reorder_point == pytest.approx(45.87)
+    assert policy.target_level == pytest.approx(165.87)
     policy.sudo().write({"state": "active"})
     policy.with_user(m43.planner).action_pause()
     assert policy.state == "paused"

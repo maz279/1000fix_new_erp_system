@@ -35,6 +35,9 @@ from .fix_inventory_approval import location_class
 _logger = logging.getLogger(__name__)
 
 PARAM_PO_RECEIVING_LOCATION = "cd_inventory.po_receiving_location_id"
+# store types that never receive purchased goods (D3: warranty stock is the
+# brand's supply; damage stores hold what left use)
+NOT_RECEIVING_TYPES = ("warranty", "damage", "returnable_damage", "refurbished")
 HOLD_KEY = "fix_receipt_hold_for_inspection"
 _HOLD = object()  # in-process only: a JSON-RPC context cannot carry this object
 
@@ -222,9 +225,35 @@ class FixPurchaseReceiptM15(models.Model):
             .search([("product_id", "=", product.id), ("company_id", "=", company.id)], limit=1)
         )
 
-    def _fix_receiving_location(self, order):
-        """The configured PO receiving location, else the main store of the
-        PO's operating unit. Refuses clearly when there is none."""
+    def _fix_line_branch(self, order, po_line):
+        """A06 ERP audit A06 / P06: the branch a PO line is delivered to: the
+        order's deliver-to branch, else (a consolidated order, one line per
+        requisition) the branch of the requisition the line was raised for."""
+        if order.branch_id:
+            return order.branch_id
+        Req = self.env["fix.requisition"].sudo()
+        reqs = Req.browse()
+        if "source_requisition_ids" in order._fields:
+            reqs = order.source_requisition_ids
+        if "requisition_id" in order._fields:
+            reqs |= order.requisition_id
+        reqs |= Req.search([("purchase_order_id", "=", order.id)])
+        branches = reqs.mapped("branch_id")
+        if len(branches) == 1:
+            return branches
+        for req in reqs:
+            name = req.branch_id.name
+            if name and (po_line.description or "").startswith("%s · " % name):
+                return req.branch_id
+        return self.env["fix.branch"]
+
+    def _fix_receiving_location(self, order, po_line=None):
+        """Where a PO line's goods go into stock (A06 ERP audit A06 / P06): the
+        receiving store of the line's deliver-to branch, never the first store
+        of the operating unit. A branch store holds non-warranty stock (D3:
+        warranty stock arrives from the brand, not on a PO); several such
+        stores make it ambiguous unless exactly one is the central store, or
+        the configured receiving location decides. Refuses clearly otherwise."""
         Location = self.env["fix.stock.location"].sudo()
         raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_PO_RECEIVING_LOCATION)
         if raw:
@@ -236,27 +265,54 @@ class FixPurchaseReceiptM15(models.Model):
                 return location
         base = [
             ("company_id", "=", order.company_id.id),
-            ("operating_unit_id", "=", order.operating_unit_id.id),
             ("active", "=", True),
             ("state", "=", "active"),
+            ("location_type", "in", ("central", "branch")),
+            "|",
+            ("stock_type", "=", False),
+            ("stock_type", "not in", NOT_RECEIVING_TYPES),
         ]
-        for location_type in ("central", "branch"):
-            location = Location.search([*base, ("location_type", "=", location_type)], limit=1)
-            if location:
-                return location
+        branch = self._fix_line_branch(order, po_line) if po_line else order.branch_id
+        if branch:
+            where = "branch %s" % branch.display_name
+            stores = Location.search([*base, ("branch_id", "=", branch.id)])
+        else:
+            where = "operating unit %s" % order.operating_unit_id.display_name
+            stores = Location.search(
+                [*base, ("operating_unit_id", "=", order.operating_unit_id.id)]
+            )
+        if len(stores) > 1:
+            central = stores.filtered(lambda loc: loc.location_type == "central")
+            typed = stores.filtered(lambda loc: loc.stock_type == "non_warranty")
+            stores = central if len(central) == 1 else typed if len(typed) == 1 else stores
+        if len(stores) == 1:
+            return stores
+        if not stores:
+            raise UserError(
+                "PO %s maps to spare parts but %s has no active receiving store (a central or "
+                "branch store for non-warranty stock): create it, or set %s."
+                % (order.name, where, PARAM_PO_RECEIVING_LOCATION)
+            )
         raise UserError(
-            "PO %s maps to spare parts but there is no M15 receiving location: set "
-            "%s or give operating unit %s an active central or branch store."
-            % (order.name, PARAM_PO_RECEIVING_LOCATION, order.operating_unit_id.display_name)
+            "PO %s: %s has several receiving stores (%s), so where the goods go is ambiguous: "
+            "name the deliver-to branch's one receiving store, or set %s."
+            % (order.name, where, ", ".join(stores.mapped("code")), PARAM_PO_RECEIVING_LOCATION)
         )
 
     def _fix_unit_cost(self, po_line, company):
+        """The PO price in company currency (A06 ERP audit A35, D5): at the
+        rate the order was approved at (fix.purchase.order.fx_rate, company
+        currency per unit, when the order carries one), else at the rate of
+        the day the goods were received, never today's."""
         price = po_line.unit_price or 0.0
         currency = po_line.currency_id
         if currency and company.currency_id and currency != company.currency_id:
-            price = currency._convert(
-                price, company.currency_id, company, fields.Date.context_today(self)
-            )
+            order = po_line.order_id.sudo()
+            stamped = order.fx_rate if "fx_rate" in order._fields else 0.0
+            if stamped and stamped > 0:
+                return round(price * stamped, 4)
+            when = self.received_on or fields.Date.context_today(self)
+            price = currency._convert(price, company.currency_id, company, when)
         return price
 
     def _fix_post_to_m15(self):
@@ -265,12 +321,22 @@ class FixPurchaseReceiptM15(models.Model):
         self.ensure_one()
         order = self.purchase_order_id.sudo()
         company = order.company_id
-        plain, serial = [], []
+        # A06 ERP audit X25 (agreed with the A07 session): a capital purchase
+        # (the order spends an approved capex request) is capitalised through
+        # CWIP / the fixed-asset register; it never becomes M15 stock as well
+        if "capex_request_id" in order._fields and order.capex_request_id:
+            return self.env["fix.stock.receipt"]
+        # one receipt pair per receiving store (a consolidated order delivers
+        # each line to its own branch, A06 ERP audit A06)
+        plain_by, serial_by = {}, {}
         for line in self.line_ids.filtered(lambda ln: ln.qty_received > 0):
             part = self._fix_part_for(line.product_id, company)
             if not part:
                 continue
             cost = self._fix_unit_cost(line.po_line_id, company)
+            store = self._fix_receiving_location(order, line.po_line_id)
+            plain = plain_by.setdefault(store, [])
+            serial = serial_by.setdefault(store, [])
             if part.is_serialized:
                 units = round(line.qty_received)
                 serial += [
@@ -301,34 +367,34 @@ class FixPurchaseReceiptM15(models.Model):
                         },
                     )
                 )
-        if not plain and not serial:
-            return self.env["fix.stock.receipt"]
-        location = self._fix_receiving_location(order)
         Receipt = self.env["fix.stock.receipt"].sudo()
-        base = {
-            "partner_id": order.vendor_id.id,
-            "location_id": location.id,
-            "company_id": company.id,
-            "operating_unit_id": order.operating_unit_id.id,
-            "ownership_class": "owned",
-            "purchase_order_id": order.id,
-            "source_model": "fix.purchase.receipt",
-            "source_res_id": self.id,
-            "source_ref": self.name,
-        }
         created = Receipt.browse()
-        if plain:
-            receipt = Receipt.create(dict(base, line_ids=plain))
-            if any(line.inspection_required for line in self.line_ids):
-                receipt._guarded().write({"inspection_held": True})
-                receipt = receipt.with_context(**{HOLD_KEY: _HOLD})
-            receipt.action_inspect()
-            receipt.action_post()
-            created |= receipt
-        if serial:
-            created |= Receipt.create(
-                dict(base, line_ids=serial, inspection_notes="Capture each unit's serial")
-            )
+        for location in plain_by:
+            plain, serial = plain_by[location], serial_by[location]
+            base = {
+                "partner_id": order.vendor_id.id,
+                "location_id": location.id,
+                "company_id": company.id,
+                "operating_unit_id": (location.operating_unit_id or order.operating_unit_id).id,
+                "ownership_class": "owned",
+                "purchase_order_id": order.id,
+                "source_model": "fix.purchase.receipt",
+                "source_res_id": self.id,
+                "source_ref": self.name,
+                "received_on": self.received_on or fields.Date.context_today(self),
+            }
+            if plain:
+                receipt = Receipt.create(dict(base, line_ids=plain))
+                if any(line.inspection_required for line in self.line_ids):
+                    receipt._guarded().write({"inspection_held": True})
+                    receipt = receipt.with_context(**{HOLD_KEY: _HOLD})
+                receipt.action_inspect()
+                receipt.action_post()
+                created |= receipt
+            if serial:
+                created |= Receipt.create(
+                    dict(base, line_ids=serial, inspection_notes="Capture each unit's serial")
+                )
         return created
 
 

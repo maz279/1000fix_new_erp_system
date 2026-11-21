@@ -118,7 +118,7 @@ def test_m15_09c_no_receiving_location_is_refused(po_world):
     )
     w.po.write({"state": "sent"})
     w.receiver.write({"assigned_operating_unit_ids": [(4, ou2.id)]})
-    refused(w, lambda: _receive(w, {w.prod: 1}), "no M15 receiving location")
+    refused(w, lambda: _receive(w, {w.prod: 1}), "no active receiving store")
 
 
 def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
@@ -158,12 +158,14 @@ def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
 def test_m16_07b_real_inspection_rejection_reaches_quarantine(po_world):
     w = po_world
     grn = _receive(w, {w.prod: 3})
+    # A06 P21: the receiver does not inspect their own receipt
+    inspector = w.user("inspector", GR)
     insp = (
         w.env["fix.procurement.inspection"]
-        .with_user(w.receiver)
+        .with_user(inspector)
         .create({"receipt_line_id": grn.line_ids.id, "qty_accepted": 1})
     )
-    insp.with_user(w.receiver).action_confirm()
+    insp.with_user(inspector).action_confirm()
     outbox = (
         w.env["fix.event.outbox"]
         .sudo()
@@ -209,7 +211,10 @@ def _rule(inv, location, **kw):
 
 
 def test_m15_78b_van_rule_raises_in_the_custodians_name(inv):
-    rule = _rule(inv, inv.van)
+    # D7 (20 Nov 2026): only a warehouse buys; a van is refilled by transfer.
+    # The custodian is still the requester of a warehouse rule naming none.
+    inv.central.sudo().write({"technician_id": inv.tech1.id})
+    rule = _rule(inv, inv.central, min_qty=12.0, max_qty=20.0)
     rule.with_user(inv.keeper).action_trigger_reorder()
     assert rule.state == "ordered" and rule.requisition_id.requested_by == inv.tech1
 
@@ -218,7 +223,7 @@ def test_m15_78c_configured_default_then_branch_manager(inv):
     inv.env["ir.config_parameter"].sudo().set_param(
         "cd_inventory.reorder_default_requester_id", str(inv.tech2.id)
     )
-    rule = _rule(inv, inv.hub)
+    rule = _rule(inv, inv.central, min_qty=12.0, max_qty=20.0)
     rule.with_user(inv.keeper).action_trigger_reorder()
     assert rule.state == "ordered" and rule.requisition_id.requested_by == inv.tech2
     manager_user = inv.user("branchmgr")
@@ -228,7 +233,7 @@ def test_m15_78c_configured_default_then_branch_manager(inv):
     inv.branch().manager_id = manager_user
     if "employee_manager_id" in inv.branch()._fields:
         inv.branch().employee_manager_id = manager
-    rule2 = _rule(inv, inv.hub, spare_part_id=inv.spart.id)
+    rule2 = _rule(inv, inv.central, spare_part_id=inv.spart.id)
     rule2.with_user(inv.keeper).action_trigger_reorder()
     assert rule2.requisition_id.requested_by == manager
 
@@ -261,7 +266,7 @@ def _credited_rtv(inv, qty=2.0):
     r = inv.rtv(inv.keeper, qty=qty, rtv_ref="RMA-AP-" + inv.tag)
     r.with_user(inv.controller).action_approve()
     r.with_user(inv.keeper).action_ship()
-    r.with_user(inv.keeper).action_mark_credited("MUSHAK-67-" + inv.tag)
+    r.with_user(inv.controller).action_mark_credited("MUSHAK-67-" + inv.tag)
     return r
 
 

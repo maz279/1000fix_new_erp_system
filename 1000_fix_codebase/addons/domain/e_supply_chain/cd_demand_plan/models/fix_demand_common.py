@@ -13,22 +13,35 @@ import re
 from calendar import monthrange
 from datetime import date, datetime, time, timedelta
 from math import ceil, sqrt
+from statistics import NormalDist
 
+from odoo.addons.cd_requisition.models.fix_requisition import bdt_rate
 from odoo.exceptions import AccessError, UserError
 
 PLANNER = "cd_demand_plan.group_fix_demand_planner"
 APPROVER = "cd_demand_plan.group_fix_demand_approver"
 ROLE_LABELS = {PLANNER: "Demand Planner", APPROVER: "Demand Plan Approver"}
 
-# z for the one-sided service level (normal distribution)
+# z for the one-sided service level (normal distribution). Kept for importers:
+# A06 ERP audit M43-08 - every level is now the inverse normal (z_for), so an
+# 85% or 97.5% target is honoured instead of silently becoming 95%.
 Z_FACTORS = {90: 1.28, 95: 1.65, 98: 2.05, 99: 2.33}
+# the service levels the screens offer by default (owner D7: any value works)
+DEFAULT_SERVICE_LEVELS = (90.0, 95.0, 98.0, 99.0)
+
+# A06 ERP audit M43-21: the business day is Asia/Dhaka (UTC+6, no DST). M15
+# stamps consumed_at in UTC; months and days are Dhaka months and days.
+DHAKA_OFFSET = timedelta(hours=6)
 
 PERIOD_RE = re.compile(r"^(\d{4})-(0[1-9]|1[0-2])$")
 
 # Configuration keys (business decisions, report section 7). Defaults are
 # the conservative values documented in the runbook.
-CFG_FORECAST_WINDOW = "cd_demand_plan.forecast_window_months"  # default 3
-CFG_FORECAST_MIN_HISTORY = "cd_demand_plan.forecast_min_history_months"  # default 2
+# A06 ERP audit owner item 9: window 12 months, minimum history 6 months
+CFG_FORECAST_WINDOW = "cd_demand_plan.forecast_window_months"  # default 12
+CFG_FORECAST_MIN_HISTORY = "cd_demand_plan.forecast_min_history_months"  # default 6
+DEFAULT_FORECAST_WINDOW = 12
+DEFAULT_FORECAST_MIN_HISTORY = 6
 CFG_POLICY_HISTORY_DAYS = "cd_demand_plan.policy_history_days"  # default 90
 CFG_REVIEW_PERIOD_DAYS = "cd_demand_plan.review_period_days"  # default 30
 CFG_SEGMENT_WINDOW_MONTHS = "cd_demand_plan.segment_window_months"  # default 12
@@ -111,8 +124,34 @@ def months_between(start: date, end: date) -> list:
     return out
 
 
+def dhaka_today() -> date:
+    """Today's business date in Dhaka (M43-21), whatever the server's zone."""
+    return (datetime.utcnow() + DHAKA_OFFSET).date()
+
+
+def dhaka_date(utc_naive: datetime) -> date:
+    """The Dhaka business date of a naive UTC timestamp (Odoo Datetime)."""
+    return (utc_naive + DHAKA_OFFSET).date()
+
+
 def _dt(day: date) -> datetime:
-    return datetime.combine(day, time.min)
+    """Dhaka midnight of `day` as the naive UTC timestamp Odoo stores."""
+    return datetime.combine(day, time.min) - DHAKA_OFFSET
+
+
+def z_for(service_level) -> float:
+    """M43-08: the one-sided z of a service level in percent, by the inverse
+    normal distribution. A level outside 50..99.99 is refused, never replaced
+    by a default."""
+    try:
+        level = float(service_level)
+    except (TypeError, ValueError) as exc:
+        raise UserError("Service level %r is not a percentage." % (service_level,)) from exc
+    if not 50.0 <= level < 100.0:
+        raise UserError(
+            "Service level %.2f%% is outside 50%% to 99.99%%: no safety stock can be set." % level
+        )
+    return NormalDist().inv_cdf(level / 100.0)
 
 
 # ------------------------------------------------------------------ M15 readers
@@ -134,10 +173,10 @@ def _consumption_rows(env, company, part, location, start: date, stop: date):
 
 
 def consumed_by_month(env, company, part, location, first: date, months: int) -> list:
-    """Consumed quantity per calendar month, `months` buckets from `first`."""
+    """Consumed quantity per calendar (Dhaka) month, `months` buckets from `first`."""
     buckets = [0.0] * months
     for row in _consumption_rows(env, company, part, location, first, add_months(first, months)):
-        at = row["consumed_at"]
+        at = dhaka_date(row["consumed_at"])
         idx = (at.year - first.year) * 12 + at.month - first.month
         if 0 <= idx < months:
             buckets[idx] += row["quantity"] or 0.0
@@ -147,7 +186,7 @@ def consumed_by_month(env, company, part, location, first: date, months: int) ->
 def consumed_by_day(env, company, part, location, first: date, days: int) -> list:
     buckets = [0.0] * days
     for row in _consumption_rows(env, company, part, location, first, first + timedelta(days=days)):
-        idx = (row["consumed_at"].date() - first).days
+        idx = (dhaka_date(row["consumed_at"]) - first).days
         if 0 <= idx < days:
             buckets[idx] += row["quantity"] or 0.0
     return buckets
@@ -156,9 +195,9 @@ def consumed_by_day(env, company, part, location, first: date, days: int) -> lis
 def has_usable_history(env, company, part, location) -> bool:
     """BRU-DPL-01 readiness, as the forecast's own test: enough of the last
     window months carry M15 consumption for a statistical figure."""
-    window = param(env, CFG_FORECAST_WINDOW, 3, int)
-    minimum = param(env, CFG_FORECAST_MIN_HISTORY, 2, int)
-    first = add_months(date.today().replace(day=1), -window)
+    window = param(env, CFG_FORECAST_WINDOW, DEFAULT_FORECAST_WINDOW, int)
+    minimum = param(env, CFG_FORECAST_MIN_HISTORY, DEFAULT_FORECAST_MIN_HISTORY, int)
+    first = add_months(dhaka_today().replace(day=1), -window)
     buckets = consumed_by_month(env, company, part, location, first, window)
     return sum(1 for b in buckets if b > 0) >= minimum
 
@@ -181,11 +220,14 @@ def mean_and_stddev(values: list) -> tuple:
 
 
 def on_hand(env, company, part, location) -> float:
-    """Available OWNED stock of the part (at the location when given)."""
+    """Available OWNED, UNRESTRICTED stock of the part (at the location when
+    given). M43-07: stock in quarantine, inspection or blocked is not usable
+    to serve demand, so it is not part of the position."""
     domain = [
         ("company_id", "=", company.id),
         ("part_id", "=", part.id),
         ("ownership_class", "=", "owned"),
+        ("stock_status", "=", "unrestricted"),
     ]
     if location:
         domain.append(("location_id", "=", location.id))
@@ -194,52 +236,123 @@ def on_hand(env, company, part, location) -> float:
 
 
 # ------------------------------------------------------------------ M16 readers
-def on_order(env, company, products) -> float:
-    """Quantity already on its way: open requisitions plus the unreceived
-    balance of open purchase-order lines for these products."""
+def on_order(env, company, products, location=None, part=None) -> float:
+    """Quantity already on its way (M43-05).
+
+    With a location the netting is the LOCATION's, as its stock and policy
+    are: open requisitions raised for the location's branch, the unreceived
+    balance of open purchase orders delivering to that branch, M15 transfers
+    dispatched to the location and not yet received, and M44 import orders
+    receiving at the location that are not yet received (an import with an M16
+    PO already counted for the branch is not counted twice). Without a
+    location the figure is company-wide, imports with no M16 PO included."""
     if not products:
         return 0.0
-    reqs = (
-        env["fix.requisition"]
-        .sudo()
-        .search_read(
-            [
-                ("company_id", "=", company.id),
-                ("product_id", "in", products.ids),
-                ("state", "not in", CLOSED_REQ_STATES),
-            ],
-            ["qty"],
-        )
-    )
+    branch = location.branch_id if location and "branch_id" in location._fields else None
+    req_domain = [
+        ("company_id", "=", company.id),
+        ("product_id", "in", products.ids),
+        ("state", "not in", CLOSED_REQ_STATES),
+    ]
+    po_domain = [
+        ("product_id", "in", products.ids),
+        ("order_id.company_id", "=", company.id),
+        ("order_id.state", "in", OPEN_PO_STATES),
+    ]
+    if location:
+        # a location with no branch has nothing of M16's addressed to it
+        req_domain.append(("branch_id", "=", branch.id if branch else False))
+        po_domain.append(("order_id.branch_id", "=", branch.id if branch else False))
+    reqs = env["fix.requisition"].sudo().search_read(req_domain, ["qty"])
     qty = sum(r["qty"] or 0.0 for r in reqs)
     lines = (
         env["fix.purchase.order.line"]
         .sudo()
-        .search_read(
-            [
-                ("product_id", "in", products.ids),
-                ("order_id.company_id", "=", company.id),
-                ("order_id.state", "in", OPEN_PO_STATES),
-            ],
-            ["qty_ordered", "qty_received"],
-        )
+        .search_read(po_domain, ["qty_ordered", "qty_received", "order_id"])
     )
+    counted_pos = {r["order_id"][0] for r in lines if r["order_id"]}
     qty += sum(max((r["qty_ordered"] or 0.0) - (r["qty_received"] or 0.0), 0.0) for r in lines)
+    parts = part or env["fix.spare.part"].sudo().search([("product_id", "in", products.ids)])
+    if location and parts and "fix.stock.transfer.line" in env:
+        for tl in (
+            env["fix.stock.transfer.line"]
+            .sudo()
+            .search(
+                [
+                    ("part_id", "in", parts.ids),
+                    ("transfer_id.to_location_id", "=", location.id),
+                    ("transfer_id.state", "=", "dispatched"),
+                ]
+            )
+        ):
+            qty += max((tl.qty or 0.0) - (tl.received_qty or 0.0), 0.0)
+    if parts and "fix.import.order.line" in env:
+        domain = [
+            ("part_id", "in", parts.ids),
+            ("order_id.company_id", "=", company.id),
+            ("order_id.state", "in", ("draft", "shipped", "customs", "cleared")),
+        ]
+        if location:
+            domain.append(("order_id.location_id", "=", location.id))
+        for il in env["fix.import.order.line"].sudo().search(domain):
+            po = il.order_id.purchase_order_id
+            if po and po.id in counted_pos:
+                continue
+            qty += il.quantity or 0.0
     return round(qty, 3)
 
 
 # ------------------------------------------------------------------ formulas
-def safety_stock(service_level, stddev, lead_days) -> float:
-    z = Z_FACTORS.get(int(service_level or 95), 1.65)
-    return round(z * (stddev or 0.0) * sqrt(max(lead_days or 0, 0)), 2)
-
-
-def order_up_to(projected, rop, target) -> float:
-    """S8: order when the projected position is at or below the reorder point,
-    up to the target (max) level; never above the target, never negative."""
-    if projected > rop:
+def safety_stock(service_level, stddev, lead_days, avg_daily=0.0, lead_stddev=0.0) -> float:
+    """M43-01 / BRU-DPL-07: SS = z x sqrt(L x sd_d^2 + d^2 x sd_L^2): demand
+    variability over the lead time AND lead-time variability at the average
+    demand. z is the inverse normal of the service level (M43-08)."""
+    lead = max(lead_days or 0.0, 0.0)
+    variance = lead * (stddev or 0.0) ** 2 + (avg_daily or 0.0) ** 2 * (lead_stddev or 0.0) ** 2
+    if variance <= 0:
         return 0.0
-    return round(max(0.0, target - projected), 3)
+    return round(z_for(service_level) * sqrt(variance), 2)
+
+
+def order_up_to(position, rop, target) -> float:
+    """S8 / M43-06: order when the INVENTORY POSITION (usable stock + on
+    order) is at or below the reorder point, up to the target (max) level.
+    The reorder point already carries the lead-time demand, so the forecast is
+    not subtracted a second time. Never above the target, never negative."""
+    if position > rop:
+        return 0.0
+    return round(max(0.0, target - position), 3)
+
+
+def to_bdt(env, company, amount, currency, on_date, rate=None) -> float:
+    """M43-04 / M43-15: an amount in the company's currency (BDT on the
+    estate), the currency of its budget, its requisition estimates and its
+    approval bands. A stamped rate (company-currency units per unit, e.g. the
+    PO's approval rate) wins; else the currency's rate on or before the date
+    (cd_requisition's bdt_rate, the one A06 D5 rate rule). A foreign amount
+    with no rate is refused, never read as the company's currency.
+
+    A06 integration: this converted to base.BDT whatever the company kept its
+    books in, so on a company in another currency a purchase order in the
+    company's own currency was refused for want of a rate, and an estimate
+    compared with company-currency bands came out in BDT."""
+    target = company.currency_id
+    if not currency or currency == target:
+        return amount or 0.0
+    if rate:
+        return round((amount or 0.0) * rate, 2)
+    return round((amount or 0.0) * bdt_rate(env, currency, company, on_date), 2)
+
+
+def po_line_bdt_price(env, company, line) -> float:
+    """The unit price of a purchase-order line in BDT (M43-04)."""
+    order = line.order_id
+    rate = order.fx_rate if "fx_rate" in order._fields and order.fx_rate else None
+    when = order.date_order if "date_order" in order._fields and order.date_order else dhaka_today()
+    if isinstance(when, datetime):
+        when = when.date()
+    currency = line.currency_id if "currency_id" in line._fields else order.currency_id
+    return to_bdt(env, company, line.unit_price or 0.0, currency, when, rate)
 
 
 def apply_moq_pack(qty, moq, pack) -> float:
@@ -384,14 +497,15 @@ def budget_headroom(env, company, on_date):
     po_lines = (
         env["fix.purchase.order.line"]
         .sudo()
-        .search_read(
-            [("order_id.company_id", "=", company.id), ("order_id.state", "in", OPEN_PO_STATES)],
-            ["qty_ordered", "qty_received", "unit_price"],
+        .search(
+            [("order_id.company_id", "=", company.id), ("order_id.state", "in", OPEN_PO_STATES)]
         )
     )
+    # M43-15: a USD purchase order is converted, never added to BDT as it is
     committed = sum(r["estimate_amount"] or 0.0 for r in reqs) + sum(
-        max((r["qty_ordered"] or 0.0) - (r["qty_received"] or 0.0), 0.0) * (r["unit_price"] or 0.0)
-        for r in po_lines
+        max((ln.qty_ordered or 0.0) - (ln.qty_received or 0.0), 0.0)
+        * po_line_bdt_price(env, company, ln)
+        for ln in po_lines
     )
     remaining = round(planned - actual - committed, 2)
     return remaining, (

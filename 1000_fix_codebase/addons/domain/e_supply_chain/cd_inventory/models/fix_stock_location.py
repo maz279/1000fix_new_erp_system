@@ -6,9 +6,13 @@ import logging
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
 
-from .fix_inventory_approval import CONTROLLER_GROUP
+from .fix_inventory_approval import CONTROLLER_GROUP, location_class
 
 _logger = logging.getLogger(__name__)
+
+# D3: store types a job never draws from (they hold what left use)
+NOT_ISSUING_TYPES = ("damage", "returnable_damage")
+EPS = 1e-6
 
 
 class FixStockLocation(models.Model):
@@ -90,6 +94,17 @@ class FixStockLocation(models.Model):
     )
 
     parent_id = fields.Many2one("fix.stock.location", string="Parent Location", index=True)
+    # D7 (owner decision 20 Nov 2026): a van or branch store below its minimum
+    # is refilled by a transfer from the warehouse that supplies it; only
+    # warehouses buy. Empty: the central store of its operating unit.
+    supply_location_id = fields.Many2one(
+        "fix.stock.location",
+        string="Replenished From",
+        index=True,
+        domain="[('location_type', '=', 'central')]",
+        help="The warehouse a transfer refills this location from when it falls below its "
+        "minimum. Empty: the one central store of the location's operating unit.",
+    )
     state = fields.Selection(
         [("draft", "Draft"), ("active", "Active"), ("inactive", "Inactive")],
         string="Status",
@@ -112,6 +127,18 @@ class FixStockLocation(models.Model):
         "UNIQUE (code, company_id)",
         "Location code must be unique per company.",
     )
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A06 ERP audit A36: custody decides who draws from a van, so naming a
+        # custodian is an Inventory Controller's act on create as on write
+        if not self.env.su and not self.env.user.has_group(CONTROLLER_GROUP):
+            for vals in vals_list:
+                if vals.get("technician_id"):
+                    raise AccessError(
+                        "Only an Inventory Controller names a location's custodian technician."
+                    )
+        return super().create(vals_list)
 
     @api.depends("location_type")
     def _compute_is_van_stock(self):
@@ -146,6 +173,154 @@ class FixStockLocation(models.Model):
                         "Only an Inventory Controller changes a location's custodian or type."
                     )
         return super().write(vals)
+
+    # ---------------------------------------------------- D7 supply chain
+    def _fix_supplier_location(self):
+        """Where this van or branch store is refilled from: its configured
+        warehouse, else the single central store of its operating unit.
+        Refuses clearly when none or several could be meant (fail closed)."""
+        self.ensure_one()
+        loc = self.sudo()
+        if loc.supply_location_id:
+            return loc.supply_location_id
+        ou = loc.operating_unit_id or loc.branch_id.operating_unit_id
+        warranty = (loc.stock_type or False) == "warranty"
+        centrals = (
+            self.sudo()
+            .search(
+                [
+                    ("company_id", "=", loc.company_id.id),
+                    ("location_type", "=", "central"),
+                    ("state", "=", "active"),
+                    ("id", "!=", loc.id),
+                    ("operating_unit_id", "=", ou.id if ou else False),
+                ]
+            )
+            # D3: a warranty store is refilled from a warranty warehouse, any
+            # other store never from one
+            .filtered(lambda c: ((c.stock_type or False) == "warranty") == warranty)
+        )
+        if len(centrals) == 1:
+            return centrals
+        raise UserError(
+            "%s has no warehouse to be refilled from (%s): set its 'Replenished From' "
+            "warehouse (D7: a van or branch store is refilled by a transfer, never bought for)."
+            % (
+                loc.code,
+                "no central store of its kind (warranty or not) in its operating unit"
+                if not centrals
+                else "%d central stores in its operating unit" % len(centrals),
+            )
+        )
+
+    # ---------------------------------------------------- D3 job stores
+    @api.model
+    def _fix_job_store(
+        self,
+        company,
+        branch,
+        warranty,
+        part,
+        qty,
+        technician=None,
+        job_ref=None,
+        fixed=None,
+        van=None,
+    ):
+        """The store a job's part is issued from (D3, A06 ERP audit A06/A08):
+        returns (location, reservation).
+
+        1. the job's own active reservation of the part (it was held for it);
+        2. the van named on the job, else the technician's van, when it is a
+           store of the job's warranty status;
+        3. a fixed store (a workshop's own), when it is of that status;
+        4. the branch's stores of that status (warranty jobs: warranty stores
+           only; other jobs: never a warranty or damage store) that hold the
+           part available. One is chosen only when exactly one qualifies:
+           several are refused as ambiguous, never the first taken."""
+        Location = self.sudo()
+        Reservation = self.env["fix.stock.reservation"].sudo()
+
+        def fits(loc):
+            if not loc:
+                return False
+            is_w = (loc.stock_type or False) == "warranty"
+            if warranty != is_w:
+                return False
+            return (loc.stock_type or False) not in NOT_ISSUING_TYPES
+
+        def available(loc):
+            row = self.env["fix.stock.onhand"]._bucket(part, loc, location_class(loc, "owned"))
+            return (row.qty - row.reserved) if row else 0.0
+
+        if job_ref:
+            held = Reservation.search(
+                [
+                    ("state", "=", "active"),
+                    ("service_order_ref", "=", job_ref),
+                    ("part_id", "=", part.id),
+                    ("company_id", "=", company.id),
+                ],
+                order="priority, reserved_at, id",
+            ).filtered(lambda r: fits(r.location_id) and r.qty_open + EPS >= qty)
+            if held:
+                return held[0].location_id, held[0]
+        if not van and technician:
+            van = Location.search(
+                [
+                    ("technician_id", "=", technician.id),
+                    ("location_type", "=", "van"),
+                    ("state", "=", "active"),
+                ]
+            )
+            if len(van) > 1:
+                van = van.filtered(fits)
+                if len(van) > 1:
+                    raise UserError(
+                        "%s has several vans (%s): name the van on the job."
+                        % (technician.name, ", ".join(van.mapped("code")))
+                    )
+        if van and fits(van):
+            return van, Reservation
+        if fixed:
+            if not fits(fixed):
+                raise UserError(
+                    "Store %s is %s store, and this is %s job (D3): set the workshop's "
+                    "warranty store, or issue from a store of the job's kind."
+                    % (
+                        fixed.code,
+                        "a warranty" if fixed.stock_type == "warranty" else "a non-warranty",
+                        "a warranty" if warranty else "a non-warranty",
+                    )
+                )
+            return fixed, Reservation
+        if not branch:
+            return Location.browse(), Reservation
+        stores = Location.search(
+            [
+                ("branch_id", "=", branch.id),
+                ("location_type", "in", ("branch", "central")),
+                ("state", "=", "active"),
+                ("company_id", "=", company.id),
+            ]
+        ).filtered(fits)
+        if len(stores) <= 1:
+            return stores, Reservation
+        stocked = stores.filtered(lambda loc: available(loc) + EPS >= qty)
+        if len(stocked) == 1:
+            return stocked, Reservation
+        raise UserError(
+            "Branch %s has %s %s stores %s %s: which one the part leaves is ambiguous. Reserve "
+            "it for the job at the store it should come from."
+            % (
+                branch.display_name,
+                len(stocked or stores),
+                "warranty" if warranty else "non-warranty",
+                "holding" if stocked else "and none holds",
+                "%s %s (%s)"
+                % (qty, part.part_number, ", ".join((stocked or stores).mapped("code"))),
+            )
+        )
 
     def _location_check_controller(self):
         if not self.env.su and not self.env.user.has_group(CONTROLLER_GROUP):

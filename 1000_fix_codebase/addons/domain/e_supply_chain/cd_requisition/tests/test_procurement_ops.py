@@ -16,6 +16,7 @@ import uuid
 from datetime import date
 
 import pytest
+from odoo.addons.cd_requisition.tests.p2p_fixtures import close_rfq, qualify_categories
 from odoo.exceptions import UserError
 
 TAG = uuid.uuid4().hex[:6].upper()
@@ -29,6 +30,7 @@ def _active(env, partner):
         env["fix.supplier.document"].create(
             {"supplier_id": sup.id, "doc_type": doc_type, "state": "valid"}
         )
+    qualify_categories(env, sup)  # A06 P08: categories approved by a qualification
     return sup
 
 
@@ -153,11 +155,11 @@ def test_rfq_open_close_and_close_needs_bid(ctx):
     assert rfq.name.startswith("RFQ/")
     rfq.action_open()
     with pytest.raises(UserError, match="at least one bid"), env.cr.savepoint():
-        rfq.action_close()
+        close_rfq(rfq)
     env["fix.procurement.bid"].create(
         {"rfq_id": rfq.id, "vendor_id": ctx["vendor"].id, "unit_price": 100}
     )
-    rfq.action_close()
+    close_rfq(rfq)
     assert rfq.state == "closed" and rfq.closed_at
 
 
@@ -171,7 +173,7 @@ def test_award_marks_winner_and_losers(ctx):
     first = Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor"].id, "unit_price": 120})
     second = Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor2"].id, "unit_price": 100})
     third = Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor3"].id, "unit_price": 130})
-    rfq.action_close()
+    close_rfq(rfq)
     award = env["fix.procurement.award"].create({"rfq_id": rfq.id, "bid_id": second.id})
     assert award.name.startswith("AWRD/")
     assert (award.state, award.is_lowest, award.compliant_bid_count) == ("decided", True, 3)
@@ -311,7 +313,7 @@ def test_consolidated_award_raises_one_po_with_a_line_per_branch(ctx):
     win = Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor"].id, "unit_price": 90})
     Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor2"].id, "unit_price": 100})
     Bid.create({"rfq_id": rfq.id, "vendor_id": ctx["vendor3"].id, "unit_price": 110})
-    rfq.action_close()
+    close_rfq(rfq)
     award = env["fix.procurement.award"].create({"rfq_id": rfq.id, "bid_id": win.id})
     assert award.state == "decided"
     award.action_create_po()

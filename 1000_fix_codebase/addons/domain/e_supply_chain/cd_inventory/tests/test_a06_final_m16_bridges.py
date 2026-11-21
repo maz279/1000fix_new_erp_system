@@ -42,6 +42,9 @@ def w(inv):
     )
     inv.po.write({"state": "sent"})  # trusted setup: approved and sent
     inv.receiver = inv.user("receiver", GR)
+    # A06 P21: the receiver does not judge the goods they received; a second
+    # receiving-team member records the inspection
+    inv.inspector = inv.user("inspector", GR)
     env["ir.config_parameter"].sudo().set_param(
         "cd_inventory.po_receiving_location_id", str(inv.central.id)
     )
@@ -62,10 +65,10 @@ def inspect(w, grn, product, accepted):
     line = grn.line_ids.filtered(lambda ln: ln.product_id == product)
     rec = (
         w.env["fix.procurement.inspection"]
-        .with_user(w.receiver)
+        .with_user(w.inspector)
         .create({"receipt_line_id": line.id, "qty_accepted": accepted})
     )
-    rec.with_user(w.receiver).action_confirm()
+    rec.with_user(w.inspector).action_confirm()
     return rec
 
 
@@ -135,13 +138,13 @@ def test_b1_two_receipts_settle_independently(w):
 def test_b1_no_second_settlement(w):
     grn = receive(w, {w.prod: 3})
     done = inspect(w, grn, w.prod, 3)
-    refused(w, lambda: done.with_user(w.receiver).action_confirm(), "draft inspection")
+    refused(w, lambda: done.with_user(w.inspector).action_confirm(), "draft inspection")
     second = (
         w.env["fix.procurement.inspection"]
-        .with_user(w.receiver)
+        .with_user(w.inspector)
         .create({"receipt_line_id": grn.line_ids.id, "qty_accepted": 0})
     )
-    refused(w, lambda: second.with_user(w.receiver).action_confirm(), "already has")
+    refused(w, lambda: second.with_user(w.inspector).action_confirm(), "already has")
     assert w.qty(w.part, w.central) == 13.0
 
 

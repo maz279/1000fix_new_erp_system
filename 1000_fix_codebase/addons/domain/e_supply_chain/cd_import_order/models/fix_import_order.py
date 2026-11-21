@@ -22,6 +22,7 @@ from .fix_import_common import (
     refuse_locked,
     require_group,
     schedule_alert,
+    stock_realtime,
     today,
 )
 
@@ -129,6 +130,14 @@ class FixImportOrder(models.Model):
     m16_receipt_id = fields.Many2one(
         "fix.purchase.receipt", string="M16 Goods Receipt", readonly=True, copy=False
     )
+    # M44-10: serialised parts wait on a draft M15 receipt for their serials,
+    # as the M16 bridge's serialised receipts do
+    serial_receipt_id = fields.Many2one(
+        "fix.stock.receipt",
+        string="Serialised Receipt (serials to capture)",
+        readonly=True,
+        copy=False,
+    )
     closed_by_id = fields.Many2one("res.users", string="Closed By", readonly=True, copy=False)
     closed_on = fields.Date(string="Closed On", readonly=True, copy=False)
     state = fields.Selection(ORDER_STATES, default="draft", required=True, tracking=True)
@@ -138,6 +147,7 @@ class FixImportOrder(models.Model):
             "state",
             "receipt_id",
             "m16_receipt_id",
+            "serial_receipt_id",
             "received_by_id",
             "received_on",
             "goods_move_id",
@@ -363,7 +373,16 @@ class FixImportOrder(models.Model):
             # M44-1: the goods value reaches the GL once, at receipt (Dr stock
             # valuation / Cr GRNI). Accounts are resolved before anything moves.
             company = rec.company_id
-            stock_account = import_account(rec.env, company, "inventory")
+            realtime = stock_realtime(rec.env, company)
+            Suspense = rec.env["fix.inventory.valuation.suspense"].sudo()
+            # A06 D1: in a real-time company each part's own stock account at
+            # the receiving location's branch (never the company's first OU)
+            stock_account = None if realtime else import_account(rec.env, company, "inventory")
+            receive_ou = (
+                Suspense._fix_location_ou(rec.location_id, company)
+                if realtime
+                else rec.operating_unit_id
+            )
             grni_account = import_account(rec.env, company, "grni")
             journal = import_journal(rec.env, company)
             su = rec.sudo()
@@ -378,20 +397,56 @@ class FixImportOrder(models.Model):
             per_line = {al.order_line_id.id: al.amount for al in estimate.line_ids}
             if estimate:
                 import_account(rec.env, company, "landed_accrual")
-            receipt_lines = []
+            receipt_lines, serial_lines = [], []
+            received_qty = {}
             for line in rec.line_ids:
-                provisional = line._goods_value_bdt() + per_line.get(line.id, 0.0)
+                # M44-14: what customs released (the paid Bills of Entry), not
+                # the ordered quantity
+                qty = min(line._import_declared_paid_qty(), line.quantity)
+                if qty <= 1e-6:
+                    continue
+                received_qty[line.id] = qty
+                share = qty / line.quantity
+                provisional = (line._goods_value_bdt() + per_line.get(line.id, 0.0)) * share
+                unit_cost = round(provisional / qty, 4)
+                if line.part_id.sudo().is_serialized:
+                    # M44-10: one unit per line; the store captures each serial
+                    units = round(qty)
+                    if abs(units - qty) > 1e-6:
+                        raise UserError(
+                            "%s is serialised: %s is not a whole number of units."
+                            % (line.part_id.display_name, qty)
+                        )
+                    serial_lines += [
+                        (
+                            0,
+                            0,
+                            {
+                                "part_id": line.part_id.id,
+                                "qty_received": 1,
+                                "qty_accepted": 1,
+                                "unit_cost": unit_cost,
+                            },
+                        )
+                        for _unit in range(units)
+                    ]
+                    continue
                 receipt_lines.append(
                     (
                         0,
                         0,
                         {
                             "part_id": line.part_id.id,
-                            "qty_received": line.quantity,
-                            "qty_accepted": line.quantity,
-                            "unit_cost": round(provisional / line.quantity, 4),
+                            "qty_received": qty,
+                            "qty_accepted": qty,
+                            "unit_cost": unit_cost,
                         },
                     )
+                )
+            if not received_qty:
+                raise UserError(
+                    "Import order %s: the paid Bills of Entry release no quantity to receive."
+                    % rec.name
                 )
             Receipt = su.env["fix.stock.receipt"]
             receipt_vals = {
@@ -405,7 +460,7 @@ class FixImportOrder(models.Model):
             }
             if rec.purchase_order_id and "purchase_order_id" in Receipt._fields:
                 receipt_vals["purchase_order_id"] = rec.purchase_order_id.id
-            m16_receipt = rec._import_post_m16_receipt()
+            m16_receipt = rec._import_post_m16_receipt(received_qty)
             # A PO-linked import's M15 receipt names its M16 GRN as source, as
             # the M16 bridge's own receipts do: an inspection rejection on the
             # GRN then finds this stock and moves it to quarantine.
@@ -416,12 +471,57 @@ class FixImportOrder(models.Model):
             ):
                 if key in Receipt._fields:
                     receipt_vals[key] = value
-            receipt = Receipt.create(receipt_vals)
-            if receipt.state == "draft":
-                receipt.action_inspect()
-            receipt.action_post()
-            goods = round(sum(line._goods_value_bdt() for line in rec.line_ids), 2)
+            receipt = Receipt.browse()
+            if receipt_lines:
+                receipt = Receipt.create(dict(receipt_vals, line_ids=receipt_lines))
+                if receipt.state == "draft":
+                    receipt.action_inspect()
+                if not realtime:
+                    receipt.action_post()
+            serial_receipt = Receipt.browse()
+            if serial_lines:
+                serial_receipt = Receipt.create(
+                    dict(
+                        receipt_vals,
+                        line_ids=serial_lines,
+                        inspection_notes="Import %s (M44): capture each unit's serial" % rec.name,
+                    )
+                )
+            receipt = receipt or serial_receipt
+            for line in rec.line_ids:
+                if line.id in received_qty:
+                    line.sudo()._guarded().write({"qty_received": received_qty[line.id]})
+            goods = round(
+                sum(
+                    line._goods_value_bdt() * received_qty[line.id] / line.quantity
+                    for line in rec.line_ids
+                    if line.id in received_qty
+                ),
+                2,
+            )
             ref = "Import receipt %s (%s)" % (rec.name, receipt.name)
+            if realtime:
+                # one Dr line per part stock account (brand), same total
+                stock_lines = {}
+                for line in rec.line_ids:
+                    if line.id not in received_qty:
+                        continue
+                    acct = Suspense._fix_stock_account(line.part_id, company)
+                    stock_lines[acct] = stock_lines.get(acct, 0.0) + (
+                        line._goods_value_bdt() * received_qty[line.id] / line.quantity
+                    )
+                stock_lines = {a: round(v, 2) for a, v in stock_lines.items()}
+                if stock_lines:
+                    last = list(stock_lines)[-1]
+                    stock_lines[last] = round(
+                        stock_lines[last] + goods - sum(stock_lines.values()), 2
+                    )
+                goods_lines = [
+                    (acct, "Goods received %s" % rec.name, value)
+                    for acct, value in stock_lines.items()
+                ]
+            else:
+                goods_lines = [(stock_account, "Goods received %s" % rec.name, goods)]
             goods_move = post_import_move(
                 rec.env,
                 company,
@@ -429,22 +529,43 @@ class FixImportOrder(models.Model):
                 today(rec),
                 ref,
                 [
-                    (stock_account, "Goods received %s" % rec.name, goods),
+                    *goods_lines,
                     (grni_account, "GRNI %s" % (rec.purchase_order_id.name or rec.name), -goods),
                 ],
-                operating_unit=rec.operating_unit_id,
+                operating_unit=receive_ou,
             )
             if estimate:
-                estimate._landed_post_estimate_entry(receipt)
+                estimate._landed_post_estimate_entry(
+                    receipt,
+                    shares=(
+                        {
+                            ln.id: received_qty.get(ln.id, 0.0) / ln.quantity
+                            for ln in rec.line_ids
+                            if ln.quantity
+                        }
+                        if realtime
+                        else None
+                    ),
+                    operating_unit=receive_ou,
+                )
+            if realtime and receipt_lines:
+                # the import posted the journal itself: M15 links its
+                # valuation rows to it instead of posting them again
+                receipt.with_context(fix_stock_external_move_id=goods_move.id).action_post()
             rec._guarded().write(
                 {
                     "state": "received",
                     "goods_move_id": goods_move.id or False,
                     "receipt_id": receipt.id,
+                    "serial_receipt_id": serial_receipt.id if receipt != serial_receipt else False,
                     "m16_receipt_id": m16_receipt.id or False,
                     "received_by_id": rec.env.user.id,
                     "received_on": today(rec),
                 }
+            )
+            # M44-17: the stock carries a provisional cost until the final sheet
+            rec._import_receipts()._fix_mark_provisional(
+                "Import %s: landed cost not final" % rec.name
             )
             publish(
                 rec.env,
@@ -459,15 +580,48 @@ class FixImportOrder(models.Model):
                     "purchase_order_id": rec.purchase_order_id.id or None,
                     "value": float(rec.fob_value),
                     "provisional_value_bdt": round(
-                        sum(line._goods_value_bdt() for line in rec.line_ids)
-                        + (estimate.total_landed if estimate else 0.0),
-                        2,
+                        goods + (estimate.total_landed if estimate else 0.0), 2
                     ),
                 },
             )
         return True
 
-    def _import_post_m16_receipt(self):
+    def _import_goods_move_for(self, receipt):
+        """A06 D1: the import's own goods entry a later-posted receipt of this
+        import (the serialised draft) belongs to, in a real-time company."""
+        order = self.sudo().search(
+            ["|", ("receipt_id", "=", receipt.id), ("serial_receipt_id", "=", receipt.id)],
+            limit=1,
+        )
+        if order and order.goods_move_id and stock_realtime(self.env, order.company_id):
+            return order.goods_move_id
+        return self.env["account.move"]
+
+    def _import_receipts(self):
+        """The M15 receipts of this import (plain and serialised)."""
+        self.ensure_one()
+        return (self.receipt_id | self.serial_receipt_id).sudo()
+
+    def _import_pending_serial_receipts(self):
+        self.ensure_one()
+        return self._import_receipts().filtered(lambda r: r.state != "posted")
+
+    def _import_scope_key(self):
+        """What an LC remittance of this import pays for (AP scope, D6)."""
+        self.ensure_one()
+        return "fix.import.order,%d" % self.id
+
+    def _import_supplier_bills(self):
+        """The supplier's bills of this import: its M16 PO's and those raised
+        against the import itself (an import with no PO, X11)."""
+        self.ensure_one()
+        Bill = self.env["fix.vendor.invoice"].sudo()
+        domain = [("import_order_id", "=", self.id)]
+        if self.purchase_order_id:
+            domain = ["|", ("requisition_id", "=", self.purchase_order_id.id), *domain]
+        return Bill.search(domain)
+
+    def _import_post_m16_receipt(self, received_qty=None):
         """M44-1 + M52: the AP three-way match reads posted M16 receipt lines,
         so a PO-linked import also posts its M16 GRN. The import's own M15
         receipt and GRNI entry carry the stock and the GL; the GRN is marked
@@ -486,13 +640,15 @@ class FixImportOrder(models.Model):
         }
         lines = []
         for line in self.line_ids:
+            if received_qty is not None and line.id not in received_qty:
+                continue
             product = line.part_id.sudo().product_id
             if not product:
                 raise UserError(
                     "%s has no purchasing product, so it cannot be matched to PO %s."
                     % (line.part_id.display_name, po.name)
                 )
-            qty = line.quantity
+            qty = received_qty[line.id] if received_qty is not None else line.quantity
             for pol in po.line_ids.filtered(lambda p, pr=product: p.product_id == pr):
                 take = min(qty, remaining[pol.id])
                 if take > 0:
@@ -638,9 +794,13 @@ class FixImportOrderLine(models.Model):
         currency_field="currency_id",
         compute="_compute_values",
         store=True,
-        help="Line value plus its share (by value) of the freight and insurance the "
-        "incoterm leaves to the importer.",
+        help="Line value plus its share (by value) of ALL freight and insurance to the "
+        "port of entry, whoever paid them (M44-06): the assessable value is CIF.",
     )
+    # M44-09: the allocation bases a sheet may use
+    weight_kg = fields.Float(string="Gross Weight (kg)")
+    volume_cbm = fields.Float(string="Volume (CBM)")
+    qty_received = fields.Float(string="Received", readonly=True, copy=False)
 
     _qty_positive = models.Constraint(
         "CHECK (quantity > 0)", "An import line needs a positive quantity"
@@ -710,24 +870,43 @@ class FixImportOrderLine(models.Model):
             order = rec.order_id
             total = sum((ln.quantity or 0.0) * (ln.unit_price or 0.0) for ln in order.line_ids)
             share = (rec.fob_amount / total) if total else 0.0
-            extra = 0.0
-            # BRU-ITC-13: the verified cover's premium is the insurance in the CIF
+            # M44-06: customs assess on CIF whatever the incoterm. Under CIF/DDP
+            # the supplier's freight and insurance (on its invoice) are part of
+            # it; under CFR the supplier's freight plus our cover; under FOB/EXW
+            # our freight plus our cover (BRU-ITC-13: the verified premium).
             insurance = order._import_insurance_for_cif() if order else 0.0
-            if order.incoterm in ("fob", "exw", False):
+            if order.incoterm in ("cif", "ddp"):
+                extra = (order.freight_cost or 0.0) + (order.insurance_cost or 0.0)
+            else:
                 extra = (order.freight_cost or 0.0) + insurance
-            elif order.incoterm == "cfr":
-                extra = insurance
             rec.cif_amount = round(rec.fob_amount + extra * share, 2)
 
     def _goods_value_bdt(self) -> float:
         self.ensure_one()
         return round(self.fob_amount * (self.order_id.fx_rate or 0.0), 2)
 
+    def _import_declared_paid_qty(self) -> float:
+        """What the paid Bills of Entry declare of this line (M44-14)."""
+        self.ensure_one()
+        return round(
+            sum(
+                self.env["fix.import.boe.line"]
+                .sudo()
+                .search([("order_line_id", "=", self.id), ("boe_id.state", "=", "paid")])
+                .mapped("quantity")
+            ),
+            6,
+        )
+
+    def _import_received_qty(self) -> float:
+        self.ensure_one()
+        return self.qty_received or 0.0
+
     def _line_locked(self) -> bool:
         return any(rec.order_id._import_terms_locked() for rec in self.sudo())
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"fob_amount", "cif_amount"}
+        return super()._fix_guarded_fields() | {"fob_amount", "cif_amount", "qty_received"}
 
     _PINNED = "The lines of an import order are pinned once its proforma is approved or an LC is applied for."
 
@@ -747,3 +926,23 @@ class FixImportOrderLine(models.Model):
         if not self.env.su and self._line_locked():
             raise UserError(self._PINNED)
         return super().unlink()
+
+
+class FixStockReceiptImport(models.Model):
+    """A06 D1: a receipt of an import that is posted after the import's own
+    goods entry (the serialised draft, once the store captures each serial)
+    names that entry to M15's posting engine, so the goods value reaches the
+    GL once (the import already debited stock / credited GRNI at receipt)."""
+
+    _inherit = "fix.stock.receipt"
+
+    def action_post(self):
+        if self.env.context.get("fix_stock_external_move_id"):
+            return super().action_post()
+        Order = self.env["fix.import.order"]
+        result = True
+        for rec in self:
+            move = Order._import_goods_move_for(rec)
+            target = rec.with_context(fix_stock_external_move_id=move.id) if move else rec
+            result = super(FixStockReceiptImport, target).action_post()
+        return result

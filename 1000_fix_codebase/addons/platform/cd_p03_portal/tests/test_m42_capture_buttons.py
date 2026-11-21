@@ -113,6 +113,15 @@ NEW_MODELS = (
 )
 # models whose rows carry a company (agreement terms and prices are commercial)
 COMPANY_RULED = ("fix.supplier.agreement", "fix.supplier.price.list")
+# A06 P30: supplier prices are commercial - read only by the procurement and
+# finance roles that work with them, never by every employee.
+PRICE_RESTRICTED = ("fix.supplier.price.list", "fix.supplier.price.change")
+PRICE_READERS = {
+    "cd_requisition.group_fix_procurement_buyer",
+    "cd_requisition.group_fix_procurement_approver",
+    "cd_requisition.group_fix_procurement_manager",
+    "account.group_account_user",
+}
 
 
 @pytest.fixture(scope="module")
@@ -336,9 +345,18 @@ def test_new_models_are_secured():
         xmlid = "model_" + model.replace(".", "_")
         rows = [r.split(",") for r in acl.splitlines() if (",%s," % xmlid) in r]
         assert rows, model
-        # nobody may delete; a plain employee only reads
+        # nobody may delete
         assert all(r[-1].strip() == "0" for r in rows), model
         plain = [r for r in rows if r[3] == "base.group_user"]
+        if model in PRICE_RESTRICTED:
+            # P30: a plain employee may not even read supplier prices; the
+            # buying/approving/finance roles read them and do not write
+            assert not plain, "%s is readable by every employee again" % model
+            readers = {r[3]: r[4:8] for r in rows}
+            for group in PRICE_READERS:
+                assert readers.get(group) == ["1", "0", "0", "0"], (model, group)
+            continue
+        # a plain employee only reads
         assert plain and plain[0][4:8] == ["1", "0", "0", "0"], model
     for model in COMPANY_RULED:
         assert 'ref="model_%s"' % model.replace(".", "_") in rules, "%s has no company rule" % model

@@ -160,14 +160,17 @@ def test_grni_from_po_receipts_less_invoiced_quantity(ap, call):
     )
     po.action_send()
     po.action_record_receipt({po.line_ids.id: 3.0})
+    # A06 ERP audit X26 / P13: GRNI is one as-at basis that ties to the GL
+    # account, so only a POSTED bill reduces it; a draft bill has not cleared
+    # anything yet (a posted bill's reduction: cd_ap_ext test_x26)
     _bill(ap, 3000.0, qty=1.0, po=po)
     res = call(env(user=ap["acc"]), "model_report", module="M52", report="grni_accruals")
     row = next(r for r in res["rows"] if r["po"] == po.name)
     assert (row["received"], row["invoiced"], row["open_qty"], row["accrual"]) == (
         3.0,
-        1.0,
-        2.0,
-        6000.0,
+        0.0,
+        3.0,
+        9000.0,
     )
     assert row["received_on"] == str(date.today())
 
@@ -207,6 +210,14 @@ def test_expense_by_category_and_duplicate_log(ap, call):
 
 def test_kpis_are_real_numbers(ap):
     env = ap["env"]
+    # A06 ERP audit P09: a non-PO bill needs an active, registered supplier
+    supplier = env["fix.supplier"].create(
+        {"name": ap["vendor"].name, "partner_id": ap["vendor"].id, "status": "active"}
+    )
+    for doc_type in ("trade_licence", "tin", "vat"):
+        env["fix.supplier.document"].create(
+            {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
+        )
     before = m52.kpis(env)
     bill = _bill(ap, 1000.0)
     bill.action_submit_approval()

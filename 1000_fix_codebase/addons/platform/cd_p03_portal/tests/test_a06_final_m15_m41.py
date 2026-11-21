@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from odoo.addons.cd_p03_portal.controllers import a06
 from odoo.addons.cd_p03_portal.controllers import p03_generic_api as g
+from odoo.exceptions import AccessError, UserError
 
 SK = "cd_wms_structure.group_storekeeper"
 OP = "cd_wms_structure.group_warehouse_operator"
@@ -142,10 +143,19 @@ def test_a1_part_status_buttons_are_the_controllers(s):
     assert s.part.state == "active"
 
 
-def test_a1_standard_cost_button_collects_the_cost(s):
-    res = s.act(s.keeper, s.part, "action_set_standard_cost", cost=1.0)
-    assert not res["success"]
-    assert s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)["success"]
+def test_a1_standard_cost_is_the_controllers_and_not_on_the_m41_surface(s):
+    # A06 ERP audit F32: no cost on M41 (spec section 13). The item master and
+    # its standard-cost action are served from M15's surface; the control
+    # (Inventory Controller only) holds through the workspace and the model.
+    from odoo.addons.cd_p03_portal.controllers.a06 import m15, m41
+
+    assert "fix.spare.part" not in m41.SURFACES
+    assert "action_set_standard_cost" in m15.SURFACES["fix.spare.part"]["actions"]
+    assert not s.act(s.keeper, s.part, "action_set_standard_cost", cost=1.0)["success"]
+    with pytest.raises((AccessError, UserError)), s.env.cr.savepoint():
+        s.part.with_user(s.keeper).action_set_standard_cost(cost=1.0)
+    res = s.act(s.controller, s.part, "action_set_standard_cost", cost=450.0)
+    assert res["success"], res
     assert s.part.unit_cost == 450.0
 
 
@@ -157,8 +167,22 @@ def test_a1_serial_control_cannot_flip_while_stock_is_held(s):
 
 # =========================================================== A2 stock location
 def test_a2_a_van_can_be_created_on_the_form_with_its_custodian(s):
+    # A06 ERP audit A36: naming a van's custodian is the Inventory Controller's
+    # (a storekeeper could otherwise hand stock to any technician)
     res = s.write(
         s.keeper,
+        "fix.stock.location",
+        {
+            "name": "A6FS Van K",
+            "code": "A6K-" + s.tag,
+            "location_type": "van",
+            "technician_id": s.tech.id,
+            "operating_unit_id": s.ou.id,
+        },
+    )
+    assert "error" in res, res
+    res = s.write(
+        s.controller,
         "fix.stock.location",
         {
             "name": "A6FS Van",
@@ -236,6 +260,9 @@ def _wms(s):
         {"warehouse_id": wh.id, "name": "Pick", "code": "PK", "zone_type": "storage"}
     )
     the_bin = env["fix.warehouse.bin"].create({"zone_id": zone.id, "name": "B-" + s.tag})
+    # A06 ERP audit O7 / F16: floor work is an operative's of THIS warehouse
+    emp = env["hr.employee"].create({"name": "A6FS Op " + s.tag, "user_id": s.operator.id})
+    env["fix.wms.operative"].create({"employee_id": emp.id, "warehouse_id": wh.id})
     env["fix.wms.slot"].sudo()._guarded().create(
         {"part_id": s.part.id, "bin_id": the_bin.id, "qty": 8.0}
     )

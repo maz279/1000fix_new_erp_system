@@ -37,10 +37,18 @@ from .fix_inventory_approval import (
     location_class,
     require_supervisor,
 )
-from .fix_wms_ops import EPS, _differs, _scan_item
+from .fix_wms_ops import (
+    EPS,
+    NO_PUTAWAY_ZONE_TYPES,
+    _differs,
+    _scan_item,
+    bin_class,
+    line_in_inspection,
+    may_block,
+)
 from .fix_wms_ops_floor import _require_floor_admin, _warehouse_of
 
-NO_PUTAWAY_ZONES = ("inspection", "quarantine", "returns", "staging", "dispatch", "receiving")
+NO_PUTAWAY_ZONES = NO_PUTAWAY_ZONE_TYPES
 STRATEGIES = [
     ("fixed", "Fixed bin (the part's pick face)"),
     ("existing", "Addition to existing stock"),
@@ -78,6 +86,7 @@ TASK_TYPES = [
     ("move", "Internal Move"),
 ]
 _PRIO_RANK = {"normal": 0, "urgent": 1, "emergency": 2}
+MAX_BIN_EXCEPTIONS = 2
 
 
 def _seq(env, code, fallback):
@@ -450,9 +459,9 @@ class FixWmsPutawayDirected(models.Model):
             "hazardous"
         ):
             return "not a hazardous-class bin"
-        bin_class = bin_record.ownership_class or "any"
-        if bin_class != "any" and bin_class != ownership:
-            return "holds %s stock only" % bin_class
+        if bin_class(bin_record) != ownership:
+            # O6: an "any" bin holds owned stock only
+            return "holds %s stock only" % bin_class(bin_record)
         units, kg, m3 = _bin_load(self.env, bin_record)
         w, v = _part_measure(part)
         if bin_record.capacity_qty and units + qty > bin_record.capacity_qty + EPS:
@@ -468,10 +477,9 @@ class FixWmsPutawayDirected(models.Model):
         """Return (bin, strategy, rejected[]) for this put-away (T-01)."""
         self.ensure_one()
         exclude = exclude or self.env["fix.warehouse.bin"]
-        line = self.receipt_line_id
-        if not line:
-            raise UserError("A put-away is directed from the receipt line it puts away.")
-        location = _receipt_location(line)
+        if not (self.receipt_line_id or self.transfer_line_id):
+            raise UserError("A put-away is directed from the received line it puts away.")
+        location = self._fix_source_location()
         warehouses = (
             self.env["fix.warehouse"]
             .sudo()
@@ -483,7 +491,7 @@ class FixWmsPutawayDirected(models.Model):
                 "to direct to (BRU-WMS-02)." % location.code
             )
         part, qty = self.part_id, self.qty
-        ownership = line.receipt_id.ownership_class or "owned"
+        ownership = self._fix_source_class()
         Bin = self.env["fix.warehouse.bin"].sudo()
         Slot = self.env["fix.wms.slot"].sudo()
         bins = Bin.search(
@@ -533,11 +541,13 @@ class FixWmsPutawayDirected(models.Model):
                 rec._guarded().write({"to_bin_id": target.id})
 
     # ---------------------------------------------------------------- CRUD
+    _SOURCE_KEYS = ("receipt_line_id", "transfer_line_id", "part_id", "qty")
+
     @api.model_create_multi
     def create(self, vals_list):
         records = super().create(vals_list)
         for rec, vals in zip(records, vals_list, strict=True):
-            if not rec.receipt_line_id:
+            if not (rec.receipt_line_id or rec.transfer_line_id):
                 continue
             chosen = rec.to_bin_id
             rec._fix_apply_direction()
@@ -546,17 +556,36 @@ class FixWmsPutawayDirected(models.Model):
         return records
 
     def write(self, vals):
-        if "to_bin_id" not in vals or self._fix_guard_open():
+        source_keys = [k for k in self._SOURCE_KEYS if k in vals]
+        if ("to_bin_id" not in vals and not source_keys) or self._fix_guard_open():
             return super().write(vals)
         res = True
         for rec in self:
-            target = self.env["fix.warehouse.bin"].browse(vals["to_bin_id"] or 0)
-            if rec.state != "pending" or target == rec.to_bin_id:
+            moved = bool(source_keys) and _differs(rec, {k: vals[k] for k in source_keys})
+            if "to_bin_id" in vals:
+                target = self.env["fix.warehouse.bin"].browse(vals["to_bin_id"] or 0)
+            else:
+                target = rec.to_bin_id
+            if rec.state != "pending" or (target == rec.to_bin_id and not moved):
                 res = super(FixWmsPutawayDirected, rec).write(vals)
                 continue
             rest = {k: v for k, v in vals.items() if k != "to_bin_id"}
             if rest:
                 super(FixWmsPutawayDirected, rec).write(rest)
+            if moved:
+                # F04: a new line, part or quantity is a new put-away: the
+                # directive runs again and any earlier override is void
+                rec._guarded().write(
+                    {
+                        "override_state": "none",
+                        "override_by_id": False,
+                        "override_approved_by_id": False,
+                    }
+                )
+                if rec.receipt_line_id or rec.transfer_line_id:
+                    rec._fix_apply_direction()
+                if "to_bin_id" not in vals:
+                    continue
             if rec.directed_bin_id and target == rec.directed_bin_id:
                 rec._guarded().write(
                     {
@@ -673,11 +702,23 @@ class FixWmsPutawayDirected(models.Model):
         if cause not in dict(EXCEPTION_CAUSES):
             raise UserError("Say what went wrong: full bin, blocked bin or damaged item.")
         Exc = self.env["fix.wms.putaway.exception"].sudo()
-        Task = self.env["fix.wms.task"].sudo()
+        self.env["fix.wms.task"].sudo()
         for rec in self:
             if rec.state != "pending":
                 raise UserError("Report an exception on a pending put-away.")
             bin_record = rec.to_bin_id
+            reported = rec.exception_ids.filtered(lambda e: e.cause != "damaged_item")
+            if (
+                cause != "damaged_item"
+                and len(reported) >= MAX_BIN_EXCEPTIONS
+                and not is_supervisor(self.env)
+            ):
+                # F20: an operative cannot walk the directive bin by bin to the one
+                # he wants by reporting each one full or blocked
+                raise UserError(
+                    "Put-away %s has had %d bins reported already: a Warehouse Supervisor "
+                    "checks them and directs it (FR-WMS-015)." % (rec.name, len(reported))
+                )
             exc = Exc.create(
                 {
                     "putaway_id": rec.id,
@@ -690,16 +731,20 @@ class FixWmsPutawayDirected(models.Model):
             if cause == "damaged_item":
                 continue
             if bin_record and cause == "full_bin":
-                Task.create(
-                    {
-                        "company_id": rec.company_id.id,
-                        "task_type": "count",
-                        "ref": "Count-back %s (full bin)" % rec.name,
-                        "part_id": rec.part_id.id,
-                        "bin_id": bin_record.id,
-                        "qty": 0.0,
-                    }
+                # proof: the bin is counted back (F20, FR-WMS-033)
+                self.env["fix.wms.floor.count"]._fix_raise_count(
+                    rec.part_id, bin_record, "count_back", "Count-back %s (full bin)" % rec.name
                 )
+            if bin_record and cause == "blocked_bin":
+                # O5 / F20: the operative reports it; a supervisor or the QM blocks it
+                if may_block(self.env):
+                    bin_record.action_block(
+                        (note or "").strip() or "Reported on put-away %s" % rec.name
+                    )
+                elif not bin_record._fix_is_blocked():
+                    bin_record.action_report_block(
+                        (note or "").strip() or "Reported on put-away %s" % rec.name
+                    )
             exclude = rec.exception_ids.mapped("bin_id")
             rec._guarded().write(
                 {
@@ -726,6 +771,17 @@ class FixWmsPutawayDirected(models.Model):
                     "Put-away %s goes to %s against the directive (%s): a supervisor approves "
                     "the override first (BRU-WMS-06)."
                     % (rec.name, rec.to_bin_id.name, rec.directed_bin_id.name or "no bin")
+                )
+            if (
+                (rec.receipt_line_id or rec.transfer_line_id)
+                and rec.to_bin_id != rec.directed_bin_id
+                and rec.override_state != "approved"
+            ):
+                # F04: checked at completion, whatever path set the bin
+                raise UserError(
+                    "Put-away %s goes to %s, not to the directed bin %s, with no approved "
+                    "override: direct it again (BRU-WMS-06)."
+                    % (rec.name, rec.to_bin_id.name, rec.directed_bin_id.name or "(none)")
                 )
         return super().action_complete(bin_code, item_code)
 
@@ -952,9 +1008,54 @@ class FixWmsHandlingUnit(models.Model):
                 )
             if target._fix_is_blocked():
                 raise UserError("Bin %s is blocked (BRU-WMS-12)." % target.name)
+            rec._fix_check_store(target)
             rec._guarded().write({"state": "stored", "current_bin_id": target.id})
             rec.child_ids._guarded().write({"state": "stored", "current_bin_id": target.id})
         return True
+
+    def _fix_check_store(self, target):
+        """F18: the bin takes what the unit holds: the hazard and ownership class
+        of every content, and the contents are slotted in that bin (put away
+        through the ledger first; the unit is the licence plate on them, it
+        never adds a quantity of its own, so the bin's capacity holds)."""
+        self.ensure_one()
+        lines = self.line_ids | self.child_ids.mapped("line_ids")
+        received = self.receipt_id.ownership_class if self.receipt_id else "owned"
+        if lines and bin_class(target) != (received or "owned"):
+            raise UserError(
+                "Bin %s holds %s stock only; %s holds %s stock (BRU-WMS-03)."
+                % (target.name, bin_class(target), self.name, received)
+            )
+        need = defaultdict(float)
+        for line in lines:
+            part = line.part_id
+            if (part.storage_class or "general") == "hazardous" and (
+                target.storage_class != "hazardous"
+            ):
+                raise UserError(
+                    "%s holds hazardous %s: it goes only into a hazardous-class bin, not %s "
+                    "(BRU-WMS-11)." % (self.name, part.part_number, target.name)
+                )
+            need[part.id] += line.qty
+        Slot = self.env["fix.wms.slot"].sudo()
+        others = self.sudo().search(
+            [
+                ("current_bin_id", "=", target.id),
+                ("state", "=", "stored"),
+                ("id", "not in", self.ids),
+            ]
+        )
+        for other_line in others.mapped("line_ids") | others.mapped("child_ids.line_ids"):
+            need[other_line.part_id.id] += other_line.qty
+        for part_id, qty in need.items():
+            slot = Slot.search([("part_id", "=", part_id), ("bin_id", "=", target.id)], limit=1)
+            if (slot.qty if slot else 0.0) + EPS < qty:
+                part = self.env["fix.spare.part"].browse(part_id)
+                raise UserError(
+                    "Bin %s holds %s of %s in its slot; the units stored there need %s. Put the "
+                    "contents away into the bin first (FR-WMS-010)."
+                    % (target.name, slot.qty if slot else 0.0, part.part_number, qty)
+                )
 
     def action_dissolve(self):
         for rec in self:
@@ -1015,8 +1116,14 @@ class FixWmsHandlingUnitLine(models.Model):
 class FixWmsCrossdock(models.Model):
     """FR-WMS-016 / BRU-WMS-15 / AUT-WMS-05: an inbound line whose demand is
     already waiting goes straight to an outbound staging lane. Only a POSTED
-    receipt line's stock that nobody has put away, only for a demand line of a
-    wave that is not yet released, in the same warehouse location."""
+    receipt line's stock that is out of inspection and nobody has put away, only
+    for queued demand or demand of a wave that is not yet released, in the same
+    warehouse location.
+
+    F01 / F10 / F22 (A06 ERP audit): the cross-dock fulfils a DEMAND, whole, and
+    the stock leaves through that demand's M15 document (transfer, RTV or job
+    issue) when the cross-dock is dispatched. The demand's draft wave lines go;
+    the demand is no longer picked. M41 itself never takes stock off the ledger."""
 
     _name = "fix.wms.crossdock"
     _description = "Cross-Dock"
@@ -1032,6 +1139,12 @@ class FixWmsCrossdock(models.Model):
     )
     wave_line_id = fields.Many2one(
         "fix.wms.wave.line", string="Waiting Demand (wave line)", ondelete="set null"
+    )
+    demand_id = fields.Many2one(
+        "fix.wms.outbound.demand",
+        string="Outbound Demand",
+        ondelete="restrict",
+        help="The queued (or not yet released) demand the received stock fulfils, whole.",
     )
     wave_id = fields.Many2one("fix.wms.wave", string="Wave", readonly=True, copy=False)
     part_id = fields.Many2one(related="receipt_line_id.part_id", string="Spare Part", store=True)
@@ -1080,32 +1193,64 @@ class FixWmsCrossdock(models.Model):
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if len(self) == 1 and self.id and self.state != "proposed":
-            locked |= {"receipt_line_id", "wave_line_id", "qty", "stage_lane"}
+            locked |= {"receipt_line_id", "wave_line_id", "demand_id", "qty", "stage_lane"}
         return locked
+
+    def _fix_demand(self):
+        """The demand the cross-dock fulfils: named, or the wave line's."""
+        self.ensure_one()
+        demand = self.demand_id
+        line_demand = self.wave_line_id.demand_id
+        if self.wave_line_id and demand and line_demand != demand:
+            raise UserError(
+                "The wave line belongs to %s, not %s." % (line_demand.name, demand.name)
+            )
+        return demand or line_demand
 
     def _fix_check(self):
         for rec in self:
-            line, demand = rec.receipt_line_id, rec.wave_line_id
+            line = rec.receipt_line_id
             if line.receipt_id.state != "posted":
                 raise UserError(
                     "Only stock a POSTED receipt accepted is cross-docked (BRU-WMS-04)."
                 )
+            if line_in_inspection(rec.env, line):
+                raise UserError(
+                    "Receipt %s is still in inspection: nothing of it moves on until the "
+                    "inspection outcome is recorded (BRU-WMS-04)." % line.receipt_id.name
+                )
+            if rec.wave_line_id and not rec.wave_line_id.demand_id:
+                raise UserError(
+                    "Wave line %s has no outbound demand behind it: a cross-dock fulfils a "
+                    "demand whose M15 document ships the stock (BRU-WMS-01)."
+                    % rec.wave_line_id.display_name
+                )
+            demand = rec._fix_demand()
             if not demand:
-                raise UserError("Name the waiting demand (wave line) this stock goes to.")
+                raise UserError("Name the waiting demand this stock goes to.")
             if demand.part_id != line.part_id:
                 raise UserError(
                     "The demand is for %s; the received line is %s."
                     % (demand.part_id.part_number, line.part_id.part_number)
                 )
-            if demand.state != "pending" or demand.wave_id.state != "draft":
+            wave = demand.wave_id
+            if demand.state not in ("queued", "waved") or (wave and wave.state != "draft"):
                 raise UserError(
                     "Wave %s is already released: cross-dock applies only before the wave is "
-                    "released (BRU-WMS-15)." % demand.wave_id.name
+                    "released (BRU-WMS-15)." % (wave.name or demand.name)
                 )
-            if rec.qty > (demand.qty or 0.0) + EPS:
+            doc = demand.sudo()
+            if not (doc.transfer_line_id or doc.rtv_id or doc.consumption_id):
                 raise UserError(
-                    "The demand asks for %s; %s cannot be cross-docked to it."
-                    % (demand.qty, rec.qty)
+                    "%s has no M15 document yet: build its wave first (the transfer or job "
+                    "issue is raised then) (BRU-WMS-01)." % demand.name
+                )
+            if doc.transfer_line_id and doc.transfer_id.state != "approved":
+                raise UserError("Transfer %s is not approved." % doc.transfer_id.name)
+            if abs(rec.qty - (demand.qty or 0.0)) > EPS:
+                raise UserError(
+                    "The demand asks for %s; %s cannot be cross-docked to it: a cross-dock "
+                    "fulfils its demand whole (F10)." % (demand.qty, rec.qty)
                 )
             remaining = _remaining_to_put_away(rec.env, line, skip_crossdocks=rec)
             if rec.qty > remaining + EPS:
@@ -1114,11 +1259,21 @@ class FixWmsCrossdock(models.Model):
                     "cross-docked)." % (remaining, line.receipt_id.name)
                 )
             location = _receipt_location(line)
-            wave_loc = rec._fix_wave_location(demand.wave_id)
-            if wave_loc and wave_loc != location:
+            if demand.warehouse_id.stock_location_id != location:
                 raise UserError(
-                    "Receipt %s is at %s; wave %s ships from %s."
-                    % (line.receipt_id.name, location.code, demand.wave_id.name, wave_loc.code)
+                    "Receipt %s is at %s; %s ships from %s."
+                    % (
+                        line.receipt_id.name,
+                        location.code,
+                        demand.name,
+                        demand.warehouse_id.stock_location_id.code,
+                    )
+                )
+            received = line.receipt_id.ownership_class or "owned"
+            if received != (demand.ownership_class or "owned"):
+                raise UserError(
+                    "Receipt %s received %s stock; %s takes %s stock (BRU-WMS-03)."
+                    % (line.receipt_id.name, received, demand.name, demand.ownership_class)
                 )
             check_quantity(line.part_id, rec.qty, "cross-dock quantity")
             if line.part_id.is_serialized:
@@ -1126,12 +1281,6 @@ class FixWmsCrossdock(models.Model):
                     "%s is serialized: put it away and pick it with its serial (BRU-WMS-10)."
                     % line.part_id.part_number
                 )
-
-    @staticmethod
-    def _fix_wave_location(wave):
-        bins = wave.line_ids.mapped("bin_id")
-        warehouse = wave.warehouse_id or bins[:1].zone_id.warehouse_id
-        return warehouse.stock_location_id if warehouse else False
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1141,26 +1290,32 @@ class FixWmsCrossdock(models.Model):
         records = super().create(vals_list)
         records._fix_check()
         for rec in records:
-            rec._guarded().write({"wave_id": rec.wave_line_id.wave_id.id})
+            demand = rec._fix_demand()
+            rec._guarded().write({"wave_id": demand.wave_id.id or False, "demand_id": demand.id})
         return records
 
     def write(self, vals):
         if self and not self._fix_guard_open():
             frozen = {
                 k: vals[k]
-                for k in ("receipt_line_id", "wave_line_id", "qty", "stage_lane")
+                for k in ("receipt_line_id", "wave_line_id", "demand_id", "qty", "stage_lane")
                 if k in vals
             }
             if frozen and _differs(self.filtered(lambda r: r.state != "proposed"), frozen):
                 raise UserError("A staged cross-dock is final.")
         res = super().write(vals)
-        if self and {"receipt_line_id", "wave_line_id", "qty"} & set(vals):
+        if (
+            self
+            and not self._fix_guard_open()
+            and {"receipt_line_id", "wave_line_id", "demand_id", "qty"} & set(vals)
+        ):
             self.filtered(lambda r: r.state == "proposed")._fix_check()
         return res
 
     def action_confirm(self, item_code=None):
         """Scan the item on the dock: the quantity moves to STAGED in M15 and the
-        waiting demand is fulfilled by it (its wave line shrinks or goes)."""
+        waiting demand is fulfilled by it: its draft wave lines go, and the
+        demand waits for this cross-dock's dispatch."""
         Onhand = self.env["fix.stock.onhand"]
         for rec in self:
             if rec.state != "proposed":
@@ -1168,19 +1323,20 @@ class FixWmsCrossdock(models.Model):
             if not self.env.su:
                 _scan_item(rec.part_id, item_code)
             rec._fix_check()
-            line, demand = rec.receipt_line_id, rec.wave_line_id
+            line, demand = rec.receipt_line_id, rec._fix_demand()
             location = _receipt_location(line)
             cls = location_class(location, line.receipt_id.ownership_class or "owned")
             Onhand._fix_move_status(rec.part_id, location, cls, rec.qty, "unrestricted", "staged")
-            before = demand.qty
-            if rec.qty >= before - EPS:
-                demand._guarded().unlink()
-            else:
-                demand._guarded().write({"qty": round(before - rec.qty, 4)})
+            wave_lines = demand.wave_id.line_ids.filtered(lambda ln, d=demand: ln.demand_id == d)
+            wave_lines._guarded().unlink()
+            demand._guarded().write(
+                {"state": "crossdocked", "wave_id": False, "short_note": rec.name}
+            )
             rec._guarded().write(
                 {
                     "state": "staged",
-                    "demand_qty_before": before,
+                    "demand_id": demand.id,
+                    "demand_qty_before": demand.qty,
                     "staged_by_id": self.env.user.id,
                     "staged_at": fields.Datetime.now(),
                 }
@@ -1202,24 +1358,24 @@ class FixWmsCrossdock(models.Model):
         return True
 
     def action_dispatch(self, load_ref=None):
-        """Load and dispatch the staged cross-dock: M15 loses the staged stock."""
+        """Load and dispatch the staged cross-dock: its demand's M15 document
+        ships the stock (the transfer goes in transit, the RTV ships, the job
+        issue is consumed). F01: no write-off of M41's own."""
         load_ref = (load_ref or "").strip()
         if not load_ref:
             raise UserError("Give the load / vehicle reference it leaves on.")
-        Onhand = self.env["fix.stock.onhand"]
-        Suspense = self.env["fix.inventory.valuation.suspense"]
         for rec in self:
             if rec.state != "staged":
                 raise UserError("Dispatch a staged cross-dock.")
-            line = rec.receipt_line_id
-            location = _receipt_location(line)
-            cls = location_class(location, line.receipt_id.ownership_class or "owned")
-            bucket = Onhand._bucket(rec.part_id, location, cls, "staged")
-            cost = bucket.unit_cost if bucket else 0.0
-            Onhand._apply(rec.part_id, location, cls, -rec.qty, status="staged")
-            Suspense._fix_post(
-                "shipment", rec.part_id, -rec.qty, cost, rec.name, location=location, ownership=cls
-            )
+            demand = rec.demand_id
+            if not demand or demand.state != "crossdocked":
+                raise UserError(
+                    "Cross-dock %s has no demand waiting for it: nothing leaves without its "
+                    "M15 document (BRU-WMS-01)." % rec.name
+                )
+            demand._guarded().write({"state": "shipped"})
+            demand._fix_ship_documents()
+            location = _receipt_location(rec.receipt_line_id)
             rec._guarded().write(
                 {
                     "state": "dispatched",
@@ -1492,7 +1648,14 @@ class FixWmsWaveTemplateSpec(models.Model):
         ],
         string="Release Rule",
         required=True,
-        default="cutoff",
+        default="manual",
+    )
+    armed_by_id = fields.Many2one(
+        "res.users",
+        string="Automatic Release Set By",
+        readonly=True,
+        copy=False,
+        help="O3 / F05: the Warehouse Supervisor who armed the automatic release.",
     )
     priority = fields.Selection(PRIORITIES, required=True, default="normal")
     dest_location_ids = fields.Many2many(
@@ -1500,6 +1663,36 @@ class FixWmsWaveTemplateSpec(models.Model):
         string="Destinations (empty: any)",
         help="Only demand bound for these locations joins a wave of this template.",
     )
+
+    _AUTO_RULES = ("cutoff", "immediate")
+    _ARMING = ("release_rule", "cutoff", "active", "warehouse_id", "dest_location_ids")
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        """O3 / F05: a template that releases by itself (at the cut-off or at
+        once) releases waves, which is a supervisor's act: only a supervisor
+        arms it."""
+        for vals in vals_list:
+            if vals.get("release_rule", "manual") in self._AUTO_RULES:
+                require_supervisor(self.env, "set a template to release waves automatically")
+        records = super().create(vals_list)
+        records.filtered(lambda t: t.release_rule in self._AUTO_RULES).sudo().write(
+            {"armed_by_id": self.env.uid}
+        )
+        return records
+
+    def write(self, vals):
+        if not self.env.su and any(k in vals for k in self._ARMING):
+            arming = vals.get("release_rule") in self._AUTO_RULES
+            touches_armed = self.filtered(lambda t: t.release_rule in self._AUTO_RULES)
+            if arming or touches_armed:
+                require_supervisor(self.env, "change a template that releases waves automatically")
+        res = super().write(vals)
+        if "release_rule" in vals and not self.env.su:
+            self.sudo().write(
+                {"armed_by_id": self.env.uid if vals["release_rule"] in self._AUTO_RULES else False}
+            )
+        return res
 
     @api.constrains("cutoff")
     def _check_cutoff(self):
@@ -1542,8 +1735,11 @@ class FixWmsWaveSpec(models.Model):
                 if template.cutoff and not vals.get("cutoff_at"):
                     try:
                         hhmm = datetime.strptime(template.cutoff.strip(), "%H:%M").time()
+                        # F28: today is the Dhaka day (a 00:00-06:00 Dhaka wave was
+                        # given yesterday's cut-off by the UTC date)
+                        dhaka_today = (fields.Datetime.now() + timedelta(hours=6)).date()
                         vals["cutoff_at"] = datetime.combine(
-                            fields.Date.context_today(self), time(hhmm.hour, hhmm.minute)
+                            dhaka_today, time(hhmm.hour, hhmm.minute)
                         ) - timedelta(hours=6)  # Asia/Dhaka (UTC+6) wall time -> UTC
                     except ValueError:
                         pass
@@ -1590,9 +1786,10 @@ class FixWmsWaveLineSpec(models.Model):
             line._fix_resource()
         return res
 
-    def _fix_pick_slots(self, part, warehouse, exclude_bins=None):
-        """Slots a wave may pick this part from: active, pickable, owned or
-        unrestricted bins of the warehouse; pick faces first, then walk order."""
+    def _fix_pick_slots(self, part, warehouse, exclude_bins=None, ownership="owned"):
+        """Slots a wave may pick this part from: active, pickable slots of the
+        warehouse holding the class asked for (F03: a transfer or RTV moves owned
+        stock, a job issue its own class); pick faces first, then walk order."""
         exclude_bins = exclude_bins or self.env["fix.warehouse.bin"]
         slots = (
             self.env["fix.wms.slot"]
@@ -1610,7 +1807,8 @@ class FixWmsWaveLineSpec(models.Model):
             and not s.bin_id._fix_is_blocked()
             and s.bin_id.zone_id.reservable
             and s.bin_id.zone_id.zone_type not in NO_PICK_ZONES
-            and (s.bin_id.ownership_class or "any") in ("any", "owned")
+            and (s.ownership_class or "owned") == ownership
+            and not s._fix_open_count()
         )
         return ok.sorted(lambda s: (s.slot_type != "pick", s.bin_id.pick_sequence, s.id))
 
@@ -1623,9 +1821,12 @@ class FixWmsWaveLineSpec(models.Model):
         Task = self.env["fix.wms.task"].sudo()
         wave = self.wave_id
         warehouse, location = wave._wave_location()
-        cls = location_class(location)
+        line_cls = self.ownership_class or "owned"
+        cls = location_class(location, line_cls)
         shortfall = round((self.qty or 0.0) - (self.picked_qty or 0.0), 4)
-        for slot in self._fix_pick_slots(self.part_id, warehouse, exclude_bins=self.bin_id):
+        for slot in self._fix_pick_slots(
+            self.part_id, warehouse, exclude_bins=self.bin_id, ownership=line_cls
+        ):
             free = round((slot.qty or 0.0) - (slot.reserved_qty or 0.0), 4)
             take = min(free, shortfall)
             if is_whole_unit(self.part_id):
@@ -1779,12 +1980,28 @@ class FixWmsOutboundDemand(models.Model):
         first, then walk order), split across bins when one is not enough. The
         supervisor then releases the wave (BRU-WMS-13).
 
+        F01 / O1: nothing leaves without an M15 document. Demand typed by hand
+        (manual, van, refurbishment, an unlinked transfer) is turned into an M15
+        transfer from the warehouse, job demand into an M15 job issue; demand
+        whose document is not approved yet stays queued with the reason.
+        F11: a document is waved whole: every queued line of one transfer joins
+        the same wave or none does.
+
         skip_short (the automatic release, AUT-WMS-07): demand the bins cannot
         cover stays queued with the reason, and the rest is waved; nothing is
         ever half-waved."""
         queued = self.filtered(lambda r: r.state == "queued")
         if not queued:
             raise UserError("Choose queued demand to wave.")
+        siblings = (
+            queued.sudo()
+            .mapped("transfer_id.wms_demand_ids")
+            .filtered(lambda d: d.state == "queued")
+            .with_env(self.env)
+        )
+        queued |= siblings
+        waiting = queued._fix_prepare_documents()
+        queued -= waiting
         Wave = self.env["fix.wms.wave"]
         Line = self.env["fix.wms.wave.line"]
         waves = Wave.browse()
@@ -1797,52 +2014,66 @@ class FixWmsOutboundDemand(models.Model):
                 raise UserError("Warehouse %s has no M15 stock location." % warehouse.name)
             planned = defaultdict(float)
             plan = []
-            for rec in demands.sorted(
-                lambda d: (-_PRIO_RANK[d.priority], d.cutoff_at or datetime.max, d.id)
-            ):
-                need = rec.qty
-                mine = []
-                for slot in Line._fix_pick_slots(rec.part_id, warehouse):
-                    free = round(
-                        (slot.qty or 0.0) - (slot.reserved_qty or 0.0) - planned[slot.id], 4
-                    )
-                    take = min(free, need)
-                    if is_whole_unit(rec.part_id):
-                        take = float(int(take + EPS))
-                    if take <= EPS:
-                        continue
-                    planned[slot.id] += take
-                    mine.append((rec, slot.bin_id, take, slot.id))
-                    need = round(need - take, 4)
-                    if need <= EPS:
-                        break
-                if need > EPS and skip_short:
-                    for _rec, _bin, take, slot_id in mine:
+            docs = defaultdict(lambda: self.browse())
+            for rec in demands:
+                docs[("t", rec.transfer_id.id) if rec.transfer_id else ("d", rec.id)] |= rec
+            ordered = sorted(
+                docs.values(),
+                key=lambda ds: min(
+                    (-_PRIO_RANK[d.priority], d.cutoff_at or datetime.max, d.id) for d in ds
+                ),
+            )
+            for doc in ordered:
+                doc_plan, short = [], None
+                for rec in doc.sorted("id"):
+                    need = rec.qty
+                    for slot in Line._fix_pick_slots(
+                        rec.part_id, warehouse, ownership=rec.ownership_class or "owned"
+                    ):
+                        free = round(
+                            (slot.qty or 0.0) - (slot.reserved_qty or 0.0) - planned[slot.id], 4
+                        )
+                        take = min(free, need)
+                        if is_whole_unit(rec.part_id):
+                            take = float(int(take + EPS))
+                        if take <= EPS:
+                            continue
+                        planned[slot.id] += take
+                        doc_plan.append((rec, slot.bin_id, take, slot.id))
+                        need = round(need - take, 4)
+                        if need <= EPS:
+                            break
+                    if need > EPS and short is None:
+                        short = (rec, need)
+                if short is not None:
+                    rec, need = short
+                    if not skip_short:
+                        raise UserError(
+                            "%s: the bins of %s hold only %s of %s free; %s asks for %s."
+                            % (
+                                rec.name,
+                                warehouse.name,
+                                round(rec.qty - need, 4),
+                                rec.part_id.part_number,
+                                rec.source_ref,
+                                rec.qty,
+                            )
+                        )
+                    for _rec, _bin, take, slot_id in doc_plan:
                         planned[slot_id] -= take
-                    rec._guarded().write(
+                    doc._guarded().write(
                         {
-                            "short_note": "%s: only %s of %s free in the bins"
+                            "short_note": "%s: only %s of %s of %s free in the bins"
                             % (
                                 fields.Datetime.now().strftime("%Y-%m-%d %H:%M UTC"),
                                 round(rec.qty - need, 4),
                                 rec.qty,
+                                rec.part_id.part_number,
                             )
                         }
                     )
                     continue
-                plan.extend((r, b, t) for r, b, t, _s in mine)
-                if need > EPS:
-                    raise UserError(
-                        "%s: the bins of %s hold only %s of %s free; %s asks for %s."
-                        % (
-                            rec.name,
-                            warehouse.name,
-                            round(rec.qty - need, 4),
-                            rec.part_id.part_number,
-                            rec.source_ref,
-                            rec.qty,
-                        )
-                    )
+                plan.extend((r, b, t) for r, b, t, _s in doc_plan)
             if not plan:
                 continue
             demands = self.browse(list(dict.fromkeys(r.id for r, _b, _t in plan)))
@@ -1872,6 +2103,11 @@ class FixWmsOutboundDemand(models.Model):
                 line._guarded().write({"demand_id": rec.id})
             demands._guarded().write({"state": "waved", "wave_id": wave.id, "short_note": False})
             waves |= wave
+        if not waves and waiting and not skip_short:
+            return {
+                "warning": "No wave built: %s"
+                % "; ".join("%s %s" % (d.name, d.short_note or "") for d in waiting[:5])
+            }
         return waves.ids
 
 
@@ -2229,6 +2465,10 @@ class FixWmsProductivityRun(models.Model):
                     ("assignee_id", "!=", False),
                     ("bin_id.zone_id.warehouse_id", "=", rec.warehouse_id.id),
                 ]
+            ).filtered(
+                # F27: only work that moved or counted something; a typed task
+                # closed with nothing behind it is not productivity
+                lambda t: t.wave_line_id or t.putaway_id or t.move_id or t.floor_count_id
             )
             buckets = defaultdict(lambda: Task.browse())
             for task in tasks:
@@ -2289,9 +2529,32 @@ class FixWmsProductivityRun(models.Model):
 
     @api.model
     def _cron_nightly(self):
-        """AUT-WMS-15: measure yesterday for every warehouse that runs execution."""
-        yesterday = fields.Date.context_today(self) - timedelta(days=1)
+        """AUT-WMS-15: measure yesterday (the Dhaka day) for every warehouse that
+        runs execution. F25 / F27: once per warehouse and day, and only where
+        work was done (no empty run for a warehouse with no floor activity)."""
+        yesterday = (fields.Datetime.now() + timedelta(hours=6)).date() - timedelta(days=1)
+        start = datetime.combine(yesterday, time.min) - timedelta(hours=6)
+        end = start + timedelta(days=1)
+        Task = self.env["fix.wms.task"].sudo()
         for warehouse in self.env["fix.warehouse"].sudo().search([("wms_enabled", "=", True)]):
+            if self.sudo().search_count(
+                [
+                    ("warehouse_id", "=", warehouse.id),
+                    ("date_from", "<=", yesterday),
+                    ("date_to", ">=", yesterday),
+                    ("state", "=", "done"),
+                ]
+            ):
+                continue
+            if not Task.search_count(
+                [
+                    ("state", "=", "done"),
+                    ("done_at", ">=", start),
+                    ("done_at", "<", end),
+                    ("bin_id.zone_id.warehouse_id", "=", warehouse.id),
+                ]
+            ):
+                continue
             run = self.sudo().create(
                 {
                     "company_id": warehouse.company_id.id,

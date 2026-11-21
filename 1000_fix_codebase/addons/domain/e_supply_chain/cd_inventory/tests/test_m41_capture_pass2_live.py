@@ -147,11 +147,11 @@ def test_bin_weight_limit_holds(wms):
 
 def test_block_and_unblock_leave_a_history(wms):
     w = wms
-    w.bin2.with_user(w.operator).action_block("rack bent")
+    w.bin2.with_user(w.supervisor).action_block("rack bent")
     w.bin2.with_user(w.controller).action_unblock(note="rack replaced")
     log = w.env["fix.wms.bin.block.log"].search([("bin_id", "=", w.bin2.id)])
     assert sorted(log.mapped("event")) == ["block", "unblock"]
-    assert set(log.mapped("user_id")) == {w.operator, w.controller}
+    assert set(log.mapped("user_id")) == {w.supervisor, w.controller}
     refused(w, lambda: log[:1].with_user(w.controller).write({"reason": "x"}), "append-only")
     refused(
         w,
@@ -296,6 +296,19 @@ def test_a_handling_unit_holds_what_its_receipt_accepted(wms):
     refused(w, lambda: hu.line_ids.write({"qty": 2}), "final")
     pallet.action_close()
     refused(w, lambda: pallet.action_store(bin_code="NOPE"), "not a bin")
+    # A06 ERP audit F18: the contents are put away into the bin first
+    refused(w, lambda: pallet.action_store(bin_code=w.bin2.name), "Put the contents away")
+    pa = _new_putaway(
+        w,
+        w.operator,
+        6,
+        receipt_line_id=rec.line_ids.id,
+        to_bin_id=w.bin2.id,
+        override_reason="other",
+    )
+    if pa.override_state == "pending":
+        pa.with_user(w.supervisor).action_approve_override()
+    _complete(w, pa)
     pallet.action_store(bin_code=w.bin2.name)
     assert (pallet.state, pallet.current_bin_id, hu.current_bin_id) == ("stored", w.bin2, w.bin2)
     refused(w, lambda: pallet.write({"state": "open"}), "workflow")
@@ -306,7 +319,9 @@ def test_cross_dock_sends_received_stock_straight_to_waiting_demand(wms):
     w = wms
     rec = _receipt(w, 20)
     line = rec.line_ids
-    wave = w.wave(qty=5)  # draft: demand waiting, not released
+    # A06 ERP audit F01/F10: the waiting demand is an approved transfer's, in a
+    # draft wave; the cross-dock fulfils it whole and the transfer ships it
+    wave = base._doc_wave(w, qty=5)
     demand = wave.line_ids
     XD = w.env["fix.wms.crossdock"].with_user(w.operator)
     refused(
@@ -333,12 +348,13 @@ def test_cross_dock_sends_received_stock_straight_to_waiting_demand(wms):
     assert xd.state == "dispatched"
     assert w.qty(w.wpart, w.central, status="staged") == staged
     assert w.qty(w.wpart, w.central) == unrestricted
+    assert w.qty(w.wpart, w.central, status="in_transit") == 5  # the transfer took it
 
 
 def test_cross_dock_only_before_the_wave_is_released(wms):
     w = wms
     rec = _receipt(w, 5)
-    wave = w.wave(qty=2)
+    wave = base._doc_wave(w, qty=2)
     wave.with_user(w.supervisor).action_release()
     refused(
         w,
@@ -408,6 +424,12 @@ def test_demand_queues_and_builds_a_draft_wave_from_free_bin_stock(wms):
         }
     )
     assert d1.state == "queued" and d1.name.startswith("OBD/")
+    # A06 ERP audit F01 / O1: typed demand leaves through an M15 transfer raised
+    # (in the builder's name) when the wave is built; it waits for its approval
+    waiting = d1.with_user(w.operator).action_build_wave()
+    assert isinstance(waiting, dict) and d1.state == "queued"
+    assert d1.transfer_id.state == "submitted" and d1.transfer_id.requested_by_id == w.operator
+    d1.transfer_id.with_user(w.controller).action_approve()
     wave_ids = d1.with_user(w.operator).action_build_wave()
     wave = w.env["fix.wms.wave"].browse(wave_ids)
     assert (d1.state, d1.wave_id) == ("waved", wave)
@@ -424,6 +446,8 @@ def test_demand_queues_and_builds_a_draft_wave_from_free_bin_stock(wms):
             "dest_location_id": w.hub.id,
         }
     )
+    big.with_user(w.operator).action_build_wave()  # raises its transfer
+    big.transfer_id.with_user(w.controller).action_approve()
     refused(w, lambda: big.with_user(w.operator).action_build_wave(), "free")
     # a template serves only its destinations
     tpl = w.env["fix.wms.wave.template"].create(
@@ -480,7 +504,8 @@ def test_a_count_plan_counts_a_zone_blind(wms):
     plan.action_generate()
     count = plan.floor_count_ids
     assert count.bin_id == w.bin and count.plan_id == plan and count.state == "draft"
-    assert count.expected_qty == 10  # the system's, never shown or typed
+    # F08: the expectation is taken when the count is entered, not when raised
+    assert not count.expected_taken_at
     assert w.env["fix.wms.task"].search([("floor_count_id", "=", count.id)])
     again = Plan.create({"warehouse_id": w.wh.id, "scope": "zone", "zone_id": w.zone.id})
     refused(w, lambda: again.action_generate(), "Nothing to count")

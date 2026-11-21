@@ -550,28 +550,64 @@ class FixPeriodClose(models.Model):
         self.write({"cutover_move_id": move.id})
         return True
 
+    # A06 ERP audit (20 Nov 2026, owner decision D1): stock posts to the GL as
+    # it moves. The month-end cut-over below survives only for valuation rows
+    # written before the company's stock take-on switched it to real time.
+    # X04: a period is measured on the rows OF THAT PERIOD - the Asia/Dhaka
+    # business date of the movement (posting_date) on or before the period
+    # end - so movements of the next month never block or enter a close.
+    def _fix_suspense_domain(self, status="pending_gl_cutover"):
+        self.ensure_one()
+        domain = [("status", "=", status), ("company_id", "=", self.company_id.id)]
+        Suspense = self.env["fix.inventory.valuation.suspense"]
+        if "posting_date" in Suspense._fields:
+            domain += ["|", ("posting_date", "=", False), ("posting_date", "<=", self.period_end)]
+        return domain
+
     def _fix_suspense_pending(self):
-        """(entries, value) of the company's inventory suspense still waiting
-        for its GL cutover, read from the suspense itself (cd_inventory, which
-        depends on this module, is looked up softly)."""
+        """(entries, signed value) of the company's inventory suspense of this
+        period still waiting for its GL cutover, read from the suspense itself
+        (cd_inventory, which depends on this module, is looked up softly).
+        X06: the value is the signed stock movement (an issue is stock out)."""
         self.ensure_one()
         if "fix.inventory.valuation.suspense" not in self.env:
             return 0, 0.0
-        ((count, value),) = (
-            self.env["fix.inventory.valuation.suspense"]
-            .sudo()
-            ._read_group(
-                [("status", "=", "pending_gl_cutover"), ("company_id", "=", self.company_id.id)],
-                [],
-                ["__count", "total_valuation:sum"],
-            )
+        rows = (
+            self.env["fix.inventory.valuation.suspense"].sudo().search(self._fix_suspense_domain())
         )
-        return count, round(value or 0.0, 2)
+        return len(rows), self._fix_signed_suspense(rows)
+
+    @staticmethod
+    def _fix_signed_suspense(rows):
+        """X06: the signed stock movement of suspense rows (+ into stock), plus
+        what they clear to other accounts; never the raw sum of the values."""
+        if hasattr(rows, "_fix_stock_effect_total"):
+            value = rows._fix_stock_effect_total()
+            if hasattr(rows, "_fix_cutover_clearings"):
+                value += sum(rows._fix_cutover_clearings().values())
+            return round(value, 2)
+        return round(sum(rows.mapped("total_valuation")), 2)
+
+    def _fix_suspense_unposted(self):
+        """D1: rows of the period marked posted in real time whose journal
+        entry is missing or not posted (a value with no GL entry)."""
+        self.ensure_one()
+        if "fix.inventory.valuation.suspense" not in self.env:
+            return []
+        Suspense = self.env["fix.inventory.valuation.suspense"].sudo()
+        if "move_id" not in Suspense._fields:
+            return Suspense.browse()
+        rows = Suspense.search(self._fix_suspense_domain("posted"))
+        return rows.filtered(
+            lambda r: abs(r.total_valuation or 0.0) >= 0.005
+            and (not r.move_id or r.move_id.state != "posted")
+        )
 
     def _fix_check_suspense_clear(self):
         """AR-006 section 5.4. `suspense_closing` is written only by the
         reconciliation, so a close that never ran it read 0 and passed with the
-        suspense pending: the check is against the suspense itself."""
+        suspense pending: the check is against the suspense itself. D1: every
+        valuation row of the period has a posted journal entry."""
         self.ensure_one()
         count, value = self._fix_suspense_pending()
         if count:
@@ -579,6 +615,62 @@ class FixPeriodClose(models.Model):
                 "Period %s cannot close: %d inventory suspense entries (%.2f) are still pending "
                 "their GL cutover (AR-006 section 5.4). Post the cutover entry, set it on the "
                 "close and reconcile the suspense." % (self.period_end, count, value)
+            )
+        unposted = self._fix_suspense_unposted()
+        if unposted:
+            raise UserError(
+                "Period %s cannot close: %d stock valuation entries of the period (%s) have no "
+                "posted journal entry."
+                % (self.period_end, len(unposted), ", ".join(unposted[:10].mapped("name")))
+            )
+
+    def _fix_check_cutover_ou_split(self, move, accounts, entries):
+        """X07: the cut-over keeps each row's operating unit. Per OU, the
+        suspense lines of the entry (by their fix.journal.dimension OU) move
+        exactly what that OU's pending rows need; a cut-over posted as one
+        company-level line lost every branch's stock value."""
+        self.ensure_one()
+        expected, moved = {}, {}
+        for entry in entries:
+            effect = (
+                entry._fix_stock_effect_total()
+                if hasattr(entry, "_fix_stock_effect_total")
+                else entry.total_valuation
+            )
+            clearing = (
+                entry.total_valuation if getattr(entry, "clearing_account_code", False) else 0.0
+            )
+            key = entry.operating_unit_id.id or False
+            expected[key] = round(expected.get(key, 0.0) - (effect + clearing), 2)
+        if set(expected) == {False}:
+            return  # rows that never carried an OU: the total check above decides
+        lines = move.line_ids.filtered(lambda line: line.account_id in accounts)
+        dims = self.env["fix.journal.dimension"].sudo().search([("move_line_id", "in", lines.ids)])
+        ou_of = {dim.move_line_id.id: dim.operating_unit_id.id for dim in dims}
+        for line in lines:
+            key = ou_of.get(line.id) or False
+            moved[key] = round(moved.get(key, 0.0) + line.balance, 2)
+        wrong = sorted(
+            (
+                str(self.env["operating.unit"].browse(k).name if k else "no OU"),
+                want,
+                moved.get(k, 0.0),
+            )
+            for k, want in expected.items()
+            if round(moved.get(k, 0.0) - want, 2) != 0
+        ) + sorted(
+            (str(self.env["operating.unit"].browse(k).name if k else "no OU"), 0.0, got)
+            for k, got in moved.items()
+            if k not in expected and round(got, 2) != 0
+        )
+        if wrong:
+            raise UserError(
+                "Cutover entry %s does not keep the operating units of the stock it clears "
+                "(X07): %s. Put each OU's amount on its own suspense line with that OU."
+                % (
+                    move.name,
+                    "; ".join("%s expected %.2f, moved %.2f" % w for w in wrong),
+                )
             )
 
     @staticmethod
@@ -608,10 +700,8 @@ class FixPeriodClose(models.Model):
         if self.state == "closed":
             raise UserError("The period is closed; the suspense cutover belongs to an open close.")
         suspense_model = self.env["fix.inventory.valuation.suspense"]
-        domain = [
-            ("status", "=", "pending_gl_cutover"),
-            ("company_id", "=", self.company_id.id),
-        ]
+        # X04: this period's rows only (Dhaka business date <= period end)
+        domain = self._fix_suspense_domain()
         pending_entries = suspense_model.search(domain)
         # The net stock movement (cd_inventory signs each row by its type: a
         # consumption is value consumed, i.e. stock OUT); the raw sum of the
@@ -679,28 +769,27 @@ class FixPeriodClose(models.Model):
                 )
 
             moved = balance(accounts)
-            if clearings:
-                # signs matter once two legs share the suspense account: stock
-                # in credits it, a variance cleared out credits it too
-                expected = round(-(stock_effect + cleared), 2)
-                clears = round(moved - expected, 2) == 0
-            else:
-                expected = total_suspense
-                clears = round(abs(moved) - abs(total_suspense), 2) == 0
+            # X05 / A32: the direction matters. Stock IN is cleared off the
+            # suspense by a credit to it (Dr inventory / Cr suspense), stock
+            # OUT by a debit; a variance cleared to its account credits it too.
+            # An absolute comparison let a journal in the wrong direction pass.
+            expected = round(-(stock_effect + cleared), 2)
+            clears = round(moved - expected, 2) == 0
             if not clears:
                 raise UserError(
                     "Cutover entry %s moves the suspense account(s) %s by %.2f, but the "
                     "pending suspense valuation is %.2f%s — it does not clear the suspense "
-                    "(expected %.2f)."
+                    "(expected %.2f: a credit clears stock in, a debit stock out)."
                     % (
                         move.name,
                         ", ".join(sorted(codes)),
-                        moved if clearings else abs(moved),
-                        total_suspense,
+                        moved,
+                        stock_effect,
                         self._fix_clearing_text(clearings),
                         expected,
                     )
                 )
+            self._fix_check_cutover_ou_split(move, accounts, pending_entries)
             for code, value in sorted(clearings.items()):
                 target = targets.filtered(lambda a, c=code: a.code == c)
                 got = balance(target)
@@ -714,7 +803,8 @@ class FixPeriodClose(models.Model):
             for entry in pending_entries:
                 entry.action_reconcile_to_gl(voucher_ref)
 
-        remaining = round(sum(suspense_model.search(domain).mapped("total_valuation")), 2)
+        # X06: what is still pending, signed (an issue is stock out)
+        remaining = self._fix_signed_suspense(suspense_model.search(domain))
         self._guarded().write(
             {
                 "suspense_closing": remaining,
@@ -1342,7 +1432,13 @@ def _attach_dimensions(env, move, dimension_by_line):
         # company's FIRST OU, which on fix_real is "Main Operating Unit", and
         # _check_branch_ou refused the posting for 57 of 73 branches. The
         # first paid service order at any of them could not be invoiced.
-        branch = env["fix.branch"].browse(dim_vals.get("branch_id") or []).exists()
+        # fix.branch lives in an optional module: without it there is no
+        # branch OU to fall back to, only the company's.
+        branch = (
+            env["fix.branch"].browse(dim_vals.get("branch_id") or []).exists()
+            if "fix.branch" in env
+            else False
+        )
         branch_ou = branch.operating_unit_id if branch else env["operating.unit"]
         if branch_ou and branch_ou.company_id != move.company_id:
             branch_ou = env["operating.unit"]

@@ -17,11 +17,11 @@ export const MODULE = {
   desc: 'History assembly, forecast models and accuracy/bias (MAPE), part segmentation, safety stock and reorder-point policy, lead-time modelling, planned orders to purchase requisitions, network rebalancing, van-stock par and what-if simulation.',
   kpis: [
     { l: 'Forecasts Pending', m: 'forecasts_pending' },
-    { l: 'MAPE', m: 'mape_pct', suffix: '%' },
+    { l: 'WAPE', m: 'mape_pct', suffix: '%' },
     { l: 'Active Policies', m: 'policies_active' },
     { l: 'Planned Orders', m: 'planned_orders' },
     { l: 'Stock Value Rebalanced', m: 'rebalance_value_moved', prefix: '৳ ' },
-    { l: 'Avg Service Level', m: 'service_level_avg', suffix: '%' }
+    { l: 'Achieved Fill Rate', m: 'service_level_avg', suffix: '%' }
   ],
   groups: [
     { en: 'Forecasting', screens: [
@@ -105,7 +105,7 @@ export const SCREENS = {
     cols: ['name', 'product_id', 'location_id', 'period_start', 'forecast_quantity', 'current_stock', 'on_order_qty', 'reorder_point', 'target_level', 'recommended_order', 'approved_order_qty', 'state'],
     actions: [
       { m: 'action_approve', l: 'Approve Plan' },
-      { m: 'action_generate_pr', l: 'Release PR to M16' },
+      { m: 'action_generate_pr', l: 'Publish Min/Max to M15' },
       { m: 'action_reopen', l: 'Reopen (PR rejected or cancelled)', ask: 'Why the plan is reopened', kwarg: 'reason' }
     ] },
   'M43-reviews': { kind: 'model_list', model: 'fix.demand.review', stateField: 'state',
@@ -178,7 +178,7 @@ export const SCREENS = {
     model: 'fix.demand.plan',
     title: 'Demand Plan',
     back: 'M43-planned',
-    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', released: 'Released to M16', converted: 'Converted to PO', closed: 'Closed (received)' } },
+    status: { field: 'state', labels: { draft: 'Draft', approved: 'Approved', released: 'Published to M15', converted: 'Converted to PO', closed: 'Closed (received)' } },
     tabs: [
       { id: 'plan', label: '1. Plan', bn: '১. পরিকল্পনা', icon: '📈', badge: '8' },
       { id: 'position', label: '2. Position', bn: '২. অবস্থান', icon: '📊', badge: '8' },
@@ -202,6 +202,7 @@ export const SCREENS = {
           { name: 'on_order_qty', readonly: true, label: 'On Order' },
           { name: 'reorder_point', readonly: true, label: 'Reorder Point' },
           { name: 'target_level', readonly: true, label: 'Target Level' },
+          { name: 'inventory_position', readonly: true, label: 'Inventory Position (stock + on order)' },
           { name: 'projected_stock', readonly: true, label: 'Projected Stock' },
           { name: 'raw_order_qty', readonly: true, label: 'Order Before MOQ / Pack' },
           { name: 'recommended_order', readonly: true, label: 'Recommended Order' }
@@ -301,7 +302,8 @@ export const SCREENS = {
           { name: 'lead_time_window_days', label: 'Lead-Time Window (days)' },
           { name: 'lead_time_days', label: 'Lead Time (days)' },
           { name: 'lead_time_override_rationale', type: 'text', label: 'Lead-Time Override Rationale' },
-          { name: 'service_level_pct', required: true, label: 'Service Level' },
+          { name: 'vendor_id', label: 'Supplier (its measured lead-time model is used)' },
+          { name: 'service_level_pct', required: true, label: 'Service Level % (50-99.99)' },
           { name: 'review_period_days', label: 'Review Period (days)' },
           { name: 'moq_qty', label: 'Minimum Order Qty' },
           { name: 'pack_size', label: 'Pack Size' }
@@ -319,6 +321,8 @@ export const SCREENS = {
           { name: 'demand_stddev', readonly: true, label: 'Demand Std Dev' },
           { name: 'observed_lead_time_days', readonly: true, label: 'Observed Lead Time (M16, M44)' },
           { name: 'lead_time_samples', readonly: true, label: 'Lead-Time Samples' },
+          { name: 'lead_time_stddev_days', readonly: true, label: 'Lead-Time Std Dev (days)' },
+          { name: 'lead_time_model_id', readonly: true, label: 'Supplier Lead-Time Model' },
           { name: 'lead_time_source', readonly: true, label: 'Lead-Time Source' },
           { name: 'safety_stock', readonly: true, label: 'Safety Stock' },
           { name: 'reorder_point', readonly: true, label: 'Reorder Point' },

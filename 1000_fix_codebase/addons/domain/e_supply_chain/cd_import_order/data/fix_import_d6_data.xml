@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A06 ERP audit (20 Nov 2026), owner decision D6.
+  - The import account roles take their D6 codes when unset (variance 600007,
+    duty clearing 100302 Deposits - Customs, FX 500030, LC margin 100812); the
+    superseded variance 610000 and duty clearing 200306 are replaced. The BoE
+    customs-rounding tolerance becomes BDT 10 when none is set.
+  - M44-16 / X15: import.duty_paid reaches M51's input-VAT register.
+-->
+<odoo>
+    <function model="fix.import.order" name="_import_default_params"/>
+    <data noupdate="1">
+        <record id="consumer_import_duty_paid_input_vat" model="fix.event.consumer">
+            <field name="name">M44 -> M51: import VAT of a paid Bill of Entry is an input credit</field>
+            <field name="event_type">import.duty_paid</field>
+            <field name="model">fix.import.boe</field>
+            <field name="method">consume_duty_paid</field>
+            <field name="module">cd_import_order</field>
+        </record>
+    </data>
+</odoo>

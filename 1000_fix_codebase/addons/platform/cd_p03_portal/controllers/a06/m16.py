@@ -4,6 +4,8 @@
 # (single-owner surfaces).
 import datetime
 
+from odoo.exceptions import UserError
+
 # A06 workflow audit (2026-11-03) M16-9/M16-13: every transition the screens
 # need is declared here; approval itself is decided in the M63 inbox (the
 # requisition and PO approvals are routed), never by a button on the record.
@@ -114,6 +116,12 @@ SURFACES = {
         "limit": 200,
         "actions": {"action_chase", "action_resolve"},
     },
+    # A06 P11: post-receipt price amendment, versioned and re-approved
+    "fix.purchase.price.amendment": {
+        "order": "id desc",
+        "limit": 200,
+        "actions": {"action_submit", "action_approve", "action_reject"},
+    },
     "fix.procurement.inspection": {
         "order": "inspected_on desc, id desc",
         "limit": 300,
@@ -123,6 +131,12 @@ SURFACES = {
 
 _OPEN_REQ = ("draft", "submitted", "approved")
 _OPEN_PO = ("draft", "sent", "acknowledged", "partially_received")
+
+
+_ISSUED = ("sent", "acknowledged", "partially_received", "received", "closed")
+_DHAKA = datetime.timezone(datetime.timedelta(hours=6))
+# A06 P33: the price alert band is configuration (it was a hard-coded 10 %)
+PARAM_PRICE_ALERT = "cd_requisition.price_alert_pct"
 
 
 def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
@@ -154,11 +168,71 @@ def _category(product):
     return product.categ_id.name if product and product.categ_id else "Uncategorised"
 
 
+# ---- A06 P25 / X31: one basis for every spend figure -----------------------
+def _day(value):
+    """A date, or the Asia/Dhaka business day of a UTC datetime."""
+    if not value:
+        return None
+    if isinstance(value, datetime.datetime):
+        return value.replace(tzinfo=datetime.UTC).astimezone(_DHAKA).date()
+    return value
+
+
+def _today():
+    return datetime.datetime.now(_DHAKA).date()
+
+
+def _bounds(date_from, date_to):
+    def parse(v):
+        if not v:
+            return None
+        if isinstance(v, datetime.date):
+            return v
+        try:
+            return datetime.date.fromisoformat(str(v)[:10])
+        except ValueError:
+            return None
+
+    return parse(date_from), parse(date_to)
+
+
+def _within(day, date_from, date_to):
+    start, end = _bounds(date_from, date_to)
+    if (start or end) and not day:
+        return False
+    return not ((start and day < start) or (end and day > end))
+
+
+def _issued(order):
+    """Spend is what was ISSUED to a supplier: drafts, cancellations and the
+    original of a change order (superseded) are not spend."""
+    return order.state in _ISSUED
+
+
+def _bdt(order, amount):
+    """`amount` of `order` in BDT at the order's stamped rate (P29)."""
+    if not amount:
+        return 0.0
+    try:
+        rate = order._fix_rate_bdt()
+    except UserError:  # a report shows what it can; no rate = not converted
+        return 0.0
+    return round(amount * rate, 2)
+
+
+def _price_alert_pct(env):
+    raw = env["ir.config_parameter"].sudo().get_param(PARAM_PRICE_ALERT)
+    try:
+        return float(raw) if raw not in (None, False, "") else 10.0
+    except (TypeError, ValueError):
+        return 10.0
+
+
 def spend_by_category(env, date_from=None, date_to=None, **params):
     buckets = {}
     for line in _lines(env):
         order = line.order_id
-        if order.state == "cancelled":
+        if not _issued(order) or not _within(_day(order.date_order), date_from, date_to):
             continue
         key = (_category(line.product_id), order.vendor_id.name)
         row = buckets.setdefault(
@@ -171,7 +245,7 @@ def spend_by_category(env, date_from=None, date_to=None, **params):
             },
         )
         row["lines"] += 1
-        row["amount"] += line.line_total or 0.0
+        row["amount"] += _bdt(order, line.line_total)
     rows = []
     for row in buckets.values():
         row["amount"] = round(row["amount"], 2)
@@ -181,83 +255,89 @@ def spend_by_category(env, date_from=None, date_to=None, **params):
     for row in rows:
         row["share_pct"] = round((row["amount"] / total) * 100.0, 1) if total else 0.0
     return _pack(
-        "Spend by Category & Vendor — PO lines, cancelled excluded",
+        "Spend by Category & Vendor — issued POs, in BDT",
         ["category", "vendor", "lines", "amount", "share_pct"],
         {
             "category": "Category",
             "vendor": "Vendor",
             "lines": "Lines",
-            "amount": "Spend",
+            "amount": "Spend (BDT)",
             "share_pct": "Share %",
         },
         rows,
         [
-            "Spend is the PO line total (ordered quantity × unit price), not the "
-            "invoice amount — the AP leg is M20/M52."
+            "Spend is the line total of ISSUED orders (sent onwards; drafts, cancellations and "
+            "orders superseded by a change order are excluded), converted to BDT at each "
+            "order's stamped rate, by order date (Dhaka) within the period. The AP leg is M52."
         ],
         totals={
             "category": "Total",
             "lines": sum(r["lines"] for r in rows),
             "amount": round(total, 2),
         },
-        empty="No purchase order lines yet.",
+        empty="No issued purchase order lines in the period.",
     )
 
 
+def _blocked_bills(env, date_from=None, date_to=None):
+    """(bills on POs in the period, the blocked ones) — KPI-049's basis."""
+    if "fix.vendor.invoice" not in env:
+        return None, None
+    bills = env["fix.vendor.invoice"].search(
+        [*_company_domain(env), ("bill_type", "=", "po"), ("approval_state", "!=", "rejected")]
+    )
+    bills = bills.filtered(lambda b: _within(b.invoice_date, date_from, date_to))
+    return bills, bills.filtered(lambda b: b.match_state in ("blocked", "unmatched"))
+
+
 def match_exception(env, date_from=None, date_to=None, **params):
+    """A06 P26 / KPI-049: a match exception is a vendor bill the three-way
+    match blocks, not an order line still awaiting delivery."""
+    bills, blocked = _blocked_bills(env, date_from, date_to)
     rows = []
-    for line in _lines(env):
-        order = line.order_id
-        if order.state in ("draft", "cancelled", "closed"):
-            continue
-        short = round((line.qty_ordered or 0.0) - (line.qty_received or 0.0), 3)
-        if short <= 0:
-            continue
+    for bill in blocked or []:
         rows.append(
             {
-                "po": order.name,
-                "vendor": order.vendor_id.name,
-                "product": line.product_id.display_name,
-                "ordered": round(line.qty_ordered or 0.0, 3),
-                "received": round(line.qty_received or 0.0, 3),
-                "short": short,
-                "value": round(short * (line.unit_price or 0.0), 2),
-                "state": dict(order._fields["state"].selection).get(order.state),
+                "bill": bill.invoice_ref,
+                "po": bill.requisition_id.name or "—",
+                "vendor": bill.vendor_id.name,
+                "detail": bill.match_detail or "",
+                "value": round(bill.gross_amount_bdt or 0.0, 2),
+                "date": str(bill.invoice_date or ""),
+                "state": dict(bill._fields["approval_state"].selection).get(bill.approval_state),
             }
         )
     rows.sort(key=lambda r: -r["value"])
+    rate = (len(blocked) / len(bills) * 100.0) if bills else 0.0
     return _pack(
-        "Match Exception Pareto — ordered vs received shortfalls",
-        ["po", "vendor", "product", "ordered", "received", "short", "value", "state"],
+        "Match Exceptions — vendor bills the three-way match blocks",
+        ["bill", "po", "vendor", "detail", "value", "date", "state"],
         {
+            "bill": "Bill",
             "po": "PO",
             "vendor": "Vendor",
-            "product": "Product",
-            "ordered": "Ordered",
-            "received": "Received",
-            "short": "Short",
-            "value": "Short Value",
-            "state": "State",
+            "detail": "Why",
+            "value": "Gross (BDT)",
+            "date": "Bill Date",
+            "state": "Approval",
         },
         rows,
         [
-            "The invoice leg of the three-way match is M20/M52's; this workbench "
-            "shows the ORDERED vs RECEIVED exception and its value."
+            "KPI-049 three-way match exception rate: %d of %d PO bills (%.1f%%), target < 5%%."
+            % (len(blocked or []), len(bills or []), rate)
         ],
-        totals={
-            "po": "Total",
-            "short": round(sum(r["short"] for r in rows), 3),
-            "value": round(sum(r["value"] for r in rows), 2),
-        },
-        empty="No ordered/received exceptions.",
+        totals={"bill": "Total", "value": round(sum(r["value"] for r in rows), 2)},
+        empty="No vendor bill is blocked by the three-way match.",
     )
 
 
 def otd_by_vendor(env, date_from=None, date_to=None, **params):
     buckets = {}
     for order in _orders(env):
-        due = order.vendor_confirmed_date or order.promised_date
+        due = order._a06_otd_due_date()  # P16: never a buyer-typed vendor date
         if not order.received_on or not due:
+            continue
+        if not _within(order.received_on, date_from, date_to):
             continue
         key = order.vendor_id.name
         row = buckets.setdefault(
@@ -294,9 +374,9 @@ def otd_by_vendor(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Only POs with both a due date (vendor-confirmed, else promised) and a "
-            "received date count; a missing date is excluded rather than guessed. Both "
-            "dates are stamped by their actions and cannot be edited."
+            "Orders fully received within the period. The due date is the date the vendor "
+            "confirmed in the portal, else the promised date: a date a buyer recorded on the "
+            "vendor's behalf does not move the yardstick."
         ],
         totals={
             "vendor": "Total",
@@ -304,24 +384,30 @@ def otd_by_vendor(env, date_from=None, date_to=None, **params):
             "on_time": sum(r["on_time"] for r in rows),
             "late": sum(r["late"] for r in rows),
         },
-        empty="No POs with promised and received dates yet.",
+        empty="No POs with promised and received dates in the period.",
     )
 
 
 def price_variance(env, date_from=None, date_to=None, **params):
+    band = _price_alert_pct(env)
     history = {}
     for line in _lines(env):
         order = line.order_id
-        if order.state == "cancelled":
+        if not _issued(order) or not (line.qty_ordered or 0.0):
+            continue
+        day = _day(order.date_order)
+        _start, end = _bounds(date_from, date_to)
+        if end and day and day > end:
             continue
         key = (line.product_id.display_name, order.vendor_id.name)
+        unit_bdt = _bdt(order, line.unit_price)
         history.setdefault(key, []).append(
-            (order.date_order or datetime.datetime.min, line.unit_price or 0.0)
+            (order.date_order or datetime.datetime.min, unit_bdt, day)
         )
     rows = []
     for (product, vendor), entries in history.items():
         entries.sort(key=lambda e: e[0])
-        if len(entries) < 2:
+        if len(entries) < 2 or not _within(entries[-1][2], date_from, None):
             continue
         previous = entries[-2][1]
         latest = entries[-1][1]
@@ -333,65 +419,67 @@ def price_variance(env, date_from=None, date_to=None, **params):
                 "previous_price": round(previous, 2),
                 "latest_price": round(latest, 2),
                 "variance_pct": variance,
-                "alert": abs(variance) > 10.0,
+                "alert": abs(variance) > band,
             }
         )
     rows.sort(key=lambda r: -abs(r["variance_pct"]))
     return _pack(
-        "Price Variance Alert — latest against previous PO price",
+        "Price Variance Alert — latest against previous PO price (BDT)",
         ["product", "vendor", "previous_price", "latest_price", "variance_pct", "alert"],
         {
             "product": "Product",
             "vendor": "Vendor",
-            "previous_price": "Previous",
-            "latest_price": "Latest",
+            "previous_price": "Previous (BDT)",
+            "latest_price": "Latest (BDT)",
             "variance_pct": "Variance %",
-            "alert": "Alert (>10%)",
+            "alert": "Alert (>%g%%)" % band,
         },
         rows,
         [
-            "A product/vendor pair needs at least two PO lines; the alert threshold "
-            "is an explicit 10% band."
+            "Issued orders only, unit prices in BDT at each order's stamped rate; the latest "
+            "price falls in the period. The alert band is system parameter %s (default 10%%)."
+            % PARAM_PRICE_ALERT
         ],
-        empty="No product/vendor pair has two recorded prices yet.",
+        empty="No product/vendor pair has two issued prices yet.",
     )
 
 
 def maverick_spend(env, date_from=None, date_to=None, **params):
-    orders = _orders(env)
-    spend_orders = orders.filtered(lambda o: o.state != "cancelled")
-    maverick = spend_orders.filtered(
-        lambda o: not o.requisition_id or o.requisition_id.state != "converted"
+    orders = _orders(env).filtered(
+        lambda o: _issued(o) and _within(_day(o.date_order), date_from, date_to)
     )
-    total = sum(spend_orders.mapped("amount_total"))
-    maverick_total = sum(maverick.mapped("amount_total"))
+    maverick = orders.filtered(
+        lambda o: not o._fix_all_requisitions() or o.requisition_id.state != "converted"
+    )
+    total = sum(_bdt(o, o.amount_total) for o in orders)
+    maverick_total = sum(_bdt(o, o.amount_total) for o in maverick)
     rows = []
     for order in maverick:
         rows.append(
             {
                 "po": order.name,
                 "vendor": order.vendor_id.name,
-                "amount": round(order.amount_total or 0.0, 2),
+                "amount": _bdt(order, order.amount_total),
                 "state": dict(order._fields["state"].selection).get(order.state),
-                "date": str(order.date_order)[:10] if order.date_order else "—",
+                "date": str(_day(order.date_order) or "—"),
                 "exception": "documented" if order.no_requisition_exception else "none",
             }
         )
     rows.sort(key=lambda r: -r["amount"])
     return _pack(
-        "Maverick Spend — POs with no approved requisition behind them",
+        "Maverick Spend — issued POs with no approved requisition behind them",
         ["po", "vendor", "amount", "state", "date", "exception"],
         {
             "po": "PO",
             "vendor": "Vendor",
-            "amount": "Amount",
+            "amount": "Amount (BDT)",
             "state": "State",
             "date": "Order Date",
             "exception": "Manager Exception",
         },
         rows,
         [
-            "Maverick value %s of %s total PO spend (%.1f%%)."
+            "Maverick value BDT %s of BDT %s issued PO spend in the period (%.1f%%)."
             % (
                 round(maverick_total, 2),
                 round(total, 2),
@@ -399,43 +487,54 @@ def maverick_spend(env, date_from=None, date_to=None, **params):
             )
         ],
         totals={"po": "Total", "amount": round(maverick_total, 2)},
-        empty="Every PO traces to a requisition.",
+        empty="Every issued PO traces to a requisition.",
     )
 
 
 def po_cycle_time(env, date_from=None, date_to=None, **params):
+    """A06 P26: the spec's PO cycle time is approved requisition -> placed
+    (sent) order, in hours, against the < 24 h target."""
     rows = []
     for order in _orders(env):
-        days = "—"
-        if order.date_order and order.received_on:
-            days = (order.received_on - order.date_order.date()).days
+        if not order.sent_at or not _within(_day(order.sent_at), date_from, date_to):
+            continue
+        req = order.requisition_id
+        approved_at = req.dofa_approved_at if req else None
+        hours = "—"
+        if approved_at:
+            hours = round((order.sent_at - approved_at).total_seconds() / 3600.0, 1)
         rows.append(
             {
                 "po": order.name,
                 "vendor": order.vendor_id.name,
-                "ordered": str(order.date_order)[:10] if order.date_order else "—",
-                "promised": str(order.promised_date) if order.promised_date else "—",
-                "received": str(order.received_on) if order.received_on else "—",
-                "cycle_days": days,
-                "state": dict(order._fields["state"].selection).get(order.state),
+                "requisition": req.display_name if req else "—",
+                "approved": str(approved_at)[:16] if approved_at else "—",
+                "sent": str(order.sent_at)[:16],
+                "cycle_hours": hours,
+                "on_target": "yes" if hours != "—" and hours <= 24 else "no",
             }
         )
     rows.sort(key=lambda r: str(r["po"]), reverse=True)
+    timed = [r["cycle_hours"] for r in rows if r["cycle_hours"] != "—"]
     return _pack(
-        "PO Cycle Time — order to receipt",
-        ["po", "vendor", "ordered", "promised", "received", "cycle_days", "state"],
+        "PO Cycle Time — approved requisition to placed order",
+        ["po", "vendor", "requisition", "approved", "sent", "cycle_hours", "on_target"],
         {
             "po": "PO",
             "vendor": "Vendor",
-            "ordered": "Ordered",
-            "promised": "Promised",
-            "received": "Received",
-            "cycle_days": "Cycle (days)",
-            "state": "State",
+            "requisition": "Requisition",
+            "approved": "Requisition Approved (UTC)",
+            "sent": "PO Sent (UTC)",
+            "cycle_hours": "Cycle (hours)",
+            "on_target": "< 24 h",
         },
         rows,
-        ["Cycle days = received date − order date; an open PO shows '—'."],
-        empty="No purchase orders yet.",
+        [
+            "Orders sent in the period. %d timed, %d within the 24-hour target. An order with "
+            "no approved requisition (a documented exception) is not timed."
+            % (len(timed), len([h for h in timed if h <= 24]))
+        ],
+        empty="No purchase orders sent in the period.",
     )
 
 
@@ -639,90 +738,131 @@ def three_way(env, date_from=None, date_to=None, **params):
     )
 
 
-def _po_value(line, qty):
-    return qty * (line.approved_unit_price if line.approved_qty else line.unit_price or 0.0)
-
-
 def gr_ir(env, date_from=None, date_to=None, **params):
-    """Goods received against bills, by PO and valued per product, so that a line
-    received and not billed never nets off against another billed and not received.
-    Received is net of what inspection rejected: rejected goods go back to the vendor."""
-    Bill = env.get("fix.vendor.invoice.line")
-    rows = []
-    for order in _orders(env):
-        if order.state in ("draft", "cancelled", "superseded"):
-            continue
-        received = {}
-        for line in order.line_ids:
-            qty = sum(
-                r.qty_received - r.qty_rejected
-                for r in line.receipt_line_ids
-                if r.state == "posted"
-            )
-            received[line.product_id.id] = received.get(line.product_id.id, 0.0) + _po_value(
-                line, qty
-            )
-        invoiced = {}
-        if Bill is not None:
-            for bill in Bill.search(
-                [
-                    ("invoice_id.requisition_id", "=", order.id),
-                    ("invoice_id.approval_state", "!=", "rejected"),
-                ]
-            ):
-                value = (bill.quantity or 0.0) * (bill.unit_price or 0.0)
-                invoiced[bill.product_id.id] = invoiced.get(bill.product_id.id, 0.0) + value
-        not_invoiced = not_received = 0.0
-        for product in set(received) | set(invoiced):
-            gap = received.get(product, 0.0) - invoiced.get(product, 0.0)
-            not_invoiced += max(gap, 0.0)
-            not_received += max(-gap, 0.0)
-        if not_invoiced < 0.005 and not_received < 0.005:
-            continue
-        rows.append(
-            {
-                "po": order.name,
-                "vendor": order.vendor_id.name,
-                "received_value": round(sum(received.values()), 2),
-                "invoiced_value": round(sum(invoiced.values()), 2),
-                "received_not_invoiced": round(not_invoiced, 2),
-                "invoiced_not_received": round(not_received, 2),
-                "state": dict(order._fields["state"].selection).get(order.state),
-            }
+    """A06 X26 / P13: goods received not invoiced AS AT the period end, on the
+    one basis the AP GRNI accrual uses and the GRNI account holds: accepted
+    receipts at their receipt value in BDT, less returns and less what posted
+    bills billed (net of their return credit notes)."""
+    as_of = _bounds(None, date_to)[1] or _today()
+    if "fix.ap.grni.accrual" not in env:
+        return _pack(
+            "GR/IR Reconciliation",
+            [],
+            {},
+            [],
+            ["The AP sub-ledger (cd_ap_ext) is not installed: there is no GRNI basis."],
+            empty="No GRNI basis.",
         )
+    from odoo.addons.cd_ap_ext.models.fix_ap_grni import grir_po_summary_as_of, grni_rows_as_of
+
+    allowed = set(env.companies.ids)
+    buckets = {}
+    for r in grni_rows_as_of(env, as_of):
+        pol = r["po_line"]
+        company = pol.order_id.company_id if pol else None
+        if company and company.id not in allowed:
+            continue
+        key = r["order_ref"]
+        row = buckets.setdefault(
+            key,
+            {
+                "po": key,
+                "vendor": r["vendor"].name or "",
+                "received_qty": 0.0,
+                "invoiced_qty": 0.0,
+                "open_qty": 0.0,
+                "received_not_invoiced": 0.0,
+                "received_value": 0.0,
+                "invoiced_value": 0.0,
+                "invoiced_not_received": 0.0,
+                "oldest_days": None,
+            },
+        )
+        row["received_qty"] += r["received"]
+        row["invoiced_qty"] += r["invoiced"]
+        row["open_qty"] += r["open_qty"]
+        row["received_not_invoiced"] += r["accrual"]
+        if r["age_days"] is not None:
+            row["oldest_days"] = max(row["oldest_days"] or 0, r["age_days"])
+    # the other direction on the same posted basis: billed ahead of receipt
+    for po, vals in grir_po_summary_as_of(env, as_of).items():
+        if po.company_id.id not in allowed:
+            continue
+        row = buckets.setdefault(
+            po.name,
+            {
+                "po": po.name,
+                "vendor": vals["vendor"].name or "",
+                "received_qty": 0.0,
+                "invoiced_qty": 0.0,
+                "open_qty": 0.0,
+                "received_not_invoiced": 0.0,
+                "received_value": 0.0,
+                "invoiced_value": 0.0,
+                "invoiced_not_received": 0.0,
+                "oldest_days": None,
+            },
+        )
+        for k in ("received_value", "invoiced_value", "invoiced_not_received"):
+            row[k] = vals[k]
+    rows = []
+    for row in buckets.values():
+        for k in ("received_qty", "invoiced_qty", "open_qty"):
+            row[k] = round(row[k], 3)
+        for k in (
+            "received_not_invoiced",
+            "received_value",
+            "invoiced_value",
+            "invoiced_not_received",
+        ):
+            row[k] = round(row[k], 2)
+        if not row["received_not_invoiced"] and not row["invoiced_not_received"]:
+            continue  # received and billed alike: nothing to reconcile
+        row["oldest_days"] = "" if row["oldest_days"] is None else row["oldest_days"]
+        rows.append(row)
     rows.sort(key=lambda r: -(r["received_not_invoiced"] + r["invoiced_not_received"]))
     return _pack(
-        "GR/IR Reconciliation — received not invoiced, invoiced not received",
+        "GR/IR Reconciliation — received not invoiced as at %s (BDT)" % as_of,
         [
             "po",
             "vendor",
+            "received_qty",
+            "invoiced_qty",
+            "open_qty",
             "received_value",
             "invoiced_value",
             "received_not_invoiced",
             "invoiced_not_received",
-            "state",
+            "oldest_days",
         ],
         {
-            "po": "PO",
+            "po": "PO / Import",
             "vendor": "Vendor",
-            "received_value": "Received Value",
-            "invoiced_value": "Invoiced Value",
-            "received_not_invoiced": "Received, Not Invoiced",
-            "invoiced_not_received": "Invoiced, Not Received",
-            "state": "State",
+            "received_qty": "Accepted",
+            "invoiced_qty": "Billed / Returned",
+            "open_qty": "Open Qty",
+            "received_value": "Received Value (BDT)",
+            "invoiced_value": "Invoiced Value (BDT)",
+            "received_not_invoiced": "Received, Not Invoiced (BDT)",
+            "invoiced_not_received": "Invoiced, Not Received (BDT)",
+            "oldest_days": "Oldest (days)",
         },
         rows,
         [
-            "Received comes from POSTED goods receipts, net of quantity rejected at inspection, "
-            "at the approved PO price; invoiced from bills on the PO that were not rejected. "
-            "POs that agree are not listed."
+            "As at the period end: accepted quantity of receipts posted by then (inspection "
+            "rejections excluded), less returns shipped by then and quantity billed on bills "
+            "posted by then net of return credit notes, at the receipt value in BDT (the M15 "
+            "receipt cost, else the approved price at the order's stamped rate). The same basis "
+            "as the AP GRNI accrual; the total ties to the GRNI account (100503).",
+            "Invoiced, not received: per product, what posted bills billed beyond the accepted "
+            "quantity, at the bill's BDT price (a product received never nets another billed).",
         ],
         totals={
             "po": "Total",
             "received_not_invoiced": round(sum(r["received_not_invoiced"] for r in rows), 2),
             "invoiced_not_received": round(sum(r["invoiced_not_received"] for r in rows), 2),
         },
-        empty="Every issued PO agrees: nothing received and not invoiced, or invoiced and not received.",
+        empty="Nothing received and not invoiced, or invoiced and not received, at the period end.",
     )
 
 
@@ -732,13 +872,25 @@ def emergency_spend(env, date_from=None, date_to=None, **params):
         [*_company_domain(env), ("emergency_state", "!=", False)],
         order="emergency_released_at desc",
     )
-    spend = sum(_orders(env).filtered(lambda o: o.state != "cancelled").mapped("amount_total"))
-    total = sum(reqs.mapped("estimate_amount"))
+    reqs = reqs.filtered(lambda r: _within(_day(r.emergency_released_at), date_from, date_to))
+    spend = sum(
+        _bdt(o, o.amount_total)
+        for o in _orders(env)
+        if _issued(o) and _within(_day(o.date_order), date_from, date_to)
+    )
+
+    def req_bdt(req):
+        try:
+            return req._dofa_amount() - (req.split_prior_amount or 0.0)
+        except UserError:  # no rate: not converted
+            return 0.0
+
+    total = sum(req_bdt(r) for r in reqs)
     rows = [
         {
             "requisition": req.description,
             "branch": req.branch_id.name if req.branch_id else "—",
-            "amount": round(req.estimate_amount or 0.0, 2),
+            "amount": round(req_bdt(req), 2),
             "reason": req.emergency_reason or "",
             "released": str(req.emergency_released_at)[:16] if req.emergency_released_at else "—",
             "due": str(req.emergency_deadline)[:16] if req.emergency_deadline else "—",
@@ -752,7 +904,7 @@ def emergency_spend(env, date_from=None, date_to=None, **params):
         {
             "requisition": "Requisition",
             "branch": "Branch",
-            "amount": "Amount",
+            "amount": "Amount (BDT)",
             "reason": "Reason",
             "released": "Released",
             "due": "Post-Hoc Due",
@@ -760,12 +912,12 @@ def emergency_spend(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Emergency value %s against %s total PO spend (%.1f%%); the module's target is under "
-            "8%% of spend."
+            "Emergency value BDT %s against BDT %s issued PO spend in the period (%.1f%%); the "
+            "module's target is under 8%% of spend."
             % (round(total, 2), round(spend, 2), (total / spend) * 100.0 if spend else 0.0)
         ],
         totals={"requisition": "Total", "amount": round(total, 2)},
-        empty="No emergency purchases.",
+        empty="No emergency purchases in the period.",
     )
 
 
@@ -788,33 +940,23 @@ def kpis(env):
     reqs = env["fix.requisition"].search(_company_domain(env))
     rfqs = env["fix.procurement.rfq"].search(_company_domain(env))
     orders = _orders(env)
-    today = datetime.date.today()
+    today = _today()
     month_start = today.replace(day=1)
+    # A06 X31: issued orders only, in BDT, by the Dhaka order day
     spend_mtd = sum(
-        order.amount_total or 0.0
+        _bdt(order, order.amount_total)
         for order in orders
-        if order.state != "cancelled"
-        and order.date_order
-        and order.date_order.date() >= month_start
+        if _issued(order) and (_day(order.date_order) or today) >= month_start
     )
-    received = orders.filtered(
-        lambda o: o.received_on and (o.vendor_confirmed_date or o.promised_date)
-    )
-    on_time = received.filtered(
-        lambda o: o.received_on <= (o.vendor_confirmed_date or o.promised_date)
-    )
-    exceptions = 0
-    for line in _lines(env):
-        order = line.order_id
-        if order.state in ("draft", "cancelled", "closed"):
-            continue
-        if (line.qty_received or 0.0) < (line.qty_ordered or 0.0):
-            exceptions += 1
+    received = orders.filtered(lambda o: o.received_on and o._a06_otd_due_date())
+    on_time = received.filtered(lambda o: o.received_on <= o._a06_otd_due_date())
+    # A06 P26: KPI-049 counts bills the match blocks, not undelivered order lines
+    _bills, blocked = _blocked_bills(env)
     return {
         "open_requisitions": len(reqs.filtered(lambda r: r.state in _OPEN_REQ)),
         "rfq_open": len(rfqs.filtered(lambda r: r.state == "open")),
         "po_open": len(orders.filtered(lambda o: o.state in _OPEN_PO)),
-        "match_exceptions": exceptions,
+        "match_exceptions": len(blocked or []),
         "spend_mtd": round(spend_mtd, 2),
         "otd_pct": round((len(on_time) / len(received)) * 100.0, 1) if received else 0.0,
     }

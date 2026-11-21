@@ -52,7 +52,11 @@ class M43:
             {"name": self.vendor.name, "partner_id": self.vendor.id, "status": "active"}
         )
         self.branch = env["fix.branch"].search([], limit=1) or self._make_branch()
-        self.loc = self.location("A")
+        # A06 D7: M15's sweep is the only document raiser and only a central
+        # store (warehouse) buys; a van or branch store is refilled by a
+        # transfer. The planned location is therefore a warehouse, so a plan
+        # for it ends in a purchase requisition; the second one is a branch.
+        self.loc = self.location("A", central=True)
         self.loc2 = self.location("B")
 
     # ---------------------------------------------------------------- builders
@@ -99,11 +103,11 @@ class M43:
             env["hr.employee"].create({"name": "Employee %s" % login, "user_id": user.id})
         return user
 
-    def location(self, suffix, van=False):
+    def location(self, suffix, van=False, central=False):
         vals = {
             "name": "M43 Loc %s %s" % (suffix, self.tag),
             "code": ("M43%s%s" % (suffix, self.tag))[:16],
-            "location_type": "van" if van else "branch",
+            "location_type": "van" if van else ("central" if central else "branch"),
             "company_id": self.company.id,
             "branch_id": self.branch.id,
         }

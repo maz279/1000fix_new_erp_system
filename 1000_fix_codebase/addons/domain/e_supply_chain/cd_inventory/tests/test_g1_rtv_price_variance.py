@@ -25,7 +25,7 @@ def _credited(w, ref):
     r = _rtv(w, 5.0, receipt_id=w.grn.id, rtv_ref="RMA-G1%s-%s" % (ref, w.tag))
     r.with_user(w.controller).action_approve()
     r.with_user(w.keeper).action_ship()
-    r.with_user(w.keeper).action_mark_credited("MUSHAK-67-G1%s-%s" % (ref, w.tag))
+    r.with_user(w.controller).action_mark_credited("MUSHAK-67-G1%s-%s" % (ref, w.tag))
     assert r.state == "credited" and r.vendor_note_res_id
     return r.sudo()
 

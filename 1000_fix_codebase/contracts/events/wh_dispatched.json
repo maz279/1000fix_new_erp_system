@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "wh.dispatched",
+  "description": "Published by cd_inventory through libs.py.fix_events.publish() (2 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "wh.dispatched"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_inventory"
+    },
+    "payload": {
+      "type": "object",
+      "required": [],
+      "properties": {
+        "crossdock": {
+          "type": "string"
+        },
+        "location_id": {
+          "type": "integer"
+        },
+        "load_ref": {
+          "type": "string"
+        },
+        "lines": {
+          "type": "array"
+        },
+        "wave": {
+          "type": "string"
+        },
+        "transfers": {
+          "type": "array"
+        },
+        "rtvs": {
+          "type": "array"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_inventory",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops_spec.py",
+    "addons/domain/e_supply_chain/cd_inventory/models/fix_wms_ops_spec_flow.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

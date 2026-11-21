@@ -173,7 +173,8 @@ class TestThreeWayMatch:
         inv = _invoice(
             ap,
             [
-                (ap["screen"], "Screen", 2.0, 4200.02, {}),
+                # beyond the A06 D8 default tolerance (+2 % or +BDT 500 a unit)
+                (ap["screen"], "Screen", 2.0, 4800.0, {}),
                 (ap["battery"], "Battery", 1.0, 900.0, {}),
             ],
             po,

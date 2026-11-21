@@ -81,4 +81,79 @@
         <field name="model_id" ref="model_fix_wms_rf_journal"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- A06 ERP audit (20 Nov 2026) F16: company and operating-unit isolation of the
+         M41 structure and floor records that had none. -->
+    <record id="rule_fix_warehouse_zone_company" model="ir.rule">
+        <field name="name">fix.warehouse.zone: allowed companies</field>
+        <field name="model_id" ref="cd_wms_structure.model_fix_warehouse_zone"/>
+        <field name="domain_force">['|', ('warehouse_id.company_id', '=', False), ('warehouse_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_warehouse_zone_operating_unit" model="ir.rule">
+        <field name="name">fix.warehouse.zone: allowed operating units (internal users)</field>
+        <field name="model_id" ref="cd_wms_structure.model_fix_warehouse_zone"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_warehouse_bin_company" model="ir.rule">
+        <field name="name">fix.warehouse.bin: allowed companies</field>
+        <field name="model_id" ref="cd_wms_structure.model_fix_warehouse_bin"/>
+        <field name="domain_force">['|', ('zone_id.warehouse_id.company_id', '=', False), ('zone_id.warehouse_id.company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_warehouse_bin_operating_unit" model="ir.rule">
+        <field name="name">fix.warehouse.bin: allowed operating units (internal users)</field>
+        <field name="model_id" ref="cd_wms_structure.model_fix_warehouse_bin"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('zone_id', '=', False), ('zone_id.warehouse_id.operating_unit_id', '=', False), ('zone_id.warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_wave_template_company" model="ir.rule">
+        <field name="name">fix.wms.wave.template: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_wave_template"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_wave_template_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.wave.template: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_wave_template"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_packing_station_company" model="ir.rule">
+        <field name="name">fix.wms.packing.station: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_packing_station"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_slot_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.slot: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_slot"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('bin_id', '=', False), ('bin_id.zone_id.warehouse_id.operating_unit_id', '=', False), ('bin_id.zone_id.warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_wave_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.wave: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_wave"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_outbound_demand_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.outbound.demand: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_outbound_demand"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_device_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.device: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_device"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_slot_load_company" model="ir.rule">
+        <field name="name">fix.wms.slot.load: allowed companies</field>
+        <field name="model_id" ref="model_fix_wms_slot_load"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_wms_slot_load_operating_unit" model="ir.rule">
+        <field name="name">fix.wms.slot.load: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_wms_slot_load"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', '|', ('warehouse_id', '=', False), ('warehouse_id.operating_unit_id', '=', False), ('warehouse_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

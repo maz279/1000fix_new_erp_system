@@ -35,7 +35,7 @@ def _agreement(c, s, user=None, **kw):
         "reference": "FA-%s" % s.id,
         "term_from": c.today - timedelta(days=10),
         "term_to": c.today + timedelta(days=365),
-        "currency_id": c.env.ref("base.BDT").id,
+        "currency_id": c.env.company.currency_id.id,
         "file": PDF,
         "file_filename": "fa.pdf",
     }
@@ -254,7 +254,7 @@ def test_po_above_the_agreed_price_is_refused(c):
         {
             "operating_unit_id": c.ou.id,
             "vendor_id": s.partner_id.id,
-            "currency_id": c.env.ref("base.BDT").id,
+            "currency_id": c.env.company.currency_id.id,
             "line_ids": [(0, 0, {"product_id": c.prod.id, "qty_ordered": 2, "unit_price": 1200})],
         }
     )

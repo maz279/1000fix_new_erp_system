@@ -193,7 +193,7 @@ export const SCREENS = {
   'M42-rpt-league': { kind: 'table_report', module: 'M42', report: 'scorecard_league', title: 'Supplier Scorecard League', period: false },
   'M42-rpt-car': { kind: 'table_report', module: 'M42', report: 'car_closure', title: 'CAR Closure Performance', period: false },
   'M42-rpt-heat': { kind: 'table_report', module: 'M42', report: 'risk_heat', title: 'Risk Heat Map', period: false },
-  'M42-rpt-coverage': { kind: 'table_report', module: 'M42', report: 'contract_coverage', title: 'Contract Coverage', period: false },
+  'M42-rpt-coverage': { kind: 'table_report', module: 'M42', report: 'contract_coverage', title: 'Contract Coverage', period: true },
   'M42-rpt-compliance': { kind: 'table_report', module: 'M42', report: 'compliance_log', title: 'Compliance Screening Log', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
@@ -242,7 +242,8 @@ export const SCREENS = {
            * supplier's incorporation, tax residency and bank letter (12 Nov 2026) */
           { name: 'residency', required: true, label: 'Residency (decides mandatory documents)' },
           { name: 'category', label: 'Spend Category' },
-          { name: 'approved_category_ids', label: 'Approved Product Categories' },
+          /* A06 P08: written by an approved qualification, never typed */
+          { name: 'approved_category_ids', readonly: true, label: 'Approved Product Categories (from qualification)' },
           { name: 'buyer_id', label: 'Buyer' },
           { name: 'onboarded_on', label: 'Onboarded On' },
           { name: 'notes', type: 'text', label: 'Notes' }
@@ -288,6 +289,7 @@ export const SCREENS = {
           { name: 'submitted_on', required: true, label: 'Submitted On' },
           { name: 'auditor_id', label: 'Auditor' },
           { name: 'score', label: 'Score (0–100)' },
+          { name: 'category_ids', label: 'Categories Qualified For' },
           { name: 'scored_by_id', readonly: true, label: 'Scored By' },
           { name: 'notes', type: 'text', label: 'Notes' }
         ] }

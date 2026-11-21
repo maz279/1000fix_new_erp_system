@@ -39,6 +39,9 @@ def _job(inv, category="standard", sla=False):
         "UPDATE fix_service_order SET order_category = %s WHERE id = %s", [category, order.id]
     )
     order.invalidate_recordset()
+    if category == "warranty":
+        # D3 (20 Nov 2026): a warranty job's stock is held in a warranty store
+        inv.central.sudo().write({"stock_type": "warranty"})
     return order
 
 

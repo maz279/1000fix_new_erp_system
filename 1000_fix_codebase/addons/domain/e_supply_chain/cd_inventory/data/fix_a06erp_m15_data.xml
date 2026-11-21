@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A06 ERP audit (20 Nov 2026), M15 stream.
+     X33: a van count outside its tolerance reaches the people who decide it. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_van_variance_notify" model="fix.event.consumer">
+            <field name="name">M15: van variance is told to the branch manager</field>
+            <field name="event_type">stock.van_variance_detected</field>
+            <field name="model">fix.stock.van.recon</field>
+            <field name="method">consume_van_variance_detected</field>
+            <field name="module">cd_inventory</field>
+        </record>
+    </data>
+</odoo>

@@ -35,7 +35,8 @@
         "po_ref",
         "vendor_id",
         "amount_total",
-        "currency"
+        "currency",
+        "fx_rate"
       ],
       "properties": {
         "po_ref": {
@@ -55,6 +56,9 @@
             "string",
             "boolean"
           ]
+        },
+        "fx_rate": {
+          "type": "number"
         }
       },
       "additionalProperties": false

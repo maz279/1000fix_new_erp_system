@@ -38,6 +38,17 @@ PARAM_COUNT_TOLERANCE_PCT = "cd_inventory.count_variance_tolerance_pct"
 PARAM_VAN_TOLERANCE_PCT = "cd_inventory.van_variance_tolerance_pct"
 PARAM_WRITEOFF_THRESHOLD = "cd_inventory.writeoff_approval_threshold"
 PARAM_TRANSFER_THRESHOLD = "cd_inventory.transfer_approval_threshold"
+# A06 ERP audit 20 Nov 2026, owner decision D8: the limits. The keys above
+# hold the live value (noupdate data); these are what a database that has no
+# value gets (count 2%, van 1%, transfer BDT 50,000, write-off BDT 5,000).
+DEFAULT_COUNT_TOLERANCE_PCT = 2.0
+DEFAULT_VAN_TOLERANCE_PCT = 1.0
+DEFAULT_TRANSFER_THRESHOLD = 50000.0
+DEFAULT_WRITEOFF_THRESHOLD = 5000.0
+# A06 ERP audit A10 (lead default): a quarantine is released by the Quality
+# Manager or an Inventory Controller only. The QM group lives in
+# cd_equipment_register (not a dependency): looked up by xmlid, absent = none.
+QUALITY_MANAGER_GROUP = "cd_equipment_register.group_quality_manager"
 
 # Ownership classes that are 1000FiX's own inventory (BRU-INV-02): supplier
 # consignment and customer property are held, never valued.
@@ -77,6 +88,13 @@ def inv_param(env, key, default=0.0) -> float:
     except (TypeError, ValueError):
         return float(default)
     return max(value, 0.0)
+
+
+def has_group_safe(env, xmlid) -> bool:
+    """has_group for a group that may not be installed (then: nobody holds it)."""
+    if not env.ref(xmlid, raise_if_not_found=False):
+        return False
+    return env.user.has_group(xmlid)
 
 
 def is_whole_unit(part) -> bool:
@@ -269,7 +287,10 @@ class FixInventoryWriteoffDofaMixin(models.AbstractModel):
     def _dofa_amount(self) -> float:
         self.ensure_one()
         value = abs(self._writeoff_value() or 0.0)
-        if value <= inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, 0.0) + 1e-6:
+        if (
+            value
+            <= inv_param(self.env, PARAM_WRITEOFF_THRESHOLD, DEFAULT_WRITEOFF_THRESHOLD) + 1e-6
+        ):
             return 0.0
         return value
 

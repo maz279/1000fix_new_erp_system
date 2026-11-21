@@ -39,6 +39,7 @@ from .fix_requisition import (
     GROUP_BUYER,
     RECEIVABLE_PO_STATES,
     FixPurchaseOrder,
+    bdt_rate,
     has_role,
     over_receipt_ceiling,
     require_role,
@@ -131,6 +132,18 @@ class FixRequisitionCapture(models.Model):
                     vals["demand_source"] = "planned_order"
         return super().create(vals_list)
 
+    # A06 P07: who asked, for which unit and branch, and whether it is stock or
+    # a service decide who may approve, receive and confirm it: once submitted
+    # they are pinned in the model (the form lock alone was a screen rule; a
+    # colleague repointed requested_by to themselves and confirmed the service).
+    REQ_IDENTITY = (
+        "requested_by",
+        "operating_unit_id",
+        "branch_id",
+        "purchase_kind",
+        "company_id",
+    )
+
     def write(self, vals):
         if not self._fix_guard_has_token() and set(self.REQ_SOURCE_FIELDS) & set(vals):
             for rec in self:
@@ -138,6 +151,21 @@ class FixRequisitionCapture(models.Model):
                     raise UserError(
                         "Requisition %s is %s: where its demand comes from and what it buys "
                         "are part of the record." % (rec.display_name, rec.state)
+                    )
+        pinned = set(self.REQ_IDENTITY) & set(vals)
+        if pinned and not self._fix_guard_has_token():
+            for rec in self:
+                if rec.state == "draft" and not rec.emergency_state:
+                    continue
+                changed = [n for n in pinned if rec._fix_guard_differs(n, vals[n], rec[n])]
+                if changed:
+                    raise UserError(
+                        "Requisition %s is %s: its %s is fixed once it is submitted."
+                        % (
+                            rec.display_name,
+                            rec.state,
+                            ", ".join(rec._fields[n].string.lower() for n in sorted(changed)),
+                        )
                     )
         return super().write(vals)
 
@@ -174,6 +202,8 @@ class FixRequisitionCapture(models.Model):
         result = super().action_convert_to_po()
         for req in self:
             order = req.purchase_order_id
+            if order and order.state == "draft":
+                order._a06_apply_reference_prices()
             if order and req.purchase_kind != "stock":
                 order.message_post(
                     body="Requisition %s buys %s: confirm it with a service entry, not a goods "
@@ -205,7 +235,7 @@ class FixProcurementApprovedSource(models.Model):
     )
     priority = fields.Integer(required=True, default=1, help="1 = first choice.")
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     agreed_price = fields.Monetary(string="Agreed Unit Price", currency_field="currency_id")
     moq = fields.Float(string="Minimum Order Qty", default=1.0)
@@ -531,6 +561,42 @@ class FixPurchaseOrderCapture(models.Model):
 
     PO_PINNED = (*FixPurchaseOrder.PO_PINNED, "payment_terms", "incoterm")
 
+    # ---- A06 P27: the order price comes from what was agreed --------------
+    def _a06_reference_price(self, line):
+        """(unit price in the order currency, source text) for `line`: the
+        supplier's approved source for the part (cd_vendor_portal puts the M42
+        agreed price list first); (None, None) when nothing was agreed."""
+        self.ensure_one()
+        sources = self.env["fix.procurement.approved.source"]._sources_for(
+            line.product_id, company=self.company_id
+        )
+        vendor = self.vendor_id.commercial_partner_id
+        source = sources.filtered(
+            lambda s: s.vendor_id.commercial_partner_id == vendor and s.agreed_price
+        )[:1]
+        if not source:
+            return None, None
+        price = source.agreed_price
+        if source.currency_id != self.currency_id:
+            bdt = price * bdt_rate(self.env, source.currency_id, self.company_id)
+            price = round(bdt / bdt_rate(self.env, self.currency_id, self.company_id), 6)
+        return price, "approved source %s" % source.name
+
+    def _a06_apply_reference_prices(self):
+        """A converted requisition's line took its price from the requester's
+        estimate; an agreed price for the supplier and part replaces it."""
+        for order in self:
+            for line in order.line_ids:
+                price, source = order._a06_reference_price(line)
+                if price is None or abs(price - line.unit_price) < 0.005:
+                    continue
+                old = line.unit_price
+                line.write({"unit_price": price})
+                order.message_post(
+                    body="%s priced at %s %.2f from the %s (the requisition estimated %.2f)."
+                    % (line.product_id.display_name, order.currency_id.name, price, source, old)
+                )
+
     def action_create_change_order(self):
         result = super().action_create_change_order()
         for new in self.browse((result or {}).get("change_order_ids") or []):
@@ -720,8 +786,8 @@ class FixPurchaseServiceEntry(models.Model):
         owner). A PO raised on a documented no-requisition exception is
         confirmed by a Procurement Approver."""
         self.ensure_one()
-        req = self.purchase_order_id.sudo().requisition_id
-        return req.requested_by.user_id | req.submitted_by_id | req.create_uid if req else None
+        reqs = self.purchase_order_id.sudo()._fix_all_requisitions()  # A06 P40
+        return reqs.requested_by.user_id | reqs.submitted_by_id | reqs.create_uid if reqs else None
 
     def action_confirm(self):
         for rec in self:

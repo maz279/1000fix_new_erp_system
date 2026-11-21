@@ -127,12 +127,8 @@ class FixPurchaseReceipt(models.Model):
         """The requester and the buyer of the PO never receive it (SOD-02)."""
         self.ensure_one()
         order = self.purchase_order_id.sudo()
-        return (
-            order.buyer_id
-            | order.create_uid
-            | order.requisition_id.requested_by.user_id
-            | order.requisition_id.create_uid
-        )
+        reqs = order._fix_all_requisitions()  # A06 P40: every consolidated requester
+        return order.buyer_id | order.create_uid | reqs.requested_by.user_id | reqs.create_uid
 
     def action_post(self):
         for rec in self:
@@ -169,6 +165,13 @@ class FixPurchaseReceipt(models.Model):
                     )
             required = bool_param(self.env, PARAM_INSPECTION, True)
             lines._guarded().write({"inspection_required": required})
+            # A06 D5 / P13: the receipt's value in BDT is fixed now, at the
+            # order's approved price and stamped rate; GRNI is cleared at it
+            rate = order.sudo()._fix_rate_bdt()
+            for line in lines:
+                pol = line.po_line_id.sudo()
+                price = pol.approved_unit_price if pol.approved_qty else pol.unit_price
+                line._guarded().write({"unit_value_bdt": round((price or 0.0) * rate, 6)})
             rec._guarded().write(
                 {
                     "state": "posted",
@@ -193,8 +196,9 @@ class FixPurchaseReceipt(models.Model):
                         "qty_received": line.qty_received,
                         "receipt_ref": rec.name,
                         "received_on": str(rec.received_on),
-                        "promised_date": str(order.vendor_confirmed_date or order.promised_date)
-                        if (order.vendor_confirmed_date or order.promised_date)
+                        # A06 P16: the vendor's own date, never a buyer-typed one
+                        "promised_date": str(order._a06_otd_due_date())
+                        if order._a06_otd_due_date()
                         else None,
                         "inspection_required": required,
                     },
@@ -232,6 +236,14 @@ class FixPurchaseReceiptLine(models.Model):
     )
     state = fields.Selection(related="receipt_id.state", store=True, readonly=True)
     qty_received = fields.Float(string="Received", required=True, default=0.0)
+    unit_value_bdt = fields.Float(
+        string="Receipt Unit Value (BDT)",
+        digits=(16, 6),
+        readonly=True,
+        copy=False,
+        help="The approved order price at the order's stamped exchange rate, fixed when the "
+        "receipt is posted: what goods received not invoiced holds for one unit.",
+    )
     inspection_required = fields.Boolean(readonly=True, copy=False, default=True)
     inspection_ids = fields.One2many(
         "fix.procurement.inspection", "receipt_line_id", string="Inspections"
@@ -261,6 +273,7 @@ class FixPurchaseReceiptLine(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "inspection_required",
+            "unit_value_bdt",
             "qty_accepted",
             "qty_rejected",
             "inspection_state",

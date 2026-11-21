@@ -130,12 +130,19 @@ def world(odoo_env):
     w.buyer = _user(env, "buyer", GB)
     w.approver = _user(env, "t2", T2)
     w.receiver = _user(env, "receiver", GR)
+    # A06 ERP audit P21: whoever received goods does not record their inspection
+    w.inspector = _user(env, "inspector", GR)
     w.ap = _user(env, "ap", AP)
     w.steward = _user(env, "steward", GS)
     w.steward2 = _user(env, "steward2", GS)
     w.supplier_approver = _user(env, "supapprover", GSA)
     w.plain = _user(env, "plain")
-    w.product = env["product.product"].create({"name": "A06 Final Compressor"})
+    # A06 ERP audit P08: a purchased product has a category the supplier is
+    # qualified for (the PO category gate)
+    categ = env["product.category"].create({"name": "A06 Final Compressors"})
+    w.product = env["product.product"].create(
+        {"name": "A06 Final Compressor", "categ_id": categ.id}
+    )
     w.vendor = env["res.partner"].create({"name": "A06 Final Vendor", "is_company": True})
     return w
 
@@ -171,8 +178,20 @@ def onboard(w, p03, partner):
             "fix.supplier.screening",
             {"supplier_id": sid, "screening_type": key, "result": "clear"},
         )
-        press(p03, steward, "fix.supplier.screening", rec, "action_clear")
-    qual = write_ok(p03, steward, "fix.supplier.qualification", {"supplier_id": sid, "score": 82})
+        # A06 ERP audit P20: whoever recorded a screening does not clear it
+        press(p03, second, "fix.supplier.screening", rec, "action_clear")
+    # A06 ERP audit P08: the categories a supplier may supply are approved on
+    # its qualification (the PO category gate is on)
+    qual = write_ok(
+        p03,
+        steward,
+        "fix.supplier.qualification",
+        {
+            "supplier_id": sid,
+            "score": 82,
+            "category_ids": [(6, 0, [w.product.categ_id.id])],
+        },
+    )
     press(p03, steward, "fix.supplier.qualification", qual, "action_start")
     press(p03, approver, "fix.supplier.qualification", qual, "action_approve")
     gate = write_ok(
@@ -389,19 +408,21 @@ def test_walk_requisition_to_closed_po_through_the_screens_only(world, p03):
 
     # inspection picks the line from a picker that offers it by name
     domain = [["state", "=", "posted"], ["inspection_state", "=", "pending"]]
-    choices = form_choices(p03, w.receiver, "fix.procurement.inspection", "receipt_line_id", domain)
+    choices = form_choices(
+        p03, w.inspector, "fix.procurement.inspection", "receipt_line_id", domain
+    )
     rline = receipt.line_ids
     assert receipt.name in choices[rline.id]
     insp = write_ok(
         p03,
-        w.receiver,
+        w.inspector,
         "fix.procurement.inspection",
         {"receipt_line_id": rline.id, "qty_accepted": 6},
     )
-    press(p03, w.receiver, "fix.procurement.inspection", insp, "action_confirm")
+    press(p03, w.inspector, "fix.procurement.inspection", insp, "action_confirm")
     assert rline.inspection_state == "passed"
     assert not form_choices(
-        p03, w.receiver, "fix.procurement.inspection", "receipt_line_id", domain
+        p03, w.inspector, "fix.procurement.inspection", "receipt_line_id", domain
     ).get(rline.id)
 
     # the bill now matches, on nothing but the receipt it was blocked for
@@ -416,11 +437,11 @@ def test_walk_requisition_to_closed_po_through_the_screens_only(world, p03):
     assert po.state == "received" and po.received_on
     insp = write_ok(
         p03,
-        w.receiver,
+        w.inspector,
         "fix.procurement.inspection",
         {"receipt_line_id": second_receipt.line_ids.id, "qty_accepted": 4},
     )
-    press(p03, w.receiver, "fix.procurement.inspection", insp, "action_confirm")
+    press(p03, w.inspector, "fix.procurement.inspection", insp, "action_confirm")
     rest = write_ok(
         p03,
         w.ap,
@@ -432,6 +453,10 @@ def test_walk_requisition_to_closed_po_through_the_screens_only(world, p03):
     press(p03, w.buyer, "fix.purchase.order", po.id, "action_close")
     assert po.state == "closed"
 
+    # the bills post (their last approval; the matrix is covered by A08):
+    # GR/IR counts posted bills only (A06 X26)
+    _post_bill(w, "A06F-WALK-1")
+    _post_bill(w, "A06F-WALK-2")
     # the three-way workbench and GR/IR agree there is nothing left open
     report = p03(w.buyer, "model_report", module="M16", report="three_way")
     row = next(r for r in report["rows"] if r["po"] == po.name)
@@ -460,11 +485,11 @@ def test_walk_rejection_keeps_the_bill_blocked(world, p03):
     )
     insp = write_ok(
         p03,
-        w.receiver,
+        w.inspector,
         "fix.procurement.inspection",
         {"receipt_line_id": po.receipt_ids.line_ids.id, "qty_accepted": 7},
     )
-    press(p03, w.receiver, "fix.procurement.inspection", insp, "action_confirm")
+    press(p03, w.inspector, "fix.procurement.inspection", insp, "action_confirm")
     bill = env["fix.vendor.invoice"].browse(bill_id)
     bill.invalidate_recordset()
     assert bill.match_state == "blocked" and "rejected at inspection" in bill.match_detail
@@ -665,6 +690,15 @@ def test_a4_the_requisition_picker_reads_a_name(world, p03):
 
 
 # ---------------------------------------------------------------- A7: GR/IR
+def _post_bill(w, ref):
+    """The bill's last approval posts it (the approval matrix is covered by
+    the A08 suites): GR/IR counts posted bills only."""
+    bill = w.env["fix.vendor.invoice"].search([("invoice_ref", "=", ref)])
+    bill.sudo()._guarded().write({"approval_state": "approved"})
+    bill.sudo()._post_approved_bill()
+    return bill
+
+
 def _grir(p03, user, po):
     report = p03(user, "model_report", module="M16", report="gr_ir")
     assert "error" not in report, report
@@ -681,12 +715,24 @@ def test_a7_grir_lists_both_directions_by_po_from_posted_receipts_and_bills(worl
     rid = write_ok(p03, w.receiver, "fix.purchase.receipt", {"purchase_order_id": po.id})
     assert not _grir(p03, w.buyer, po)
 
-    # received, not invoiced
+    # received, not invoiced (held for inspection, still owed)
     press(p03, w.receiver, "fix.purchase.receipt", rid, "action_post")
     row = _grir(p03, w.buyer, po)[0]
     assert (row["received_not_invoiced"], row["invoiced_not_received"]) == (20000.0, 0.0)
 
-    # partly invoiced
+    # rejected goods are not owed a bill: 4 of 10 accepted
+    insp = write_ok(
+        p03,
+        w.inspector,
+        "fix.procurement.inspection",
+        {"receipt_line_id": po.receipt_ids.line_ids.id, "qty_accepted": 4},
+    )
+    press(p03, w.inspector, "fix.procurement.inspection", insp, "action_confirm")
+    row = _grir(p03, w.buyer, po)[0]
+    assert (row["received_value"], row["received_not_invoiced"]) == (8000.0, 8000.0)
+
+    # a draft bill has cleared nothing (A06 X26: the posted basis that ties to
+    # the GRNI account); once posted, 4 accepted and 4 billed leave nothing
     write_ok(
         p03,
         w.ap,
@@ -695,21 +741,15 @@ def test_a7_grir_lists_both_directions_by_po_from_posted_receipts_and_bills(worl
         lines=bill_lines(w, 4, 2000.0),
     )
     row = _grir(p03, w.buyer, po)[0]
-    assert (row["received_value"], row["invoiced_value"]) == (20000.0, 8000.0)
-    assert (row["received_not_invoiced"], row["invoiced_not_received"]) == (12000.0, 0.0)
-
-    # rejected goods are not owed a bill
-    insp = write_ok(
-        p03,
-        w.receiver,
-        "fix.procurement.inspection",
-        {"receipt_line_id": po.receipt_ids.line_ids.id, "qty_accepted": 4},
-    )
-    press(p03, w.receiver, "fix.procurement.inspection", insp, "action_confirm")
-    assert not _grir(p03, w.buyer, po)  # 4 accepted, 4 billed
+    assert (row["received_not_invoiced"], row["invoiced_value"]) == (8000.0, 0.0)
+    _post_bill(w, "A06F-GRIR-1")
+    assert not _grir(p03, w.buyer, po)
 
 
-def test_a7_grir_shows_invoiced_not_received_and_does_not_net_products(world, p03):
+def test_a7_grir_a_bill_for_goods_not_received_never_posts_as_invoiced(world, p03):
+    """A06 X26 / three-way match: a bill for goods not yet received is
+    blocked, cannot post, and so is not 'invoiced' on the GR/IR basis; after
+    the goods arrive and the bill posts, nothing is open either way."""
     w = world
     onboard(w, p03, w.vendor)
     po = raise_and_send_po(w, p03, qty=2, price=1000.0)
@@ -720,16 +760,13 @@ def test_a7_grir_shows_invoiced_not_received_and_does_not_net_products(world, p0
         bill_values(w, po, "A06F-GRIR-2"),
         lines=bill_lines(w, 2, 1000.0),
     )
-    row = _grir(p03, w.buyer, po)[0]
-    assert (row["received_not_invoiced"], row["invoiced_not_received"]) == (0.0, 2000.0)
-    # received one product, billed another: both are open, neither nets the other
-    other = w.env["product.product"].create({"name": "A06 Final Other"})
+    bill = w.env["fix.vendor.invoice"].search([("invoice_ref", "=", "A06F-GRIR-2")])
+    assert bill.match_state != "matched"
+    assert not _grir(p03, w.buyer, po)
     press(p03, w.receiver, "fix.purchase.order", po.id, "action_start_receipt")
     press(p03, w.receiver, "fix.purchase.receipt", po.receipt_ids.id, "action_post")
-    bill = w.env["fix.vendor.invoice"].search([("invoice_ref", "=", "A06F-GRIR-2")])
-    bill.line_ids.write({"product_id": other.id})
     row = _grir(p03, w.buyer, po)[0]
-    assert (row["received_not_invoiced"], row["invoiced_not_received"]) == (2000.0, 2000.0)
+    assert (row["received_not_invoiced"], row["invoiced_not_received"]) == (2000.0, 0.0)
 
 
 def test_b12_emergency_report_counts_a_release(world, p03):

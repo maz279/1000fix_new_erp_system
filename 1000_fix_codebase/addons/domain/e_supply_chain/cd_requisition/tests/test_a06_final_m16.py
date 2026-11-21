@@ -8,6 +8,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_requisition.tests.p2p_fixtures import qualify_categories
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -65,6 +66,7 @@ def c(odoo_env):
                 "valid_to": date.today() + timedelta(days=365),
             }
         )
+    qualify_categories(env, sup)  # A06 P08: categories approved by a qualification
     return x
 
 
@@ -448,16 +450,17 @@ def test_b12_a_blocked_person_cannot_name_a_colleague_as_requester(c):
 
 
 def test_b12_releases_cannot_be_split_under_the_ceiling(c):
-    _release(c, 30000.0)
-    second = _req(c, 30000.0, urgency="emergency", description="A06F16 second")
+    # A06 D8: the ceiling is BDT 25,000
+    _release(c, 15000.0)
+    second = _req(c, 15000.0, urgency="emergency", description="A06F16 second")
     with pytest.raises(UserError, match="related requisitions"):
         second.with_user(c.requester).action_emergency_release(reason="Job 4471 stopped still")
     assert second.state == "draft" and not second.emergency_state
     # the same two under the ceiling together go ahead, and the approval sees the total
-    third = _req(c, 15000.0, urgency="emergency", description="A06F16 third")
+    third = _req(c, 8000.0, urgency="emergency", description="A06F16 third")
     third.with_user(c.requester).action_emergency_release(reason="Job 4471 stopped still")
-    assert third.split_prior_amount == 30000.0
-    assert third._dofa_amount() == 45000.0
+    assert third.split_prior_amount == 15000.0
+    assert third._dofa_amount() == 23000.0
 
 
 def test_b12_the_requester_never_decides_the_post_hoc_approval(c):

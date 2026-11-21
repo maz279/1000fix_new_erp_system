@@ -262,6 +262,13 @@ def test_vendor_bill_cost_pins_payee_invoice_and_branch_and_posts_its_account(m)
     two = _bill(m, m.vendor, [5000.0, 7000.0])
     mine.action_match_bill(two.id)  # the line of the same amount is found
     assert entry.state == "matched" and entry.vendor_invoice_line_id.line_total == 5000.0
+    # A06 ERP audit P09 / BRU-PRO-02: the 7,000 line carries no A07 source
+    # document, and the garage is not in the M42 register, so an accounting
+    # administrator records the non-PO exception (a bill backed line by line
+    # by A07 cost entries needs none)
+    two.with_user(m.mgr).action_approve_non_po_exception(
+        reason="Second line: garage work outside the matched vehicle service"
+    )
     move = _post_bill(two)
     line = move.line_ids.filtered(lambda ln: ln.account_id == m.a["auto"])
     assert line.debit == 5000.0 and _ou(m, line) == m.ou

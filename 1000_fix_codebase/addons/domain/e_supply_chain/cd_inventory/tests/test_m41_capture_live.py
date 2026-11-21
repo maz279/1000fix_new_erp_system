@@ -110,7 +110,7 @@ def test_a_move_obeys_the_put_away_rules(wms):
         "holds at most",
     )
     # blocked target (BRU-WMS-12)
-    w.bin2.with_user(w.operator).action_block("rack damaged")
+    w.bin2.with_user(w.supervisor).action_block("rack damaged")
     refused(w, lambda: _confirm(w, _move(w, w.operator), w.operator), "blocked")
     assert _slot(w, w.bin).qty == 10
 
@@ -277,9 +277,8 @@ def test_equipment_bound_tasks_go_only_to_holders(wms):
             }
         )
     )
-    w.env["fix.wms.operative"].with_user(w.supervisor).create(
-        {"employee_id": w.op_emp.id, "warehouse_id": w.wh.id, "equipment_ids": [(6, 0, ladder.ids)]}
-    )
+    # the fixture's operative profile (O7) now holds the ladder
+    w.profile.with_user(w.supervisor).write({"equipment_ids": [(6, 0, ladder.ids)]})
     task.with_user(w.operator).action_claim()
     assert task.state == "assigned"
 
@@ -336,17 +335,7 @@ def test_profiles_equipment_and_devices_are_the_supervisors(wms):
     )
     refused(
         w,
-        lambda: (
-            w.env["fix.wms.operative"]
-            .with_user(w.supervisor)
-            .create(
-                {
-                    "employee_id": w.op_emp.id,
-                    "warehouse_id": w.wh.id,
-                    "zone_ids": [(6, 0, other.ids)],
-                }
-            )
-        ),
+        lambda: (w.profile.with_user(w.supervisor).write({"zone_ids": [(6, 0, other.ids)]})),
         "must belong",
     )
 

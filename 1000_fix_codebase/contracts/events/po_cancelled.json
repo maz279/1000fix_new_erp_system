@@ -32,7 +32,8 @@
     "payload": {
       "type": "object",
       "required": [
-        "po_ref"
+        "po_ref",
+        "reason"
       ],
       "properties": {
         "po_ref": {
@@ -40,6 +41,9 @@
             "string",
             "boolean"
           ]
+        },
+        "reason": {
+          "type": "string"
         }
       },
       "additionalProperties": false

@@ -102,7 +102,8 @@ def cleared_screenings(c, s):
             .with_user(c.steward)
             .create({"supplier_id": s.id, "screening_type": key, "result": "clear"})
         )
-        rec.with_user(c.steward).action_clear()
+        # A06 P20: a second person clears what the steward recorded
+        rec.with_user(c.approver).action_clear()
 
 
 def qual(c, s, score=80, approve=True):
@@ -401,7 +402,8 @@ def test_m42_L03_failed_requalification_suspends(c):
         .with_user(c.steward)
         .create({"supplier_id": s.id, "due_on": c.today, "outcome": "fail"})
     )
-    r.with_user(c.steward).action_complete()
+    # A06 P18: whoever recorded the outcome does not also complete it
+    r.with_user(c.approver).action_complete()
     assert s.status == "suspended"
 
 

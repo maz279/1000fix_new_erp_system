@@ -108,6 +108,37 @@ Two earlier runs were cut short by shared-Postgres crashes on 20 Nov (10:43 and 
 concurrent drops and test load from several sessions). After each recovery both ports served and
 all 132 A02 screens read on fix_real and fix_dev with 0 errors and 0 dropped columns.
 
+## A02 pass 2 (21-22 Nov): integrated, reviewed, deployed
+A second, independent A02 audit (owner decisions D1-D26 in `A02_ERP_PASS2_DECISIONS_2026-11-20.md`)
+left six builder branches unmerged when its session ended. They were integrated (fix/a02r2-integration),
+then an independent review (A03 session) found 8 blockers; all were fixed with tests that fail without
+the fix, re-checked by the reviewer, and the follow-up findings closed:
+- D1 gate (an unpaid Ready order shipped with COD 0), COD self-verifying from its own door receipt, the
+  COD receipt over-booking a part-paid order, an own-rider COD leg never settled after a part payment,
+  field over-collection, unverified part payments, the D20 permanent block.
+- MSP: resolving a paused alert raised AccessError; a crafted report period; D10 coverage; the
+  business-hours SLA clock; every M05 KPI request crashed.
+- M06/M31: client-settable context keys switching off the custody two-person rule, the purge binding,
+  the read log and the BER cancel; M18 destruction losing its two-person rule; the wipe-certificate
+  binding (strict again, with consumers raising their own requests); operator scope rules that never
+  restricted; finance actions taken as sudo.
+- A04 and pass 2 had each built the M09 claim write-off (D24): merged into one routine.
+- Owner decisions 21 Nov: MSP uplifts prorated one per effective date; M06 data and media go only to
+  verified contacts; workshops draw chargeable parts from Non-Warranty HO/Stock and warranty parts from
+  Warranty HO/Stock (applied in the A06 wave); VAT tax point at delivery, one Mushak 6.3 per basket
+  item, parts consumption stays in suspense 110999 until cut-over (as built).
+- Deployed 21 Nov (restart 15:24 local): 33 modules on fix_real and fix_dev, 132/132 A02 screens on
+  both ports, 68/68 A02 reports, no log errors (A03 read-only check). Walks on a copy of the deployed
+  fix_real: full repair journey 18/18 (part issued from the workshop store at cost), declined-repair fee
+  9/9, field dispatch with a certification waiver 6/6 (`evidence_a02_erp/a02r2_*`).
+- Regression after the A07 landing, fresh template, whole cd_p03_portal suite included: 12,313 passed,
+  0 failed (the defects the A04/A06/A07 regressions found - the field-cash shortage booking without the
+  finance bridge, the M05 report route, the M03 duplicate field - fixed). Follow-ups landed at 5469c0e3
+  and deploy in the A06 wave.
+- Skips explained: guarded-field checks on models with no guarded fields (by design); optional modules
+  not installed on the test DB; data-dependent checks with no rows of that kind (A03 contact-centre
+  gap-closure); the local residency service returning synthetic IDs.
+
 ## Still the business's to supply
 - **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
   the waiver above is the path, and it works end to end today.
