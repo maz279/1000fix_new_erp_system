@@ -1580,6 +1580,49 @@ def test_m50_x03_guards_cover_every_treasury_model(c):
         assert "state" in guarded or "match_state" in guarded, model
 
 
+def test_m50_x04_treasury_evidence_is_never_deleted(c):
+    """T-14: statement lines, gateway settlement lines, cheques, settled COD
+    settlements and payment instructions that left draft are evidence — an
+    Accounting Administrator cannot unlink them (A08 audit P0 2026-11-22)."""
+    p = released(c, amount=900.0)
+    line = stmt(c, [(-900.0, p.name)])
+    chq = _cheque(c)
+    batch = (
+        c.env["fix.gateway.settlement"]
+        .sudo()
+        .create(
+            {
+                "operating_unit_id": c.ou.id,
+                "journal_id": c.bank.id,
+                "provider": "bkash",
+                "settlement_date": c.today,
+            }
+        )
+    )
+    gline = (
+        c.env["fix.gateway.settlement.line"]
+        .sudo()
+        .create({"batch_id": batch.id, "trx_id": "A08T-1", "gross": 900.0, "net": 890.0})
+    )
+    cod = _cod(c)
+    cod.flush_recordset()
+    c.env.cr.execute("UPDATE fix_cod_settlement SET state = %s WHERE id = %s", ("settled", cod.id))
+    cod.invalidate_recordset()
+    draft_cod = _cod(c)
+    for rec, _label in (
+        (p, "payment instruction"),
+        (line, "statement line"),
+        (chq, "cheque"),
+        (gline, "gateway line"),
+        (cod, "settled COD"),
+    ):
+        with pytest.raises(REFUSED, match="never"), c.env.cr.savepoint():
+            rec.with_user(c.acct).unlink()
+    # a draft COD settlement is still correctable (deletion is an
+    # Accounting-Administrator ACL; the guard itself must not block it)
+    draft_cod.with_user(c.mgr).unlink()
+
+
 def test_m50_18_consumer_and_crons_are_registered_and_run(c):
     consumer = c.env.ref("cd_cash_position.consumer_payment_requested_treasury")
     assert (consumer.event_type, consumer.model, consumer.method, consumer.active) == (

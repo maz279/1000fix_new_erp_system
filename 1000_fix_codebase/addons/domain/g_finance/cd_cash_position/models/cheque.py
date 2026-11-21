@@ -286,6 +286,17 @@ class FixCheque(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._CHEQUE_GUARDED
 
+    def unlink(self):
+        # T-14 immutable audit: a cheque is a negotiable instrument whose
+        # lifecycle (received → deposited → cleared/bounced) is evidence; it
+        # is cancelled, never deleted.
+        if not (self.env.su or self._fix_guard_has_token()):
+            raise UserError(
+                "Cheques are evidence of a negotiable instrument and are never "
+                "deleted; cancel the cheque instead."
+            )
+        return super().unlink()
+
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(c.state != "received" or c.payment_execution_id for c in self):

@@ -230,6 +230,18 @@ class FixCodSettlement(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._COD_GUARDED
 
+    def unlink(self):
+        # T-14 immutable audit: a settlement that left draft carries the
+        # rider's hand-in, the countersigns and the recovery decision.
+        if not (self.env.su or self._fix_guard_has_token()):
+            locked = self.filtered(lambda s: s.state != "draft")
+            if locked:
+                raise UserError(
+                    "COD settlements that left draft are evidence and are never "
+                    "deleted. Dispute or recover through the workflow instead."
+                )
+        return super().unlink()
+
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(r.state != "draft" for r in self):

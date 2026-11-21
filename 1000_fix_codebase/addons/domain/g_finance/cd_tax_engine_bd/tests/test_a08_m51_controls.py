@@ -703,6 +703,33 @@ def test_ref_m51_proper_path_prepare_reconcile_file(c):
     assert (ret.output_vat, ret.input_vat, ret.net_payable) == (1500.0, 900.0, 600.0)
 
 
+def test_m51_m11_register_written_after_prepare_blocks_filing(c):
+    """BRU-TAX-12: a register row written after the last Prepare (a Mushak
+    6.7/6.8 note or an event-driven adoption posts no journal entry) changes
+    the period's declaration without touching the stored snapshot or the GL —
+    filing re-reads the live register and refuses until the return is
+    re-prepared (and the re-prepare then fails closed on the GL variance)."""
+    _reg(c, 10000.0, 1500.0)
+    _entry(c, [(c.ar, 11500.0, 0.0), (c.revenue, 0.0, 10000.0), (c.vat_out, 0.0, 1500.0)])
+    ret = _vat_return(c)
+    ret.with_user(c.acct).action_prepare()
+    ret.with_user(c.acct).action_subledger_reconciliation()
+    assert ret.subledger_status == "reconciled", ret.subledger_notes
+    # the late, GL-less register row: invisible to the snapshot and the GL
+    _reg(c, 2000.0, 300.0)
+    _refused(
+        ret.with_user(c.filer).action_file_online,
+        client=StubEvat(),
+        match="changed after this return was prepared",
+    )
+    # re-preparing surfaces the unbacked row: the GL reconciliation fails
+    # closed instead of silently mis-declaring the period
+    ret.with_user(c.acct).action_prepare()
+    _refused(
+        ret.with_user(c.filer).action_file_online, client=StubEvat(), match="does not reconcile"
+    )
+
+
 # ======================================================= withholding, challans, certificates
 def test_m51_w01_certificate_needs_deposit(c):
     ln = _deduction(c)

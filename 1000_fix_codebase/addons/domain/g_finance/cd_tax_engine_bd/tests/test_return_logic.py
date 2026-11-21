@@ -190,6 +190,39 @@ class TestRegisterClassification(unittest.TestCase):
             classify_register_row(1000, 80, "A: reduced @ abc%"), "unclassified_rate_8"
         )
 
+    def test_a_named_treatment_is_corroborated_by_the_amounts(self):
+        """A summary that omits a 0% line used to declare the 0% value on the
+        standard line of the 9.1: a named treatment is only trusted when the
+        row's VAT actually is that treatment's rate of the taxable."""
+        # 10,000 @15% + 5,000 zero-rated, summarised as standard-only
+        self.assertEqual(
+            classify_register_row(15000, 1500, "SVC: standard_15 @ 15%"),
+            "unclassified_mixed_rate_10",
+        )
+        # the same summary on a genuinely standard row still classifies
+        self.assertEqual(
+            classify_register_row(10000, 1500, "SVC: standard_15 @ 15%"),
+            "standard_15",
+        )
+        # a reduced name whose amounts are the standard rate is not trusted
+        self.assertEqual(
+            classify_register_row(1000, 150, "SVC: reduced_5 @ 5%"),
+            "unclassified_mixed_rate_15",
+        )
+
+    def test_zero_or_exempt_lines_flag_the_row(self):
+        """The 0% marker written by _fix_treatment_summary: the kind is
+        unknowable from the amount, so the row is flagged, never folded into
+        any statutory line."""
+        self.assertEqual(
+            classify_register_row(15000, 1500, "A: standard_15 @ 15%\nB: zero_or_exempt @ 0%"),
+            "unclassified_mixed_rate_10",
+        )
+        self.assertEqual(
+            classify_register_row(5000, 0, "B: zero_or_exempt @ 0%"),
+            "unclassified_mixed_rate_0",
+        )
+
     def test_aggregate_sums_per_line(self):
         totals = aggregate_register(
             [(1000, 150, ""), (400, 60, "S: standard_15 @ 15%"), (300, 0, "")]
