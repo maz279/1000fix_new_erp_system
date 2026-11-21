@@ -85,4 +85,17 @@
         <field name="model_id" ref="model_fix_iot_action_part"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- A07 ERP audit (2026-11-20) D17(b): the hourly / daily tiers. -->
+    <record id="rule_fix_iot_telemetry_aggregate_company" model="ir.rule">
+        <field name="name">fix.iot.telemetry.aggregate: allowed companies</field>
+        <field name="model_id" ref="model_fix_iot_telemetry_aggregate"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <!-- M48-23 / BRU-IOT-18: a location series is a person's whereabouts. Global
+         rule (ANDed with the company/OU rules): only the IoT roles read it. -->
+    <record id="rule_fix_iot_telemetry_location" model="ir.rule">
+        <field name="name">fix.iot.telemetry: location readings for the IoT roles only</field>
+        <field name="model_id" ref="model_fix_iot_telemetry"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('cd_stream_registry.group_iot_operator') or user.has_group('cd_stream_registry.group_iot_consent_officer')) else [('is_location', '=', False)]</field>
+    </record>
 </odoo>

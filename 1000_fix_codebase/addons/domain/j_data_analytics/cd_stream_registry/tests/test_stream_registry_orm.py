@@ -25,6 +25,22 @@ def device(odoo_env):
     )
 
 
+def _director(env):
+    """A07 ERP audit (2026-11-20) M48-03: the preventive request is approved by the
+    Operations Director: someone must hold the role for it to be routed."""
+    return (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "PdM Director",
+                "login": "pdm_director_%s" % id(env),
+                "group_ids": [(6, 0, [env.ref("cd_facility.group_operations_director").id])],
+            }
+        )
+    )
+
+
 def test_unhealthy_transitions_raise_alerts(odoo_env, device):
     assert device.status == "online"
     device.action_telemetry_received("degraded")
@@ -96,10 +112,14 @@ def test_preventive_work_order_only_for_predicted_failures(odoo_env):
             "model_name": "m26.predictive.maintenance",
         }
     )
+    _director(odoo_env)
     failing.action_create_preventive_wo()
     assert failing.work_order_created is True
-    assert _events(
+    # A07 ERP audit (2026-11-20) M48-03: the approval raises it
+    failing.preventive_action_id.sudo().action_approve()
+    (event,) = _events(
         odoo_env, "predictive_maintenance.wo_created", "fix.predictive.maintenance", failing.id
-    ) == [{"equipment": "Oscilloscope", "days": 6}]
+    )
+    assert (event["equipment"], event["days"]) == ("Oscilloscope", 6)
     with pytest.raises(UserError, match="already requested"), odoo_env.cr.savepoint():
         failing.action_create_preventive_wo()

@@ -14,10 +14,14 @@
 #     work order as its outcome evidence and waits for the outcome, which only
 #     M48 records (BRU-IOT-14). A source that would refuse completion
 #     (no odometer, no technician) refuses the verification, naming why.
+import logging
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
 from .fix_maintenance_demand import ORIGINS, SO_CLOSED, WO_OPEN
+
+_logger = logging.getLogger(__name__)
 
 SPINE_LINKS = (
     "spine_demand_id",
@@ -313,15 +317,39 @@ class FixIotActionSpineLink(models.Model):
             rec.spine_work_order_id = wo or demand.work_order_id
             rec.spine_service_order_id = demand.service_order_id
 
+    def _fix_after_dispatch(self):
+        """A07 ERP audit (2026-11-20) M48-08: the demand was raised only when the
+        outbox relay delivered iot.action_dispatched, so an action completed in
+        the same minute recorded its outcome with no order, and the late consumer
+        then raised nothing. The spine now takes the action at dispatch, in the
+        same transaction; the relayed event is a no-op redelivery."""
+        res = super()._fix_after_dispatch()
+        Demand = self.env["fix.maintenance.demand"].sudo()
+        for rec in self:
+            try:
+                with self.env.cr.savepoint():
+                    Demand.consume_iot_action_dispatched({"aggregate_id": rec.id, "payload": {}})
+            except Exception:
+                # The relayed event retries; completion stays blocked meanwhile.
+                _logger.exception("Spine: action %s not taken at dispatch", rec.name)
+        return res
+
     def _fix_completion_blockers(self):
         """A07 (2026-11-07): an action could be completed, and its finding recorded,
         while the order doing the work was still open. A work order is open until
-        it is verified (WO_OPEN), a service order until delivered or closed."""
+        it is verified (WO_OPEN), a service order until delivered or closed.
+        A07 ERP audit (2026-11-20) M48-08: and an action with no demand at all
+        (no order was ever raised) cannot be completed either."""
         blockers = super()._fix_completion_blockers()
         for rec in self.sudo():
             demands = (
                 self.env["fix.maintenance.demand"].sudo().search([("iot_action_id", "=", rec.id)])
             )
+            if not demands:
+                blockers.append(
+                    "no work order or service order was raised for it: M48 never acts on the "
+                    "asset itself (BRU-IOT-12)"
+                )
             orders = (
                 self.env["fix.facility.work.order"].sudo().search([("iot_action_id", "=", rec.id)])
                 | demands.work_order_id

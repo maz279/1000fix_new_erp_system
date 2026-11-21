@@ -97,6 +97,16 @@ def c(odoo_env):
         }
     )
     x.stream.action_activate()
+    # A07 ERP audit (2026-11-20) M48-19: collection starts on an assessed asset
+    env["fix.iot.monitoring.scope"].create(
+        {
+            "equipment_id": x.equipment.id,
+            "criticality": "medium",
+            "failure_consequence": "downtime",
+            "selection_rationale": "the signals of its streams",
+            "review_due": fields.Date.today() + timedelta(days=365),
+        }
+    )
     return x
 
 

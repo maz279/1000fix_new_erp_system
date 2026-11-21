@@ -56,7 +56,8 @@ export const MODULE = {
       { id: 'M48-retention', en: 'Retention Changes', bn: 'সংরক্ষণ পরিবর্তন', t: 'g' }
     ]}
   ],
-  reports: ['Telemetry Coverage', 'Alert Storm Analysis', 'Prediction Outcome Tracking', 'Stream Quality Report'],
+  reports: ['Telemetry Coverage', 'Alert Storm Analysis', 'Prediction Outcome Tracking', 'Stream Quality Report',
+    'Precision by Model', 'Alert Acknowledgement', 'Intervention Register', 'Consent Register'],
   forms: ['Stream Binding', 'Alert Rule', 'Downsampling Policy', 'Device / Gateway', 'Signal Definition',
     'Telemetry Consent', 'Criticality Assessment', 'Protocol Adapter', 'File Batch Import', 'Retention Change',
     'Maintenance Window', 'Failure Prediction', 'Prediction Outcome', 'Prescriptive Action'],
@@ -65,13 +66,13 @@ export const MODULE = {
    * area (§5.1-§5.5) owns, and every working list sits on a page. Page 3's
    * "+ New" was a device and page 5's a failure prediction. */
   freg: { src: 51, sub: [
-    ['1', 'Stream Registry & Onboarding', 8, { model: 'fix.iot.stream', cols: ['name', 'device_id', 'signal_id', 'metric', 'unit', 'state'], screens: ['M48-streams', 'M48-iot-device', 'M48-signals', 'M48-consent', 'M48-scopes'], reports: ['Stream Quality Report', 'Telemetry Coverage'], forms: ['Stream Binding', 'Device / Gateway', 'Signal Definition', 'Telemetry Consent', 'Criticality Assessment'] }],
+    ['1', 'Stream Registry & Onboarding', 8, { model: 'fix.iot.stream', cols: ['name', 'device_id', 'signal_id', 'metric', 'unit', 'state'], screens: ['M48-streams', 'M48-iot-device', 'M48-signals', 'M48-consent', 'M48-scopes'], reports: ['Stream Quality Report', 'Telemetry Coverage', 'Consent Register'], forms: ['Stream Binding', 'Device / Gateway', 'Signal Definition', 'Telemetry Consent', 'Criticality Assessment'] }],
     ['2', 'Protocol Adapters', 7, { model: 'fix.iot.adapter', cols: ['name', 'protocol', 'endpoint', 'auth_mode', 'state'], screens: ['M48-adapters', 'M48-file-batches'], reports: ['Stream Quality Report'], forms: ['Protocol Adapter', 'File Batch Import'] }],
     ['3', 'Ingestion & Storage', 9, { model: 'fix.iot.downsample', cols: ['name', 'stream_id', 'raw_interval_sec', 'target_interval_sec', 'aggregation', 'state'], screens: ['M48-health', 'M48-downsample', 'M48-retention', 'M48-gaps', 'M48-telemetry', 'M48-rollups'], reports: ['Telemetry Coverage', 'Stream Quality Report'], forms: ['Downsampling Policy', 'Retention Change'] }],
-    ['4', 'Threshold Alerting', 8, { model: 'fix.iot.rule', cols: ['name', 'stream_id', 'operator', 'threshold', 'severity', 'state'], screens: ['M48-alerts', 'M48-lifecycle', 'M48-windows', 'M48-asset-alerts'], reports: ['Alert Storm Analysis'], forms: ['Alert Rule', 'Maintenance Window'] }],
+    ['4', 'Threshold Alerting', 8, { model: 'fix.iot.rule', cols: ['name', 'stream_id', 'operator', 'threshold', 'severity', 'state'], screens: ['M48-alerts', 'M48-lifecycle', 'M48-windows', 'M48-asset-alerts'], reports: ['Alert Storm Analysis', 'Alert Acknowledgement'], forms: ['Alert Rule', 'Maintenance Window'] }],
     ['5', 'Health Scoring', 6, { model: 'fix.iot.health', create: 'M48-form-scope', cols: ['computed_at', 'device_id', 'index_value', 'band', 'trend'], screens: ['M48-scores', 'M48-health-history', 'M48-scopes'], reports: [], forms: ['Criticality Assessment'] }],
-    ['6', 'Failure Prediction', 7, { model: 'fix.predictive.maintenance', cols: ['name', 'equipment_id', 'prediction', 'estimated_days_to_failure', 'outcome'], screens: ['M48-failure', 'M48-rul'], reports: ['Prediction Outcome Tracking'], forms: ['Failure Prediction', 'Prediction Outcome'] }],
-    ['7', 'Prescriptive Routing', 6, { model: 'fix.iot.action', cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'state'], screens: ['M48-routing'], reports: ['Prediction Outcome Tracking'], forms: ['Prescriptive Action'] }]
+    ['6', 'Failure Prediction', 7, { model: 'fix.predictive.maintenance', cols: ['name', 'equipment_id', 'prediction', 'estimated_days_to_failure', 'outcome'], screens: ['M48-failure', 'M48-rul'], reports: ['Prediction Outcome Tracking', 'Precision by Model'], forms: ['Failure Prediction', 'Prediction Outcome'] }],
+    ['7', 'Prescriptive Routing', 6, { model: 'fix.iot.action', cols: ['name', 'equipment_id', 'action_type', 'priority', 'technician_id', 'state'], screens: ['M48-routing'], reports: ['Prediction Outcome Tracking', 'Intervention Register'], forms: ['Prescriptive Action'] }]
   ] }
 };
 
@@ -82,7 +83,7 @@ export const SCREENS = {
     cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M48-streams': { kind: 'model_list', model: 'fix.iot.stream', stateField: 'state',
-    cols: ['name', 'device_id', 'equipment_id', 'signal_id', 'metric', 'unit', 'sample_interval_sec', 'retention_days', 'consent_policy', 'adapter_id', 'last_seen', 'state'],
+    cols: ['name', 'device_id', 'equipment_id', 'signal_id', 'metric', 'unit', 'sample_interval_sec', 'retention_days', 'consent_policy', 'adapter_id', 'last_seen', 'suspension_cause', 'state'],
     actions: [
       { m: 'action_activate', l: 'Activate Stream' },
       { m: 'action_suspend', l: 'Suspend Stream' },
@@ -123,15 +124,21 @@ export const SCREENS = {
     ] },
   'M48-lifecycle': { kind: 'model_list', model: 'fix.iot.alert', stateField: 'state', create: false,
     empty: 'No alert raised. Alerts are raised by the alert rules when a reading crosses a threshold, or by a device health change.',
-    cols: ['name', 'device_id', 'rule_id', 'severity', 'message', 'trigger_value', 'occurrence_count', 'last_occurrence_on', 'acked_by', 'resolved_by', 'state'],
+    cols: ['name', 'device_id', 'rule_id', 'severity', 'message', 'trigger_value', 'occurrence_count', 'last_occurrence_on', 'routed_to_module', 'escalation_level', 'acked_by', 'resolved_by', 'state'],
     actions: [
       { m: 'action_ack', l: 'Acknowledge' },
       { m: 'action_resolve', l: 'Resolve', ask: 'How was the alert resolved?', kwarg: 'resolution_note' }
     ] },
   'M48-scores': { kind: 'table_report', module: 'M48', report: 'asset_health', title: 'Asset Health Scoring', period: false },
   'M48-failure': { kind: 'model_list', model: 'fix.predictive.maintenance',
-    cols: ['name', 'equipment_id', 'prediction', 'failure_mode', 'confidence', 'estimated_days_to_failure', 'horizon_end', 'model_name', 'model_published', 'outcome', 'outcome_action_id', 'work_order_created'],
-    actions: [{ m: 'action_create_preventive_wo', l: 'Request Preventive Work Order' }] },
+    cols: ['name', 'asset_label', 'prediction', 'failure_mode', 'confidence', 'estimated_days_to_failure', 'horizon_end', 'model_name', 'score_source', 'model_published', 'outcome', 'outcome_action_id', 'preventive_action_id', 'work_order_created'],
+    /* A07 ERP audit (2026-11-20) M48-03: the request is a prescriptive action the
+     * Operations Director approves (DOFA Tier 2 while nobody holds that role);
+     * only the approval raises the work order, on the date it approved. */
+    actions: [{ m: 'action_create_preventive_wo', l: 'Request Preventive Work Order (approval)', asks: [
+      { label: 'Why is the work needed? (the approver decides on your reason)', kwarg: 'justification' },
+      { label: 'Scheduled date (YYYY-MM-DD; blank = today). The approval pins it.', kwarg: 'scheduled_on' }
+    ] }] },
   'M48-rul': { kind: 'table_report', module: 'M48', report: 'rul_estimation', title: 'RUL Estimation', period: false },
   'M48-routing': { kind: 'model_list', model: 'fix.iot.action', stateField: 'state',
     cols: ['name', 'equipment_id', 'action_type', 'priority', 'skill_code', 'parts_state', 'technician_id', 'scheduled_on', 'approval_state', 'approved_by', 'spine_work_order_id', 'spine_service_order_id', 'outcome', 'revision_note', 'state'],
@@ -147,7 +154,9 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel Action', ask: 'Why is this action cancelled?', kwarg: 'reason' },
       { m: 'action_dispatch', l: 'Dispatch' },
       { m: 'action_done_confirmed', l: 'Complete: Failure Confirmed', ask: 'What did the intervention find?', kwarg: 'note' },
-      { m: 'action_done_not_confirmed', l: 'Complete: Failure Not Confirmed', ask: 'What did the intervention find?', kwarg: 'note' }
+      { m: 'action_done_not_confirmed', l: 'Complete: Failure Not Confirmed', ask: 'What did the intervention find?', kwarg: 'note' },
+      /* A07 ERP audit (2026-11-20) M48-09 */
+      { m: 'action_done_prevented', l: 'Complete: Failure Prevented', ask: 'What was replaced or repaired before it failed?', kwarg: 'note' }
     ] },
   'M48-consent': { kind: 'model_list', model: 'fix.iot.consent', stateField: 'state',
     cols: ['name', 'subject_type', 'device_id', 'site_id', 'partner_id', 'purpose', 'signal_groups_permitted', 'granted_on', 'valid_to', 'verification', 'revocation_treatment', 'treatment_state', 'revoked_at', 'state'],
@@ -213,6 +222,12 @@ export const SCREENS = {
   'M48-rpt-storm': { kind: 'table_report', module: 'M48', report: 'alert_storm', title: 'Alert Storm Analysis', period: false },
   'M48-rpt-outcomes': { kind: 'table_report', module: 'M48', report: 'prediction_outcomes', title: 'Prediction Outcome Tracking', period: false },
   'M48-rpt-quality': { kind: 'table_report', module: 'M48', report: 'stream_quality', title: 'Stream Quality Report', period: false },
+  /* A07 ERP audit (2026-11-20) M48-17: the spec's registers and measures; each
+   * honours the period asked for (Dhaka days). */
+  'M48-rpt-precision': { kind: 'table_report', module: 'M48', report: 'precision_by_model', title: 'Precision by Model', period: true },
+  'M48-rpt-ack': { kind: 'table_report', module: 'M48', report: 'alert_acknowledgement', title: 'Alert Acknowledgement', period: true },
+  'M48-rpt-interventions': { kind: 'table_report', module: 'M48', report: 'intervention_register', title: 'Intervention Register', period: true },
+  'M48-rpt-consents': { kind: 'table_report', module: 'M48', report: 'consent_register', title: 'Consent Register', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M48-form-stream': {
@@ -371,7 +386,8 @@ export const SCREENS = {
           { name: 'action_type', required: true, label: 'Action Type' },
           { name: 'priority', required: true, label: 'Priority' },
           { name: 'technician_id', label: 'Technician' },
-          { name: 'scheduled_on', required: true, label: 'Scheduled On' },
+          { name: 'scheduled_on', required: true, label: 'Scheduled On (pinned by the approval)' },
+          { name: 'preventive_request', label: 'Preventive Work Order Request', readonly: true },
           { name: 'state', label: 'State', readonly: true },
           { name: 'notes', label: 'Notes' },
           { name: 'outcome_evidence_ref', label: 'Outcome Evidence' }
@@ -381,6 +397,7 @@ export const SCREENS = {
           { name: 'recommended_action', type: 'text', label: 'Recommended Action' },
           { name: 'skill_code', label: 'Skill Required (M22 competency code)' },
           { name: 'skill_name', label: 'Skill', readonly: true },
+          { name: 'skill_override_reason', label: 'Skill Override Reason (technician lacks the competency)' },
           { name: 'parts_state', label: 'Parts Availability', readonly: true }
         ] },
       { tab: 'decision', title: 'Approval & Outcome', fields: [
@@ -464,6 +481,7 @@ export const SCREENS = {
           { name: 'site_id', label: 'Site' },
           { name: 'partner_id', label: 'Customer' },
           { name: 'purpose', required: true, label: 'Purpose' },
+          { name: 'proactive_service', label: 'Proactive Service Agreed (predictions may raise visits under contract)' },
           { name: 'granted_on', required: true, label: 'Granted On' },
           { name: 'valid_to', label: 'Valid To' },
           { name: 'signal_groups_permitted', label: 'Signals Permitted' },
@@ -503,7 +521,9 @@ export const SCREENS = {
       { tab: 'score', title: 'Prediction', note: 'An IoT Operator records the score a published model produced; once saved, it cannot be rewritten: a re-assessment is a new prediction. Confidence must be within 0–1 and days-to-failure cannot be negative (0 means imminent). Model is the code of a published M26 predictive-maintenance model: saving names the choices if it is not one. Request Preventive Work Order is the IoT Operator\'s, on a failure prediction confident enough; it asks once, and can ask again only if the demand it raised is dismissed. The verified outcome is recorded by completing a prescriptive action, never typed.',
         fields: [
           { name: 'name', required: true, label: 'Prediction Reference' },
-          { name: 'equipment_id', required: true, label: 'Equipment' },
+          { name: 'equipment_id', label: 'Equipment (M45)' },
+          { name: 'vehicle_id', label: 'Vehicle (M46)' },
+          { name: 'customer_device_id', label: 'Customer Device (M17)' },
           { name: 'prediction', required: true, label: 'Prediction' },
           { name: 'failure_mode', label: 'Predicted Failure Mode' },
           { name: 'confidence', required: true, label: 'Confidence (0-1)' },
@@ -511,7 +531,9 @@ export const SCREENS = {
           { name: 'rul_low_days', label: 'RUL Low (days)' },
           { name: 'rul_high_days', label: 'RUL High (days)' },
           { name: 'model_name', required: true, label: 'Model' },
-          { name: 'model_published', label: 'Model Published (M26)', readonly: true },
+          { name: 'score_source', label: 'Score Source', readonly: true },
+          { name: 'model_version_id', label: 'Model Version (M26)', readonly: true },
+          { name: 'model_published', label: 'Drives Work (governed M26 version)', readonly: true },
           { name: 'feature_window_from', label: 'Feature Window From' },
           { name: 'feature_window_to', label: 'Feature Window To' },
           { name: 'last_evaluated', label: 'Last Evaluated', readonly: true }
@@ -582,9 +604,16 @@ export const SCREENS = {
   /* ===== triage coverage screens ===== */
   'M48-iot-device': { kind: 'model_list', model: 'fix.iot.device',
     note: 'One record per physical device or gateway. A device is decommissioned, never deleted: its streams stop and its history is kept.',
-    cols: ['name', 'device_id', 'device_type', 'equipment_id', 'site_id', 'partner_id', 'gateway_id', 'firmware', 'connectivity', 'status', 'last_telemetry', 'decommissioned'],
+    cols: ['name', 'device_id', 'device_type', 'equipment_id', 'site_id', 'vehicle_id', 'customer_device_id', 'partner_id', 'gateway_id', 'firmware', 'connectivity', 'status', 'consent_ever_recorded', 'last_telemetry', 'decommissioned'],
     actions: [
-      { m: 'action_decommission', l: 'Decommission Device (IoT Administrator)', ask: 'Why is this device decommissioned? Every stream it publishes is decommissioned with it.', kwarg: 'reason' }
+      { m: 'action_decommission', l: 'Decommission Device (IoT Administrator)', ask: 'Why is this device decommissioned? Every stream it publishes is decommissioned with it.', kwarg: 'reason' },
+      /* A07 ERP audit (2026-11-20) M48-01: once a consent is on record or a stream
+       * has left draft, the binding changes only here, by the Consent Officer. */
+      { m: 'action_change_binding', l: 'Change Binding (Consent Officer)', asks: [
+        { label: 'Binding to change: partner_id, site_id, equipment_id, vehicle_id, customer_device_id or monitored_asset_id', kwarg: 'field' },
+        { label: 'Record id to bind (blank clears it)', kwarg: 'value' },
+        { label: 'Why is the binding changing?', kwarg: 'reason' }
+      ] }
     ] },
 
   'M48-form-iot-device': {
@@ -614,7 +643,12 @@ export const SCREENS = {
           { name: 'operating_unit_id', label: 'Operating Unit' },
           { name: 'equipment_id', label: 'Equipment (M45)' },
           { name: 'site_id', label: 'Site (M47)' },
+          { name: 'vehicle_id', label: 'Vehicle (M46)' },
+          { name: 'customer_device_id', label: 'Customer Device (M17)' },
+          { name: 'monitored_asset_id', label: 'MSP Endpoint (M05)' },
           { name: 'partner_id', label: 'Customer (data subject)' },
+          { name: 'consent_ever_recorded', label: 'Consent On Record', readonly: true },
+          { name: 'binding_log', label: 'Binding Changes', readonly: true },
           { name: 'status', label: 'Status', readonly: true },
           { name: 'last_telemetry', label: 'Last Reading', readonly: true },
           { name: 'decommissioned_on', label: 'Decommissioned On', readonly: true },
@@ -715,10 +749,11 @@ export const SCREENS = {
       { id: 'result', label: '2. Validation Report', bn: '২. যাচাই প্রতিবেদন', icon: '📋', badge: '8' }
     ],
     sections: [
-      { tab: 'file', title: 'Export File', note: 'A CSV with the columns stream, timestamp (YYYY-MM-DD HH:MM:SS, UTC) and value, one reading per row, for streams of the chosen adapter. Save, then Ingest File on the File Batch Imports list: each row passes the live ingest gates (adapter enabled and keyed, stream active, consent, duplicates) and the alert rules. At most 5,000 rows.',
+      { tab: 'file', title: 'Export File', note: 'A CSV with the columns stream, timestamp (ISO date and time; a stamp with an offset or Z keeps it, one without is read in the Source Time Zone) and value, one reading per row, for streams of the chosen adapter. Save, then Ingest File on the File Batch Imports list: each row passes the live ingest gates (adapter enabled and keyed, stream active, consent, duplicates) and the alert rules. At most 5,000 rows.',
         fields: [
           { name: 'adapter_id', required: true, label: 'Protocol Adapter' },
           { name: 'source_ref', label: 'Export Reference' },
+          { name: 'source_tz', required: true, label: 'Source Time Zone (e.g. Asia/Dhaka)' },
           { name: 'batch_file', type: 'file', label: 'Export File (CSV)' },
           { name: 'batch_filename', label: 'File Name' }
         ] },
@@ -802,7 +837,11 @@ export const REPORT_ROUTES = {
   'M48:Telemetry Coverage': 'M48-rpt-coverage',
   'M48:Alert Storm Analysis': 'M48-rpt-storm',
   'M48:Prediction Outcome Tracking': 'M48-rpt-outcomes',
-  'M48:Stream Quality Report': 'M48-rpt-quality'
+  'M48:Stream Quality Report': 'M48-rpt-quality',
+  'M48:Precision by Model': 'M48-rpt-precision',
+  'M48:Alert Acknowledgement': 'M48-rpt-ack',
+  'M48:Intervention Register': 'M48-rpt-interventions',
+  'M48:Consent Register': 'M48-rpt-consents'
 };
 
 export const FORM_MODELS = {

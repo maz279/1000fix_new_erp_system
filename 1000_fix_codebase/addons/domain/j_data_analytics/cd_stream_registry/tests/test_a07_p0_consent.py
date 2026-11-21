@@ -247,7 +247,10 @@ def test_expired_future_and_revoked_consents_do_not_cover(c):
     open_ended.with_user(c.clerk2).action_revoke()
     s.invalidate_recordset()
     assert s.state == "suspended"
-    s.action_activate()  # reactivating the stream does not bring consent back
+    # A07 ERP audit (2026-11-20) M48-01: a stream the consent gate stopped is not
+    # resumed without a consent
+    assert refused(c.env, s.action_activate)
+    assert s.state == "suspended"
     assert refused(c.env, lambda: s.with_user(c.clerk).ingest(1.0))
 
 
@@ -259,8 +262,9 @@ def test_revoke_suspends_stamps_and_is_final(c, p03):
     c.stream.invalidate_recordset()
     assert c.stream.state == "suspended"
     assert cn.revoked_by == c.clerk2 and cn.revoked_on
-    # once a consent was recorded, an equipment sensor loses its exemption
-    c.stream.action_activate()
+    # once a consent was recorded, an equipment sensor loses its exemption: the
+    # stream does not even resume (A07 ERP audit 2026-11-20, M48-01)
+    assert refused(c.env, c.stream.action_activate)
     assert refused(c.env, lambda: c.stream.with_user(c.clerk).ingest(1.0))
     # final: plain write, P03 write and even superuser write are refused
     assert refused(c.env, lambda: cn.with_user(c.clerk).write({"state": "active"}))

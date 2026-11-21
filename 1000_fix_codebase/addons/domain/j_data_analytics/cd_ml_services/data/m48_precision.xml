@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A07 ERP audit (2026-11-20) M48-10 / AUT-IOT-17 / BRU-IOT-22: monthly
+     precision per M48 model version; two months below the threshold
+     (cd_stream_registry.precision_threshold_pct, the owner's figure, spec Q-08)
+     suspend customer-facing use. -->
+<odoo>
+    <record id="rule_fix_ml_m48_precision_company" model="ir.rule">
+        <field name="name">fix.ml.m48.precision: allowed companies</field>
+        <field name="model_id" ref="model_fix_ml_m48_precision"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <data noupdate="1">
+        <record id="ir_cron_m48_precision" model="ir.cron">
+            <field name="name">M26/M48: monthly prediction precision and model suspension</field>
+            <field name="model_id" ref="model_fix_ml_m48_precision"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_m48_precision()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">months</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

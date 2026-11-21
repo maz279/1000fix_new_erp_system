@@ -14,7 +14,9 @@
 # stays pending with what it needs, and a person completes the fact and routes
 # it (action_route). Nothing here posts, closes or decides anything.
 from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo.exceptions import AccessError, UserError, ValidationError
+
+from libs.py.fix_events import publish
 
 WO_MODEL = "fix.facility.work.order"
 WO_OPEN = ("draft", "scheduled", "in_progress", "completed")
@@ -40,6 +42,10 @@ ORIGINS = [
     ("m48_prediction", "M48 Predicted Failure"),
     ("m48_action", "M48 Dispatched Intervention"),
     ("m17_device_pm", "M17 Device Maintenance Plan"),
+    # A07 ERP audit (2026-11-20) M48-15 / M48-13: a major or critical rule alert,
+    # and a health index that fell a band, raise an inspection by the owner.
+    ("m48_alert", "M48 Rule Alert (Inspection)"),
+    ("m48_health", "M48 Health Degraded (Inspection)"),
 ]
 WORK_TYPES = [
     ("maintenance", "Preventive Maintenance"),
@@ -92,18 +98,38 @@ SYSTEM_FIELDS = {
     "dismissed_at",
     "dismiss_reason",
     "source_log",
+    "entitlement_state",
+    "commercial_route",
+    "contract_ref_id",
 }
 NO_KEY = "-"
+# M48-04: who pays for work on a customer's device.
+ENTITLEMENT_STATES = [
+    ("internal", "Company Asset"),
+    ("entitled", "Entitled (Contract + Proactive Consent)"),
+    ("no_contract", "No Contract Covers It"),
+    ("no_consent", "No Proactive-Service Consent"),
+    ("model_suspended", "Model Suspended From Customer Use"),
+]
 
 
 def _today(env):
     return fields.Date.context_today(env["res.users"].with_context(tz=DHAKA))
 
 
+LOT_MODEL = "fix.stock.lot"
+
+
 class FixDeviceComponentPickers(models.Model):
     """A07 operability (2026-11-07): the causing job and stock lot of a fitted
     part are references by id, because the registry loads before M01 and M15, and
-    a person knows neither id. These pick the record and write the reference."""
+    a person knows neither id. These pick the record and write the reference.
+
+    A07 ERP audit (2026-11-20) LEAD-01: the lot picker offered Odoo's stock.lot,
+    which the estate does not use (0 rows on fix_real): M15 lots are
+    fix.stock.lot of a fix.spare.part, so a recalled lot could never be traced to
+    the devices it went into. The picker now offers M15 lots of the component's
+    part, and writes the reference as a fix.stock.lot."""
 
     _inherit = "fix.device.component"
 
@@ -114,19 +140,23 @@ class FixDeviceComponentPickers(models.Model):
         inverse="_inverse_causing_order",
     )
     stock_lot_ref_id = fields.Many2one(
-        "stock.lot",
-        string="Stock Lot",
+        LOT_MODEL,
+        string="Stock Lot (M15)",
         compute="_compute_reference_pickers",
         inverse="_inverse_stock_lot",
+        domain="[('part_id.part_number', '=', part_number)]",
+        help="The M15 serial or lot of the part fitted: a lot of the same part number.",
     )
 
-    @api.depends("service_order_id", "lot_id")
+    @api.depends("service_order_id", "lot_id", "lot_model")
     def _compute_reference_pickers(self):
         Order = self.env["fix.service.order"].sudo()
-        Lot = self.env["stock.lot"].sudo()
+        Lot = self.env[LOT_MODEL].sudo()
         for rec in self:
             rec.causing_order_id = Order.browse(rec.service_order_id or 0).exists().id
-            rec.stock_lot_ref_id = Lot.browse(rec.lot_id or 0).exists().id
+            rec.stock_lot_ref_id = (
+                Lot.browse(rec.lot_id or 0).exists().id if rec.lot_model == LOT_MODEL else False
+            )
 
     def _inverse_causing_order(self):
         for rec in self:
@@ -134,7 +164,19 @@ class FixDeviceComponentPickers(models.Model):
 
     def _inverse_stock_lot(self):
         for rec in self:
-            rec.lot_id = rec.stock_lot_ref_id.id or False
+            lot = rec.stock_lot_ref_id.sudo()
+            if (
+                lot
+                and rec.part_number
+                and (lot.part_id.part_number or "").strip().upper()
+                != (rec.part_number or "").strip().upper()
+            ):
+                raise ValidationError(
+                    "Lot %s is of part %s, not of the fitted part %s."
+                    % (lot.name, lot.part_id.part_number, rec.part_number)
+                )
+            rec.lot_model = LOT_MODEL
+            rec.lot_id = lot.id or False
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -200,6 +242,23 @@ class FixMaintenanceDemand(models.Model):
     device_pm_id = fields.Many2one("fix.device.pm", string="M17 Device Plan", readonly=True)
     calibration_due = fields.Date(string="Calibration Due", readonly=True)
     partner_id = fields.Many2one("res.partner", string="Customer", readonly=True)
+    # M48-04: who pays for work on a customer's device, decided before an order.
+    entitlement_state = fields.Selection(
+        ENTITLEMENT_STATES, string="Entitlement", readonly=True, copy=False
+    )
+    commercial_route = fields.Selection(
+        [
+            ("internal", "Internal (company asset)"),
+            ("contract", "Under Contract"),
+            ("opportunity", "M07 Opportunity (no order raised)"),
+        ],
+        string="Commercial Route",
+        readonly=True,
+        copy=False,
+    )
+    contract_ref_id = fields.Many2one(
+        "fix.contract", string="Contract (M08)", readonly=True, copy=False
+    )
     # what a person completes before routing
     site_id = fields.Many2one("fix.site", string="Site (M47)")
     branch_id = fields.Many2one("fix.branch", string="Branch")
@@ -396,7 +455,7 @@ class FixMaintenanceDemand(models.Model):
             problems.append("no branch: choose the branch that takes the order")
         if problems:
             return None, problems
-        return {
+        vals = {
             "device_id": device.id,
             "customer_id": customer.id,
             "branch_id": branch.id,
@@ -408,7 +467,14 @@ class FixMaintenanceDemand(models.Model):
             "technician_id": self.technician_id.id,
             # DI-04: one order per routing of this demand, however often retried
             "idempotency_key": "a07-spine:%s:%s" % (self.id, self.route_count + 1),
-        }, []
+        }
+        if self.commercial_route == "contract" and self.contract_ref_id:
+            # M48-04 / AUT-IOT-14: entitled proactive work is delivered under the
+            # contract, not as a standard chargeable order.
+            vals["order_category"] = "amc"
+            if "contract_id" in self.env["fix.service.order"]._fields:
+                vals["contract_id"] = self.contract_ref_id.id
+        return vals, []
 
     def _spine_route(self, manual=False):
         """Route each pending demand to its target. Automatic routing (the
@@ -416,6 +482,15 @@ class FixMaintenanceDemand(models.Model):
         route pending with what it needs; a person's routing raises it."""
         for rec in self:
             if rec.state != "pending":
+                continue
+            if (
+                not manual
+                and rec.target == "service_order"
+                and rec.commercial_route == "opportunity"
+            ):
+                # M48-04: never auto-create customer-chargeable work without an
+                # entitlement and the customer's proactive-service consent. A
+                # person may route it once the customer has accepted the work.
                 continue
             builder = (
                 rec._spine_work_order_vals
@@ -517,7 +592,20 @@ class FixMaintenanceDemand(models.Model):
             [("prediction_id", "=", prediction.id), ("state", "!=", "dismissed")], limit=1
         ):
             return
-        prediction._guarded().write({"work_order_created": False})
+        # A07 ERP audit (2026-11-20) M48-03: the approved request (an action) is
+        # over too, or a new request would find it "under way".
+        request = prediction.preventive_action_id.sudo()
+        if request and request.state in ("proposed", "approved"):
+            request._approval_void("demand %s dismissed: %s" % (self.name, reason))
+            request._guarded().write(
+                {
+                    "state": "cancelled",
+                    "cancelled_by": self.env.uid,
+                    "cancelled_on": fields.Datetime.now(),
+                    "cancel_reason": "demand %s dismissed: %s" % (self.name, reason),
+                }
+            )
+        prediction._guarded().write({"work_order_created": False, "preventive_action_id": False})
         prediction.message_post(
             body="The preventive work order request was withdrawn: demand %s was dismissed "
             "(%s). It can be requested again." % (self.name, reason)
@@ -569,26 +657,66 @@ class FixMaintenanceDemand(models.Model):
 
     # ------------------------------------------------------------ M48 routing
     @api.model
+    def _spine_m48_devices(self, prediction):
+        """The M48 devices on the prediction's asset."""
+        prediction = prediction.sudo()
+        Device = self.env["fix.iot.device"].sudo()
+        if prediction.equipment_id:
+            return Device.search([("equipment_id", "=", prediction.equipment_id.id)])
+        if prediction.vehicle_id:
+            return Device.search([("vehicle_id", "=", prediction.vehicle_id.id)])
+        if prediction.customer_device_id:
+            return Device.search([("customer_device_id", "=", prediction.customer_device_id.id)])
+        return Device
+
+    @api.model
+    def _spine_m48_customer_device(self, prediction):
+        """The customer's M17 device the work is done on, or an empty set."""
+        prediction = prediction.sudo()
+        if prediction.customer_device_id:
+            return prediction.customer_device_id
+        if prediction.vehicle_id:
+            return self.env["fix.device"]
+        found = self.env["fix.device"]
+        for device in self._spine_m48_devices(prediction):
+            found |= device._fix_customer_device()
+        return found if len(found) == 1 else self.env["fix.device"]
+
+    @api.model
     def _spine_m48_vals(self, prediction, action=None):
+        """A07 ERP audit (2026-11-20) M48-05: the asset decides the route. A
+        vehicle goes to its M46 work order on the spine; a customer's M17 device
+        to an M01 order - only when entitled (M48-04); company equipment to the
+        M47 work order."""
         prediction = prediction.sudo()
         equipment = prediction.equipment_id
-        devices = self.env["fix.iot.device"].sudo().search([("equipment_id", "=", equipment.id)])
-        customers = devices.mapped("partner_id")
+        vehicle = prediction.vehicle_id
+        devices = self._spine_m48_devices(prediction)
+        device = self._spine_m48_customer_device(prediction)
+        customers = devices.mapped("partner_id") | device.owner_id
         sites = devices.mapped("site_id")
         vals = {
             "company_id": prediction.company_id.id,
             "operating_unit_id": prediction.operating_unit_id.id,
             "equipment_id": equipment.id,
+            "vehicle_id": vehicle.id,
             "prediction_id": prediction.id,
             "iot_device_id": devices.id if len(devices) == 1 else False,
             "site_id": sites.id if len(sites) == 1 else False,
             "work_type": "maintenance",
-            "target": "service_order" if customers else "work_order",
+            "target": "service_order" if (customers or device) and not vehicle else "work_order",
             "partner_id": customers.id if len(customers) == 1 else False,
+            "device_id": device.id,
+            "entitlement_state": "internal",
+            "commercial_route": "internal",
         }
-        what = "Predicted failure of %s (%s) on prediction %s, model %s, %s day(s) to failure" % (
-            equipment.name,
-            equipment.code or "",
+        if vehicle:
+            vals["branch_id"] = vehicle.branch_id.id
+        if vals["target"] == "service_order":
+            vals.update(self._spine_m48_commercial(prediction, device))
+        asset = prediction._fix_prediction_asset()
+        what = "Predicted failure of %s on prediction %s, model %s, %s day(s) to failure" % (
+            "%s (%s)" % (equipment.name, equipment.code or "") if equipment else asset.display_name,
             prediction.name,
             prediction.model_name or "-",
             prediction.estimated_days_to_failure,
@@ -602,13 +730,106 @@ class FixMaintenanceDemand(models.Model):
                     "scheduled_date": action.scheduled_on,
                 }
             )
-            what += ": dispatched action %s (%s, %s priority)" % (
+            what += ": dispatched action %s (%s, %s priority)%s" % (
                 action.name,
                 dict(action._fields["action_type"].selection).get(action.action_type),
                 action.priority,
+                self._spine_m48_needs(action),
             )
         vals["description"] = what + "."
         return vals, customers
+
+    @api.model
+    def _spine_m48_needs(self, action):
+        """M48-07: the parts and skill the intervention needs ride on the order."""
+        parts = [
+            "%s x %s (%s)" % (p.quantity, p.product_id.display_name, p.availability)
+            for p in action.part_ids
+        ]
+        text = ""
+        if parts:
+            text += "; parts: %s" % ", ".join(parts)
+        if (action.skill_code or "").strip():
+            text += "; skill: %s%s" % (
+                action.skill_code.strip(),
+                " (dispatched without it: %s)" % action.skill_override_reason
+                if (action.skill_override_reason or "").strip()
+                else "",
+            )
+        return text
+
+    @api.model
+    def _spine_m48_commercial(self, prediction, device):
+        """M48-04: entitlement before any customer work."""
+        if not device:
+            return {"entitlement_state": "no_contract", "commercial_route": "opportunity"}
+        suspended = prediction._fix_customer_use_problem()
+        if suspended:
+            return {"entitlement_state": "model_suspended", "commercial_route": "opportunity"}
+        state, contract, _why = self._spine_entitlement(device)
+        return {
+            "entitlement_state": state,
+            "commercial_route": "contract" if state == "entitled" else "opportunity",
+            "contract_ref_id": contract.id if contract else False,
+        }
+
+    def _spine_m48_opportunity(self):
+        """A demand the customer is not entitled to: no order; the account owner
+        is offered the work as an M07 opportunity (once per demand)."""
+        for rec in self.filtered(
+            lambda d: d.commercial_route == "opportunity" and d.state == "pending"
+        ):
+            reason = dict(ENTITLEMENT_STATES).get(rec.entitlement_state) or "not entitled"
+            text = (
+                "no order is raised for the customer's device: %s. The work is offered to the "
+                "customer as an M07 opportunity; route it once they accept" % reason.lower()
+            )
+            if rec._spine_log(
+                "opportunity:%s" % rec.id, "M07 opportunity published (%s)." % reason
+            ):
+                rec.sudo()._guarded().write({"blocker": text})
+                publish(
+                    rec.env,
+                    "iot.proactive_opportunity",
+                    "fix.maintenance.demand",
+                    rec.id,
+                    {
+                        "demand": rec.name,
+                        "partner_id": rec.partner_id.id or False,
+                        "device_id": rec.device_id.id or False,
+                        "prediction": rec.prediction_id.name or "",
+                        "entitlement_state": rec.entitlement_state or "",
+                        "description": rec.description or "",
+                    },
+                )
+
+    @api.model
+    def consume_iot_proactive_opportunity(self, event):
+        """iot.proactive_opportunity -> one M07 opportunity (crm.lead) for the
+        account, idempotent per demand. Read softly: M07 (crm) may be absent."""
+        demand = self.sudo().browse(event.get("aggregate_id")).exists()
+        Lead = self.env.get("crm.lead")
+        if not demand or Lead is None:
+            return False
+        marker = "[M48 demand %s]" % demand.id
+        if (
+            Lead.sudo()
+            .with_context(active_test=False)
+            .search_count([("description", "ilike", marker)], limit=1)
+        ):
+            return True
+        lead = Lead.sudo().create(
+            {
+                "name": "Proactive service: %s" % (demand.device_id.display_name or demand.name),
+                "type": "opportunity",
+                "partner_id": demand.partner_id.id or False,
+                "company_id": demand.company_id.id,
+                "description": "%s %s\nEntitlement: %s."
+                % (marker, demand.description or "", demand.entitlement_state or "-"),
+            }
+        )
+        demand._spine_log("lead:%s" % lead.id, "M07 opportunity %s opened." % lead.display_name)
+        return True
 
     @api.model
     def _spine_m48_host(self, prediction):
@@ -662,6 +883,7 @@ class FixMaintenanceDemand(models.Model):
         vals, customers = self._spine_m48_vals(action.prediction_id, action)
         demand = self._spine_raise("m48_action", action, vals, label=action.name)
         demand._spine_m48_customer_problem(customers)
+        demand._spine_m48_opportunity()
         return True
 
     @api.model
@@ -674,6 +896,11 @@ class FixMaintenanceDemand(models.Model):
             return False
         if not prediction.work_order_created:
             return True  # redelivered after the request was withdrawn by a dismissal
+        # A07 ERP audit (2026-11-20) M48-03: only an APPROVED preventive request
+        # raises work (the event is published by the approval).
+        request = prediction.preventive_action_id
+        if not request or request.state not in ("approved", "dispatched", "done"):
+            return False
         if self._spine_m48_host(prediction):
             return True  # an action's order already covers it
         earlier = (
@@ -689,10 +916,18 @@ class FixMaintenanceDemand(models.Model):
         # source item, or the UNIQUE key would hand back the dismissed demand.
         key = "request-%d" % (len(earlier) + 1) if earlier else NO_KEY
         vals, customers = self._spine_m48_vals(prediction)
+        # D17(c): the approval pinned the date; the order is scheduled on it.
+        vals["scheduled_date"] = request.scheduled_on
+        vals["description"] += " Preventive request %s approved by %s for %s." % (
+            request.name,
+            request.approved_by.name or "-",
+            request.scheduled_on,
+        )
         demand = self._spine_raise(
             "m48_prediction", prediction, vals, key=key, label=prediction.name
         )
         demand._spine_m48_customer_problem(customers)
+        demand._spine_m48_opportunity()
         return True
 
     @api.model
