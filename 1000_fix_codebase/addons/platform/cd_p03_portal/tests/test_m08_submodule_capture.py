@@ -341,7 +341,7 @@ def test_the_sla_credit_reports_name_the_amc_behind_each_credit(c):  # noqa: F81
     c.env["fix.msp.sla.credit"].sudo().create(
         {
             "msp_contract_id": msp.id,
-            "period_label": "M08-2026-10",
+            "period_label": "2026-10",  # A02 pass 2: credits use a YYYY-MM period
             "manual_amount": 100.0,
             "dofa_justification": "Missed response target twice",
         }
