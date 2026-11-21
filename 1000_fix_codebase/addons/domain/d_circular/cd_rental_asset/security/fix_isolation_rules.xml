@@ -51,6 +51,12 @@
         <field name="model_id" ref="model_fix_rental_deposit"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <record id="rule_fix_rental_deposit_reduction_operating_unit" model="ir.rule">
+        <field name="name">fix.rental.deposit.reduction: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_rental_deposit_reduction"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
     <record id="rule_fix_rental_exposure_company" model="ir.rule">
         <field name="name">fix.rental.exposure: allowed companies</field>
         <field name="model_id" ref="model_fix_rental_exposure"/>
@@ -106,6 +112,12 @@
     <record id="rule_fix_rental_reservation_operating_unit" model="ir.rule">
         <field name="name">fix.rental.reservation: allowed operating units (internal users)</field>
         <field name="model_id" ref="model_fix_rental_reservation"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_rental_retirement_operating_unit" model="ir.rule">
+        <field name="name">fix.rental.retirement: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_rental_retirement"/>
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
     </record>

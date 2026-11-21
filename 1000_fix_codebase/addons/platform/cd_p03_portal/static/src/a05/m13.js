@@ -19,7 +19,11 @@ export const MODULE = {
     { l: 'Active Rentals', m: 'active_rentals' },
     { l: 'Deposits Held', m: 'deposits_held', prefix: '৳ ' },
     { l: 'Damage Open', m: 'damage_recovery_open' },
-    { l: 'Utilisation 30d', m: 'utilization_30d', suffix: '%' }
+    { l: 'Utilisation 30d', m: 'utilization_30d', suffix: '%' },
+    { l: 'Financial Utilisation 12m', m: 'financial_utilization_12m', suffix: '%' },
+    { l: 'On-Time Return', m: 'on_time_return_rate', suffix: '%' },
+    { l: 'Damage Recovery', m: 'damage_recovery_rate', suffix: '%' },
+    { l: 'Zero-Target Breaches 90d', m: 'zero_target_breaches_90d' }
   ],
   groups: [
     { en: 'Fleet', screens: [
@@ -27,7 +31,8 @@ export const MODULE = {
       { id: 'M13-availability', en: 'Real-Time Availability', bn: 'রিয়েল-টাইম প্রাপ্যতা', t: 'r' },
       { id: 'M13-kits', en: 'Kits & Accessories', bn: 'কিট ও এক্সেসরিজ', t: 'g' },
       { id: 'M13-redeploy', en: 'Fleet Redeployments', bn: 'শাখান্তর স্থানান্তর', t: 'g' },
-      { id: 'M13-pm-plans', en: 'PM Plans', bn: 'রক্ষণাবেক্ষণ পরিকল্পনা', t: 'g' }
+      { id: 'M13-pm-plans', en: 'PM Plans', bn: 'রক্ষণাবেক্ষণ পরিকল্পনা', t: 'g' },
+      { id: 'M13-retirements', en: 'Retirement Requests', bn: 'অবসর অনুরোধ', t: 'g' }
     ]},
     { en: 'Booking', screens: [
       { id: 'M13-reservations', en: 'Reservations', bn: 'বুকিং রেজিস্ট্রি', t: 'g' },
@@ -36,7 +41,9 @@ export const MODULE = {
       { id: 'M13-extensions', en: 'Rental Extensions', bn: 'মেয়াদ বৃদ্ধি', t: 'g' },
       { id: 'M13-waiver-plans', en: 'Damage Waiver Plans', bn: 'ক্ষতি মওকুফ পরিকল্পনা', t: 'g' },
       { id: 'M13-exposure', en: 'Exposure Limits', bn: 'ঝুঁকি সীমা', t: 'g' },
-      { id: 'M13-overrides', en: 'Exposure Overrides', bn: 'ঝুঁকি সীমা ব্যতিক্রম', t: 'g' }
+      { id: 'M13-overrides', en: 'Exposure Overrides', bn: 'ঝুঁকি সীমা ব্যতিক্রম', t: 'g' },
+      { id: 'M13-deposit-reductions', en: 'Deposit Reductions', bn: 'জামানত হ্রাস', t: 'g' },
+      { id: 'M13-billing', en: 'Rental Billing', bn: 'ভাড়া বিলিং', t: 'g' }
     ]},
     { en: 'Lifecycle', screens: [
       { id: 'M13-condition', en: 'Condition Reports', bn: 'কন্ডিশন রিপোর্ট', t: 'g' },
@@ -58,7 +65,13 @@ export const MODULE = {
     'Late Return Analysis',
     'Deposit Reconciliation',
     'Real-Time Availability',
-    'Fleet Health & Retirement'
+    'Fleet Health & Retirement',
+    'Overdue & Recovery',
+    'Damage Recovery',
+    'Turnaround Performance',
+    'Swap SLA',
+    'Loss Register',
+    'Zero-Target Controls'
   ],
   forms: [
     'Reservation Cockpit',
@@ -88,7 +101,10 @@ export const MODULE = {
     'Damage Waiver Election',
     'Condition Photograph',
     'Loss / Non-Return Case',
-    'Unit Swap-Out'
+    'Unit Swap-Out',
+    /* A05 remediation (2026-11-20): retirement and deposit reduction */
+    'Fleet Retirement Request',
+    'Deposit Reduction Request'
   ],
   cross: ['M17 rental assets', 'M08 master agreements', 'M03 logistics', 'M15 rental pool stock'],
   /* Each page offers the capture of ITS function (capture audit 2026-11-13):
@@ -109,7 +125,7 @@ export const MODULE = {
     ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage', 'M13-losses'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Rental Return', 'Damage Assessment & Recovery', 'Loss / Non-Return Case'], create: 'M13-form-return' }],
     ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations', 'M13-swaps'], reports: ['Late Return Analysis'], forms: ['In-Rental Fault Report', 'Unit Swap-Out', 'Return Collection Booking'], create: 'M13-form-fault', domain: [['state', 'in', ['delivered', 'active']]] }],
     ['8', 'Turnaround & PM', 7, { model: 'fix.rental.turnaround', cols: ['name', 'rental_asset_id', 'returned_on', 'regrade', 'state'], screens: ['M13-turnaround', 'M13-pm-plans'], reports: ['Fleet Health & Retirement'], forms: ['Turnaround & Regrading', 'Preventive Maintenance Booking', 'Preventive Maintenance Plan'], create: 'M13-form-turnaround' }],
-    ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'], reports: ['Utilisation by Category', 'Rental P&L', 'Fleet Health & Retirement'], forms: [], create: false }]
+    ['9', 'Analytics', 7, { model: 'fix.rental.asset', cols: ['name', 'rental_days_total', 'cumulative_revenue', 'net_book_value', 'status'], screens: ['M13-utilisation', 'M13-retire'], reports: ['Utilisation by Category', 'Rental P&L', 'Fleet Health & Retirement', 'Overdue & Recovery', 'Damage Recovery', 'Turnaround Performance', 'Swap SLA', 'Loss Register', 'Zero-Target Controls'], forms: [], create: false }]
   ] }
 };
 
@@ -119,9 +135,7 @@ export const SCREENS = {
     actions: [
       { m: 'action_send_to_maintenance', l: 'Send to Maintenance' },
       { m: 'action_ready', l: 'Release via Turnaround' },
-      { m: 'action_request_approval', l: 'Request Retirement Approval', ask: 'Justification for writing off the book value', kwarg: 'justification' },
-      { m: 'action_recall_approval', l: 'Recall Approval Request' },
-      { m: 'action_retire', l: 'Retire (approved)' }
+      { m: 'action_retire', l: 'Retire (approved request)' }
     ] },
   'M13-availability': { kind: 'table_report', module: 'M13', report: 'availability', title: 'Real-Time Availability', period: false },
   'M13-kits': { kind: 'model_list', model: 'fix.rental.kit',
@@ -138,7 +152,10 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel & Refund Deposit' },
       { m: 'action_generate_delivery_consignment', l: 'Create Delivery (M03)' },
       { m: 'action_generate_return_consignment', l: 'Create Return Pickup (M03)' },
-      { m: 'action_issue_rental_invoice', l: 'Issue Mushak 6.3' }
+      { m: 'action_issue_rental_invoice', l: 'Invoice Unbilled Charges (Mushak 6.3)' },
+      { m: 'action_record_lease_assessment', l: 'Record M53 Lease Assessment (Finance)', ask: 'M53 lease assessment reference', kwarg: 'reference' },
+      /* A05 ERP XC-10: the rental agreement (DRAFT watermark until signed) */
+      { m: 'p03_print_document', print: 'a4', l: 'Print Rental Agreement' }
     ] },
   'M13-agreements': { kind: 'model_list', model: 'fix.rental.reservation', stateField: 'agreement_state',
     cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at', 'signature_ref'],
@@ -153,10 +170,12 @@ export const SCREENS = {
     cols: ['name', 'reservation_id', 'customer_id', 'kind', 'amount', 'method', 'date', 'gl_state'],
     empty: 'No deposit movement yet. A deposit is recorded when a reservation is confirmed and released or applied when the rental closes; movements are ledger entries and cannot be typed in.',
     actions: [
-      { m: 'action_repost_gl', l: 'Repost GL' }
+      { m: 'action_repost_gl', l: 'Repost GL' },
+      { m: 'p03_print_document', print: 'a4', l: 'Print Deposit Receipt' }
     ] },
   'M13-condition': { kind: 'model_list', model: 'fix.rental.condition',
-    cols: ['name', 'reservation_id', 'report_type', 'grade', 'battery_health_pct', 'inspector_id', 'reported_on'] },
+    cols: ['name', 'reservation_id', 'report_type', 'grade', 'battery_health_pct', 'inspector_id', 'reported_on'],
+    actions: [{ m: 'p03_print_document', print: 'a4', l: 'Print Condition Report' }] },
   'M13-damage': { kind: 'model_list', model: 'fix.rental.damage',
     cols: ['reservation_id', 'category', 'description', 'cost', 'recovered_amount', 'charge_approval_state', 'disputed', 'settled'],
     actions: [
@@ -195,10 +214,10 @@ export const SCREENS = {
     cols: ['partner_id', 'risk_tier', 'exposure_limit', 'current_exposure', 'headroom', 'open_rental_count', 'reviewed_by', 'reviewed_on'],
     empty: 'No party has a rental exposure limit yet. Finance records one per party (FR-RNT-010); a party without one is limited only by its deposit.' },
   'M13-overrides': { kind: 'model_list', model: 'fix.rental.exposure.override', stateField: 'state',
-    cols: ['name', 'reservation_id', 'customer_id', 'exposure_limit', 'exposure_after', 'excess', 'requested_by', 'state'],
+    cols: ['name', 'reservation_id', 'customer_id', 'exposure_after', 'excess', 'dofa_tier_required', 'approval_state', 'requested_by', 'state'],
     actions: [
-      { m: 'action_approve', l: 'Approve Override' },
-      { m: 'action_reject', l: 'Reject Override', ask: 'Why the override is refused', kwarg: 'reason' }
+      { m: 'action_request_approval', l: 'Request Override Approval', ask: 'Justification for the booking above the limit', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
     ] },
   'M13-extensions': { kind: 'model_list', model: 'fix.rental.extension', stateField: 'state',
     cols: ['name', 'reservation_id', 'customer_id', 'old_date_to', 'new_date_to', 'charge_delta', 'availability_result', 'state'],
@@ -216,11 +235,12 @@ export const SCREENS = {
   'M13-photos': { kind: 'model_list', model: 'fix.rental.condition.photo',
     cols: ['condition_id', 'reservation_id', 'report_type', 'view_code', 'captured_by', 'captured_at', 'sha256', 'integrity_ok'] },
   'M13-losses': { kind: 'model_list', model: 'fix.rental.loss', stateField: 'state',
-    cols: ['name', 'reservation_id', 'customer_id', 'rental_asset_id', 'kind', 'escalation_stage', 'valuation', 'state'],
+    cols: ['name', 'reservation_id', 'customer_id', 'rental_asset_id', 'kind', 'escalation_stage', 'valuation', 'approval_state', 'state'],
     actions: [
       { m: 'action_escalate', l: 'Escalate (notice > recovery > legal)' },
       { m: 'action_recover', l: 'Unit Recovered' },
       { m: 'action_request_writeoff', l: 'Request Write-Off Approval', ask: 'Justification for writing the unit off', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Write-Off Request' },
       { m: 'action_write_off', l: 'Write Off (approved)' }
     ] },
   'M13-swaps': { kind: 'model_list', model: 'fix.rental.swap', stateField: 'state',
@@ -230,6 +250,26 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel Swap' }
     ] },
 
+  /* ---- A05 remediation (2026-11-20) ---- */
+  'M13-retirements': { kind: 'model_list', model: 'fix.rental.retirement', stateField: 'state',
+    cols: ['name', 'asset_id', 'route', 'material', 'weight_kg', 'approval_state', 'retired_on', 'state'],
+    empty: 'No retirement requested. A fleet unit leaves the fleet only on a retirement request with its destination (resale or recycle), approved jointly by the Corporate Services Head and the CFO (BRU-RNT-15).',
+    actions: [
+      { m: 'action_request_approval', l: 'Request Joint Approval (CSH + CFO)', ask: 'Justification for retiring the unit', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' },
+      { m: 'action_retire', l: 'Retire (approved)' }
+    ] },
+  'M13-deposit-reductions': { kind: 'model_list', model: 'fix.rental.deposit.reduction',
+    cols: ['name', 'reservation_id', 'customer_id', 'required_amount', 'reduced_amount', 'approval_state', 'decided_by'],
+    empty: 'No deposit reduction asked for. The deposit is computed (owner decision D8); a lower one needs a Finance Manager\'s approval and a reason (BRU-RNT-07).',
+    actions: [
+      { m: 'action_request_approval', l: 'Request Finance Manager Approval', ask: 'Why the deposit should be lower', kwarg: 'justification' },
+      { m: 'action_recall_approval', l: 'Recall Approval Request' }
+    ] },
+  'M13-billing': { kind: 'model_list', model: 'fix.rental.billing', create: false, stateField: 'state',
+    cols: ['name', 'reservation_id', 'customer_id', 'kind', 'service_date_from', 'service_date_to', 'taxable_amount', 'invoice_id', 'credit_note_id', 'state'],
+    empty: 'Nothing billed yet. Each rental charge (hire, waiver, late fee, extension, damage, loss, cancellation fee) is raised as its own M20 invoice; this register is written by the rental, never typed.' },
+
   /* Report chips -> their own computed packs (All 7 active) */
   'M13-rpt-utilization': { kind: 'table_report', module: 'M13', report: 'utilization_by_category', title: 'Utilisation by Category', period: true },
   'M13-rpt-damage': { kind: 'table_report', module: 'M13', report: 'damage_loss_rate', title: 'Damage & Loss Rate', period: true },
@@ -238,6 +278,12 @@ export const SCREENS = {
   'M13-rpt-deposits': { kind: 'table_report', module: 'M13', report: 'deposit_reconciliation', title: 'Deposit Reconciliation', period: false },
   'M13-rpt-availability': { kind: 'table_report', module: 'M13', report: 'availability', title: 'Real-Time Availability', period: false },
   'M13-rpt-fleet-health': { kind: 'table_report', module: 'M13', report: 'fleet_health', title: 'Fleet Health & Retirement', period: false },
+  'M13-rpt-overdue': { kind: 'table_report', module: 'M13', report: 'overdue_recovery', title: 'Overdue & Recovery', period: true },
+  'M13-rpt-damage-recovery': { kind: 'table_report', module: 'M13', report: 'damage_recovery', title: 'Damage Recovery', period: true },
+  'M13-rpt-turnaround': { kind: 'table_report', module: 'M13', report: 'turnaround_performance', title: 'Turnaround Performance', period: true },
+  'M13-rpt-swap-sla': { kind: 'table_report', module: 'M13', report: 'swap_sla', title: 'Swap SLA', period: true },
+  'M13-rpt-loss-register': { kind: 'table_report', module: 'M13', report: 'loss_register', title: 'Loss Register', period: true },
+  'M13-rpt-zero-target': { kind: 'table_report', module: 'M13', report: 'zero_target_controls', title: 'Zero-Target Controls', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS (6-TAB STANDARD) ============ */
   'M13-form-reservation': {
@@ -280,26 +326,38 @@ export const SCREENS = {
           { name: 'overdue_since', label: 'Overdue Since', readonly: true }
         ] },
       { tab: 'window', title: 'Fulfillment & Logistics (M03)',
+        note: 'The operating unit is the booking branch\'s: it is filled from the branch and fixed once the booking is confirmed.',
         fields: [
-          { name: 'operating_unit_id', label: 'Operating Unit' },
-          { name: 'branch_id', label: 'Booking Branch (GL)' },
+          { name: 'branch_id', required: true, label: 'Booking Branch (GL)' },
+          { name: 'operating_unit_id', label: 'Operating Unit (from the branch)', readonly: true },
+          { name: 'hold_expires_at', label: 'Hold Expires', readonly: true },
           { name: 'delivery_consignment_id', label: 'Outbound Delivery Consignment', readonly: true },
           { name: 'return_consignment_id', label: 'Inbound Return Consignment', readonly: true }
         ] },
       { tab: 'pricing', title: 'Commercial Rates & Rental Charges',
+        note: 'The tariff is the rental SKU\'s (M37), taken when the SKU is chosen and fixed once the booking is confirmed; the charge is the cheapest combination of its monthly, weekly and daily rates (FR-RNT-035). An early return is charged for the days used, never below the minimum hire.',
         fields: [
-          { name: 'daily_rate', label: 'Daily Rate (BDT)' },
-          { name: 'weekly_rate', label: 'Weekly Rate (BDT)' },
-          { name: 'monthly_rate', label: 'Monthly Rate (BDT)' },
+          { name: 'daily_rate', label: 'Daily Rate (BDT)', readonly: true },
+          { name: 'weekly_rate', label: 'Weekly Rate (BDT)', readonly: true },
+          { name: 'monthly_rate', label: 'Monthly Rate (BDT)', readonly: true },
+          { name: 'min_hire_days', label: 'Minimum Hire (Days)', readonly: true },
+          { name: 'billable_days', label: 'Billable Days', readonly: true },
+          { name: 'tariff_breakdown', label: 'Rate Ladder Applied', readonly: true },
           { name: 'rental_charge', label: 'Total Rental Charge', readonly: true },
-          { name: 'late_fee', label: 'Accrued Late Fees', readonly: true }
+          { name: 'late_fee', label: 'Accrued Late Fees', readonly: true },
+          { name: 'billable_total', label: 'Billable (Rental + Waiver + Late Fee)', readonly: true },
+          { name: 'invoiced_total', label: 'Invoiced (M20)', readonly: true },
+          { name: 'unbilled_amount', label: 'Not Yet Invoiced', readonly: true }
         ] },
       { tab: 'pricing', title: 'Security Deposit & Surcharge',
         fields: [
           { name: 'kit_id', label: 'Rental Kit' },
+          { name: 'deposit_required', label: 'Deposit Required (D8)', readonly: true },
           { name: 'deposit_collected', label: 'Deposit Agreed (BDT)' },
           { name: 'deposit_refunded', label: 'Deposit Refunded (BDT)', readonly: true },
-          { name: 'ifrs16_classification', label: 'IFRS 16 Lessor Classification' },
+          { name: 'ifrs16_classification', label: 'IFRS 16 Lessor Classification (M53)', readonly: true },
+          { name: 'lease_assessment_required', label: 'M53 Lease Assessment Required', readonly: true },
+          { name: 'm53_assessment_ref', label: 'M53 Lease Assessment Ref', readonly: true },
           { name: 'lease_income_per_day', label: 'Lease Income per Day', readonly: true },
           { name: 'waiver_plan_id', label: 'Damage Waiver Elected', domain: [['state', '=', 'published']] },
           { name: 'waiver_fee', label: 'Damage Waiver Fee', readonly: true }
@@ -385,7 +443,8 @@ export const SCREENS = {
         ] },
       { tab: 'commercial', title: 'Agreed Tariff Structure',
         fields: [
-          { name: 'daily_rate', label: 'Daily Rate' },
+          { name: 'daily_rate', label: 'Daily Rate (SKU tariff)', readonly: true },
+          { name: 'tariff_breakdown', label: 'Rate Ladder Applied', readonly: true },
           { name: 'rental_charge', label: 'Rental Charge (BDT)', readonly: true },
           { name: 'late_fee', label: 'Late Fee (computed)', readonly: true },
           { name: 'waiver_plan_id', label: 'Damage Waiver Elected', domain: [['state', '=', 'published']] },
@@ -544,7 +603,7 @@ export const SCREENS = {
     back: 'M13-fleet',
     status: { field: 'status', labels: {
       available: 'Available', reserved: 'Reserved', out: 'On Rent',
-      maintenance: 'In Maintenance', retired: 'Retired' } },
+      maintenance: 'In Maintenance', retired: 'Retired', transit: 'In Transit', lost: 'Lost' } },
     tabs: [
       { id: 'identity', label: '1. Asset Identity', bn: '১. সম্পদের পরিচিতি', icon: '🎥', badge: '4' },
       { id: 'lifecycle', label: '2. Operational Status', bn: '২. পরিচালন অবস্থা', icon: '⚙️', badge: '3' },
@@ -566,7 +625,8 @@ export const SCREENS = {
           { name: 'status', label: 'Operational Status', readonly: true },
           { name: 'device_id', label: 'Hardware Registry Unit (M17)' },
           { name: 'fixed_asset_id', label: 'Fixed Asset (M49)' },
-          { name: 'operating_unit_id', label: 'Operating Unit Depot' }
+          { name: 'operating_unit_id', label: 'Operating Unit Depot' },
+          { name: 'branch_id', label: 'Home Branch' }
         ] },
       { tab: 'depreciation', title: 'IAS 16 Straight-Line Capital Depreciation',
         fields: [
@@ -583,12 +643,10 @@ export const SCREENS = {
           { name: 'acquisition_date', label: 'Acquisition Date' }
         ] },
       { tab: 'financial', title: 'Retirement & Disinvestment',
+        note: 'A unit is retired through a Retirement Request (Fleet Register > Retirement Requests): its destination, the M06 wipe certificate and the joint approval of the Corporate Services Head and the CFO. The grade, unit and branch change only through turnaround and redeployment.',
         fields: [
           { name: 'retired_on', label: 'Retirement Date', readonly: true },
-          { name: 'retirement_reason', label: 'Reason for Retirement' },
-          { name: 'dofa_tier_required', label: 'Retirement DOFA Tier', readonly: true },
-          { name: 'approval_state', label: 'Retirement Approval', readonly: true },
-          { name: 'dofa_justification', type: 'text', label: 'Retirement Justification' },
+          { name: 'retirement_reason', label: 'Reason for Retirement', readonly: true },
           { name: 'disposal_id', label: 'M49 Disposal', readonly: true },
           { name: 'notes', type: 'text', label: 'Asset Service Notes' }
         ] },
@@ -869,7 +927,7 @@ export const SCREENS = {
     },
     sections: [
       { title: 'Step 2 of 2: Confirm the Return (FR-RNT-017/018)',
-        note: 'Today is recorded as the return date. A late return is charged once at the configured rate; an early one is not refunded here. Next: the post-return Condition Report against the outbound one, then any damage on Damage Assessment & Recovery.',
+        note: 'Today is recorded as the return date. A late return is charged once at the configured rate; an early one is re-priced on the days used (never below the minimum hire). What the return changes is invoiced (or credited) at once through M20. Next: the post-return Condition Report against the outbound one, then any damage on Damage Assessment & Recovery.',
         fields: [
           { name: 'name', label: 'Rental', readonly: true },
           { name: 'customer_id', label: 'Customer', readonly: true },
@@ -1108,18 +1166,20 @@ export const SCREENS = {
     ],
     sections: [
       { tab: 'request', title: 'Booking Above the Party Limit (BRU-RNT-05)',
-        note: 'For a draft booking the reservation refused for exposure. The figures are computed by the system when you save; another person approves or rejects it on Exposure Overrides.',
+        note: 'For a draft booking the reservation refused for exposure. The figures are computed by the system when you save; the approval is routed on the excess (M63) and never decided by you.',
         fields: [
           { name: 'name', label: 'Override Ref', readonly: true },
           { name: 'reservation_id', required: true, label: 'Booking', domain: [['state', '=', 'draft']] },
           { name: 'justification', required: true, type: 'text', label: 'Justification' }
         ] },
       { tab: 'figures', title: 'Exposure & Decision',
+        note: 'Save, then Request Override Approval on Exposure Overrides: it is routed to the DOFA tier its excess requires, never to you; the approver decides it in the M63 inbox.',
         fields: [
           { name: 'customer_id', label: 'Customer', readonly: true },
-          { name: 'exposure_limit', label: 'Limit (BDT)', readonly: true },
           { name: 'exposure_after', label: 'Exposure With This Booking', readonly: true },
           { name: 'excess', label: 'Above the Limit', readonly: true },
+          { name: 'dofa_tier_required', label: 'Approval Tier', readonly: true },
+          { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'state', label: 'Decision', readonly: true },
           { name: 'requested_by', label: 'Requested By', readonly: true },
           { name: 'decided_by', label: 'Decided By', readonly: true },
@@ -1331,9 +1391,11 @@ export const SCREENS = {
           { name: 'police_report_ref', label: 'Police Report (GD / FIR) No' }
         ] },
       { tab: 'value', title: 'Valuation & Insurance (BRU-RNT-22)',
-        note: 'The write-off forfeits the deposit up to the valuation and invoices the rest through M20. It needs the claim reference or a documented decision not to claim, and the unit routed write-off approval (Request Write-Off Approval).',
+        note: 'The write-off forfeits the deposit up to the valuation and invoices the rest through M20 (compensation, outside VAT). It needs the claim reference or a documented decision not to claim, and this case\'s routed write-off approval (Request Write-Off Approval): the approval pins the valuation, the customer and the claim decision. A valuation below the book value must be justified.',
         fields: [
           { name: 'valuation', label: 'Agreed Replacement Valuation (BDT)' },
+          { name: 'dofa_tier_required', label: 'Write-Off Approval Tier', readonly: true },
+          { name: 'approval_state', label: 'Write-Off Approval', readonly: true },
           { name: 'claim_decision', label: 'Insurance' },
           { name: 'claim_ref', label: 'Claim Reference' },
           { name: 'no_claim_reason', type: 'text', label: 'Why No Claim' }
@@ -1393,6 +1455,70 @@ export const SCREENS = {
           { name: 'replacement_report_id', label: 'Report: Replacement', readonly: true }
         ] }
     ]
+  },
+
+  /* ============ A05 REMEDIATION FORMS (2026-11-20) ============ */
+
+  /* 1 Fleet Register / 9 Analytics: BRU-RNT-15, FR-RNT-039/040, AUT-RNT-16 */
+  'M13-form-retirement': {
+    kind: 'model_form',
+    model: 'fix.rental.retirement',
+    title: 'Fleet Retirement Request',
+    newLabel: 'Request a Unit\'s Retirement',
+    back: 'M13-retirements',
+    status: { field: 'state', labels: { draft: 'Draft', requested: 'Awaiting Joint Approval', approved: 'Approved', retired: 'Retired', rejected: 'Rejected' } },
+    tabs: [
+      { id: 'unit', label: '1. Unit & Destination', bn: '১. ইউনিট ও গন্তব্য', icon: '♻️', badge: '5' },
+      { id: 'wipe', label: '2. Data Wipe (M06)', bn: '২. ডেটা মোছা', icon: '🔐', badge: '1' },
+      { id: 'decision', label: '3. Joint Approval & Outcome', bn: '৩. যৌথ অনুমোদন', icon: '⚖️', badge: '4' }
+    ],
+    sections: [
+      { tab: 'unit', title: 'Which Unit Leaves the Fleet, and Where To (AUT-RNT-16)',
+        note: 'Resale hands the unit to M14 refurbishment; recycle to an M18 e-waste collection (its weight is required). Save, then Request Joint Approval: it goes to the Corporate Services Head AND the CFO, never to you. Once both approve, press Retire (approved).',
+        fields: [
+          { name: 'name', label: 'Retirement Ref', readonly: true },
+          { name: 'asset_id', required: true, label: 'Fleet Unit', domain: [['status', 'in', ['available', 'maintenance']]] },
+          { name: 'route', required: true, label: 'Destination' },
+          { name: 'reason', required: true, type: 'text', label: 'Why Retire' },
+          { name: 'material', required: true, label: 'Material (for M18)' },
+          { name: 'weight_kg', label: 'Weight (kg)' }
+        ] },
+      { tab: 'wipe', title: 'M06 Destruction Certificate (BRU-RNT-03)',
+        note: 'A data-bearing unit is retired only on M06\'s verified wipe certificate bound to its serial, verified after its last return.',
+        fields: [
+          { name: 'data_wipe_certificate_id', label: 'Data Wipe Certificate (M06)' }
+        ] },
+      { tab: 'decision', title: 'Joint Approval (BRU-RNT-15)',
+        fields: [
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'state', label: 'Status', readonly: true },
+          { name: 'retired_on', label: 'Retired On', readonly: true },
+          { name: 'disposal_id', label: 'M49 Disposal', readonly: true }
+        ] }
+    ]
+  },
+
+  /* 2 Availability & Reservation: BRU-RNT-07, owner decision D8 */
+  'M13-form-deposit-reduction': {
+    kind: 'model_form',
+    model: 'fix.rental.deposit.reduction',
+    title: 'Deposit Reduction Request',
+    newLabel: 'Ask for a Lower Deposit',
+    back: 'M13-deposit-reductions',
+    status: { field: 'approval_state' },
+    sections: [
+      { title: 'A Deposit Below the Computed One (BRU-RNT-07)',
+        note: 'The deposit is the SKU floor or the unit\'s book value x the customer\'s risk-tier rate, whichever is higher. A lower deposit on a draft booking needs a Finance Manager\'s approval with its reason: save, then Request Finance Manager Approval on Deposit Reductions. Any change after that voids the approval.',
+        fields: [
+          { name: 'name', label: 'Reference', readonly: true },
+          { name: 'reservation_id', required: true, label: 'Booking', domain: [['state', '=', 'draft']] },
+          { name: 'required_amount', label: 'Computed Deposit (BDT)', readonly: true },
+          { name: 'reduced_amount', required: true, label: 'Deposit Asked For (BDT)' },
+          { name: 'reason', required: true, type: 'text', label: 'Reason' },
+          { name: 'approval_state', label: 'Approval', readonly: true },
+          { name: 'decided_by', label: 'Decided By', readonly: true }
+        ] }
+    ]
   }
 };
 
@@ -1403,7 +1529,13 @@ export const REPORT_ROUTES = {
   'M13:Late Return Analysis': 'M13-rpt-late',
   'M13:Deposit Reconciliation': 'M13-rpt-deposits',
   'M13:Real-Time Availability': 'M13-rpt-availability',
-  'M13:Fleet Health & Retirement': 'M13-rpt-fleet-health'
+  'M13:Fleet Health & Retirement': 'M13-rpt-fleet-health',
+  'M13:Overdue & Recovery': 'M13-rpt-overdue',
+  'M13:Damage Recovery': 'M13-rpt-damage-recovery',
+  'M13:Turnaround Performance': 'M13-rpt-turnaround',
+  'M13:Swap SLA': 'M13-rpt-swap-sla',
+  'M13:Loss Register': 'M13-rpt-loss-register',
+  'M13:Zero-Target Controls': 'M13-rpt-zero-target'
 };
 
 export const FORM_MODELS = {
@@ -1431,7 +1563,9 @@ export const FORM_MODELS = {
   'M13:Damage Waiver Election': 'fix.rental.reservation',
   'M13:Condition Photograph': 'fix.rental.condition.photo',
   'M13:Loss / Non-Return Case': 'fix.rental.loss',
-  'M13:Unit Swap-Out': 'fix.rental.swap'
+  'M13:Unit Swap-Out': 'fix.rental.swap',
+  'M13:Fleet Retirement Request': 'fix.rental.retirement',
+  'M13:Deposit Reduction Request': 'fix.rental.deposit.reduction'
 };
 
 export const FORM_CHIPS = {
@@ -1460,6 +1594,8 @@ export const FORM_CHIPS = {
   'M13:Condition Photograph': 'M13-form-photo',
   'M13:Loss / Non-Return Case': 'M13-form-loss',
   'M13:Unit Swap-Out': 'M13-form-swap',
+  'M13:Fleet Retirement Request': 'M13-form-retirement',
+  'M13:Deposit Reduction Request': 'M13-form-deposit-reduction',
   'M13:__by_model__': {
     'fix.rental.reservation': 'M13-form-reservation',
     'fix.rental.condition': 'M13-form-condition',
@@ -1476,7 +1612,9 @@ export const FORM_CHIPS = {
     'fix.rental.waiver.plan': 'M13-form-waiver-plan',
     'fix.rental.condition.photo': 'M13-form-photo',
     'fix.rental.loss': 'M13-form-loss',
-    'fix.rental.swap': 'M13-form-swap'
+    'fix.rental.swap': 'M13-form-swap',
+    'fix.rental.retirement': 'M13-form-retirement',
+    'fix.rental.deposit.reduction': 'M13-form-deposit-reduction'
   },
   'M13:__by_screen__': {
     'M13-fleet': 'M13-form-asset',
@@ -1495,7 +1633,9 @@ export const FORM_CHIPS = {
     'M13-waiver-plans': 'M13-form-waiver-plan',
     'M13-photos': 'M13-form-photo',
     'M13-losses': 'M13-form-loss',
-    'M13-swaps': 'M13-form-swap'
+    'M13-swaps': 'M13-form-swap',
+    'M13-retirements': 'M13-form-retirement',
+    'M13-deposit-reductions': 'M13-form-deposit-reduction'
   }
 };
 

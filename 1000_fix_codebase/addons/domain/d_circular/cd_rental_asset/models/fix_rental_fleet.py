@@ -18,6 +18,7 @@ from . import rental_policy as policy
 from .rental_gl import (
     PAYMENT_METHOD,
     post_rental_move,
+    posting_operating_unit,
     rental_account,
     tender_account,
 )
@@ -57,7 +58,8 @@ class FixRentalAsset(models.Model):
     # and the DOFA stamp is given from the approver's inbox only. The net book
     # value is the approval amount, so a revaluation while the request is
     # pending withdraws it.
-    _approval_domain = "rental_asset_writeoff"
+    # A05 XC-26: retirement is fix.rental.retirement's request (same domain)
+    _approval_domain = "rental_asset_retirement"
     _approval_routed = True
 
     # A05 DOFA matrix — Rental Fleet Asset Retirement / Write-Off: never a
@@ -77,7 +79,8 @@ class FixRentalAsset(models.Model):
         fa = (self.fixed_asset_id if fixed_asset is None else fixed_asset).sudo()
         if not fa or fa.state != "active":
             return 0.0
-        return round(fa.book_nbv or 0.0, 2)
+        # S4's M49 source API: posted events only (S6 wiring)
+        return round(fa._fix_book_value(), 2)
 
     def _dofa_amount(self) -> float:
         """The book value written off by retirement — never the purchase
@@ -776,7 +779,7 @@ class FixRentalDeposit(models.Model):
                             (liability, "%s: deposits held" % rec.name, 0.0, rec.amount, partner),
                         ]
                     elif rec.kind in ("deduction", "forfeit"):
-                        income = rental_account(env, company, "retention_income")
+                        income = rental_account(env, company, "recovery_income")
                         lines = [
                             (
                                 liability,
@@ -823,6 +826,16 @@ class FixRentalDeposit(models.Model):
                     "Repost GL." % reason
                 )
 
+    def _card_collection_reference(self):
+        """The card payment a card refund reverses: the reference of the
+        latest card collection on the reservation (action_reserve refuses a
+        non-cash deposit without one)."""
+        self.ensure_one()
+        cards = self.reservation_id.sudo().deposit_ids.filtered(
+            lambda d: d.kind == "collect" and d.method == "card" and (d.reference or "").strip()
+        )
+        return (cards.sorted("id")[-1:].reference or "").strip()
+
     def _queue_refund(self):
         """Queue the refund with M50 treasury (idempotent on this movement).
         The deposits-held liability is the account the confirmation debits,
@@ -836,9 +849,25 @@ class FixRentalDeposit(models.Model):
                 continue
             reservation = rec.reservation_id.sudo()
             liability = rental_account(env, reservation.company_id, "deposit_liability")
-            journal = env["account.journal"].search(
-                [("type", "=", "bank"), ("company_id", "=", reservation.company_id.id)], limit=1
-            )
+            # A05 FIN-09/FIN-25 (S6 wiring): the refund leaves from the booking
+            # BRANCH and that branch's unit (the unit the collection was
+            # credited to), never the company's first unit. The journal is
+            # M50's to pre-fill by method (I3) — the first bank journal of the
+            # company is no longer guessed here.
+            ou = posting_operating_unit(reservation)
+            pay_method = PAYMENT_METHOD.get(rec.method, "bank_transfer")
+            options = {}
+            if pay_method == "card":
+                # a card deposit refunds to the card it came from: M50 names
+                # the card payment it reverses (the collection's reference)
+                original = rec._card_collection_reference()
+                if not original:
+                    raise UserError(
+                        "Rental %s: the card deposit carries no card payment reference, so "
+                        "its refund cannot be sent back to that card. Record the card "
+                        "transaction reference on the collection first." % reservation.name
+                    )
+                options["original_payment_ref"] = original
             # A05 E10 / A08 hand-off: THE treasury request, pinned to the
             # customer, amount and currency of this refund movement and
             # idempotent on it, so treasury cannot re-point the refund.
@@ -850,18 +879,16 @@ class FixRentalDeposit(models.Model):
                 rec.amount,
                 rec.currency_id,
                 "%s refund" % reservation.name,
-                False,  # computed from the posted ledger at close: no person approves it
+                # A05 XC-22: the person who settled (or cancelled) the rental and so
+                # released the deposit - never the person who took it
+                self.env.context.get("rental_release_uid") or False,
                 company_id=reservation.company_id.id,
-                operating_unit_id=(
-                    reservation.operating_unit_id
-                    or env["operating.unit"].search(
-                        [("company_id", "=", reservation.company_id.id)], limit=1
-                    )
-                ).id,
+                operating_unit_id=ou.id,
+                branch_id=reservation.branch_id.id,
                 payee=reservation.customer_id.name,
-                method=PAYMENT_METHOD.get(rec.method, "bank_transfer"),
+                method=pay_method,
                 debit_account_id=liability.id,
-                journal_id=journal.id,
+                **options,
             )
             rec._guarded().write(
                 {

@@ -1,0 +1,99 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "rental.asset_retired",
+  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() when an approved fleet retirement is executed, only after the M06 wipe gate passed (A05 interface I1). route 'resale' is received by M14 (company-owned trade-in intake, no seller payout); route 'recycle' by M18 (e-waste collection).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "rental.asset_retired"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_rental_asset"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "asset_id",
+        "device_id",
+        "serial",
+        "route",
+        "weight_kg",
+        "material",
+        "company_id",
+        "operating_unit_id",
+        "branch_id",
+        "book_value"
+      ],
+      "properties": {
+        "asset_id": {
+          "type": "integer"
+        },
+        "device_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "serial": {
+          "type": "string"
+        },
+        "route": {
+          "type": "string",
+          "enum": [
+            "resale",
+            "recycle"
+          ]
+        },
+        "weight_kg": {
+          "type": "number"
+        },
+        "material": {
+          "type": "string"
+        },
+        "company_id": {
+          "type": "integer"
+        },
+        "operating_unit_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "branch_id": {
+          "type": [
+            "integer",
+            "boolean"
+          ]
+        },
+        "book_value": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_rental_asset",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_rental_asset/models/fix_rental_retirement.py"
+  ],
+  "x-derived-from": "hand-written (A05 interface I1), same shape as the derived contracts"
+}

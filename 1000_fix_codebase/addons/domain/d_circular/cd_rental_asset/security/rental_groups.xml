@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_rental_asset roles (A05 ERP remediation XC-08, 2026-11-20).
+
+     M13 had no groups: every rental model was open to every internal user, so
+     the counter set a party's exposure limit, published waiver plans and read
+     what each fleet unit cost and earned. Four roles, each with one job. The
+     holders are a business decision: no role is given to anyone here; appoint
+     the holders before go-live. Until they are appointed the joint retirement
+     approval cannot be routed (fail closed). Loaded BEFORE ir.model.access.csv
+     so the CSV can reference them. -->
+<odoo>
+    <record id="privilege_rental" model="res.groups.privilege">
+        <field name="name">Rental &amp; Equipment-as-a-Service</field>
+        <field name="description">1000FiX A05 M13: rental finance, fleet management and the joint retirement approval.</field>
+        <field name="sequence">63</field>
+    </record>
+
+    <record id="group_rental_finance" model="res.groups">
+        <field name="name">Rental Finance</field>
+        <field name="privilege_id" ref="privilege_rental"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Sets party exposure limits and risk tiers (FR-RNT-010), configures and publishes damage-waiver plans, records M53 lease assessments, and sees unit cost, book value and revenue. Accounting Administrators hold the same rights.</field>
+    </record>
+
+    <record id="group_rental_fleet_manager" model="res.groups">
+        <field name="name">Rental Fleet Manager</field>
+        <field name="privilege_id" ref="privilege_rental"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Maintains the fleet register's cost basis and sees each unit's cost, book value and revenue.</field>
+    </record>
+
+    <!-- BRU-RNT-15: retirement is approved by the Corporate Services Head AND
+         the CFO jointly: every holder of either role approves (policy 'all'),
+         and the two signatures are two different people. -->
+    <record id="group_rental_csh" model="res.groups">
+        <field name="name">Rental Retirement Approver: Corporate Services Head</field>
+        <field name="privilege_id" ref="privilege_rental"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Co-approves the retirement of a rental fleet unit from the approval inbox (BRU-RNT-15). Never a retirement they requested.</field>
+    </record>
+
+    <record id="group_rental_cfo" model="res.groups">
+        <field name="name">Rental Retirement Approver: CFO</field>
+        <field name="privilege_id" ref="privilege_rental"/>
+        <field name="implied_ids" eval="[(4, ref('base.group_user'))]"/>
+        <field name="comment">Co-approves the retirement of a rental fleet unit from the approval inbox (BRU-RNT-15), with the Corporate Services Head. Never a retirement they requested.</field>
+    </record>
+</odoo>
