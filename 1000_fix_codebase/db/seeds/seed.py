@@ -2936,11 +2936,17 @@ def main() -> int:
                     "tool": "rustdesk",
                 },
             )
-        ensure(
+        # A02 ERP pass 2 (M05-S01): a service report is computed by its month's
+        # run and never created by hand (the create guard refuses it), so the
+        # seed asks the contract for the month's report
+        if not c.first(
             "fix.msp.service.report",
             [("msp_contract_id", "=", mspc[0]), ("period_label", "=", "2026-09")],
-            {"msp_contract_id": mspc[0], "period_label": "2026-09"},
-        )
+        ):
+            try:
+                c.call("fix.msp.contract", "action_monthly_report", [mspc[0]], "2026-09")
+            except RuntimeError as exc:
+                print(f"seed: MSP service report 2026-09 not made: {exc}")
         for i in range(2):
             ensure(
                 "fix.capa",

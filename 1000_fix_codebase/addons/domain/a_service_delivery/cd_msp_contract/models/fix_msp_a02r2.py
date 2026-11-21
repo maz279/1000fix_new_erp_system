@@ -28,13 +28,14 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from odoo import api, fields, models
+from odoo.addons.cd_contract_core.models.fix_contract import IN_FORCE
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .fix_msp_rules_bru import check_message_body
-from .msp_periods import BD_TZ, dhaka_month, dhaka_today
-from .msp_roles import GROUP_ENGINEER, require_role
+from .fix_msp_rules_bru import add_business_hours, business_seconds_between, check_message_body
+from .msp_periods import BD_TZ, PERIOD_RE, dhaka_month, dhaka_today
+from .msp_roles import GROUP_ENGINEER, is_system, require_role
 
 _logger = logging.getLogger(__name__)
 
@@ -184,12 +185,21 @@ class FixMspContractA02r2(models.Model):
         string="Remote Hours Used This Month (%)", compute="_compute_remote_usage"
     )
     report_overdue_activity_period = fields.Char(readonly=True, copy=False)
+    offboarding_cause = fields.Selection(
+        [("manual", "Started by an Engineer"), ("contract_end", "The M08 Contract Ended")],
+        string="Offboarding Started Because",
+        readonly=True,
+        copy=False,
+        help="An offboarding the contract's end started is undone by a late renewal while "
+        "nothing has been revoked or returned yet.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "remote_notice_period",
             "remote_exceeded_period",
             "report_overdue_activity_period",
+            "offboarding_cause",
         }
 
     # ---- M05-S13: the terms in force on a day -----------------------------
@@ -209,6 +219,28 @@ class FixMspContractA02r2(models.Model):
             )
         )
         return row or self.sudo()
+
+    # ---- the clock an alert's SLA runs on (A02 pass-2 review) ------------
+    def _msp_alert_clock(self, alert):
+        """(business_hours, holidays) of the coverage window ``alert``'s SLA
+        runs in: the terms in force when it was raised (M05-S13)."""
+        self.ensure_one()
+        terms = self._msp_terms_at(alert.create_date or fields.Datetime.now())
+        if terms.coverage_window == "business":
+            return True, self._msp_holiday_dates_of(terms.holiday_calendar_id)
+        return False, frozenset()
+
+    def _msp_clock_seconds(self, alert, start, end):
+        """The seconds of ``alert``'s SLA clock between two UTC moments:
+        working seconds on a business-hours contract, else wall-clock. Its
+        deadline, pauses and escalation share are all measured in it."""
+        self.ensure_one()
+        if not start or not end or end <= start:
+            return 0.0
+        business, holidays = self._msp_alert_clock(alert)
+        if business:
+            return business_seconds_between(start, end, holidays)
+        return (end - start).total_seconds()
 
     def _msp_holiday_dates_of(self, calendar):
         days = set()
@@ -246,7 +278,11 @@ class FixMspContractA02r2(models.Model):
         )
         for msp in msps:
             msp._guarded().write(
-                {"lifecycle": "offboarding", "offboarding_started_at": fields.Datetime.now()}
+                {
+                    "lifecycle": "offboarding",
+                    "offboarding_started_at": fields.Datetime.now(),
+                    "offboarding_cause": "contract_end",
+                }
             )
             msp.message_post(
                 body="Offboarding started: the M08 contract %s %s. Remove the agents, revoke "
@@ -254,6 +290,61 @@ class FixMspContractA02r2(models.Model):
                 % (contract.code or contract.name, why)
             )
         return {"offboarding": len(msps)}
+
+    def action_start_offboarding(self):
+        result = super().action_start_offboarding()
+        self.sudo()._guarded().write({"offboarding_cause": "manual"})
+        return result
+
+    @api.model
+    def consume_contract_renewed(self, event: dict) -> dict:
+        """A02 pass-2 review: a renewal activated after the term expired
+        re-pointed the MSP layer but left it offboarding (the expiry had
+        started it), so the renewed client's alerts and reports were refused.
+        An offboarding the contract's end started is undone while nothing is
+        revoked or returned; one that has progressed is left to a person."""
+        result = super().consume_contract_renewed(event)
+        renewal = self.env["fix.contract"].sudo().browse(int(event.get("aggregate_id") or 0))
+        if not renewal.exists() or renewal.state not in IN_FORCE:
+            return result
+        restored = 0
+        for msp in self.sudo().search(
+            [
+                ("contract_id", "=", renewal.id),
+                ("lifecycle", "=", "offboarding"),
+                ("offboarding_cause", "=", "contract_end"),
+            ]
+        ):
+            if msp.access_revoked_at or msp.data_returned_at:
+                body = (
+                    "Contract %s renewed the service, but this offboarding has already revoked "
+                    "access or returned the client's data: it is not undone automatically. "
+                    "Complete it and onboard the client again, or restore it by hand."
+                    % (renewal.code or renewal.name)
+                )
+                msp.message_post(body=body)
+                user = msp.create_uid if msp.create_uid.active else self.env.user
+                msp.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=user.id,
+                    summary="Renewed during offboarding",
+                    note=body,
+                )
+                continue
+            msp._guarded().write(
+                {
+                    "lifecycle": "in_service",
+                    "offboarding_started_at": False,
+                    "offboarding_cause": False,
+                }
+            )
+            msp.message_post(
+                body="Back in service: contract %s renewed the term whose end started the "
+                "offboarding (nothing had been revoked or returned)."
+                % (renewal.code or renewal.name)
+            )
+            restored += 1
+        return dict(result, restored=restored)
 
     @api.model
     def consume_contract_terminated(self, event: dict) -> dict:
@@ -528,6 +619,17 @@ class _ContractScoped(models.AbstractModel):
     _name = "fix.msp.contract.scoped.mixin"
     _description = "M05 company / OU of the contract"
 
+    def _msp_check_period_label(self):
+        """A02 pass-2 review P2: the month is spelt YYYY-MM, one way. A free
+        text label let one month hold two credits ("2026-1", "2026-01 ")
+        past the (contract, period) unique key."""
+        for rec in self:
+            if not PERIOD_RE.match(rec.period_label or ""):
+                raise ValidationError(
+                    "%s: the period is the month as YYYY-MM (e.g. 2026-10), not '%s'."
+                    % (rec._description, rec.period_label or "")
+                )
+
     def _msp_scope_vals(self, vals_list):
         Contract = self.env["fix.msp.contract"].sudo()
         for vals in vals_list:
@@ -582,6 +684,18 @@ class FixMspAlertA02r2(models.Model):
     paused = fields.Boolean(compute="_compute_paused", string="SLA Clock Paused")
     breach_notified_at = fields.Datetime(string="Breach Escalated At", readonly=True, copy=False)
     reclassified_reason = fields.Char(readonly=True, copy=False)
+    # A02 pass-2 review: a downgrade lengthens the deadline, so it takes a
+    # second engineer (the request waits here until confirmed)
+    reclass_requested_severity = fields.Selection(
+        [("minor", "Minor"), ("major", "Major")],
+        string="Downgrade Requested To",
+        readonly=True,
+        copy=False,
+    )
+    reclass_requested_by_id = fields.Many2one(
+        "res.users", string="Downgrade Requested By", readonly=True, copy=False
+    )
+    reclass_requested_reason = fields.Char(string="Downgrade Reason", readonly=True, copy=False)
     field_order_ref = fields.Char(string="Field Order (M02)", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
@@ -592,6 +706,9 @@ class FixMspAlertA02r2(models.Model):
             "responded_at",
             "breach_notified_at",
             "reclassified_reason",
+            "reclass_requested_severity",
+            "reclass_requested_by_id",
+            "reclass_requested_reason",
             "field_order_ref",
         }
 
@@ -654,16 +771,57 @@ class FixMspAlertA02r2(models.Model):
                 total += (end - pause.started_at).total_seconds()
         return total
 
-    def _msp_effective_deadline(self, kind="resolve", until=None):
-        """The stamped deadline plus the waiting-on-client pauses before
-        ``until`` (None when the contract sets no target of that kind)."""
+    def _msp_paused_clock_seconds(self, until=None):
+        """The waiting-on-client pauses before ``until``, in the SLA's own
+        clock (working seconds on a business-hours contract): a pause over a
+        weekend stops no business hour, so it extends the deadline by none.
+        (_msp_paused_seconds stays wall-clock, for the MTTR.)"""
         self.ensure_one()
+        until = until or fields.Datetime.now()
+        msp = self.msp_contract_id.sudo()
+        total = 0.0
+        for pause in self.pause_ids:
+            end = min(pause.ended_at or until, until)
+            total += msp._msp_clock_seconds(self, pause.started_at, end)
+        return total
+
+    def _msp_stamped_deadline(self, kind="resolve"):
         stamped = self.sla_deadline if kind == "resolve" else self.response_deadline
-        if not stamped:
-            stamped = self.msp_contract_id.sudo()._msp_deadline(self, kind=kind)
+        return stamped or self.msp_contract_id.sudo()._msp_deadline(self, kind=kind)
+
+    def _msp_effective_deadline(self, kind="resolve", until=None):
+        """The stamped deadline extended by the waiting-on-client pauses
+        before ``until`` (None when the contract sets no target of that
+        kind). A02 pass-2 review: the pauses were added as wall-clock seconds
+        to a business-hours deadline; they now extend it in working time."""
+        self.ensure_one()
+        stamped = self._msp_stamped_deadline(kind)
         if not stamped:
             return None
-        return stamped + timedelta(seconds=self._msp_paused_seconds(until))
+        paused = self._msp_paused_clock_seconds(until)
+        if paused <= 0:
+            return stamped
+        business, holidays = self.msp_contract_id.sudo()._msp_alert_clock(self)
+        if business:
+            return add_business_hours(stamped, paused / 3600.0, holidays)
+        return stamped + timedelta(seconds=paused)
+
+    def _msp_target_share_elapsed(self, now=None):
+        """The share (0..1+) of the resolution target used by ``now``: the
+        clock time since the raise, less the pauses, over the target's clock
+        time. A02 pass-2 review: it was wall-clock, so a business-hours alert
+        raised on Thursday afternoon escalated over the weekend."""
+        self.ensure_one()
+        now = now or fields.Datetime.now()
+        stamped = self._msp_stamped_deadline("resolve")
+        if not stamped or not self.create_date:
+            return None
+        msp = self.msp_contract_id.sudo()
+        target = msp._msp_clock_seconds(self, self.create_date, stamped)
+        if target <= 0:
+            return None
+        used = msp._msp_clock_seconds(self, self.create_date, now)
+        return max(used - self._msp_paused_clock_seconds(now), 0.0) / target
 
     def _msp_mark_response(self, now=None):
         for alert in self.filtered(lambda a: not a.responded_at):
@@ -682,13 +840,18 @@ class FixMspAlertA02r2(models.Model):
         return res
 
     def action_resolve(self, note=""):
+        # the caller's authority is the resolve itself: super() writes the
+        # alert as the caller (the engineer's ACL and record rules)
         res = super().action_resolve(note=note)
         for alert in self:
             alert._msp_mark_response(alert.resolved_at)
-            # the clock stops at the fix: an open pause ends with it
+            # the clock stops at the fix: an open pause ends with it. A pause
+            # is evidence nobody writes directly (ACL read-only), so closing
+            # it is the system's write of the resolve just authorised
+            # (A02 pass-2 review B2: an engineer got AccessError here)
             open_pause = alert.pause_ids.filtered(lambda p: not p.ended_at)
             if open_pause:
-                open_pause._guarded().write(
+                open_pause.sudo()._guarded().write(
                     {"ended_at": alert.resolved_at, "ended_by_id": self.env.uid}
                 )
         return res
@@ -696,7 +859,13 @@ class FixMspAlertA02r2(models.Model):
     # ---- M05-S02: reclassify --------------------------------------------
     def action_reclassify(self, severity=None, reason=None):
         """Change a NEW alert's severity, with the reason: the deadlines are
-        restamped from the raise time. Once acknowledged it is fixed."""
+        restamped from the raise time. Once acknowledged it is fixed.
+
+        A02 pass-2 review: one engineer could downgrade an alert (major ->
+        minor) and so lengthen its own SLA deadline. A downgrade is now
+        requested by one engineer and applied when a second one confirms it
+        (the same action, the same severity); an upgrade tightens the
+        deadline and applies at once."""
         require_role(self.env, [GROUP_ENGINEER], "Reclassifying an alert")
         reason = (reason or "").strip()
         if len(reason) < REASON_MIN:
@@ -711,12 +880,57 @@ class FixMspAlertA02r2(models.Model):
             if alert.severity == severity:
                 raise UserError("Alert %s already is %s." % (alert.id, severity))
             old = alert.severity
-            alert._guarded().write({"severity": severity, "reclassified_reason": reason})
+            relaxes = alert._msp_target_hours_of(severity) > alert._msp_target_hours_of(old)
+            if relaxes and not is_system(self.env):
+                requester = alert.reclass_requested_by_id
+                pending = alert.reclass_requested_severity == severity and requester
+                if not pending:
+                    alert._guarded().write(
+                        {
+                            "reclass_requested_severity": severity,
+                            "reclass_requested_by_id": self.env.uid,
+                            "reclass_requested_reason": reason,
+                        }
+                    )
+                    alert.message_post(
+                        body="Downgrade %s -> %s requested by %s: %s. A second MSP engineer "
+                        "confirms it (Reclassify, same severity)."
+                        % (old, severity, self.env.user.name, reason)
+                    )
+                    continue
+                if requester == self.env.user:
+                    raise UserError(
+                        "Segregation of duties: you requested the downgrade of alert %s, so "
+                        "another MSP engineer confirms it." % alert.id
+                    )
+                reason = "%s (requested by %s: %s)" % (
+                    reason,
+                    requester.name,
+                    alert.reclass_requested_reason or "",
+                )
+            alert._guarded().write(
+                {
+                    "severity": severity,
+                    "reclassified_reason": reason[:250],
+                    "reclass_requested_severity": False,
+                    "reclass_requested_by_id": False,
+                    "reclass_requested_reason": False,
+                }
+            )
             alert._msp_stamp_deadlines()
             alert.message_post(
                 body="Reclassified %s -> %s by %s: %s" % (old, severity, self.env.user.name, reason)
             )
         return True
+
+    def _msp_target_hours_of(self, severity):
+        """The resolution target ``severity`` has under the terms in force
+        when this alert was raised."""
+        self.ensure_one()
+        terms = self.msp_contract_id.sudo()._msp_terms_at(self.create_date)
+        if severity == "major":
+            return terms.alert_resolve_hours_major or 4.0
+        return terms.alert_resolve_hours_minor or 24.0
 
     # ---- M05-S18: waiting on the client ---------------------------------
     def action_pause(self, reason=None):
@@ -777,8 +991,8 @@ class FixMspAlertA02r2(models.Model):
             if respond and not alert.responded_at and now > respond:
                 why = "its response target passed with no response"
             elif deadline:
-                total = (deadline - alert.create_date).total_seconds()
-                if total > 0 and (now - alert.create_date).total_seconds() >= total * share / 100.0:
+                used = alert._msp_target_share_elapsed(now)
+                if used is not None and used >= share / 100.0:
                     why = "%.0f %% of its resolution target has elapsed" % share
             if why and not alert.escalated:
                 alert.action_escalate()
@@ -942,6 +1156,10 @@ class FixMspServiceReportA02r2(models.Model):
             }
         )
 
+    @api.constrains("period_label")
+    def _check_period_label(self):
+        self._msp_check_period_label()
+
     def _msp_needs_figure(self) -> bool:
         """True when the report has no attainment figure although its month
         is binding (M05-S01): it is recomputed, not left to block the credit."""
@@ -1012,6 +1230,10 @@ class FixMspSlaCreditA02r2(models.Model):
     response_breached_count = fields.Integer(
         related="service_report_id.response_breached_count", string="Response Target Missed"
     )
+
+    @api.constrains("period_label")
+    def _check_period_label(self):
+        self._msp_check_period_label()
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1193,6 +1415,116 @@ class MspServiceReportPdf(models.AbstractModel):
             "docs": reports,
             "payloads": {r.id: self._payload(r.sudo()) for r in reports},
         }
+
+
+# --------------------------- M05-S09 (D10): what the per-device fee covers
+# A02 pass-2 review: the cover was all-or-nothing. Any parts on the estimate
+# made the whole order chargeable, labour included, although the fee covers
+# labour and remote support (owner decision D10); and the overage was read
+# from the latest estimate in any state (a rejected or superseded version
+# with parts made a labour-only job chargeable; a newer labour-only draft made
+# approved parts free).
+#
+# The labour-type charges (the estimate's labour and diagnostic buckets) of a
+# managed asset under an in-service MSP layer are the fee's. When the order
+# has an overage (parts / out-of-scope work, no parts entitlement), its
+# estimate is that overage only: it is not sent or approved while it still
+# prices labour, so the client never pays labour the fee already covers.
+MSP_COVERED_TOTALS = ("labour_total", "diagnostic_total")
+MSP_OVERAGE_TOTALS = ("parts_total", "other_total")
+
+
+def _msp_total(estimate, names):
+    return sum((estimate[n] or 0.0) for n in names)
+
+
+class FixServiceOrderMspScope(models.Model):
+    _inherit = "fix.service.order"
+
+    def _fix_msp_layers(self):
+        """The entitled, in-service M05 layers of the order's (in-force)
+        contract that monitor its device, for its customer: the same basis
+        _fix_msp_covers reads."""
+        self.ensure_one()
+        Msp = self.env["fix.msp.contract"].sudo()
+        contract = self.contract_id.sudo()
+        if self.order_category != "amc" or not contract or not self.device_id:
+            return Msp
+        customer = self.customer_id.commercial_partner_id or self.customer_id
+        if contract.state not in IN_FORCE or contract.customer_id.commercial_partner_id != customer:
+            return Msp
+        assets = (
+            self.env["fix.monitored.asset"]
+            .sudo()
+            .search(
+                [
+                    ("device_id", "=", self.device_id.id),
+                    ("msp_contract_id.contract_id", "=", contract.id),
+                ]
+            )
+        )
+        return assets.mapped("msp_contract_id").filtered(
+            lambda m: m.entitled and m.lifecycle == "in_service"
+        )
+
+    def _fix_msp_live_estimates(self):
+        """The estimates that decide the money: the governing one (approved,
+        else sent) and any draft newer than it (a quote being prepared).
+        Rejected, expired and superseded versions decide nothing."""
+        self.ensure_one()
+        governing = self.sudo()._fix_governing_estimate()
+        key = (governing.version, governing.id) if governing else None
+        drafts = self.sudo().estimate_ids.filtered(
+            lambda e: e.state == "draft" and (key is None or (e.version, e.id) > key)
+        )
+        return governing | drafts
+
+    def _fix_msp_overage_work(self) -> bool:
+        """Parts or out-of-scope work on a live estimate: what the MSP fee
+        does not cover (D10)."""
+        self.ensure_one()
+        return any(
+            _msp_total(est, MSP_OVERAGE_TOTALS) > 0.005 for est in self._fix_msp_live_estimates()
+        )
+
+    def _fix_msp_labour_only_cover(self):
+        """The MSP layers when the fee covers this order's labour but not its
+        overage (no parts entitlement): its estimate must price no labour."""
+        self.ensure_one()
+        msps = self._fix_msp_layers()
+        if not msps or any(m.parts_included for m in msps):
+            return self.env["fix.msp.contract"]
+        return msps
+
+
+class FixEstimateMspScope(models.Model):
+    _inherit = "fix.estimate"
+
+    def _fix_msp_assert_overage_only(self, action):
+        for est in self:
+            order = est.order_id.sudo()  # the cover is the system's reading
+            if not order:
+                continue
+            msps = order._fix_msp_labour_only_cover()
+            if not msps:
+                continue
+            covered = _msp_total(est, MSP_COVERED_TOTALS)
+            if covered > 0.005 and _msp_total(est, MSP_OVERAGE_TOTALS) > 0.005:
+                raise UserError(
+                    "Estimate %s cannot be %s: order %s is a managed asset under MSP contract "
+                    "%s, whose per-device fee covers labour and remote support (owner decision "
+                    "D10). The estimate is the overage the client approves - parts and "
+                    "out-of-scope work only. Remove its labour / diagnostic lines (BDT %.2f) "
+                    "first." % (est.display_name, action, order.name, msps[:1].name, covered)
+                )
+
+    def action_send(self):
+        self._fix_msp_assert_overage_only("sent")
+        return super().action_send()
+
+    def action_approve(self):
+        self._fix_msp_assert_overage_only("approved")
+        return super().action_approve()
 
 
 # ------------------------------------------- M05-S19: the credential guard

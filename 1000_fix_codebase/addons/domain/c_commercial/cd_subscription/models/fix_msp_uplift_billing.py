@@ -84,11 +84,83 @@ class FixSubscriptionMspUplift(models.AbstractModel):
     @api.model
     def consume_msp_device_uplift(self, event: dict) -> dict:
         """The pre-pass-2 event (still in the outbox on a live server): the
-        contract's unbilled amendments are billed the same way."""
+        contract's unbilled amendments are billed the same way.
+
+        A02 pass-2 review: a pre-pass-2 uplift has no terms history row (the
+        history did not exist when it was published), so it found "nothing
+        new to bill" and its devices were never billed. Its row is recorded
+        from the event first (once per event), then billed."""
         self._msp_assert_relay()
         if "fix.msp.terms.amendment" not in self.env:
             return {"skipped": "M05 not installed"}
-        return self._msp_bill_pending(self._msp_contract(event))
+        msp = self._msp_contract(event)
+        self._msp_record_legacy_uplift(msp, event)
+        return self._msp_bill_pending(msp)
+
+    # the terms an amendment row carries besides the fee (copied from the
+    # terms in force, so the SLA measured from the history does not move)
+    _MSP_SLA_TERMS = (
+        "sla_target_pct",
+        "alert_resolve_hours_major",
+        "alert_resolve_hours_minor",
+        "response_hours_major",
+        "response_hours_minor",
+        "coverage_window",
+        "holiday_calendar_id",
+        "parts_included",
+        "remote_hours_monthly",
+        "overage_hourly_rate",
+    )
+
+    def _msp_record_legacy_uplift(self, msp, event):
+        payload = event.get("payload") or {}
+        if payload.get("amendment_id"):
+            return False  # a pass-2 event names its own row
+        try:
+            old = int(payload.get("old_device_count") or 0)
+            new = int(payload.get("new_device_count") or 0)
+            added = int(payload.get("added_devices") or 0)
+            rate = float(payload.get("per_device_monthly") or 0.0)
+        except (TypeError, ValueError):
+            return False
+        if added <= 0 or new != old + added or rate <= 0:
+            return False
+        marker = "legacy msp.device_uplift event %s" % (
+            event.get("event_id") or event.get("id") or "%s:%s->%s" % (msp.id, old, new)
+        )
+        Amendment = self.env["fix.msp.terms.amendment"].sudo()._guarded()
+        if Amendment.search_count(
+            [("msp_contract_id", "=", msp.id), ("reason", "=like", marker + "%")]
+        ):
+            return False
+        try:
+            effective = fields.Date.to_date(payload.get("effective_date")) or fields.Date.today()
+        except (TypeError, ValueError):
+            effective = fields.Date.today()
+        terms = msp._msp_terms_at(effective)
+        vals = {}
+        for name in self._MSP_SLA_TERMS:
+            value = terms[name]
+            vals[name] = value.id if isinstance(value, models.BaseModel) else value
+        Amendment.create(
+            dict(
+                vals,
+                msp_contract_id=msp.id,
+                company_id=msp.company_id.id,
+                operating_unit_id=msp.operating_unit_id.id or False,
+                kind="amendment",
+                effective_date=effective,
+                reason=("%s: %s" % (marker, payload.get("reason") or ""))[:250],
+                device_count_before=old,
+                device_count=new,
+                per_device_monthly_before=rate,
+                per_device_monthly=rate,
+                monthly_value_before=round(old * rate, 2),
+                monthly_value=round(new * rate, 2),
+                billing_state="pending",
+            )
+        )
+        return True
 
     def _msp_bill_pending(self, msp):
         """One price change for every amendment of ``msp`` not yet billed."""
@@ -133,14 +205,27 @@ class FixSubscriptionMspUplift(models.AbstractModel):
             )
             return {"skipped": "%d subscriptions" % len(subs)}
         sub = subs
+        months = CYCLE_MONTHS.get(sub.billing_cycle, 1)
+        delta = round(sum(rows.mapped("monthly_delta")), 2)
+        new_amount = round(max((sub.recurring_amount or 0.0) + delta * months, 0.0), 2)
+        if new_amount <= 0.005:
+            # A02 pass-2 review: a price change to 0 is an M39 'cancel', and
+            # an approved cancel changes no price, so the fee kept billing.
+            # Ending the subscription is finance's decision in M39.
+            note = (
+                "the monthly fee falls to BDT 0: a price change cannot end the subscription; "
+                "finance cancels %s in M39" % sub.name
+            )
+            rows.filtered(lambda r: r.billing_state == "pending").write(
+                {"billing_state": "flagged", "billing_note": note[:250]}
+            )
+            msp.message_post(body="MSP fee change not billed automatically: %s." % note)
+            return {"skipped": "fee falls to 0"}
         for pro in in_flight:
             # superseded by one change covering every unbilled amendment
             pro._approval_void("superseded by a later MSP fee change")
             pro._guarded().write({"state": "void", "approval_state": "none"})
             pro.message_post(body="Voided: superseded by a later MSP fee change of %s." % msp.name)
-        months = CYCLE_MONTHS.get(sub.billing_cycle, 1)
-        delta = round(sum(rows.mapped("monthly_delta")), 2)
-        new_amount = round(max((sub.recurring_amount or 0.0) + delta * months, 0.0), 2)
         effective = max(min(rows.mapped("effective_date")), sub.start_date or fields.Date.today())
         reason = "%s of %s (%s): BDT %+.2f a month - %s" % (
             MARKER,

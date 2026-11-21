@@ -22,7 +22,7 @@ from odoo.exceptions import AccessError, UserError
 
 from libs.py.fix_events import publish
 
-from .msp_periods import BD_TZ, dhaka_month, dhaka_previous_month, dhaka_today
+from .msp_periods import BD_TZ, dhaka_date, dhaka_month, dhaka_previous_month, dhaka_today
 
 
 def _dhaka_midnight(day):
@@ -222,9 +222,13 @@ class FixMspContractLifecycle(models.Model):
         term = self.contract_id.sudo()
         start = term.date_start
         if self.service_live_at:
-            start = (
-                max(start, self.service_live_at.date()) if start else self.service_live_at.date()
-            )
+            # A02 pass-2 review: the months from the day the SLA bound (target
+            # go-live, capped at 30 days from the start: D9) to a LATE go-live
+            # are binding and owed a report, so they start the walk, not the
+            # go-live; and the day is the Dhaka business day (the UTC date of
+            # a go-live before 06:00 Dhaka was the day before)
+            live = dhaka_date(self._msp_sla_binds_at() or self.service_live_at)
+            start = max(start, live) if start else live
         if not start:
             return []
         start = max(start.replace(day=1), (today.replace(day=1) - relativedelta(months=24)))
@@ -277,7 +281,7 @@ class FixMspContractLifecycle(models.Model):
                             if period[2] == last[2] and today.day >= 10:
                                 msp._msp_report_overdue_activity(period)
                             continue
-                        msp.action_monthly_report(period)
+                        msp._msp_monthly_report(period)
                         done += 1
                     msp.action_compute_sla_credits()
             except Exception:

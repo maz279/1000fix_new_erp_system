@@ -301,7 +301,7 @@ def kpis(env):
     # credits (whatever their state) are a second figure.
     today = _dhaka_today()
     month_start_utc, month_end_utc = _period_bounds(
-        env.with_context(tz="Asia/Dhaka"), today.replace(day=1), today
+        env(context=dict(env.context, tz="Asia/Dhaka")), today.replace(day=1), today
     )
     credits = Credit.search(
         [

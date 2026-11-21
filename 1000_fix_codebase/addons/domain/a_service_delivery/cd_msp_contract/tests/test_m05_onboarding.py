@@ -295,11 +295,14 @@ def _breached_alert(m5, contract, asset, days_ago):
         }
     )
     when = fields.Datetime.now() - timedelta(days=days_ago)
+    # A02 ERP pass 2 (M05-S02): the deadlines are stamped when the alert is
+    # raised; flush that write first, or it lands after (and undoes) the SQL
+    alert.flush_recordset()
     m5.env.cr.execute(
         "UPDATE fix_msp_alert SET sla_deadline = NULL, response_deadline = NULL, create_date = %s WHERE id = %s",
         (when, alert.id),
     )
-    alert.invalidate_recordset(["create_date"])
+    alert.invalidate_recordset()
     return alert
 
 

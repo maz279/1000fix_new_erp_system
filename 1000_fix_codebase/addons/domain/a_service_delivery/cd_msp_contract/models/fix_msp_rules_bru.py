@@ -61,6 +61,28 @@ def add_business_hours(start_utc, hours, holidays=frozenset()):
     raise UserError("The SLA target is longer than the working calendar can measure.")
 
 
+def business_seconds_between(start_utc, end_utc, holidays=frozenset()):
+    """The Sunday–Thursday 09:00–18:00 Asia/Dhaka working seconds between two
+    naive-UTC moments (0 when ``end_utc`` is not after ``start_utc``): the
+    measure add_business_hours adds, so a business-hours clock is stopped,
+    extended and judged in one unit (A02 pass-2 review: a pause added
+    wall-clock seconds to a business-hours deadline)."""
+    if not start_utc or not end_utc or end_utc <= start_utc:
+        return 0.0
+    local = pytz.utc.localize(start_utc).astimezone(BD_TZ).replace(tzinfo=None)
+    stop = pytz.utc.localize(end_utc).astimezone(BD_TZ).replace(tzinfo=None)
+    total = 0.0
+    day = local.date()
+    while day <= stop.date():
+        if day.weekday() in BUSINESS_DAYS and day not in holidays:
+            begin = max(local, datetime.combine(day, BUSINESS_START))
+            end = min(stop, datetime.combine(day, BUSINESS_END))
+            if end > begin:
+                total += (end - begin).total_seconds()
+        day += timedelta(days=1)
+    return total
+
+
 class FixMspContractBru(models.Model):
     _inherit = "fix.msp.contract"
 

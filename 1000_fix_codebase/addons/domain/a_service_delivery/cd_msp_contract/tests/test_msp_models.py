@@ -271,7 +271,7 @@ def test_generate_button_reports_the_previous_calendar_month(msp):
 
 def test_a_quiet_month_is_full_sla_attainment(msp):
     msp.msp.device_count = 25
-    report = msp.msp.action_monthly_report(
+    report = msp.msp._msp_monthly_report(
         (datetime(2025, 6, 1), datetime(2025, 6, 30, 23, 59, 59), "2025-06")
     )
     assert (report.alert_count, report.sla_attainment) == (0, 1.0)

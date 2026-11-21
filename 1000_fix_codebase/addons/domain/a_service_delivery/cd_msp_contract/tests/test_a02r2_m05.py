@@ -105,12 +105,12 @@ def test_s01_an_engineer_cannot_make_an_empty_report(m5):
 def test_s01_a_report_with_no_attainment_is_recomputed_not_refused(m5):
     period = _last_month()
     empty = _stage_report(m5, period[2])  # no figure: blocks the credit
-    report = _as(m5.msp, m5.eng).action_monthly_report(period)
+    report = _as(m5.msp, m5.eng).action_monthly_report(period[2])
     assert report == empty
     assert report.sla_attainment == 1.0 and not report.attainment_flagged
     # a report WITH its figure stays the month's report
     with pytest.raises(UserError, match="already exists"):
-        _as(m5.msp, m5.eng).action_monthly_report(period)
+        _as(m5.msp, m5.eng).action_monthly_report(period[2])
 
 
 # ================================================================ M05-S02
@@ -201,7 +201,7 @@ def test_s07_no_report_for_a_month_after_the_offboarding(m5):
     msp = _offboard(m5)
     msp.sudo()._guarded().write({"offboarded_at": fields.Datetime.now() - timedelta(days=70)})
     with pytest.raises(UserError, match="not a service month"):
-        _as(msp, m5.eng).action_monthly_report(_last_month())
+        _as(msp, m5.eng).action_monthly_report(_last_month()[2])
 
 
 # ================================================================ M05-S08
@@ -228,7 +228,7 @@ def test_s08_the_sla_binds_thirty_days_after_the_start_at_the_latest(m5):
 def test_s08_a_month_before_binding_is_not_yet_binding(m5):
     m5.term.sudo()._guarded().write({"date_start": fields.Date.today() - timedelta(days=2)})
     _onboarding(m5, target=fields.Date.today() + timedelta(days=20))
-    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month())
+    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month()[2])
     assert report.sla_not_binding and "not yet binding" in report.summary_en
     report.flush_recordset()
     m5.env.cr.execute(
@@ -340,7 +340,7 @@ def test_s11_alerts_reports_and_credits_follow_the_contracts_company(m5):
                 "company_id": other.id,
             }
         )
-    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month())
+    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month()[2])
     assert report.company_id == m5.msp.company_id
     assert report.operating_unit_id == m5.msp.operating_unit_id
 
@@ -441,7 +441,7 @@ def test_s14_an_unreportable_month_opens_an_activity_on_the_tenth(m5):
 
 
 def test_s15_the_client_report_prints_bilingually(m5):
-    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month())
+    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month()[2])
     action = _as(report, m5.eng).action_print_service_report()
     assert action["print_url"].endswith("/%s" % report.id)
     values = (
@@ -463,7 +463,7 @@ def test_s15_the_report_is_sent_to_the_reporting_contacts(m5):
         pytest.skip("M27 not installed")
     contact = _contact(m5)
     contact.partner_id.write({"email": "it.head@client.test"})
-    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month())
+    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month()[2])
     out = m5.env["fix.msp.service.report"].consume_service_report_published(
         {"aggregate_id": report.id, "event_id": "evt-s15"}
     )
@@ -546,7 +546,7 @@ def _entitle_from_last_month(m5, **terms):
 def test_s17_hours_above_the_entitlement_are_billed_or_flagged(m5):
     last = _entitle_from_last_month(m5, remote_hours_monthly="1", overage_hourly_rate="2000")
     _session_of(m5, 180, ended=last[1] - timedelta(days=2))
-    report = _as(m5.msp, m5.eng).action_monthly_report(last)
+    report = _as(m5.msp, m5.eng).action_monthly_report(last[2])
     assert report.overage_hours == 2.0 and report.overage_amount == 4000.0
     events = _events(m5.env, "msp.remote_hours_overage", report.id)
     assert events and json.loads(events.payload)["amount"] == 4000.0
@@ -555,7 +555,7 @@ def test_s17_hours_above_the_entitlement_are_billed_or_flagged(m5):
 def test_s17_no_overage_rate_flags_the_hours(m5):
     last = _entitle_from_last_month(m5, remote_hours_monthly="1")
     _session_of(m5, 120, ended=last[1] - timedelta(days=2))
-    report = _as(m5.msp, m5.eng).action_monthly_report(last)
+    report = _as(m5.msp, m5.eng).action_monthly_report(last[2])
     assert report.overage_flagged and report.overage_amount == 0.0
     assert not _events(m5.env, "msp.remote_hours_overage", report.id)
 
@@ -602,7 +602,7 @@ def test_s18_threshold_escalation_and_breach_notice(m5):
 
 
 def test_s18_mtta_mttr_reach_the_report_and_the_credit(m5):
-    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month())
+    report = _as(m5.msp, m5.eng).action_monthly_report(_last_month()[2])
     for name in ("mtta_minutes", "mttr_minutes", "response_breached_count"):
         assert name in report._fields
         assert name in m5.env["fix.msp.sla.credit"]._fields

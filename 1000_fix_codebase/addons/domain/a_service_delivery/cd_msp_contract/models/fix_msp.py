@@ -4,7 +4,12 @@ from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .msp_periods import dhaka_month, dhaka_previous_month, month_dates
+from .msp_periods import PERIOD_RE, dhaka_month, dhaka_previous_month, month_dates
+from .msp_roles import GROUP_CREDIT_APPROVER, GROUP_ENGINEER, require_role
+
+# who makes a month's service report from the contract (the report drives the
+# SLA credit, so not every internal user)
+REPORT_ROLES = [GROUP_ENGINEER, GROUP_CREDIT_APPROVER]
 
 
 class FixMspContract(models.Model):
@@ -51,9 +56,10 @@ class FixMspContract(models.Model):
         nightly run could not report (alerts still open then) is reported
         once it can be; only a finished month is reported."""
         self.ensure_one()
+        require_role(self.env, REPORT_ROLES, "Generating an MSP service report")
         # A02 ERP audit M05-F15: the Dhaka calendar month, not naive UTC days
         bounds = self._msp_period_bounds(period) if period else dhaka_previous_month()
-        report = self.action_monthly_report(bounds)
+        report = self._msp_monthly_report(bounds)
         return {
             "type": "ir.actions.act_window",
             "res_model": "fix.msp.service.report",
@@ -62,11 +68,16 @@ class FixMspContract(models.Model):
         }
 
     def _msp_period_bounds(self, period):
-        """(utc_start, utc_end, label) of a 'YYYY-MM' month, or of the bounds
-        given. Refuses a month not yet finished in Dhaka."""
-        if isinstance(period, tuple | list):
-            return tuple(period)
-        first, _last = month_dates(period)
+        """(utc_start, utc_end, label) of a 'YYYY-MM' month. Refuses a month
+        not yet finished in Dhaka.
+
+        A02 pass-2 review B8: a tuple or list was returned unchanged, and the
+        workflow kwargs of /p03/model/action (and call_kw) reach here, so a
+        caller named a month's report over any window: the real report and
+        its SLA credit were then never produced. A caller names the month;
+        only the system computes bounds (_msp_monthly_report)."""
+        label = period.strip() if isinstance(period, str) else ""
+        first, _last = month_dates(label) if PERIOD_RE.match(label) else (None, None)
         if not first:
             raise UserError("Name the month as YYYY-MM (e.g. 2026-10).")
         bounds = dhaka_month(first)
@@ -107,9 +118,18 @@ class FixMspContract(models.Model):
         }
 
     def action_monthly_report(self, period):
-        """Journey 6's ending: the client-facing monthly report."""
+        """Journey 6's ending: the client-facing monthly report of the
+        finished month ``period`` (YYYY-MM), by an M05 engineer or credit
+        approver (A02 pass-2 review B8)."""
         self.ensure_one()
-        period = self._msp_period_bounds(period)
+        require_role(self.env, REPORT_ROLES, "Generating an MSP service report")
+        return self._msp_monthly_report(self._msp_period_bounds(period))
+
+    def _msp_monthly_report(self, period):
+        """The report of ``period`` = (utc_start, utc_end, 'YYYY-MM'), bounds
+        the system computed (the nightly run, the button). Private: never
+        reachable with caller-made bounds."""
+        self.ensure_one()
         # A02 ERP pass 2 (M05-S07): a month that began after the offboarding
         # completed is not a service month
         if self.offboarded_at and self.offboarded_at < period[0]:
