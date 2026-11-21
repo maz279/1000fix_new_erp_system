@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pytest
 from odoo import fields as odoo_fields
+from odoo.addons.cd_partner.tests.m40_fixtures import make_onboardable
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, assigned
 
 fields = odoo_fields
@@ -62,7 +63,12 @@ def fix_partner(env, customer):
             "state": "prospective",
         }
         vals.update(overrides)
-        return env["fix.partner"].create(vals)
+        partner = env["fix.partner"].create(vals)
+        # A04 ERP M40-F11 gates onboarding on a published programme, an M08
+        # agreement in force and a done checklist; with those in place the
+        # KYC checks below (e-TIN, NID, trade licence) are what refuses
+        make_onboardable(env, partner)
+        return partner
 
     return _make
 

@@ -100,7 +100,12 @@ def test_sent_estimate_and_ready_device_notify_the_customer_once(odoo_env, so):
     so.action_start_repair()
     so.action_submit_qc()
     env["fix.qc.checklist"].create(
-        {"order_id": so.id, "state": "passed", "item_ids": [Command.create({"name": "Boot"})]}
+        {
+            "order_id": so.id,
+            "qc_round": so.qc_round,
+            "state": "passed",
+            "item_ids": [Command.create({"name": "Boot"})],
+        }
     )
     so.action_ready()
     _relay(env)

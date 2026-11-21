@@ -389,7 +389,6 @@ class FixClaimWriteoffPosting(models.Model):
 
     def action_approve(self):
         self._decide()  # the role and BRU-WTY-07 segregation checks first
-        invoices = {}
         for rec in self:
             claim = rec.claim_id.sudo()
             invoice = claim._oem_invoice()
@@ -405,94 +404,15 @@ class FixClaimWriteoffPosting(models.Model):
                     "Write-off %s of %.2f exceeds the %.2f still open on OEM invoice %s."
                     % (rec.name, rec.amount, invoice.amount_residual, invoice.name)
                 )
-            invoices[rec.id] = invoice
         result = super().action_approve()
         for rec in self.filtered(lambda r: r.state == "approved"):
-            rec._fix_post_ar_writeoff(invoices[rec.id])
+            # One booking routine (A02 pass 2 X5-05 / D24, fix_warranty_writeoff):
+            # it stamps the M09 decider as the M20 approver, links the AR
+            # write-off to this record (booked once) and keeps a partly
+            # written-off invoice issued for the rest. The relay consumer of
+            # warranty_claim.written_off then finds it booked.
+            rec._fix_book_ar_writeoff()
         return result
-
-    def _fix_post_ar_writeoff(self, invoice):
-        self.ensure_one()
-        Writeoff = self.env["fix.ar.writeoff"].sudo()
-        claim = self.claim_id.sudo()
-        wo = Writeoff.create(
-            {
-                "invoice_id": invoice.id,
-                "reason": "Warranty claim %s written off (%s): %s"
-                % (claim.claim_no, self.name, (self.reason or "")[:150]),
-                "recovery_history": "Claim %s approved %.2f, remitted %.2f; write-off %s requested "
-                "by %s, approved by %s (BRU-WTY-07)."
-                % (
-                    claim.claim_no,
-                    claim.approved_amount,
-                    claim.remittance_amount,
-                    self.name,
-                    self.requested_by_id.name,
-                    self.approved_by_id.name,
-                ),
-            }
-        )
-        wo._guarded().write(
-            {
-                "state": "requested",
-                "amount": round(self.amount, 2),
-                "requested_by_id": self.requested_by_id.id,
-                "requested_at": fields.Datetime.now(),
-            }
-        )
-        invoice.invalidate_recordset(["amount_residual"])
-        if abs(invoice.amount_residual - wo.amount) <= 0.005:
-            wo._fin_after_approve()  # posts and closes the invoice as written off
-        else:
-            wo._fix_post_partial()
-        self.sudo()._guarded().write({"ar_writeoff_id": wo.id})
-        claim.message_post(
-            body="Write-off %s booked on OEM invoice %s as %s." % (self.name, invoice.name, wo.name)
-        )
-        return wo
-
-
-class FixArWriteoffPartial(models.Model):
-    _inherit = "fix.ar.writeoff"
-
-    def _fix_post_partial(self):
-        """Part of an invoice written off (a claim write-off of part of the
-        brand's debt): the same posting as a full write-off - the loss
-        allowance first, the rest to bad-debt expense / Cr AR - and the
-        invoice stays issued for the rest."""
-        self.ensure_one()
-        wo = self.sudo()
-        invoice = wo.invoice_id
-        company = invoice.company_id
-        allowance_acc, available = wo._allowance()
-        use = round(min(wo.amount, available), 2) if allowance_acc else 0.0
-        excess = round(wo.amount - use, 2)
-        debit_lines = []
-        if use > 0.005:
-            debit_lines.append(("ecl_provision", allowance_acc, use, invoice.customer_id.id))
-        if excess > 0.005:
-            debit_lines.append(
-                (
-                    "writeoff_expense",
-                    _ar_account(wo.env, company, "writeoff_expense"),
-                    excess,
-                    False,
-                )
-            )
-        move = invoice._post_reversal_gl(
-            "WRITE-OFF INV %s (part) — %s" % (invoice.name, wo.reason),
-            debit_lines,
-            [("ar", _ar_account(wo.env, company, "ar"), wo.amount, invoice.customer_id.id)],
-        )
-        wo._guarded().write(
-            {
-                "state": "posted",
-                "move_id": move.id,
-                "allowance_account_id": allowance_acc.id if use > 0.005 else False,
-                "allowance_amount": use,
-                "expense_amount": excess,
-            }
-        )
 
 
 class FixBrandRemittanceUnmatched(models.Model):

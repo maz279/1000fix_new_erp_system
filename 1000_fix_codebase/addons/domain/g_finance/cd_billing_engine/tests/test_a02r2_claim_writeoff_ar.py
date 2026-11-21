@@ -139,14 +139,29 @@ def test_a_partial_write_off_leaves_the_rest_owing(wo):
     assert round(w.invoice.amount_residual, 2) == round(w.invoice.total_payable - 2000.0, 2)
 
 
-def test_a_write_off_before_the_invoice_is_issued_is_booked_at_issue(wo):
+def test_a_write_off_waits_for_the_issued_invoice_then_books_once(wo):
+    """Nothing is on AR before finance issues the brand's invoice. Pass 2
+    deferred the booking to the issue; A04 refuses the approval instead (the
+    two were built in parallel and merged as ONE routine): a write-off is not
+    approved against a receivable that does not exist yet, and once the
+    invoice is issued the same approval books it, with the M09 decider."""
     w = wo
     assert w.invoice.state == "draft"
-    rec = w.write_off(12500.0)
-    _relay_writeoffs(w.env)
-    assert not rec.ar_writeoff_id  # nothing on AR to write off yet
+    pending = (
+        w.env["fix.claim.writeoff"]
+        .with_user(w.clerk)
+        .create({"claim_id": w.claim.id, "amount": 12500.0, "reason": "Brand capped labour"})
+    )
+    with pytest.raises(UserError, match="issued first"), w.env.cr.savepoint():
+        pending.with_user(w.finance).action_approve()
+    assert pending.state == "requested" and not pending.sudo().ar_writeoff_id
     w.invoice.sudo().action_issue()
+    pending.with_user(w.finance).action_approve()
+    _relay_writeoffs(w.env)  # the consumer finds it booked: still one
+    rec = pending.sudo()
     assert rec.ar_writeoff_id.state == "posted"
+    assert rec.ar_writeoff_id.fin_approved_by_id == w.finance
+    assert w.env["fix.ar.writeoff"].sudo().search_count([("claim_writeoff_id", "=", rec.id)]) == 1
     w.invoice.invalidate_recordset()
     assert w.invoice.state == "written_off"
 

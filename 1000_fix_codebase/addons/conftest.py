@@ -140,6 +140,18 @@ def _db_settings() -> dict[str, str]:
     }
 
 
+# Odoo's own TransactionCase classes (cd_doc_suite's rendering suite, for
+# one) open the registry through odoo.tests.common.get_db_name(), which reads
+# config["db_name"]: unset, every one of them errored at setUpClass with
+# "IndexError: list index out of range" and never ran. The connection and the
+# test database are configured at import, so both kinds of test reach the
+# same (rolled-back) test database.
+for _key, _value in _db_settings().items():
+    odoo.tools.config[_key] = int(_value) if _key == "db_port" else _value
+if not odoo.tools.config.get("db_name"):
+    odoo.tools.config["db_name"] = [TEST_DB]
+
+
 @pytest.fixture(scope="session")
 def odoo_registry():
     """The Odoo registry of the test database, loaded once per session."""
