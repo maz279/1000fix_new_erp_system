@@ -17,6 +17,11 @@ def _customer(env):
 def _request(env, **vals):
     vals.setdefault("customer_id", _customer(env).id)
     vals.setdefault("offered_value", 30000)
+    # A05 ERP M14-23: a trade-in is taken in at an operating unit
+    vals.setdefault(
+        "operating_unit_id",
+        env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1).id,
+    )
     return env["fix.tradein.request"].create(vals)
 
 

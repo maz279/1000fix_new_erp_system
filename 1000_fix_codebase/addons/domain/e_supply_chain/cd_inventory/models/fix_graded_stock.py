@@ -8,11 +8,35 @@ from libs.py.fix_events import publish
 
 # A04 integration (2026-11-04, M38 gst_01 / p03_06): any internal user could
 # write a unit `sold` (at a resale price of 1.0) through the ORM or the P03
-# form, with no order and no graded_stock.sold event. The state now moves only
+# form, with no order and no graded_stock.sold event. The state moves only
 # through the transitions below (fix.guarded.mixin); the storefront and
-# marketplace reach them as sudo() service code. Once a unit is committed to
-# an order (reserved) or has left stock, what it costs and sells for is frozen.
-STOCK_GUARDED = {"state"}
+# marketplace reach them as sudo() service code.
+#
+# A05 ERP audit (20 Nov 2026) M14-04 / XC-09: a plain user still CREATED a unit
+# in stock (tradein_id 999999, price 1.0, cost 0) and the storefront sold it,
+# and the costs, the price and the origin trade-in stayed free fields. A unit
+# is now born only from its trade-in's Resale Ready (cd_tradein, under the
+# guard); what it costs, sells for and came from is written only by the M14
+# valued ledger and pricing actions; and every reservation and sale re-asks
+# the unit whether it may be sold (_fix_sale_denial, extended by cd_tradein
+# with the M06 wipe gate, the NEIR re-check, the approved listing price and a
+# write-off). A storefront return no longer goes back on the shelf: it is
+# held (returned) for a new wipe, QA and grade (M14-05).
+STOCK_GUARDED = {
+    "state",
+    "tradein_id",
+    "tradein_ref",
+    "device_id",
+    "grade_id",
+    "acquisition_cost",
+    "refurbishment_cost",
+    "resale_price",
+    "currency_id",
+    "company_id",
+    "operating_unit_id",
+    "sold_at",
+}
+# kept for importers: every one of these is now guarded in every state
 STOCK_FROZEN = {
     "device_id",
     "grade_id",
@@ -21,7 +45,7 @@ STOCK_FROZEN = {
     "resale_price",
     "currency_id",
 }
-FROZEN_STATES = ("reserved", "sold", "scrapped")
+FROZEN_STATES = ("reserved", "sold", "scrapped", "returned")
 # A06 ERP X17 / A29 (20 Nov 2026): graded refurbished stock was outside the
 # ledger and any user could type its cost. The cost now comes from the unit's
 # source (the trade-in's payout and refurbishment cost), typed by no one, and
@@ -34,11 +58,13 @@ ON_SHELF = ("in_stock", "reserved")
 # A sale or reservation outside an order (walk-in, write-off of a hold) is an
 # Inventory Controller's call; the storefront reaches these as sudo() service.
 STOCK_CONTROLLER = "cd_wms_structure.group_inventory_controller"
+# M14-30: what a unit cost and its margin are read by costing staff only
+COST_GROUP = "cd_wms_structure.group_stock_cost_viewer"
 
 
 class FixGradedStock(models.Model):
     """Refurbished and graded device stock in M15 inventory with grade-aware valuation.
-    Valuation = Acquisition Cost (Trade-In offer) + Refurbishment Cost (Parts + Labour).
+    Valuation = Acquisition Cost (Trade-In payout) + Refurbishment Cost (Parts + Labour).
     A financial inventory path ensuring margin visibility per device."""
 
     _name = "fix.graded.stock"
@@ -75,10 +101,12 @@ class FixGradedStock(models.Model):
     tradein_id = fields.Integer(
         string="Originating Trade-In ID",
         index=True,
+        readonly=True,
     )
     tradein_ref = fields.Char(
         string="Originating Trade-In Ref",
         index=True,
+        readonly=True,
     )
 
     grade_id = fields.Many2one(
@@ -101,19 +129,24 @@ class FixGradedStock(models.Model):
 
     # Financial valuation fields (AS-10 Monetary)
     acquisition_cost = fields.Monetary(
+        groups=COST_GROUP,
         string="Acquisition Cost (Trade-In)",
         currency_field="currency_id",
         required=True,
         default=0.0,
+        readonly=True,
         help="Price paid to customer during trade-in intake",
     )
     refurbishment_cost = fields.Monetary(
+        groups=COST_GROUP,
         string="Refurbishment Cost",
         currency_field="currency_id",
         default=0.0,
+        readonly=True,
         help="Parts consumed and labour costs during workshop repair",
     )
     inventory_valuation = fields.Monetary(
+        groups=COST_GROUP,
         string="Inventory Valuation",
         currency_field="currency_id",
         compute="_compute_valuation",
@@ -125,13 +158,18 @@ class FixGradedStock(models.Model):
         currency_field="currency_id",
         required=True,
         default=0.0,
+        readonly=True,
+        help="The approved listing price (VAT inclusive). Set by the pricing approval or an "
+        "approved markdown, never typed.",
     )
     projected_margin = fields.Monetary(
+        groups=COST_GROUP,
         string="Projected Margin",
         currency_field="currency_id",
         compute="_compute_margin",
         store=True,
     )
+    sold_at = fields.Datetime(string="Sold On", readonly=True, copy=False)
 
     state = fields.Selection(
         [
@@ -139,6 +177,7 @@ class FixGradedStock(models.Model):
             ("in_stock", "In Stock (Available)"),
             ("reserved", "Reserved"),
             ("sold", "Sold / Delivered"),
+            ("returned", "Returned - Held for Re-wipe, QA and Grade"),
             ("scrapped", "Scrapped / E-Waste"),
         ],
         string="Inventory Status",
@@ -187,6 +226,14 @@ class FixGradedStock(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
+        # M14-04: a graded unit is stocked by its trade-in (Resale Ready), the
+        # one path that capitalises it on the valued ledger and checks the
+        # wipe gate, provenance and grade. Nobody types one into stock.
+        if not self._fix_guard_open():
+            raise UserError(
+                "A graded refurbished unit is stocked by its trade-in's Resale Ready (M14), "
+                "which values it on the refurbished-stock ledger. It is not created by hand."
+            )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
@@ -284,10 +331,20 @@ class FixGradedStock(models.Model):
             }
         )
 
+    def _fix_books_elsewhere(self) -> bool:
+        """True when another module keeps this unit's books from purchase to
+        sale - the A05 M14 refurbished ledger (owner decision D1/D3, 21 Nov
+        2026: the device is booked into stock at the payout, refurbishment is
+        absorbed and cost of sale relieved by the trade-in) - so the graded
+        posting below must not post the same value a second time."""
+        return False
+
     def _fix_graded_intake(self):
         """Take an on-shelf unit into the stock ledger at its source cost."""
         self.ensure_one()
         rec = self.sudo()
+        if rec._fix_books_elsewhere():
+            return
         if rec.ledger_entry_id or not self._fix_ledger()._fix_realtime(rec.company_id):
             return
         entry = rec._fix_graded_row(
@@ -299,6 +356,8 @@ class FixGradedStock(models.Model):
         """Post what a state or cost change did to a unit in the ledger."""
         self.ensure_one()
         rec = self.sudo()
+        if rec._fix_books_elsewhere():
+            return
         if not rec.ledger_entry_id:
             if rec.state in ON_SHELF and old_state not in ON_SHELF:
                 rec._fix_graded_intake()
@@ -322,11 +381,33 @@ class FixGradedStock(models.Model):
         if not (self.env.su or self.env.user.has_group(STOCK_CONTROLLER)):
             raise UserError("%s is done from its order, or by an Inventory Controller." % what)
 
+    # ------------------------------------------------------------ sale gates
+    def _fix_sale_denial(self) -> str:
+        """Why this unit may not be committed to a buyer now, or ''. The
+        trade-in module extends it with the M06 wipe gate, the NEIR re-check,
+        the approved listing price and a write-off (A05 M14-04)."""
+        self.ensure_one()
+        return ""
+
+    def _fix_assert_saleable(self, what="This sale"):
+        for rec in self:
+            denial = rec._fix_sale_denial()
+            if denial:
+                raise UserError("%s refused: %s cannot be sold (%s)." % (what, rec.name, denial))
+
+    def _fix_cogs_relieved(self) -> float:
+        """The cost the latest sale took off stock (the valued ledger's COGS),
+        0.0 where no valued ledger holds the unit. cd_tradein overrides it."""
+        self.ensure_one()
+        return 0.0
+
+    # ------------------------------------------------------------ transitions
     def action_reserve(self):
         self._fix_require_controller("Reserving a graded unit")
         for rec in self:
             if rec.state != "in_stock":
                 raise UserError("Only in-stock items can be reserved")
+            rec._fix_assert_saleable("Reserving %s" % rec.name)
             rec._guarded().write({"state": "reserved"})
 
     def action_release(self):
@@ -342,7 +423,8 @@ class FixGradedStock(models.Model):
         for rec in self:
             if rec.state not in ("in_stock", "reserved"):
                 raise UserError("Only in-stock or reserved items can be sold")
-            rec._guarded().write({"state": "sold"})
+            rec._fix_assert_saleable("Selling %s" % rec.name)
+            rec._guarded().write({"state": "sold", "sold_at": fields.Datetime.now()})
             publish(
                 self.env,
                 "graded_stock.sold",
@@ -351,8 +433,26 @@ class FixGradedStock(models.Model):
                 {
                     "device": rec.device_id.name if rec.device_id else "",
                     "grade": rec.grade_id.code if rec.grade_id else "",
-                    "valuation": float(rec.inventory_valuation),
+                    # the event is the system's: cost and margin read as such
+                    "valuation": float(rec.sudo().inventory_valuation),
                     "resale_price": float(rec.resale_price),
-                    "margin": float(rec.projected_margin),
+                    "margin": float(rec.sudo().projected_margin),
                 },
             )
+
+    def action_receive_return(self, reason=None):
+        """A sold unit comes back from its buyer (M14-05). It is HELD, never
+        put back on the shelf: it is re-wiped, re-tested and re-graded by its
+        trade-in before it is stocked again (cd_tradein extends this)."""
+        self._fix_require_controller("Receiving a returned graded unit")
+        for rec in self:
+            if rec.state != "sold":
+                raise UserError(
+                    "Only a sold unit is received back (%s is %s)." % (rec.name, rec.state)
+                )
+            rec._guarded().write({"state": "returned"})
+            rec.message_post(
+                body="Returned by the buyer%s: held for a new data wipe, QA and grade."
+                % ((": %s" % reason) if reason else "")
+            )
+        return True

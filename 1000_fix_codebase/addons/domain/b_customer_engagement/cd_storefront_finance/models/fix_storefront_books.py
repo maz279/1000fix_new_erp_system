@@ -96,6 +96,9 @@ LINE_STOCK_STATES = [
     ("issued", "Issued"),
     ("returned", "Returned"),
     ("cancelled", "Not Needed (returned before issue)"),
+    # A05 ERP audit M14-02: a refurbished unit leaves its own valued ledger
+    # (M14 posts its COGS at the sale); its return is M14's, not an M15 restock
+    ("m14_ledger", "Sold off the Refurbished Ledger (M14)"),
 ]
 LEG_LABELS = {
     "invoice": "M20 invoice / Mushak 6.3",
@@ -1236,7 +1239,24 @@ class FixStorefrontOrderLineBooks(models.Model):
         self.ensure_one()
         line = self.sudo()
         if line.graded_stock_id:
-            line.write({"stock_state": "not_required"})
+            # A05 ERP audit M14-02 / FIN-04: the refurbished unit is its own
+            # valued ledger (M14). Its sale (delivery) posts Dr COGS / Cr
+            # refurbished stock at the unit's carrying cost; this leg records
+            # that cost against the line, and waits (pending) until the unit
+            # is actually sold, instead of calling the line "no stock".
+            item = line.graded_stock_id
+            if item.state != "sold":
+                raise UserError(
+                    "Refurbished unit %s is %s: its cost leaves stock when it is sold on "
+                    "delivery." % (item.name, item.state)
+                )
+            line.write(
+                {
+                    "stock_state": "m14_ledger",
+                    "stock_unit_cost": item._fix_cogs_relieved(),
+                    "stock_serial": line.stock_serial or item.device_id.serial_number or False,
+                }
+            )
             return
         part = line._sfb_part()
         if not part:

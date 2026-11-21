@@ -14,7 +14,11 @@ export const MODULE = {
     { l: 'Refurb Open', m: 'refurb_open' },
     { l: 'Resale Ready', m: 'resale_ready' },
     { l: 'Graded Stock Value', m: 'graded_stock_value', prefix: '৳ ' },
-    { l: 'Margin Pipeline', m: 'margin_pipeline', prefix: '৳ ' }
+    { l: 'Margin Pipeline', m: 'margin_pipeline', prefix: '৳ ' },
+    { l: 'Gross Margin 12m', m: 'gross_margin_pct_12m', suffix: '%' },
+    { l: 'Refurb Yield', m: 'refurb_yield_pct', suffix: '%' },
+    { l: 'Stock > 90 Days', m: 'stock_over_90d_pct', suffix: '%' },
+    { l: 'Zero-Target Breaches 90d', m: 'zero_target_breaches_90d' }
   ],
   groups: [
     { en: 'Trade-In', screens: [
@@ -51,7 +55,9 @@ export const MODULE = {
     'Harvest Yield',
     'Valuation Queue',
     'Resale Listings',
-    'Unit Economics'
+    'Unit Economics',
+    'Trade-In Funnel',
+    'Gate Compliance'
   ],
   forms: [
     'Trade-In Intake Dossier',
@@ -72,7 +78,7 @@ export const MODULE = {
   ],
   cross: ['M06 destruction gate', 'M31 refurb repairs', 'M15 graded stock', 'M38 online resale', 'M18 recycle routing'],
   freg: { src: 84, sub: [
-    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake', 'M14-intake-check'], reports: ['Valuation Queue'], forms: ['Trade-In Intake Dossier', 'Physical Intake Verification'] }],
+    ['1', 'Intake (5 channels)', 9, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'device_model_id', 'offered_value', 'state'], screens: ['M14-intake', 'M14-intake-check'], reports: ['Valuation Queue', 'Trade-In Funnel', 'Gate Compliance'], forms: ['Trade-In Intake Dossier', 'Physical Intake Verification'] }],
     ['2', 'Valuation Engine', 9, { model: 'fix.tradein.valuation', cols: ['name', 'tradein_id', 'market_ref_price', 'computed_offer', 'final_offer'], screens: ['M14-valuation'], reports: ['Valuation Queue', 'Trade-In Margin by Model'], forms: ['Automated Valuation File', 'Governed Price Grid Row'] }],
     ['3', 'Provenance Screening', 7, { model: 'fix.tradein.provenance', cols: ['name', 'tradein_id', 'imei', 'btrc_neir_status', 'state'], screens: ['M14-provenance'], reports: [], forms: ['Provenance Screening & Anti-Theft'] }],
     ['4', 'Settlement', 8, { model: 'fix.tradein.request', cols: ['name', 'customer_id', 'payout_amount', 'payout_approval_state', 'net_payout'], screens: ['M14-settlement'], reports: ['Unit Economics'], forms: ['Settlement & Four-Eyes Payout'], create: 'M14-form-settlement' }],
@@ -85,8 +91,8 @@ export const MODULE = {
     ['6', 'Destruction Gate', 4, { model: 'fix.tradein.request', cols: ['name', 'device_id', 'wipe_certificate_id', 'state'], screens: ['M14-gate', 'M14-orders'], reports: [], forms: ['Destruction Certificate Attachment'], create: 'M14-form-wipe', domain: [['state', 'in', ['collected', 'wiped']]] }],
     ['7', 'Refurbishment Orders', 11, { model: 'fix.refurbishment', cols: ['name', 'tradein_id', 'step', 'technician_id', 'state'], screens: ['M14-orders'], reports: ['Refurb Cost per Grade'], forms: ['Refurbishment Work Order'] }],
     ['8', 'Grading & QA', 11, { model: 'fix.tradein.grade', cols: ['name', 'tradein_id', 'grade', 'battery_health_pct', 'graded_on'], screens: ['M14-grading', 'M14-qa'], reports: ['Refurb Cost per Grade'], forms: ['Grading Certificate', 'QA & Battery Health Dossier'] }],
-    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-resale-prep', 'M14-stock', 'M14-listings', 'M14-wty', 'M14-returns', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: ['Resale Listing Preparation', 'Refurbished Unit Return'], create: 'M14-form-resale' }],
-    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-writeoff', 'M14-harvest'], reports: ['Harvest Yield'], forms: ['Parts-Only Routing & Write-off', 'Harvest to Parts Dossier'], create: 'M14-form-harvest' }]
+    ['9', 'Resale', 10, { model: 'fix.graded.stock', cols: ['name', 'device_id', 'grade_id', 'resale_price', 'state'], screens: ['M14-resale-prep', 'M14-listed', 'M14-stock', 'M14-markdown', 'M14-listings', 'M14-wty', 'M14-returns', 'M14-economics'], reports: ['Resale Listings', 'Resale Channel Performance', 'Ageing & Markdown', 'Unit Economics'], forms: ['Resale Listing Preparation', 'Refurbished Unit Return', 'Refurbished Unit Markdown'], create: 'M14-form-resale' }],
+    ['10', 'Harvesting', 9, { model: 'fix.tradein.harvest', cols: ['name', 'component', 'part_name', 'quantity', 'target'], screens: ['M14-writeoff', 'M14-parts-only', 'M14-harvest'], reports: ['Harvest Yield'], forms: ['Parts-Only Routing & Write-off', 'Harvest to Parts Dossier'], create: 'M14-form-harvest' }]
     /* M14 capture pass 2 (2026-11-19), read against FR-TRF-001..039:
      * p1 also verifies the unit as received (FR-TRF-005, BRU-TRF-09); p9
      * captures a return of a sold unit (FR-TRF-026); p10 routes an
@@ -110,7 +116,9 @@ export const SCREENS = {
       { m: 'action_wipe', l: 'Data Wipe' },
       { m: 'action_refurbish', l: 'Refurbish' },
       { m: 'action_grade', l: 'Grade' },
-      { m: 'action_resale_ready', l: 'Resale Ready' }
+      { m: 'action_resale_ready', l: 'Resale Ready' },
+      /* A05 ERP XC-10: seller purchase voucher + declaration (from acceptance) */
+      { m: 'p03_print_document', print: 'a4', l: 'Print Purchase Voucher', states: ['accepted', 'collected', 'wiped', 'refurbished', 'graded', 'resale_ready', 'parts_only', 'closed'] }
     ] },
   /* The destruction gate (FR-TRF-011, BRU-TRF-01): a collected unit waits
    * here for its M06 certificate; Data Wipe checks it is VERIFIED and bound
@@ -160,10 +168,18 @@ export const SCREENS = {
     actions: [
       { m: 'action_clear', l: 'Clear (Provenance Officer)' },
       { m: 'action_flag', l: 'Flag', ask: 'Why the device is flagged', kwarg: 'reason' },
-      { m: 'action_run_neir_check', l: 'BTRC NEIR Check' }
+      { m: 'action_run_neir_check', l: 'BTRC NEIR Check' },
+      /* A05 ERP D4: the provenance officer (not the trade-in's creator)
+       * records the manual NEIR result with its evidence; only clear passes. */
+      { m: 'action_record_neir_result', l: 'NEIR Result: Clear', kw: { result: 'clear' },
+        asks: [{ kwarg: 'evidence_ref', label: 'NEIR lookup reference (evidence)' }] },
+      { m: 'action_record_neir_result', l: 'NEIR Result: Blocked', kw: { result: 'blocked' },
+        asks: [{ kwarg: 'evidence_ref', label: 'NEIR lookup reference (evidence)' }] },
+      { m: 'action_record_neir_result', l: 'NEIR Result: Not Found', kw: { result: 'not_found' },
+        asks: [{ kwarg: 'evidence_ref', label: 'NEIR lookup reference (evidence)' }] }
     ] },
   'M14-settlement': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'payout_approval_state',
-    cols: ['name', 'customer_id', 'graded_value', 'net_payout', 'tds_amount', 'payout_approval_state', 'approval_state', 'payout_approved_by_id', 'payout_execution_id', 'state'],
+    cols: ['name', 'customer_id', 'graded_value', 'net_payout', 'tds_amount', 'payout_approval_state', 'approval_state', 'payout_approved_by_id', 'payout_execution_id', 'paid_at', 'state'],
     actions: [
       { m: 'action_verify_psr', l: 'Verify PSR' },
       { m: 'action_request_payout_approval', l: 'Request Approval', ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
@@ -171,11 +187,15 @@ export const SCREENS = {
       { m: 'action_pay', l: 'Pay via Treasury' }
     ] },
   'M14-orders': { kind: 'model_list', model: 'fix.refurbishment', stateField: 'state',
-    cols: ['name', 'tradein_id', 'step', 'technician_id', 'parts_cost', 'labor_cost', 'total_cost', 'state'],
+    cols: ['name', 'tradein_id', 'step', 'technician_id', 'parts_cost', 'labor_cost', 'total_cost', 'cost_approved_by_id', 'state'],
     actions: [
       { m: 'action_start', l: 'Start Step' },
       { m: 'action_request_parts', l: 'Request Parts' },
-      { m: 'action_complete_repair', l: 'Complete Step' }
+      { m: 'action_complete_repair', l: 'Complete Step' },
+      /* A05 ERP M14-12: parts come from M15 and labour from the M31 clock; a
+       * typed step cost counts only once a supervisor approves it. */
+      { m: 'action_approve_cost', l: 'Approve Typed Cost (Supervisor)', states: ['done'] },
+      { m: 'p03_print_document', print: 'a4', l: 'Print Job Card' }
     ] },
   'M14-qa': { kind: 'model_list', model: 'fix.refurb.qa', stateField: 'qa_state',
     cols: ['name', 'tradein_id', 'battery_health_pct', 'tests_passed', 'tests_total', 'pass_pct', 'qa_state', 'checked_on', 'inspected_by_id'],
@@ -192,6 +212,17 @@ export const SCREENS = {
       { m: 'action_reject', l: 'Reject', ask: 'Why the write-off is rejected', kwarg: 'reason', states: ['pending'] }
     ],
     empty: 'No unit has been routed to parts only. A unit that failed QA or cannot be sold profitably is routed here before it is harvested or recycled.' },
+  /* A05 ERP M14-09/20/21: an approved write-off puts the unit in Parts Only:
+   * harvest its parts (each valued from the unit's cost), then close it (the
+   * residue is written off), or hand it whole to M18 for recycling. */
+  'M14-parts-only': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state', create: false,
+    cols: ['name', 'device_model_id', 'grade', 'written_off', 'paid_at', 'state'],
+    domain: [['state', '=', 'parts_only']],
+    actions: [
+      { m: 'action_close_parts_only', l: 'Close (harvest done, write off residue)' },
+      { m: 'action_route_to_recycle', l: 'Hand to M18 for Recycling' }
+    ],
+    empty: 'No unit is parts only. A unit arrives here when its parts-only write-off is approved.' },
   'M14-harvest': { kind: 'model_list', model: 'fix.tradein.harvest', stateField: 'state',
     cols: ['name', 'tradein_id', 'component', 'part_id', 'quantity', 'total_value', 'target', 'receipt_id', 'state'],
     actions: [
@@ -202,19 +233,46 @@ export const SCREENS = {
    * merchant) and Resale Ready then stocks it in M15 and lists it; the
    * channel, price and merchant freeze from that point. */
   'M14-resale-prep': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state', create: false,
-    cols: ['name', 'device_model_id', 'grade', 'refurb_grade_id', 'resale_channel', 'resale_value', 'resale_listed_on', 'state'],
+    cols: ['name', 'device_model_id', 'grade', 'refurb_grade_id', 'resale_channel', 'resale_value', 'listing_price', 'listing_price_state', 'state'],
     domain: [['state', '=', 'graded']],
-    actions: [{ m: 'action_resale_ready', l: 'Resale Ready (stock and list)' }],
+    actions: [
+      /* A05 ERP D6: the suggested price is proposed, a pricing manager who
+       * did not propose or enter it approves it; below cost is a markdown. */
+      { m: 'action_request_listing_price', l: 'Propose Listing Price' },
+      { m: 'action_approve_listing_price', l: 'Approve Listing Price (Pricing Manager)' },
+      { m: 'action_resale_ready', l: 'Resale Ready (stock and list)' }
+    ],
     empty: 'No graded unit is waiting for resale. A trade-in arrives here once it is graded; prepare its listing with + Prepare a Resale Listing, then press Resale Ready.' },
   'M14-stock': { kind: 'model_list', model: 'fix.graded.stock', stateField: 'state', create: false,
     cols: ['name', 'device_id', 'grade_id', 'tradein_ref', 'inventory_valuation', 'resale_price', 'projected_margin', 'state'],
     empty: 'No graded unit in stock. A unit is stocked by Resale Ready on Resale Preparation, at what the seller was paid plus its refurbishment cost; it is sold from its store or marketplace order.' },
-  'M14-listings': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: false },
+  /* A05 ERP M14-15: a listed unit sold at the counter is invoiced through
+   * M20 (the VAT is M51's); a marketplace unit is sold from its M12 order. */
+  'M14-listed': { kind: 'model_list', model: 'fix.tradein.request', stateField: 'state', create: false,
+    cols: ['name', 'device_model_id', 'grade', 'resale_channel', 'listing_price', 'graded_stock_id', 'sale_count', 'state'],
+    domain: [['state', '=', 'resale_ready']],
+    actions: [
+      { m: 'action_counter_sell', l: 'Counter Sale (Inventory Controller)', ask: 'Buyer (customer id)', kwarg: 'buyer_id' }
+    ],
+    empty: 'No unit is listed. A unit is listed by Resale Ready at its approved price.' },
+  /* A05 ERP M14-25 / D6: a price cut, or a listing below landed cost, is a
+   * markdown a different pricing manager approves; it writes the stock down
+   * to its net realisable value. */
+  'M14-markdown': { kind: 'model_list', model: 'fix.refurb.markdown', stateField: 'state',
+    cols: ['name', 'tradein_id', 'current_price', 'new_price', 'requested_by_id', 'approved_by_id', 'state'],
+    actions: [
+      { m: 'action_request', l: 'Request Approval', states: ['draft', 'rejected'] },
+      { m: 'action_approve', l: 'Approve (Pricing Manager)', states: ['pending'] },
+      { m: 'action_reject', l: 'Reject', states: ['pending'] }
+    ],
+    empty: 'No markdown. Raise one with + Markdown when a listed unit must sell for less.' },
+  'M14-listings': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: true },
   'M14-wty': { kind: 'model_list', model: 'fix.tradein.warranty', stateField: 'state', create: false,
     cols: ['name', 'tradein_id', 'graded_stock_ref', 'months', 'start_date', 'end_date', 'claims_count', 'state'],
     empty: 'No refurbished warranty issued yet. A warranty is issued automatically when a refurbished unit is resold; it cannot be typed in.',
-    actions: [{ m: 'action_void', l: 'Void (Warranty Officer)', ask: 'Reason for voiding', kwarg: 'reason' }] },
-  'M14-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: false },
+    actions: [{ m: 'action_void', l: 'Void (Warranty Officer)', ask: 'Reason for voiding', kwarg: 'reason' },
+      { m: 'p03_print_document', print: 'a4', l: 'Print Warranty Card & Disclosure' }] },
+  'M14-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: true },
   /* FR-TRF-026 / AUT-TRF-18: a sold refurbished unit comes back. */
   'M14-returns': { kind: 'model_list', model: 'fix.refurb.return', stateField: 'state',
     cols: ['name', 'tradein_id', 'grade_at_sale', 'return_date', 'reason', 'failure_code', 'within_terms', 'outcome', 'state'],
@@ -225,14 +283,16 @@ export const SCREENS = {
     empty: 'No refurbished unit has been returned. Record a return of a sold unit with + Refurbished Unit Return.' },
 
   /* Report chips -> their own computed packs (All 8 active) */
-  'M14-rpt-margin': { kind: 'table_report', module: 'M14', report: 'tradein_margin', title: 'Trade-In Margin by Model', period: false },
-  'M14-rpt-grade': { kind: 'table_report', module: 'M14', report: 'refurb_cost_grade', title: 'Refurb Cost per Grade', period: false },
-  'M14-rpt-ageing': { kind: 'table_report', module: 'M14', report: 'ageing_markdown', title: 'Ageing & Markdown', period: false },
-  'M14-rpt-channel': { kind: 'table_report', module: 'M14', report: 'resale_channel', title: 'Resale Channel Performance', period: false },
-  'M14-rpt-harvest': { kind: 'table_report', module: 'M14', report: 'harvest_yield', title: 'Harvest Yield', period: false },
-  'M14-rpt-valqueue': { kind: 'table_report', module: 'M14', report: 'valuation_queue', title: 'Valuation Queue', period: false },
-  'M14-rpt-resale': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: false },
-  'M14-rpt-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: false },
+  'M14-rpt-margin': { kind: 'table_report', module: 'M14', report: 'tradein_margin', title: 'Trade-In Margin by Model', period: true },
+  'M14-rpt-grade': { kind: 'table_report', module: 'M14', report: 'refurb_cost_grade', title: 'Refurb Cost per Grade', period: true },
+  'M14-rpt-ageing': { kind: 'table_report', module: 'M14', report: 'ageing_markdown', title: 'Ageing & Markdown', period: true },
+  'M14-rpt-channel': { kind: 'table_report', module: 'M14', report: 'resale_channel', title: 'Resale Channel Performance', period: true },
+  'M14-rpt-harvest': { kind: 'table_report', module: 'M14', report: 'harvest_yield', title: 'Harvest Yield', period: true },
+  'M14-rpt-valqueue': { kind: 'table_report', module: 'M14', report: 'valuation_queue', title: 'Valuation Queue', period: true },
+  'M14-rpt-resale': { kind: 'table_report', module: 'M14', report: 'resale_pipeline', title: 'Resale Listings', period: true },
+  'M14-rpt-economics': { kind: 'table_report', module: 'M14', report: 'unit_economics', title: 'Unit Economics', period: true },
+  'M14-rpt-funnel': { kind: 'table_report', module: 'M14', report: 'tradein_funnel', title: 'Trade-In Funnel', period: true },
+  'M14-rpt-gate': { kind: 'table_report', module: 'M14', report: 'gate_compliance', title: 'Gate Compliance', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS (6-TAB STANDARD) ============ */
   'M14-form-request': {
@@ -287,7 +347,7 @@ export const SCREENS = {
         fields: [
           { name: 'offered_value', label: 'Offer Value (draft only, from the applied valuation)' },
           { name: 'accepted_offer_value', label: 'Offer Accepted by Customer', readonly: true },
-          { name: 'graded_value', label: 'Post-Inspection Value (below the offer only through a Physical Intake Verification)' },
+          { name: 'graded_value', label: 'Payout Value (set by the confirmed Physical Intake Verification, capped at the accepted offer)', readonly: true },
           { name: 'revision_state', label: 'Revised Offer', readonly: true },
           { name: 'revision_accepted_value', label: 'Revised Value Accepted', readonly: true },
           { name: 'payout_amount', label: 'Payout Queued', readonly: true },
@@ -308,7 +368,7 @@ export const SCREENS = {
         fields: [
           { name: 'grade', label: 'Grade (from the grading certificate)', readonly: true },
           { name: 'refurb_grade_id', label: 'Final Graded Class' },
-          { name: 'battery_health_pct', label: 'Battery Health (%)' },
+          { name: 'battery_health_pct', label: 'Battery Health (%) - from the QA', readonly: true },
           { name: 'wipe_certificate_id', label: 'Data Sanitization Certificate' }
         ] },
       { tab: 'lifecycle', title: 'Refurbishment Workshop Integration',
@@ -341,12 +401,14 @@ export const SCREENS = {
       { tab: 'governance', title: 'Resale Marketplace Channel Allocation',
         fields: [
           { name: 'resale_channel', label: 'Target Resale Channel' },
-          { name: 'resale_listed_on', label: 'Marketplace Listing Date' },
-          { name: 'resale_value', label: 'Target Resale Value' },
+          { name: 'resale_listed_on', label: 'Marketplace Listing Date (stamped by Resale Ready)', readonly: true },
+          { name: 'resale_value', label: 'Suggested Resale Price (a starting point; the listing price is approved)' },
+          { name: 'listing_price', label: 'Approved Listing Price', readonly: true },
           { name: 'marketplace_seller_id', label: 'Merchant / Seller Account' },
           { name: 'graded_stock_id', label: 'Graded Stock Unit', readonly: true },
           { name: 'company_id', label: 'Operating Entity' },
-          { name: 'operating_unit_id', label: 'Operating Unit Hub' }
+          { name: 'operating_unit_id', required: true, label: 'Operating Unit Hub (fixed once the offer is sent)' },
+          { name: 'branch_id', label: 'Intake Branch' }
         ] },
       { tab: 'vault', title: 'Evidence & Document Vault',
         fields: [
@@ -557,7 +619,7 @@ export const SCREENS = {
         ] },
       { tab: 'pricing', title: 'Settlement & Statutory Withholding (ITA 2023)',
         fields: [
-          { name: 'graded_value', label: 'Graded Payout Value (below the offer only through a Physical Intake Verification)' },
+          { name: 'graded_value', label: 'Graded Payout Value (below the offer only through a Physical Intake Verification)', readonly: true },
           { name: 'revision_state', label: 'Revised Offer', readonly: true },
           { name: 'tds_applicable', label: 'TDS Applicable' },
           { name: 'tds_section', label: 'TDS Section' },
@@ -798,7 +860,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Harvest Case',
         fields: [
           { name: 'name', label: 'Harvest Record ID', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Trade-In Request (graded parts-only, grade E)', domain: [['state', 'in', ['graded', 'closed']], ['grade', '=', 'e']] },
+          { name: 'tradein_id', required: true, label: 'Trade-In Request (parts only, written off)', domain: [['state', '=', 'parts_only']] },
           { name: 'state', label: 'Harvesting State', readonly: true },
           { name: 'receipt_id', label: 'M15 Goods Receipt', readonly: true }
         ] },
@@ -1002,12 +1064,14 @@ export const SCREENS = {
           { name: 'state', label: 'Trade-In State', readonly: true }
         ] },
       { title: 'Step 2 of 2: Channel & Price (FR-TRF-021, FR-TRF-022)',
-        note: 'Save, then press Resale Ready on Resale Preparation: it stocks the unit in M15 at what the seller was paid plus its refurbishment cost, lists it on the channel chosen here, and from then on the channel, price and merchant no longer change.',
+        note: 'Save, then press Propose Listing Price on Resale Preparation: a pricing manager who did not propose or enter the price approves it (never below landed cost without an approved markdown). Resale Ready then stocks the unit at its cost on the refurbished-stock ledger and lists it at the approved price.',
         fields: [
           { name: 'resale_channel', required: true, label: 'Resale Channel' },
-          { name: 'resale_value', required: true, label: 'Listing Price (BDT)' },
+          { name: 'resale_value', required: true, label: 'Suggested Listing Price (BDT, VAT inclusive)' },
+          { name: 'listing_price', label: 'Approved Listing Price', readonly: true },
+          { name: 'listing_price_state', label: 'Price Approval', readonly: true },
           { name: 'marketplace_seller_id', label: 'Marketplace Merchant Account (marketplace channel)' },
-          { name: 'resale_listed_on', label: 'Listing Date' }
+          { name: 'resale_listed_on', label: 'Listing Date', readonly: true }
         ] }
     ]
   },
@@ -1114,7 +1178,7 @@ export const SCREENS = {
       { tab: 'general', title: 'Why the Unit Cannot Be Sold (FR-TRF-020)',
         fields: [
           { name: 'name', label: 'Routing Reference', readonly: true },
-          { name: 'tradein_id', required: true, label: 'Unit (trade-in in refurbishment or graded)', domain: [['state', 'in', ['refurbished', 'graded']]] },
+          { name: 'tradein_id', required: true, label: 'Unit (trade-in at intake, in refurbishment or graded)', domain: [['state', 'in', ['collected', 'wiped', 'refurbished', 'graded']]] },
           { name: 'cause', required: true, label: 'Cause' },
           { name: 'cause_notes', required: true, label: 'Why the Unit Cannot Be Sold' },
           { name: 'destination', required: true, label: 'Route To' }
@@ -1137,10 +1201,36 @@ export const SCREENS = {
           { name: 'company_id', label: 'Company' }
         ] }
     ]
+  },
+
+  /* A05 ERP M14-25 / D6: a markdown of a graded or listed unit. */
+  'M14-form-markdown': {
+    kind: 'model_form',
+    model: 'fix.refurb.markdown',
+    title: 'Refurbished Unit Markdown',
+    newLabel: 'Markdown',
+    back: 'M14-markdown',
+    status: { field: 'state', labels: { draft: 'Draft', pending: 'Approval Pending', approved: 'Approved', rejected: 'Rejected' } },
+    sections: [
+      { title: 'The Unit and Its New Price',
+        note: 'Request Approval records the price before and the landed cost; a pricing manager who did not ask approves it. The unit is repriced and, where the price before VAT is below its carrying cost, written down to that value (NRV).',
+        fields: [
+          { name: 'name', label: 'Markdown Reference', readonly: true },
+          { name: 'tradein_id', required: true, label: 'Unit (graded or listed trade-in)', domain: [['state', 'in', ['graded', 'resale_ready']]] },
+          { name: 'new_price', required: true, label: 'New Price (BDT, VAT inclusive)' },
+          { name: 'reason', required: true, label: 'Why the Price Comes Down' },
+          { name: 'current_price', label: 'Price Before', readonly: true },
+          { name: 'state', label: 'State', readonly: true },
+          { name: 'requested_by_id', label: 'Requested By', readonly: true },
+          { name: 'approved_by_id', label: 'Approved By', readonly: true }
+        ] }
+    ]
   }
 };
 
 export const REPORT_ROUTES = {
+  'M14:Trade-In Funnel': 'M14-rpt-funnel',
+  'M14:Gate Compliance': 'M14-rpt-gate',
   'M14:Trade-In Margin by Model': 'M14-rpt-margin',
   'M14:Refurb Cost per Grade': 'M14-rpt-grade',
   'M14:Ageing & Markdown': 'M14-rpt-ageing',
@@ -1166,7 +1256,8 @@ export const FORM_MODELS = {
   'M14:Corporate Bulk Buy-Back Lot': 'fix.bulk.buyback',
   'M14:Physical Intake Verification': 'fix.tradein.intake.check',
   'M14:Refurbished Unit Return': 'fix.refurb.return',
-  'M14:Parts-Only Routing & Write-off': 'fix.refurb.writeoff'
+  'M14:Parts-Only Routing & Write-off': 'fix.refurb.writeoff',
+  'M14:Refurbished Unit Markdown': 'fix.refurb.markdown'
 };
 
 export const FORM_CHIPS = {
@@ -1185,6 +1276,7 @@ export const FORM_CHIPS = {
   'M14:Physical Intake Verification': 'M14-form-intake-check',
   'M14:Refurbished Unit Return': 'M14-form-return',
   'M14:Parts-Only Routing & Write-off': 'M14-form-writeoff',
+  'M14:Refurbished Unit Markdown': 'M14-form-markdown',
   'M14:__by_model__': {
     'fix.tradein.request': 'M14-form-request',
     'fix.tradein.valuation': 'M14-form-valuation',
@@ -1198,7 +1290,8 @@ export const FORM_CHIPS = {
     'fix.bulk.buyback': 'M14-form-bulk',
     'fix.tradein.intake.check': 'M14-form-intake-check',
     'fix.refurb.return': 'M14-form-return',
-    'fix.refurb.writeoff': 'M14-form-writeoff'
+    'fix.refurb.writeoff': 'M14-form-writeoff',
+    'fix.refurb.markdown': 'M14-form-markdown'
   },
   'M14:__by_screen__': {
     'M14-intake': 'M14-form-request',
@@ -1216,7 +1309,8 @@ export const FORM_CHIPS = {
     'M14-wty': 'M14-form-warranty',
     'M14-intake-check': 'M14-form-intake-check',
     'M14-returns': 'M14-form-return',
-    'M14-writeoff': 'M14-form-writeoff'
+    'M14-writeoff': 'M14-form-writeoff',
+    'M14-markdown': 'M14-form-markdown'
   }
 };
 

@@ -7,4 +7,16 @@
         <field name="model_id" ref="model_fix_tradein_price_grid"/>
         <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
     </record>
+    <!-- A05 ERP remediation (20 Nov 2026): the refurbished-stock ledger and
+         markdowns, company-isolated like every M14 model. -->
+    <record id="rule_fix_refurb_ledger_company" model="ir.rule">
+        <field name="name">fix.refurb.ledger: allowed companies</field>
+        <field name="model_id" ref="model_fix_refurb_ledger"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_refurb_markdown_company" model="ir.rule">
+        <field name="name">fix.refurb.markdown: allowed companies</field>
+        <field name="model_id" ref="model_fix_refurb_markdown"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
 </odoo>

@@ -39,11 +39,30 @@ TRADEIN_STATES = [
     ("refurbished", "Refurbished"),
     ("graded", "Graded"),
     ("resale_ready", "Resale Ready"),
+    # A05 ERP M14-09/21: an approved write-off routes the unit to parts only
+    # (harvest to M15 or hand-off to M18); it is never stocked or resold
+    ("parts_only", "Parts Only (Written Off)"),
     ("closed", "Closed"),
     ("rejected", "Rejected"),
 ]
 _ORDER = [s[0] for s in TRADEIN_STATES]
 _DONE = ("closed", "rejected")
+# D3 (owner 20 Nov 2026): the seller is paid AT PURCHASE, once the offer is
+# accepted, the device received, its intake verified and its provenance
+# cleared. The wipe gate blocks resale, harvest and recycling, not the payout.
+PAYABLE_STATES = (
+    "collected",
+    "wiped",
+    "refurbished",
+    "graded",
+    "resale_ready",
+    "parts_only",
+    "closed",
+)
+# M14-10 / BRU-TRF-09: an offer is revised or declined only before the data
+# wipe and before the unit is stocked.
+REJECTABLE_STATES = ("draft", "offered", "accepted", "collected")
+PARAM_OFFER_VALIDITY_DAYS = "cd_tradein.offer_validity_days"  # 7
 
 # A05 audit M14-7 / E7: a Smart NID is 10 digits, the NID 17 (report §6 E7).
 # The format alone let 0000000000 pay out, so placeholders are refused too.
@@ -69,6 +88,13 @@ PARAM_OFFER_REQUIRES_VALUATION = "cd_tradein.offer_requires_valuation"  # "1"
 PARAM_QA_MIN_PASS_PCT = "cd_tradein.qa_min_pass_pct"  # noqa: S105 - a parameter key, 100
 PARAM_HARVEST_LOCATION = "cd_tradein.harvest_location_id"  # unset: refuse
 PARAM_RESALE_WARRANTY_MONTHS = "cd_tradein.resale_warranty_months"  # 6
+DHAKA = "Asia/Dhaka"
+
+
+def _today(record):
+    """The Bangladesh business day (Odoo runs in UTC)."""
+    return fields.Date.context_today(record.with_context(tz=DHAKA))
+
 
 # ITA 2023 section -> the M51 statutory TDS rate row (fix.tax.rate.code).
 _TDS_RATE_CODE = {"s89": "supply_of_goods", "s90": "service_general"}
@@ -177,13 +203,25 @@ class FixTradeinRequest(models.Model):
             # direct costs: the refurbishment cost comes from the costed steps
             "parts_cost",
             "labour_cost",
+            # A05 ERP remediation (20 Nov 2026)
+            "graded_value",
+            "source",
+            "rental_asset_id",
+            "refurb_cycle",
+            "written_off",
+            "last_returned_at",
+            "spent_wipe_certificate_ids",
+            "offer_valid_until",
+            "offer_lapsed_at",
         }
     )
     # Frozen once the step that relies on them has happened (M14-14 etc.).
+    # M14-23: the operating unit (and its branch) is fixed once the offer is
+    # out: the consignment, the payout, the TDS line and the stock carry it.
     _FROZEN_FROM = {
-        "offered": frozenset({"offered_value", "currency_id"}),
+        "offered": frozenset({"offered_value", "currency_id", "operating_unit_id", "branch_id"}),
         "accepted": frozenset({"customer_id", "acceptance_channel"}),
-        "collected": frozenset({"device_id", "operating_unit_id", "company_id"}),
+        "collected": frozenset({"device_id", "company_id"}),
         "wiped": frozenset({"wipe_certificate_id"}),
         "graded": frozenset({"grade", "refurb_grade_id", "battery_health_pct"}),
         "resale_ready": frozenset({"resale_value", "resale_channel", "marketplace_seller_id"}),
@@ -216,10 +254,62 @@ class FixTradeinRequest(models.Model):
     company_id = fields.Many2one(
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
-    operating_unit_id = fields.Many2one("operating.unit", string="Operating Unit")
+    operating_unit_id = fields.Many2one(
+        "operating.unit",
+        string="Operating Unit",
+        index=True,
+        help="Required at intake and frozen once the offer is out (M14-23): the "
+        "consignment, payout, TDS line, ledger postings and stock all carry it.",
+    )
+    branch_id = fields.Many2one(
+        "fix.branch",
+        string="Intake Branch",
+        index=True,
+        help="The branch the device was taken in at; its operating unit must be the "
+        "trade-in's. Rides every M14 posting as the branch dimension.",
+    )
     name = fields.Char(required=True, copy=False, readonly=True, default=lambda self: "New")
     customer_id = fields.Many2one("res.partner", string="Customer", required=True, index=True)
     device_id = fields.Many2one("fix.device", string="Device", ondelete="set null", index=True)
+    # I1 / M14-19: where the unit came from. A company-owned unit (retired
+    # rental fleet) has no seller and is never paid out.
+    source = fields.Selection(
+        [
+            ("customer", "Customer trade-in"),
+            ("rental_retirement", "Retired rental unit (company-owned)"),
+        ],
+        string="Source",
+        default="customer",
+        required=True,
+        readonly=True,
+    )
+    rental_asset_id = fields.Integer(
+        string="Retired Rental Asset (M13) id", readonly=True, copy=False, index=True
+    )
+    # the refurbishment cycle (a sold unit that comes back starts a new one:
+    # new wipe, steps, QA and grade, M14-05)
+    refurb_cycle = fields.Integer(
+        string="Refurbishment Cycle", default=1, readonly=True, copy=False
+    )
+    written_off = fields.Boolean(string="Written Off", readonly=True, copy=False)
+    last_returned_at = fields.Datetime(string="Last Returned By Buyer", readonly=True, copy=False)
+    spent_wipe_certificate_ids = fields.Many2many(
+        "fix.data.wipe.certificate",
+        "fix_tradein_spent_wipe_cert_rel",
+        "tradein_id",
+        "certificate_id",
+        string="Wipe Certificates of Earlier Sales",
+        readonly=True,
+        copy=False,
+        help="A unit returned by its buyer is wiped again: these certificates no longer pass.",
+    )
+    offer_valid_until = fields.Date(
+        string="Offer Valid Until",
+        readonly=True,
+        copy=False,
+        help="BRU-TRF-08: an offer not accepted by this day lapses (cron).",
+    )
+    offer_lapsed_at = fields.Datetime(readonly=True, copy=False)
     device_model_id = fields.Many2one(
         "fix.device.model", string="Device Model", related="device_id.device_model_id", store=True
     )
@@ -538,12 +628,25 @@ class FixTradeinRequest(models.Model):
     )
 
     # ------------------------------------------------------------------ computes
-    @api.depends("parts_cost", "labour_cost", "refurbishment_ids.total_cost")
+    @api.depends(
+        "parts_cost",
+        "labour_cost",
+        "refurbishment_ids.total_cost",
+        "refurbishment_ids.cost_approved_by_id",
+        "workshop_job_id.parts_total",
+        "workshop_job_id.labour_cost",
+    )
     def _compute_refurb_cost(self):
+        """M14-12 / FIN-16: the M31 job's fitted parts (issued from M15) and
+        clocked labour, plus typed step costs only once approved."""
         for rec in self:
-            steps = sum(rec.refurbishment_ids.mapped("total_cost"))
+            steps = sum(rec.refurbishment_ids.filtered("cost_approved_by_id").mapped("total_cost"))
+            job = rec.workshop_job_id.sudo()
+            bench = (job.parts_total or 0.0) + (job.labour_cost or 0.0) if job else 0.0
             rec.steps_cost = steps
-            rec.refurbishment_cost = (rec.parts_cost or 0.0) + (rec.labour_cost or 0.0) + steps
+            rec.refurbishment_cost = (
+                (rec.parts_cost or 0.0) + (rec.labour_cost or 0.0) + steps + bench
+            )
 
     @api.depends("offered_value", "graded_value", "refurbishment_cost")
     def _compute_inventory_valuation(self):
@@ -551,21 +654,35 @@ class FixTradeinRequest(models.Model):
             acquisition = rec.graded_value or rec.offered_value or 0.0
             rec.inventory_valuation = acquisition + (rec.refurbishment_cost or 0.0)
 
+    def _tds_paid_by_bank(self) -> bool:
+        """M14-22 / FIN-13: a cash settlement is not a bank payment (the M51
+        non-bank default lifts the TDS rate); bank transfer and MFS are."""
+        self.ensure_one()
+        return (self.settlement_method or "mobile_fs") != "cash"
+
     def _tds_multiplier(self):
         self.ensure_one()
         tin = (self.taxpayer_tin or "").strip()
-        defaults = int(not (self.psr_verified and tin)) + int(not tin)
+        defaults = (
+            int(not (self.psr_verified and tin)) + int(not tin) + int(not self._tds_paid_by_bank())
+        )
         return round(1.5**defaults, 3)
 
-    @api.depends("graded_value", "tds_applicable", "tds_rate_pct", "psr_verified", "taxpayer_tin")
+    @api.depends(
+        "graded_value",
+        "tds_applicable",
+        "tds_rate_pct",
+        "psr_verified",
+        "taxpayer_tin",
+        "settlement_method",
+    )
     def _compute_tds(self):
         for rec in self:
             val = rec.graded_value or 0.0
             # ITA 2023 (A08 M51-7): each default lifts the rate by half again,
             # the count fix.withholding.line uses for its statutory floor. No
-            # sighted PSR is one default, no e-TIN another. PSR counts only with
-            # its e-TIN (M14-10): the tick alone cut TDS. M50 always pays by bank
-            # or MFS, so the cash default never applies.
+            # sighted PSR is one default, no e-TIN another, a cash settlement a
+            # third (M14-22). PSR counts only with its e-TIN (M14-10).
             rate = rec.tds_rate_pct or 0.0
             if rec.tds_applicable and rate > 0:
                 rate = round(rate * rec._tds_multiplier(), 4)
@@ -641,6 +758,25 @@ class FixTradeinRequest(models.Model):
                 raise ValidationError("Parts cost cannot be negative")
             if rec.labour_cost < 0:
                 raise ValidationError("Labour cost cannot be negative")
+            # M14-11: the payout never exceeds the offer the customer accepted;
+            # a higher value is a new valuation and a new acceptance.
+            accepted = rec.accepted_offer_value or 0.0
+            if accepted and rec.graded_value > accepted + _EPS:
+                raise ValidationError(
+                    "Trade-in %s: the payout value BDT %.2f is above the accepted offer of "
+                    "BDT %.2f. A higher value is a new valuation the customer accepts."
+                    % (rec.name, rec.graded_value, accepted)
+                )
+
+    @api.constrains("branch_id", "operating_unit_id")
+    def _check_branch_ou(self):
+        for rec in self.filtered("branch_id"):
+            branch_ou = rec.branch_id.sudo().operating_unit_id
+            if branch_ou and rec.operating_unit_id and branch_ou != rec.operating_unit_id:
+                raise ValidationError(
+                    "Branch %s belongs to operating unit %s, not %s."
+                    % (rec.branch_id.name, branch_ou.name, rec.operating_unit_id.name)
+                )
 
     @api.constrains("tds_applicable", "tds_rate_pct", "tds_section")
     def _check_tds_rate(self):
@@ -721,6 +857,16 @@ class FixTradeinRequest(models.Model):
     @api.model_create_multi
     def create(self, vals_list):
         for vals in vals_list:
+            # M14-23: the operating unit is part of the intake (the branch's
+            # OU when a branch is given), never whoever presses a button later
+            if not vals.get("operating_unit_id") and vals.get("branch_id"):
+                branch = self.env["fix.branch"].sudo().browse(vals["branch_id"])
+                vals["operating_unit_id"] = branch.operating_unit_id.id or False
+            if not vals.get("operating_unit_id"):
+                raise UserError(
+                    "A trade-in is taken in at an operating unit: give the intake's operating "
+                    "unit (or branch)."
+                )
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.tradein.request") or "TRD/New"
@@ -792,10 +938,10 @@ class FixTradeinRequest(models.Model):
     # ------------------------------------------------------------------ helpers
     def _operating_unit(self):
         """M03 consignments and M50 payouts are OU-scoped (operating_unit_id
-        is required on both): the request's OU, else the acting user's
-        default OU."""
+        is required on both): the request's own OU, fixed at intake (M14-23),
+        never the acting user's default."""
         self.ensure_one()
-        ou = self.operating_unit_id or self.env.user.default_operating_unit_id
+        ou = self.operating_unit_id
         if not ou:
             raise UserError(
                 "Trade-in %s has no operating unit — logistics and payout are OU-scoped" % self.name
@@ -898,25 +1044,34 @@ class FixTradeinRequest(models.Model):
                 current.name,
                 current.imei,
             )
-        if current.btrc_neir_status != "valid" and not _param_on(
+        # D4 (owner 20 Nov 2026): a provenance officer records the manual NEIR
+        # result with its evidence; the gate passes on 'clear' only (or an
+        # integrated 'valid'). allow_neir_unchecked stays a fail-closed switch.
+        if current.btrc_neir_status not in ("clear", "valid") and not _param_on(
             self.env, PARAM_ALLOW_NEIR_UNCHECKED, "0"
         ):
             return (
-                "the BTRC NEIR status of %s is '%s': no NEIR check has run (the NEIR register "
-                "relaunches 1 January 2027), and trading unchecked devices is not allowed "
-                "(system parameter %s)"
+                "the BTRC NEIR result of %s is '%s': a provenance officer records the NEIR "
+                "result (clear) with its evidence before the device is traded (system "
+                "parameter %s)"
                 % (current.imei, current.btrc_neir_status, PARAM_ALLOW_NEIR_UNCHECKED)
             )
         return ""
 
     # ---- refurbishment / QA ----------------------------------------------------
     def _qa_latest(self):
+        """The latest submitted QA of the CURRENT refurbishment cycle (a
+        returned unit is tested again, M14-05)."""
         self.ensure_one()
         return (
             self.env["fix.refurb.qa"]
             .sudo()
             .search(
-                [("tradein_id", "=", self.id), ("qa_state", "in", ("pass", "fail"))],
+                [
+                    ("tradein_id", "=", self.id),
+                    ("qa_state", "in", ("pass", "fail")),
+                    ("cycle", "=", self.refurb_cycle or 1),
+                ],
                 order="id desc",
                 limit=1,
             )
@@ -924,7 +1079,9 @@ class FixTradeinRequest(models.Model):
 
     def _refurb_denial(self) -> str:
         self.ensure_one()
-        steps = self.sudo().refurbishment_ids
+        steps = self.sudo().refurbishment_ids.filtered(
+            lambda s: (s.cycle or 1) == (self.refurb_cycle or 1)
+        )
         if not steps:
             return "the unit has no refurbishment step plan"
         open_steps = steps.filtered(lambda s: s.state != "done")
@@ -941,11 +1098,18 @@ class FixTradeinRequest(models.Model):
         return ""
 
     def _hold_denial(self) -> str:
+        """M14-32: the gate reads the hold release itself. A hold whose period
+        has run is released here exactly as the cron releases it (never while
+        provenance is flagged)."""
         self.ensure_one()
         if not self.hold_until:
             return "the trade-in hold period has not started (no collection recorded)"
-        if fields.Date.context_today(self) < self.hold_until:
+        if _today(self) < self.hold_until:
             return "the trade-in hold period runs until %s" % self.hold_until
+        if not self.hold_released:
+            if self._provenance_hard_stop():
+                return "the hold is not released while provenance is flagged"
+            self.sudo()._guarded().write({"hold_released": True})
         return ""
 
     # ---- the gate of each state (E4) -------------------------------------------
@@ -956,6 +1120,8 @@ class FixTradeinRequest(models.Model):
         self.ensure_one()
         if target in ("draft", "rejected"):
             return ""
+        if target == "parts_only":
+            return ""  # the approved write-off is the gate (fix.refurb.writeoff)
         stop = self._provenance_hard_stop()
         if stop:
             return stop
@@ -978,9 +1144,27 @@ class FixTradeinRequest(models.Model):
                 return "a unit is stocked on its M37 grade: set the master grade"
             if self.grade == "e":
                 return "a grade E unit is parts only: harvest it, do not resell it"
+            if self.written_off:
+                return "the unit is written off (parts only): it is not stocked or resold"
+            # M14-02 / D3: a unit is stocked on the refurbished-stock ledger only
+            # once it is bought in (the seller's payout) or transferred in
+            if not self._tradein_capitalised():
+                return (
+                    "the unit is not on the refurbished-stock ledger: the seller is paid "
+                    "(it is booked into stock at purchase, D3) before it is stocked for resale"
+                )
             denial = self._hold_denial()
             if denial:
                 return denial
+            # D6: the listing price is approved four-eyes before the unit is stocked
+            if self.listing_price_state != "approved" or (self.listing_price or 0.0) <= 0:
+                return (
+                    "the listing price is not approved: a pricing manager who did not propose "
+                    "it approves it (D6)"
+                )
+            # I4 / BRU-TRF-15: the buyer disclosure exists before the unit is listed
+            if not self.buyer_disclosure_html:
+                return "the buyer disclosure (grade, battery, defects, wipe, provenance) is empty"
         if target == "closed":
             denial = self._provenance_denial()
             if denial:
@@ -1021,7 +1205,18 @@ class FixTradeinRequest(models.Model):
                 )
             if rec.offered_value <= 0:
                 raise UserError("An offer requires a positive valuation")
-            if _param_on(self.env, PARAM_OFFER_REQUIRES_VALUATION, "1"):
+            asset = rec._bulk_asset()
+            lot_priced = bool(asset) and asset.buyback_id.lot_price_basis == "lot"
+            if lot_priced:
+                # M14-17 / FIN-22: a unit of a lot-priced buy-back is offered its
+                # share of the agreed lot price, never a separate price
+                if abs((asset.allocated_price or 0.0) - rec.offered_value) > _EPS:
+                    raise UserError(
+                        "Trade-in %s belongs to lot %s, priced as a lot: its offer is its "
+                        "allocated share of the lot price (Allocate Lot Price)."
+                        % (rec.name, asset.buyback_id.name)
+                    )
+            elif _param_on(self.env, PARAM_OFFER_REQUIRES_VALUATION, "1"):
                 val = rec._offer_valuation()
                 if not val or abs(val.applied_offer - rec.offered_value) > _EPS:
                     raise UserError(
@@ -1029,7 +1224,11 @@ class FixTradeinRequest(models.Model):
                         "price grid (an override is approved by a valuation manager). Run "
                         "the valuation and apply it." % rec.name
                     )
-            rec._tradein_move("offered")
+            days = int(_param_float(self.env, PARAM_OFFER_VALIDITY_DAYS, 7))
+            valid_until = _today(rec) + timedelta(days=max(days, 0))
+            rec._tradein_move(
+                "offered", {"offer_valid_until": valid_until, "offer_lapsed_at": False}
+            )
             publish(
                 self.env,
                 "tradein.offered",
@@ -1037,6 +1236,48 @@ class FixTradeinRequest(models.Model):
                 rec.id,
                 {"customer": rec.customer_id.name, "value": float(rec.offered_value)},
             )
+            # I5 (S2 -> S5, M27 notifications): the offer and its validity
+            publish(
+                self.env,
+                "tradein.offer_issued",
+                "fix.tradein.request",
+                rec.id,
+                {
+                    "tradein_id": rec.id,
+                    "partner_id": rec.customer_id.id,
+                    "amount": float(rec.offered_value),
+                    "valid_until": str(valid_until),
+                },
+            )
+
+    def _bulk_asset(self):
+        """The corporate buy-back lot line this intake was opened for, if any."""
+        self.ensure_one()
+        return (
+            self.env["fix.bulk.buyback.asset"]
+            .sudo()
+            .search([("tradein_id", "=", self.id)], limit=1)
+        )
+
+    @api.model
+    def cron_lapse_offers(self):
+        """BRU-TRF-08 / AUT-TRF-04: an offer not accepted by its validity date
+        lapses back to draft (a new valuation and offer follow)."""
+        today = _today(self)
+        due = self.sudo().search(
+            [
+                ("state", "=", "offered"),
+                ("offer_valid_until", "!=", False),
+                ("offer_valid_until", "<", today),
+            ]
+        )
+        for rec in due:
+            rec._guarded().write({"state": "draft", "offer_lapsed_at": fields.Datetime.now()})
+            rec.message_post(
+                body="The offer of BDT %.2f lapsed unaccepted on %s."
+                % (rec.offered_value, rec.offer_valid_until)
+            )
+        return len(due)
 
     def action_accept(self):
         """The customer accepts the offer: recorded with its channel, who
@@ -1044,6 +1285,11 @@ class FixTradeinRequest(models.Model):
         for rec in self:
             if rec.state != "offered":
                 raise UserError("Accept from offered")
+            if rec.offer_valid_until and _today(rec) > rec.offer_valid_until:
+                raise UserError(
+                    "The offer on %s lapsed on %s: send a new offer (BRU-TRF-08)."
+                    % (rec.name, rec.offer_valid_until)
+                )
             rec._tradein_move(
                 "accepted",
                 {
@@ -1060,15 +1306,32 @@ class FixTradeinRequest(models.Model):
         for rec in self:
             if not (reason or "").strip():
                 raise UserError("State why the trade-in is rejected.")
-            if rec.state in _DONE or rec.payout_execution_id:
+            if rec.state in _DONE or rec.payout_execution_id or rec.paid_at:
                 raise UserError("Trade-in %s is %s and cannot be rejected." % (rec.name, rec.state))
+            # M14-10 / BRU-TRF-09: declined only before the data wipe and before
+            # the unit is stocked; a collected device goes back to its seller
+            if rec.state not in REJECTABLE_STATES:
+                raise UserError(
+                    "Trade-in %s is %s: once the data is wiped the unit is the company's, and "
+                    "it is not rejected (route it to parts only if it cannot be sold)."
+                    % (rec.name, rec.state)
+                )
             if rec.payout_approval_state in ("pending", "approved"):
                 raise UserError(
                     "Trade-in %s has a payout approval %s: recall or reject it first."
                     % (rec.name, rec.payout_approval_state)
                 )
             rec._tradein_move("rejected", {"rejected_reason": reason.strip()})
-            rec.message_post(body="Trade-in rejected: %s" % reason.strip())
+            rec.message_post(
+                body="Trade-in rejected: %s%s"
+                % (
+                    reason.strip(),
+                    " The collected device is returned to the seller through the consignment "
+                    "desk."
+                    if rec.consignment_id
+                    else "",
+                )
+            )
         return True
 
     def action_accept_revision(self):
@@ -1124,8 +1387,7 @@ class FixTradeinRequest(models.Model):
                 "collected",
                 {
                     "consignment_id": consignment.id,
-                    "hold_until": fields.Date.context_today(rec)
-                    + timedelta(days=max(hold_days, 0)),
+                    "hold_until": _today(rec) + timedelta(days=max(hold_days, 0)),
                     "hold_released": False,
                 },
             )
@@ -1181,6 +1443,14 @@ class FixTradeinRequest(models.Model):
             denial = rec._wipe_gate_denial(rec.wipe_certificate_id, rec.device_id)
             if denial:
                 raise UserError("Journey 9 wipe gate: %s" % denial)
+            # M14-05: a unit the buyer returned is wiped again, not on the old
+            # certificate
+            if rec.wipe_certificate_id in rec.sudo().spent_wipe_certificate_ids:
+                raise UserError(
+                    "Journey 9 wipe gate: %s came back from its buyer on %s; certificate %s "
+                    "covered its previous sale. Wipe it again."
+                    % (rec.name, rec.last_returned_at, rec.wipe_certificate_id.name)
+                )
             rec._tradein_move("wiped")
             publish(
                 self.env,
@@ -1230,7 +1500,8 @@ class FixTradeinRequest(models.Model):
             # step plan once per unit so the workspace grid is the real plan,
             # not an empty model beside a workshop job
             steps = self.env["fix.refurbishment"]
-            if not steps.sudo().search_count([("tradein_id", "=", rec.id)]):
+            cycle = rec.refurb_cycle or 1
+            if not steps.sudo().search_count([("tradein_id", "=", rec.id), ("cycle", "=", cycle)]):
                 labels = dict(steps._fields["step"].selection)
                 now = fields.Datetime.now()
                 for step in ("intake", "repair", "cosmetic", "testing", "final_qa"):
@@ -1240,6 +1511,7 @@ class FixTradeinRequest(models.Model):
                             "tradein_id": rec.id,
                             "company_id": rec.company_id.id,
                             "step": step,
+                            "cycle": cycle,
                             "state": "done" if step == "intake" else "pending",
                             "completed_at": now if step == "intake" else False,
                             "completed_by_id": self.env.uid if step == "intake" else False,
@@ -1280,12 +1552,15 @@ class FixTradeinRequest(models.Model):
                 if master_grade:
                     vals["refurb_grade_id"] = master_grade.id
 
-            # Auto-compute resale value if not manually set
+            # D6: the suggested price is a starting point only (the listing price
+            # is approved four-eyes): the valuation's resale estimate, else the
+            # legacy benchmark, at the grade's multiplier
             if not rec.resale_value or rec.resale_value <= 0:
                 grade_id = vals.get("refurb_grade_id") or rec.refurb_grade_id.id
                 master = self.env["fix.refurb.grade"].browse(grade_id) if grade_id else None
                 multiplier = master.price_multiplier if master else 1.0
-                base_benchmark = max(rec.offered_value * 1.6, 1000.0)
+                estimate = rec._offer_valuation().resale_estimate if rec._offer_valuation() else 0.0
+                base_benchmark = estimate or max(rec.offered_value * 1.6, 1000.0)
                 vals["resale_value"] = base_benchmark * multiplier
             if vals:
                 rec.write(vals)
@@ -1304,34 +1579,41 @@ class FixTradeinRequest(models.Model):
             )
 
     def action_resale_ready(self):
-        """The resale seam: M15 graded inventory stock + M12 marketplace listing seam."""
+        """The resale seam: M15 graded stock on the valued ledger + the M12
+        listing. A05 ERP: stocked at the APPROVED listing price (D6), the
+        refurbishment cost absorbed into refurbished stock, a returned unit
+        restocked on its own record (M14-05), the marketplace unit reserved."""
         for rec in self:
             if rec.state != "graded":
                 raise UserError("Resale from graded")
             rec._tradein_assert_gate("resale_ready")
-
-            # Create M15 graded inventory stock entry, capitalised at what the
-            # seller is paid (the graded value), not the offer (M14-15)
-            stock = rec.graded_stock_id
-            if not stock:
-                stock = (
-                    self.env["fix.graded.stock"]
-                    .sudo()
-                    .create(
-                        {
-                            "device_id": rec.device_id.id,
-                            "grade_id": rec.refurb_grade_id.id,
-                            "company_id": rec.company_id.id,
-                            "acquisition_cost": rec.graded_value or rec.offered_value,
-                            "refurbishment_cost": rec.refurbishment_cost,
-                            "resale_price": rec.resale_value,
-                            "state": "in_stock",
-                            # the graded-stock screen shows the origin trade-in
-                            "tradein_id": rec.id,
-                            "tradein_ref": rec.name,
-                        }
-                    )
+            rec._tradein_absorb_refurb()
+            absorbed = sum(
+                rec.sudo().ledger_ids.filtered(lambda r: r.kind == "refurb_cost").mapped("amount")
+            )
+            acquisition = rec.graded_value or rec.accepted_offer_value or rec.offered_value
+            stock_vals = {
+                "device_id": rec.device_id.id,
+                "grade_id": rec.refurb_grade_id.id,
+                "company_id": rec.company_id.id,
+                "operating_unit_id": rec.operating_unit_id.id,
+                "acquisition_cost": acquisition,
+                "refurbishment_cost": absorbed,
+                "resale_price": rec.listing_price,
+                "state": "in_stock",
+                "tradein_id": rec.id,
+                "tradein_ref": rec.name,
+            }
+            stock = rec.graded_stock_id.sudo()
+            if stock and stock.state in ("sold", "scrapped"):
+                raise UserError(
+                    "Stock unit %s of %s is %s: it is not stocked again."
+                    % (stock.name, rec.name, stock.state)
                 )
+            if stock:
+                stock._guarded().write(stock_vals)
+            else:
+                stock = self.env["fix.graded.stock"].sudo()._guarded().create(stock_vals)
             rec._tradein_move("resale_ready", {"graded_stock_id": stock.id})
             rec._tradein_list_on_marketplace()
             publish(
@@ -1341,7 +1623,7 @@ class FixTradeinRequest(models.Model):
                 rec.id,
                 {
                     "grade": rec.grade,
-                    "resale_value": float(rec.resale_value),
+                    "resale_value": float(rec.listing_price),
                     "inventory_valuation": float(rec.inventory_valuation),
                     "graded_stock": rec.graded_stock_id.name if rec.graded_stock_id else "",
                 },
@@ -1349,14 +1631,19 @@ class FixTradeinRequest(models.Model):
 
     def _tradein_list_on_marketplace(self):
         """E10 / M14-17: a marketplace-channel unit is listed through M12's own
-        public path (fix.marketplace.order.action_list_refurb_resale). M12
-        depends on this module, so it is reached only when installed."""
+        public path (fix.marketplace.order.action_list_refurb_resale), which
+        reserves it (M14-15). M12 depends on this module, so it is reached
+        only when installed."""
         self.ensure_one()
-        if self.resale_channel != "marketplace" or self.marketplace_order_id:
+        if self.resale_channel != "marketplace":
             return
         Order = self.env.get("fix.marketplace.order")
         if Order is None:
             return
+        if self.marketplace_order_id:
+            listed = Order.sudo().browse(self.marketplace_order_id).exists()
+            if listed and listed.state not in ("cancelled", "completed", "paid"):
+                return
         try:
             with self.env.cr.savepoint():
                 order = Order.sudo().create(
@@ -1371,18 +1658,19 @@ class FixTradeinRequest(models.Model):
                             self.name,
                         ),
                         "company_id": self.company_id.id,
+                        "operating_unit_id": self.operating_unit_id.id,
                         "tradein_request_id": self.id,
                     }
                 )
                 order.action_list_refurb_resale(
                     self.graded_stock_id,
-                    self.resale_value,
+                    self.listing_price,
                     battery_health=float(self.battery_health_pct or 0),
                     defects="Grade %s refurbished unit; QA %s"
                     % ((self.grade or "").upper(), self._qa_latest().name or ""),
                 )
                 self._guarded().write(
-                    {"marketplace_order_id": order.id, "resale_listed_on": fields.Date.today()}
+                    {"marketplace_order_id": order.id, "resale_listed_on": _today(self)}
                 )
         except Exception as exc:  # the stock is booked; the listing is retried by hand
             _logger.warning("M12 listing of %s failed: %s", self.name, exc)
@@ -1409,25 +1697,76 @@ class FixTradeinRequest(models.Model):
         pairs = super()._approval_resolve(rule, tier)
         return [(u, b) for u, b in pairs if (b or u).has_group(GROUP_PAYOUT_APPROVER)]
 
+    def _tradein_payout_denial(self) -> str:
+        """D3: why the seller may not be paid now, or ''. Paid AT PURCHASE:
+        the offer accepted, the device received, its intake verified and its
+        provenance cleared. The wipe gate is not a payout gate."""
+        self.ensure_one()
+        rec = self.sudo()
+        if rec.source != "customer":
+            return "the unit is company-owned (%s): there is no seller to pay" % rec.source
+        if rec.state not in PAYABLE_STATES:
+            return "the trade-in is %s: the seller is paid once the device is received" % rec.state
+        if rec.paid_at:
+            return "the seller has already been paid"
+        if not rec.accepted_offer_value:
+            return "the customer has not accepted an offer"
+        if rec.graded_value <= 0:
+            return (
+                "the payout value is not set: the physical intake verification confirms the "
+                "device's value"
+            )
+        if rec.graded_value > rec.accepted_offer_value + _EPS:
+            return "the payout value is above the accepted offer (M14-11)"
+        check = rec._intake_check_confirmed()
+        if not check or abs(check.verified_value - rec.graded_value) > _EPS:
+            return (
+                "the intake is not verified at BDT %.2f: confirm a Physical Intake "
+                "Verification of the device as received (D3)" % rec.graded_value
+            )
+        if rec.revision_state == "pending":
+            return "the customer has not accepted the revised value"
+        denial = rec._provenance_denial()
+        if denial:
+            return denial
+        denial = rec._ewaste_incentive_denial()
+        if denial:
+            return denial
+        return ""
+
+    def _ewaste_incentive_denial(self) -> str:
+        """M14-19: an e-waste item whose collection M18 already paid (or
+        approved) an incentive for is not paid for again."""
+        self.ensure_one()
+        if not self.ewaste_collection_id or "fix.ewaste.settlement" not in self.env:
+            return ""
+        paid = (
+            self.env["fix.ewaste.settlement"]
+            .sudo()
+            .search(
+                [
+                    ("kind", "=", "incentive"),
+                    ("collection_id", "=", self.ewaste_collection_id),
+                    ("state", "=", "approved"),
+                ],
+                limit=1,
+            )
+        )
+        if paid:
+            return (
+                "M18 approved incentive %s for e-waste collection %s: the same item is not "
+                "paid twice"
+                % (paid.display_name, self.ewaste_collection_ref or self.ewaste_collection_id)
+            )
+        return ""
+
     def _tradein_check_payout_request(self):
         for rec in self:
-            if rec.state not in ("resale_ready", "graded"):
-                raise UserError("Payout approval from graded or resale-ready")
-            if rec.graded_value <= 0:
-                raise UserError(
-                    "Enter the graded payout value (the device's value as inspected) "
-                    "before requesting payout approval"
-                )
             if rec.payout_approval_state == "approved":
                 raise UserError("Payout for %s is already approved" % rec.name)
-            if rec.revision_state == "pending":
-                raise UserError(
-                    "The graded value BDT %.2f is below the accepted offer: the customer must "
-                    "accept the revised value first." % rec.graded_value
-                )
-            stop = rec._provenance_hard_stop()
-            if stop:
-                raise UserError("Payout blocked: %s" % stop)
+            denial = rec._tradein_payout_denial()
+            if denial:
+                raise UserError("Payout of %s refused: %s." % (rec.name, denial))
 
     def action_request_approval(self, justification=None):
         """Route the payout for approval (M63). Also the P03 button."""
@@ -1453,17 +1792,6 @@ class FixTradeinRequest(models.Model):
                 or "Trade-in payout of BDT %.2f" % (rec.graded_value or 0.0)
             )
         return True
-
-    def _approval_on_rejected(self, comment):
-        """A11 audit P2: an inbox rejection declines the payout — the grader
-        re-grades or lets the request lapse."""
-        for rec in self:
-            if rec.payout_approval_state == "pending":
-                rec.write({"payout_approval_state": "rejected"})
-            rec.message_post(
-                body="Payout approval rejected by %s: %s"
-                % (rec.env.user.name, comment or "no comment recorded")
-            )
 
     def action_approve_payout(self):
         """The routed decision: run from the approver's inbox task only. Four
@@ -1589,8 +1917,36 @@ class FixTradeinRequest(models.Model):
         return True
 
     # --------------------------------------------------------------- the payout
+    def _corporate_seller(self) -> bool:
+        """A company selling its fleet (corporate buy-back): KYC is the
+        company's, by its TIN / trade licence, not a person's NID (M14-17)."""
+        self.ensure_one()
+        return bool(self.customer_id.commercial_partner_id.is_company)
+
+    def _corporate_kyc_denial(self) -> str:
+        self.ensure_one()
+        partner = self.customer_id.commercial_partner_id
+        Doc = self.env.get("fix.identity.document")
+        if Doc is None:
+            return "M33 identity documents are not installed: corporate KYC cannot be checked"
+        verified = Doc.sudo().search_count(
+            [
+                ("partner_id", "in", (partner | self.customer_id).ids),
+                ("document_type", "in", ("tin", "trade_license")),
+                ("verification_status", "=", "verified"),
+            ]
+        )
+        if not verified:
+            return (
+                "corporate seller %s has no verified TIN or trade licence in M33: a company's "
+                "KYC is its BIN/TIN, verified by a data steward" % partner.name
+            )
+        return ""
+
     def _kyc_denial(self) -> str:
         self.ensure_one()
+        if self._corporate_seller():
+            return self._corporate_kyc_denial()
         nid = (self.customer_nid or "").strip()
         if not _NID_RE.match(nid) or nid_placeholder(nid):
             return "customer NID %s is not a valid identity number" % (nid or "(none)")
@@ -1625,10 +1981,11 @@ class FixTradeinRequest(models.Model):
                 )
         return ""
 
-    def _tradein_raise_withholding(self):
-        """E10 / M14-11: the withheld TDS as an M51 register line (state
-        withheld), which finance deposits by challan and certifies. Created
-        through the register's service path (sudo); idempotent per trade-in."""
+    def _tradein_raise_withholding(self, move):
+        """E10 / M14-03 / FIN-03: the withheld TDS as an M51 register line,
+        recorded against the POSTED purchase entry that credits the TDS
+        payable (_fix_record_deductions), so no deduction exists without its
+        GL liability. Idempotent per trade-in."""
         self.ensure_one()
         if not (self.tds_applicable and self.tds_amount > _EPS):
             return self.env["fix.withholding.line"]
@@ -1645,38 +2002,46 @@ class FixTradeinRequest(models.Model):
         Line = self.env["fix.withholding.line"].sudo()
         line = Line.search([("source_ref", "=", self.name), ("tax_kind", "=", "tds")], limit=1)
         if not line:
-            line = Line.create(
-                {
-                    "company_id": self.company_id.id,
-                    "operating_unit_id": self._operating_unit().id,
-                    "tax_kind": "tds",
-                    "partner_id": self.customer_id.id,
-                    "partner_tin": tin or False,
-                    "rate_id": rate_row.id,
-                    "document_date": fields.Date.context_today(self),
-                    "currency_id": self.currency_id.id,
-                    "base_amount": self.graded_value,
-                    "rate": self.tds_rate_pct,
-                    "multiplier": self._tds_multiplier(),
-                    "amount": self.tds_amount,
-                    "psr_received": bool(self.psr_verified and tin),
-                    "paid_by_bank": True,  # M50 pays by bank / MFS, never cash
-                    "source_ref": self.name,
-                }
+            line = Line._fix_record_deductions(
+                [
+                    {
+                        "company_id": self.company_id.id,
+                        "operating_unit_id": self._operating_unit().id,
+                        "tax_kind": "tds",
+                        "partner_id": self.customer_id.id,
+                        "partner_tin": tin or False,
+                        "rate_id": rate_row.id,
+                        "document_date": _today(self),
+                        "currency_id": self.currency_id.id,
+                        "base_amount": self.graded_value,
+                        "rate": self.tds_rate_pct,
+                        "multiplier": self._tds_multiplier(),
+                        "amount": self.tds_amount,
+                        "psr_received": bool(self.psr_verified and tin),
+                        # M14-22: a cash settlement is not a bank payment
+                        "paid_by_bank": self._tds_paid_by_bank(),
+                        "source_ref": self.name,
+                        "source_model": self._name,
+                    }
+                ],
+                move,
             )
         return line
 
     def action_pay(self):
-        """Trade-in payout through M50 treasury: the APPROVED graded value,
-        never the pre-inspection offer regardless of grade. Statutory gates
-        before a taka leaves: identified seller (NID), BTRC NEIR clearance,
-        TDS registered where withholding applies, and DOFA authority
-        covering the amount."""
+        """D3: the seller is paid AT PURCHASE, the APPROVED payout value
+        (capped at the accepted offer). Statutory gates before a taka leaves:
+        identified seller (NID, or a company's verified TIN), provenance and
+        NEIR cleared, DOFA authority covering the amount. The device is booked
+        into refurbished stock (Dr stock gross / Cr seller payable net / Cr TDS
+        payable), the TDS recorded on that entry, and treasury asked to pay the
+        net, clearing the seller payable when the money leaves."""
+        from .fix_tradein_ledger import tradein_account
+
         for rec in self:
-            if rec.state not in ("resale_ready", "graded"):
-                raise UserError("Payout from graded or resale-ready")
-            if rec.graded_value <= 0:
-                raise UserError("Payout needs the graded payout value")
+            denial = rec._tradein_payout_denial()
+            if denial:
+                raise UserError("Payout of %s refused: %s." % (rec.name, denial))
             if rec.payout_approval_state != "approved":
                 raise UserError(
                     "Payout for %s is '%s': it must be approved before it is paid"
@@ -1709,40 +2074,28 @@ class FixTradeinRequest(models.Model):
                 )
             # Identified seller (AML / ITA 2023): an anonymous payout is a
             # laundering vector, not a customer-convenience feature.
-            if not (rec.customer_nid or "").strip():
+            if not rec._corporate_seller() and not (rec.customer_nid or "").strip():
                 raise UserError(
                     "Payout blocked: customer Smart NID is required before any "
                     "trade-in money leaves (AML identification)"
                 )
-            if rec.revision_state == "pending":
-                raise UserError("Payout blocked: the customer has not accepted the revised value.")
             denial = rec._kyc_denial()
-            if denial:
-                raise UserError("Payout blocked: %s." % denial)
-            # BTRC provenance: a current cleared screen, and no hit on ANY row
-            # (a newer clean row no longer masks a stolen one), plus the wipe.
-            denial = rec._tradein_gate_denial("closed")
             if denial:
                 raise UserError("Payout blocked: %s." % denial)
             # DOFA: the payout amount decides the tier that must sign it off.
             rec._dofa_assert_approved("A trade-in payout")
 
-            # Queue the payout with M50 treasury. Only treasury releases it and
-            # marks it executed on bank/MFS evidence; trade-in never asserts
-            # the money left. Created with sudo after the approval checks
-            # above: a branch user requests a payout without treasury rights.
-            # The seller receives the NET (graded value − TDS): the withheld
-            # tax is registered with M51 (fix.withholding.line) for NBR
-            # remittance, never bundled into the seller's payout.
             net_to_seller = rec.net_payout if rec.tds_applicable else rec.graded_value
-            withholding = rec._tradein_raise_withholding()
+            # D3: book the device into refurbished stock at cost, the payable
+            # and the TDS (idempotent on the ledger key)
+            purchase = rec._tradein_post_acquisition()
+            withholding = rec._tradein_raise_withholding(purchase.move_id)
+            payable = tradein_account(self.env, rec.company_id, "seller_payable")
             payment = rec.payout_execution_id
             if not payment:
-                # A05 E10 / A08 hand-off: THE treasury request, pinned to the
-                # approved payee, net and currency and to the approver, so
-                # treasury cannot re-point or resize what the payout approval
-                # covered; idempotent on this trade-in. A wallet payout still
-                # needs a two-person-confirmed wallet row before release (M50).
+                # THE treasury request, pinned to the approved payee, net and
+                # currency and to the approver; treasury debits the seller
+                # payable it clears (FIN-02), on the trade-in's OU.
                 payment = (
                     self.env["fix.payment.execution"]
                     .sudo()
@@ -1750,8 +2103,6 @@ class FixTradeinRequest(models.Model):
                         "fix.tradein.request",
                         rec.id,
                         rec.customer_id,
-                        # FR-TRF-007 (M14 capture pass 2): the settlement
-                        # method chosen on the trade-in, pinned by the approval
                         rec.settlement_bank_account_id
                         if rec.settlement_method == "bank_transfer"
                         else False,
@@ -1760,31 +2111,40 @@ class FixTradeinRequest(models.Model):
                         rec.name,
                         rec.payout_approved_by_id,
                         operating_unit_id=rec._operating_unit().id,
+                        # I3 (S6 wiring): the confirmation posts on the
+                        # trade-in's own branch, not the unit only
+                        branch_id=rec.branch_id.id or False,
                         payee=rec.customer_id.name,
                         method=rec.settlement_method or "mobile_fs",
+                        debit_account_id=payable.id,
                     )
                 )
-            # M14-15: the stock is capitalised at what the seller is paid
-            # (the graded value, TDS included), not the offer.
+            # the unit's stock record carries what the seller was paid
             stock = rec.graded_stock_id.sudo()
             if stock and abs(stock.acquisition_cost - rec.graded_value) > _EPS:
-                stock.write({"acquisition_cost": rec.graded_value})
-
+                stock._guarded().write({"acquisition_cost": rec.graded_value})
             rec._guarded().write(
                 {
-                    "state": "closed",
                     "payout_amount": net_to_seller,
                     "payout_execution_id": payment.id,
                     "withholding_line_id": withholding.id or False,
                     "paid_at": fields.Datetime.now(),
                 }
             )
+            # a unit already written off before its seller was paid: the cost
+            # just booked goes straight to the write-off (M14-21)
+            if rec.written_off:
+                rec._tradein_writeoff_carrying("payout of a written-off unit")
             publish(
                 self.env,
                 "tradein.paid",
                 "fix.tradein.request",
                 rec.id,
                 {
+                    # I5 (S2 -> S5): who is paid what, for which trade-in
+                    "tradein_id": rec.id,
+                    "partner_id": rec.customer_id.id,
+                    "amount": float(rec.payout_amount),
                     "payout": float(rec.payout_amount),
                     # the treasury instruction's reference (PEX/...)
                     "payment_ref": rec.payout_execution_id.display_name
@@ -1900,17 +2260,27 @@ class FixTradeinRequest(models.Model):
         if not rec:
             return {"created": False, "reason": "not a trade-in unit"}
         Warranty = self.env["fix.tradein.warranty"].sudo()
-        existing = Warranty.search([("graded_stock_ref", "=", stock.name)], limit=1)
+        # M14-07: one warranty per SALE (a unit returned and resold is covered
+        # again), keyed on the unit and the sale number
+        sale_no = rec.sale_count or 1
+        existing = Warranty.search(
+            [("graded_stock_ref", "=", stock.name), ("sale_no", "=", sale_no)], limit=1
+        )
         if existing:
             return {"model": existing._name, "id": existing.id, "created": False}
-        months = int(_param_float(self.env, PARAM_RESALE_WARRANTY_MONTHS, 6)) or 6
-        start = fields.Date.context_today(self)
+        months = rec._warranty_months()
+        start = (
+            fields.Date.context_today(rec.with_context(tz=DHAKA), timestamp=stock.sold_at)
+            if stock.sold_at
+            else _today(rec)
+        )
         warranty = Warranty._guarded().create(
             {
                 "tradein_id": rec.id,
                 "company_id": rec.company_id.id,
                 "months": months,
                 "start_date": start,
+                "sale_no": sale_no,
                 "graded_stock_ref": stock.name,
                 "terms": "Refurbished grade %s unit %s, %d months' cover from the resale."
                 % ((rec.grade or "").upper(), stock.name, months),
@@ -2000,6 +2370,22 @@ class FixRefurbishment(models.Model):
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )
+    # A05 ERP M14-12 / FIN-16: parts are issued from M15 and labour clocked on
+    # the M31 job; a typed step cost counts only once a refurbishment
+    # supervisor who did not do or type it approves it.
+    cost_approved_by_id = fields.Many2one(
+        "res.users", string="Typed Cost Approved By", readonly=True, copy=False
+    )
+    cost_approved_at = fields.Datetime(readonly=True, copy=False)
+    cost_typed_by_id = fields.Many2one(
+        "res.users", string="Cost Typed By", readonly=True, copy=False
+    )
+    cycle = fields.Integer(
+        string="Refurbishment Cycle",
+        readonly=True,
+        default=1,
+        help="The cycle of the unit this step belongs to (a returned unit is refurbished again).",
+    )
 
     _costs_positive = models.Constraint(
         "CHECK (parts_cost >= 0 AND labor_cost >= 0)", "Step costs cannot be negative"
@@ -2011,6 +2397,10 @@ class FixRefurbishment(models.Model):
             "started_at",
             "completed_at",
             "completed_by_id",
+            "cost_approved_by_id",
+            "cost_approved_at",
+            "cost_typed_by_id",
+            "cycle",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -2044,7 +2434,16 @@ class FixRefurbishment(models.Model):
                         "Trade-in %s is %s: its refurbishment plan and costs are closed."
                         % (rec.name, rec.state)
                     )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        for rec, vals in zip(records, vals_list, strict=True):
+            stamp = {}
+            if rec.tradein_id and not vals.get("cycle"):
+                stamp["cycle"] = rec.tradein_id.sudo().refurb_cycle or 1
+            if vals.get("parts_cost") or vals.get("labor_cost"):
+                stamp["cost_typed_by_id"] = self.env.uid
+            if stamp:
+                rec.sudo()._guarded().write(stamp)
+        return records
 
     def write(self, vals):
         if self and not self._fix_guard_open():
@@ -2064,7 +2463,52 @@ class FixRefurbishment(models.Model):
                                 ", ".join(sorted(self._fields[n].string or n for n in names)),
                             )
                         )
-        return super().write(vals)
+        typed = {"parts_cost", "labor_cost"} & set(vals)
+        changed = (
+            self.filtered(lambda r: any(r._fix_guard_differs(n, vals[n], r[n]) for n in typed))
+            if typed
+            else self.browse()
+        )
+        result = super().write(vals)
+        # a typed cost changed: who typed it is recorded and an approval voided
+        if changed:
+            changed.sudo()._guarded().write(
+                {
+                    "cost_typed_by_id": self.env.uid,
+                    "cost_approved_by_id": False,
+                    "cost_approved_at": False,
+                }
+            )
+        return result
+
+    def action_approve_cost(self):
+        """M14-12: a typed step cost (no M15 issue / M31 clock behind it)
+        counts in the unit's cost only once a refurbishment supervisor who
+        neither typed nor did the work approves it."""
+        if not (self.env.su or self.env.user.has_group("cd_tradein.group_refurb_supervisor")):
+            raise AccessError(
+                "Approving a typed refurbishment cost needs the Refurbishment Supervisor role."
+            )
+        for rec in self:
+            if rec.state != "done":
+                raise UserError(
+                    "Step %s is %s: its cost is approved once it is done." % (rec.name, rec.state)
+                )
+            if rec.total_cost <= 0:
+                raise UserError("Step %s has no typed cost to approve." % rec.name)
+            if rec._tradein_closed():
+                raise UserError("Step %s: its trade-in's cost basis is closed." % rec.name)
+            if not self.env.su and self.env.user in (
+                rec.cost_typed_by_id | rec.completed_by_id | rec.create_uid
+            ):
+                raise UserError(
+                    "Segregation of duties: a typed step cost is approved by a supervisor who "
+                    "did not type it or do the work."
+                )
+            rec._guarded().write(
+                {"cost_approved_by_id": self.env.uid, "cost_approved_at": fields.Datetime.now()}
+            )
+        return True
 
     def unlink(self):
         if not self.env.su and any(s.state != "pending" or s._tradein_closed() for s in self):

@@ -23,10 +23,13 @@ from odoo.addons.cd_tradein.tests.test_a05_m14_controls import (  # noqa: F401 -
     certify,
     finish_steps,
     graded,
+    intake_at_offer,
     intake_verified,
     m,
     p03_action,
     p03_write,
+    paying,
+    priced,
     qa,
     refurbishing,
     refused,
@@ -55,6 +58,7 @@ def test_intake_captures_channel_declaration_and_accessories_from_the_form(m):
         None,
         {
             "customer_id": partner.id,
+            "operating_unit_id": m.ou.id,
             "intake_channel": "portal",
             "declared_condition": "good",
             "declared_faults": "Face ID intermittent",
@@ -95,6 +99,7 @@ def test_a_corporate_lot_opens_corporate_channel_intakes(m):
         .create(
             {
                 "partner_id": client.id,
+                "operating_unit_id": m.ou.id,
                 "asset_ids": [(0, 0, {"serial_number": "A05M14-FLEET-1"})],
             }
         )
@@ -105,8 +110,8 @@ def test_a_corporate_lot_opens_corporate_channel_intakes(m):
 
 # ======================================================== p1 BRU-TRF-09 intake verification
 def test_a_lower_value_is_refused_without_a_verified_photographed_difference(m):
-    rec = resale(m, request(m, declared_condition="good"))
-    refused(lambda: rec.write({"graded_value": 15000}), "BRU-TRF-09")
+    rec = paying(m, request(m, declared_condition="good"))
+    refused(lambda: rec.write({"graded_value": 15000}), GUARD)
     res = p03_write(m, TRD, rec.id, {"graded_value": 15000})
     assert res.get("error"), res
     Check = m.env[TIC].with_user(m.clerk2)
@@ -156,7 +161,7 @@ def test_the_unit_received_must_be_the_one_offered(m):
 
 
 def test_no_intake_check_once_a_payout_is_in_approval(m):
-    rec = resale(m)
+    rec = paying(m)
     approved(m, rec)
     refused(
         lambda: m.env[TIC]
@@ -204,8 +209,9 @@ def test_an_offer_is_built_from_its_economics(m):
 
 # ======================================================== p4 settlement method
 def test_settlement_method_is_pinned_and_reaches_treasury(m):
-    rec = resale(m)
-    rec.write({"graded_value": 20000, "settlement_method": "bank_transfer"})
+    rec = paying(m)
+    intake_at_offer(m, rec)
+    rec.write({"settlement_method": "bank_transfer"})
     refused(rec.action_request_payout_approval, "bank account")
     stranger = m.env["res.partner"].create({"name": "A05 M14 Stranger"})
     Bank = m.env["res.partner.bank"].sudo()
@@ -238,7 +244,7 @@ def test_a_step_after_a_failed_qa_is_rework_with_its_cause_and_cost(m):
     with pytest.raises(UserError, match=GUARD), m.env.cr.savepoint():
         step.write({"is_rework": False})
     assert rec.rework_cost == 400
-    assert rec.first_pass_cost == rec.steps_cost - 400
+    assert rec.first_pass_cost == sum(rec.refurbishment_ids.mapped("total_cost")) - 400
 
 
 def test_activation_lock_removal_needs_proof_of_ownership(m):
@@ -253,24 +259,28 @@ def test_activation_lock_removal_needs_proof_of_ownership(m):
 
 
 # ======================================================== p8 computed grade + override
-def _qa_ready(x):
+def _qa_ready(x, battery=100):
     rec = refurbishing(x)
     finish_steps(x, rec)
-    qa(x, rec)
+    qa(x, rec, battery=battery)  # A05 ERP M14-14: the battery is the QA's
     return rec
 
 
 def test_the_grade_is_computed_from_the_axes_and_the_battery(m):
-    rec = _qa_ready(m)
+    rec = _qa_ready(m, battery=78)
     Grade = m.env["fix.tradein.grade"].with_user(m.clerk)
-    row = Grade.create({"tradein_id": rec.id, "screen_grade": "b", "battery_health_pct": 78})
+    refused(
+        lambda: Grade.create({"tradein_id": rec.id, "screen_grade": "b", "battery_health_pct": 90}),
+        "measurement",
+    )
+    row = Grade.create({"tradein_id": rec.id, "screen_grade": "b"})
     # worst axis B; 78% is below B's 80% minimum, above C's 75%: C
     assert row.computed_grade == "c" and row.grade == "c" and not row.is_override
     assert row.qa_id and row.battery_minimum_pct == 75
     # BRU-TRF-14: no override lifts a battery below the grade minimum
     refused(
         lambda: Grade.with_user(m.supervisor).create(
-            {"tradein_id": rec.id, "grade": "a", "override_reason": "x", "battery_health_pct": 78}
+            {"tradein_id": rec.id, "grade": "a", "override_reason": "x"}
         ),
         "BRU-TRF-14",
     )
@@ -279,7 +289,7 @@ def test_the_grade_is_computed_from_the_axes_and_the_battery(m):
 def test_a_grade_override_is_justified_by_a_supervisor_who_did_not_run_the_qa(m):
     rec = _qa_ready(m)
     Grade = m.env["fix.tradein.grade"]
-    vals = {"tradein_id": rec.id, "cosmetic_grade": "c", "grade": "b", "battery_health_pct": 95}
+    vals = {"tradein_id": rec.id, "cosmetic_grade": "c", "grade": "b"}
     refused(lambda: Grade.with_user(m.supervisor).create(dict(vals)), "justification")
     vals["override_reason"] = "Scuff is on the removable case only"
     refused(lambda: Grade.with_user(m.clerk).create(dict(vals)), "Refurbishment Supervisor")
@@ -337,7 +347,11 @@ def test_qa_totals_come_from_the_recorded_tests(m):
 
 # ======================================================== p9 NEIR at listing + returns
 def test_listing_a_handset_re_confirms_its_neir_screen(m):
-    rec = graded(m)
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()  # A05 ERP D3: on the ledger before it is listed
+    graded(m, rec)
+    priced(m, rec)
     prov = rec.provenance_ids
     prov.sudo().write({"checked_on": fields.Date.today() - timedelta(days=40)})
     refused(rec.action_resale_ready, "NEIR")
@@ -347,7 +361,12 @@ def test_listing_a_handset_re_confirms_its_neir_screen(m):
 
 
 def _sold(x):
-    rec = resale(x)
+    # A05 ERP D3: the seller is paid at purchase; the sale then takes the unit
+    # off the refurbished-stock ledger
+    rec = paying(x)
+    approved(x, rec)
+    rec.action_pay()
+    resale(x, rec)
     stock = rec.graded_stock_id
     stock.sudo().action_sell()
     x.env[TRD].sudo().consume_graded_stock_sold(
@@ -409,11 +428,11 @@ def test_parts_only_routing_needs_two_signatures_before_any_harvest(m):
         .with_user(m.clerk)
         .create({"tradein_id": unit.id, "component": "battery", "target": "recycle"})
     )
-    refused(line.action_harvest, "parts-only routing")
+    refused(line.action_harvest, "parts only")
     row = (
         m.env[RWO]
         .with_user(m.clerk)
-        .create({"tradein_id": unit.id, "cause": "qa_failed", "destination": "harvest"})
+        .create({"tradein_id": unit.id, "cause": "qa_failed", "destination": "recycle"})
     )
     refused(row.action_request, "Refurbishment Supervisor")
     row = row.with_user(m.supervisor)
@@ -422,13 +441,15 @@ def test_parts_only_routing_needs_two_signatures_before_any_harvest(m):
     res = p03_action(m, RWO, row, "action_request", user=m.supervisor)
     assert res["success"], res
     assert row.state == "pending" and row.accumulated_cost == unit.inventory_valuation
-    refused(lambda: row.write({"destination": "recycle"}), "can no longer change")
+    refused(lambda: row.write({"destination": "harvest"}), "can no longer change")
     m.supervisor.write({"group_ids": [(4, m.env.ref(GROUP_WO).id)]})
     refused(row.action_approve, "Segregation")
     refused(lambda: row.with_user(m.clerk).action_approve(), "Write-off Approver")
     res = p03_action(m, RWO, row, "action_approve", user=m.woapprover)
     assert res["success"], res
     assert row.state == "approved" and row.approved_by_id == m.woapprover
+    # A05 ERP M14-09: the approval routes the unit to parts only
+    assert unit.state == "parts_only" and unit.written_off
     # the routing gate is passed: a recycle line needs no receiving bin
     line.action_harvest()
     assert line.state == "harvested"

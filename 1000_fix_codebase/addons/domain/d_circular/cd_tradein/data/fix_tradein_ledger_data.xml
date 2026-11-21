@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A05 ERP remediation of M14 (20 Nov 2026): the pricing role, the policy
+     values the owner decided (D6/D7, BRU-TRF-08), the jobs and the I1
+     consumer. The GL account codes are NOT shipped here: each is system
+     parameter cd_tradein.account_code.<role>, set by the deploy data, and the
+     posting refuses while it is unset (D1). -->
+<odoo>
+    <data noupdate="1">
+
+        <!-- D6: the listing price and any markdown are approved by a pricing
+             manager who did not propose them. Ships EMPTY (a business
+             appointment). -->
+        <record id="group_refurb_pricing_manager" model="res.groups">
+            <field name="name">Refurbished Pricing Manager</field>
+            <field name="privilege_id" ref="privilege_tradein"/>
+            <field name="comment">Approves the listing price of a refurbished unit and any markdown below it, never one they proposed or entered; never below landed cost without an approved markdown (A05 owner decision D6).</field>
+        </record>
+
+        <!-- BRU-TRF-08: an offer not accepted within this many days lapses. -->
+        <record id="param_offer_validity_days" model="ir.config_parameter">
+            <field name="key">cd_tradein.offer_validity_days</field>
+            <field name="value">7</field>
+        </record>
+        <!-- D7 / D11: the resale warranty provision, % of the ex-VAT sale
+             price by grade: A 2, B 3, C 5, D 7 (owner, 21 Nov). -->
+        <record id="param_warranty_provision_pct_a" model="ir.config_parameter">
+            <field name="key">cd_tradein.warranty_provision_pct.a</field>
+            <field name="value">2</field>
+        </record>
+        <record id="param_warranty_provision_pct_b" model="ir.config_parameter">
+            <field name="key">cd_tradein.warranty_provision_pct.b</field>
+            <field name="value">3</field>
+        </record>
+        <record id="param_warranty_provision_pct_c" model="ir.config_parameter">
+            <field name="key">cd_tradein.warranty_provision_pct.c</field>
+            <field name="value">5</field>
+        </record>
+        <record id="param_warranty_provision_pct_d" model="ir.config_parameter">
+            <field name="key">cd_tradein.warranty_provision_pct.d</field>
+            <field name="value">7</field>
+        </record>
+
+        <record id="seq_fix_refurb_markdown" model="ir.sequence">
+            <field name="name">Refurbished Unit Markdown</field>
+            <field name="code">fix.refurb.markdown</field>
+            <field name="prefix">RMD/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+
+        <record id="ir_cron_tradein_lapse_offers" model="ir.cron">
+            <field name="name">M14: lapse trade-in offers past their validity</field>
+            <field name="model_id" ref="model_fix_tradein_request"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_lapse_offers()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_refurb_warranty_expiry" model="ir.cron">
+            <field name="name">M14: expire refurbished warranties and release their provision</field>
+            <field name="model_id" ref="model_fix_tradein_request"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_refurb_warranty_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="ir_cron_refurb_nrv_review" model="ir.cron">
+            <field name="name">M14: flag listed units whose price no longer covers their cost (NRV)</field>
+            <field name="model_id" ref="model_fix_tradein_request"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_refurb_nrv_review()</field>
+            <field name="interval_number">7</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <!-- I1 (S1 -> S2): a retired rental unit routed to resale becomes a
+             company-owned intake (no seller payout). -->
+        <record id="consumer_rental_asset_retired_intake" model="fix.event.consumer">
+            <field name="name">M14: company-owned intake of a retired rental unit routed to resale</field>
+            <field name="event_type">rental.asset_retired</field>
+            <field name="model">fix.tradein.request</field>
+            <field name="method">consume_rental_asset_retired</field>
+            <field name="module">cd_tradein</field>
+        </record>
+
+    </data>
+</odoo>

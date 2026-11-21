@@ -396,12 +396,22 @@ class FixStorefrontRefundMixin(models.AbstractModel):
         return True
 
     def _sf_restock_graded_stock(self, condition):
-        """A graded device that comes back goes back into the refurb stock it
-        was sold from (grade A/B) or is scrapped."""
+        """A05 ERP audit M14-05: a refurbished device that comes back is never
+        put straight back on the shelf (it was restocked with no new wipe or
+        QA). It is received back and HELD; M14 raises its refurbished return,
+        closes the first warranty, and the unit is re-wiped, re-tested and
+        re-graded before it is stocked again, whatever the inspection says. A
+        unit that was never sold (still reserved) is simply released."""
         self.ensure_one()
         stock = self.order_id.sudo().line_ids.mapped("graded_stock_id")
-        for item in stock.filtered(lambda s: s.state in ("reserved", "sold")):
-            item.write({"state": "scrapped" if condition == "scrap" else "in_stock"})
+        labels = dict(INSPECTION_GRADES)
+        for item in stock.filtered(lambda s: s.state == "reserved"):
+            item.action_release()
+        for item in stock.filtered(lambda s: s.state == "sold"):
+            item.action_receive_return(
+                reason="storefront return %s, inspected as %s"
+                % (self._sf_label(), labels.get(condition, condition))
+            )
 
     def action_approve_refund(self):
         """Approve the refund, from the approver's M63 inbox only. The approver

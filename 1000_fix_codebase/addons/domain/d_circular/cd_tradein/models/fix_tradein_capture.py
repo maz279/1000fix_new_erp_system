@@ -29,9 +29,12 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from .fix_tradein import _EPS, FixRefurbishment, FixTradeinRequest, _param_float
-from .fix_tradein_ops import FixTradeinValuation, _assert_role
+from .fix_tradein_ops import FixTradeinValuation, _assert_amount_tier, _assert_role
 
 GROUP_REFURB_SUPERVISOR = "cd_tradein.group_refurb_supervisor"
+# M14-09: a unit that cannot be sold is routed to parts only from intake
+# (collected / wiped), refurbishment (a failed QA included) or grading
+ROUTABLE_STATES = ("collected", "wiped", "refurbished", "graded")
 GROUP_WRITEOFF_APPROVER = "cd_tradein.group_refurb_writeoff_approver"
 PARAM_MARGIN_FLOOR_PCT = "cd_tradein.offer_margin_floor_pct"  # 15
 PARAM_RETURN_WINDOW_DAYS = "cd_tradein.return_window_days"  # 7
@@ -176,25 +179,9 @@ class FixTradeinRequestCapture(models.Model):
             )
         )
 
-    def write(self, vals):
-        if "graded_value" in vals and self and not self._fix_guard_open():
-            new = vals["graded_value"] or 0.0
-            for rec in self:
-                if not rec._fix_guard_differs("graded_value", new, rec.graded_value):
-                    continue
-                accepted = rec.accepted_offer_value or rec.offered_value or 0.0
-                if rec.state in ("draft", "offered") or not accepted or new >= accepted - _EPS:
-                    continue
-                check = rec._intake_check_confirmed()
-                if not check or abs(check.verified_value - new) > _EPS:
-                    raise UserError(
-                        "Trade-in %s: BDT %.2f is below the accepted offer of BDT %.2f. An offer "
-                        "is revised only where the verified condition differs from the "
-                        "declaration, with photographic evidence (BRU-TRF-09): record and "
-                        "confirm a Physical Intake Verification at that value."
-                        % (rec.name, new, accepted)
-                    )
-        return super().write(vals)
+    # A05 ERP M14-11: graded_value is guarded (set by the confirmed intake
+    # verification, which carries the BRU-TRF-09 evidence rules), so the
+    # former direct-write check here is gone: nobody types it.
 
     # ---- p4: the method and account are part of what the approval covers
     def _tradein_payout_terms(self):
@@ -236,12 +223,124 @@ class FixTradeinRequestCapture(models.Model):
 
     # ---- p8 / p9 gates
     def _grade_certificate(self):
+        """The latest grading certificate of the CURRENT refurbishment cycle."""
         self.ensure_one()
         return (
             self.env["fix.tradein.grade"]
             .sudo()
-            .search([("tradein_id", "=", self.id)], order="id desc", limit=1)
+            .search(
+                [("tradein_id", "=", self.id), ("cycle", "=", self.refurb_cycle or 1)],
+                order="id desc",
+                limit=1,
+            )
         )
+
+    # ---- M14-09/21: the write-off of a parts-only unit
+    def _tradein_writeoff_carrying(self, why, amount=None):
+        """Dr write-off (500905) / Cr refurbished stock for what the ledger
+        still carries (or `amount` of it); idempotent per reason."""
+        from .fix_tradein_ledger import tradein_account
+
+        self.ensure_one()
+        rec = self.sudo()
+        carrying = rec._ledger_carrying()
+        value = round(carrying if amount is None else min(amount, carrying), 2)
+        if value <= _EPS:
+            return self.env["fix.refurb.ledger"]
+        n = len(rec.ledger_ids.filtered(lambda r: r.kind == "writeoff")) + 1
+        lines = [
+            (
+                tradein_account(self.env, rec.company_id, "writeoff"),
+                "Trade-in %s: written off (%s)" % (rec.name, why),
+                value,
+                0.0,
+                None,
+            ),
+            (
+                tradein_account(self.env, rec.company_id, "refurb_stock"),
+                "Trade-in %s: out of refurbished stock" % rec.name,
+                0.0,
+                value,
+                None,
+            ),
+        ]
+        return rec._ledger_post(
+            "writeoff", "writeoff:%d" % n, value, -value, lines, "write-off: %s" % why
+        )
+
+    def _tradein_parts_only_route(self):
+        self.ensure_one()
+        return (
+            self.env["fix.refurb.writeoff"]
+            .sudo()
+            .search(
+                [("tradein_id", "=", self.id), ("state", "=", "approved")], order="id desc", limit=1
+            )
+        )
+
+    def action_route_to_recycle(self):
+        """A parts-only unit routed to recycling goes to M18 whole: a recycle
+        harvest line (M18 opens its collection from tradein.harvested), the
+        wipe gate and hold re-checked; what is left of its cost is written
+        off and the trade-in closes."""
+        for rec in self:
+            route = rec._tradein_parts_only_route()
+            if rec.state != "parts_only" or not route or route.destination != "recycle":
+                raise UserError(
+                    "Trade-in %s is not a parts-only unit routed to recycling." % rec.name
+                )
+            harvest = (
+                self.env["fix.tradein.harvest"]
+                .sudo()
+                .search(
+                    [
+                        ("tradein_id", "=", rec.id),
+                        ("target", "=", "recycle"),
+                        ("component", "=", "other"),
+                    ],
+                    limit=1,
+                )
+            )
+            if not harvest:
+                harvest = (
+                    self.env["fix.tradein.harvest"]
+                    .sudo()
+                    .create(
+                        {
+                            "tradein_id": rec.id,
+                            "company_id": rec.company_id.id,
+                            "component": "other",
+                            "part_name": "Whole unit for recycling",
+                            "quantity": 1,
+                            "target": "recycle",
+                        }
+                    )
+                )
+            if harvest.state == "pending":
+                harvest.with_env(self.env).action_harvest()
+            rec._tradein_writeoff_carrying("recycled")
+            rec.sudo()._guarded().write({"state": "closed"})
+        return True
+
+    def action_close_parts_only(self):
+        """Harvest done: the cost still carried (the residue no part took) is
+        written off and the trade-in closes (M14-20)."""
+        for rec in self:
+            if rec.state != "parts_only":
+                raise UserError("Trade-in %s is not a parts-only unit." % rec.name)
+            pending = (
+                rec.env["fix.tradein.harvest"]
+                .sudo()
+                .search_count([("tradein_id", "=", rec.id), ("state", "=", "pending")])
+            )
+            if pending:
+                raise UserError(
+                    "Trade-in %s still has %d harvest line(s) pending: harvest or scrap them."
+                    % (rec.name, pending)
+                )
+            rec._tradein_writeoff_carrying("harvest residue")
+            rec.sudo()._guarded().write({"state": "closed"})
+        return True
 
     def _tradein_gate_denial(self, target) -> str:
         denial = super()._tradein_gate_denial(target)
@@ -329,7 +428,9 @@ class FixTradeinIntakeCheck(models.Model):
             "company_id",
         }
     )
-    _OPEN_STATES = ("accepted", "collected", "wiped", "refurbished", "graded", "resale_ready")
+    # M14-10 / BRU-TRF-09: the offer is revised at intake only (before the
+    # data wipe and the stock), never after the unit was refurbished or sold
+    _OPEN_STATES = ("accepted", "collected")
 
     name = fields.Char(required=True, default="New", copy=False)
     company_id = fields.Many2one(
@@ -812,7 +913,7 @@ class FixTradeinGradeCapture(models.Model):
             rec.battery_minimum_pct = _battery_minimum(self.env, rec.grade)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"override_by_id", "override_at", "qa_id"}
+        return super()._fix_guarded_fields() | {"override_by_id", "override_at", "qa_id", "cycle"}
 
     @api.constrains("grade")
     def _check_grade_present(self):
@@ -867,7 +968,19 @@ class FixTradeinGradeCapture(models.Model):
         for vals in vals_list:
             tradein = Request.browse(vals.get("tradein_id") or [])
             qa = tradein._qa_latest() if tradein else None
-            if qa and "battery_health_pct" not in vals:
+            # M14-14: the battery health is the QA's measurement, never typed
+            if qa:
+                typed = vals.get("battery_health_pct")
+                if (
+                    typed not in (None, False)
+                    and int(typed) != qa.battery_health_pct
+                    and not (self._fix_guard_open())
+                ):
+                    raise UserError(
+                        "Trade-in %s: the battery health is QA %s's measurement (%d%%), not a "
+                        "typed figure (%s%%)."
+                        % (tradein.name, qa.name, qa.battery_health_pct, typed)
+                    )
                 vals["battery_health_pct"] = qa.battery_health_pct
             if not vals.get("grade"):
                 vals["grade"] = _computed_grade(
@@ -887,6 +1000,15 @@ class FixTradeinGradeCapture(models.Model):
         return records
 
     def write(self, vals):
+        if not self._fix_guard_open() and "battery_health_pct" in vals:
+            for rec in self.filtered("qa_id"):
+                if rec._fix_guard_differs(
+                    "battery_health_pct", vals["battery_health_pct"], rec.battery_health_pct
+                ):
+                    raise UserError(
+                        "Grading certificate %s: the battery health is QA %s's measurement."
+                        % (rec.name, rec.qa_id.name)
+                    )
         result = super().write(vals)
         if not self._fix_guard_open() and set(vals) - {"override_by_id", "override_at", "qa_id"}:
             self._grade_assert_rules()
@@ -1167,6 +1289,13 @@ class FixRefurbReturn(models.Model):
             if rec.warranty_id and rec.reason != "change_of_mind":
                 warranty = rec.warranty_id.sudo()
                 warranty._guarded().write({"claims_count": (warranty.claims_count or 0) + 1})
+            # M14-05: the unit is held for a new wipe, QA and grade, the sale's
+            # cost reversed and its warranty closed (through the stock)
+            stock = rec.tradein_id.sudo().graded_stock_id
+            if stock and stock.state == "sold":
+                stock.with_context(refurb_return_id=rec.id).action_receive_return(
+                    reason="refurbished return %s" % rec.name
+                )
             rec.tradein_id.sudo().message_post(
                 body="Refurbished unit returned (%s): %s, failure code %s, sold at grade %s."
                 % (
@@ -1304,10 +1433,10 @@ class FixRefurbWriteoff(models.Model):
             Request = self.env["fix.tradein.request"].sudo()
             for vals in vals_list:
                 tradein = Request.browse(vals.get("tradein_id") or [])
-                if tradein and tradein.state not in ("refurbished", "graded"):
+                if tradein and tradein.state not in ROUTABLE_STATES:
                     raise UserError(
-                        "Trade-in %s is %s: a unit is routed to parts only from refurbishment or "
-                        "grading." % (tradein.name, tradein.state)
+                        "Trade-in %s is %s: a unit is routed to parts only from intake, "
+                        "refurbishment or grading." % (tradein.name, tradein.state)
                     )
         for vals in vals_list:
             if vals.get("name", "New") == "New":
@@ -1339,10 +1468,10 @@ class FixRefurbWriteoff(models.Model):
             if rec.state not in ("draft", "rejected"):
                 raise UserError("Write-off %s is %s." % (rec.name, rec.state))
             tradein = rec.tradein_id.sudo()
-            if tradein.state not in ("refurbished", "graded"):
+            if tradein.state not in ROUTABLE_STATES:
                 raise UserError(
-                    "Trade-in %s is %s: a unit is routed to parts only from refurbishment or "
-                    "grading." % (tradein.name, tradein.state)
+                    "Trade-in %s is %s: a unit is routed to parts only from intake, "
+                    "refurbishment or grading." % (tradein.name, tradein.state)
                 )
             if not (rec.cause_notes or "").strip():
                 raise UserError("Write-off %s: state why the unit cannot be sold." % rec.name)
@@ -1368,7 +1497,7 @@ class FixRefurbWriteoff(models.Model):
             rec._guarded().write(
                 {
                     "state": "pending",
-                    "accumulated_cost": tradein.inventory_valuation,
+                    "accumulated_cost": tradein._tradein_landed_cost(),
                     "requested_by_id": self.env.uid,
                     "requested_at": fields.Datetime.now(),
                     "approved_by_id": False,
@@ -1390,13 +1519,32 @@ class FixRefurbWriteoff(models.Model):
                     "Segregation of duties: the person who routed the unit to parts only does "
                     "not approve its write-off (§13)."
                 )
+            tradein = rec.tradein_id.sudo()
+            if tradein.state not in ROUTABLE_STATES:
+                raise UserError(
+                    "Trade-in %s is %s: its parts-only routing can no longer be approved."
+                    % (tradein.name, tradein.state)
+                )
+            # XC-24: the approver's DOFA tier covers the cost written off
+            amount = max(tradein._tradein_landed_cost(), rec.accumulated_cost or 0.0)
+            _assert_amount_tier(self.env, amount, "Approving a refurbishment write-off")
             rec._guarded().write(
                 {
                     "state": "approved",
                     "approved_by_id": self.env.uid,
                     "approved_at": fields.Datetime.now(),
+                    "accumulated_cost": amount,
                 }
             )
+            # M14-09/21: the unit leaves the sellable path (parts only), its
+            # stock unit is scrapped, and a recycling route writes its cost off
+            # now (a harvest relieves it part by part, the residue at close)
+            tradein._guarded().write({"state": "parts_only", "written_off": True})
+            stock = tradein.graded_stock_id
+            if stock and stock.state in ("in_stock", "reserved", "returned"):
+                stock._guarded().write({"state": "scrapped"})
+            if rec.destination == "recycle":
+                tradein._tradein_writeoff_carrying("routed to recycling (%s)" % rec.name)
             rec.tradein_id.sudo().message_post(
                 body="Routed to %s as parts only (%s); accumulated cost BDT %.2f written off, "
                 "approved by %s."
@@ -1434,14 +1582,14 @@ class FixTradeinHarvestRouting(models.Model):
                 [
                     ("tradein_id", "=", self.tradein_id.id),
                     ("state", "=", "approved"),
-                    ("destination", "=", "harvest"),
+                    ("destination", "=", "recycle" if self.target == "recycle" else "harvest"),
                 ]
             )
         )
         if not approved:
             return (
-                "trade-in %s has no approved parts-only routing to harvest: a supervisor routes "
+                "trade-in %s has no approved parts-only routing to %s: a supervisor routes "
                 "it and a write-off approver approves its cost (FR-TRF-020, BRU-TRF-19)"
-                % self.tradein_id.name
+                % (self.tradein_id.name, "recycling" if self.target == "recycle" else "harvest")
             )
         return ""

@@ -58,6 +58,21 @@ def m(odoo_env):
     # allowed; the tests of those two policies set them explicitly.
     params.set_param("cd_tradein.hold_days", "0")
     params.set_param("cd_tradein.allow_neir_unchecked", "1")
+    # A05 ERP D1: the M14 ledger accounts (the test chart's codes)
+    for role, code in (
+        ("refurb_stock", "110100"),
+        ("seller_payable", "211000"),
+        ("tds_payable", "252000"),
+        ("cogs", "500000"),
+        ("writeoff", "610000"),
+        ("warranty_provision", "201000"),
+        ("warranty_expense", "962000"),
+        ("refurb_absorption", "110400"),
+        ("resale_revenue", "400000"),
+    ):
+        params.set_param("cd_tradein.account_code.%s" % role, code)
+    params.set_param("cd_tax_engine_bd.account_code.tds_payable", "252000")
+    params.set_param("cd_inventory.valuation_suspense_account_code", "110500")
     ou = env["operating.unit"].search([], limit=1)
     x = types.SimpleNamespace(env=env, ou=ou)
     x.clerk = _user(env, "clerk", ["cd_workshop.group_fix_workshop_user"], ou)
@@ -70,16 +85,29 @@ def m(odoo_env):
     x.tier1 = _user(env, "tier1", ["cd_entity_config.group_dofa_tier_1"], ou)
     x.officer = _user(env, "officer", ["cd_tradein.group_tradein_provenance_officer"], ou)
     x.qa = _user(env, "qa", ["cd_tradein.group_tradein_qa_inspector"], ou)
-    x.valmgr = _user(env, "valmgr", ["cd_tradein.group_tradein_valuation_manager"], ou)
+    # XC-24: a valuation override is approved within the approver's DOFA tier
+    x.valmgr = _user(
+        env,
+        "valmgr",
+        ["cd_tradein.group_tradein_valuation_manager", "cd_entity_config.group_dofa_tier_2"],
+        ou,
+    )
     x.tech = _user(env, "tech", [], ou)
     env["hr.employee"].create({"name": "A05 M14 Technician", "user_id": x.tech.id})
     x.wofficer = _user(env, "wofficer", ["cd_device_registry.group_warranty_officer"], ou)
     # M14 capture pass 2: grade override / parts-only routing, and the write-off
     x.supervisor = _user(env, "supervisor", ["cd_tradein.group_refurb_supervisor"], ou)
-    x.woapprover = _user(env, "woapprover", ["cd_tradein.group_refurb_writeoff_approver"], ou)
+    x.woapprover = _user(
+        env,
+        "woapprover",
+        ["cd_tradein.group_refurb_writeoff_approver", "cd_entity_config.group_dofa_tier_1"],
+        ou,
+    )
     # A02 pass 2 review: the data lab records the wipe, a verifier verifies it
     x.wipe_tech = _user(env, "wipetech", ["cd_data_case.group_data_recovery_operator"], ou)
     x.wipe_verifier = _user(env, "wipeverifier", ["cd_data_case.group_wipe_verifier"], ou)
+    # A05 ERP D6: the listing price is approved four-eyes
+    x.pricer = _user(env, "pricer", ["cd_tradein.group_refurb_pricing_manager"], ou)
     brand = env["fix.brand"].create({"name": "A05 M14 Brand", "code": "A5M14C"})
     x.model = env["fix.device.model"].create({"name": "A05 M14 Phone", "brand_id": brand.id})
     grid = (
@@ -193,8 +221,10 @@ def accepted(x, rec=None, **screen_kw):
 
 
 def refurbishing(x, rec=None, **kw):
-    rec = accepted(x, rec, **kw)
-    rec.action_collect()
+    if not rec or rec.state in ("draft", "offered"):
+        rec = accepted(x, rec, **kw)
+    if rec.state == "accepted":
+        rec.action_collect()
     rec.write({"wipe_certificate_id": cert(x, rec.device_id, rec=rec).id})
     rec.action_wipe()
     rec.action_refurbish()
@@ -208,11 +238,18 @@ def finish_steps(x, rec, parts=0.0, labour=0.0):
         step.with_user(x.tech).action_complete_repair()
 
 
-def qa(x, rec, passed=12, total=12):
+def qa(x, rec, passed=12, total=12, battery=100):
     row = (
         x.env["fix.refurb.qa"]
         .with_user(x.clerk)
-        .create({"tradein_id": rec.id, "tests_total": total, "tests_passed": passed})
+        .create(
+            {
+                "tradein_id": rec.id,
+                "tests_total": total,
+                "tests_passed": passed,
+                "battery_health_pct": battery,
+            }
+        )
     )
     row.with_user(x.qa).action_submit_result()
     return row
@@ -221,10 +258,8 @@ def qa(x, rec, passed=12, total=12):
 def certify(x, rec, grade="b"):
     """The grading certificate whose measured axes compute `grade` (BRU-TRF-12):
     the worst axis sets A-D; a battery below grade D's minimum is parts only."""
-    if grade == "e":
-        vals = {"functional_grade": "d", "battery_health_pct": 50}
-    else:
-        vals = {"cosmetic_grade": grade, "battery_health_pct": 100}
+    # A05 ERP M14-14: the battery is the QA's measurement, never typed here
+    vals = {"functional_grade": "d"} if grade == "e" else {"cosmetic_grade": grade}
     row = x.env["fix.tradein.grade"].with_user(x.clerk).create({"tradein_id": rec.id, **vals})
     assert row.grade == grade and not row.is_override
     return row
@@ -233,7 +268,7 @@ def certify(x, rec, grade="b"):
 def graded(x, rec=None, grade="b", **kw):
     rec = refurbishing(x, rec, **kw)
     finish_steps(x, rec)
-    qa(x, rec)
+    qa(x, rec, battery=50 if grade == "e" else 100)
     certify(x, rec, grade)
     rec.action_grade()
     return rec
@@ -279,17 +314,56 @@ def intake_verified(x, rec, value, user=None):
     return row
 
 
+def priced(x, rec, price=35000.0):
+    """A05 ERP D6: the suggested price, approved by a pricing manager."""
+    rec.write({"resale_value": price})
+    rec.action_request_listing_price()
+    rec.with_user(x.pricer).action_approve_listing_price()
+    return rec
+
+
 def resale(x, rec=None, **kw):
-    rec = graded(x, rec, **kw)
+    # A05 ERP D3: stocked for resale once bought in (the seller's payout)
+    grade = kw.pop("grade", "b")
+    if not rec or not rec.paid_at:
+        if not rec or rec.state in ("draft", "offered", "accepted"):
+            rec = paying(x, rec, **kw)
+        approved(x, rec)
+        rec.action_pay()
+    rec = graded(x, rec, grade=grade)
+    priced(x, rec)
     rec.action_resale_ready()
     return rec
+
+
+def paying(x, rec=None, **kw):
+    """A05 ERP D3: the seller is paid at purchase, once the unit is collected."""
+    rec = accepted(x, rec, **kw)
+    rec.action_collect()
+    return rec
+
+
+def intake_at_offer(x, rec, user=None):
+    row = (
+        x.env["fix.tradein.intake.check"]
+        .with_user(user or x.clerk2)
+        .create(
+            {
+                "tradein_id": rec.id,
+                "verified_condition": "good",
+                "verified_value": rec.accepted_offer_value or rec.offered_value,
+            }
+        )
+    )
+    row.action_confirm()
+    return row
 
 
 def approved(x, rec, value=20000.0, approver=None):
     if value < (rec.accepted_offer_value or rec.offered_value) - 0.005:
         intake_verified(x, rec, value)  # BRU-TRF-09: a lower value is evidenced
     else:
-        rec.write({"graded_value": value})
+        intake_at_offer(x, rec)  # D3: the intake is verified before the payout
     if rec.revision_state == "pending":
         rec.action_accept_revision()
     rec.action_request_payout_approval()
@@ -324,6 +398,8 @@ GUARDED = {
     "hold_released": True,
     "parts_cost": 10.0,
     "labour_cost": 10.0,
+    # A05 ERP M14-11: the payout value comes from the intake verification
+    "graded_value": 5000.0,
 }
 
 
@@ -354,11 +430,11 @@ def test_request_approver_stamp_and_forged_birth_are_refused(m):
 def test_forged_approval_never_pays(m):
     """M14-2: an 'approved' nobody gave (no approver stamp, no routed
     decision) is refused at the payout, even if the superuser forged it."""
-    rec = resale(m)
-    rec.write({"graded_value": 20000})
+    rec = paying(m)
+    intake_at_offer(m, rec)
     rec.sudo().write({"payout_approval_state": "approved"})
     refused(rec.action_pay, "no recorded approver")
-    assert rec.state == "resale_ready" and not rec.payout_execution_id
+    assert rec.state == "collected" and not rec.payout_execution_id
 
 
 # =============================================== wrong transitions (M14-13, M14-19)
@@ -374,7 +450,7 @@ def test_send_offer_never_reopens_a_trade_in(m):
 
 def test_pay_and_grade_refuse_the_wrong_state(m):
     rec = request(m)
-    refused(rec.action_pay, "Payout from graded")
+    refused(rec.action_pay, "seller is paid once the device is received")
     refused(rec.action_grade, "Grade from refurbished")
     refused(rec.action_resale_ready, "Resale from graded")
 
@@ -591,7 +667,7 @@ def test_nid_is_bound_to_one_seller(m):
 
 
 def test_payout_needs_an_officer_verified_nid_and_a_current_screen(m):
-    rec = resale(m, with_nid=False)
+    rec = paying(m, with_nid=False)
     approved(m, rec)
     refused(rec.action_pay, "has not been verified")
     screen(m, rec)  # the officer now sights the NID card
@@ -603,7 +679,7 @@ def test_payout_needs_an_officer_verified_nid_and_a_current_screen(m):
 
 def test_kyc_cap_per_nid(m):
     m.env["ir.config_parameter"].sudo().set_param("cd_tradein.kyc_payout_cap_per_nid_30d", "15000")
-    rec = resale(m)
+    rec = paying(m)
     approved(m, rec)
     refused(rec.action_pay, "KYC cap")
 
@@ -681,16 +757,23 @@ def test_qa_verdict_is_derived_guarded_and_independent(m):
 
 
 def test_step_costs_roll_up_into_the_request_and_the_stock(m):
-    rec = refurbishing(m)
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()  # A05 ERP D3: on the ledger before it is stocked
+    rec = refurbishing(m, rec)
     finish_steps(m, rec, parts=1000.0, labour=500.0)
     steps_total = sum(rec.refurbishment_ids.mapped("total_cost"))
     assert steps_total == 4 * 1500.0
-    assert rec.refurbishment_cost == steps_total
+    # A05 ERP M14-12: a typed step cost counts once a supervisor approves it
+    assert rec.sudo().refurbishment_cost == 0.0
+    rec.refurbishment_ids.filtered("total_cost").with_user(m.supervisor).action_approve_cost()
+    assert rec.sudo().refurbishment_cost == steps_total
     qa(m, rec)
     certify(m, rec)
     rec.action_grade()
+    priced(m, rec)
     rec.action_resale_ready()
-    assert rec.graded_stock_id.refurbishment_cost == steps_total
+    assert rec.graded_stock_id.sudo().refurbishment_cost == steps_total
 
 
 def test_grade_rows_only_while_refurbishing(m):
@@ -703,8 +786,8 @@ def test_grade_rows_only_while_refurbishing(m):
 
 # ============================================== E5 / E11: the routed payout approval
 def test_payout_is_routed_to_an_authorised_approver_only(m):
-    rec = resale(m)
-    rec.write({"graded_value": 20000})
+    rec = paying(m)
+    intake_at_offer(m, rec)
     res = p03_action(m, TRD, rec, "action_request_approval")
     assert res["success"], res
     assert rec.payout_approval_state == "pending" and rec.approval_state == "pending"
@@ -731,8 +814,8 @@ def test_the_requester_never_decides_and_reject_needs_a_reason(m):
         ["cd_entity_config.group_dofa_tier_1", "cd_tradein.group_tradein_payout_approver"],
         m.ou,
     )
-    rec = resale(m)
-    rec.write({"graded_value": 20000})
+    rec = paying(m)
+    intake_at_offer(m, rec)
     rec.with_user(m.approver).action_request_payout_approval()
     assert m.approver not in assigned(rec) and approver2 in assigned(rec)
     task = inbox_task(rec, approver2)
@@ -743,8 +826,8 @@ def test_the_requester_never_decides_and_reject_needs_a_reason(m):
 
 
 def test_recall_by_the_requester(m):
-    rec = resale(m)
-    rec.write({"graded_value": 20000})
+    rec = paying(m)
+    intake_at_offer(m, rec)
     rec.action_request_payout_approval()
     res = p03_action(m, TRD, rec, "action_recall_approval")
     assert res["success"], res
@@ -754,7 +837,7 @@ def test_recall_by_the_requester(m):
 def test_approval_pins_payee_net_tds_and_nid(m):
     """M14-4 (A_06, A_07): after approval the payee is frozen and a change of
     the TDS, the NID or the graded value voids the approval."""
-    rec = resale(m)
+    rec = paying(m)
     approved(m, rec)
     mule = m.env["res.partner"].create({"name": "A05 Accomplice"})
     refused(lambda: rec.write({"customer_id": mule.id}), "frozen")
@@ -765,12 +848,13 @@ def test_approval_pins_payee_net_tds_and_nid(m):
     rec.write({"tds_applicable": False})
     assert rec.payout_approval_state == "none"
     approved(m, rec, value=20000)
-    rec.write({"graded_value": 21000})
-    assert rec.payout_approval_state == "none" and not rec.dofa_approved
+    # A05 ERP M14-11: the payout value is never typed (and never above the offer)
+    refused(lambda: rec.write({"graded_value": 21000}), GUARD)
+    assert rec.payout_approval_state == "approved"
 
 
 def test_revised_offer_needs_the_customers_reacceptance(m):
-    rec = resale(m)
+    rec = paying(m)
     intake_verified(m, rec, 15000)
     assert rec.graded_value == 15000 and rec.revision_state == "pending"
     refused(rec.action_request_payout_approval, "revised value")
@@ -784,7 +868,8 @@ def test_revised_offer_needs_the_customers_reacceptance(m):
 # ============================================================= PSR (M14-10)
 def test_psr_needs_a_tin_a_document_and_another_person(m):
     rec = request(m)
-    rec.write({"graded_value": 10000, "tds_applicable": True, "tds_rate_pct": 5.0})
+    rec.sudo()._guarded().write({"graded_value": 10000})
+    rec.write({"tds_applicable": True, "tds_rate_pct": 5.0})
     # no PSR and no e-TIN are two defaults: 5% x 1.5 x 1.5 (the M51-7 floor)
     assert rec.tds_amount == 1125.0
     assert p03_write(m, TRD, rec.id, {"psr_verified": True}).get("error")
@@ -819,6 +904,10 @@ def _js_actions():
         model = re.search(r"model: '([a-z0-9_.]+)'", chunk)
         if model:
             out.setdefault(model.group(1), set()).update(re.findall(r"\bm: '(\w+)'", chunk))
+    # the print buttons (A05 XC-10) are rendered by the workspace itself
+    # (docPrint), never sent to /p03/model/action
+    for methods in out.values():
+        methods.discard("p03_print_document")
     return out
 
 
@@ -848,7 +937,22 @@ def test_kpis_and_packs_stay_in_the_users_companies(m):
     before = surface.kpis(clerk_env)
     other = m.env["res.company"].create({"name": "A05 M14 Other Company"})
     partner = m.env["res.partner"].create({"name": "Other Co Seller", "company_id": other.id})
-    m.env[TRD].create({"customer_id": partner.id, "company_id": other.id, "offered_value": 999})
+    other_ou = m.env["operating.unit"].create(
+        {
+            "name": "A05 M14 Other OU",
+            "code": "A05M14O",
+            "company_id": other.id,
+            "partner_id": other.partner_id.id,
+        }
+    )
+    m.env[TRD].create(
+        {
+            "customer_id": partner.id,
+            "company_id": other.id,
+            "operating_unit_id": other_ou.id,
+            "offered_value": 999,
+        }
+    )
     after = surface.kpis(clerk_env)
     assert after["open_tradeins"] == before["open_tradeins"]
     request(m)
@@ -859,11 +963,13 @@ def test_kpis_and_packs_stay_in_the_users_companies(m):
 
 # ================================================================= the full journey
 def test_full_journey_as_the_real_roles(m):
-    rec = resale(m)
+    rec = paying(m)
     approved(m, rec)
     rec.action_pay()
     pex = rec.payout_execution_id
-    assert rec.state == "closed" and pex.state == "pending"
+    # A05 ERP D3: paid at purchase; the unit goes on to wipe, refurbishment
+    # and resale, and the trade-in closes when it is sold
+    assert rec.state == "collected" and pex.state == "pending"
     assert (pex.source_model, pex.source_id, pex.amount) == (TRD, rec.id, 20000.0)
     assert pex.partner_id == rec.customer_id
     assert (
@@ -874,6 +980,9 @@ def test_full_journey_as_the_real_roles(m):
         )["payout"]
         == 20000.0
     )
+    resale(m, rec)
+    rec.graded_stock_id.sudo().action_sell()
+    assert rec.state == "closed"
     # a closed trade-in is frozen and never reopened
     refused(lambda: rec.write({"resale_value": 1.0}), "closed record")
     refused(rec.action_send_offer, "from draft only")
@@ -881,14 +990,15 @@ def test_full_journey_as_the_real_roles(m):
 
 # ======================================================= E6 / E10 / E12 hand-offs
 def test_stock_is_capitalised_at_the_payout_not_the_offer(m):
-    """M14-15 (R_07): offer 20,000, graded and paid 15,000."""
-    rec = resale(m)
-    assert rec.graded_stock_id.acquisition_cost == 20000.0  # before grading's value is known
+    """M14-15 (R_07): offer 20,000, verified and paid 15,000 at purchase."""
+    rec = paying(m)
     approved(m, rec, value=15000.0)
     rec.action_pay()
     assert rec.payout_amount == 15000.0
-    assert rec.graded_stock_id.acquisition_cost == 15000.0
-    assert rec.inventory_valuation == 15000.0 + rec.refurbishment_cost
+    assert rec.sudo().carrying_cost == 15000.0
+    resale(m, rec)
+    assert rec.graded_stock_id.sudo().acquisition_cost == 15000.0
+    assert rec.sudo().inventory_valuation == 15000.0 + rec.sudo().refurbishment_cost
 
 
 def test_the_payout_is_a_pinned_treasury_request(m):
@@ -896,7 +1006,7 @@ def test_the_payout_is_a_pinned_treasury_request(m):
     request (_fix_request_payment), pinned to the approved payee and net and
     carrying the approver, so treasury cannot re-point or resize it; a replay
     pays once."""
-    rec = resale(m)
+    rec = paying(m)
     approved(m, rec, value=12000.0)
     rec.action_pay()
     pay = rec.payout_execution_id
@@ -922,7 +1032,7 @@ def test_the_payout_is_a_pinned_treasury_request(m):
 
 def test_tds_is_registered_with_m51_for_nbr_remittance(m):
     """M14-11 (A_08, A_09): the withheld tax becomes an M51 register line."""
-    rec = resale(m)
+    rec = paying(m)
     rec.write({"tds_applicable": True, "tds_rate_pct": 5.0, "taxpayer_tin": "583920174635"})
     approved(m, rec, value=10000.0)
     rec.action_pay()
@@ -942,9 +1052,13 @@ def test_tds_is_registered_with_m51_for_nbr_remittance(m):
 
 def test_hold_period_blocks_resale_until_the_cron_releases_it(m):
     m.env["ir.config_parameter"].sudo().set_param("cd_tradein.hold_days", "7")
-    rec = graded(m)
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()
+    graded(m, rec)
     # the hold counts from the local day, not UTC
     assert rec.hold_until == fields.Date.context_today(rec) + timedelta(days=7)
+    priced(m, rec)
     refused(rec.action_resale_ready, "hold period")
     Request = m.env[TRD]
     assert rec.id not in Request.search([("hold_released", "=", True)]).ids
@@ -982,9 +1096,14 @@ def _location(x):
 
 def test_harvest_workflow_hands_parts_to_m15_stock(m):
     """M14-16 (H_01): harvest ran from a free state write and reached no
-    inventory. It now runs from a graded parts-only unit into an M15 receipt."""
-    unit = graded(m, grade="e")
+    inventory. It now runs from a parts-only unit into an M15 receipt, valued
+    from the unit's cost (A05 ERP M14-20)."""
+    unit = paying(m)
+    approved(m, unit)
+    unit.action_pay()
+    graded(m, unit, grade="e")
     routed_to_parts(m, unit)
+    assert unit.state == "parts_only"
     Harvest = m.env["fix.tradein.harvest"].with_user(m.clerk)
     line = Harvest.create(
         {
@@ -1019,12 +1138,15 @@ def test_harvest_workflow_hands_parts_to_m15_stock(m):
     other = Harvest.create(
         {"tradein_id": resaleable.id, "component": "battery", "target": "recycle"}
     )
-    refused(other.action_harvest, "grade E")
+    refused(other.action_harvest, "parts only")
 
 
 def test_resale_warranty_is_issued_by_the_sale(m):
     """M14-17 (H_02): the warranty was a manual row any clerk voided."""
-    rec = resale(m)
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()
+    resale(m, rec)
     Warranty = m.env["fix.tradein.warranty"].with_user(m.clerk)
     refused(lambda: Warranty.create({"tradein_id": rec.id}), "issued by the resale")
     stock = rec.graded_stock_id
@@ -1058,8 +1180,12 @@ def test_marketplace_channel_is_listed_on_m12(m):
     listing path when cd_marketplace is installed."""
     if "fix.marketplace.order" not in m.env:
         pytest.skip("cd_marketplace is not installed in this database")
-    rec = graded(m)
+    rec = paying(m)
+    approved(m, rec)
+    rec.action_pay()  # A05 ERP D3: bought in before it is stocked and listed
+    graded(m, rec)
     rec.write({"resale_channel": "marketplace"})
+    priced(m, rec)
     rec.action_resale_ready()
     order = m.env["fix.marketplace.order"].sudo().browse(rec.marketplace_order_id).exists()
     assert order, "no M12 listing was created"
@@ -1074,8 +1200,15 @@ def test_ewaste_reuse_routing_opens_one_intake_and_keeps_the_wipe_gate(m):
         pytest.skip("cd_ewaste is not installed in this database")
     dev = device(m)
     customer = m.env["res.partner"].create({"name": "A05 M18 Donor"})
+    # A05 ERP M14-23: the intake inherits the collection's operating unit
     coll = m.env["fix.ewaste.collection"].create(
-        {"customer_id": customer.id, "material_type": "phone", "device_id": dev.id}
+        {
+            "customer_id": customer.id,
+            "material_type": "phone",
+            "device_id": dev.id,
+            "operating_unit_id": m.ou.id,
+            "weight_kg": 0.2,
+        }
     )
     coll.write({"state": "triaged", "triage_grade": "refurbish"})
     coll.write({"state": "routed"})
@@ -1106,7 +1239,7 @@ def test_ewaste_reuse_routing_opens_one_intake_and_keeps_the_wipe_gate(m):
         "consume_ewaste_reuse_routed",
     )
     other = m.env["fix.ewaste.collection"].create(
-        {"customer_id": customer.id, "material_type": "phone"}
+        {"customer_id": customer.id, "material_type": "phone", "operating_unit_id": m.ou.id}
     )
     refused(
         lambda: Request.sudo().consume_ewaste_reuse_routed(
