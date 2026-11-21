@@ -123,4 +123,23 @@ a non-warranty and a warranty store (fix_real W0003 / WARRANTY-HO, fix_dev HO-NW
   multi-line requisitions with UoM, automatic put-away, per-category scorecard weights.
 
 ## Deploy record
-(to be completed at deploy)
+- 22 Nov 2026 (wave shared with the A02 pass-2 follow-ups, user-approved for both). Backups
+  `_migration/backups/fix_{real,dev}_pre_a06_erp_2026-11-22.dump`.
+- Landed fast-forward efbfee5b..19dad0e3 on `fix/a03-live-data-and-pending-work`, pushed; `fix/a06-erp-audit`
+  pushed.
+- `-u` cd_ap_ext, cd_asset_finance_hse_bridge, cd_data_case, cd_demand_plan, cd_field_service, cd_gl_ext,
+  cd_import_order, cd_inventory, cd_p03_portal, cd_requisition, cd_service_order, cd_subscription,
+  cd_vendor_portal, cd_wms_structure, cd_workshop on fix_real (199 s) and fix_dev (166 s): 0 errors.
+  One restart of 8069 / 8090 at 17:21:37 UTC (21 Nov); registries loaded with no error.
+- Data (script `deploy_a06_data.py`, rehearsed and idempotent): D8 limits, AP match tolerances, forecast
+  12/6, 658 (fix_real) / 23,817 (fix_dev) cut-over "qualified" suppliers reset to prospect, workshop
+  stores (fix_real W0003 + WARRANTY-HO; fix_dev HO-NWT + HO-WTY).
+- fix_real stock take-on at 17:22:59 UTC: 12,776 rows, BDT 165,260,650.54 by brand stock account and
+  branch OU; tie-out subledger = on-hand = GL; fix_real posts every stock movement in real time from then.
+  4,685 zero-cost lines for Finance: `all_working_folder/working/A06_fix_real_zero_cost_stock_lines_2026-11-22.csv`.
+- fix_dev keeps the old cut-over (no take-on). Its chart is generic: AP / import roles pointed at its own
+  accounts (GRNI 211100, PPV and import variance 610000, FX 641000); its LC-margin role stays unset
+  (an LC there fails closed until Finance names one).
+- Live probe on both ports: 196/197 A06 reports and list screens; the one flag is the van-recon blind
+  count (expected quantity hidden from a non-controller, by design).
+- Also published with this push (not A06): 4ad0c295 "payables-open KPI counts the take-on lane too" (A08 M52).
