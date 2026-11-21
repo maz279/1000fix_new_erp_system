@@ -146,6 +146,30 @@ the fix, re-checked by the reviewer, and the follow-up findings closed:
   opened passed the "verified contacts only" rule. Fixed in 4e735862: such a mobile is refused unless a
   data steward vouches for it (vouch recorded with who and when on the contact point).
 
+## A03 review P1/P2 findings, re-checked one by one (22 Nov, tip d233cb24)
+The review's serious (P1) and lower (P2) findings had been reported on the stream branches and never
+re-checked on the merged code. Each was traced to its fix and test, or fixed now:
+
+| Finding | Status |
+|---|---|
+| s3 COD receipt for source 'cod'; rider COD never remitted; field over-collection; M02-08 OR-ed rule; part payments | Fixed aa78fbb9 + e016c78b (N1-N5), tests in test_a02r2_release / test_a02r2_field |
+| s4 D10 all-or-nothing; business-hours SLA wall-clock | Fixed e4e95620 |
+| s5 P03 scoping/read log; finance sudo; consumer binding; D16 blank media | Fixed 86586402 + c1283042 |
+| s5 legacy quotes | No live impact (0 rows on both DBs) |
+| s4 batched uplifts from the earliest date | Fixed b56a34cc (owner decision: one proration per date) |
+| s4 fee change to 0 | By design: flagged to finance, the price change cannot end the subscription (M39 decides); test_a_fee_falling_to_zero_is_flagged_not_a_silent_cancel |
+| s4 late go-live, UTC date, late renewal, seed, legacy uplift events, reclassify approver, period labels | Fixed e4e95620 |
+| s3 loaner legs; seal/weight locked | Fixed c1283042 / aa78fbb9 |
+| **s3 D21/D22 charges never billed** | **Fixed now**: the wasted-visit fee (CHG-CALLOUT, unless waived) and the pick-and-drop tariff charge (CHG-TRANSPORT) are extra charges of the order; M51 adds their VAT to the amount due (counter, field and COD collect them) and they are billed on the delivery tax invoice to revenue. A delivery leg is priced before its COD is derived, so the rider collects its own charge. |
+| **s3 courier booking COD goes stale** | **Fixed now**: a leg whose live courier booking carries a different COD does not leave ("cancel the booking and book again") |
+| s5 m31_order_delivered context; self-made manager; protocol lock; hand-off withdrawal; bench ESD default | Fixed 86586402 (context key gone) |
+| s5 D17 KPI counted held cases | Fixed: purge_overdue excludes cases on hold |
+| s5 handover_recipient_id routable | Fixed 8ba8900d + 4e735862 (verified contacts only, steward vouch) |
+| s6 AUT-018 cursor | Fixed 218c6af1, its 4 tests pass |
+
+The tariff table and the wasted-visit fee are still at their D22/D21 defaults (empty / BDT 0), so no
+charge arises until the business sets them.
+
 ## Still the business's to supply
 - **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
   the waiver above is the path, and it works end to end today.
