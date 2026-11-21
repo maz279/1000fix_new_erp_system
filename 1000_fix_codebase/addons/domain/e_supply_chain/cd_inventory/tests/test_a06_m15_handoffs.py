@@ -158,12 +158,14 @@ def test_m16_07_rejected_goods_go_to_quarantine_once(po_world):
 def test_m16_07b_real_inspection_rejection_reaches_quarantine(po_world):
     w = po_world
     grn = _receive(w, {w.prod: 3})
+    # A06 P21: the receiver does not inspect their own receipt
+    inspector = w.user("inspector", GR)
     insp = (
         w.env["fix.procurement.inspection"]
-        .with_user(w.receiver)
+        .with_user(inspector)
         .create({"receipt_line_id": grn.line_ids.id, "qty_accepted": 1})
     )
-    insp.with_user(w.receiver).action_confirm()
+    insp.with_user(inspector).action_confirm()
     outbox = (
         w.env["fix.event.outbox"]
         .sudo()
