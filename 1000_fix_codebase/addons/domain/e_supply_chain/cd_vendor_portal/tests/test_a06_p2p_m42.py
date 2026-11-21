@@ -218,7 +218,33 @@ def test_p10_deactivated_supplier_is_never_paid(m):
     po = _send(_po(m))
     po.action_record_receipt({po.line_ids.id: 2})
     bill = _posted_bill(m, po, 2, 100.0)
-    bill._guarded().write({"approval_state": "approved", "move_id": False})
+    # an approved bill with a posted liability: only the supplier's status
+    # stands between it and its payment request
+    from odoo.addons.cd_ap_ext.models.ap_gl import ap_journal, post_ap_move
+
+    Account = m.env["account.account"]
+    accs = [
+        Account.search([("code", "=", code), ("company_ids", "in", m.env.company.id)], limit=1)
+        or Account.create(
+            {
+                "code": code,
+                "name": "P2P42 test %s" % code,
+                "account_type": kind,
+                "company_ids": [(6, 0, m.env.company.ids)],
+            }
+        )
+        for code, kind in (("990601", "expense"), ("990211", "liability_current"))
+    ]
+    move = post_ap_move(
+        m.env,
+        m.env.company,
+        ap_journal(m.env, m.env.company, "purchase"),
+        bill.invoice_date,
+        "P2P42 liability (test)",
+        [(accs[0], "x", 200.0, 0.0, m.vendor), (accs[1], "x", 0.0, 200.0, m.vendor)],
+        m.ou,
+    )
+    bill._guarded().write({"approval_state": "approved", "move_id": move.id})
     m.sup._a06_set_status("deactivated", "Sanctions list hit")
     with pytest.raises(UserError, match="deactivated"), m.env.cr.savepoint():
         bill.with_user(m.acc).action_request_payment()

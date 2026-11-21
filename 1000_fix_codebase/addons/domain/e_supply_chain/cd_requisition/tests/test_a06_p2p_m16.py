@@ -318,9 +318,12 @@ def test_p11_post_receipt_price_amendment_is_versioned_and_reapproved(c):
     )
     assert amd.old_price == 10000.0
     amd.with_user(c.buyer).action_submit()
-    for who in (c.buyer, c.requester, c.colleague):
-        with pytest.raises(UserError), c.env.cr.savepoint():
-            amd.with_user(who).action_approve()
+    # the buyer holds the tier the amended value needs: only SoD refuses them
+    c.buyer.write({"group_ids": [(4, c.env.ref(T[2]).id)]})
+    with pytest.raises(UserError, match="Segregation of duties"), c.env.cr.savepoint():
+        amd.with_user(c.buyer).action_approve()
+    with pytest.raises(UserError, match="needs tier 2 approval"), c.env.cr.savepoint():
+        amd.with_user(c.colleague).action_approve()
     amd.with_user(c.t2).action_approve()
     assert (amd.state, amd.version, line.approved_unit_price) == ("approved", 1, 12000.0)
     events = c.env["fix.event.outbox"].search(
