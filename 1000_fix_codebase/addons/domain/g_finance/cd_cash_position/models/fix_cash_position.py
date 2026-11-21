@@ -100,10 +100,42 @@ INSTRUCTION_FIELDS = (
     "debit_account_id",
     "value_date",
     "company_id",
+    # A05 I3: the GL dimensions the confirmation posts with, and the card
+    # transaction a card refund reverses
+    "operating_unit_id",
+    "branch_id",
+    "original_payment_ref",
 )
 # What a source document fixed (pinned at creation by _fix_request_payment).
-SOURCE_PINNED_FIELDS = ("amount", "currency_id", "partner_id", "payee", "source_ref")
+SOURCE_PINNED_FIELDS = (
+    "amount",
+    "currency_id",
+    "partner_id",
+    "payee",
+    "source_ref",
+    # A05 I3 (FIN-10): the source's unit and branch are the transaction's
+    "operating_unit_id",
+    "branch_id",
+    "original_payment_ref",
+    # A05 S6: the liability the confirmation clears is the source's (the
+    # seller payable, the deposits held, the recycler fee accrual) - treasury
+    # never re-points it to another account
+    "debit_account_id",
+)
 OPEN_STATES = ("pending", "prepared", "sent", "executed")
+
+# A05 FIN-12 / FIN-25 (I3): the journal an instruction is paid from matches
+# its method — cash from a cash journal, a bank transfer or cheque from an
+# operating bank account, an MFS payment from the MFS wallet, a card refund
+# through the card acquirer (gateway) account.
+METHOD_JOURNAL_ROLES = {
+    "mobile_fs": ("mfs_wallet",),
+    "card": ("gateway",),
+}
+# bank roles a bank transfer / cheque is never paid from
+NON_OPERATING_ROLES = ("mfs_wallet", "gateway", "deposit")
+# A05 FIN-12: the groups that may pay out a released cash voucher
+GROUP_CASHIER = "cd_front_desk.group_fd_cashier"
 
 
 def is_imported(line) -> bool:
@@ -143,6 +175,13 @@ class FixPaymentExecution(models.Model):
         "res.company", required=True, index=True, default=lambda self: self.env.company
     )
     operating_unit_id = fields.Many2one("operating.unit", required=True, index=True)
+    branch_id = fields.Many2one(
+        "fix.branch",
+        string="Branch",
+        index=True,
+        help="The source document's branch: the confirmation posts with it (and with this "
+        "instruction's operating unit, the branch's own).",
+    )
     name = fields.Char(string="Instruction Ref", readonly=True, copy=False, index=True)
     source_model = fields.Char(string="Source Model", required=True, index=True)
     source_id = fields.Integer(string="Source ID", required=True, index=True)
@@ -177,9 +216,16 @@ class FixPaymentExecution(models.Model):
             ("cheque", "Cheque"),
             ("cash", "Cash"),
             ("mobile_fs", "bKash/Nagad Merchant Pay"),
+            # A05 FIN-25: a card deposit is refunded to the card it came from
+            ("card", "Card Refund (to the original card)"),
         ],
         default="bank_transfer",
         required=True,
+    )
+    original_payment_ref = fields.Char(
+        string="Original Card Transaction",
+        help="Card refunds: the acquirer reference (RRN / approval code) of the card payment "
+        "this refund reverses. The refund goes back to that card, never to a bank account.",
     )
     rail = fields.Selection(
         [("beftn", "BEFTN"), ("rtgs", "RTGS"), ("npsb", "NPSB"), ("cheque", "Cheque")],
@@ -252,9 +298,23 @@ class FixPaymentExecution(models.Model):
             ("payroll_return", "Imported Payroll Bank-Return File"),
             ("bank_reference", "Bank Reference Recorded (legacy)"),
             ("caller_asserted", "Caller-Asserted (No Bank Evidence)"),
+            # A05 FIN-12: cash paid out across the counter on a cash voucher
+            ("cash_voucher", "Cash Voucher Paid Out"),
         ],
         readonly=True,
         copy=False,
+    )
+    # A05 FIN-12: the cash voucher of a cash-method instruction
+    cash_voucher_no = fields.Char(string="Cash Voucher No", readonly=True, copy=False, index=True)
+    cash_paid_by_id = fields.Many2one(
+        "res.users", string="Cash Paid Out By", readonly=True, copy=False
+    )
+    cash_paid_at = fields.Datetime(string="Cash Paid Out At", readonly=True, copy=False)
+    cash_received_by = fields.Char(
+        string="Cash Received By",
+        readonly=True,
+        copy=False,
+        help="Who signed the cash voucher for the money (name / ID as on the voucher).",
     )
     bank_confirmed = fields.Boolean(
         compute="_compute_bank_confirmed", store=True, string="Bank Confirmed"
@@ -299,6 +359,10 @@ class FixPaymentExecution(models.Model):
             "source_approved_by_id",
             "source_ref",
             "name",
+            "cash_voucher_no",
+            "cash_paid_by_id",
+            "cash_paid_at",
+            "cash_received_by",
         }
     )
 
@@ -325,6 +389,7 @@ class FixPaymentExecution(models.Model):
 
     @api.depends(
         "state",
+        "confirmation_source",
         "statement_line_id",
         "statement_line_id.amount",
         "statement_line_id.statement_file_hash",
@@ -339,8 +404,31 @@ class FixPaymentExecution(models.Model):
                     # bank-return file (F1's payroll evidence source)
                     (is_imported(line) and line.amount < 0)
                     or pay.confirmation_source == "payroll_return"
+                    # A05 FIN-12: cash never reaches a bank statement; the
+                    # cashier's voucher is its evidence
+                    or pay.confirmation_source == "cash_voucher"
                 )
             )
+
+    @api.constrains("branch_id", "operating_unit_id")
+    def _check_branch_unit(self):
+        """A05 I3: the branch posts in its own unit (M19's journal dimension
+        refuses anything else, at confirmation — too late)."""
+        for pay in self:
+            if (
+                pay.branch_id
+                and pay.branch_id.operating_unit_id
+                and pay.branch_id.operating_unit_id != pay.operating_unit_id
+            ):
+                raise ValidationError(
+                    "%s: branch %s belongs to %s, not to %s."
+                    % (
+                        pay.name or "This instruction",
+                        pay.branch_id.name,
+                        pay.branch_id.operating_unit_id.name,
+                        pay.operating_unit_id.name,
+                    )
+                )
 
     @api.constrains("amount")
     def _check_amount(self):
@@ -510,14 +598,19 @@ class FixPaymentExecution(models.Model):
                 vals["name"] = (
                     self.env["ir.sequence"].sudo().next_by_code("fix.payment.execution") or "PEX"
                 )
+            company = (
+                self.env["res.company"].browse(vals.get("company_id"))
+                if vals.get("company_id")
+                else self.env.company
+            )
+            if not vals.get("operating_unit_id") and vals.get("branch_id"):
+                # A05 I3: a branch posts in its own unit
+                vals["operating_unit_id"] = (
+                    self.env["fix.branch"].sudo().browse(vals["branch_id"]).operating_unit_id.id
+                )
             if not vals.get("operating_unit_id"):
                 # the form's OU picker can arrive empty; treasury executes
                 # company-wide — fall back to the company's first OU
-                company = (
-                    self.env["res.company"].browse(vals.get("company_id"))
-                    if vals.get("company_id")
-                    else self.env.company
-                )
                 vals["operating_unit_id"] = (
                     self.env["operating.unit"]
                     .sudo()
@@ -696,20 +789,18 @@ class FixPaymentExecution(models.Model):
                 else self.env.company
             )
         )
-        ou_id = options.get("operating_unit_id") or (
-            source.operating_unit_id.id
-            if source is not None and "operating_unit_id" in source._fields
-            else False
+        ou_id, branch, dims_note = self._fix_request_dimensions(
+            source_model, source_id, source, company, options
         )
         if not ou_id:
-            ou_id = (
-                self.env["operating.unit"]
-                .sudo()
-                .search([("company_id", "=", company.id)], limit=1)
-                .id
-            )
-        if not ou_id:
             raise UserError("%s/%s carries no operating unit." % (source_model, source_id))
+        method = options.get("method") or "bank_transfer"
+        if method == "card" and not (options.get("original_payment_ref") or "").strip():
+            raise UserError(
+                "%s/%s: a card refund names the card payment it reverses "
+                "(original_payment_ref) — it goes back to that card, not to a bank account."
+                % (source_model, source_id)
+            )
         vals = {
             "company_id": company.id,
             "operating_unit_id": ou_id,
@@ -723,22 +814,158 @@ class FixPaymentExecution(models.Model):
             "partner_bank_id": bank.id or False,
             "currency_id": cur.id,
             "amount": amount,
-            "method": options.get("method") or "bank_transfer",
+            "method": method,
+            "branch_id": branch.id or False,
         }
-        for key in ("rail", "journal_id", "value_date", "debit_account_id"):
+        for key in ("rail", "journal_id", "value_date", "debit_account_id", "original_payment_ref"):
             if options.get(key):
                 vals[key] = options[key]
+        # A05 FIN-12 / FIN-25: the journal matches the method. A caller's
+        # journal of the wrong kind (the first bank journal for a cash refund)
+        # is replaced by the one journal of the right kind, else left empty
+        # for treasury to choose — never guessed among several.
+        journal_note = False
+        given = self.env["account.journal"].sudo().browse(vals.get("journal_id") or [])
+        if not self._fix_journal_fits(given, method):
+            matching = self._fix_matching_journal(
+                company, method, self.env["operating.unit"].browse(ou_id)
+            )
+            vals["journal_id"] = matching.id or False
+            if given:
+                journal_note = "%s is not a %s journal: %s" % (
+                    given.display_name,
+                    dict(self._fields["method"].selection)[method],
+                    "pre-filled %s instead" % matching.display_name
+                    if matching
+                    else "treasury chooses the paying journal",
+                )
         pay = Exec._guarded().create(vals)
         pay.message_post(
             body="Requested by %s (%s)%s. Treasury prepares, authorises and releases it; "
-            "nothing is paid before an imported bank statement confirms the debit."
+            "nothing is paid before %s confirms it."
             % (
                 ref or source_model,
                 source_model,
                 " — approved by %s" % approver.name if approver else "",
+                "the cashier's voucher" if method == "cash" else "an imported bank statement",
             )
         )
+        for note in (dims_note, journal_note):
+            if note:
+                pay.message_post(body=note)
         return self.browse(pay.id)
+
+    @api.model
+    def _fix_request_dimensions(self, source_model, source_id, source, company, options):
+        """A05 FIN-10 / I3: (operating unit id, branch, note) of a requested
+        payment. The branch is the caller's (option branch_id) or the source
+        document's own branch_id; the unit is the caller's, else the source's,
+        else the branch's — the company's first unit only when none of them
+        knows one. A branch named by the caller that sits in another unit is
+        refused; a source branch that does so is not carried (the caller's
+        unit wins, as before) and the instruction says why."""
+        Branch = self.env["fix.branch"].sudo()
+        raw_branch = options.get("branch_id")
+        if not raw_branch:
+            explicit = Branch
+        elif isinstance(raw_branch, int):
+            explicit = Branch.browse(raw_branch).exists()
+        else:
+            explicit = raw_branch.sudo()
+        inferred = Branch
+        if (
+            not explicit
+            and source is not None
+            and "branch_id" in source._fields
+            and source.branch_id
+            and source.branch_id._name == "fix.branch"
+        ):
+            inferred = source.branch_id.sudo()
+        branch = explicit or inferred
+        ou_option = options.get("operating_unit_id")
+        if ou_option and not isinstance(ou_option, int):
+            ou_option = ou_option.id
+        ou_id = ou_option or (
+            source.operating_unit_id.id
+            if source is not None and "operating_unit_id" in source._fields
+            else False
+        )
+        note = False
+        branch_ou = branch.operating_unit_id if branch else self.env["operating.unit"]
+        if branch and branch.company_id and branch.company_id != company:
+            raise UserError(
+                "%s/%s: branch %s belongs to another company."
+                % (source_model, source_id, branch.name)
+            )
+        if not ou_id:
+            ou_id = branch_ou.id
+        elif branch_ou and branch_ou.id != ou_id:
+            if explicit:
+                raise UserError(
+                    "%s/%s: branch %s belongs to %s, not to the operating unit the payment "
+                    "names. A posting carries the branch's own unit."
+                    % (source_model, source_id, branch.name, branch_ou.name)
+                )
+            note = (
+                "Source branch %s (unit %s) is not in this instruction's unit: the confirmation "
+                "posts on the unit only." % (branch.name, branch_ou.name)
+            )
+            branch = Branch
+        if not ou_id:
+            ou_id = (
+                self.env["operating.unit"]
+                .sudo()
+                .search([("company_id", "=", company.id)], limit=1)
+                .id
+            )
+        return ou_id, branch, note
+
+    @api.model
+    def _fix_journal_fits(self, journal, method) -> bool:
+        """Is `journal` the kind `method` is paid from?"""
+        if not journal:
+            return False
+        if method == "cash":
+            # a cash journal that pays money out — not the cheque-in-hand
+            # staging journal (fix_real: CIH, the only 'cash' journal)
+            return journal.type == "cash" and not self._fix_is_cheque_in_hand(journal)
+        if journal.type != "bank":
+            return False
+        role = journal.fix_treasury_role or journal.fix_account_type or False
+        if method in METHOD_JOURNAL_ROLES:
+            return role in METHOD_JOURNAL_ROLES[method]
+        return role not in NON_OPERATING_ROLES
+
+    @api.model
+    def _fix_is_cheque_in_hand(self, journal) -> bool:
+        cih = treasury_account(
+            self.env, journal.company_id or self.env.company, "cheque_in_hand", required=False
+        )
+        return bool(cih and journal.sudo().default_account_id == cih)
+
+    @api.model
+    def _fix_matching_journal(self, company, method, operating_unit=None):
+        """The ONE journal of the company that `method` is paid from (in the
+        payment's unit when journals carry one), else none: treasury picks
+        among several, the system never guesses."""
+        journals = (
+            self.env["account.journal"]
+            .sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id),
+                    ("type", "=", "cash" if method == "cash" else "bank"),
+                ]
+            )
+            .filtered(lambda j: self._fix_journal_fits(j, method))
+        )
+        if len(journals) > 1 and operating_unit and "operating_unit_id" in journals._fields:
+            in_unit = journals.filtered(lambda j: j.operating_unit_id == operating_unit)
+            journals = in_unit or journals
+        if len(journals) > 1 and method in ("bank_transfer", "cheque"):
+            operating = journals.filtered(lambda j: j.fix_treasury_role == "operating")
+            journals = operating if len(operating) == 1 else journals
+        return journals if len(journals) == 1 else self.env["account.journal"]
 
     # payment.requested producers -> (partner, bank, amount, currency, approver, ou, ref)
     def _resolve_expense_claim(self, claim, payload):
@@ -879,10 +1106,22 @@ class FixPaymentExecution(models.Model):
         if self.method == "cash" and self.journal_id.type != "cash":
             raise UserError("A cash payment is paid from a cash journal.")
         if (
-            self.method in ("bank_transfer", "mobile_fs", "cheque")
+            self.method in ("bank_transfer", "mobile_fs", "cheque", "card")
             and self.journal_id.type != "bank"
         ):
             raise UserError("A %s is paid from a bank journal." % self.method)
+        if self.method == "card":
+            # A05 FIN-25: back to the card it came from, through the acquirer
+            if not self._fix_journal_fits(self.journal_id, "card"):
+                raise UserError(
+                    "%s is a card refund: it is paid through the card acquirer (gateway) "
+                    "account, not %s." % (self.name, self.journal_id.display_name)
+                )
+            if not (self.original_payment_ref or "").strip():
+                raise UserError(
+                    "%s is a card refund: record the original card transaction it reverses."
+                    % self.name
+                )
         if self.method == "bank_transfer":
             if self.rail not in ("beftn", "rtgs", "npsb"):
                 raise UserError("Select the bank rail (BEFTN / RTGS / NPSB) for %s." % self.name)
@@ -1066,7 +1305,9 @@ class FixPaymentExecution(models.Model):
                     pay.rail or pay.method,
                     pay.journal_id.bank_acc_number or pay.journal_id.code,
                     pay.partner_bank_id.acc_holder_name or pay.payee,
-                    pay.partner_bank_id.acc_number or "",
+                    pay.partner_bank_id.acc_number
+                    or (pay.original_payment_ref if pay.method == "card" else "")
+                    or "",
                     pay.partner_bank_id.fix_routing_number or "",
                     "%.2f" % pay.amount,
                     pay.currency_id.name,
@@ -1105,7 +1346,7 @@ class FixPaymentExecution(models.Model):
                 "released_acc_number": pay.partner_bank_id.acc_number or False,
                 "released_journal_id": pay.journal_id.id,
             }
-            if pay.method in ("bank_transfer", "mobile_fs"):
+            if pay.method in ("bank_transfer", "mobile_fs", "card"):
                 attachment = (
                     self.env["ir.attachment"]
                     .sudo()
@@ -1249,6 +1490,8 @@ class FixPaymentExecution(models.Model):
                     (bank, "Paid %s" % self.payee, 0.0, amount, self.partner_id),
                 ],
                 source="treasury",
+                # A05 FIN-10 / I3: the payment's unit and the source's branch
+                **self._fix_posting_dims(),
             )
         executed_vals = {
             "state": "executed",
@@ -1276,6 +1519,113 @@ class FixPaymentExecution(models.Model):
                 "method": self.method,
             },
         )
+
+    def _fix_posting_dims(self):
+        """A05 FIN-10 / I3: the dimensions treasury's entry for this payment
+        carries — its operating unit and the source document's branch."""
+        self.ensure_one()
+        return {
+            "branch": self.branch_id or None,
+            "operating_unit": self.operating_unit_id or None,
+        }
+
+    def action_pay_cash_voucher(self, received_by=None):
+        """A05 FIN-12: the confirmation path of a CASH instruction. Cash never
+        reaches a bank statement, so a released cash instruction is a cash
+        voucher on its cash journal: a named cashier / treasury user — not the
+        requester, the source's approver or the releaser — hands the money
+        over, and that hand-over posts Dr the instruction's debit account /
+        Cr the cash journal's account, with the payment's unit and branch.
+        Exactly once (the state moves to executed in the same transaction)."""
+        user = self.env.user
+        if user._is_superuser() or not any(
+            user.has_group(g) for g in (GROUP_ACCOUNTANT, GROUP_ADMIN, GROUP_CASHIER)
+        ):
+            raise UserError(
+                "Paying out a cash voucher needs a named cashier or treasury user; the "
+                "hand-over is a person's signature."
+            )
+        for pay in self:
+            # the cashier reads the instruction (base read + unit rule); the
+            # journal, accounts and stamps are read as the system
+            rec = pay.sudo()
+            if rec.method != "cash":
+                raise UserError(
+                    "%s is a %s: only a cash instruction is paid on a cash voucher."
+                    % (rec.name, dict(self._fields["method"].selection)[rec.method])
+                )
+            if rec.state != "sent":
+                raise UserError(
+                    "%s is '%s': a cash voucher is paid out only after the instruction is "
+                    "prepared and released." % (rec.name, rec.state)
+                )
+            journal = rec.released_journal_id or rec.journal_id
+            if journal.type != "cash" or self._fix_is_cheque_in_hand(journal):
+                raise UserError(
+                    "%s is not paid from a cash journal (cheques in hand are not cash to pay "
+                    "out)." % rec.name
+                )
+            clash = user & (rec.create_uid | rec.source_approved_by_id | rec.sent_by_id)
+            if clash:
+                raise UserError(
+                    "Segregation of duties: %s requested, approved or released %s and cannot "
+                    "also pay its cash out." % (user.name, pay.name)
+                )
+            if abs(rec.amount - rec.released_amount) > 0.005:
+                raise UserError(
+                    "%s no longer matches the instruction that was released." % pay.name
+                )
+            today = fields.Date.context_today(pay.with_context(tz="Asia/Dhaka"))
+            move = self.env["account.move"]
+            note = False
+            if rec.source_posts_gl:
+                note = "Payment entry booked by the requesting document (%s)" % rec.source_model
+            else:
+                debit = rec.debit_account_id or treasury_account(
+                    rec.env, rec.company_id, "outgoing_clearing"
+                )
+                move = post_treasury_move(
+                    rec.env,
+                    rec.company_id,
+                    today,
+                    "CASH %s — %s" % (rec.name, rec.payee),
+                    [
+                        (debit, "Payment %s" % rec.name, rec.released_amount, 0.0, rec.partner_id),
+                        (
+                            bank_account_of(journal),
+                            "Cash paid %s" % rec.payee,
+                            0.0,
+                            rec.released_amount,
+                            rec.partner_id,
+                        ),
+                    ],
+                    source="treasury",
+                    **rec._fix_posting_dims(),
+                )
+            voucher = (
+                self.env["ir.sequence"].sudo().next_by_code("fix.payment.cash.voucher")
+                or "CPV/%s" % rec.id
+            )
+            rec._guarded().write(
+                {
+                    "state": "executed",
+                    "executed_at": fields.Datetime.now(),
+                    "confirmation_source": "cash_voucher",
+                    "cash_voucher_no": voucher,
+                    "cash_paid_by_id": user.id,
+                    "cash_paid_at": fields.Datetime.now(),
+                    "cash_received_by": (received_by or "").strip() or rec.payee,
+                    "bank_reference": voucher,
+                    "move_id": move.id,
+                    "gl_note": note,
+                }
+            )
+            rec.message_post(
+                body="Cash voucher %s paid out by %s to %s."
+                % (voucher, user.name, rec.cash_received_by)
+            )
+            rec._publish_executed()
+        return True
 
     def action_confirm_bank(self):
         """Confirm from the bank's reference: it must identify an IMPORTED
@@ -1349,6 +1699,7 @@ class FixPaymentExecution(models.Model):
                     "RETURN %s — %s" % (pay.name, reason),
                     lines,
                     source="treasury",
+                    **pay._fix_posting_dims(),
                 )
             pay._guarded().write(
                 {

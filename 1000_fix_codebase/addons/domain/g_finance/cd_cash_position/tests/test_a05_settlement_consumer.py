@@ -10,8 +10,8 @@ instruction; material-recovery income raises a draft M20 invoice; both are
 idempotent per settlement. ``odoo_env`` rolls back after each test.
 """
 
+import itertools
 import json
-import types
 from datetime import timedelta
 
 import pytest
@@ -20,75 +20,73 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
 EVENT = "ewaste.settlement_approved"
+_N = itertools.count(1)
 
 
 @pytest.fixture
 def w(odoo_env):
-    env = odoo_env
-    x = types.SimpleNamespace(env=env)
-    x.partner = env["res.partner"].create(
-        {"name": "A5C7 E-Waste Partner", "phone": "01711000505"}
-    )
-    x.payer = env["res.partner"].create({"name": "A5C7 Recovery Buyer"})
-    x.ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
-    x.customer = env["res.partner"].create(
-        {"name": "A5C7 Collection Customer", "phone": "01711000506"}
-    )
-    x.today = fields.Date.context_today(env["fix.ewaste.settlement"])
-    return x
+    """The A05 ERP (S3) M18 world: non-admin floor users, the D1 account
+    parameters pointed at the test chart, an operating unit and a branch.
+    Settlements are raised by the e-waste dispatcher on a basis that carries
+    its operating unit, with the branch, payment method and payee account the
+    approval pins."""
+    from odoo.addons.cd_ewaste.tests.test_a05_s3_build import build
+
+    x = build(odoo_env)
+    try:
+        yield x
+    finally:
+        x.close()
 
 
-def _collection(w):
-    """A collected collection (triage assessed), so an incentive may be paid."""
-    col = (
-        w.env["fix.ewaste.collection"]
-        .sudo()
+def _bank(w, partner):
+    return w.env["res.partner.bank"].create(
+        {"acc_number": "A5C7-%s-%d" % (partner.id, next(_N)), "partner_id": partner.id}
+    )
+
+
+def _settlement(w, kind="incentive", amount=5000.0):
+    """A settlement on its proper basis, as the floor raises it: an incentive
+    on one triaged collection of an operating unit (paid to the collection's
+    customer); a recycler fee on one received batch (paid to the recycler's
+    business contact); recovery income raised from the batch's recovery
+    lines (action_raise_income: its amount is the lines' total, never typed)."""
+    from odoo.addons.cd_ewaste.tests.test_a05_s3_build import (
+        _incentive,
+        _income,
+        _received_batch,
+    )
+
+    if kind == "incentive":
+        return _incentive(w, amount=amount)
+    if kind == "recovery_income":
+        _batch, _lines, rec = _income(w)
+        rec.with_user(w.dispatcher).write({"branch_id": w.branch.id})
+        return rec
+    batch = _received_batch(w)
+    contact = batch.partner_id.partner_id
+    return (
+        w.env["fix.ewaste.settlement"]
+        .with_user(w.dispatcher)
         .create(
             {
-                "company_id": w.env.company.id,
-                "customer_id": w.customer.id,
-                "collected_on": w.today - timedelta(days=5),
+                "kind": kind,
+                "batch_id": batch.id,
+                "partner_id": contact.id,
+                "amount": amount,
+                "branch_id": w.branch.id,
+                "payment_method": "bank_transfer",
+                "partner_bank_id": _bank(w, contact).id,
             }
         )
     )
-    return col
-
-
-def _batch(w):
-    """A batch at the licensed recycler (a fix.ewaste.partner whose contact is
-    the payee). It stays draft: the settlement's create-time basis check only
-    needs the batch and the payee match — the batch-state gate runs in the
-    real approve method, which the trusted staging of the decision replaces."""
-    recycler = w.env["fix.ewaste.partner"].sudo().create(
-        {"name": "A5C7 Licensed Recycler", "partner_id": w.partner.id}
-    )
-    return w.env["fix.ewaste.batch"].sudo().create(
-        {"company_id": w.env.company.id, "partner_id": recycler.id}
-    )
-
-
-def _settlement(w, kind="incentive", amount=5000.0, partner=None):
-    """A settlement on its proper basis: an incentive on one collected
-    collection (paid to the collection's customer); a recycler fee or
-    recovery income on one received batch (paid to the batch's recycler)."""
-    vals = {"company_id": w.env.company.id, "kind": kind, "amount": amount}
-    if kind == "incentive":
-        col = _collection(w)
-        vals["collection_id"] = col.id
-        vals["partner_id"] = (partner or col.customer_id).id
-    else:
-        batch = _batch(w)
-        contact = batch.partner_id.partner_id
-        vals["batch_id"] = batch.id
-        vals["partner_id"] = (partner or contact or w.partner).id
-    return w.env["fix.ewaste.settlement"].sudo().create(vals)
 
 
 def _approved(w, settlement):
     """Trusted staging of the routed M63 decision's result: the settlement is
     approved and its event sits in the outbox (the guards pin the terms; the
     consumer re-reads the record, never the payload)."""
-    settlement._guarded().write(
+    settlement.sudo()._guarded().write(
         {"state": "approved", "approved_by_id": w.env.uid, "approved_on": fields.Datetime.now()}
     )
     w.env["fix.event.outbox"].sudo().create(
@@ -96,9 +94,7 @@ def _approved(w, settlement):
             "event_type": EVENT,
             "aggregate": "fix.ewaste.settlement",
             "aggregate_id": settlement.id,
-            "payload": json.dumps(
-                {"kind": settlement.kind, "amount": settlement.amount}
-            ),
+            "payload": json.dumps({"kind": settlement.kind, "amount": settlement.amount}),
         }
     )
     return settlement
@@ -115,16 +111,24 @@ def _relay(w):
 
 
 def _payout(w, settlement):
-    return w.env["fix.payment.execution"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
-        limit=1,
+    return (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .search(
+            [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
+            limit=1,
+        )
     )
 
 
 def _invoice(w, settlement):
-    return w.env["fix.ar.invoice"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
-        limit=1,
+    return (
+        w.env["fix.ar.invoice"]
+        .sudo()
+        .search(
+            [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", settlement.id)],
+            limit=1,
+        )
     )
 
 
@@ -133,7 +137,7 @@ def test_an_incentive_raises_a_pending_m50_payout(w):
     _relay(w)
     pay = _payout(w, s)
     assert pay and pay.state == "pending", "the M50 instruction exists and is pending"
-    assert pay.partner_id == w.customer and pay.amount == 5000.0
+    assert pay.partner_id == s.collection_id.customer_id and pay.amount == 5000.0
     assert not _invoice(w, s)
 
 
@@ -141,16 +145,19 @@ def test_a_recycler_fee_also_goes_through_m50(w):
     s = _approved(w, _settlement(w, kind="recycler_fee", amount=12000.0))
     _relay(w)
     pay = _payout(w, s)
-    assert pay and pay.amount == 12000.0 and pay.partner_id == w.partner
+    assert pay and pay.amount == 12000.0
+    assert pay.partner_id == s.batch_id.partner_id.partner_id  # the recycler's contact
 
 
 def test_recovery_income_raises_a_draft_m20_invoice(w):
-    s = _approved(w, _settlement(w, kind="recovery_income", amount=7500.0))
+    s = _approved(w, _settlement(w, kind="recovery_income"))
     _relay(w)
     inv = _invoice(w, s)
     assert inv and inv.state == "draft"
-    # the basis rule ties income to the batch's recycler contact
-    assert inv.customer_id == w.partner and inv.total_payable == 7500.0
+    # the basis rule ties income to the batch's recycler contact; the
+    # recovered-material lines' total is the taxable value (VAT is M51's, D2)
+    assert inv.customer_id == s.batch_id.partner_id.partner_id
+    assert sum(inv.line_ids.mapped("taxable_amount")) == pytest.approx(s.amount)
     assert inv.manual_reason and "material-recovery" in inv.manual_reason.lower()
     assert not _payout(w, s)
 
@@ -159,16 +166,20 @@ def test_relaying_twice_raises_one_document(w):
     s = _approved(w, _settlement(w, kind="incentive", amount=3000.0))
     _relay(w)
     _relay(w)
-    payouts = w.env["fix.payment.execution"].sudo().search(
-        [("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", s.id)]
+    payouts = (
+        w.env["fix.payment.execution"]
+        .sudo()
+        .search([("source_model", "=", "fix.ewaste.settlement"), ("source_id", "=", s.id)])
     )
     assert len(payouts) == 1
 
 
 def test_a_forged_payload_amount_is_refused(w):
     s = _approved(w, _settlement(w, kind="incentive", amount=5000.0))
-    row = w.env["fix.event.outbox"].sudo().search(
-        [("event_type", "=", EVENT), ("aggregate_id", "=", s.id)], limit=1
+    row = (
+        w.env["fix.event.outbox"]
+        .sudo()
+        .search([("event_type", "=", EVENT), ("aggregate_id", "=", s.id)], limit=1)
     )
     payload = json.loads(row.payload)
     payload["amount"] = 999999.0

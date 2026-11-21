@@ -23,7 +23,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.7.0",
+    "version": "19.0.2.7.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",
@@ -83,6 +83,8 @@ CD-M20-01: the M20 accounts-receivable core.
         # M20 second capture pass (19 Nov 2026): sequences and the daily
         # promise / plan / unbilled / collection-case jobs.
         "data/fix_ar_capture_data.xml",
+        # A05 FIN-14: service-period revenue deferral (rules + daily release).
+        "data/fix_a05_revenue_deferral.xml",
     ],
     "installable": True,
     "application": False,

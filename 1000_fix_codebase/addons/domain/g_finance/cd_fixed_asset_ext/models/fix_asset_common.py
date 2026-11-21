@@ -169,6 +169,36 @@ def check_sod(env, requester, what: str, record=None) -> None:
         )
 
 
+PARAM_RESALE_STOCK = "cd_fixed_asset_ext.account_code.resale_inventory"
+
+
+def resale_stock_account(env, company):
+    """A05 M13-14: the inventory account a retired rental unit moves to when
+    it is routed to refurbished resale (owner decision D1: "Stock of
+    Inventory - Refurbished"). Configured, never guessed: refuses naming the
+    parameter when unset or unknown."""
+    code = (env["ir.config_parameter"].sudo().get_param(PARAM_RESALE_STOCK) or "").strip()
+    account = env["account.account"]
+    if code:
+        account = (
+            env["account.account"]
+            .sudo()
+            .with_company(company)
+            .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
+        )
+    if not account:
+        raise UserError(
+            env._(
+                "A transfer to resale stock needs the refurbished-stock account: set the system "
+                "parameter %s to its account code (currently %s) in %s.",
+                PARAM_RESALE_STOCK,
+                code or "unset",
+                company.name,
+            )
+        )
+    return account
+
+
 def require_accounts(record, fnames, what: str) -> None:
     """Fail closed when a posting account/journal is not configured."""
     missing = [record._fields[f].string for f in fnames if not record[f]]

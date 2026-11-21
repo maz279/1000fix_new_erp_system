@@ -174,10 +174,15 @@ def bank_account_of(journal):
     return journal.default_account_id
 
 
-def posting_dims(env, branch=None):
+def posting_dims(env, branch=None, operating_unit=None):
     """Dimensions for treasury postings: the branch plus the configured
-    default cost centre / business line (same defaults as M20)."""
-    return {
+    default cost centre / business line (same defaults as M20).
+
+    A05 FIN-10 / I3: a posting that knows its operating unit (a payment
+    execution's) carries it, so M19 never falls back to the company's first
+    unit; the branch is the source document's. Callers that pass neither
+    keep the old behaviour (M19 derives the unit from the branch)."""
+    dims = {
         "branch_id": branch.id if branch else False,
         "cost_centre": param(env, "cd_cash_position.default_cost_centre")
         or param(env, "cd_billing_engine.default_cost_centre")
@@ -186,13 +191,19 @@ def posting_dims(env, branch=None):
         or param(env, "cd_billing_engine.default_business_line")
         or "RETAIL",
     }
+    if operating_unit:
+        dims["operating_unit_id"] = operating_unit.id
+    return dims
 
 
-def post_treasury_move(env, company, entry_date, ref, lines, branch=None, source="treasury"):
+def post_treasury_move(
+    env, company, entry_date, ref, lines, branch=None, source="treasury", operating_unit=None
+):
     """Post a balanced treasury entry on the company's general journal.
 
     lines: [(account, label, debit, credit, partner|None)] — zero lines are
-    dropped; the caller balances. Returns the posted account.move."""
+    dropped; the caller balances. `branch` / `operating_unit`: the posting's
+    dimensions (A05 I3). Returns the posted account.move."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
     journal = env["account.journal"].search(
@@ -225,7 +236,7 @@ def post_treasury_move(env, company, entry_date, ref, lines, branch=None, source
             for account, label, dr, cr, partner in kept
         ],
     }
-    dims = posting_dims(env, branch)
+    dims = posting_dims(env, branch, operating_unit)
     move, _dims = post_with_dimensions(
         env, move_vals, {i: dict(dims) for i in range(len(kept))}, source=source
     )

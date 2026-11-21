@@ -19,3 +19,8 @@ from . import fix_asset_capture
 # the two gaps left by that audit: components of a seam asset and insurance
 # cover; they extend the register and the disposal: loaded after the above
 from . import fix_asset_gaps
+
+# A05 FIN-15 / M13-14: the capitalise / book value / dispose-by-route API
+# another module (M13 rental fleet) calls; extends the register and the
+# depreciation run, so loaded last
+from . import fix_asset_source_api
