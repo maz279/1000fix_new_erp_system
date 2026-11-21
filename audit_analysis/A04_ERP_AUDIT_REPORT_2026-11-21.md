@@ -149,4 +149,43 @@ About 185 findings. The P0s were money that never reached the ledger, or reached
 - M40: the M07 hand-off; one MDF mechanism; the alliance benefit link.
 
 ## Verification
-(filled in at integration; see below)
+
+**Per stream.** Every fix has an ORM test, run as real non-superusers where access matters, and a mutation check: the defect was put back and the test had to fail.
+
+| Stream | New tests | Mutants red |
+|---|---|---|
+| B1 | 47 | 15 of 16 (the 16th is covered by a second guard layer) |
+| B2 | 49 | 22 of 22 |
+| B3 | 43 + 2 | 14 of 14 + 2 |
+| B4 | ~43 + 1 | 14 of 14 + 1 |
+| B5 | 26 | 21 of 21 |
+
+**Integration DB.** `fix_test_a04b2` and `fix_test_a04erp`, with every changed module upgraded from the committed tree, plus the finance bridges `cd_front_desk_finance` and `cd_storefront_finance` that fix_real has.
+- **cd_p03_portal, full suite:** 6,665 tests, 5 failures.
+  - All 5 were tests that needed to follow the new rules: A12 checkout needs a released price, a gateway and a callback secret; M53 billing is run-only; the M40 draw form is pick-only.
+  - All 5 are updated, and the re-run passes.
+- **A04 and neighbouring module suites:** 2,866 tests. The 18 suites:
+  - cd_rate_card, cd_dynamic_pricing, cd_catalogue;
+  - cd_service_order, cd_quotation, cd_contract_core;
+  - cd_billing_engine, cd_warranty_claims, cd_subscription;
+  - cd_storefront, cd_storefront_finance, cd_marketplace;
+  - cd_partner, cd_settlement_ext, cd_cash_position;
+  - cd_doc_suite, cd_front_desk_finance, cd_msp_contract.
+- **Result:** 2,842 passed, 2 skipped, 4 failures, 20 errors.
+  - The 20 errors are `cd_doc_suite TestDocSuiteRendering` setup errors. They are identical on the base code (an Odoo TransactionCase run under pytest), so they predate this work.
+  - The 4 failures are `cd_billing_engine test_m20_capture_pass2`, off by one day. The shard started at 05:55 Asia/Dhaka, inside the known 00:00-06:00 Dhaka window, and all 22 tests pass on re-run.
+- **A04 code outcome: 0 failures.**
+
+**fix_real copy (`fix_real_a04`).** The upgrade of all 18 changed modules on real data exits 0, with 0 ERROR lines. The readiness probe (`evidence_a04_erp/LEAD_readiness_fix_real_copy.md`) shows:
+- BDT 1.00 is refused for a real part with an M15 cost of 2,229.24, on quotation and service;
+- the storefront refuses it, because there are 0 released rate cards;
+- the ageing cron captures the 31 Oct month-end;
+- all 96 A04 report packs run with a period, with 0 errors;
+- the owner parameters are unset, and their mechanisms fail closed.
+
+**Not covered.**
+- No browser walk of the changed screens: the P03 static guards and form/whitelist tests stand in for it.
+- The base comparison was run only for failing tests.
+- Nothing is deployed yet: deploying needs the user's approval and one restart coordinated with the A02, A05 and A07 sessions.
+
+**Also fixed on the way (outside A04, found by the A07 session):** the monthly AR ageing cron on fix_real (id 193) called a method that did not exist, so it failed every month. The method is restored, with a test.
