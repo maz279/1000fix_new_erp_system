@@ -29,6 +29,7 @@ from odoo.addons.cd_fixed_asset_ext.tests.test_a08_m49_controls import (
 from odoo.addons.cd_rental_asset.tests import test_a05_m13_controls as ctl
 from odoo.addons.cd_rental_asset.tests.conftest import TEST_ACCOUNTS
 from odoo.addons.cd_rental_asset.tests.test_a05_m13_controls import (
+    REFUSED,
     close,
     inbox_approve,
     ledger,
@@ -211,6 +212,87 @@ def test_cash_refund_carries_the_branch_and_a_cash_journal_or_none(c):
     pay = ledger(c, r).filtered(lambda d: d.kind == "refund").payment_execution_id.sudo()
     assert pay.method == "cash" and pay.branch_id == c.branch
     assert not pay.journal_id or pay.journal_id.type == "cash"
+
+
+def test_a_paid_refund_is_posted_not_left_queued(c):
+    """A05 e2e walk defect 2: treasury paid the refund (payment.executed) but
+    the row stayed refund_queued and the reports kept the deposit as held."""
+    r = ctl.walk(c, res(c), "action_assess_damage")
+    close(c, r)
+    refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
+    pay = refund.payment_execution_id.sudo()
+    assert refund.gl_state == "refund_queued"
+    Deposit = c.env["fix.rental.deposit"].sudo()
+    event = {"aggregate_id": pay.id}
+    # not executed yet: nothing moves
+    assert Deposit.consume_payment_executed(event) is False
+    pay.write({"state": "executed", "confirmation_source": "cash_voucher"})
+    assert Deposit.consume_payment_executed(event) is True
+    refund.invalidate_recordset()
+    assert refund.gl_state == "posted"
+    # a replay moves nothing; only the relay may call it
+    assert Deposit.consume_payment_executed(event) is False
+    with pytest.raises(REFUSED):
+        c.env["fix.rental.deposit"].with_user(c.clerk).consume_payment_executed(event)
+
+
+def _m13_deposit_row(c, r):
+    from odoo.addons.cd_p03_portal.controllers.a05 import m13
+
+    pack = m13.deposit_reconciliation(c.env(user=c.clerk.id))
+    rows = [row for row in pack["rows"] if row["rental"] == r.name]
+    assert len(rows) == 1, pack["rows"]
+    return rows[0], m13._held(ledger(c, r))
+
+
+def test_a_refund_paid_on_a_cash_voucher_reaches_the_ledger_and_the_m13_reports(c):
+    """A05 e2e walk defect 2, the production path: treasury prepares and
+    releases the cash refund, a cashier who is not the requester pays it out
+    on a cash voucher (Dr deposits held / Cr cash on the booking branch), the
+    relay delivers payment.executed through the registered consumer, and the
+    M13 deposit reconciliation shows the deposit refunded, not queued/held."""
+    env = c.env
+    params = env["ir.config_parameter"].sudo()
+    params.set_param("cd_cash_position.release_single_ceiling", "1000000000")
+    # the one cash journal of the company (rolled back): the refund pre-fills it
+    env["account.journal"].search(
+        [("company_id", "=", env.company.id), ("type", "=", "cash")]
+    ).write({"active": False})
+    cash = env["account.journal"].create(
+        {"name": "A05 S7 Counter Cash", "type": "cash", "code": "A5S7C"}
+    )
+    maker = ctl._user(env, "s7maker", ["account.group_account_manager"])
+    checker = ctl._user(env, "s7checker", ["account.group_account_manager"])
+    cashier = ctl._user(env, "s7cashier", ["cd_front_desk.group_fd_cashier"])
+    r = ctl.walk(c, res(c), "action_assess_damage")
+    close(c, r)
+    refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
+    pay = refund.payment_execution_id.sudo()
+    assert refund.gl_state == "refund_queued" and pay.method == "cash"
+    if pay.journal_id != cash:
+        pay.write({"journal_id": cash.id})
+    row, held = _m13_deposit_row(c, r)
+    assert (row["refunded"], row["refund_queued"], row["outstanding"]) == (0.0, 5000.0, 5000.0)
+    assert held == 5000.0
+    pay.with_user(maker).action_prepare()
+    pay.with_user(checker).action_release()
+    assert pay.state == "sent"
+    pay.with_user(cashier).action_pay_cash_voucher(received_by=c.customer.name)
+    assert (pay.state, pay.confirmation_source) == ("executed", "cash_voucher")
+    assert pay.move_id and pay.move_id.state == "posted"
+    # the relay as production runs it, through the registered consumer
+    consumer = env.ref("cd_rental_asset.consumer_payment_executed_rental_deposit")
+    assert consumer.event_type == "payment.executed" and consumer.active
+    env["fix.event.outbox"].sudo().cron_relay()
+    refund.invalidate_recordset()
+    assert refund.gl_state == "posted", refund.gl_note
+    assert refund.journal_entry_id == pay.move_id
+    liability = pay.move_id.line_ids.filtered(lambda ln: ln.debit)
+    assert liability.account_id.code == TEST_ACCOUNTS["deposit_liability"]
+    assert liability.debit == 5000.0
+    row, held = _m13_deposit_row(c, r)
+    assert (row["refunded"], row["refund_queued"], row["outstanding"]) == (5000.0, 0.0, 0.0)
+    assert held == 0.0
 
 
 # ============================================================ 1b revenue deferral

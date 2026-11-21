@@ -646,6 +646,49 @@ def test_vat_code_helper_refuses_a_vatable_damage_treatment(c):
         fix_rental_money._vat_code(c.env, c.env.company, "damage")
 
 
+def test_damage_is_not_invoiced_on_an_unsigned_treatment(c):
+    """Owner decision D12: the exempt compensation treatment is a proposal until
+    the tax adviser and the CFO sign it; until then no damage is invoiced."""
+    Treatment = c.env["fix.vat.treatment"].sudo()
+    row = Treatment.create(
+        {"code": "A05S1-UNSIGNED", "name": "comp", "treatment_type": "exempt", "rate": 0.0}
+    )
+    if row.state != "active":
+        row._guarded().write({"state": "active"})
+    assert row.signoff_state != "signed"
+    c.env["ir.config_parameter"].set_param(
+        "cd_rental_asset.vat_treatment_code.damage", "A05S1-UNSIGNED"
+    )
+    with pytest.raises(UserError, match="awaiting sign-off"):
+        fix_rental_money._vat_code(c.env, c.env.company, "damage")
+    # signed by the adviser and the CFO: the same row is invoiceable
+    row._guarded().write({"verify_with_adviser": False})
+    assert row.signoff_state == "signed"
+    assert fix_rental_money._vat_code(c.env, c.env.company, "damage") == "A05S1-UNSIGNED"
+
+
+def test_an_undated_damage_is_dated_the_dhaka_day_and_reported_in_the_period(c):
+    """A05 e2e walk defect 3: a damage recorded without an incident date fell
+    out of every period report. It is the Dhaka business day it is recorded,
+    so the M13 Damage & Recovery pack counts it in the current period."""
+    from odoo import fields
+    from odoo.addons.cd_p03_portal.controllers.a05 import m13
+
+    clerk_env = c.env(user=c.clerk.id)
+    before = m13.damage_recovery(clerk_env)["totals"]
+    r = walk(c, res(c), "action_assess_damage")
+    dmg = damage(c, r)
+    assert dmg.incident_date == rental_policy.dhaka_today(c.env)
+    after = m13.damage_recovery(clerk_env)["totals"]
+    assert after["incidents"] == (before.get("incidents") or 0) + 1
+    assert after["assessed"] == (before.get("assessed") or 0.0) + 3000
+    # 20:00 UTC is already the next day in Dhaka (UTC+6): never the UTC date
+    utc_evening = fields.Datetime.now().replace(hour=20, minute=0, second=0, microsecond=0)
+    with mock.patch.object(fields.Datetime, "now", return_value=utc_evening):
+        late = damage(c, r, description="Scratched body")
+    assert late.incident_date == utc_evening.date() + timedelta(days=1)
+
+
 def test_billing_rows_cannot_be_typed(c):
     r = walk(c, res(c), "action_assess_damage")
     with pytest.raises(REFUSED):

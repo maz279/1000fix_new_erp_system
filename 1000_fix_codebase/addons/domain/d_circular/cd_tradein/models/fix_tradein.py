@@ -2104,7 +2104,7 @@ class FixTradeinRequest(models.Model):
                         rec.id,
                         rec.customer_id,
                         rec.settlement_bank_account_id
-                        if rec.settlement_method == "bank_transfer"
+                        if rec.settlement_method in ("bank_transfer", "mobile_fs")
                         else False,
                         net_to_seller,
                         rec.currency_id,

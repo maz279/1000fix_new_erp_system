@@ -119,7 +119,12 @@ class FixTradeinRequestCapture(models.Model):
         tracking=True,
     )
     settlement_bank_account_id = fields.Many2one(
-        "res.partner.bank", string="Seller Bank Account", ondelete="restrict"
+        "res.partner.bank",
+        string="Seller Bank Account / MFS Wallet",
+        ondelete="restrict",
+        help="The seller's bank account for a bank transfer, or the bKash / Nagad wallet "
+        "(account number = the wallet number) for mobile money. Pinned by the payout "
+        "approval: treasury pays only to this account.",
     )
 
     # ---- p7 rework cost kept apart from first-pass work (FR-TRF-036)
@@ -195,11 +200,19 @@ class FixTradeinRequestCapture(models.Model):
     def _settlement_denial(self) -> str:
         self.ensure_one()
         rec = self.sudo()
-        if rec.settlement_method != "bank_transfer":
+        if rec.settlement_method not in ("bank_transfer", "mobile_fs"):
             return ""
         account = rec.settlement_bank_account_id
         if not account:
-            return "a bank-transfer settlement needs the seller's bank account"
+            # A05 e2e walk defect 4: an MFS payout had no wallet, so treasury
+            # added one after the approval - outside what the approver pinned
+            return (
+                "a bank-transfer settlement needs the seller's bank account"
+                if rec.settlement_method == "bank_transfer"
+                else "a mobile-money settlement needs the seller's bKash / Nagad wallet"
+            )
+        if not (account.acc_number or "").strip():
+            return "account %s has no number" % account.display_name
         if account.partner_id.commercial_partner_id != rec.customer_id.commercial_partner_id:
             return "bank account %s is not the seller's (%s)" % (
                 account.acc_number,

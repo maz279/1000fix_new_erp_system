@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A05 ERP audit (e2e walk): treasury's payment of a deposit refund reaches
+     the deposit ledger, so a paid refund is posted, not queued for ever. -->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_payment_executed_rental_deposit" model="fix.event.consumer">
+            <field name="name">M13: treasury paid a rental deposit refund: the refund row is posted</field>
+            <field name="event_type">payment.executed</field>
+            <field name="model">fix.rental.deposit</field>
+            <field name="method">consume_payment_executed</field>
+            <field name="module">cd_rental_asset</field>
+        </record>
+    </data>
+</odoo>

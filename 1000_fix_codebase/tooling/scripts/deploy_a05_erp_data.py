@@ -114,6 +114,32 @@ for xmlid in ("cd_rental_asset.group_rental_finance", "cd_rental_asset.group_ren
         log.append("%s += %s" % (xmlid, ", ".join(missing.mapped("login"))))
         group.sudo().write({"user_ids": [(4, u.id) for u in missing]})
 
+# D15: one company cash journal on 100108 Cash In Hand, so cash payouts
+# (deposit refunds, trade-in cash at the counter) can be paid by cash voucher;
+# the branch and operating unit come from each payment, not the journal
+Journal = env["account.journal"].sudo().with_company(company)
+cash_account = account("100108")
+if not cash_account:
+    raise SystemExit("cash account 100108 is missing on this database - stop")
+if not Journal.search(
+    [
+        ("type", "=", "cash"),
+        ("company_id", "=", company.id),
+        ("default_account_id", "=", cash_account.id),
+    ],
+    limit=1,
+):
+    log.append("create cash journal 'Cash - Branch Counters' on 100108")
+    Journal.create(
+        {
+            "name": "Cash - Branch Counters",
+            "code": "CSHB",
+            "type": "cash",
+            "company_id": company.id,
+            "default_account_id": cash_account.id,
+        }
+    )
+
 # D12: draft M51 treatment, unsigned and inactive (state stays draft)
 Treatment = env["fix.vat.treatment"].sudo()
 if not Treatment.with_context(active_test=False).search(
@@ -127,6 +153,11 @@ if not Treatment.with_context(active_test=False).search(
             "treatment_type": "exempt",
             "rate": 0.0,
             "company_id": company.id,
+            # a superuser create is "trusted seed" and would be active at once:
+            # the owner's decision is a PROPOSAL the adviser then the CFO sign
+            "state": "proposed",
+            "verify_with_adviser": True,
+            "proposed_by_id": env.uid,
         }
     )
 

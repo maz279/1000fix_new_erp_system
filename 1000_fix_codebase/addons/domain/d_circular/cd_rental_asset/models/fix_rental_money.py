@@ -91,6 +91,14 @@ def _vat_code(env, company, kind):
                 "M51 treatment %s is %s: damage compensation is outside VAT (owner decision "
                 "D2), so its treatment must be exempt or zero-rated." % (code, row.treatment_type)
             )
+        # owner decision D12: compensation is invoiced outside VAT only once the
+        # tax adviser and the CFO have signed the treatment (BRU-TAX-22)
+        if "signoff_state" in row._fields and row.signoff_state != "signed":
+            raise UserError(
+                "Damage / loss compensation cannot be invoiced yet: M51 treatment %s is awaiting "
+                "sign-off (%s). The tax adviser and the CFO sign it in M51 (owner decision D12)."
+                % (code, dict(row._fields["signoff_state"].selection).get(row.signoff_state))
+            )
         return code
     code = (
         env["ir.config_parameter"].sudo().get_param(policy.PREFIX + "vat_treatment_code.rental")

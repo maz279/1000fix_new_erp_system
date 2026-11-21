@@ -669,6 +669,46 @@ class FixRentalDeposit(models.Model):
             _refuse("The deposit ledger is append-only: a movement is never deleted.")
         return super().unlink()
 
+    # ---- A05 ERP e2e walk: treasury's answer reaches the deposit ledger ----
+    @api.model
+    def consume_payment_executed(self, event):
+        """payment.executed for a deposit refund: M50 has posted Dr deposits
+        held / Cr cash-bank-MFS (the instruction's debit account) on the
+        booking's branch, so the refund row is posted and carries that entry.
+        Without this the row stayed `refund_queued` for ever and the deposit
+        reports and KPI counted money already paid back as still held. Relay
+        only; a replay, a caller-asserted execution or another source moves
+        nothing."""
+        if not self.env.su:
+            _refuse("Treasury's payment events are consumed by the event relay only.")
+        execution = (
+            self.env["fix.payment.execution"].browse(event.get("aggregate_id") or 0).exists()
+        )
+        if (
+            not execution
+            or execution.state != "executed"
+            or execution.source_model != self._name
+            or execution.confirmation_source == "caller_asserted"
+        ):
+            return False
+        refund = self.browse(execution.source_id).exists()
+        if (
+            not refund
+            or refund.kind != "refund"
+            or refund.gl_state != "refund_queued"
+            or refund.payment_execution_id != execution
+        ):
+            return False
+        vals = {
+            "gl_state": "posted",
+            "gl_note": "Refund paid by %s (M50 %s)"
+            % (execution.name, execution.confirmation_source or "confirmed"),
+        }
+        if execution.move_id:
+            vals["journal_entry_id"] = execution.move_id.id
+        refund._guarded().write(vals)
+        return True
+
     def _post(self, reservation, kind, amount, note="", damage=None, method=None, reference=None):
         """One money movement against a rental deposit — sub-ledger row AND
         General Ledger, or an honest refusal.

@@ -12,6 +12,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_tradein.tests.test_a05_m14_controls import seller_wallet
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import inbox_task
 from odoo.exceptions import AccessError, UserError, ValidationError
 
@@ -127,16 +128,23 @@ def device(x):
     )
 
 
-def cert(x, dev):
+def cert(x, dev, rec=None):
+    """With ``rec`` the certificate answers the trade-in's own wipe request
+    (A02 pass 2 review N2: an M14 release needs one), Purge on flash media."""
     log = x.env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
-    c = x.env["fix.data.wipe.certificate"].create(
-        {
-            "method": "nist_800_88",
-            "serial_number": dev.serial_number,
-            "sector_count": 1000,
-            "wipe_log_attachment_id": log.id,
-        }
-    )
+    vals = {
+        "method": "nist_800_88",
+        "serial_number": dev.serial_number,
+        "sector_count": 1000,
+        "wipe_log_attachment_id": log.id,
+    }
+    if rec is not None:
+        vals.update(
+            method="nist_800_88_purge",
+            wipe_request_id=rec._m14_wipe_request().id,
+            media_kind="flash",
+        )
+    c = x.env["fix.data.wipe.certificate"].create(vals)
     c.action_verify()
     return c
 
@@ -147,6 +155,8 @@ def nid():
 
 def request(x, **vals):
     vals.setdefault("customer_id", x.env["res.partner"].create({"name": "A05 ERP Seller"}).id)
+    # e2e walk defect 4: the seller is paid only to their own wallet / account
+    seller_wallet(x.env, vals["customer_id"], vals)
     vals.setdefault("customer_nid", nid())
     vals.setdefault("operating_unit_id", x.ou.id)
     vals.setdefault("device_id", device(x).id)
@@ -235,7 +245,7 @@ def paid(x, rec=None, **kw):
 
 
 def refurbishing(x, rec):
-    rec.write({"wipe_certificate_id": cert(x, rec.device_id).id})
+    rec.write({"wipe_certificate_id": cert(x, rec.device_id, rec).id})
     rec.action_wipe()
     rec.action_refurbish()
     return rec
@@ -909,7 +919,7 @@ def test_writeoff_and_override_need_the_amount_tier(w):
 def test_reject_and_revise_only_before_the_wipe(w):
     """M14-10: no rejection or intake revision once the data is wiped."""
     rec = collected(w)
-    rec.write({"wipe_certificate_id": cert(w, rec.device_id).id})
+    rec.write({"wipe_certificate_id": cert(w, rec.device_id, rec).id})
     rec.action_wipe()
     refused(lambda: rec.action_reject("changed mind"), "wiped")
     refused(lambda: intake_ok(w, rec), "verified after acceptance")

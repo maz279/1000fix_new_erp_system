@@ -117,10 +117,10 @@ export const MODULE = {
    * limit and override, 3 extension, 4 damage waiver plan and election,
    * 5 photographs, 6 loss / non-return, 7 swap-out, 8 PM plan. */
   freg: { src: 78, sub: [
-    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits', 'M13-redeploy'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Rental SKU (M37)', 'Fleet Redeployment'] }],
+    ['1', 'Fleet Register', 9, { model: 'fix.rental.asset', cols: ['name', 'category', 'condition_grade', 'battery_health_pct', 'status'], screens: ['M13-fleet', 'M13-kits', 'M13-redeploy', 'M13-retirements'], reports: ['Fleet Health & Retirement', 'Utilisation by Category'], forms: ['Fleet Serialized Asset Master', 'Rental Kit Bundle', 'Rental SKU (M37)', 'Fleet Redeployment', 'Fleet Retirement Request'] }],
     ['2', 'Availability & Reservation', 12, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_from', 'date_to'], screens: ['M13-availability', 'M13-reservations', 'M13-exposure', 'M13-overrides'], reports: ['Real-Time Availability'], forms: ['Reservation Cockpit', 'Allocate a Fleet Unit', 'Rental Exposure Limit', 'Exposure Override Request'] }],
     ['3', 'Agreements', 10, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'contract_id', 'agreement_state', 'signed_at'], screens: ['M13-agreements', 'M13-extensions'], reports: [], forms: ['Rental Agreement (e-sign)', 'Rental Extension', 'Damage Waiver Election'], create: 'M13-form-agreement' }],
-    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method', 'reference'], screens: ['M13-deposits', 'M13-waiver-plans'], reports: ['Deposit Reconciliation'], forms: ['Security Deposit Collection', 'Damage Waiver Election', 'Damage Waiver Plan', 'Loss Waiver Request'], create: 'M13-form-deposit-take' }],
+    ['4', 'Deposits & Waivers', 8, { model: 'fix.rental.deposit', cols: ['name', 'customer_id', 'kind', 'amount', 'method', 'reference'], screens: ['M13-deposits', 'M13-waiver-plans', 'M13-deposit-reductions', 'M13-billing'], reports: ['Deposit Reconciliation'], forms: ['Security Deposit Collection', 'Damage Waiver Election', 'Damage Waiver Plan', 'Loss Waiver Request', 'Deposit Reduction Request'], create: 'M13-form-deposit-take' }],
     ['5', 'Condition & Damage', 10, { model: 'fix.rental.condition', cols: ['name', 'reservation_id', 'report_type', 'grade', 'reported_on'], screens: ['M13-condition', 'M13-damage', 'M13-photos'], reports: ['Damage & Loss Rate'], forms: ['Condition Report', 'Condition Photograph', 'Damage Assessment & Recovery'] }],
     ['6', 'Returns & Recovery', 8, { model: 'fix.rental.damage', cols: ['reservation_id', 'category', 'cost', 'recovered_amount', 'settled'], screens: ['M13-damage', 'M13-losses'], reports: ['Late Return Analysis', 'Damage & Loss Rate'], forms: ['Rental Return', 'Damage Assessment & Recovery', 'Loss / Non-Return Case'], create: 'M13-form-return' }],
     ['7', 'In-Rental Support', 7, { model: 'fix.rental.reservation', cols: ['name', 'customer_id', 'rental_asset_id', 'date_to', 'service_order_id'], screens: ['M13-reservations', 'M13-swaps'], reports: ['Late Return Analysis'], forms: ['In-Rental Fault Report', 'Unit Swap-Out', 'Return Collection Booking'], create: 'M13-form-fault', domain: [['state', 'in', ['delivered', 'active']]] }],
@@ -552,7 +552,7 @@ export const SCREENS = {
           { name: 'reservation_id', required: true, label: 'Reservation', domain: [['state', 'in', ['returned', 'damage_assess']]] },
           { name: 'category', required: true, label: 'Damage Category' },
           { name: 'description', required: true, type: 'text', label: 'Detailed Failure Description' },
-          { name: 'incident_date', label: 'Discovered On' },
+          { name: 'incident_date', label: 'Discovered On', required: true },
           { name: 'inspector_id', label: 'Reporting Inspector' }
         ] },
       { tab: 'estimation', title: 'Estimated Restoration & Parts Cost',

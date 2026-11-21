@@ -211,7 +211,7 @@ def test_an_offer_is_built_from_its_economics(m):
 def test_settlement_method_is_pinned_and_reaches_treasury(m):
     rec = paying(m)
     intake_at_offer(m, rec)
-    rec.write({"settlement_method": "bank_transfer"})
+    rec.write({"settlement_method": "bank_transfer", "settlement_bank_account_id": False})
     refused(rec.action_request_payout_approval, "bank account")
     stranger = m.env["res.partner"].create({"name": "A05 M14 Stranger"})
     Bank = m.env["res.partner.bank"].sudo()
@@ -228,6 +228,38 @@ def test_settlement_method_is_pinned_and_reaches_treasury(m):
     rec.action_pay()
     pay = rec.payout_execution_id.sudo()
     assert pay.method == "bank_transfer" and pay.partner_bank_id == own
+
+
+def test_mobile_money_payout_needs_the_sellers_own_wallet_and_pins_it(m):
+    """A05 e2e walk defect 4: mobile money (the default method) was requested
+    and approved with no wallet, so treasury chose the wallet after the
+    approval. The seller's own bKash / Nagad wallet is now required at
+    request, reaches the treasury instruction, and is pinned by the approval."""
+    rec = paying(m)
+    intake_at_offer(m, rec)
+    rec.write({"settlement_bank_account_id": False})
+    assert rec.settlement_method == "mobile_fs"
+    refused(rec.action_request_payout_approval, "bKash / Nagad wallet")
+    Bank = m.env["res.partner.bank"].sudo()
+    stranger = m.env["res.partner"].create({"name": "A05 M14 Wallet Stranger"})
+    foreign = Bank.create({"acc_number": "01711000901", "partner_id": stranger.id})
+    rec.write({"settlement_bank_account_id": foreign.id})
+    refused(rec.action_request_payout_approval, "not the seller")
+    own = Bank.create({"acc_number": "01711000902", "partner_id": rec.customer_id.id})
+    other_own = Bank.create({"acc_number": "01811000903", "partner_id": rec.customer_id.id})
+    rec.write({"settlement_bank_account_id": own.id})
+    approved(m, rec)
+    # the seller's other wallet after the approval: it covered `own`, so it is void
+    rec.write({"settlement_bank_account_id": other_own.id})
+    assert rec.payout_approval_state == "none"
+    refused(rec.action_pay)
+    assert not rec.payout_execution_id
+    rec.write({"settlement_bank_account_id": own.id})
+    approved(m, rec)
+    rec.action_pay()
+    pay = rec.payout_execution_id.sudo()
+    assert pay.method == "mobile_fs" and pay.partner_bank_id == own
+    assert pay.partner_id == rec.customer_id
 
 
 # ======================================================== p7 rework + ownership proof

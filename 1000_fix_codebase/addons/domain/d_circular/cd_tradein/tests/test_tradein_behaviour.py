@@ -10,6 +10,7 @@ from datetime import timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_tradein.tests.test_a05_m14_controls import seller_wallet
 from odoo.addons.cd_workflow_engine.tests.approval_helpers import approve_via_inbox, inbox_task
 from odoo.exceptions import UserError, ValidationError
 
@@ -109,6 +110,8 @@ def _request(env, wiped=None, **vals):
     unverified one) or a dict of certificate values - always answering the
     trade-in's own wipe request (A02 pass 2 review N2)."""
     vals.setdefault("customer_id", env["res.partner"].create({"name": "Trade-in Customer"}).id)
+    # A05 e2e walk defect 4: a mobile-money payout names the seller's wallet
+    seller_wallet(env, vals["customer_id"], vals)
     # An identified seller: payout refuses without a Smart NID (AML gate).
     vals.setdefault("customer_nid", _nid())
     # A05 ERP M14-23: a trade-in is taken in at an operating unit

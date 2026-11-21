@@ -172,8 +172,26 @@ def nid():
     return "47%08d" % (next(_SEQ) * 6113)
 
 
+def seller_wallet(env, partner_id, vals=None):
+    """The seller's own bKash / Nagad wallet (res.partner.bank, the wallet
+    number as the account number). A05 e2e walk defect 4: a mobile-money or
+    bank payout is requested only to the seller's own account, so a request
+    that will be paid names one; pass settlement_method="cash" to need none."""
+    vals = vals if vals is not None else {}
+    if vals.get("settlement_method", "mobile_fs") == "cash" or "settlement_bank_account_id" in vals:
+        return vals
+    wallet = (
+        env["res.partner.bank"]
+        .sudo()
+        .create({"partner_id": partner_id, "acc_number": "017%08d" % (next(_SEQ) * 7 + 1001)})
+    )
+    vals["settlement_bank_account_id"] = wallet.id
+    return vals
+
+
 def request(x, user=None, **vals):
     vals.setdefault("customer_id", x.env["res.partner"].create({"name": "A05 M14 Seller"}).id)
+    seller_wallet(x.env, vals["customer_id"], vals)
     vals.setdefault("customer_nid", nid())
     vals.setdefault("operating_unit_id", x.ou.id)
     if "device_id" not in vals:

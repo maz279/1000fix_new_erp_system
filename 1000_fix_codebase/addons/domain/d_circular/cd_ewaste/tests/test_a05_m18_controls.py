@@ -75,7 +75,7 @@ def test_wipe_gate_runs_on_every_path(m):
     # the legitimate path: the lab's evidence and witness, then the verifier
     cert = col.wipe_certificate_id
     m.complete_destruction(cert)
-    col.action_recycle()
+    col.with_user(m.dispatcher).action_recycle()
     assert col.state == "recycled"
 
 
@@ -109,8 +109,8 @@ def test_a_certificate_raised_for_another_collection_does_not_release(m):
     m.triage(col, "recycle", data_bearing=True)
     col.write({"wipe_certificate_id": cert.id})
     assert "no wipe request raised for" in col._fix_wipe_denial()
-    col.action_secure_destruction()
-    assert refused(m.env, lambda: col.action_recycle())
+    col.with_user(m.dispatcher).action_secure_destruction()
+    assert refused(m.env, lambda: col.with_user(m.dispatcher).action_recycle())
     assert col.state == "destruction"
 
 
@@ -119,7 +119,7 @@ def test_the_lab_person_who_destroys_certifies_and_never_witnesses(m):
     dev = m.device()
     col = m.collection(device_id=dev.id)
     m.triage(col, "recycle", data_bearing=True)
-    col.action_secure_destruction()
+    col.with_user(m.dispatcher).action_secure_destruction()
     cert = col.wipe_certificate_id.sudo()
     # opened for the lab: the M18 clerk is not its certifier
     assert cert.awaiting_lab_certifier and not cert.certified_by and not cert.technician_id
@@ -155,8 +155,8 @@ def test_a_release_needs_the_collections_own_wipe_request(m):
     assert col._m18_wipe_request().source_ref == col.name  # raised at triage
     col.write({"wipe_certificate_id": cert.id})
     assert "no wipe request raised for" in col._fix_wipe_denial()
-    col.action_secure_destruction()
-    assert refused(m.env, lambda: col.action_recycle())
+    col.with_user(m.dispatcher).action_secure_destruction()
+    assert refused(m.env, lambda: col.with_user(m.dispatcher).action_recycle())
     assert col.state == "destruction"
 
 

@@ -72,7 +72,9 @@ class TestJourney09TradeinLifecycle(unittest.TestCase):
         }
 
     def test_ten_state_lifecycle_defined(self):
-        """Verifies full 10-state progression in state definition."""
+        """Verifies the full progression in the state definition: the ten
+        states plus A05 ERP M14-09 parts_only (a QA-failed or written-off unit
+        goes to harvest / M18, never back to resale)."""
         state_keys = [s[0] for s in TRADEIN_STATES]
         expected = [
             "draft",
@@ -83,10 +85,11 @@ class TestJourney09TradeinLifecycle(unittest.TestCase):
             "refurbished",
             "graded",
             "resale_ready",
+            "parts_only",
             "closed",
             "rejected",
         ]
-        self.assertEqual(len(state_keys), 10)
+        self.assertEqual(len(state_keys), 11)
         for s in expected:
             self.assertIn(s, state_keys)
 
@@ -158,11 +161,13 @@ class TestJourney09TradeinLifecycle(unittest.TestCase):
         self.assertAlmostEqual(gross_margin_pct, 20.6896, places=3)
 
     def test_m50_treasury_payout_execution(self):
-        """M50 treasury payout created on action_pay and disbursed to customer."""
+        """M50 treasury payout created on action_pay and disbursed to customer.
+        A05 ERP D3: the seller is paid at purchase, so the payout no longer
+        closes the trade-in (the sale does)."""
         src_pay = inspect.getsource(FixTradeinRequest.action_pay)
         self.assertIn("fix.payment.execution", src_pay)
         self.assertIn("tradein.paid", src_pay)
-        self.assertIn("closed", src_pay)
+        self.assertIn("_fix_request_payment", src_pay)
 
     def test_m12_marketplace_seam(self):
         """M12 marketplace seller channel field exists for omni-channel resale."""

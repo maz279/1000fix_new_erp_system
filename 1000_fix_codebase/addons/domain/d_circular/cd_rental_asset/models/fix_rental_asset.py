@@ -1627,7 +1627,12 @@ class FixRentalDamage(models.Model):
     )
     description = fields.Text(required=True)
     incident_date = fields.Date(
-        string="Incident Date", help="When the damage was discovered (post-return inspection)"
+        string="Incident Date",
+        # A05 e2e walk defect 3: an undated damage fell out of every period
+        # report (Rental P&L, Damage Recovery, the recovery KPI); it is the
+        # Dhaka business day it is recorded unless the inspector says otherwise
+        default=lambda self: policy.dhaka_today(self.env),
+        help="When the damage was discovered (post-return inspection)",
     )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")

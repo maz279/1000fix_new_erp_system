@@ -26,6 +26,8 @@ def configure_rental_money(env):
                 "treatment_type": "exempt",
                 "rate": 0.0,
                 "company_id": env.company.id,
+                # signed off (D12): an adviser-flagged row refuses invoicing
+                "verify_with_adviser": False,
             }
         )
         if row.state != "active":

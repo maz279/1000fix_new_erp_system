@@ -174,8 +174,9 @@ class FixArInvoiceRevenueDeferral(models.Model):
 class FixCreditNoteRevenueDeferral(models.Model):
     _inherit = "fix.credit.note"
 
-    def _post_credit_gl(self):
-        result = super()._post_credit_gl()
+    def _post_credit_gl(self, *args, **kwargs):
+        # A02 pass 2 gave the base an on_date (Dhaka GL date): pass it through
+        result = super()._post_credit_gl(*args, **kwargs)
         for note in self:
             invoice = note.invoice_id
             deferrals = invoice.revenue_deferral_ids.sudo().filtered(lambda d: d.state == "active")

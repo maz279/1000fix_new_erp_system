@@ -386,7 +386,7 @@ export const SCREENS = {
       { tab: 'governance', title: 'Four-Eyes Settlement Approval (M63)',
         fields: [
           { name: 'settlement_method', required: true, label: 'Settlement Method' },
-          { name: 'settlement_bank_account_id', label: "Seller's Bank Account (bank transfer)" },
+          { name: 'settlement_bank_account_id', label: "Seller's Bank Account / bKash-Nagad Wallet" },
           { name: 'payout_approval_state', label: 'Payout Approval State', readonly: true },
           { name: 'approval_state', label: 'Routed Approval', readonly: true },
           { name: 'dofa_tier_required', label: 'DOFA Tier Required', readonly: true },
@@ -615,7 +615,7 @@ export const SCREENS = {
         note: 'Mobile money, bank transfer or cash. The payout approval covers the method and the account: changing either after it voids the approval.',
         fields: [
           { name: 'settlement_method', required: true, label: 'Settlement Method' },
-          { name: 'settlement_bank_account_id', label: "Seller's Bank Account (bank transfer)" }
+          { name: 'settlement_bank_account_id', label: "Seller's Bank Account / bKash-Nagad Wallet" }
         ] },
       { tab: 'pricing', title: 'Settlement & Statutory Withholding (ITA 2023)',
         fields: [
