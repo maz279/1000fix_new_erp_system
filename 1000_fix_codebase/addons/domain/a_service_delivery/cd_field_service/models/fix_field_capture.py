@@ -1299,13 +1299,15 @@ class FixFieldCashRecon(models.Model):
         shortage = round(-(self.variance or 0.0), 2)
         if shortage <= 0.005 or self.shortage_booked:
             return False
-        booker = None
-        for model in ("fix.field.cash.recon", "fix.cash.shift"):
-            if model in self.env and hasattr(self.env[model], "_fix_book_field_cash_shortage"):
-                booker = self.env[model].sudo()
-                break
-        if booker is not None:
-            booker._fix_book_field_cash_shortage(self, shortage)
+        # The model-level booking (a reconciliation, no drawer) is the finance
+        # bridge's (cd_front_desk_finance _cdff_book_field_shortage_gl). The
+        # cd_front_desk base method books a SHIFT's shortage and takes an
+        # employee: calling it on the model with this record raised
+        # TypeError on a database without the bridge. Without the bridge the
+        # shortage goes to finance as a to-do below.
+        Shift = self.env.get("fix.cash.shift")
+        if Shift is not None and hasattr(Shift, "_cdff_book_field_shortage_gl"):
+            Shift.sudo()._fix_book_field_cash_shortage(self, shortage, self.name)
             self.sudo().write({"shortage_booked": True})
             return True
         group = self.env.ref(FINANCE_GROUP, raise_if_not_found=False)

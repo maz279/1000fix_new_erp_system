@@ -59,6 +59,21 @@ def _completed_with(w, so, payment):
 
 
 # ===================================================== M02-01 / D3 field cash
+
+
+def _needs_finance_bridge(w):
+    """The M20 receipts these tests read are booked by the front-desk
+    finance bridge (cd_front_desk_finance); cd_field_service runs without
+    it, and then there is no receipt to assert."""
+    installed = (
+        w.env["ir.module.module"]
+        .sudo()
+        .search_count([("name", "=", "cd_front_desk_finance"), ("state", "=", "installed")])
+    )
+    if not installed:
+        pytest.skip("cd_front_desk_finance (the M20 receipt bridge) is not installed")
+
+
 def test_m02_01_cash_is_not_declared_without_the_orders_settlement(w):
     so = w.so()
     rec = _completed_with(w, so, "cash 2500")
@@ -163,6 +178,7 @@ def test_m02_01_an_accepted_part_payment_is_verified_and_booked(w, monkeypatch):
     """A02 pass 2 review: a part payment (D3) was marked settled at the
     cashier's acceptance but never verified on the order, so the order kept
     it as a claim and the balance could never verify it."""
+    _needs_finance_bridge(w)
     so = w.so()
     monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: 5000.0)
     rec = _on_site(w, so)
@@ -187,6 +203,7 @@ def test_n3_field_cash_counted_after_a_cod_balance_is_not_an_advance(w, monkeypa
     """A02 pass 2 review N3: the part paid on site, then the balance on a COD
     leg before the cashier counted the field cash: the cash was booked as an
     advance (lowering the amount due) on top of the part already recorded."""
+    _needs_finance_bridge(w)
     so = w.so()
     monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: 1000.0)
     clearing = w.env["account.account"].create(
@@ -221,6 +238,7 @@ def test_d20_a_hand_over_after_the_price_fell_keeps_the_excess_as_credit(w, monk
     """A02 pass 2 review (D20): the order took less by the time the cash was
     handed over (its price fell); the strict hand-over refused the whole
     amount for good and the technician stayed blocked."""
+    _needs_finance_bridge(w)
     so = w.so()
     due = {"bdt": 1000.0}
     monkeypatch.setattr(_so_cls(w), "_fix_amount_due", lambda self: due["bdt"])

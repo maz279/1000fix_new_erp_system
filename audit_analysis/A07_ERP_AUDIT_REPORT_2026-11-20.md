@@ -123,5 +123,20 @@ Estate-wide
   both; one restart of 8069 (fix_real) and 8090 (fix_dev): 155 / 153 modules loaded, no errors.
 - **Live verification:** 57/57 A07 reports and 108/108 A07 list screens read on BOTH ports with 0 failures and 0
   dropped columns; wiring check on fix_real: 260 consumers, 290 crons, 108 surfaces, 0 problems.
+- **Site register (owner, 21 Nov):** fix_real's live branch list was checked against the real branch file
+  (Branch_details.xlsx, 79 branches): only 15 of the 73 live fix_real branches reconcile; the other 58 carry
+  catalogue-style references and appear in no real source. On the owner's choice, 15 M47 sites were created
+  (state Operational, real address, branch OU; lease, licences, utilities, floor area and accountable manager left
+  for the Facility Manager, said in each site's readiness notes). Live probe after the load: 57/57 reports, 108/108
+  screens. Data findings for the branch master (M30): 11 of those 15 branches point at "Main Operating Unit"
+  instead of an OU of their own, 4 live branches have no company, and 58 live branches need reconciling.
+- **Branch OUs (owner, 21 Nov):** the 11 confirmed branches on "Main Operating Unit" keep it until a Branch Manager
+  (R-06) is named among their staff (12 Nov rule C12: branch approvals route to the branch OU's manager); then
+  `_migration/scripts/sync_13_brand_branch_ou_fix_real.py apply` gives each its own OU (dry run 21 Nov: 0 of 15
+  branches have a manager yet). The 58 unmatched branches wait for the owner's confirmed branch list.
+- **Waiting on the owner (agreed 21 Nov):** equipment / vehicle / lease / IoT registers (owner will send; loaders are
+  built through the normal create paths when they arrive), role holders' names (owner will send), HR's wage-deduction
+  cap (HR will confirm; recoveries stay on 100049 meanwhile). A02 is fixing the A02 defects found here (field-cash
+  shortage call, M05/M03/M08 screens); they ship in the A06 wave.
 - **Open (people / data):** see §5. Plus: fix_dev's generic chart has no A07 account map (fix_real is the estate;
   map fix_dev only if it is still used for finance testing).

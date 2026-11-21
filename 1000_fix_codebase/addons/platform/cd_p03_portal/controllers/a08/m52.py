@@ -167,6 +167,20 @@ def kpis(env):
     except Exception:
         out["vendor_bills_open"] = out["bills_to_approve"] = out["match_exceptions"] = None
     try:
+        # Total open payables on the SAME basis as the AP Ageing screen
+        # (approved unpaid bills + approved notes + the legacy take-on still
+        # open on the payable control). vendor_bills_open above counts bills
+        # only — with the take-on lane loaded it read 0 while the control
+        # account carried the migrated payables (A08 drive-through V05).
+        from odoo.addons.cd_ap_ext.models.fix_ap_capture import BUCKETS, ageing_by_vendor
+
+        rows, _takeon_note = ageing_by_vendor(env, env.companies, _today(env))
+        out["payables_open"] = _num(
+            sum(sum(row.get(bucket, 0.0) for bucket, _label in BUCKETS) for row in rows.values())
+        )
+    except Exception:
+        out["payables_open"] = None
+    try:
         out["expense_claims_pending"] = env["fix.expense.claim"].search_count(
             [*co, ("state", "=", "submitted")]
         )
