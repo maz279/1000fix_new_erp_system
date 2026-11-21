@@ -65,5 +65,20 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A05 remediation (2026-11-20): retirement and deposit reduction -->
+        <record id="seq_fix_rental_retirement" model="ir.sequence">
+            <field name="name">Rental Fleet Retirement</field>
+            <field name="code">fix.rental.retirement</field>
+            <field name="prefix">RNT-RET/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
+        <record id="seq_fix_rental_deposit_reduction" model="ir.sequence">
+            <field name="name">Rental Deposit Reduction</field>
+            <field name="code">fix.rental.deposit.reduction</field>
+            <field name="prefix">RNT-DEPRED/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

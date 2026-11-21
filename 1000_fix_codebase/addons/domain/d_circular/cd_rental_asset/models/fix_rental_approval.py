@@ -112,15 +112,23 @@ class FixApprovalMatrixRental(models.Model):
     _inherit = "fix.approval.matrix"
 
     # A05 audit E11: lets a DoA matrix row target the M13 routed approvals.
+    # A05 XC-26 / M13-28 (2026-11-20): every domain listed here is one a
+    # model routes on (_approval_domain); the dead 'rental_damage_waiver'
+    # (the damage waiver routes on rental_loss_waiver) and
+    # 'rental_asset_writeoff' (retirement is its own request now) are gone.
     decision_domain = fields.Selection(
         selection_add=[
             ("rental_damage_charge", "Rental Damage Charge"),
-            ("rental_damage_waiver", "Rental Damage Waiver"),
             ("rental_asset_retirement", "Rental Fleet Asset Retirement"),
+            ("rental_loss_writeoff", "Rental Loss Write-Off"),
+            ("rental_exposure_override", "Rental Exposure Override"),
+            ("rental_deposit_reduction", "Rental Deposit Reduction"),
         ],
         ondelete={
             "rental_damage_charge": "cascade",
-            "rental_damage_waiver": "cascade",
             "rental_asset_retirement": "cascade",
+            "rental_loss_writeoff": "cascade",
+            "rental_exposure_override": "cascade",
+            "rental_deposit_reduction": "cascade",
         },
     )

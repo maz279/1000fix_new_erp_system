@@ -7,12 +7,19 @@ access_fix_rental_deposit,fix.rental.deposit,model_fix_rental_deposit,base.group
 access_fix_rental_condition,fix.rental.condition,model_fix_rental_condition,base.group_user,1,1,1,0
 access_fix_rental_turnaround,fix.rental.turnaround,model_fix_rental_turnaround,base.group_user,1,1,1,0
 access_fix_rental_charge_approval,fix.rental.charge.approval,model_fix_rental_charge_approval,base.group_user,1,1,1,0
-access_fix_rental_exposure,fix.rental.exposure,model_fix_rental_exposure,base.group_user,1,1,1,0
+access_fix_rental_exposure,fix.rental.exposure,model_fix_rental_exposure,base.group_user,1,0,0,0
+access_fix_rental_exposure_finance,fix.rental.exposure finance,model_fix_rental_exposure,group_rental_finance,1,1,1,0
+access_fix_rental_exposure_acc_manager,fix.rental.exposure accounting admin,model_fix_rental_exposure,account.group_account_manager,1,1,1,0
 access_fix_rental_exposure_override,fix.rental.exposure.override,model_fix_rental_exposure_override,base.group_user,1,1,1,0
 access_fix_rental_extension,fix.rental.extension,model_fix_rental_extension,base.group_user,1,1,1,0
-access_fix_rental_waiver_plan,fix.rental.waiver.plan,model_fix_rental_waiver_plan,base.group_user,1,1,1,1
+access_fix_rental_waiver_plan,fix.rental.waiver.plan,model_fix_rental_waiver_plan,base.group_user,1,0,0,0
+access_fix_rental_waiver_plan_finance,fix.rental.waiver.plan finance,model_fix_rental_waiver_plan,group_rental_finance,1,1,1,1
+access_fix_rental_waiver_plan_acc_manager,fix.rental.waiver.plan accounting admin,model_fix_rental_waiver_plan,account.group_account_manager,1,1,1,1
 access_fix_rental_condition_photo,fix.rental.condition.photo,model_fix_rental_condition_photo,base.group_user,1,1,1,1
 access_fix_rental_loss,fix.rental.loss,model_fix_rental_loss,base.group_user,1,1,1,0
 access_fix_rental_swap,fix.rental.swap,model_fix_rental_swap,base.group_user,1,1,1,0
 access_fix_rental_pm_plan,fix.rental.pm.plan,model_fix_rental_pm_plan,base.group_user,1,1,1,1
 access_fix_rental_redeployment,fix.rental.redeployment,model_fix_rental_redeployment,base.group_user,1,1,1,0
+access_fix_rental_billing,fix.rental.billing,model_fix_rental_billing,base.group_user,1,0,0,0
+access_fix_rental_deposit_reduction,fix.rental.deposit.reduction,model_fix_rental_deposit_reduction,base.group_user,1,1,1,0
+access_fix_rental_retirement,fix.rental.retirement,model_fix_rental_retirement,base.group_user,1,1,1,0

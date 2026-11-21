@@ -114,19 +114,29 @@ class TestLossWaiverIsRouted:
 
 
 class TestRetirementWriteOffIsRouted:
+    """A05 remediation (BRU-RNT-15, XC-03): retirement is its own request,
+    routed jointly to the Corporate Services Head and the CFO."""
+
     def test_the_write_off_comes_from_the_inbox_only(self, odoo_env):
         env = odoo_env
-        approver = _approver(env)
+        csh = _approver(env, "a11.rental.csh")
+        csh.write({"group_ids": [(4, env.ref("cd_rental_asset.group_rental_csh").id)]})
+        cfo = _approver(env, "a11.rental.cfo")
+        cfo.write({"group_ids": [(4, env.ref("cd_rental_asset.group_rental_cfo").id)]})
         asset = _asset(env)
+        asset.write({"category": "tool"})
         assert asset.net_book_value == 100000.0
-        assert asset.dofa_tier_required == "tier_2"
-        with pytest.raises(UserError, match="sign-off|approved"):
+        with pytest.raises(UserError, match="no approved retirement"):
             asset.action_retire()
-        asset.action_request_approval(justification="End of fleet life; beyond repair.")
-        assert asset.approval_state == "pending"
+        ret = env["fix.rental.retirement"].create(
+            {"asset_id": asset.id, "route": "resale", "reason": "End of fleet life"}
+        )
+        ret.action_request_approval(justification="End of fleet life; beyond repair.")
+        assert ret.approval_state == "pending"
         with pytest.raises(UserError, match="inbox"):
-            asset.with_user(approver).action_dofa_approve()
-        approve_via_inbox(asset, approver)
-        assert asset.dofa_approved
+            ret.with_user(csh)._retirement_vote()
+        approve_via_inbox(ret, csh)
+        approve_via_inbox(ret, cfo)
+        assert ret.approval_state == "approved"
         asset.action_retire()
         assert asset.status == "retired" and asset.retired_on

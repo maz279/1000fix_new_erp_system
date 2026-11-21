@@ -1,0 +1,58 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "rental.overdue",
+  "description": "Published by cd_rental_asset through libs.py.fix_events.publish() by the daily overdue job, once at each overdue milestone (cd_rental_asset.overdue_reminder_days, default 1/3/7 days). Consumed by M27 customer notifications (A05 interface I5).",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "rental.overdue"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_rental_asset"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "reservation_id",
+        "partner_id",
+        "days_overdue"
+      ],
+      "properties": {
+        "reservation_id": {
+          "type": "integer"
+        },
+        "partner_id": {
+          "type": "integer"
+        },
+        "days_overdue": {
+          "type": "integer"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_rental_asset",
+  "x-publishers": [
+    "addons/domain/d_circular/cd_rental_asset/models/fix_rental_money.py"
+  ],
+  "x-derived-from": "hand-written (A05 interface I5), same shape as the derived contracts"
+}

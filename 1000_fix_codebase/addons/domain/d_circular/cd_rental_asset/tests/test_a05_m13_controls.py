@@ -100,6 +100,9 @@ def c(odoo_env):
     # A02 pass 2 review: the data lab records the wipe, a verifier verifies it
     x.wipe_tech = _user(env, "wipetech", ["cd_data_case.group_data_recovery_operator"])
     x.wipe_verifier = _user(env, "wipeverifier", ["cd_data_case.group_wipe_verifier"])
+    x.fleet = _user(env, "fleet", ["cd_rental_asset.group_rental_fleet_manager"])
+    x.csh = _user(env, "csh", ["cd_rental_asset.group_rental_csh"])
+    x.cfo = _user(env, "cfo", ["cd_rental_asset.group_rental_cfo"])
     x.customer = _kyc(
         env, env["res.partner"].create({"name": "A05 M13T Customer", "phone": "01700001302"})
     )
@@ -119,6 +122,9 @@ def c(odoo_env):
             "operating_unit_id": x.ou.id,
         }
     )
+    # owner D8: the deposit is max(SKU floor, book value x tier rate); these
+    # suites are about other controls, so the value rate stays under the floor
+    env["ir.config_parameter"].set_param("cd_rental_asset.deposit_rate_pct.standard", "5")
     x.tech = env["hr.employee"].create({"name": "A05M13T Technician"})
     brand = env["fix.brand"].create({"name": "A05M13TBrand", "code": "A5M13T"})
     model = env["fix.device.model"].create({"name": "A05M13T model", "brand_id": brand.id})
@@ -162,7 +168,6 @@ def res(c, user=None, **kw):
         "branch_id": c.branch.id,
         "date_from": c.today,
         "date_to": c.today + timedelta(days=2),
-        "daily_rate": 1000,
         "deposit_collected": 5000,
         "stamp_duty_cert_no": "STAMP-0001",
     }
@@ -203,6 +208,11 @@ def walk(c, r, upto):
         if name == upto:
             break
     return r
+
+
+def close(c, r, user=None):
+    """XC-22: the settlement is made by someone other than the deposit taker."""
+    return r.with_user(user or c.clerk2).action_close()
 
 
 def damage(c, r, user=None, **kw):
@@ -278,7 +288,7 @@ def test_sku_pool_capacity_and_turnaround_padding(c):
     with pytest.raises(UserError, match="pool is fully booked"):
         second.action_reserve()
     # a fleet unit is blocked for 1 turnaround day after a booking...
-    first.with_user(c.clerk).action_cancel()
+    first.with_user(c.clerk2).action_cancel()  # XC-22: not the deposit taker
     walk(c, res(c), "action_reserve")
     nextday = sign(
         c, res(c, date_from=c.today + timedelta(days=3), date_to=c.today + timedelta(days=4))
@@ -300,12 +310,12 @@ def test_reserve_needs_a_unit_the_sku_limits_and_the_sku_deposit(c):
     with pytest.raises(UserError, match="at most 3 rental days"):
         res(c, date_to=c.today + timedelta(days=29)).action_reserve()
     c.sku.max_rental_days = 0
-    with pytest.raises(UserError, match="requires at least"):
+    with pytest.raises(UserError, match="required deposit is 5000"):
         res(c, deposit_collected=0).action_reserve()
+    # owner D8: the old switch no longer waives the deposit
     c.env["ir.config_parameter"].set_param("cd_rental_asset.enforce_sku_deposit", "0")
-    ok = res(c, deposit_collected=0, stamp_duty_cert_no=False)
-    ok.action_reserve()
-    assert ok.state == "reserved"
+    with pytest.raises(UserError, match="required deposit"):
+        res(c, deposit_collected=0, stamp_duty_cert_no=False).action_reserve()
 
 
 # --------------------------------------------------------- E8 / M13-7 customer signature
@@ -348,11 +358,11 @@ def test_terms_freeze_once_sent_and_reset_reopens_them(c, p03):
     r = res(c)
     r.action_send_agreement()
     with pytest.raises(REFUSED, match="terms of the agreement"):
-        r.write({"daily_rate": 1})
-    out = p03.write(model=RES, record_id=r.id, values={"daily_rate": 1})
+        r.write({"liability_cap_amount": 1})
+    out = p03.write(model=RES, record_id=r.id, values={"liability_cap_amount": 1})
     assert out.get("error")
     r.action_reset_agreement()
-    r.write({"daily_rate": 900})
+    r.write({"liability_cap_amount": 900})
     sign(c, r)
     with pytest.raises(REFUSED):
         r.write({"daily_rate": 1, "deposit_collected": 0, "liability_cap_amount": 0})
@@ -411,7 +421,7 @@ def test_closed_rental_and_its_damage_are_final(c):
     r = walk(c, res(c), "action_assess_damage")
     dmg = damage(c, r)
     approve_charge(c, dmg)
-    r.action_close()
+    close(c, r)
     assert r.state == "closed"
     with pytest.raises(REFUSED, match="final"):
         dmg.with_user(c.inspector).write({"cost": 0})
@@ -434,7 +444,7 @@ def test_rental_clerk_posts_the_deposit_and_closes_without_accounting_rights(c):
     ]
     for step in walk_rest:
         step()
-    r.action_close()
+    close(c, r)
     refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
     assert r.state == "closed" and refund.amount == 5000
     assert refund.gl_state == "refund_queued" and refund.payment_execution_id
@@ -444,17 +454,20 @@ def test_rental_clerk_posts_the_deposit_and_closes_without_accounting_rights(c):
     assert (pay.partner_id, pay.amount) == (r.customer_id, 5000)
 
 
+LIABILITY_PARAM = "cd_rental_asset.account_code.deposit_liability"
+
+
 def test_refused_posting_leaves_no_move_and_repost_posts_once(c):
-    other_ou = _other_ou(c)
-    c.clerk.write({"assigned_operating_unit_ids": [(4, other_ou.id)]})
-    r = sign(c, res(c, operating_unit_id=other_ou.id))
+    params = c.env["ir.config_parameter"]
+    params.set_param(LIABILITY_PARAM, "")
+    r = sign(c, res(c))
     r.action_reserve()
     (row,) = ledger(c, r)
-    assert row.gl_state == "failed"
+    assert row.gl_state == "failed" and LIABILITY_PARAM in row.gl_note
     assert not moves(c, r), "a refused posting left a journal entry behind"
     with pytest.raises(UserError, match="not posted to the General Ledger"):
-        r.action_cancel()
-    r.sudo().write({"operating_unit_id": c.branch.operating_unit_id.id})
+        r.with_user(c.clerk2).action_cancel()
+    params.set_param(LIABILITY_PARAM, "212000")
     row.with_user(c.clerk).action_repost_gl()
     assert row.gl_state == "posted"
     assert len(moves(c, r).filtered(lambda m: m.state == "posted")) == 1
@@ -470,13 +483,13 @@ def test_repost_adopts_an_orphan_move_instead_of_posting_twice(c):
     )
 
     env = c.env
-    other_ou = _other_ou(c)
-    c.clerk.write({"assigned_operating_unit_ids": [(4, other_ou.id)]})
-    r = sign(c, res(c, operating_unit_id=other_ou.id))
+    params = env["ir.config_parameter"]
+    params.set_param(LIABILITY_PARAM, "")
+    r = sign(c, res(c))
     r.action_reserve()
     (row,) = ledger(c, r)
     assert row.gl_state == "failed"
-    r.sudo().write({"operating_unit_id": c.branch.operating_unit_id.id})
+    params.set_param(LIABILITY_PARAM, "212000")
     # the legacy defect: a posted move from the refused attempt (M13-1 live orphans)
     company = r.company_id
     liability = rental_account(env, company, "deposit_liability")
@@ -538,7 +551,7 @@ def test_deposit_is_fixed_after_reserve_and_refund_is_the_ledger(c):
     ]
     for step in walk_rest:
         step()
-    r.action_close()
+    close(c, r)
     refunds = ledger(c, r).filtered(lambda d: d.kind == "refund")
     assert sum(refunds.mapped("amount")) == 5000 == r.deposit_refunded
 
@@ -546,18 +559,21 @@ def test_deposit_is_fixed_after_reserve_and_refund_is_the_ledger(c):
 # ------------------------------------------------------------ E6 / M13-4 late fee once
 @pytest.mark.parametrize("mode", ["invoice", "deposit"])
 def test_late_fee_is_charged_once(c, mode):
+    """A05 M13-03/M13-09: whatever the old settlement switch says, the late
+    fee is invoiced once, as a VAT supply, and never taken from the deposit."""
     c.env["ir.config_parameter"].set_param("cd_rental_asset.late_fee_settlement", mode)
     r = res(c, date_from=c.today - timedelta(days=5), date_to=c.today - timedelta(days=3))
     walk(c, r, "action_assess_damage")
     assert r.late_fee == 3 * 1000 * 1.5
-    r.action_close()
-    r.action_issue_rental_invoice()
+    close(c, r)
+    with pytest.raises(UserError, match="already invoiced"):
+        r.action_issue_rental_invoice()
     deducted = sum(ledger(c, r).filtered(lambda d: d.kind == "deduction").mapped("amount"))
-    taxable = sum(r.mushak_6_3_id.line_ids.mapped("taxable_amount"))
-    in_deposit = deducted >= r.late_fee
-    on_invoice = taxable >= r.rental_charge + r.late_fee - 0.01
-    assert in_deposit != on_invoice, (deducted, taxable)
-    assert (mode == "deposit") == in_deposit
+    lines = r.billing_ids.mapped("invoice_id.line_ids")
+    late = lines.filtered(lambda ln: "Late return fee" in (ln.description or ""))
+    assert deducted == 0
+    assert round(sum(late.mapped("taxable_amount")), 2) == r.late_fee
+    assert late.vat_amount > 0  # M51 standard VAT on the late fee (owner D2)
 
 
 def test_late_fee_grace_period(c):
@@ -572,7 +588,7 @@ def test_damage_charge_needs_a_routed_approval_before_close(c, p03):
     r = walk(c, res(c), "action_assess_damage")
     dmg = damage(c, r, cost=4999)
     with pytest.raises(UserError, match="no granted charge approval"):
-        r.action_close()
+        close(c, r)
     dmg.with_user(c.clerk).action_request_charge_approval()
     approval = dmg.charge_approval_id
     with pytest.raises(UserError, match="approver's inbox"):
@@ -584,9 +600,9 @@ def test_damage_charge_needs_a_routed_approval_before_close(c, p03):
     dmg.with_user(c.inspector).write({"cost": 6000})
     assert not approval.dofa_approved
     with pytest.raises(UserError, match="no granted charge approval"):
-        r.action_close()
+        close(c, r)
     approve_charge(c, dmg)
-    r.action_close()
+    close(c, r)
     deduction = ledger(c, r).filtered(lambda d: d.kind == "deduction")
     assert deduction.amount == 5000 and deduction.damage_id == dmg
     assert r.excess_billed == 1000 and r.excess_invoice_id
@@ -608,7 +624,7 @@ def test_disputed_charge_holds_the_close_until_the_approver_resolves_it(c, p03):
     out = p03.write(model="fix.rental.damage", record_id=dmg.id, values={"disputed": False})
     assert out.get("error") and dmg.disputed
     with pytest.raises(UserError, match="disputed"):
-        r.action_close()
+        close(c, r)
     dmg.with_user(c.clerk).action_request_charge_approval()
     task = dmg.charge_approval_id.approval_request_id.task_ids.filtered(
         lambda t: t.assigned_user_id == c.t1
@@ -618,7 +634,7 @@ def test_disputed_charge_holds_the_close_until_the_approver_resolves_it(c, p03):
     dmg.with_user(c.inspector).write({"settlement_notes": "handover photos show no crack"})
     inbox_approve(dmg.charge_approval_id, c.t1)
     assert not dmg.disputed and dmg.dispute_resolved_by_id == c.t1
-    r.action_close()
+    close(c, r)
     assert r.state == "closed"
     # a dispute raised after the approval withdraws it
     r2 = walk(c, res(c, rental_asset_id=False, device_id=c.device.id), "action_assess_damage")
@@ -654,7 +670,7 @@ def test_waiver_fields_cannot_be_typed_and_the_waiver_is_routed(c, p03):
     dmg.with_user(c.clerk).action_waive()
     assert dmg.waived and dmg.waived_amount == 20000 and dmg.settled
     # nothing left to charge: the close needs no charge approval and refunds all
-    r.action_close()
+    close(c, r)
     assert r.deposit_refunded == 5000 and not ledger(c, r).filtered(lambda d: d.kind == "deduction")
 
 
@@ -662,7 +678,7 @@ def test_recovery_comes_from_the_ledger_and_an_invoiced_loss_is_not_waived(c):
     r = walk(c, res(c), "action_assess_damage")
     dmg = damage(c, r, cost=20000)
     approve_charge(c, dmg)
-    r.action_close()
+    close(c, r)
     assert dmg.recovered_amount == 5000 and dmg.unrecovered_loss_amount == 15000
     assert dmg.invoice_id == r.excess_invoice_id and r.excess_billed == 15000
     with pytest.raises(UserError, match="credit note"):
@@ -676,6 +692,12 @@ def test_retirement_cannot_be_written_or_typed_down(c, p03):
         a.write({"status": "retired"})
     out = p03.write(model="fix.rental.asset", record_id=a.id, values={"status": "retired"})
     assert out.get("error") and c.asset.status == "available"
+    # XC-08: the counter neither sees nor types the cost basis
+    with pytest.raises(AccessError):
+        a.read(["purchase_cost"])
+    with pytest.raises(REFUSED):
+        a.write({"purchase_cost": 1})
+    a = c.asset.with_user(c.fleet)
     for vals in (
         {"purchase_cost": 0},
         {"useful_life_days": 1},
@@ -684,10 +706,10 @@ def test_retirement_cannot_be_written_or_typed_down(c, p03):
         with pytest.raises(REFUSED, match="cut its book value"):
             a.write(vals)
     a.write({"purchase_cost": 120000})  # raising it is fine
-    with pytest.raises(REFUSED):
+    with pytest.raises(UserError, match="no approved retirement request"):
         a.action_retire()
-    with pytest.raises(UserError, match="approver's inbox"):
-        a.with_user(c.t2).action_dofa_approve()
+    with pytest.raises(UserError, match="Retirement Request"):
+        a.action_request_approval(justification="old style")
 
 
 def test_retirement_through_the_inbox_hands_off_to_m49(c):
@@ -703,13 +725,18 @@ def test_retirement_through_the_inbox_hands_off_to_m49(c):
         }
     )
     fa.write({"state": "active"})
-    c.asset.write({"fixed_asset_id": fa.id})
+    c.asset.write({"fixed_asset_id": fa.id, "category": "tool"})
     a = c.asset.with_user(c.clerk)
-    assert a._dofa_current_tier() == "tier_2"
-    a.action_request_approval(justification="end of life: sensor failure")
-    inbox_approve(a, c.t2)
+    ret = (
+        c.env["fix.rental.retirement"]
+        .with_user(c.clerk)
+        .create({"asset_id": a.id, "route": "resale", "reason": "end of life: sensor failure"})
+    )
+    ret.action_request_approval(justification="end of life: sensor failure")
+    inbox_approve(ret, c.csh)
+    inbox_approve(ret, c.cfo)
     a.action_retire()
-    assert a.status == "retired" and a.retired_on
+    assert a.status == "retired" and a.retired_on and ret.state == "retired"
     assert a.disposal_id and a.disposal_id.asset_id == fa and a.disposal_id.state == "draft"
     with pytest.raises(REFUSED):
         a.write({"notes": "after retirement"})
@@ -822,7 +849,9 @@ def test_turnarounds_are_not_typed_and_an_asset_on_rent_is_not_released(c):
 def test_cancel_frees_the_unit_and_refunds_the_posted_deposit(c):
     r = walk(c, res(c), "action_reserve")
     assert c.asset.status == "reserved"
-    r.action_cancel()
+    with pytest.raises(UserError, match="you took the deposit"):
+        r.action_cancel()
+    r.with_user(c.clerk2).action_cancel()
     assert r.state == "cancelled" and c.asset.status == "available"
     refund = ledger(c, r).filtered(lambda d: d.kind == "refund")
     assert refund.amount == 5000 and refund.payment_execution_id
@@ -832,12 +861,16 @@ def test_cancel_frees_the_unit_and_refunds_the_posted_deposit(c):
 
 
 def test_cancellation_fee_switch(c):
+    """A05 FIN-18 / owner D2: the cancellation fee is a VAT supply invoiced
+    through M51, not a forfeit of the deposit outside VAT."""
     c.env["ir.config_parameter"].set_param("cd_rental_asset.cancellation_fee_pct", "10")
     r = walk(c, res(c), "action_reserve")
-    r.action_cancel()
+    r.with_user(c.clerk2).action_cancel()
     rows = ledger(c, r)
-    assert rows.filtered(lambda d: d.kind == "forfeit").amount == 500
-    assert rows.filtered(lambda d: d.kind == "refund").amount == 4500
+    assert not rows.filtered(lambda d: d.kind == "forfeit")
+    assert rows.filtered(lambda d: d.kind == "refund").amount == 5000
+    fee = r.billing_ids.filtered(lambda b: b.kind == "cancellation")
+    assert fee.fee_amount == 500 and fee.invoice_id.vat_amount > 0
 
 
 # ----------------------------------------------------------------- E12 overdue cron
@@ -851,7 +884,8 @@ def test_overdue_cron_accrues_the_late_fee_once(c):
     acts = len(r.activity_ids)
     Res.cron_rental_overdue()
     r.invalidate_recordset()
-    assert r.late_fee == 3000 and len(r.activity_ids) == acts == 1
+    # the overdue to-do, and the 1-day escalation milestone (M13-26): once each
+    assert r.late_fee == 3000 and len(r.activity_ids) == acts == 2
 
 
 # ------------------------------------------------- M13-18 / M13-19 P03 wiring and KPIs
@@ -865,10 +899,13 @@ def test_surfaces_offer_the_routed_requests_and_every_button(c):
         encoding="utf-8"
     )
     assert "fix.rental.agreement" not in js
-    for model in ("fix.rental.damage", "fix.rental.asset"):
+    # A05 XC-26 (S1): a fleet unit's retirement is requested on its own
+    # fix.rental.retirement record; the unit's surface no longer raises it
+    for model in ("fix.rental.damage", "fix.rental.retirement"):
         assert {"action_request_approval", "action_recall_approval"} <= m13.SURFACES[model][
             "actions"
         ]
+    for model in ("fix.rental.damage", "fix.rental.asset", "fix.rental.retirement"):
         assert "action_dofa_approve" not in m13.SURFACES[model]["actions"]
     screens = js[js.index("export const SCREENS") : js.index("export const REPORT_ROUTES")]
     for block in re.split(r"\n  '", screens):
@@ -876,6 +913,8 @@ def test_surfaces_offer_the_routed_requests_and_every_button(c):
         if not model or "kind: 'model_list'" not in block:
             continue
         for method in re.findall(r"\bm: '(\w+)'", block):
+            if method == "p03_print_document":
+                continue  # a print button (XC-10): the workspace renders it itself
             assert method in m13.SURFACES[model.group(1)]["actions"], (model.group(1), method)
     assert all("writable" in conf for conf in m13.SURFACES.values())
 

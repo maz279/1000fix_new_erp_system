@@ -23,11 +23,9 @@ import hashlib
 import json
 import re
 from datetime import timedelta
-from decimal import ROUND_HALF_UP, Decimal
 
 from odoo import api, fields, models
 from odoo.addons.cd_service_order.models import fix_otp_util
-from odoo.addons.cd_tax_engine_bd.models import tax_logic
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
@@ -72,8 +70,16 @@ _RES_GUARDED = frozenset(
         "mushak_6_3_id",
         "delivery_consignment_id",
         "return_consignment_id",
+        # A05 M13-01 / M13-11: the tariff is the SKU's, snapshot at booking and
+        # never typed; the ladder that priced it is persisted with it
+        "daily_rate",
+        "weekly_rate",
+        "monthly_rate",
+        "min_hire_days",
+        "tariff_breakdown",
     }
 )
+RATE_FIELDS = ("daily_rate", "weekly_rate", "monthly_rate")
 # The agreement: what the customer signs. Frozen once it is sent for
 # signature (reset it to draft to change a sent one; a signed one is final).
 _AGREEMENT_TERMS = frozenset(
@@ -102,7 +108,18 @@ _AGREEMENT_TERMS = frozenset(
 # Set when the booking is made; after the reservation only a missing fleet
 # unit may still be assigned (an SKU-pool booking gets its unit before handover).
 _SET_AT_BOOKING = frozenset(
-    {"customer_id", "rental_sku_id", "device_id", "kit_id", "deposit_collected", "company_id"}
+    {
+        "customer_id",
+        "rental_sku_id",
+        "device_id",
+        "kit_id",
+        "deposit_collected",
+        "company_id",
+        # A05 M13-06 / FIN-09: the deposit posts to the booking branch's unit;
+        # the branch (and the unit derived from it) is fixed once booked
+        "branch_id",
+        "operating_unit_id",
+    }
 )
 _FREEZE_EXEMPT_PREFIX = ("message_", "activity_", "website_message")
 
@@ -187,9 +204,34 @@ class FixRentalReservation(models.Model):
         copy=False,
         help="Amount refunded to customer after damage deduction",
     )
-    daily_rate = fields.Monetary(string="Daily Rate", currency_field="currency_id")
-    weekly_rate = fields.Monetary(string="Weekly Rate", currency_field="currency_id")
-    monthly_rate = fields.Monetary(string="Monthly Rate", currency_field="currency_id")
+    # A05 M13-01: the tariff is the rental SKU's (M37, changed only by a
+    # catalogue officer), snapshot when the booking names its SKU and frozen
+    # once it leaves draft. The counter never types a rate.
+    daily_rate = fields.Monetary(string="Daily Rate", currency_field="currency_id", readonly=True)
+    weekly_rate = fields.Monetary(string="Weekly Rate", currency_field="currency_id", readonly=True)
+    monthly_rate = fields.Monetary(
+        string="Monthly Rate", currency_field="currency_id", readonly=True
+    )
+    min_hire_days = fields.Integer(
+        string="Minimum Hire (Days)",
+        readonly=True,
+        help="The SKU's minimum hire period at booking: a shorter rental, or an early "
+        "return, is charged this many days (FR-RNT-017).",
+    )
+    billable_days = fields.Integer(
+        string="Billable Days",
+        compute="_compute_rental_charge",
+        store=True,
+        help="Days charged: the booked days, or for an early return the days used, never "
+        "below the minimum hire.",
+    )
+    tariff_breakdown = fields.Char(
+        string="Rate Ladder Applied",
+        compute="_compute_rental_charge",
+        store=True,
+        help="The cheapest combination of monthly, weekly and daily rates that prices "
+        "the billable days (FR-RNT-035), persisted with the charge.",
+    )
     rental_charge = fields.Monetary(
         compute="_compute_rental_charge",
         store=True,
@@ -419,27 +461,65 @@ class FixRentalReservation(models.Model):
             self.daily_rate = self.rental_sku_id.daily_rate
             self.weekly_rate = self.rental_sku_id.weekly_rate
             self.monthly_rate = self.rental_sku_id.monthly_rate
+            self.min_hire_days = self.rental_sku_id.min_hire_days
             if not self.deposit_collected:
                 self.deposit_collected = self.rental_sku_id.security_deposit
 
-    @api.depends("duration_days", "daily_rate", "weekly_rate", "monthly_rate")
+    @staticmethod
+    def _cheapest_ladder(days, daily, weekly, monthly):
+        """(charge, breakdown) of the cheapest combination of monthly (30 day),
+        weekly (7 day) and daily rates covering `days`, or (None, why) when
+        no combination prices them (a partial week with no daily rate is
+        covered by a whole week, never given away). A05 M13-11: the old
+        ladder took as many months/weeks as fit and charged the rest daily,
+        so 6 days at 1000/day cost 6000 against a 5000 week, and a SKU with
+        no daily rate rented the odd days for nothing."""
+        days = max(int(days or 1), 1)
+        daily, weekly, monthly = (daily or 0.0), (weekly or 0.0), (monthly or 0.0)
+        best = None
+        month_range = range(0, days // 30 + 2) if monthly > 0 else range(0, 1)
+        for months in month_range:
+            rest = max(days - 30 * months, 0)
+            week_range = range(0, rest // 7 + 2) if weekly > 0 else range(0, 1)
+            for weeks in week_range:
+                odd = max(rest - 7 * weeks, 0)
+                if odd and daily <= 0:
+                    continue
+                cost = round(months * monthly + weeks * weekly + odd * daily, 2)
+                if best is None or cost < best[0] - 1e-9:
+                    best = (cost, "%d month(s) + %d week(s) + %d day(s)" % (months, weeks, odd))
+        if best is None:
+            return None, "no rate prices %d day(s)" % days
+        return best
+
+    def _billable_days(self):
+        """The days the rental is charged: the booked window, or - returned
+        before the due date - the days the unit was out; never below the
+        minimum hire (FR-RNT-017)."""
+        self.ensure_one()
+        days = self.duration_days or 1
+        returned = self.actual_return_date
+        if returned and self.date_from and self.date_to and returned < self.date_to:
+            days = max((returned - self.date_from).days + 1, 1)
+        return max(days, self.min_hire_days or 1)
+
+    @api.depends(
+        "duration_days",
+        "daily_rate",
+        "weekly_rate",
+        "monthly_rate",
+        "min_hire_days",
+        "actual_return_date",
+    )
     def _compute_rental_charge(self):
         for rec in self:
-            days = rec.duration_days or 1
-            if days >= 30 and rec.monthly_rate:
-                months = days // 30
-                rem_days = days % 30
-                rec.rental_charge = (months * rec.monthly_rate) + (
-                    rem_days * (rec.daily_rate or (rec.monthly_rate / 30.0))
-                )
-            elif days >= 7 and rec.weekly_rate:
-                weeks = days // 7
-                rem_days = days % 7
-                rec.rental_charge = (weeks * rec.weekly_rate) + (
-                    rem_days * (rec.daily_rate or (rec.weekly_rate / 7.0))
-                )
-            else:
-                rec.rental_charge = days * rec.daily_rate
+            days = rec._billable_days()
+            charge, breakdown = rec._cheapest_ladder(
+                days, rec.daily_rate, rec.weekly_rate, rec.monthly_rate
+            )
+            rec.billable_days = days
+            rec.rental_charge = charge or 0.0
+            rec.tariff_breakdown = breakdown if charge is not None else "UNPRICED: %s" % breakdown
 
     @api.depends("damage_ids.cost")
     def _compute_damage(self):
@@ -501,16 +581,101 @@ class FixRentalReservation(models.Model):
                 why = "they are fixed once the booking is made"
             _refuse(self, "Rental %s: %s cannot change: %s." % (rec.name, labels, why))
 
+    # ---- tariff and unit derivation (A05 M13-01, FIN-09) -----------------
+    def _sku_for_vals(self, vals):
+        sku = self.env["fix.rental.sku"].browse(vals.get("rental_sku_id") or []).exists()
+        if not sku and vals.get("rental_asset_id"):
+            sku = self.env["fix.rental.asset"].sudo().browse(vals["rental_asset_id"]).rental_sku_id
+        return sku.sudo()
+
+    def _tariff_vals(self, sku):
+        sku = sku.sudo()
+        return {
+            "daily_rate": sku.daily_rate or 0.0,
+            "weekly_rate": sku.weekly_rate or 0.0,
+            "monthly_rate": sku.monthly_rate or 0.0,
+            "min_hire_days": sku.min_hire_days or 0,
+        }
+
+    def _strip_quoted_tariff(self, vals, sku):
+        """A form or caller that posts the SKU's own rates back is not typing
+        a tariff: those values are dropped. A rate that differs stays in and
+        the guard refuses it (a negotiated rate is an M11-approved discount,
+        not a typed figure)."""
+        if self._fix_guard_open():
+            return
+        tariff = self._tariff_vals(sku) if sku else {}
+        for name in (*RATE_FIELDS, "min_hire_days"):
+            if name in vals and sku and abs((vals[name] or 0) - (tariff[name] or 0)) <= 0.005:
+                vals.pop(name)
+
+    def _ou_for_branch_vals(self, vals):
+        """The unit comes from the branch (FIN-09): a branch given fills the
+        unit; a unit that contradicts the branch is refused."""
+        if not vals.get("branch_id"):
+            return
+        branch = self.env["fix.branch"].sudo().browse(vals["branch_id"])
+        ou = branch.operating_unit_id
+        if not ou:
+            _refuse(self, "Branch %s belongs to no operating unit." % branch.display_name)
+        given = vals.get("operating_unit_id")
+        if given and given != ou.id:
+            _refuse(
+                self,
+                "Branch %s belongs to operating unit %s: a rental booked there carries that "
+                "unit." % (branch.display_name, ou.name),
+            )
+        vals["operating_unit_id"] = ou.id
+
     @api.model_create_multi
     def create(self, vals_list):
+        skus = []
         for vals in vals_list:
             if vals.get("name", "New") == "New":
                 vals["name"] = (
                     self.env["ir.sequence"].next_by_code("fix.rental.reservation") or "RENT/New"
                 )
-        return super().create(vals_list)
+            if not vals.get("rental_sku_id") and vals.get("rental_asset_id"):
+                vals["rental_sku_id"] = (
+                    self.env["fix.rental.asset"]
+                    .sudo()
+                    .browse(vals["rental_asset_id"])
+                    .rental_sku_id.id
+                    or False
+                )
+            sku = self._sku_for_vals(vals)
+            self._strip_quoted_tariff(vals, sku)
+            self._ou_for_branch_vals(vals)
+            skus.append(sku)
+        recs = super().create(vals_list)
+        for rec, sku in zip(recs, skus, strict=True):
+            if sku and not any(rec[n] for n in RATE_FIELDS):
+                rec._guarded().write(rec._tariff_vals(sku))
+        return recs
 
     def write(self, vals):
+        vals = dict(vals)
+        if "rental_sku_id" in vals and len(self) == 1 and not self._fix_guard_open():
+            self._strip_quoted_tariff(vals, self._sku_for_vals(vals))
+        elif not self._fix_guard_open() and len(self) == 1 and self.rental_sku_id:
+            self._strip_quoted_tariff(vals, self.rental_sku_id)
+        if "branch_id" in vals:
+            self._ou_for_branch_vals(vals)
+        elif "operating_unit_id" in vals and not self._fix_guard_open():
+            for rec in self.filtered("branch_id"):
+                if vals["operating_unit_id"] != rec.branch_id.operating_unit_id.id:
+                    _refuse(
+                        self,
+                        "Rental %s is booked at branch %s: its unit is the branch's."
+                        % (rec.name, rec.branch_id.display_name),
+                    )
+        result = self._write_checked(vals)
+        if "rental_sku_id" in vals:
+            for rec in self.filtered(lambda r: r.state == "draft" and r.rental_sku_id):
+                rec._guarded().write(rec._tariff_vals(rec.rental_sku_id))
+        return result
+
+    def _write_checked(self, vals):
         if self and not self._fix_guard_open():
             # The guard first: a forged state is refused as a forgery, not as
             # a bad transition.
@@ -700,18 +865,9 @@ class FixRentalReservation(models.Model):
                 "Rental SKU %s allows at most %d rental days; %s is %d days."
                 % (sku.display_name, sku.max_rental_days, self.name, self.duration_days),
             )
-        if policy.param_on(self.env, "enforce_sku_deposit", True):
-            required = max(
-                (sku.security_deposit or 0.0) if sku else 0.0,
-                (self.kit_id.deposit or 0.0) if self.kit_id else 0.0,
-            )
-            if (self.deposit_collected or 0.0) + 0.005 < required:
-                _refuse(
-                    self,
-                    "Rental %s carries a deposit of %.2f; the SKU/kit requires at least "
-                    "%.2f (cd_rental_asset.enforce_sku_deposit)."
-                    % (self.name, self.deposit_collected or 0.0, required),
-                )
+        # A05 M13-19 / owner D8: the deposit check (floor, value x risk tier,
+        # approved reduction) is _deposit_denial in fix_rental_money; the old
+        # SKU-floor-only switch cd_rental_asset.enforce_sku_deposit is gone.
 
     def _gate_delivered(self):
         self._require_signed("handed over")
@@ -814,6 +970,7 @@ class FixRentalReservation(models.Model):
                     "treasury can match and later refund it." % (rec.name, tenders[method])
                 )
             rec._guarded().write({"state": "reserved"})
+            rec._set_hold_expiry()
             if rec.rental_asset_id.status == "available":
                 rec._set_asset_status("reserved")
             self.env["fix.rental.deposit"]._post(
@@ -877,9 +1034,14 @@ class FixRentalReservation(models.Model):
 
     def _logistics_operating_unit(self):
         """M03 consignments are OU-scoped (operating_unit_id is required):
-        the reservation's OU, else the acting user's default OU."""
+        the booking branch's OU (A05 FIN-09), else the reservation's, else
+        the acting user's default OU."""
         self.ensure_one()
-        ou = self.operating_unit_id or self.env.user.default_operating_unit_id
+        ou = (
+            self.branch_id.operating_unit_id
+            or self.operating_unit_id
+            or self.env.user.default_operating_unit_id
+        )
         if not ou:
             raise UserError(
                 "Rental %s has no operating unit — M03 logistics cannot be dispatched" % self.name
@@ -980,14 +1142,22 @@ class FixRentalReservation(models.Model):
         return round(late_days * daily * multiplier, 2)
 
     def action_return(self):
+        """Active -> returned. The return date is today (Dhaka); a late
+        return accrues its late fee once, an early one is re-priced on the
+        days used (never below the minimum hire, FR-RNT-017). What the
+        return changes in the charges is billed at once as a supplementary
+        invoice (or a credit), keyed to the return (A05 FIN-07)."""
         for rec in self:
             if rec.state != "active":
                 raise UserError("Return from active")
-            today = fields.Date.context_today(self)
+            today = policy.dhaka_today(self.env)
             fee = rec._late_fee_on(today)
             rec._guarded().write(
                 {"state": "returned", "actual_return_date": today, "late_fee": fee}
             )
+            billable, billed = rec._unbilled()
+            if abs(billable - billed) > 0.005:
+                rec._bill_rental("return", reason="Rental %s returned on %s" % (rec.name, today))
             if rec.rental_asset_id:
                 rec._set_asset_status("maintenance")
                 self.env["fix.rental.turnaround"]._guarded().create(
@@ -1030,20 +1200,26 @@ class FixRentalReservation(models.Model):
     def action_close(self):
         """The deposit settlement & billing closure, from the POSTED ledger:
         held              = posted collections (never deposit_collected)
-        charges           = approved damage (cost - waived) [+ late fee when
-                            cd_rental_asset.late_fee_settlement = deposit]
+        charges           = approved damage (cost - waived)
         deposit_deduction = min(charges, held), one ledger row per damage line
         deposit_refunded  = held - deposit_deduction (queued to M50)
-        excess_billed     = charges - deposit_deduction, invoiced through M20."""
-        Ledger = self.env["fix.rental.deposit"]
+        excess_billed     = charges - deposit_deduction, invoiced through M20
+                            outside VAT (genuine damage compensation, owner D2).
+        The late fee is never taken from the deposit (A05 M13-09 / FIN-18): it
+        is a VAT supply billed on the rental's invoices, and the close is
+        refused while any rental charge is not invoiced (FIN-07). The person
+        who took the deposit does not settle it (XC-22)."""
+        Ledger = self.env["fix.rental.deposit"].with_context(rental_release_uid=self.env.uid)
         for rec in self:
             if rec.state != "damage_assess":
                 raise UserError("Close from damage assessment")
+            rec._assert_release_sod("settles")
             rec._guarded().write({"state": "closed"})
             held = rec._ledger_balance()
             remaining = held
             deduction = 0.0
             charges = 0.0
+            uncovered = self.env["fix.rental.damage"]
             for dmg in rec.damage_ids.sorted("id"):
                 # M13 capture pass 2: what the line charges the customer, after a
                 # loss waiver AND the elected damage waiver (FR-RNT-036)
@@ -1054,19 +1230,14 @@ class FixRentalReservation(models.Model):
                     Ledger._post(rec, "deduction", take, "Damage charge: %s" % dmg.description, dmg)
                     remaining -= take
                     deduction += take
-            late = rec.late_fee if policy.late_fee_mode(self.env) == "deposit" else 0.0
-            charges += late or 0.0
-            take = min(late or 0.0, remaining)
-            if take > 0:
-                Ledger._post(rec, "deduction", take, "Late return fee")
-                remaining -= take
-                deduction += take
+                if charge - max(take, 0.0) > 0.005:
+                    uncovered |= dmg
             refund = round(max(remaining, 0.0), 2)
             excess = round(max(charges - deduction, 0.0), 2)
             rec._guarded().write({"deposit_refunded": refund, "excess_billed": excess})
             Ledger._post(rec, "refund", refund, "Deposit balance refunded")
             if excess > 0:
-                rec._hand_off_excess(excess)
+                rec._hand_off_excess(excess, uncovered)
             publish(
                 self.env,
                 "rental.closed",
@@ -1085,17 +1256,26 @@ class FixRentalReservation(models.Model):
         return True
 
     def action_cancel(self):
-        """Draft/reserved -> cancelled: the unit is freed and the posted
-        deposit refunded through M50, less the cancellation fee (system
-        parameter cd_rental_asset.cancellation_fee_pct, default 0)."""
-        Ledger = self.env["fix.rental.deposit"]
+        """Draft/reserved -> cancelled: the unit is freed, any rental invoice
+        is cancelled (draft) or credited (issued, Mushak 6.7 - A05 FIN-08),
+        the posted deposit is refunded through M50 in full, and the
+        cancellation fee (system parameter cd_rental_asset.cancellation_fee_pct
+        of the deposit, default 0) is invoiced as a VAT supply through M51
+        (owner D2) - never forfeited from the deposit outside VAT. Whoever
+        took the deposit does not release it (XC-22)."""
+        Ledger = self.env["fix.rental.deposit"].with_context(rental_release_uid=self.env.uid)
         for rec in self:
             if rec.state not in ("draft", "reserved"):
                 raise UserError(
                     "Rental %s is %s: only a draft or reserved rental is cancelled; a "
                     "delivered one comes back through Return." % (rec.name, rec.state)
                 )
+            if rec.deposit_ids:
+                rec._assert_release_sod("cancels")
             rec._guarded().write({"state": "cancelled"})
+            reason = self.env.context.get("rental_cancel_reason") or "rental cancelled"
+            if rec.billing_ids:
+                rec._bill_rental(reason="Rental %s: %s" % (rec.name, reason))
             asset = rec.rental_asset_id
             if asset and asset.status == "reserved":
                 still = self.sudo().search_count(
@@ -1111,53 +1291,35 @@ class FixRentalReservation(models.Model):
             pct = min(policy.param_float(self.env, "cancellation_fee_pct", 0.0), 100.0)
             fee = round(held * max(pct, 0.0) / 100.0, 2)
             if fee > 0:
-                Ledger._post(rec, "forfeit", fee, "Cancellation fee (%.1f%%)" % pct)
-            refund = round(held - fee, 2)
+                rec._bill_cancellation_fee(fee, pct)
+            refund = round(held, 2)
             rec._guarded().write({"deposit_refunded": max(refund, 0.0)})
             Ledger._post(rec, "refund", refund, "Deposit refunded on cancellation")
             rec.message_post(
-                body="Rental cancelled; deposit refund %.2f queued, fee %.2f." % (refund, fee)
+                body="Rental cancelled (%s); deposit refund %.2f queued, cancellation fee %.2f "
+                "invoiced." % (reason, refund, fee)
             )
         return True
 
-    def _hand_off_excess(self, amount):
-        """Charges above the deposit become an M20 invoice (draft): finance
-        issues it. Damage compensation is not a VAT supply, so the line
-        carries no VAT. Through M20's own manual-invoice service, as the
-        system: a rental clerk holds no accounting rights."""
+    def _hand_off_excess(self, amount, damages=None, kind="damage", key=None, description=None):
+        """Charges above the deposit become an M20 draft invoice (finance
+        issues it), crediting the recovery income account (owner D1) with
+        the M51 treatment of compensation outside VAT (owner D2). Only the
+        damage lines the deposit did not cover are linked to it."""
         self.ensure_one()
-        Invoice = self.env["fix.ar.invoice"].sudo()
-        ou = (
-            self.operating_unit_id
-            or (self.branch_id and self.branch_id.operating_unit_id)
-            or self.env["operating.unit"]
-            .sudo()
-            .search([("company_id", "=", self.company_id.id)], limit=1)
+        row = self._bill_compensation(
+            kind,
+            key or kind,
+            amount,
+            description
+            or "Rental %s: damage charges above the security deposit (compensation, outside "
+            "the scope of VAT)"
+            % self.name,
+            damage_lines=damages,
         )
-        invoice = Invoice.create_manual_invoice(
-            {
-                "company_id": self.company_id.id,
-                "customer_id": self.customer_id.id,
-                "branch_id": self.branch_id.id,
-                "operating_unit_id": ou.id,
-                "currency_id": self.currency_id.id,
-                "invoice_date": fields.Date.context_today(self),
-            },
-            [
-                {
-                    "description": "Rental %s: charges above the security deposit "
-                    "(damage compensation, outside the scope of VAT)" % self.name,
-                    "taxable_amount": float(amount),
-                    "vat_amount": 0.0,
-                    "line_total": float(amount),
-                }
-            ],
-            "Rental %s: charges above the deposit" % self.name,
-        )
-        self._guarded().write({"excess_invoice_id": invoice.id})
-        self.damage_ids.filtered(lambda d: not d.invoice_id)._guarded().write(
-            {"invoice_id": invoice.id}
-        )
+        invoice = row.invoice_id
+        if invoice and not self.excess_invoice_id:
+            self._guarded().write({"excess_invoice_id": invoice.id})
         self.message_post(
             body="Charges of %.2f above the deposit handed to M20 as draft invoice %s."
             % (amount, invoice.display_name)
@@ -1171,8 +1333,9 @@ class FixRentalReservation(models.Model):
     def cron_rental_overdue(self):
         """Daily: open rentals past their due date plus grace get their late
         fee accrued to date (recomputed, never added, so a re-run changes
-        nothing) and, once, a chatter note and a to-do for the booker."""
-        today = fields.Date.context_today(self)
+        nothing) and, once, a chatter note and a to-do for the booker. The
+        business day is Dhaka's (a cron runs with no time zone)."""
+        today = policy.dhaka_today(self.env)
         grace = policy.param_int(self.env, "late_fee_grace_days", 0)
         overdue = self.sudo().search(
             [
@@ -1368,114 +1531,9 @@ class FixRentalReservation(models.Model):
         return True
 
     # ------------------------------------------------------------------
-    # Mushak 6.3 — the rental charge invoice (M20 paper, M51 rates)
+    # Mushak 6.3: the rental's invoices are raised by the cumulative billing
+    # of fix_rental_money (action_issue_rental_invoice, A05 FIN-07).
     # ------------------------------------------------------------------
-
-    def action_issue_rental_invoice(self):
-        """Issue the rental's Mushak 6.3 through M20: the rental charge, plus
-        the late fee when it is billed on the invoice (late_fee_settlement =
-        invoice, the default; otherwise it was taken from the deposit and is
-        not invoiced again). Damage settled from the deposit is compensation
-        against the customer's own money, never a VAT supply — it is NOT
-        invoiced here (it posts to recovery income in the deposit ledger)."""
-        Invoice = self.env["fix.ar.invoice"].sudo()
-        late_on_invoice = policy.late_fee_mode(self.env) == "invoice"
-        for rec in self:
-            if rec.state in ("draft", "cancelled"):
-                raise UserError("Rental %s is %s: nothing was rented." % (rec.name, rec.state))
-            if rec.mushak_6_3_id or Invoice.search_count(
-                [("source_model", "=", "fix.rental.reservation"), ("source_id", "=", rec.id)]
-            ):
-                raise UserError("Rental %s already carries its rental invoice" % rec.name)
-            taxable = (rec.rental_charge or 0.0) + (
-                (rec.late_fee or 0.0) if late_on_invoice else 0.0
-            )
-            if taxable <= 0:
-                raise UserError(
-                    "Rental %s has no taxable charge to invoice (rental fee + late fee)" % rec.name
-                )
-            # A08 M51-5: the rate comes from the statutory master, never from code
-            determination = self.env["fix.vat.treatment"]._fix_determine_tax(
-                [
-                    tax_logic.TaxLine(
-                        product_code="RENTAL",
-                        qty=Decimal("1"),
-                        unit_price=Decimal(str(taxable)).quantize(Decimal("0.01"), ROUND_HALF_UP),
-                    )
-                ],
-                on_date=fields.Date.context_today(rec),
-                company=rec.company_id,
-            )
-            det = determination.lines[0]
-            lines = [
-                (
-                    0,
-                    0,
-                    {
-                        "description": "Equipment rental %s — %s to %s"
-                        % (rec.name, rec.date_from, rec.date_to),
-                        "taxable_amount": float(det.taxable_amount),
-                        "vat_amount": float(det.vat_amount),
-                        "line_total": float(det.line_total),
-                    },
-                )
-            ]
-            # M13 capture pass 2 (FR-RNT-036/037): the elected damage waiver is
-            # its own chargeable line, at the plan's % of the gross rental
-            waiver_fee = getattr(rec, "waiver_fee", 0.0) or 0.0
-            if waiver_fee > 0:
-                wdet = (
-                    self.env["fix.vat.treatment"]
-                    ._fix_determine_tax(
-                        [
-                            tax_logic.TaxLine(
-                                product_code="RENTAL",
-                                qty=Decimal("1"),
-                                unit_price=Decimal(str(waiver_fee)).quantize(
-                                    Decimal("0.01"), ROUND_HALF_UP
-                                ),
-                            )
-                        ],
-                        on_date=fields.Date.context_today(rec),
-                        company=rec.company_id,
-                    )
-                    .lines[0]
-                )
-                lines.append(
-                    (
-                        0,
-                        0,
-                        {
-                            "description": "Damage waiver %s (%s)"
-                            % (rec.waiver_plan_id.name, rec.name),
-                            "taxable_amount": float(wdet.taxable_amount),
-                            "vat_amount": float(wdet.vat_amount),
-                            "line_total": float(wdet.line_total),
-                        },
-                    )
-                )
-            invoice = Invoice.create(
-                {
-                    "company_id": rec.company_id.id,
-                    "customer_id": rec.customer_id.id,
-                    "branch_id": rec.branch_id.id,
-                    "operating_unit_id": (
-                        rec.operating_unit_id
-                        or rec.branch_id.operating_unit_id
-                        or self.env["operating.unit"]
-                        .sudo()
-                        .search([("company_id", "=", rec.company_id.id)], limit=1)
-                    ).id,
-                    "source_model": "fix.rental.reservation",
-                    "source_id": rec.id,
-                    "invoice_date": fields.Date.context_today(rec),
-                    "manual_reason": "Rental charges %s (%s to %s)"
-                    % (rec.name, rec.date_from, rec.date_to),
-                    "line_ids": lines,
-                }
-            )
-            rec._guarded().write({"mushak_6_3_id": invoice.id})
-        return True
 
 
 # Fields of a damage line written only by the settlement, the waiver and the
@@ -1920,9 +1978,6 @@ class FixApprovalMatrixRentalDomains(models.Model):
     _inherit = "fix.approval.matrix"
 
     decision_domain = fields.Selection(
-        selection_add=[
-            ("rental_asset_writeoff", "Rental Fleet Asset Write-Off"),
-            ("rental_loss_waiver", "Rental Loss Waiver"),
-        ],
-        ondelete={"rental_asset_writeoff": "cascade", "rental_loss_waiver": "cascade"},
+        selection_add=[("rental_loss_waiver", "Rental Loss Waiver")],
+        ondelete={"rental_loss_waiver": "cascade"},
     )

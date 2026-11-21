@@ -31,8 +31,79 @@
 #                                                  needs before handover / assessment
 #                                                  / close (BRU-RNT-01; 0 = off)
 #   cd_rental_asset.swap_sla_hours            24   in-rental swap-out SLA (FR-RNT-027)
+#
+# A05 remediation (2026-11-20, stream S1):
+#   cd_rental_asset.late_fee_settlement        IGNORED now: a late fee is always
+#                                                  invoiced with M51 VAT (owner D2);
+#                                                  it is never taken from the deposit
+#   cd_rental_asset.deposit_rate_pct.low      10   owner D8: deposit = max(SKU floor,
+#   cd_rental_asset.deposit_rate_pct.standard 20   unit book value x the customer's
+#   cd_rental_asset.deposit_rate_pct.high     35   risk-tier rate)
+#   cd_rental_asset.hold_grace_hours          24   a reserved booking not handed over
+#                                                  this long after its start day ends
+#                                                  is released (AUT-RNT-02)
+#   cd_rental_asset.min_dispatch_grade         c   lowest condition grade a unit may
+#   cd_rental_asset.min_dispatch_grade.<cat>       be allocated at (BRU-RNT-14), per
+#                                                  fleet category or for all
+#   cd_rental_asset.overdue_reminder_days  1,3,7   overdue days on which rental.overdue
+#                                                  is published and the booker is
+#                                                  escalated (M13-26)
+#   cd_rental_asset.return_due_notice_days     1   days before the due date the
+#                                                  rental.return_due notice goes (I5)
+#   cd_rental_asset.lease_assessment_days    365   rentals this long need an M53 lease
+#                                                  assessment before activation
+#                                                  (BRU-RNT-18)
+#   cd_rental_asset.vat_treatment_code.rental  -   optional M51 tariff code for the
+#                                                  rental lines (else M51's standard)
+#   cd_rental_asset.vat_treatment_code.damage  -   REQUIRED to invoice damage or loss
+#                                                  compensation: an exempt / zero-rated
+#                                                  M51 row (outside VAT, owner D2)
+#   cd_rental_asset.account_code.<role>        -   REQUIRED, see rental_gl.py
 PREFIX = "cd_rental_asset."
 DEFAULT_DATA_BEARING = "camera,laptop,projector,audio,medical,network,other"
+GRADE_ORDER = ("d", "c", "b", "a")
+DEPOSIT_TIER_DEFAULTS = {"low": 10.0, "standard": 20.0, "high": 35.0}
+
+
+def dhaka_today(env):
+    """The Asia/Dhaka business day now (Odoo runs in UTC; a cron has no tz)."""
+    from odoo import fields
+    from odoo.addons.cd_billing_engine.models.fix_billing_engine import dhaka_date
+
+    return dhaka_date(fields.Datetime.now())
+
+
+def deposit_rate_pct(env, tier):
+    tier = tier if tier in DEPOSIT_TIER_DEFAULTS else "standard"
+    return max(param_float(env, "deposit_rate_pct.%s" % tier, DEPOSIT_TIER_DEFAULTS[tier]), 0.0)
+
+
+def min_dispatch_grade(env, category):
+    raw = _raw(env, "min_dispatch_grade.%s" % (category or "other"), None) or _raw(
+        env, "min_dispatch_grade", "c"
+    )
+    raw = str(raw).strip().lower()
+    return raw if raw in GRADE_ORDER else "c"
+
+
+def grade_below(grade, minimum):
+    """True when `grade` is worse than `minimum` (d < c < b < a)."""
+    if not grade:
+        return False
+    return GRADE_ORDER.index(grade) < GRADE_ORDER.index(minimum)
+
+
+def int_list(env, key, default):
+    raw = str(_raw(env, key, default))
+    out = []
+    for part in raw.split(","):
+        try:
+            value = int(part.strip())
+        except ValueError:
+            continue
+        if value > 0:
+            out.append(value)
+    return sorted(set(out))
 
 
 def _raw(env, key, default):

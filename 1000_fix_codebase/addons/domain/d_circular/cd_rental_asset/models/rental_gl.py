@@ -20,14 +20,23 @@ from odoo.addons.cd_billing_engine.models.fix_ar_engine import _ar_account, _ar_
 from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 from odoo.exceptions import UserError
 
-# role -> (default account code, label). Override per deployment with system
-# parameter cd_rental_asset.account_code.<role>.
+# role -> label. The account of each role is a system parameter
+# cd_rental_asset.account_code.<role> set by the deployment (owner decision D1,
+# A05 FIN-01/M13-05/M13-08): there is NO code default, because the chart the
+# old defaults named (212000 / 450000) is not the company's chart and 212000 is
+# M20's deferred revenue. An unset or unknown code REFUSES the posting and
+# names the parameter to set.
+#   deposit_liability  the NEW "Customer Security Deposit - Rental" liability
+#   recovery_income    400111 Loss Adjustment Income: deposit deductions,
+#                      forfeits, damage above the deposit, loss of a unit
+#   rental_income      400108 Rental Service Income: the rental charge, the
+#                      damage waiver fee, late and cancellation fees
 RENTAL_ACCOUNTS = {
-    # MD-035 2-40-20-010 "Customer advance deposits" is linked to Odoo 212000.
-    "deposit_liability": ("212000", "Customer security deposits held (liability)"),
-    # MD-035 4-90-10-010 "Other income" is linked to Odoo 450000.
-    "retention_income": ("450000", "Rental damage, late-fee and forfeiture recovery income"),
+    "deposit_liability": "Customer security deposit - rental (liability)",
+    "recovery_income": "Rental damage and loss recovery income",
+    "rental_income": "Rental service income",
 }
+ACCOUNT_PARAM = "cd_rental_asset.account_code.%s"
 
 # deposit tender -> the M20 account role that tender clears into
 TENDER_ROLE = {
@@ -38,13 +47,16 @@ TENDER_ROLE = {
     "card": "channel_mfs",
 }
 
-# deposit tender -> M50 payment-execution method
+# deposit tender -> M50 payment-execution method. A card deposit goes back to
+# the card it came from (A05 FIN-25): M50's "card" method, which names the
+# original card payment, never a bank transfer to an account the customer
+# never gave.
 PAYMENT_METHOD = {
     "cash": "cash",
     "bank": "bank_transfer",
     "bkash": "mobile_fs",
     "nagad": "mobile_fs",
-    "card": "bank_transfer",
+    "card": "card",
 }
 
 # the business-line dimension of every rental posting: BL-07 "Equipment rental"
@@ -54,22 +66,24 @@ RENTAL_BUSINESS_LINE = "BL-07"
 
 def rental_account(env, company, role):
     """The company's GL account for a rental role. Refuses, never guesses."""
-    default_code, label = RENTAL_ACCOUNTS[role]
-    code = (
-        env["ir.config_parameter"].sudo().get_param(f"cd_rental_asset.account_code.{role}")
-        or default_code
-    )
+    label = RENTAL_ACCOUNTS[role]
+    param = ACCOUNT_PARAM % role
+    code = (env["ir.config_parameter"].sudo().get_param(param) or "").strip()
+    if not code:
+        raise UserError(
+            "Rental posting refused: system parameter %s (%s) is not set. Finance names "
+            "the account of this role (owner decision D1) before rentals post." % (param, label)
+        )
     account = (
         env["account.account"]
+        .sudo()
         .with_company(company)
         .search([("code", "=", code), ("company_ids", "in", company.id)], limit=1)
     )
     if not account:
         raise UserError(
-            "Rental posting refused: no GL account %s (%s) exists in company %s. Configure it "
-            "in the chart of accounts, or set system parameter "
-            "cd_rental_asset.account_code.%s to the account code to use."
-            % (code, label, company.name, role)
+            "Rental posting refused: system parameter %s names account %s (%s), which does "
+            "not exist in company %s's chart." % (param, code, label, company.name)
         )
     return account
 
@@ -101,23 +115,42 @@ class FixJournalPostingLogRental(models.Model):
     )
 
 
+def posting_operating_unit(reservation):
+    """The operating unit of a rental posting: the booking BRANCH's unit
+    (A05 FIN-09). A branch belongs to one unit (its master data); the
+    reservation's own unit is derived from it and must agree. No company
+    first-unit fallback: a rental with no branch, or a branch with no unit,
+    is refused, never booked to an arbitrary unit."""
+    branch = reservation.sudo().branch_id
+    if not branch:
+        raise UserError(
+            "Rental %s has no booking branch: its postings carry the branch and the "
+            "branch's operating unit. Set the branch before the money moves." % reservation.name
+        )
+    ou = branch.operating_unit_id
+    if not ou:
+        raise UserError(
+            "Branch %s belongs to no operating unit: rental %s cannot be posted."
+            % (branch.display_name, reservation.name)
+        )
+    own = reservation.sudo().operating_unit_id
+    if own and own != ou:
+        raise UserError(
+            "Rental %s is booked at branch %s (unit %s) but carries unit %s: the unit "
+            "comes from the branch." % (reservation.name, branch.display_name, ou.name, own.name)
+        )
+    return ou
+
+
 def posting_dims(env, reservation):
     """Dimensions of a rental posting: the booking branch, the configured
-    cost centre, the rental business line and the reservation's operating
-    unit. The OU falls back to the BRANCH's unit (a branch belongs to one
-    unit — its master data), else the company's first unit; a branch from
-    another unit would fail the journal dimension's branch↔OU consistency,
-    so the branch wins over the company default. Never invented beyond
-    these two derivations."""
+    cost centre, the rental business line and the BRANCH's operating unit
+    (posting_operating_unit). Never invented beyond these."""
+    ou = posting_operating_unit(reservation)
     dims = env["fix.ar.invoice"]._ar_posting_dims(reservation.branch_id.id)
     param = env["ir.config_parameter"].sudo().get_param
     dims["business_line"] = param("cd_rental_asset.business_line") or RENTAL_BUSINESS_LINE
-    ou = (
-        reservation.operating_unit_id
-        or (reservation.branch_id and reservation.branch_id.operating_unit_id)
-        or env["operating.unit"].search([("company_id", "=", reservation.company_id.id)], limit=1)
-    )
-    dims["operating_unit_id"] = ou.id if ou else False
+    dims["operating_unit_id"] = ou.id
     return dims
 
 

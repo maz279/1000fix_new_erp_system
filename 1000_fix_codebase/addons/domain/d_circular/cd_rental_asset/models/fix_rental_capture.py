@@ -29,7 +29,7 @@ import hashlib
 from datetime import timedelta
 
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -37,6 +37,26 @@ from . import rental_policy as policy
 
 OPEN_STATES = ("reserved", "delivered", "active")
 LIVE_STATES = ("delivered", "active")
+# A05 XC-01/XC-08: who sees a party's limit and risk tier
+FINANCE_FIELD_GROUPS = (
+    "cd_rental_asset.group_rental_finance,account.group_account_manager,base.group_system"
+)
+OVERRIDE_THRESHOLDS = [
+    (50000.0, "tier_1"),
+    (250000.0, "tier_2"),
+    (1000000.0, "tier_3"),
+    (float("inf"), "tier_4"),
+]
+
+
+def _is_rental_finance(user):
+    return bool(
+        user.has_group("cd_rental_asset.group_rental_finance")
+        or user.has_group("account.group_account_manager")
+        or user.has_group("base.group_system")
+    )
+
+
 ASSET_CATEGORIES = [
     ("camera", "Camera & Lens"),
     ("laptop", "Laptop & PC"),
@@ -107,11 +127,14 @@ class FixRentalExposure(models.Model):
         ondelete="cascade",
         help="The commercial party: the limit covers every contact of the company",
     )
+    # A05 XC-01 / M13-12 / XC-08: the limit and the risk tier are Rental
+    # Finance's to set and to see (ACL: everyone else reads the party only)
     risk_tier = fields.Selection(
         [("low", "Low"), ("standard", "Standard"), ("high", "High")],
         required=True,
         default="standard",
         tracking=True,
+        groups=FINANCE_FIELD_GROUPS,
     )
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
@@ -121,6 +144,7 @@ class FixRentalExposure(models.Model):
         currency_field="currency_id",
         required=True,
         tracking=True,
+        groups=FINANCE_FIELD_GROUPS,
         help="The most unsecured fleet value (unit value less deposit) the party may "
         "hold on rent at once",
     )
@@ -133,12 +157,22 @@ class FixRentalExposure(models.Model):
     reviewed_by = fields.Many2one("res.users", readonly=True, copy=False)
     reviewed_on = fields.Date(readonly=True, copy=False)
     current_exposure = fields.Monetary(
-        string="Open Exposure", currency_field="currency_id", compute="_compute_exposure"
+        string="Open Exposure",
+        currency_field="currency_id",
+        compute="_compute_exposure",
+        compute_sudo=True,
+        groups=FINANCE_FIELD_GROUPS,
     )
     headroom = fields.Monetary(
-        string="Headroom", currency_field="currency_id", compute="_compute_exposure"
+        string="Headroom",
+        currency_field="currency_id",
+        compute="_compute_exposure",
+        compute_sudo=True,
+        groups=FINANCE_FIELD_GROUPS,
     )
-    open_rental_count = fields.Integer(string="Open Rentals", compute="_compute_exposure")
+    open_rental_count = fields.Integer(
+        string="Open Rentals", compute="_compute_exposure", compute_sudo=True
+    )
 
     _partner_unique = models.Constraint(
         "UNIQUE (partner_id, company_id)", "A party has one rental exposure limit per company"
@@ -159,8 +193,16 @@ class FixRentalExposure(models.Model):
             rec.open_rental_count = len(rentals)
             rec.headroom = (rec.exposure_limit or 0.0) - rec.current_exposure
 
+    def _require_finance(self, what):
+        if not self.env.su and not _is_rental_finance(self.env.user):
+            raise AccessError(
+                "%s is Rental Finance's decision (FR-RNT-010): the counter asks for an "
+                "exposure override instead." % what
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
+        self._require_finance("Setting a party's rental exposure limit")
         for vals in vals_list:
             partner = self.env["res.partner"].browse(vals.get("partner_id")).exists()
             if partner and partner.commercial_partner_id != partner:
@@ -172,6 +214,8 @@ class FixRentalExposure(models.Model):
         return recs
 
     def write(self, vals):
+        if not self._fix_guard_open():
+            self._require_finance("Changing a party's rental exposure limit")
         res = super().write(vals)
         if set(vals) & {"exposure_limit", "risk_tier", "basis"} and not self.env.context.get(
             "_exposure_stamp"
@@ -188,8 +232,33 @@ class FixRentalExposureOverride(models.Model):
 
     _name = "fix.rental.exposure.override"
     _description = "Rental Exposure Override"
-    _inherit = ["mail.thread", "fix.guarded.mixin"]
+    # A05 XC-02 / M13-12: a routed M63 approval tiered on the excess, never a
+    # button any second person presses
+    _inherit = ["mail.thread", "fix.dofa.mixin"]
     _order = "id desc"
+    _approval_domain = "rental_exposure_override"
+    _approval_routed = True
+
+    def _dofa_thresholds(self):
+        return OVERRIDE_THRESHOLDS
+
+    def _dofa_amount(self) -> float:
+        self.ensure_one()
+        return round(self.sudo().excess or 0.0, 2)
+
+    def _dofa_amount_label(self) -> str:
+        self.ensure_one()
+        return "BDT %.2f (rental exposure above the limit)" % self._dofa_amount()
+
+    @api.depends("excess")
+    def _compute_dofa_tier_required(self):
+        return super()._compute_dofa_tier_required()
+
+    def _approval_pinned_fields(self) -> set:
+        return super()._approval_pinned_fields() | {"reservation_id", "excess", "exposure_after"}
+
+    def _approval_excluded(self):
+        return (super()._approval_excluded() | self.sudo().requested_by).sudo()
 
     name = fields.Char(required=True, default="New", readonly=True, copy=False)
     reservation_id = fields.Many2one(
@@ -203,7 +272,9 @@ class FixRentalExposureOverride(models.Model):
     company_id = fields.Many2one(related="reservation_id.company_id", store=True, index=True)
     customer_id = fields.Many2one(related="reservation_id.customer_id", store=True)
     currency_id = fields.Many2one(related="reservation_id.currency_id")
-    exposure_limit = fields.Monetary(currency_field="currency_id", readonly=True, copy=False)
+    exposure_limit = fields.Monetary(
+        currency_field="currency_id", readonly=True, copy=False, groups=FINANCE_FIELD_GROUPS
+    )
     exposure_after = fields.Monetary(
         string="Exposure With This Booking", currency_field="currency_id", readonly=True
     )
@@ -278,14 +349,42 @@ class FixRentalExposureOverride(models.Model):
             )
         recs = super().create(vals_list)
         for rec, snap in zip(recs, snaps, strict=False):
-            rec._guarded().write(snap)
+            rec.sudo()._guarded().write(snap)
         return recs
 
     def write(self, vals):
         _final_after_create(self, self, vals, ("requested",))
         return super().write(vals)
 
-    def _decide(self, state, note):
+    def action_request_approval(self, justification=None):
+        for rec in self:
+            if rec.state != "requested":
+                raise UserError("Override %s is %s." % (rec.name, rec.state))
+            if rec.reservation_id.state != "draft":
+                raise UserError(
+                    "Booking %s is %s: an override is decided before it is confirmed."
+                    % (rec.reservation_id.name, rec.reservation_id.state)
+                )
+        return super().action_request_approval(
+            justification=justification or self[:1].justification
+        )
+
+    def action_dofa_approve(self):
+        result = super().action_dofa_approve()
+        for rec in self:
+            rec._decide("approved", rec.dofa_justification or None, routed=True)
+        return result
+
+    def _approval_on_rejected(self, comment):
+        for rec in self.filtered(lambda r: r.state == "requested"):
+            rec._decide("rejected", comment or "rejected in the approval inbox", routed=True)
+
+    def _decide(self, state, note, routed=False):
+        if not routed:
+            raise UserError(
+                "An exposure override is decided from the approver's M63 inbox: request its "
+                "approval (it is tiered on the excess and never goes to whoever asked)."
+            )
         for rec in self:
             if rec.state != "requested":
                 raise UserError("Override %s is already %s." % (rec.name, rec.state))
@@ -452,7 +551,7 @@ class FixRentalExtension(models.Model):
         return super().write(vals)
 
     def action_apply(self):
-        today = fields.Date.context_today(self)
+        today = policy.dhaka_today(self.env)
         for rec in self:
             res = rec.reservation_id
             if rec.state != "requested":
@@ -470,15 +569,22 @@ class FixRentalExtension(models.Model):
             if denial:
                 raise UserError("Extension %s cannot be applied: %s." % (rec.name, denial))
             version = (res.agreement_version or 1) + 1
-            vals = {"date_to": rec.new_date_to, "agreement_version": version}
+            # A05 M13-02: a retroactive extension keeps the late fee accrued
+            # to today under the old return date (BRU-RNT-12: only an
+            # approved suppression waives it); it is retained, not wiped
+            accrued = res._late_fee_on(today)
+            vals = {
+                "date_to": rec.new_date_to,
+                "agreement_version": version,
+                "late_fee_retained": accrued,
+            }
             if res.overdue_since and rec.new_date_to >= today:
                 vals["overdue_since"] = False
             # the guard token opens the frozen agreement terms for this
             # recorded variation only; availability is re-checked by the
             # record's own constraint on the write
             res._guarded().write(vals)
-            fee = res._late_fee_on(today) if res.date_to < today else 0.0
-            res._guarded().write({"late_fee": fee})
+            res._guarded().write({"late_fee": res._late_fee_on(today)})
             rec._guarded().write(
                 {
                     "state": "applied",
@@ -487,6 +593,13 @@ class FixRentalExtension(models.Model):
                     "applied_charge": res.rental_charge,
                     "agreement_version": version,
                 }
+            )
+            # A05 M13-02 / FIN-07: the extension is billed at once, as its own
+            # supplementary invoice keyed on this extension
+            res._bill_rental(
+                "ext-%d" % rec.id,
+                extension=rec,
+                reason="Rental %s extended to %s by %s" % (res.name, rec.new_date_to, rec.name),
             )
             res.message_post(
                 body="Agreement v%d: return date %s → %s by extension %s (charge %.2f → %.2f), "
@@ -882,7 +995,9 @@ class FixRentalLoss(models.Model):
 
     _name = "fix.rental.loss"
     _description = "Rental Loss / Non-Return"
-    _inherit = ["mail.thread", "mail.activity.mixin", "fix.guarded.mixin"]
+    # A05 XC-04: the write-off is the loss's own routed DOFA approval
+    # (fix_rental_retirement.FixRentalLoss)
+    _inherit = ["mail.thread", "mail.activity.mixin", "fix.dofa.mixin"]
     _order = "id desc"
 
     name = fields.Char(required=True, default="New", readonly=True, copy=False)
@@ -991,7 +1106,7 @@ class FixRentalLoss(models.Model):
                 if res.loss_ids.filtered(lambda r: r.state == "open"):
                     _refuse("Rental %s already has an open loss case." % res.name)
                 if "valuation" not in vals and res.rental_asset_id:
-                    vals["valuation"] = res.rental_asset_id._dofa_amount()
+                    vals["valuation"] = res.rental_asset_id._book_value()
             vals["name"] = _seq(self.env, "fix.rental.loss", "RNT-LOSS")
         recs = super().create(vals_list)
         for rec in recs:
@@ -1582,7 +1697,9 @@ class FixRentalRedeployment(models.Model):
                 body="Re-homed from %s to %s (%s), received by %s."
                 % (rec.sudo().from_operating_unit_id.name or "-", dest.name, rec.name, user.name)
             )
-            asset._guarded().write({"status": "available", "operating_unit_id": dest.id})
+            asset._guarded().write(
+                {"status": "available", "operating_unit_id": dest.id, "branch_id": False}
+            )
             rec._guarded().write(
                 {
                     "state": "received",
@@ -1810,17 +1927,14 @@ class FixRentalReservation(models.Model):
 
     # ---- the rate ladder, reused by the extension preview ------------
     def _ladder_charge(self, days):
+        """The extension preview's price: the same cheapest ladder as the
+        rental charge (A05 M13-11: this was a second, different ladder)."""
         self.ensure_one()
-        days = max(days or 1, 1)
-        if days >= 30 and self.monthly_rate:
-            return (days // 30) * self.monthly_rate + (days % 30) * (
-                self.daily_rate or self.monthly_rate / 30.0
-            )
-        if days >= 7 and self.weekly_rate:
-            return (days // 7) * self.weekly_rate + (days % 7) * (
-                self.daily_rate or self.weekly_rate / 7.0
-            )
-        return days * (self.daily_rate or 0.0)
+        days = max(days or 1, self.min_hire_days or 1)
+        charge, _breakdown = self._cheapest_ladder(
+            days, self.daily_rate, self.weekly_rate, self.monthly_rate
+        )
+        return charge or 0.0
 
     def _extension_denial(self, new_date_to):
         """'' when this rental's unit is free up to `new_date_to` (plus the
@@ -1906,9 +2020,9 @@ class FixRentalReservation(models.Model):
         unit's book value (for a pool booking, the dearest unit of the SKU)
         less the deposit agreed on it."""
         self.ensure_one()
-        asset = self.rental_asset_id
+        asset = self.rental_asset_id.sudo()
         if asset:
-            value = asset._dofa_amount() or asset.purchase_cost or 0.0
+            value = asset._book_value()
         elif self.rental_sku_id:
             units = (
                 self.env["fix.rental.asset"]
@@ -1920,7 +2034,7 @@ class FixRentalReservation(models.Model):
                     ]
                 )
             )
-            value = max([u._dofa_amount() or u.purchase_cost or 0.0 for u in units] or [0.0])
+            value = max([u._book_value() for u in units] or [0.0])
         else:
             value = 0.0
         return round(max(value - (self.deposit_collected or 0.0), 0.0), 2)
@@ -1960,7 +2074,9 @@ class FixRentalReservation(models.Model):
         limit, after = self._exposure_check()
         if limit is None or after <= limit + 0.005:
             return
-        approved = self.exposure_override_ids.filtered(lambda o: o.state == "approved")
+        approved = self.exposure_override_ids.sudo().filtered(
+            lambda o: o.state == "approved" and o.approval_state == "approved" and o.dofa_approved
+        )
         if approved and after <= limit + max(approved.mapped("excess")) + 0.005:
             return
         _refuse(

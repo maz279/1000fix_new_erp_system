@@ -2,7 +2,9 @@
 <odoo>
     <!-- A05 audit E12: rental overdue detection and late-fee accrual. The fee
          is recomputed from the dates (never added), so a re-run changes
-         nothing; the overdue note and to-do are raised once per rental. -->
+         nothing; the overdue note and to-do are raised once per rental.
+         A05 remediation M13-26: rental.overdue is published once at each
+         overdue milestone (cd_rental_asset.overdue_reminder_days, 1/3/7). -->
     <data noupdate="1">
         <record id="cron_rental_overdue" model="ir.cron">
             <field name="name">M13 Rental: overdue rentals and late fees</field>
@@ -21,6 +23,28 @@
             <field name="model_id" ref="model_fix_rental_asset"/>
             <field name="state">code</field>
             <field name="code">model.cron_rental_pm_due()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+    <!-- A05 remediation (2026-11-20): hold expiry (AUT-RNT-02) and the
+         return-due customer notice at T-24h (interface I5). -->
+    <data noupdate="1">
+        <record id="cron_rental_hold_expiry" model="ir.cron">
+            <field name="name">M13 Rental: release expired holds</field>
+            <field name="model_id" ref="model_fix_rental_reservation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rental_hold_expiry()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
+        <record id="cron_rental_return_due" model="ir.cron">
+            <field name="name">M13 Rental: return-due notices</field>
+            <field name="model_id" ref="model_fix_rental_reservation"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rental_return_due()</field>
             <field name="interval_number">1</field>
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>

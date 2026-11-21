@@ -62,6 +62,32 @@ def _photo(env, condition, view="front"):
     )
 
 
+def _branch(env):
+    """A05 FIN-09: a rental's money posts to its booking branch's unit."""
+    branch = env["fix.branch"].search([("operating_unit_id", "!=", False)], limit=1)
+    if branch:
+        return branch
+    ou = env["operating.unit"].search([("company_id", "=", env.company.id)], limit=1)
+    entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[
+        "fix.entity"
+    ].create(
+        {"legal_name": "Rental Entity (behaviour)", "code": "RNTBE", "company_id": env.company.id}
+    )
+    return env["fix.branch"].create(
+        {
+            "name": "Rental Branch (behaviour)",
+            "code": "RNTB-BR",
+            "entity_id": entity.id,
+            "operating_unit_id": ou.id,
+        }
+    )
+
+
+def _priced_sku(env):
+    """A05 M13-01: a confirmed booking is priced by its rental SKU."""
+    return _sku(env, daily_rate=1000)
+
+
 def _reservation(env, **vals):
     vals.setdefault(
         "customer_id", _kyc(env, env["res.partner"].create({"name": "Rental Customer"})).id
@@ -108,6 +134,11 @@ def _ready_to_close(env, rec, collected=0.0, late_mode="invoice"):
     # the arithmetic under test, not the charge approval (test_a05_m13_* prove it)
     param.set_param("cd_rental_asset.damage_charge_requires_approval", "0")
     param.set_param("cd_rental_asset.late_fee_settlement", late_mode)
+    if not rec.branch_id:
+        rec.write({"branch_id": _branch(env).id})
+    billable, billed = rec._unbilled()
+    if billable - billed > 0.005:
+        rec.action_issue_rental_invoice()
     return rec
 
 
@@ -159,10 +190,10 @@ def test_duration_without_dates_defaults_to_one(odoo_env):
     [
         (4, {"daily_rate": 1500}, 6000),
         (10, {"daily_rate": 1500, "weekly_rate": 9000}, 9000 + 3 * 1500),
-        (10, {"weekly_rate": 7000}, 7000 + 3 * 1000),  # remainder at weekly/7
-        (6, {"daily_rate": 1500, "weekly_rate": 9000}, 9000),  # < 7 days: daily only
+        (10, {"weekly_rate": 7000}, 2 * 7000),  # no daily rate: a whole week
+        (6, {"daily_rate": 1500, "weekly_rate": 9000}, 9000),  # a week = 6 days
         (35, {"daily_rate": 1500, "weekly_rate": 9000, "monthly_rate": 30000}, 30000 + 5 * 1500),
-        (35, {"monthly_rate": 30000}, 30000 + 5 * 1000),  # remainder at monthly/30
+        (35, {"monthly_rate": 30000}, 2 * 30000),  # no daily/weekly: a whole month
         (35, {"daily_rate": 1000, "weekly_rate": 6000}, 5 * 6000),  # no monthly: weekly tier
         (8, {"daily_rate": 1000}, 8000),  # no weekly: daily tier
     ],
@@ -233,13 +264,19 @@ def test_reserve_without_any_unit_is_refused(odoo_env):
 
 
 def test_reserve_with_device_publishes(odoo_env):
-    rec = _reservation(odoo_env, deposit_collected=5000, device_id=_device(odoo_env).id)
+    rec = _reservation(
+        odoo_env,
+        deposit_collected=5000,
+        device_id=_device(odoo_env).id,
+        rental_sku_id=_priced_sku(odoo_env).id,
+        branch_id=_branch(odoo_env).id,
+    )
     rec.action_reserve()
     assert rec.state == "reserved"
     assert _events(odoo_env, "rental.reserved", rec.id) == [
         {
             "customer": "Rental Customer",
-            "sku": "",
+            "sku": "Projector rental (behaviour)",
             "from": "2026-11-01",
             "to": "2026-11-04",
             "deposit": 5000.0,
@@ -248,10 +285,10 @@ def test_reserve_with_device_publishes(odoo_env):
 
 
 def test_reserve_reports_sku_name(odoo_env):
-    sku = _sku(odoo_env)
+    sku = _sku(odoo_env, daily_rate=1000)
     # the SKU pool needs a unit: a SKU with no fleet asset is fully booked
     odoo_env["fix.rental.asset"].create({"name": "SKU-UNIT-1", "rental_sku_id": sku.id})
-    rec = _reservation(odoo_env, rental_sku_id=sku.id)
+    rec = _reservation(odoo_env, rental_sku_id=sku.id, branch_id=_branch(odoo_env).id)
     rec.action_reserve()
     (payload,) = _events(odoo_env, "rental.reserved", rec.id)
     assert payload["sku"] == "Projector rental (behaviour)"
@@ -259,20 +296,30 @@ def test_reserve_reports_sku_name(odoo_env):
 
 def test_reserve_blocks_overlapping_booking_of_same_device(odoo_env):
     device = _device(odoo_env)
-    first = _reservation(odoo_env, device_id=device.id)
+    sku, branch = _priced_sku(odoo_env), _branch(odoo_env)
+    priced = {"rental_sku_id": sku.id, "branch_id": branch.id}
+    first = _reservation(odoo_env, device_id=device.id, **priced)
     first.action_reserve()
     clash = _reservation(
-        odoo_env, device_id=device.id, date_from=date(2026, 11, 4), date_to=date(2026, 11, 8)
+        odoo_env,
+        device_id=device.id,
+        date_from=date(2026, 11, 4),
+        date_to=date(2026, 11, 8),
+        **priced,
     )
     with pytest.raises(UserError, match="already reserved for the overlapping period"):
         clash.action_reserve()
     assert clash.state == "draft"
     # adjacent window, other device, and a re-reserve of itself are all fine
     after = _reservation(
-        odoo_env, device_id=device.id, date_from=date(2026, 11, 5), date_to=date(2026, 11, 8)
+        odoo_env,
+        device_id=device.id,
+        date_from=date(2026, 11, 5),
+        date_to=date(2026, 11, 8),
+        **priced,
     )
     after.action_reserve()
-    other = _reservation(odoo_env, device_id=_device(odoo_env, "Other").id)
+    other = _reservation(odoo_env, device_id=_device(odoo_env, "Other").id, **priced)
     other.action_reserve()
     # a second reserve would take the deposit twice: it is refused
     with pytest.raises(UserError, match="Reserve from draft"):
@@ -283,7 +330,12 @@ def test_reserve_blocks_overlapping_booking_of_same_device(odoo_env):
 def test_cancelled_booking_frees_the_device(odoo_env):
     device = _device(odoo_env)
     old = _in(odoo_env, "cancelled", device_id=device.id)
-    new = _reservation(odoo_env, device_id=device.id)
+    new = _reservation(
+        odoo_env,
+        device_id=device.id,
+        rental_sku_id=_priced_sku(odoo_env).id,
+        branch_id=_branch(odoo_env).id,
+    )
     new.action_reserve()
     assert new.state == "reserved"
     assert old.state == "cancelled"
@@ -417,7 +469,12 @@ def test_return_requires_active(odoo_env):
 def test_on_time_return_has_no_late_fee(odoo_env):
     today = fields.Date.context_today(odoo_env[RES])
     rec = _in(
-        odoo_env, "active", date_from=today - timedelta(days=2), date_to=today, daily_rate=500
+        odoo_env,
+        "active",
+        date_from=today - timedelta(days=2),
+        date_to=today,
+        daily_rate=500,
+        branch_id=_branch(odoo_env).id,
     )
     rec.action_return()
     assert rec.state == "returned"
@@ -436,6 +493,7 @@ def test_late_return_charges_one_and_a_half_daily_rate(odoo_env):
         date_from=today - timedelta(days=6),
         date_to=today - timedelta(days=3),
         daily_rate=500,
+        branch_id=_branch(odoo_env).id,
     )
     rec.action_return()
     assert rec.late_fee == 3 * 500 * 1.5
@@ -449,10 +507,11 @@ def test_late_return_without_daily_rate_uses_average_charge(odoo_env):
         date_from=today - timedelta(days=11),
         date_to=today - timedelta(days=2),  # 10 days on the weekly tier
         weekly_rate=7000,
+        branch_id=_branch(odoo_env).id,
     )
-    assert rec.rental_charge == 7000 + 3 * 1000
+    assert rec.rental_charge == 2 * 7000  # A05 M13-11: whole weeks, no free days
     rec.action_return()
-    assert rec.late_fee == pytest.approx(2 * (10000 / 10) * 1.5)
+    assert rec.late_fee == pytest.approx(2 * (14000 / 10) * 1.5)
 
 
 def test_assess_damage_requires_returned(odoo_env):
@@ -481,10 +540,10 @@ def test_close_requires_damage_assessment(odoo_env):
 @pytest.mark.parametrize(
     ("late_mode", "deduction", "refund"),
     [
-        # A05 M13-4: the late fee is charged ONCE - on the Mushak 6.3 (default)
+        # A05 M13-4 / M13-09: the late fee is charged ONCE, on the invoice with
+        # M51 VAT; the old 'deposit' switch no longer takes it from the deposit
         ("invoice", 700.0, 4300.0),
-        # ...or from the deposit, and then kept off the 6.3
-        ("deposit", 1000.0, 4000.0),
+        ("deposit", 700.0, 4300.0),
     ],
 )
 def test_close_refunds_deposit_balance(odoo_env, late_mode, deduction, refund):
@@ -519,7 +578,7 @@ def test_close_refund_comes_from_the_posted_ledger(odoo_env):
     assert rec.deposit_refunded == 5000
 
 
-@pytest.mark.parametrize(("late_mode", "excess"), [("invoice", 4000.0), ("deposit", 4500.0)])
+@pytest.mark.parametrize(("late_mode", "excess"), [("invoice", 4000.0), ("deposit", 4000.0)])
 def test_close_bills_charges_exceeding_deposit(odoo_env, late_mode, excess):
     rec = _in(odoo_env, "damage_assess", deposit_collected=2000, late_fee=500)
     _ready_to_close(odoo_env, rec, collected=2000, late_mode=late_mode)
@@ -541,8 +600,8 @@ def test_close_bills_charges_exceeding_deposit(odoo_env, late_mode, excess):
 
 def test_full_journey(odoo_env):
     today = fields.Date.context_today(odoo_env[RES])
-    ou = odoo_env["operating.unit"].search([], limit=1)
-    branch = odoo_env["fix.branch"].search([("operating_unit_id", "=", ou.id)], limit=1)
+    branch = _branch(odoo_env)
+    ou = branch.operating_unit_id
     customer = _kyc(
         odoo_env,
         odoo_env["res.partner"].create({"name": "Rental Customer", "phone": "01711000444"}),
@@ -551,6 +610,7 @@ def test_full_journey(odoo_env):
         odoo_env,
         customer_id=customer.id,
         device_id=_device(odoo_env, "Journey").id,
+        rental_sku_id=_priced_sku(odoo_env).id,
         date_from=today,
         date_to=today + timedelta(days=2),
         daily_rate=1000,
@@ -577,7 +637,9 @@ def test_full_journey(odoo_env):
     rec.action_assess_damage()
     rec.action_close()
     assert rec.state == "closed"
-    assert rec.rental_charge == 3000
+    # returned on its first day of three: an early return is charged for the
+    # day used (A05 M13-18, minimum hire 1 day)
+    assert rec.rental_charge == 1000 and rec.billable_days == 1
     assert rec.deposit_refunded == 3000
     assert rec.delivery_consignment_id.consignment_type == "delivery"
     assert rec.return_consignment_id.consignment_type == "pickup"
