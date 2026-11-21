@@ -112,5 +112,16 @@ Estate-wide
   estate reconciliation, statistical IoT rules and correlation, AEMP adapter, impairment trigger, WO parts/labour
   lines, M45 goods-receipt registration, M47 extra lifecycle states, insurance/vendor scorecard/key custody/CCTV.
 
-## 6. State
-(updated at landing/deploy)
+## 6. State (21 Nov 2026)
+- **Landed and pushed:** `bc204bd6..e23fbe2e` on `fix/a03-live-data-and-pending-work` (8 commits, rebased onto the A04
+  and A02-pass-2 landings; re-tested against both: 1,603 + 1,592 + 6,305 passed, the remaining failures reproduce on
+  A02's code alone and were sent to A02). Branch `fix/a07-erp-audit` pushed.
+- **Deployed 21 Nov ~09:05 UTC:** backups `1000 fix/backups/fix_{real,dev}_pre_a07_erp_2026-11-21.dump`; `-u` of the 11
+  A07 modules on fix_real and fix_dev (exit 0, no errors); finance seed on fix_real (12 accounts, 5 made reconcilable,
+  FA journal, 7 categories configured, 41 account roles, D7b/D14/D21 switches; health check OK); on fix_dev the
+  switches/figures only (its chart is a different, generic chart); `__system__` and `admin` time zone = Asia/Dhaka on
+  both; one restart of 8069 (fix_real) and 8090 (fix_dev): 155 / 153 modules loaded, no errors.
+- **Live verification:** 57/57 A07 reports and 108/108 A07 list screens read on BOTH ports with 0 failures and 0
+  dropped columns; wiring check on fix_real: 260 consumers, 290 crons, 108 surfaces, 0 problems.
+- **Open (people / data):** see §5. Plus: fix_dev's generic chart has no A07 account map (fix_real is the estate;
+  map fix_dev only if it is still used for finance testing).
