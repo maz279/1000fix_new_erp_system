@@ -27,6 +27,11 @@ from .fix_finance_approval import GROUP_ADMINISTRATOR, has_role
 _logger = logging.getLogger(__name__)
 
 
+# module-private: the amount due without the extra charges (the zero-charge
+# basis check reads the amount due; a client context cannot carry this object)
+_ESTIMATE_ONLY = object()
+
+
 class FixArReceiptOrderLink(models.Model):
     _inherit = "fix.ar.receipt"
 
@@ -291,8 +296,18 @@ class FixServiceOrderSettlementReceipts(models.Model):
         already received on the order (A02 ERP audit M04-F7: a paid
         diagnostic fee was charged again in the repair settlement)."""
         due = super()._fix_amount_due()
-        if due > 0:
-            due = round(due + self._fix_extra_charges_due(), 2)
+        if self.env.context.get("fix_amount_due_guard") is not _ESTIMATE_ONLY:
+            if due > 0:
+                due = round(due + self._fix_extra_charges_due(), 2)
+            elif self._fix_governing_estimate():
+                # a free repair still owes its charges unless the order is not
+                # charged to the customer at all (warranty, AMC, approved
+                # goodwill/rework): the invoice bills them either way (A03).
+                # The basis reads the amount due itself, so it is asked for
+                # the estimate alone (a value a JSON-RPC client cannot send).
+                plain = self.with_context(fix_amount_due_guard=_ESTIMATE_ONLY)
+                if not plain._fix_zero_charge_basis():
+                    due = round(due + self._fix_extra_charges_due(), 2)
         if due <= 0:
             return due
         return max(round(due - self._fix_advances_held(), 2), 0.0)

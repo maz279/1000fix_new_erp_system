@@ -380,3 +380,31 @@ def test_d21_d22_charges_are_paid_with_the_repair_and_billed(books, monkeypatch)
     assert by_type["callout"].line_total == 230.0
     assert _balance(m.env, m.rev) == -1300.0
     assert m.ar_of(order.customer_id) == 0.0
+
+
+def test_a_free_repair_still_collects_and_bills_its_charges(books, monkeypatch):
+    """A03 re-check of 88d85640: with a BDT 0 estimate the extras were
+    skipped in the amount due, yet the invoice billed them and left AR open.
+    A free (but customer-charged) repair owes its charges."""
+    m = books
+    m.shift(as_user=m.so_cashier)
+    order = m.job(0.0)
+    assert order._fix_amount_due() == 0.0
+    charge = {
+        "code": "CHG-CALLOUT",
+        "line_type": "callout",
+        "description": "Wasted visit FVX-FREE",
+        "net": 300.0,
+    }
+    monkeypatch.setattr(type(order), "_fix_extra_charges", lambda self: [dict(charge)])
+    assert not order._fix_zero_charge_basis()
+    due = order._fix_amount_due()
+    assert due == 345.0
+    order.with_user(m.so_cashier).action_mark_settled(
+        amount_bdt=due, reference="CTR-OMB-FREE", source="counter", tender="cash"
+    )
+    invoice = m.deliver(order)
+    invoice.invalidate_recordset()
+    assert invoice.state == "paid" and invoice.amount_residual == 0.0
+    assert invoice.total_payable == 345.0
+    assert m.ar_of(order.customer_id) == 0.0
