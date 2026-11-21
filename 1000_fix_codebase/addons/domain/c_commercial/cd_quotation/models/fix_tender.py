@@ -726,6 +726,15 @@ class FixTender(models.Model):
                     "annual_value": round(ex_vat * 12.0 / months, 2),
                     "term_value": ex_vat,
                     "accepted_total": round(self.awarded_value or 0.0, 2),
+                    # A04 ERP round 2 (M39-F11): a tender contract is billed by
+                    # the M08 contract billing, the engine that withholds its
+                    # retention and LDs - never an M39 subscription (a managed
+                    # family otherwise defaults to subscription, owner D8)
+                    **(
+                        {"billing_engine": "walker"}
+                        if "billing_engine" in self.env["fix.contract"]._fields
+                        else {}
+                    ),
                 }
             )
         )
