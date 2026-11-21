@@ -1190,6 +1190,7 @@ export const SCREENS = {
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
+  "M05:MSP Fee vs M39 Billing Reconciliation": "M05-billing-recon",
   "M05:MSP SLA Attainment by Client": "M05-sla",
   "M05:Remote Resolution Rate": "M05-rpt-resolution",
   "M05:Patch Compliance Report": "M05-rpt-patch",
