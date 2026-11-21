@@ -236,11 +236,13 @@ def _():
 @step("S2 M31/M15 issue a stocked part to the job at its stock cost")
 def _():
     job = ctx["job"]
-    onhand = env["fix.stock.onhand"].search([("qty", ">", 0), ("unit_cost", ">", 0)], limit=1)
+    # the workshop draws from its own store (owner: Warranty HO/Stock); watch
+    # a part that store actually holds
+    store = job.workshop_id._a06_m15_store()
+    dom = [("qty", ">", 0), ("unit_cost", ">", 0), ("unit_cost", "<", 1500)] + ([("location_id", "=", store.id)] if store else [])
+    onhand = env["fix.stock.onhand"].search(dom, limit=1)
     part = onhand.part_id
-    # setup the walk supplies (fix_real has no workshop<->store link): the
-    # workshop draws from the store that holds the part
-    if not job.workshop_id._a06_m15_store():
+    if not store:
         job.workshop_id.sudo().write({"m15_location_id": onhand.location_id.id})
     before = onhand.qty
     PL = env["fix.workshop.part.line"]
