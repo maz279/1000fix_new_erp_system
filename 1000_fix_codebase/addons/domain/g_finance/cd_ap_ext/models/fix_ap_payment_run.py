@@ -624,15 +624,19 @@ class FixPaymentRunLine(models.Model):
         self._check_run_open(["delete"])
         return super().unlink()
 
-    @api.depends("bill_ids.total_payable", "note_ids.signed_total")
+    @api.depends("bill_ids.total_payable", "note_ids.signed_total", "run_id.payment_date")
     def _compute_amounts(self):
         for line in self:
             bills = line.bill_ids
-            line.gross_amount = sum(bills.mapped("gross_amount"))
+            # A06 P01: a run pays BDT; a foreign bill at the payment-date rate
+            day = line.run_id.payment_date or fields.Date.context_today(line)
+            line.gross_amount = sum(bills.mapped("gross_amount_bdt"))
             line.tds_amount = sum(bills.mapped("tds_amount"))
             line.vds_amount = sum(bills.mapped("vds_amount"))
             line.notes_amount = sum(line.note_ids.mapped("signed_total"))
-            line.amount = _q(sum(bills.mapped("total_payable")) + line.notes_amount)
+            line.amount = _q(
+                sum(bill._ap_payable_bdt_on(day) for bill in bills) + line.notes_amount
+            )
 
     def _apply_skip_rules(self):
         for line in self:
@@ -676,7 +680,14 @@ class FixPaymentRunLine(models.Model):
             execution.failure_reason or execution.state,
         )
         lines = [
-            (ml.account_id, label, ml.credit, ml.debit, ml.partner_id)
+            (
+                ml.account_id,
+                label,
+                ml.credit,
+                ml.debit,
+                ml.partner_id,
+                (ml.currency_id, -ml.amount_currency) if ml.currency_id else None,
+            )
             for ml in original.sudo().line_ids
         ]
         move = post_ap_move(
@@ -710,6 +721,28 @@ class FixPaymentRunLine(models.Model):
             else ap_journal(env, company, "payment")
         )
         label = "%s %s" % (run.name, self.partner_id.name)
+        # A06 P01: each bill clears the BDT it booked (with its currency
+        # figure); the notes netted are BDT; the rate difference is FX
+        payable = []
+        notes = _q(self.amount - sum(b._ap_payable_bdt_on(run.payment_date) for b in self.bill_ids))
+        for bill in self.bill_ids:
+            payable += bill._ap_settlement_lines(
+                bill._ap_payable_bdt_on(run.payment_date), label, self.partner_id
+            )
+        if notes:
+            ap = ap_account(env, company, "ap")
+            payable.append(
+                (
+                    ap,
+                    label,
+                    notes if notes > 0 else 0.0,
+                    -notes if notes < 0 else 0.0,
+                    self.partner_id,
+                )
+            )
+        if not any(bill._is_foreign() for bill in self.bill_ids):
+            # all BDT: one payable line for the net, as before
+            payable = [(ap_account(env, company, "ap"), label, self.amount, 0.0, self.partner_id)]
         move = post_ap_move(
             env,
             company,
@@ -717,7 +750,7 @@ class FixPaymentRunLine(models.Model):
             run.payment_date,
             label,
             [
-                (ap_account(env, company, "ap"), label, self.amount, 0.0, self.partner_id),
+                *payable,
                 (journal.default_account_id, label, 0.0, self.amount, self.partner_id),
             ],
             self.operating_unit_id,

@@ -75,12 +75,12 @@ class FixPartyImportBatch(models.Model):
                     "notes": note,
                 }
             )
-            # the sanctioned status transition (never a raw status write)
-            supplier.sudo()._a06_set_status(
-                "qualified",
-                "Vendor-ledger cut-over: legacy mass import — the M42 activation "
-                "gate (documents, screening, qualification) applies before "
-                "active status; no gate was bypassed.",
+            # A06 P35: a legacy vendor arrives as a PROSPECT. It used to be
+            # labelled "qualified" with no qualification record behind it; the
+            # status now says what is true until a qualification is approved.
+            supplier.message_post(
+                body="Vendor-ledger cut-over: legacy mass import. Qualification, documents and "
+                "screening are recorded before the supplier is activated."
             )
             created += 1
             tin = tins.get(partner.id)

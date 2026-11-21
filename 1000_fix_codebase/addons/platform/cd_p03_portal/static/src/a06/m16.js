@@ -60,6 +60,8 @@ export const MODULE = {
       { id: 'M16-service-entries', en: 'Service Entries', bn: 'সেবা প্রাপ্তি নিশ্চিতকরণ', t: 'g' },
       { id: 'M16-match', en: '3-Way Match Workbench', bn: 'থ্রি-ওয়ে ম্যাচ', t: 'r' },
       { id: 'M16-match-cases', en: 'Match Exception Cases (M52)', bn: 'ম্যাচ ব্যতিক্রম কেস (M52)', t: 'g' },
+      /* A06 P11: a genuine price change after receipt, re-approved and versioned */
+      { id: 'M16-price-amend', en: 'PO Price Amendments', bn: 'ক্রয়াদেশ মূল্য সংশোধন', t: 'g' },
       { id: 'M16-grir', en: 'GR/IR Reconciliation', bn: 'জিআর/আইআর সমন্বয়', t: 'r' },
       { id: 'M16-grn', en: 'Warehouse Stock Receipts (M15)', bn: 'গুদামের স্টক রসিদ (M15)', t: 'g' }
     ]},
@@ -71,7 +73,7 @@ export const MODULE = {
     ]}
   ],
   reports: ['Spend by Category & Vendor', 'Match Exception Pareto', 'OTD by Vendor', 'Price Variance Alert', 'Maverick Spend', 'PO Cycle Time', 'GR/IR Reconciliation', 'Emergency Purchases'],
-  forms: ['Purchase Requisition', 'Consolidated RFQ', 'RFQ', 'Supplier Bid', 'Award Decision', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'Blanket Agreement', 'Expediting Case', 'PO Goods Receipt', 'Inspection Outcome', 'RTV Request', 'Vendor Bill', 'Approved Source', 'Service Entry', 'Match Exception Case', 'Match Tolerance'],
+  forms: ['Purchase Requisition', 'Consolidated RFQ', 'RFQ', 'Supplier Bid', 'Award Decision', 'Purchase Order', 'Import Purchase Order', 'Supplier Proforma', 'Supplier Advance', 'Blanket Agreement', 'Expediting Case', 'PO Goods Receipt', 'Inspection Outcome', 'RTV Request', 'Vendor Bill', 'Approved Source', 'Service Entry', 'Match Exception Case', 'Match Tolerance', 'PO Price Amendment'],
   cross: ['M43 planned orders', 'M42 supplier gate', 'M52 invoices', 'M44 imports', 'P05 vendor portal'],
   freg: { src: 88, sub: [
     ['1', 'Demand Intake', 8, { model: 'fix.requisition', cols: ['description', 'demand_source', 'source_ref', 'branch_id', 'requested_by', 'urgency', 'create_date'], screens: ['M16-prs'], reports: ['Emergency Purchases'], forms: ['Purchase Requisition'] }],
@@ -92,7 +94,7 @@ export const MODULE = {
      * person enters is the vendor's bill (M52's form), the third document; an
      * exception is worked as a case and the tolerance bands are set by the
      * CFO (M52's own records, FR-PRO-030 / BRU-PRO-09) */
-    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], domain: [['bill_type', '=', 'po']], screens: ['M16-match-queue', 'M16-match-cases', 'M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: ['Vendor Bill', 'Match Exception Case', 'Match Tolerance'], create: 'M52-form-bill' }],
+    ['9', '3-Way Match', 10, { model: 'fix.vendor.invoice', cols: ['invoice_ref', 'vendor_id', 'requisition_id', 'match_state', 'total_payable'], domain: [['bill_type', '=', 'po']], screens: ['M16-match-queue', 'M16-match-cases', 'M16-price-amend', 'M16-match'], reports: ['Match Exception Pareto', 'GR/IR Reconciliation'], forms: ['Vendor Bill', 'Match Exception Case', 'Match Tolerance', 'PO Price Amendment'], create: 'M52-form-bill' }],
     ['10', 'Spend Analysis', 9, { model: 'fix.purchase.order', cols: ['vendor_id', 'branch_id', 'date_order', 'amount_total', 'state'], screens: ['M16-spend', 'M16-pricehist'], reports: ['Spend by Category & Vendor', 'Maverick Spend', 'Price Variance Alert', 'Emergency Purchases'], forms: [], create: false }]
   ] }
 };
@@ -201,6 +203,13 @@ export const SCREENS = {
       { m: 'action_revise', l: 'Revise Terms' },
       { m: 'action_cancel', l: 'Cancel Agreement' }
     ] },
+  'M16-price-amend': { kind: 'model_list', model: 'fix.purchase.price.amendment', stateField: 'state',
+    cols: ['name', 'purchase_order_id', 'product_id', 'old_price', 'new_price', 'version', 'required_tier', 'state'],
+    actions: [
+      { m: 'action_submit', l: 'Submit for Approval', states: ['draft'] },
+      { m: 'action_approve', l: 'Approve', ask: 'Approval note (optional)', kwarg: 'note', states: ['submitted'] },
+      { m: 'action_reject', l: 'Reject', ask: 'Why the amendment is rejected', kwarg: 'note', states: ['submitted'] }
+    ] },
   'M16-expedite': { kind: 'model_list', model: 'fix.procurement.expedite', stateField: 'state',
     cols: ['name', 'purchase_order_id', 'reason', 'promised_date', 'follow_up_date', 'state'],
     actions: [
@@ -250,10 +259,10 @@ export const SCREENS = {
   'M16-match-cases': { kind: 'model_list', model: 'fix.ap.match.exception', stateField: 'state',
     cols: ['name', 'invoice_id', 'vendor_id', 'purchase_order_id', 'exception_type', 'responsible_party', 'owner_id', 'due_date', 'age_days', 'state'],
     empty: 'No match exception case. A case is opened for a blocked purchase-order bill (+ New here, or the daily check in M52).' },
-  'M16-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: false },
-  'M16-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend Analysis', period: false },
+  'M16-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: true },
+  'M16-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend Analysis', period: true },
   'M16-pricehist': { kind: 'table_report', module: 'M16', report: 'price_history', title: 'Price History & Alerts', period: false },
-  'M16-emergency': { kind: 'table_report', module: 'M16', report: 'emergency_spend', title: 'Emergency Purchases', period: false },
+  'M16-emergency': { kind: 'table_report', module: 'M16', report: 'emergency_spend', title: 'Emergency Purchases', period: true },
   /* FR-PRO-033/034: procurement raises the return and tracks its credit;
    * M15 approves it and ships the stock (its own RTV screen). */
   'M16-rtv': { kind: 'model_list', model: 'fix.stock.rtv', stateField: 'state',
@@ -265,14 +274,14 @@ export const SCREENS = {
     ] },
 
   /* Report chips -> their own computed pack */
-  'M16-rpt-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend by Category & Vendor', period: false },
-  'M16-rpt-match': { kind: 'table_report', module: 'M16', report: 'match_exception', title: 'Match Exception Pareto', period: false },
-  'M16-rpt-otd': { kind: 'table_report', module: 'M16', report: 'otd_by_vendor', title: 'OTD by Vendor', period: false },
-  'M16-rpt-price': { kind: 'table_report', module: 'M16', report: 'price_variance', title: 'Price Variance Alert', period: false },
-  'M16-rpt-maverick': { kind: 'table_report', module: 'M16', report: 'maverick_spend', title: 'Maverick Spend', period: false },
-  'M16-rpt-cycle': { kind: 'table_report', module: 'M16', report: 'po_cycle_time', title: 'PO Cycle Time', period: false },
-  'M16-rpt-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: false },
-  'M16-rpt-emergency': { kind: 'table_report', module: 'M16', report: 'emergency_spend', title: 'Emergency Purchases', period: false },
+  'M16-rpt-spend': { kind: 'table_report', module: 'M16', report: 'spend_by_category', title: 'Spend by Category & Vendor', period: true },
+  'M16-rpt-match': { kind: 'table_report', module: 'M16', report: 'match_exception', title: 'Match Exception Pareto', period: true },
+  'M16-rpt-otd': { kind: 'table_report', module: 'M16', report: 'otd_by_vendor', title: 'OTD by Vendor', period: true },
+  'M16-rpt-price': { kind: 'table_report', module: 'M16', report: 'price_variance', title: 'Price Variance Alert', period: true },
+  'M16-rpt-maverick': { kind: 'table_report', module: 'M16', report: 'maverick_spend', title: 'Maverick Spend', period: true },
+  'M16-rpt-cycle': { kind: 'table_report', module: 'M16', report: 'po_cycle_time', title: 'PO Cycle Time', period: true },
+  'M16-rpt-grir': { kind: 'table_report', module: 'M16', report: 'gr_ir', title: 'GR/IR Reconciliation', period: true },
+  'M16-rpt-emergency': { kind: 'table_report', module: 'M16', report: 'emergency_spend', title: 'Emergency Purchases', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M16-form-requisition': {
@@ -706,6 +715,26 @@ export const SCREENS = {
     ]
   },
 
+  'M16-form-price-amend': {
+    kind: 'model_form',
+    model: 'fix.purchase.price.amendment',
+    title: 'PO Price Amendment',
+    back: 'M16-price-amend',
+    status: { field: 'state', labels: {
+      draft: 'Draft', submitted: 'Awaiting Approval', approved: 'Approved', rejected: 'Rejected' } },
+    sections: [
+      { title: 'Amendment', note: 'A received line whose price genuinely changed: a holder of the DOFA tier the amended order needs, other than you, the buyer and the requester, approves it; the approved price becomes the match basis and the version is numbered. The receipt value does not change: the difference on the bill is price variance.',
+        fields: [
+          { name: 'po_line_id', required: true, label: 'Received Order Line', domain: [['order_id.state', 'in', ['partially_received', 'received', 'closed']]] },
+          { name: 'old_price', readonly: true, label: 'Approved Price Before' },
+          { name: 'new_price', required: true, label: 'Amended Unit Price' },
+          { name: 'reason', type: 'text', required: true, label: 'Why the Price Changed' },
+          { name: 'evidence_ref', required: true, label: 'Supplier Evidence' },
+          { name: 'version', readonly: true, label: 'Version' }
+        ] }
+    ]
+  },
+
   'M16-form-expedite': {
     kind: 'model_form',
     model: 'fix.procurement.expedite',
@@ -828,7 +857,8 @@ export const FORM_MODELS = {
   'M16:Approved Source': 'fix.procurement.approved.source',
   'M16:Service Entry': 'fix.purchase.service.entry',
   'M16:Match Exception Case': 'fix.ap.match.exception',
-  'M16:Match Tolerance': 'fix.ap.match.tolerance'
+  'M16:Match Tolerance': 'fix.ap.match.tolerance',
+  'M16:PO Price Amendment': 'fix.purchase.price.amendment'
 };
 
 export const FORM_CHIPS = {
@@ -853,6 +883,7 @@ export const FORM_CHIPS = {
   /* M52's records, on their own forms (BRU-PRO-09: the CFO sets tolerances) */
   'M16:Match Exception Case': 'M52-form-matchcase',
   'M16:Match Tolerance': 'M52-form-tolerance',
+  'M16:PO Price Amendment': 'M16-form-price-amend',
   'M16:__by_model__': {
     'fix.requisition': 'M16-form-requisition',
     'fix.procurement.rfq': 'M16-form-rfq',
@@ -868,7 +899,8 @@ export const FORM_CHIPS = {
     'fix.stock.receipt': 'M16-form-grn',
     'fix.stock.rtv': 'M16-form-rtv',
     'fix.procurement.approved.source': 'M16-form-source',
-    'fix.purchase.service.entry': 'M16-form-service-entry'
+    'fix.purchase.service.entry': 'M16-form-service-entry',
+    'fix.purchase.price.amendment': 'M16-form-price-amend'
   },
   'M16:__by_screen__': {
     'M16-prs': 'M16-form-requisition',
@@ -888,7 +920,8 @@ export const FORM_CHIPS = {
     'M16-match-queue': 'M52-form-bill',
     'M16-sources': 'M16-form-source',
     'M16-service-entries': 'M16-form-service-entry',
-    'M16-match-cases': 'M52-form-matchcase'
+    'M16-match-cases': 'M52-form-matchcase',
+    'M16-price-amend': 'M16-form-price-amend'
   }
 };
 

@@ -27,6 +27,16 @@ pytestmark = [pytest.mark.financial]
 REFUSED = (UserError, ValidationError, AccessError)
 
 
+@pytest.fixture(autouse=True)
+def _no_default_tolerance(c):
+    """These tests are about APPROVED tolerance rows: the A06 D8 default
+    (+2 % or +BDT 500 a unit with no row) is switched off for them; its own
+    test is test_a06_p2p_money.test_d8_default_tolerance_larger_of_two_percent_or_500."""
+    icp = c.env["ir.config_parameter"].sudo()
+    icp.set_param("cd_ap_ext.match_price_tolerance_pct", "0")
+    icp.set_param("cd_ap_ext.match_price_tolerance_abs", "0")
+
+
 def _refused(env, fn):
     try:
         with env.cr.savepoint():
@@ -91,8 +101,9 @@ def test_an_approved_tolerance_rematches_open_bills_within_its_limits(c):
     assert beyond.match_state == "blocked"
 
 
-def test_the_smaller_price_limit_wins_and_quantity_has_its_own(c):
-    _active_tolerance(c, price_pct=5.0, price_abs=2.0)
+def test_the_larger_price_limit_wins_and_quantity_has_its_own(c):
+    # A06 D8: with both limits, the LARGER applies (1 % = 1.00 < 2.00 a unit)
+    _active_tolerance(c, price_pct=1.0, price_abs=2.0)
     assert _po_bill(c, 103.0).match_state == "blocked"  # 3 > 2 per unit
     assert _po_bill(c, 101.5).match_state == "matched"
     qty_over = _po_bill(c, 100.0, qty=10.3)
@@ -338,6 +349,7 @@ def test_a_billed_receipt_leaves_the_grni_accrual(c):
                             "description": "board",
                             "quantity": 5.0,
                             "unit_price": 200.0,
+                            "tds_category": "supply_of_goods",
                         },
                     )
                 ],
@@ -345,10 +357,12 @@ def test_a_billed_receipt_leaves_the_grni_accrual(c):
         )
     )
     assert b.match_state == "matched"
+    # A06 X26: a bill clears GRNI when it posts (the as-at basis reads posted bills)
+    approve(c, b)
     a = (
         c.env["fix.ap.grni.accrual"]
         .with_user(c.acc1)
-        .create({"period_end": fields.Date.context_today(c.env.user)})
+        .create({"period_end": max(b.invoice_date, fields.Date.context_today(c.env.user))})
     )
     a.with_user(c.acc1).action_compute()
     assert not a.line_ids.filtered(lambda ln: ln.po_line_id.order_id == po)

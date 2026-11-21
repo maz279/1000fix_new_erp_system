@@ -73,6 +73,11 @@ PARAM_OVER_TOLERANCE = "cd_requisition.receipt_over_tolerance_pct"
 PARAM_EMERGENCY_HOURS = "cd_requisition.emergency_posthoc_hours"
 DEFAULT_EMERGENCY_HOURS = 48
 PARAM_EMERGENCY_MAX = "cd_requisition.emergency_max_amount"
+# A06 D8 (owner decision 20 Nov 2026): the emergency purchase ceiling is BDT
+# 25,000 unless the parameter says otherwise.
+DEFAULT_EMERGENCY_MAX = 25000.0
+# A06 P33: the acknowledgement SLA the M42 scorecard measures (days)
+PARAM_ACK_SLA = "cd_vendor_portal.ack_sla_days"
 
 ISSUED_PO_STATES = ("sent", "acknowledged", "partially_received", "received", "closed")
 RECEIVABLE_PO_STATES = ("sent", "acknowledged", "partially_received")
@@ -120,12 +125,46 @@ def require_role(env, xmlid, what):
         )
 
 
-def to_company_currency(record, amount, currency, company):
+# A06 D5: procurement and AP documents default to the company's currency (BDT
+# on the estate). They defaulted to base.BDT, which on a company keeping its
+# books in another currency was silently converted at 1:1.
+def bdt_rate(env, currency, company=None, on_date=None):
+    """A06 D5: company-currency (BDT) units per ONE unit of `currency` on
+    `on_date` (the Dhaka business day when none is given), from the rate table.
+
+    Fail closed: Odoo's _convert silently uses 1.0 for a currency with no rate
+    row, which booked a USD 1,000 order as BDT 1,000. A foreign currency with
+    no rate on or before the day is refused."""
+    company = company or env.company
+    target = company.currency_id
+    if not currency or not target or currency == target:
+        return 1.0
+    day = fields.Date.to_date(on_date) if on_date else fields.Date.context_today(env.user)
+    Rate = env["res.currency.rate"].sudo()
+    known = Rate.search_count(
+        [
+            ("currency_id", "=", currency.id),
+            ("name", "<=", day),
+            "|",
+            ("company_id", "=", False),
+            ("company_id", "=", company.id),
+        ],
+        limit=1,
+    )
+    if not known:
+        raise UserError(
+            "No %s exchange rate on or before %s in the rate table of %s: record the rate "
+            "first. Nothing is converted at a guessed rate (A06 D5)."
+            % (currency.name, day, company.name)
+        )
+    return round(currency._get_conversion_rate(currency, target, company, day), 6)
+
+
+def to_company_currency(record, amount, currency, company, on_date=None):
     company = company or record.env.company
     if currency and company.currency_id and currency != company.currency_id:
-        return currency._convert(
-            amount or 0.0, company.currency_id, company, fields.Date.context_today(record)
-        )
+        rate = bdt_rate(record.env, currency, company, on_date)
+        return round((amount or 0.0) * rate, 2)
     return amount or 0.0
 
 
@@ -291,7 +330,7 @@ class FixRequisition(models.Model):
     emergency_deadline = fields.Datetime(string="Post-Hoc Approval Due", readonly=True, copy=False)
     emergency_escalated_at = fields.Datetime(readonly=True, copy=False)
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     estimate_amount = fields.Monetary(string="Estimated Amount", currency_field="currency_id")
     urgency = fields.Selection(
@@ -412,9 +451,24 @@ class FixRequisition(models.Model):
                 % (self.display_name, self.state)
             )
 
+    def _a06_publish(self, event_type, extra=None):
+        """A06 P33: the requisition's own lifecycle events."""
+        self.ensure_one()
+        payload = {
+            "requisition_id": self.id,
+            "description": self.description,
+            "amount_bdt": self._dofa_amount(),
+            "requested_by": self.requested_by.id,
+            "operating_unit_id": self.operating_unit_id.id,
+            "urgency": self.urgency,
+        }
+        payload.update(extra or {})
+        publish(self.env, event_type, "fix.requisition", self.id, payload)
+
     def _a06_after_approve(self):
         if self.state == "submitted":
             self._guarded().write({"state": "approved"})
+            self._a06_publish("requisition.approved")
         if self.emergency_state in ("pending", "overdue"):
             self._guarded().write({"emergency_state": "approved"})
 
@@ -551,6 +605,7 @@ class FixRequisition(models.Model):
             )
             if text and rec.dofa_justification != text:
                 rec.write({"dofa_justification": text})
+            rec._a06_publish("requisition.submitted")
             if not rec._approval_needed():
                 rec._guarded().write({"state": "approved"})
                 rec.message_post(
@@ -587,11 +642,28 @@ class FixRequisition(models.Model):
             rec._guarded().write({"state": "draft", "approval_state": "none"})
         return True
 
+    def _a06_is_own(self):
+        """A06 P37: the requester, the person who raised it or submitted it."""
+        self.ensure_one()
+        rec = self.sudo()
+        return self.env.user in (rec.requested_by.user_id | rec.create_uid | rec.submitted_by_id)
+
     def action_cancel(self, reason=None):
         for rec in self:
             if rec.state in ("converted", "cancelled"):
                 raise UserError(
                     "Requisition %s is %s and cannot be cancelled." % (rec.display_name, rec.state)
+                )
+            # A06 P37: one's own demand, or a buyer / Procurement Manager
+            if not (
+                self.env.su
+                or rec._a06_is_own()
+                or has_role(self.env, GROUP_BUYER)
+                or has_role(self.env, GROUP_MANAGER)
+            ):
+                raise UserError(
+                    "Requisition %s is cancelled by its requester, a buyer or a Procurement "
+                    "Manager." % rec.display_name
                 )
             if not (reason or "").strip():
                 raise UserError("State why requisition %s is cancelled." % rec.display_name)
@@ -602,8 +674,7 @@ class FixRequisition(models.Model):
 
     # ---- the emergency path (BRU-PRO-12, FR-PRO-036) ------------------------
     def _a06_emergency_ceiling(self):
-        ladder_top = float_param(self.env, PARAM_TIER2, DEFAULT_LADDER[PARAM_TIER2])
-        return float_param(self.env, PARAM_EMERGENCY_MAX, ladder_top)
+        return float_param(self.env, PARAM_EMERGENCY_MAX, DEFAULT_EMERGENCY_MAX)
 
     def _a06_emergency_open_failure(self):
         """A requester whose emergency purchase was not approved in time, or was
@@ -639,6 +710,13 @@ class FixRequisition(models.Model):
             if rec.urgency != "emergency":
                 raise UserError(
                     "Requisition %s is not marked Emergency (job-stopped)." % rec.display_name
+                )
+            # A06 P37: the person whose job stopped (the requester) releases it,
+            # or a Procurement Manager; not any colleague
+            if not (self.env.su or rec._a06_is_own() or has_role(self.env, GROUP_MANAGER)):
+                raise UserError(
+                    "An emergency release of %s is made by its requester or a Procurement "
+                    "Manager." % rec.display_name
                 )
             if len((reason or "").strip()) < 10:
                 raise UserError("State what job stopped and why it cannot wait for approval.")
@@ -687,6 +765,10 @@ class FixRequisition(models.Model):
             if rec.dofa_justification != text:
                 rec.write({"dofa_justification": text})
             rec.action_request_approval()
+            rec._a06_publish(
+                "requisition.emergency_released",
+                {"reason": reason.strip(), "deadline": str(rec.emergency_deadline)},
+            )
             rec.message_post(
                 body="Emergency release: %s. Post-hoc approval due by %s."
                 % (reason.strip(), rec.emergency_deadline)
@@ -883,13 +965,38 @@ class FixPurchaseOrder(models.Model):
         string="Vendor-Confirmed Delivery", readonly=True, copy=False
     )
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     amount_total = fields.Monetary(
         string="Total", currency_field="currency_id", compute="_compute_total", store=True
     )
+    # A06 P29 / D5 (BRU-PRO-20): the exchange rate the order was approved at,
+    # stamped once by the approval (or by the send of an emergency release) and
+    # never re-derived. The goods receipt values the stock at it (M15 reads it),
+    # the bill clears GRNI at it and books the rate difference to FX gain/loss.
+    fx_rate = fields.Float(
+        string="FX Rate (BDT per unit)",
+        digits=(16, 6),
+        readonly=True,
+        copy=False,
+        help="Company-currency units per one unit of the order currency, stamped at approval.",
+    )
+    fx_rate_date = fields.Date(string="FX Rate Date", readonly=True, copy=False)
+    ack_chased_at = fields.Datetime(string="Acknowledgement Chased", readonly=True, copy=False)
     requisition_id = fields.Many2one(
         "fix.requisition", string="Source Requisition", index=True, readonly=True, copy=False
+    )
+    # A06 P40: a consolidated award converts several requisitions into one
+    # order; every one of them (not only the first) is its source, so each
+    # requester is kept off the receipt and confirms its own service.
+    source_requisition_ids = fields.Many2many(
+        "fix.requisition",
+        "fix_purchase_order_source_req_rel",
+        "order_id",
+        "requisition_id",
+        string="Source Requisitions",
+        readonly=True,
+        copy=False,
     )
     promised_date = fields.Date(string="Promised Date")
     received_on = fields.Date(string="Received On", readonly=True, copy=False)
@@ -954,10 +1061,38 @@ class FixPurchaseOrder(models.Model):
         "revision_of_id",
         "change_order_id",
         "cancel_reason",
+        "fx_rate",
+        "fx_rate_date",
+        "ack_chased_at",
+        "source_requisition_ids",
     }
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self.PO_GUARDED
+
+    # ---- FX (A06 P29 / D5) --------------------------------------------------
+    def _a06_stamp_fx_rate(self):
+        """Stamp the approval-day rate once; a stamped order keeps it."""
+        for order in self:
+            if order.fx_rate:
+                continue
+            day = fields.Date.context_today(order)
+            rate = bdt_rate(order.env, order.currency_id, order.company_id, day)
+            order._guarded().write({"fx_rate": rate, "fx_rate_date": day})
+
+    def _fix_rate_bdt(self):
+        """BDT per unit of the order currency: the stamped rate, else (an
+        order not yet approved) today's rate."""
+        self.ensure_one()
+        if self.fx_rate:
+            return self.fx_rate
+        return bdt_rate(self.env, self.currency_id, self.company_id)
+
+    def _fix_all_requisitions(self):
+        """Every requisition the order converts (A06 P40)."""
+        self.ensure_one()
+        order = self.sudo()
+        return order.requisition_id | order.source_requisition_ids
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -982,16 +1117,22 @@ class FixPurchaseOrder(models.Model):
     # ---- DOFA -------------------------------------------------------------
     def _dofa_amount(self) -> float:
         self.ensure_one()
-        return to_company_currency(self, self.amount_total, self.currency_id, self.company_id)
+        return round((self.amount_total or 0.0) * self._fix_rate_bdt(), 2)
 
-    @api.depends("amount_total", "currency_id")
+    @api.depends("amount_total", "currency_id", "fx_rate")
     def _compute_dofa_tier_required(self):
         return super()._compute_dofa_tier_required()
 
     def _a06_extra_conflicts(self):
         rec = self.sudo()
-        users = rec.buyer_id | rec.requisition_id.requested_by.user_id
-        return users | rec.requisition_id.submitted_by_id | rec.revision_of_id.buyer_id
+        reqs = rec._fix_all_requisitions()
+        users = rec.buyer_id | reqs.requested_by.user_id
+        users |= reqs.submitted_by_id | rec.revision_of_id.buyer_id
+        # A06 P21: whoever decided (or approved) the award behind the order
+        # does not approve the order as well
+        if rec.award_id:
+            users |= rec.award_id.decided_by_id | rec.award_id.approved_by_id
+        return users
 
     def _a06_before_approve(self):
         if self.state != "draft":
@@ -1007,6 +1148,7 @@ class FixPurchaseOrder(models.Model):
             line._guarded().write(
                 {"approved_unit_price": line.unit_price, "approved_qty": line.qty_ordered}
             )
+        self._a06_stamp_fx_rate()
 
     # ---- the supplier gate (filled in by cd_vendor_portal) ----------------
     @api.model
@@ -1124,16 +1266,20 @@ class FixPurchaseOrder(models.Model):
                 % (blanket.display_name, blanket.valid_from, blanket.valid_to, self.display_name)
             )
         consumed = blanket._consumed_amount(exclude=self)
-        if consumed + (self.amount_total or 0.0) > (blanket.cap_amount or 0.0) + 0.005:
+        # A06 P39: this call-off counted in the agreement's currency
+        mine = blanket._a06_in_cap_currency(self, self.amount_total)
+        if consumed + mine > (blanket.cap_amount or 0.0) + 0.005:
             raise UserError(
-                "Blanket agreement %s: cap %.2f, already called off %.2f; PO %s (%.2f) would "
-                "exceed it."
+                "Blanket agreement %s: cap %s %.2f, already called off %.2f; PO %s (%s %.2f) "
+                "would exceed it."
                 % (
                     blanket.display_name,
+                    blanket.currency_id.name,
                     blanket.cap_amount or 0.0,
                     consumed,
                     self.display_name,
-                    self.amount_total or 0.0,
+                    blanket.currency_id.name,
+                    mine,
                 )
             )
 
@@ -1145,6 +1291,11 @@ class FixPurchaseOrder(models.Model):
         if award.state != "decided":
             raise UserError("Award %s behind PO %s is not decided." % (award.name, self.name))
         bid = award.bid_id
+        if bid.currency_id != self.currency_id:
+            raise UserError(
+                "PO %s is in %s but award %s was decided on a %s bid."
+                % (self.name, self.currency_id.name, award.name, bid.currency_id.name)
+            )
         if bid.vendor_id.commercial_partner_id != self.vendor_id.commercial_partner_id:
             raise UserError(
                 "PO %s is to %s but award %s went to %s."
@@ -1301,22 +1452,48 @@ class FixPurchaseOrder(models.Model):
                     )
                 original._guarded().write({"state": "superseded", "change_order_id": order.id})
                 original.message_post(body="Superseded by change order %s." % order.name)
+            # D5: an order sent without its own approval stamp (an emergency
+            # release) takes the send-day rate, once
+            order._a06_stamp_fx_rate()
             order._guarded().write(
                 {"state": "sent", "sent_at": fields.Datetime.now(), "sent_by_id": self.env.uid}
             )
-            publish(
-                self.env,
-                "po.issued",
-                "fix.purchase.order",
-                order.id,
-                {
-                    "po_ref": order.name,
-                    "vendor_id": order.vendor_id.id,
-                    "amount_total": order.amount_total,
-                    "currency": order.currency_id.name,
-                },
+            payload = {
+                "po_ref": order.name,
+                "vendor_id": order.vendor_id.id,
+                "amount_total": order.amount_total,
+                "currency": order.currency_id.name,
+                "fx_rate": order.fx_rate,
+            }
+            if original:
+                payload["supersedes"] = original.name
+            publish(self.env, "po.issued", "fix.purchase.order", order.id, payload)
+            # A06 P24: the supplier is told about the order (and a revision)
+            order._a06_notify_vendor(
+                "Purchase order %s%s was issued to you: %s %.2f."
+                % (
+                    order.name,
+                    (" (revision of %s)" % original.name) if original else "",
+                    order.currency_id.name,
+                    order.amount_total,
+                )
             )
         return True
+
+    def _a06_notify_vendor(self, body):
+        """A06 P24: a message to the supplier's contact on the order (mailed to
+        it as a follower-less recipient), so the vendor learns of an issue,
+        revision or cancellation without a buyer remembering to call."""
+        for order in self:
+            partner = order.vendor_id
+            if not partner:
+                continue
+            order.sudo().message_post(
+                body=body,
+                partner_ids=partner.ids,
+                message_type="comment",
+                subtype_xmlid="mail.mt_note",
+            )
 
     # ---- acknowledgement (M16-11) ------------------------------------------
     def action_acknowledge(self, confirmed_date=None):
@@ -1347,6 +1524,16 @@ class FixPurchaseOrder(models.Model):
         for order in self:
             order._a06_acknowledge("buyer_on_behalf", confirmed_date, evidence=evidence.strip())
         return True
+
+    def _a06_otd_due_date(self):
+        """A06 P16: the date on-time delivery is measured against. The
+        vendor's own date counts only when the vendor gave it (portal); a date
+        a buyer typed on the vendor's behalf never moves the yardstick past the
+        promised date the order was approved with."""
+        self.ensure_one()
+        if self.ack_channel == "portal" and self.vendor_confirmed_date:
+            return self.vendor_confirmed_date
+        return self.promised_date or self.vendor_confirmed_date
 
     def _a06_acknowledge(self, channel, confirmed_date, evidence):
         """M16-11: the vendor's own delivery date is part of the acknowledgement.
@@ -1468,11 +1655,35 @@ class FixPurchaseOrder(models.Model):
                 require_role(self.env, GROUP_BUYER, "Cancelling a purchase order")
             if po.approval_state == "pending":
                 po._approval_void("the purchase order was cancelled")
+            was_sent = po.state in ("sent", "acknowledged")
             po._guarded().write({"state": "cancelled", "cancel_reason": reason.strip()})
             original = po.sudo().revision_of_id
             if original and original.change_order_id == po:
                 original._guarded().write({"change_order_id": False})
-            publish(self.env, "po.cancelled", "fix.purchase.order", po.id, {"po_ref": po.name})
+            elif not original:
+                # A06 P38: the order's requisitions are no longer converted;
+                # they return to approved so the demand is bought another way
+                # (a cancelled change order leaves its live original in place)
+                reqs = po._fix_all_requisitions().filtered(
+                    lambda r, o=po: r.state == "converted" and r.purchase_order_id == o
+                )
+                reqs._guarded().write({"state": "approved", "purchase_order_id": False})
+                for req in reqs:
+                    req.message_post(
+                        body="Purchase order %s was cancelled (%s): the requisition is open "
+                        "again." % (po.name, reason.strip())
+                    )
+            publish(
+                self.env,
+                "po.cancelled",
+                "fix.purchase.order",
+                po.id,
+                {"po_ref": po.name, "reason": reason.strip()},
+            )
+            if was_sent:
+                po._a06_notify_vendor(
+                    "Purchase order %s is cancelled: %s" % (po.name, reason.strip())
+                )
         return True
 
     def action_close(self, reason=None):
@@ -1569,7 +1780,51 @@ class FixPurchaseOrder(models.Model):
                     "promised_date": due,
                 }
             )
+            # A06 P33
+            publish(
+                self.env,
+                "po.overdue",
+                "fix.purchase.order",
+                order.id,
+                {"po_ref": order.name, "vendor_id": order.vendor_id.id, "due": str(due)},
+            )
         return made
+
+    @api.model
+    def _cron_chase_acknowledgements(self):
+        """A06 P33: a sent order the vendor has not acknowledged within the
+        acknowledgement SLA (cd_vendor_portal.ack_sla_days, default 2 days,
+        the scorecard's own yardstick) is chased: the vendor is reminded and
+        the buyer gets a to-do, once per SLA period."""
+        sla = max(int(float_param(self.env, PARAM_ACK_SLA, 2)), 1)
+        now = fields.Datetime.now()
+        limit = now - timedelta(days=sla)
+        chased = self.browse()
+        for order in self.sudo().search([("state", "=", "sent"), ("sent_at", "<", limit)]):
+            if order.ack_chased_at and order.ack_chased_at > limit:
+                continue
+            order._guarded().write({"ack_chased_at": now})
+            order._a06_notify_vendor(
+                "Purchase order %s was sent on %s and is not acknowledged yet: please confirm it "
+                "and its delivery date in the vendor portal." % (order.name, order.sent_at.date())
+            )
+            buyer = order.buyer_id or order.create_uid
+            if buyer:
+                order.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    date_deadline=fields.Date.context_today(order),
+                    summary="Chase acknowledgement of %s" % order.name,
+                    user_id=buyer.id,
+                )
+            publish(
+                self.env,
+                "po.ack_chased",
+                "fix.purchase.order",
+                order.id,
+                {"po_ref": order.name, "vendor_id": order.vendor_id.id, "sla_days": sla},
+            )
+            chased |= order
+        return chased
 
 
 class FixPurchaseOrderLine(models.Model):

@@ -8,6 +8,7 @@ import types
 from datetime import date, timedelta
 
 import pytest
+from odoo.addons.cd_requisition.tests.p2p_fixtures import qualify_categories
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 REFUSED = (UserError, ValidationError, AccessError)
@@ -52,6 +53,7 @@ def _active_supplier(env, partner):
                 "valid_to": date.today() + timedelta(days=365),
             }
         )
+    qualify_categories(env, sup)  # A06 P08: categories approved by a qualification
     return sup
 
 

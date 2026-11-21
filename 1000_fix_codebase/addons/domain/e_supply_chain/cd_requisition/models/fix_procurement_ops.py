@@ -32,6 +32,7 @@ from .fix_requisition import (
     GROUP_BUYER,
     GROUP_RECEIVER,
     ISSUED_PO_STATES,
+    bdt_rate,
     float_param,
     has_role,
     require_role,
@@ -42,6 +43,8 @@ from .fix_requisition import (
 # defaults 3 and 0 (every award needs three quotes or a recorded exception).
 PARAM_MIN_BIDS = "cd_requisition.rfq_min_bids"
 PARAM_COMPETITIVE_THRESHOLD = "cd_requisition.rfq_competitive_threshold"
+# A06 D8 (owner decision 20 Nov 2026): three quotes above BDT 50,000.
+DEFAULT_COMPETITIVE_THRESHOLD = 50000.0
 
 
 class FixApprovalMatrixProcurement(models.Model):
@@ -89,7 +92,7 @@ class FixProcurementRfq(models.Model):
     qty = fields.Float(string="Quantity", default=1.0)
     required_by = fields.Date(string="Required By")
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     target_price = fields.Monetary(string="Target Price", currency_field="currency_id")
     state = fields.Selection(
@@ -217,7 +220,43 @@ class FixProcurementRfq(models.Model):
                 raise UserError("Close an open RFQ")
             if not rec.sudo().bid_ids:
                 raise UserError("An RFQ cannot close without at least one bid")
+            rec._a06_check_deadline_passed()
             rec._guarded().write({"state": "closed", "closed_at": fields.Datetime.now()})
+
+    def _a06_check_deadline_passed(self):
+        """A06 P22: the bid window closes at its deadline, not when a buyer who
+        has seen one price chooses; before it, only once every invited
+        supplier has answered."""
+        self.ensure_one()
+        deadline = self.response_deadline if "response_deadline" in self._fields else None
+        if not deadline or fields.Date.context_today(self) > deadline:
+            return
+        invited = self.invited_vendor_ids.mapped("commercial_partner_id")
+        answered = self.sudo().bid_ids.mapped("vendor_id.commercial_partner_id")
+        if invited and not (invited - answered):
+            return
+        raise UserError(
+            "RFQ %s is open for bids until %s and %d invited supplier(s) have not answered: "
+            "it closes after the deadline." % (self.name, deadline, len(invited - answered))
+        )
+
+    @api.model
+    def _cron_close_due_rfqs(self):
+        """A06 P22: an open RFQ past its response deadline closes by itself
+        (with at least one bid; one without stays open for the buyer to act)."""
+        today = fields.Date.context_today(self)
+        due = self.sudo().search(
+            [
+                ("state", "=", "open"),
+                ("response_deadline", "!=", False),
+                ("response_deadline", "<", today),
+            ]
+        )
+        closed = self.browse()
+        for rec in due.filtered("bid_ids"):
+            rec._guarded().write({"state": "closed", "closed_at": fields.Datetime.now()})
+            closed |= rec
+        return closed
 
 
 class FixProcurementBid(models.Model):
@@ -232,9 +271,19 @@ class FixProcurementBid(models.Model):
     )
     vendor_id = fields.Many2one("res.partner", string="Vendor", required=True, ondelete="restrict")
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     unit_price = fields.Monetary(string="Unit Price", currency_field="currency_id", required=True)
+    # A06 P03 / D5: bids in different currencies are compared in BDT, at the
+    # rate of the day the bid was received; the lowest bid, the competitive
+    # threshold and the three-quote rule read this, never the raw price.
+    unit_price_bdt = fields.Float(
+        string="Unit Price (BDT)",
+        digits=(16, 2),
+        compute="_compute_unit_price_bdt",
+        store=True,
+        help="The bid price converted at the rate of the day it was received.",
+    )
     lead_time_days = fields.Integer(string="Lead Time (days)", default=7)
     valid_until = fields.Date()
     received_at = fields.Datetime(readonly=True, copy=False, default=fields.Datetime.now)
@@ -257,13 +306,26 @@ class FixProcurementBid(models.Model):
     _price_positive = models.Constraint("CHECK (unit_price > 0)", "Bid price must be positive")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "received_at"}
+        return super()._fix_guarded_fields() | {"state", "received_at", "unit_price_bdt"}
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(b.rfq_id.state != "open" for b in self):
             locked |= set(self.BID_FIXED)
         return locked
+
+    @api.depends("unit_price", "currency_id", "received_at", "rfq_id.company_id")
+    def _compute_unit_price_bdt(self):
+        for bid in self:
+            company = bid.rfq_id.sudo().company_id or self.env.company
+            # the Dhaka business day the bid arrived (received_at is UTC)
+            day = (
+                fields.Datetime.context_timestamp(bid, bid.received_at).date()
+                if bid.received_at
+                else None
+            )
+            rate = bdt_rate(self.env, bid.currency_id, company, day)
+            bid.unit_price_bdt = round((bid.unit_price or 0.0) * rate, 2)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -402,16 +464,19 @@ class FixProcurementAward(models.Model):
         if problems:
             raise UserError("Bid %s cannot be awarded: %s." % (bid.name, "; ".join(problems)))
         compliant = rfq.bid_ids.filtered(lambda b: not self._a06_bid_problems(b))
-        lowest = compliant.sorted(lambda b: (b.unit_price, b.id))[:1]
-        is_lowest = bid.unit_price <= lowest.unit_price + 0.005
-        threshold = float_param(self.env, PARAM_COMPETITIVE_THRESHOLD, 0.0)
-        value = (bid.unit_price or 0.0) * (rfq.qty or 0.0)
+        # A06 P03: ranked, thresholded and counted in BDT, whatever the bid currency
+        lowest = compliant.sorted(lambda b: (b.unit_price_bdt, b.id))[:1]
+        is_lowest = bid.unit_price_bdt <= lowest.unit_price_bdt + 0.005
+        threshold = float_param(
+            self.env, PARAM_COMPETITIVE_THRESHOLD, DEFAULT_COMPETITIVE_THRESHOLD
+        )
+        value = round((bid.unit_price_bdt or 0.0) * (rfq.qty or 0.0), 2)
         min_bids = 1 if value <= threshold else int(float_param(self.env, PARAM_MIN_BIDS, 3))
         if not is_lowest and not (self.rationale or "").strip():
             raise UserError(
-                "BRU-PRO-07: bid %s (%.2f) is not the lowest compliant bid (%s at %.2f). Record "
-                "the rationale; a Procurement Approver other than you decides it."
-                % (bid.name, bid.unit_price, lowest.name, lowest.unit_price)
+                "BRU-PRO-07: bid %s (BDT %.2f) is not the lowest compliant bid (%s at BDT %.2f). "
+                "Record the rationale; a Procurement Approver other than you decides it."
+                % (bid.name, bid.unit_price_bdt, lowest.name, lowest.unit_price_bdt)
             )
         if len(compliant) < min_bids and not (self.exception_reason or "").strip():
             raise UserError(
@@ -434,9 +499,18 @@ class FixProcurementAward(models.Model):
     def _a06_apply_decision(self):
         self.ensure_one()
         rfq = self.rfq_id.sudo()
-        rfq.bid_ids.filtered(lambda b, won=self.bid_id: b != won)._guarded().write(
-            {"state": "lost"}
-        )
+        losers = rfq.bid_ids.filtered(lambda b, won=self.bid_id: b != won)
+        losers._guarded().write({"state": "lost"})
+        # A06 P23 (FR-PRO-014): every bidder hears the outcome
+        for lost in losers:
+            partner = lost.vendor_id.commercial_partner_id.sudo()
+            partner.message_post(
+                body="RFQ %s was awarded to another bid; your bid %s was not successful."
+                % (rfq.name, lost.name),
+                partner_ids=partner.ids,
+                message_type="comment",
+                subtype_xmlid="mail.mt_note",
+            )
         self.bid_id.sudo()._guarded().write({"state": "awarded"})
         rfq._guarded().write({"state": "awarded"})
         self._guarded().write(
@@ -626,6 +700,7 @@ class FixProcurementAward(models.Model):
             )
             if reqs:
                 reqs._guarded().write({"state": "converted", "purchase_order_id": order.id})
+                order._guarded().write({"source_requisition_ids": [(6, 0, reqs.ids)]})
             rec._guarded().write({"purchase_order_id": order.id})
         return True
 
@@ -644,7 +719,7 @@ class FixProcurementBlanket(models.Model):
     valid_from = fields.Date(required=True, default=fields.Date.context_today)
     valid_to = fields.Date(required=True)
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
+        "res.currency", required=True, default=lambda self: self.env.company.currency_id
     )
     cap_amount = fields.Monetary(string="Cap Amount", currency_field="currency_id")
     consumed_amount = fields.Monetary(
@@ -698,6 +773,10 @@ class FixProcurementBlanket(models.Model):
         return locked
 
     def _consumed_amount(self, exclude=None):
+        """What the issued call-offs consumed, in the agreement's currency
+        (A06 P39: a call-off in another currency is converted at its stamped
+        rate, never added as it stands; a change order being sent replaces its
+        original, so the original is not counted twice)."""
         self.ensure_one()
         orders = (
             self.env["fix.purchase.order"]
@@ -705,8 +784,18 @@ class FixProcurementBlanket(models.Model):
             .search([("blanket_id", "=", self.id), ("state", "in", ISSUED_PO_STATES)])
         )
         if exclude:
-            orders -= exclude.sudo()
-        return round(sum(orders.mapped("amount_total")), 2)
+            exclude = exclude.sudo()
+            orders -= exclude | exclude.mapped("revision_of_id")
+        return round(sum(self._a06_in_cap_currency(o, o.amount_total) for o in orders), 2)
+
+    def _a06_in_cap_currency(self, order, amount):
+        """`amount` of `order` in this agreement's currency."""
+        self.ensure_one()
+        if order.currency_id == self.currency_id:
+            return amount or 0.0
+        bdt = (amount or 0.0) * order._fix_rate_bdt()
+        rate = bdt_rate(self.env, self.currency_id, self.company_id)
+        return round(bdt / rate, 2) if rate else 0.0
 
     @api.depends("cap_amount", "order_ids.state", "order_ids.amount_total")
     def _compute_consumed(self):
@@ -995,6 +1084,12 @@ class FixProcurementInspection(models.Model):
                 )
             if line.receipt_id.state != "posted":
                 raise UserError("Receipt %s is not posted." % line.receipt_id.name)
+            # A06 P21: the receiver does not judge the goods they received
+            if not self.env.su and self.env.user == line.receipt_id.receiver_id:
+                raise UserError(
+                    "Segregation of duties: you received %s; another person records its "
+                    "inspection." % line.receipt_id.name
+                )
             if line.inspection_ids.filtered(lambda i, me=rec: i != me and i.state == "done"):
                 raise UserError(
                     "Receipt line %s already has a confirmed inspection." % line.display_name

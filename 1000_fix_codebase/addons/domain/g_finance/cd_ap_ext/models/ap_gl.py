@@ -37,6 +37,12 @@ AP_ACCOUNTS = {
     # A08 M52-8: an advance recovered through payroll clears against salaries
     # payable; Odoo generic chart: 230000 "Salary Payable"
     "salary_payable": ("230000", "Salaries payable (payroll recovery of advances)"),
+    # A06 D2 / D5 (owner decisions 20 Nov 2026, legacy chart): a bill's price
+    # difference to the goods' receipt value is purchase price variance 600007;
+    # the part caused only by the exchange rate moving between the order's
+    # stamped rate and the bill (or payment) date is FX gain/loss 500030.
+    "ppv": ("600007", "Purchase price variance"),
+    "fx_gain_loss": ("500030", "Foreign exchange gain / loss"),
 }
 TAX_ROLES = ("vat_input", "tds_payable", "vds_payable")
 
@@ -143,10 +149,31 @@ def _ap_posting_dims(env):
     }
 
 
+def _line_vals(account, label, dr, cr, partner, foreign=None, company_currency=None):
+    """One journal line. `foreign` = (currency, signed amount in it) for a line
+    carried in a foreign currency (A06 P01 / D5: the BDT debit or credit is the
+    company's figure, amount_currency the document's)."""
+    vals = {
+        "account_id": account.id,
+        "name": label,
+        "debit": round(dr, 2),
+        "credit": round(cr, 2),
+        "partner_id": partner.id if partner else False,
+    }
+    if foreign:
+        currency, amount = foreign
+        if currency and currency != company_currency:
+            vals["currency_id"] = currency.id
+            vals["amount_currency"] = round(amount, currency.decimal_places)
+    return vals
+
+
 def post_ap_move(
     env, company, journal, entry_date, ref, lines, operating_unit=None, line_dimensions=None
 ):
-    """Post a balanced AP entry; lines: [(account, label, debit, credit, partner)].
+    """Post a balanced AP entry; lines: [(account, label, debit, credit, partner)]
+    or, for a line in a foreign currency, (account, label, debit, credit,
+    partner, (currency, signed amount_currency)).
     Same engine as the tax subledger, plus the AP default cost-centre and
     business-line dimensions on every line (COA-003). line_dimensions: {index
     into `lines`: {dimension: value}} overrides them on one line (an expense
@@ -165,19 +192,9 @@ def post_ap_move(
         "ref": ref,
         "move_type": "entry",
         "line_ids": [
-            (
-                0,
-                0,
-                {
-                    "account_id": account.id,
-                    "name": label,
-                    "debit": round(dr, 2),
-                    "credit": round(cr, 2),
-                    "partner_id": partner.id if partner else False,
-                },
-            )
-            for account, label, dr, cr, partner in lines
-            if round(dr, 2) or round(cr, 2)
+            (0, 0, _line_vals(*line, company_currency=company.currency_id))
+            for line in lines
+            if round(line[2], 2) or round(line[3], 2)
         ],
     }
     line_dims = {"operating_unit_id": ou.id} if ou else {}

@@ -37,6 +37,8 @@
         "tds",
         "vds",
         "payable",
+        "currency",
+        "payable_currency",
         "move_id"
       ],
       "properties": {
@@ -53,6 +55,15 @@
           "type": "number"
         },
         "payable": {
+          "type": "number"
+        },
+        "currency": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "payable_currency": {
           "type": "number"
         },
         "move_id": {

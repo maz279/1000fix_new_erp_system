@@ -29,8 +29,9 @@ BANK_KEY = "fix_supplier_bank_change"
 _BANK_TOKEN = object()
 BANK_FIELDS = ("acc_number", "bank_id", "partner_id", "acc_holder_name", "allow_out_payment")
 # BRU-PRO-02 / BRU-SRM2-03: compare the PO's product categories with the
-# categories the supplier is approved for. Off by default: the register holds
-# free-text categories until a steward records the approved ones.
+# categories the supplier is approved for. A06 P08 (lead default, owner O4):
+# ON unless the parameter says "0"; the approved categories come from an
+# approved qualification (fix.supplier.qualification.category_ids).
 PARAM_CATEGORY_GATE = "cd_vendor_portal.po_category_gate"
 
 
@@ -105,16 +106,34 @@ class FixPurchaseOrderSupplierGate(models.Model):
             return ["supplier %s is %s" % (supplier.supplier_code, supplier.status)]
         return supplier._a06_order_problems()
 
+    @api.model_create_multi
+    def create(self, vals_list):
+        """A06 P42: not even a draft order is raised to a supplier that is
+        deactivated (blocked) or still a prospect; a qualified, suspended or
+        active one is drafted and the approval / send gate decides."""
+        Partner = self.env["res.partner"].sudo()
+        for vals in vals_list:
+            supplier = self.env["fix.supplier"]._for_partner(
+                Partner.browse(vals.get("vendor_id")),
+                self.env["res.company"].browse(vals.get("company_id")) or self.env.company,
+            )
+            if supplier and supplier.status in ("deactivated", "prospect"):
+                raise UserError(
+                    "Supplier %s is %s: no purchase order is drafted for it (BRU-PRO-02)."
+                    % (supplier.supplier_code, supplier.status)
+                )
+        return super().create(vals_list)
+
     def _a06_check_categories(self):
         """Fail closed once switched on: a supplier with no approved categories
         supplies nothing."""
         result = super()._a06_check_categories()
         raw = self.env["ir.config_parameter"].sudo().get_param(PARAM_CATEGORY_GATE)
-        if str(raw or "0").strip().lower() in ("0", "false", "no", "off"):
+        if str(raw or "1").strip().lower() in ("0", "false", "no", "off"):
             return result
         Category = self.env["product.category"].sudo()
         for order in self:
-            supplier = self.env["fix.supplier"]._for_partner(order.vendor_id)
+            supplier = self.env["fix.supplier"]._for_partner(order.vendor_id, order.company_id)
             approved = Category.search([("id", "child_of", supplier.approved_category_ids.ids)])
             outside = order.sudo().line_ids.product_id.categ_id - approved
             if outside:
@@ -268,6 +287,18 @@ class FixSupplierBankChange(models.Model):
             supplier.message_post(
                 body="Bank-detail change %s proposed: payments blocked." % rec.name
             )
+            # A06 P43: the supplier's own contact on record hears of the change
+            # (a fraudster changing the account is caught by the real supplier)
+            contact = supplier.partner_id.commercial_partner_id
+            if contact:
+                supplier.message_post(
+                    body="A change of the bank account we pay you to was requested (%s, ending "
+                    "%s). If you did not ask for it, call us at once."
+                    % (rec.name, (rec.acc_number or "")[-4:]),
+                    partner_ids=contact.ids,
+                    message_type="comment",
+                    subtype_xmlid="mail.mt_note",
+                )
             rec._audit("Supplier bank change %s proposed (payment block set)" % rec.name)
             publish(
                 self.env,
@@ -409,7 +440,7 @@ class FixVendorInvoiceSupplierControls(models.Model):
 
     def _fix_supplier(self):
         self.ensure_one()
-        return self.env["fix.supplier"]._for_partner(self.vendor_id)
+        return self.env["fix.supplier"]._for_partner(self.vendor_id, self.company_id)
 
     def action_approve(self):
         """SOD-01 / SOD-02 (BRU-PRO-04/05): whoever created the supplier, raised
@@ -443,7 +474,47 @@ class FixVendorInvoiceSupplierControls(models.Model):
                     "Supplier %s has a bank-detail change awaiting confirmation: payments are "
                     "blocked until it is confirmed." % supplier.supplier_code
                 )
+            inv._a06_check_payable_supplier(supplier)
         return super().action_request_payment()
+
+    def _a06_check_payable_supplier(self, supplier):
+        """A06 P10 (lead default, owner O5): a deactivated supplier (blocked,
+        e.g. on a sanctions hit) is never paid; a suspended one is paid with a
+        warning on the bill."""
+        self.ensure_one()
+        if not supplier:
+            return
+        if supplier.status == "deactivated":
+            raise UserError(
+                "Supplier %s is deactivated (%s): its bills are not paid."
+                % (supplier.supplier_code, supplier.status_reason or "blocked")
+            )
+        if supplier.status == "suspended":
+            self.message_post(
+                body="Warning: supplier %s is suspended (%s); bill %s is paid all the same."
+                % (supplier.supplier_code, supplier.status_reason or "-", self.invoice_ref)
+            )
+
+    def _ap_settle_external(self, amount_bdt, credit_account, journal, ref, entry_date, source):
+        self._a06_check_payable_supplier(self._fix_supplier())
+        return super()._ap_settle_external(
+            amount_bdt, credit_account, journal, ref, entry_date, source
+        )
+
+    def _fix_non_po_supplier_problems(self):
+        """A06 P09: a non-PO bill is from an active supplier of the register."""
+        problems = super()._fix_non_po_supplier_problems()
+        supplier = self._fix_supplier()
+        if not supplier:
+            return [*problems, "has no supplier record in the M42 register"]
+        if supplier.status == "deactivated":
+            raise UserError(
+                "Supplier %s is deactivated (%s): no bill of it is accepted."
+                % (supplier.supplier_code, supplier.status_reason or "blocked")
+            )
+        if supplier.status != "active":
+            problems.append("is %s, not active" % supplier.status)
+        return problems
 
 
 class FixPaymentRunLineSupplierControls(models.Model):
@@ -453,10 +524,18 @@ class FixPaymentRunLineSupplierControls(models.Model):
         result = super()._apply_skip_rules()
         Supplier = self.env["fix.supplier"]
         for line in self:
-            supplier = Supplier._for_partner(line.partner_id)
+            supplier = Supplier._for_partner(line.partner_id, line.company_id)
             if not supplier:
                 continue
-            if supplier.payment_block:
+            if supplier.status == "deactivated":  # A06 P10: never paid
+                line.write(
+                    {
+                        "state": "skipped",
+                        "skip_reason": "Supplier deactivated (%s): not paid"
+                        % (supplier.status_reason or "blocked"),
+                    }
+                )
+            elif supplier.payment_block:
                 line.write(
                     {
                         "state": "skipped",

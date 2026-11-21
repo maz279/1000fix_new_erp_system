@@ -243,6 +243,32 @@ class VendorApiController(http.Controller):
                 "lines [{product_id, description, quantity, unit_price}] are required",
             )
         Invoice = _vendor_env()["fix.vendor.invoice"]
+        # A06 P14: a replayed submission (a timeout, a double click) returns the
+        # bill already lodged for this PO and reference instead of a second
+        # draft that would then block the genuine one as a duplicate
+        from odoo.addons.cd_ap_ext.models.fix_ap_grni import norm_ref
+
+        key = norm_ref(kwargs.get("invoice_ref"))
+        lodged = (
+            Invoice.sudo()
+            .search(
+                [
+                    ("requisition_id", "=", po.id),
+                    ("vendor_id.commercial_partner_id", "=", po.vendor_id.commercial_partner_id.id),
+                    ("approval_state", "!=", "rejected"),
+                ]
+            )
+            .filtered(lambda b: norm_ref(b.invoice_ref) == key)[:1]
+        )
+        if lodged:
+            return {
+                "invoice": {
+                    "id": lodged.id,
+                    "match_state": lodged.match_state,
+                    "match_detail": lodged.match_detail or "",
+                    "replayed": True,
+                }
+            }
         # The withholding category is the payee's, from its tax profile (the
         # supplier master); a category sent by the portal is ignored. With no
         # profile category the model default applies and AP reviews it.
@@ -251,6 +277,9 @@ class VendorApiController(http.Controller):
             "vendor_id": int(vendor_id),
             "invoice_ref": kwargs.get("invoice_ref"),
             "requisition_id": po.id,
+            # A06 P02 / D5: the bill is in the order's currency (it defaulted
+            # to BDT, so a USD order's bill read USD prices as BDT)
+            "currency_id": po.currency_id.id,
             # the model requires an operating unit; the portal rides the
             # PO's own OU (an invoice lands in the unit that ordered). The PO's
             # operating_unit_id is required (NOT NULL), so it is always set.

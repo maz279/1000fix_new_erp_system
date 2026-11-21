@@ -1,0 +1,61 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "po.overdue",
+  "description": "Published by cd_requisition through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "type": "object",
+  "required": [
+    "event_id",
+    "event_type",
+    "timestamp",
+    "producer",
+    "payload"
+  ],
+  "properties": {
+    "event_id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Unique event identifier for idempotency (UUIDv4)"
+    },
+    "event_type": {
+      "type": "string",
+      "const": "po.overdue"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp"
+    },
+    "producer": {
+      "type": "string",
+      "default": "cd_requisition"
+    },
+    "payload": {
+      "type": "object",
+      "required": [
+        "po_ref",
+        "vendor_id",
+        "due"
+      ],
+      "properties": {
+        "po_ref": {
+          "type": [
+            "string",
+            "boolean"
+          ]
+        },
+        "vendor_id": {
+          "type": "integer"
+        },
+        "due": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "x-owner-module": "cd_requisition",
+  "x-publishers": [
+    "addons/domain/e_supply_chain/cd_requisition/models/fix_requisition.py"
+  ],
+  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+}

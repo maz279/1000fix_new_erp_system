@@ -60,21 +60,30 @@ class FixApPaymentEvents(models.AbstractModel):
         )
 
     def _post_clearing(self, execution, doc, role, partner, label, reverse=False):
-        """Dr payable / Cr the account treasury debited (reversed on a return)."""
+        """Dr payable / Cr the account treasury debited (reversed on a return).
+        A06 P01 / D5: a bill clears its payable at the BDT it booked, with its
+        currency figure; what treasury paid beyond (or short of) that is FX
+        gain/loss."""
         company = execution.company_id
         amount = _q(execution.released_amount or execution.amount)
-        payable = (ap_account(self.env, company, role), label, amount, 0.0, partner)
         clearing = (self._clearing_account(execution), label, 0.0, amount, partner)
+        if doc._name == "fix.vendor.invoice" and doc._is_foreign():
+            payable_lines = doc._ap_settlement_lines(amount, label, partner)
+        else:
+            payable_lines = [(ap_account(self.env, company, role), label, amount, 0.0, partner)]
+        lines = [*payable_lines, clearing]
         if reverse:
-            payable = (payable[0], label, 0.0, amount, partner)
-            clearing = (clearing[0], label, amount, 0.0, partner)
+            lines = [(ln[0], ln[1], ln[3], ln[2], *ln[4:]) for ln in lines]
+            lines = [
+                (*ln[:5], (ln[5][0], -ln[5][1])) if len(ln) > 5 and ln[5] else ln for ln in lines
+            ]
         return post_ap_move(
             self.env,
             company,
             ap_journal(self.env, company, "purchase"),
             fields.Date.context_today(self),
             label,
-            [payable, clearing],
+            lines,
             doc.operating_unit_id,
         )
 

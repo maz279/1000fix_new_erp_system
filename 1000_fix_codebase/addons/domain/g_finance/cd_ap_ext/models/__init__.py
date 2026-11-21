@@ -15,5 +15,6 @@ from . import (
     fix_ap_tax_profile,
     fix_withholding_certificate_ext,
     fix_ap_capture,
+    fix_ap_grni,
     ap_lc_settlement,  # A06 D6: LC remittances settle bills (after fix_ap_ext/advances)
 )

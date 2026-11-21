@@ -9,6 +9,7 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_requisition.tests.p2p_fixtures import close_rfq, qualify_categories
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 try:
@@ -61,6 +62,7 @@ def _active_supplier(env, partner):
                 "valid_to": date.today() + timedelta(days=365),
             }
         )
+    qualify_categories(env, sup)  # A06 P08: categories approved by a qualification
     return sup
 
 
@@ -74,6 +76,8 @@ def c(odoo_env):
     x.buyer = _user(env, "a06m16t_buyer", [GB])
     x.buyer2 = _user(env, "a06m16t_buyer2", [GB])
     x.receiver = _user(env, "a06m16t_receiver", [GR])
+    # A06 P21: the receiver does not inspect its own receipt
+    x.inspector = _user(env, "a06m16t_inspector", [GR])
     x.t2 = _user(env, "a06m16t_t2", [T[2]])
     x.t3 = _user(env, "a06m16t_t3", [T[3]])
     x.cfo = _user(env, "a06m16t_cfo", [T[4]])
@@ -175,10 +179,10 @@ def _receive(c, po, qty=None, inspect_accept=None):
     if inspect_accept is not None:
         insp = (
             c.env["fix.procurement.inspection"]
-            .with_user(c.receiver)
+            .with_user(c.inspector)
             .create({"receipt_line_id": rline.id, "qty_accepted": inspect_accept})
         )
-        insp.with_user(c.receiver).action_confirm()
+        insp.with_user(c.inspector).action_confirm()
     return rline
 
 
@@ -724,7 +728,8 @@ def test_m16_P17_requisition_link_cannot_be_forged(c):
     from odoo.addons.cd_p03_portal.controllers.a06 import m16 as rep
 
     pack = rep.maverick_spend(c.env(user=c.buyer.id))
-    assert o.name in [row["po"] for row in pack["rows"]]
+    # A06 P25: a draft order is not spend yet; the forged link was refused above
+    assert o.name not in [row["po"] for row in pack["rows"]]
 
 
 # =================================================================== M: three-way match
@@ -842,7 +847,7 @@ def test_m16_B01_bid_on_draft_rfq_refused(c):
 def test_m16_B02_late_bid_after_close_refused(c):
     r = _rfq(c)
     _bid(c, r, c.vendor, 1000)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     with pytest.raises(UserError, match="open"):
         _bid(c, r, c.vendor4, 500)
 
@@ -851,7 +856,7 @@ def test_m16_B03_bid_price_fixed_after_close(c):
     r = _rfq(c)
     b1 = _bid(c, r, c.vendor, 1000)
     _bid(c, r, c.vendor4, 800)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     with pytest.raises(UserError, match="sealed"):
         b1.with_user(c.buyer).write({"unit_price": 700})
 
@@ -863,7 +868,7 @@ def test_m16_B04_bids_sealed_while_open(c):
     assert not c.env["fix.procurement.bid"].with_user(c.buyer2).search([("rfq_id", "=", r.id)])
     assert not c.env["fix.procurement.bid"].with_user(c.clerk2).search([("rfq_id", "=", r.id)])
     assert len(c.env["fix.procurement.bid"].with_user(c.buyer).search([("rfq_id", "=", r.id)])) == 2
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     assert (
         len(c.env["fix.procurement.bid"].with_user(c.buyer2).search([("rfq_id", "=", r.id)])) == 2
     )
@@ -873,7 +878,7 @@ def _closed_rfq(c, prices):
     r = _rfq(c)
     vendors = [c.vendor, c.vendor4, c.vendor5]
     bids = [_bid(c, r, vendors[i], p) for i, p in enumerate(prices)]
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     return r, bids
 
 
@@ -932,7 +937,7 @@ def test_m16_B08_award_foreign_bid_refused(c):
     r2 = _rfq(c)
     b = _bid(c, r2, c.vendor, 1000)
     _bid(c, r1, c.vendor, 1000)
-    r1.with_user(c.buyer).action_close()
+    close_rfq(r1, c.buyer)
     with pytest.raises(UserError, match="belong"):
         c.env["fix.procurement.award"].with_user(c.buyer).create({"rfq_id": r1.id, "bid_id": b.id})
 
@@ -943,7 +948,7 @@ def test_m16_B09_award_to_unregistered_expired_or_own_company_refused(c):
     expired = _bid(c, r, c.vendor, 850, valid_until="2025-01-01")
     own_partner = c.env.company.partner_id
     own = _bid(c, r, own_partner, 700)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     Award = c.env["fix.procurement.award"].with_user(c.buyer)
     for bid, why in (
         (unreg, "not an active|supplier record"),
@@ -959,7 +964,7 @@ def test_m16_B09_award_to_unregistered_expired_or_own_company_refused(c):
 def test_m16_B10_minimum_bid_count_needs_exception_and_approver(c):
     r = _rfq(c)
     b = _bid(c, r, c.vendor, 1_000_000)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     Award = c.env["fix.procurement.award"].with_user(c.buyer)
     with pytest.raises(UserError, match="BRU-PRO-06"):
         Award.create({"rfq_id": r.id, "bid_id": b.id})
@@ -1001,7 +1006,7 @@ def test_m16_B12_po_from_award_cannot_exceed_awarded_price(c):
 def test_m16_B13_rfq_close_needs_bid(c):
     r = _rfq(c)
     with pytest.raises(UserError):
-        r.with_user(c.buyer).action_close()
+        close_rfq(r, c.buyer)
     with pytest.raises(UserError):
         r.with_user(c.buyer).action_open()
 
@@ -1229,7 +1234,7 @@ def test_m16_W04_p03_po_state_and_receipt_refused(c, p03):
 def test_m16_W05_p03_bid_reprice_after_close_refused(c, p03):
     r = _rfq(c)
     b = _bid(c, r, c.vendor, 1000)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     out = p03.write(model="fix.procurement.bid", record_id=b.id, values={"unit_price": 1})
     b.invalidate_recordset()
     assert "error" in out and b.unit_price == 1000
