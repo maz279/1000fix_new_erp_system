@@ -130,6 +130,10 @@ Estate-wide
   for the Facility Manager, said in each site's readiness notes). Live probe after the load: 57/57 reports, 108/108
   screens. Data findings for the branch master (M30): 11 of those 15 branches point at "Main Operating Unit"
   instead of an OU of their own, 4 live branches have no company, and 58 live branches need reconciling.
+- **Branch OUs (owner, 21 Nov):** the 11 confirmed branches on "Main Operating Unit" keep it until a Branch Manager
+  (R-06) is named among their staff (12 Nov rule C12: branch approvals route to the branch OU's manager); then
+  `_migration/scripts/sync_13_brand_branch_ou_fix_real.py apply` gives each its own OU (dry run 21 Nov: 0 of 15
+  branches have a manager yet). The 58 unmatched branches wait for the owner's confirmed branch list.
 - **Waiting on the owner (agreed 21 Nov):** equipment / vehicle / lease / IoT registers (owner will send; loaders are
   built through the normal create paths when they arrive), role holders' names (owner will send), HR's wage-deduction
   cap (HR will confirm; recoveries stay on 100049 meanwhile). A02 is fixing the A02 defects found here (field-cash
