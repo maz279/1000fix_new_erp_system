@@ -522,6 +522,17 @@ class FixGatewaySettlementLine(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._LINE_GUARDED
 
+    def unlink(self):
+        # T-14 immutable audit: a settlement line is the provider's own report
+        # of a transaction — the evidence the three-way gateway
+        # reconciliation stands on. It is never deleted.
+        if not (self.env.su or self._fix_guard_has_token()):
+            raise UserError(
+                "Gateway settlement lines are the provider's evidence of a transaction "
+                "and are never deleted."
+            )
+        return super().unlink()
+
     @api.model_create_multi
     def create(self, vals_list):
         if not (self.env.su or self._fix_guard_has_token()):

@@ -305,6 +305,20 @@ class FixPaymentExecution(models.Model):
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | self._TREASURY_GUARDED
 
+    def unlink(self):
+        # T-14 immutable audit: once an instruction has been prepared, sent,
+        # executed or failed, it carries the approvals, the releaser and the
+        # bank's confirmation — evidence never erased. Cancel instead.
+        if not (self.env.su or self._fix_guard_has_token()):
+            locked = self.filtered(lambda p: p.state != "pending")
+            if locked:
+                raise UserError(
+                    "Payment instructions that left draft are evidence and are never "
+                    "deleted (%s). Cancel the instruction through the workflow instead."
+                    % ", ".join(locked.mapped("name")[:3])
+                )
+        return super().unlink()
+
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
         if self and any(p.state not in ("pending",) for p in self):
@@ -1663,6 +1677,18 @@ class FixBankStatementLine(models.Model):
             "statement_file_hash",
             "import_id",
         }
+
+    def unlink(self):
+        # T-14 immutable audit: an imported statement line is the bank's own
+        # record of a movement — the evidence every reconciliation and
+        # confirmation decision stands on. It is never deleted; a bad import
+        # is corrected by importing the bank's corrected statement.
+        if not (self.env.su or self._fix_guard_has_token()):
+            raise UserError(
+                "Bank statement lines are the bank's evidence of a movement and are "
+                "never deleted. Reconcile, flag or re-import the corrected statement."
+            )
+        return super().unlink()
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
