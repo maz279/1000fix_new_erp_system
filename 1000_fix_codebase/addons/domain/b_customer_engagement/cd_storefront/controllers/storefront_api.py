@@ -197,6 +197,73 @@ def _error(code, message):
     return {"error": {"code": code, "message": message}}
 
 
+# A04 ERP round 2 (M38-F19): the public catalogue is the M37 catalogue - an
+# item its publisher published on the web, with a VAT class - at a released
+# M11 price. A product with no catalogue item is not on the storefront.
+def catalogue_domain():
+    return [
+        ("sale_ok", "=", True),
+        ("catalogue_item_id.is_published", "=", True),
+        ("catalogue_item_id.vat_class", "!=", False),
+        ("catalogue_item_id.active", "=", True),
+    ]
+
+
+def is_listed(product):
+    """True when `product` (product.template) is on the public catalogue."""
+    item = product.sudo().catalogue_item_id[:1]
+    return bool(product.sale_ok and item and item.active and item.is_published and item.vat_class)
+
+
+def compatible_products(env, products, device_model):
+    """M38-F19: the products whose M37 catalogue item fits `device_model`
+    (fix.device.model): an active compatibility row saying it fits, or the
+    model on the item's compatible models with no row saying it does not."""
+    Compat = env["fix.model.compatibility"].sudo()
+    items = products.sudo().mapped("catalogue_item_id")
+    rows = Compat.search([("item_id", "in", items.ids), ("device_model_id", "=", device_model.id)])
+    fits = rows.filtered("compatible").mapped("item_id")
+    refused = rows.filtered(lambda r: not r.compatible).mapped("item_id")
+    listed = items.filtered(lambda i: device_model in i.device_model_ids) - refused
+    ok = fits | listed
+    return products.filtered(lambda p: p.sudo().catalogue_item_id[:1] in ok)
+
+
+def _device_model(env, value):
+    """The fix.device.model a caller names by id, or empty."""
+    model_id = _to_int(value)
+    if not model_id:
+        return env["fix.device.model"]
+    return env["fix.device.model"].sudo().browse(model_id).exists()
+
+
+def _order_payload(order):
+    order = order.sudo()
+    return {
+        "order_id": order.id,
+        "order_name": order.name,
+        "goods_bdt": _fmt_bdt(order.goods_amount),
+        "delivery_fee_bdt": _fmt_bdt(order.delivery_fee),
+        "discount_bdt": _fmt_bdt(order.discount_amount),
+        "voucher": order.voucher_code or "",
+        "total_amount": float(order.total_amount),
+        "total_bdt": _fmt_bdt(order.total_amount),
+        "payment_rail": order.payment_rail,
+        "shipping_method": order.shipping_method,
+        "shipping_address": order.shipping_address,
+        "state": order.state,
+    }
+
+
+def _can_cancel_order(order):
+    """The order's owner (a signed-in customer) or the guest session that
+    placed it - never another customer, and not staff acting as one."""
+    user = _caller_user()
+    if user is None:
+        return order.id in (request.session.get(SESSION_ORDERS_KEY) or [])
+    return not user._is_internal() and _owns_order(order, user)
+
+
 def _cart_payload(cart):
     lines = []
     for line in cart.line_ids:
@@ -228,12 +295,21 @@ class StorefrontApiController(http.Controller):
 
     @http.route("/storefront/catalogue", type="jsonrpc", auth="public", readonly=True)
     @api_edge("/storefront/catalogue")
-    def catalogue(self, category=None, search=None, limit=50, **kwargs):
-        """Browse M37 catalogue products (parts, accessories, refurbished devices)."""
+    def catalogue(self, category=None, search=None, limit=50, device_model_id=None, **kwargs):
+        """Browse M37 catalogue products (parts, accessories, refurbished devices).
+
+        Only items published in M37 with a VAT class and a released M11 price
+        are listed (M38-F19); `device_model_id` keeps those that fit that
+        device model by the M37 compatibility data."""
         env = _su_env()
-        domain = [("sale_ok", "=", True)]
+        domain = catalogue_domain()
         if search:
             domain.append(("name", "ilike", search))
+        device_model = None
+        if device_model_id not in (None, "", False):
+            device_model = _device_model(env, device_model_id)
+            if not device_model:
+                return _error("DEVICE_MODEL_NOT_FOUND", "Unknown device model")
 
         limit = min(max(_to_int(limit) or 50, 1), CATALOGUE_MAX_LIMIT)
         # A04 ERP audit M38-F1: only items with a released M11 storefront
@@ -247,6 +323,8 @@ class StorefrontApiController(http.Controller):
             if not products:
                 break
             offset += batch
+            if device_model is not None:
+                products = compatible_products(env, products, device_model)
             for p in products:
                 try:
                     info = Line._sf_m11_price(p, partner=partner)
@@ -262,6 +340,7 @@ class StorefrontApiController(http.Controller):
                         "price_bdt": _fmt_bdt(info["incl"]),
                         "price_excl_vat": float(info["excl"]),
                         "category": p.categ_id.name if p.categ_id else "General",
+                        "vat_class": p.catalogue_item_id[:1].vat_class or "",
                     }
                 )
                 if len(items) >= limit:
@@ -280,7 +359,8 @@ class StorefrontApiController(http.Controller):
 
         if product_id:
             product = env["product.template"].browse(_to_int(product_id) or 0).exists()
-            if not product or not product.sale_ok:
+            # M38-F19: only what the public catalogue lists can be added
+            if not product or not is_listed(product):
                 return _error("PRODUCT_NOT_FOUND", "Product not found")
             try:
                 qty = float(quantity or 1)
@@ -330,8 +410,24 @@ class StorefrontApiController(http.Controller):
     ):
         """Checkout the caller's cart and place the storefront customer order.
 
-        ``cart_id`` is optional and, when given, must be the caller's own open cart."""
+        ``cart_id`` is optional and, when given, must be the caller's own open cart.
+        A04 ERP round 2: ``voucher_code`` names a checkout voucher; the delivery
+        fee and the discount are priced by the server (M38-F14). With an
+        ``idempotency_key`` a replay returns the order the first call placed
+        (M38-F20)."""
         env = _su_env()
+        voucher_code = kwargs.get("voucher_code") or None
+        http_req = getattr(request, "httprequest", None)
+        headers = getattr(http_req, "headers", None) or {}
+        key = kwargs.get("idempotency_key") or headers.get("Idempotency-Key")
+        try:
+            key = env["fix.storefront.cart"]._sf_clean_key(key)
+        except UserError as exc:
+            return _error("INVALID_IDEMPOTENCY_KEY", str(exc))
+        if key:
+            placed = self._replayed_order(env, key, kwargs)
+            if placed:
+                return _order_payload(placed)
         cart = _caller_cart(env, kwargs)
         if cart_id not in (None, "", False) and (not cart or cart.id != _to_int(cart_id)):
             return _error("CART_NOT_FOUND", "Cart does not exist")
@@ -379,7 +475,17 @@ class StorefrontApiController(http.Controller):
                     shipping_address=shipping_address,
                     shipping_method=shipping_method,
                     payment_rail=payment_rail,
+                    voucher_code=voucher_code,
+                    idempotency_key=key or None,
                 )
+        except UserError as exc:
+            if voucher_code and "oucher" in str(exc):
+                # the customer typed it: say why it does not apply
+                return _error("VOUCHER_NOT_APPLICABLE", str(exc))
+            _logger.info("Checkout refused: %s", exc)
+            return _error(
+                "CHECKOUT_FAILED", "Checkout could not be completed; the cart is unchanged"
+            )
         except Exception:
             _logger.exception("Checkout failed")  # details stay server-side
             return _error(
@@ -392,15 +498,83 @@ class StorefrontApiController(http.Controller):
             placed = list(request.session.get(SESSION_ORDERS_KEY) or [])
             request.session[SESSION_ORDERS_KEY] = [*placed, order.id]
 
+        return _order_payload(order)
+
+    @staticmethod
+    def _replayed_order(env, key, kwargs):
+        """M38-F20: the order this caller already placed under `key`. A
+        signed-in customer's own order; a guest's only when their session
+        placed it, or it belongs to the customer of the mobile number given."""
+        Order = env["fix.storefront.order"]
+        if _caller_user() is not None:
+            return Order.search(
+                [("customer_id", "=", _scoped_customer(kwargs)), ("idempotency_key", "=", key)],
+                limit=1,
+            )
+        mine = request.session.get(SESSION_ORDERS_KEY) or []
+        found = Order.search([("id", "in", mine), ("idempotency_key", "=", key)], limit=1)
+        if not found:
+            guest = guest_customer_for_phone(env, kwargs.get("phone"))
+            if guest:
+                found = Order.search(
+                    [("customer_id", "=", guest.id), ("idempotency_key", "=", key)], limit=1
+                )
+        if found:
+            request.session[SESSION_ORDERS_KEY] = list({*mine, found.id})
+        return found
+
+    @http.route("/storefront/checkout/quote", type="jsonrpc", auth="public", readonly=True)
+    @api_edge("/storefront/checkout/quote")
+    def checkout_quote(self, shipping_method="standard_delivery", voucher_code=None, **kwargs):
+        """M38-F14: what the caller's cart would cost - goods, the delivery fee
+        and the voucher - priced by the server now (placement prices it again)."""
+        env = _su_env()
+        cart = _caller_cart(env, kwargs)
+        if not cart or not cart.line_ids:
+            return _error("CART_EMPTY", "The cart is empty")
+        shipping_method = shipping_method or "standard_delivery"
+        if shipping_method not in _selection_keys(env, "fix.storefront.order", "shipping_method"):
+            return _error("INVALID_SHIPPING_METHOD", f"Unknown shipping method '{shipping_method}'")
+        try:
+            quote = cart._sf_checkout_quote(shipping_method, voucher_code)
+        except UserError as exc:
+            return _error("QUOTE_REFUSED", str(exc))
+        fee = quote["fee"]["incl"] if quote["fee"] else 0.0
+        disc = quote["discount"]["incl"] if quote["discount"] else 0.0
+        return {
+            "goods_bdt": _fmt_bdt(quote["goods"]),
+            "delivery_fee_bdt": _fmt_bdt(fee),
+            "discount_bdt": _fmt_bdt(disc),
+            "voucher": quote["discount"]["code"] if quote["discount"] else "",
+            "total": float(quote["total"]),
+            "total_bdt": _fmt_bdt(quote["total"]),
+        }
+
+    @http.route("/storefront/orders/cancel", type="jsonrpc", auth="public")
+    @api_edge("/storefront/orders/cancel")
+    def cancel_order(self, order_id=None, reason=None, **kwargs):
+        """M38-F20: the customer cancels their own order before dispatch; a
+        paid order is refunded by the storefront's cancellation path. Anyone
+        else gets the answer a non-existent order gets."""
+        env = _su_env()
+        order = env["fix.storefront.order"].browse(_to_int(order_id) or 0).exists()
+        if not order or not _can_cancel_order(order):
+            return _error("ORDER_NOT_FOUND", "Storefront order not found")
+        if not order._sf_customer_may_cancel():
+            return _error(
+                "CANCEL_NOT_ALLOWED",
+                "The order is %s: it can be cancelled only before it is dispatched." % order.state,
+            )
+        try:
+            with env.cr.savepoint():
+                order.action_customer_cancel(reason=reason)
+        except (UserError, ValidationError) as exc:
+            return _error("CANCEL_NOT_ALLOWED", str(exc))
         return {
             "order_id": order.id,
             "order_name": order.name,
-            "total_amount": float(order.total_amount),
-            "total_bdt": _fmt_bdt(order.total_amount),
-            "payment_rail": order.payment_rail,
-            "shipping_method": order.shipping_method,
-            "shipping_address": order.shipping_address,
             "state": order.state,
+            "refund_due_bdt": _fmt_bdt(order.refund_due),
         }
 
     @http.route("/storefront/orders/track", type="jsonrpc", auth="public", readonly=True)
@@ -427,8 +601,12 @@ class StorefrontApiController(http.Controller):
         for line in order.line_ids:
             lines.append(
                 {
+                    "line_id": line.id,
+                    "line_type": line.line_type,
                     "product_id": line.product_id.id,
-                    "product_name": line.product_id.name,
+                    "product_name": line.product_id.name
+                    if line.product_id
+                    else "Voucher %s" % (order.voucher_code or ""),
                     "quantity": line.quantity,
                     "unit_price_bdt": _fmt_bdt(line.unit_price),
                     "subtotal_bdt": _fmt_bdt(line.subtotal),
@@ -478,12 +656,39 @@ class StorefrontApiController(http.Controller):
             return _error("INVALID_REASON", f"Unknown return reason '{reason}'")
 
         currency = order.currency_id
+        # A04 ERP round 2 (M38-F8): `lines` = [{"line_id", "quantity"}] names
+        # the order lines and units returned; the refund is what the customer
+        # paid for them (the model refuses more units than were sold)
+        lines = kwargs.get("lines")
+        line_cmds = []
+        if lines not in (None, "", False, []):
+            if not isinstance(lines, list):
+                return _error("INVALID_LINES", "lines must be a list of {line_id, quantity}")
+            for row in lines:
+                row = row if isinstance(row, dict) else {}
+                line = order.line_ids.filtered(lambda ln, r=row: ln.id == _to_int(r.get("line_id")))
+                try:
+                    qty = float(row.get("quantity", 1))
+                except (TypeError, ValueError):
+                    qty = float("nan")
+                if not line or line.line_type != "product":
+                    return _error("INVALID_LINES", "Unknown goods line %r" % row.get("line_id"))
+                if not math.isfinite(qty) or qty <= 0 or abs(qty - round(qty)) > 1e-9:
+                    return _error("INVALID_LINES", "quantity must be a whole number of units")
+                line_cmds.append((0, 0, {"order_line_id": line.id, "quantity": qty}))
         already_requested = sum(
             return_model.search([("order_id", "=", order.id), ("state", "!=", "rejected")]).mapped(
                 "refund_amount"
             )
         )
         refundable = currency.round(sum(order.line_ids.mapped("subtotal")) - already_requested)
+        if line_cmds:
+            Line = env["fix.storefront.return.line"]
+            asked = sum(
+                cmd[2]["quantity"] * Line._unit_paid(order.line_ids.browse(cmd[2]["order_line_id"]))
+                for cmd in line_cmds
+            )
+            refundable = min(refundable, currency.round(asked))
         if currency.compare_amounts(refundable, 0.0) <= 0:
             return _error("RETURN_NOT_ALLOWED", "The order has no refundable amount left")
 
@@ -515,6 +720,7 @@ class StorefrontApiController(http.Controller):
                         "reason": reason,
                         "refund_amount": refund_amt,
                         "state": "requested",
+                        "line_ids": line_cmds,
                     }
                 )
         except (UserError, ValidationError) as exc:
@@ -527,6 +733,10 @@ class StorefrontApiController(http.Controller):
             "state": ret.state,
             "reason": ret.reason,
             "refund_bdt": _fmt_bdt(ret.refund_amount),
+            "lines": [
+                {"line_id": rl.order_line_id.id, "quantity": rl.quantity, "amount": rl.amount}
+                for rl in ret.line_ids
+            ],
         }
 
     @http.route(

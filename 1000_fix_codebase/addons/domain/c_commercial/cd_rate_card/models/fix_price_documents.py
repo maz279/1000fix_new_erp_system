@@ -50,6 +50,50 @@ class FixEstimateLinePricing(models.Model):
             line.card_price = res["list_price"] or 0.0
             line.card_source = res["source"] if res["price"] is not None else False
 
+    # ---- A04 ERP round 2 FR-PRC-032: the permanent override record ---------
+    @api.model_create_multi
+    def create(self, vals_list):
+        lines = super().create(vals_list)
+        lines._fix_log_price_override()
+        return lines
+
+    def write(self, vals):
+        res = super().write(vals)
+        if {"unit_price", "product_id", "price_override_reason"} & set(vals):
+            self._fix_log_price_override()
+        return res
+
+    def _fix_log_price_override(self):
+        """A line priced away from its released price leaves one permanent
+        record per price it was changed to (who, from, to, why)."""
+        Log = self.env["fix.price.override.log"].sudo()
+        Card = self.env["fix.rate.card"]
+        for line in self.filtered(lambda ln: ln.price_source == "changed"):
+            last = Log.search([("res_model", "=", line._name), ("res_id", "=", line.id)], limit=1)
+            if last and abs(last.override_price - (line.unit_price or 0.0)) <= 0.005:
+                continue
+            Card.record_override(line, line.card_price, line.unit_price, line.price_override_reason)
+
+    # ---- A04 ERP round 2 M37-F7: offer the live successor -------------------
+    def action_use_live_successor(self):
+        """Put the live successor of a discontinued item on the line, at its
+        released price (BRU-CAT-08)."""
+        for line in self:
+            item = line.product_id.product_tmpl_id.catalogue_item_id[:1]
+            live = item._fix_sale_substitute("service") if item else item
+            if not live:
+                raise UserError(
+                    "%s has no live successor to offer." % (line.product_id.display_name or "")
+                )
+            variant = live.sudo().product_tmpl_id.product_variant_id
+            ctx = dict(line._fix_price_context(), product=variant)
+            res = self.env["fix.rate.card"].price_for(**ctx)
+            vals = {"product_id": variant.id, "description": variant.display_name}
+            if res["price"] is not None:
+                vals["unit_price"] = res["price"]
+            line.write(vals)
+        return True
+
     @api.depends("unit_price", "card_price", "product_id")
     def _compute_price_source(self):
         for line in self:

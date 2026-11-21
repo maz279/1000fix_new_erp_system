@@ -131,6 +131,27 @@ def test_pack_assembly_from_service_order_documents(wc):
     for key in ALL_KEYS[1:]:
         wc.document(key)
     assert partial.action_assemble_workshop_evidence_pack() is True
+    # A04 ERP round 2 M09-F13: a file NAMED parts_issued is not parts evidence;
+    # the job's M15 issue is, once a part has been issued to it
+    assert "parts_issued" not in partial.evidence_ids.mapped("requirement_key")
+    assert partial.state == "draft"
+    part = wc.env["fix.spare.part"].create({"name": "Speaker", "part_number": "WCL-SPK-1"})
+    store = wc.env["fix.stock.location"].create({"name": "WCL store", "code": "WCLST1"})
+    issue = wc.env["fix.stock.consumption"].create(
+        {
+            "service_order_ref": wc.order.name,
+            "product_id": part.id,
+            "location_id": store.id,
+            "technician_id": wc.env["hr.employee"].create({"name": "WCL tech"}).id,
+            "quantity": 1.0,
+            "scanned_code": part.part_number,
+            "operating_unit_id": wc.ou.id,
+        }
+    )
+    issue._guarded().write({"state": "consumed"})
+    assert partial.action_assemble_workshop_evidence_pack() is True
+    parts = partial.evidence_ids.filtered(lambda e: e.requirement_key == "parts_issued")
+    assert parts.document_id.res_model == "fix.stock.consumption"
     assert sorted(partial.evidence_ids.mapped("requirement_key")) == sorted(
         ALL_KEYS
     )  # no duplicates

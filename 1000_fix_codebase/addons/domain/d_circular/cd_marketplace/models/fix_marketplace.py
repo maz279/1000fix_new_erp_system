@@ -577,16 +577,25 @@ class FixMarketplaceOrder(models.Model):
         required=True,
         tracking=True,
     )
-    customer_id = fields.Many2one("res.partner", string="Customer", required=True, index=True)
+    # A04 ERP round 2 (M12-F7, BRU-MKP-04): who the customer is and what they
+    # wrote are staff fields. A seller (portal) reads the job through the
+    # masked projection (fix_marketplace_award.py): a short brief and the
+    # customer's initials before award, the full job only once it is theirs.
+    customer_id = fields.Many2one(
+        "res.partner", string="Customer", required=True, index=True, groups="base.group_user"
+    )
     service_order_id = fields.Many2one(
-        "fix.service.order", string="Linked Service Order (M01)", ondelete="set null"
+        "fix.service.order",
+        string="Linked Service Order (M01)",
+        ondelete="set null",
+        groups="base.group_user",
     )
     category_id = fields.Many2one(
         "product.category",
         string="Service Category",
         help="Category classification for seller qualification matching (BRU-ECM-07)",
     )
-    description = fields.Text(required=True)
+    description = fields.Text(required=True, groups="base.group_user")
     currency_id = fields.Many2one(
         "res.currency", required=True, default=lambda self: self.env.ref("base.BDT")
     )

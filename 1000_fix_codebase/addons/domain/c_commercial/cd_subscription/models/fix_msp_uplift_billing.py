@@ -261,7 +261,15 @@ class FixSubscriptionMspUplift(models.AbstractModel):
             delta,
             "; ".join(r.reason or "" for r in group)[:200],
         )
-        proration = Proration.create_for_plan_change(sub, new_amount, effective_date=effective)
+        # A04 ERP round 2 M39-F16: the client signed these terms amendments;
+        # that is the notice of the fee change (set by the system only)
+        proration = Proration.create_for_plan_change(
+            sub,
+            new_amount,
+            effective_date=effective,
+            notice_exemption="contract_amendment",
+            notice_exemption_ref=("MSP terms %s" % ", ".join("#%s" % r.id for r in rows))[:250],
+        )
         proration.action_request_approval(justification=reason)
         group.write(
             {

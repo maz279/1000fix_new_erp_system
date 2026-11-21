@@ -124,8 +124,26 @@ def cod_rule(env, company=None, max_value=1000000.0):
     return rule
 
 
+def published_item(env, product, vat_class="standard_15"):
+    """A04 ERP round 2 (M38-F19): the public catalogue is M37's - the product's
+    catalogue item, published on the web with a VAT class (configuration,
+    as the superuser)."""
+    item = product.sudo().catalogue_item_id[:1]
+    if not product.name_bn:
+        product.sudo().name_bn = "পণ্য %s" % product.id
+    if not item:
+        item = (
+            env["fix.catalogue.item"]
+            .sudo()
+            .create({"product_tmpl_id": product.id, "item_type": "part", "vat_class": vat_class})
+        )
+    item._guarded().write({"state": "published", "is_published": True, "vat_class": vat_class})
+    return item
+
+
 def storefront_world(env, product, company=None, price=STOREFRONT_EXCL_PRICE):
     released_card(env, product, price)
+    published_item(env, product)
     for rail in ("bkash", "nagad", "rocket", "upay", "sslcommerz"):
         live_gateway(env, rail, company)
     cod_rule(env, company)
@@ -786,6 +804,7 @@ def test_every_priced_line_runs_the_catalogue_and_floor_check(w):
         {"name": "A4SF Withdrawn", "list_price": 100.0, "sale_ok": True}
     )
     released_card(w.env, withdrawn, 86.96)  # priced: only the spy's rule refuses it
+    published_item(w.env, withdrawn)  # and on the M37 catalogue (round 2, M38-F19)
     with mock.patch.object(Product, "_fix_check_sale", spy):
         order = _placed(w)
         # A04 ERP M38-F1: the M11 gate runs on the VAT-exclusive price

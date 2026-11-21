@@ -21,6 +21,7 @@ from .fix_partner import GROUP_OFFICER, fix_require
 
 COMARKETING_REL = "fix_campaign_partner_rel"
 LIVE_MDF_STATES = ("draft", "accrued", "approved", "paid")
+LIVE_CLAIM_STATES = ("draft", "submitted", "approved", "paid")
 
 
 def _link_pairs(campaigns_to_partners):
@@ -66,6 +67,25 @@ def check_comarketing_change(env, before, after):
                 "%s funds campaign %s through MDF %s (%s): the partner stays on the "
                 "campaign while that MDF stands (a draft or accrued one is cancelled first)."
                 % (live.partner_id.name, live.campaign_id.name, live.name, live.state)
+            )
+        # A04 ERP audit M40-F26: the MDF is a claim on the partner's fund now
+        claim = (
+            env["fix.mdf.claim"]
+            .sudo()
+            .search(
+                [
+                    ("campaign_id", "=", campaign_id),
+                    ("partner_id", "=", partner_id),
+                    ("state", "in", LIVE_CLAIM_STATES),
+                ],
+                limit=1,
+            )
+        )
+        if claim:
+            raise ValidationError(
+                "%s claims MDF on campaign %s (claim %s, %s): the partner stays on the "
+                "campaign while that claim stands (a refused claim does not count)."
+                % (claim.partner_id.name, claim.campaign_id.name, claim.name, claim.state)
             )
 
 

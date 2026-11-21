@@ -38,3 +38,4 @@ access_fix_defective_return,fix.defective.return,model_fix_defective_return,base
 access_fix_defective_return_clerk,fix.defective.return clerk,model_fix_defective_return,group_warranty_claims_clerk,1,1,1,0
 access_fix_warranty_fraud_review,fix.warranty.fraud.review,model_fix_warranty_fraud_review,base.group_user,1,0,0,0
 access_fix_warranty_fraud_review_officer,fix.warranty.fraud.review officer,model_fix_warranty_fraud_review,group_warranty_claims_officer,1,0,1,0
+access_fix_warranty_claim_submission,fix.warranty.claim.submission,model_fix_warranty_claim_submission,base.group_user,1,0,0,0

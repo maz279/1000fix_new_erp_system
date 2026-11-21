@@ -128,6 +128,14 @@ SURFACES = {
         "limit": 400,
         "actions": set(_REFUND_ACTIONS),
     },
+    # A04 ERP round 2 (M38-F8): the lines a return names (the return form's
+    # grid). Units and the order line are typed while the return is
+    # requested; what each costs, the credit and the restock are the system's.
+    "fix.storefront.return.line": {
+        "order": "return_id, id",
+        "limit": 500,
+        "actions": set(),
+    },
 }
 
 

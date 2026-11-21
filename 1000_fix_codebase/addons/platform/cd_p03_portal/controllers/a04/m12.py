@@ -26,6 +26,9 @@ SURFACES = {
             "action_reject_kyc",
             "action_request_approval",
             "action_recall_approval",
+            # A04 ERP round 2 (M12-F15): compliance ends or restores probation
+            "action_confirm_standing",
+            "action_place_on_probation",
         },
     },
     "fix.marketplace.listing": {
@@ -74,6 +77,10 @@ SURFACES = {
             # the M53 payout run's bank-confirmed discharge only.
             "action_record_customer_receipt",
             "action_cancel",
+            # A04 ERP round 2 (M12-F15): an operator records the awarded
+            # seller's acceptance given by phone (the seller accepts in the
+            # seller portal); the job starts only once accepted
+            "action_accept_award",
         },
     },
     # M12-stock (12 Nov 2026): the seller's reported position per listing and

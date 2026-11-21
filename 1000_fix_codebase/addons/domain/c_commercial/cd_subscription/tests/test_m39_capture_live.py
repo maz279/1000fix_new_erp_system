@@ -341,7 +341,16 @@ def test_an_approved_proration_is_billed_on_the_next_cycle(c):
     sub = _sub(c)
     _bill(c, sub)
     P = c.env["fix.subscription.proration"].with_user(c.officer)
-    p = P.create_for_plan_change(sub, 45000.0, to_plan="premium", effective_date=c.today)
+    # A04 ERP round 2 M39-F16: the customer asked for the upgrade (evidence),
+    # so it needs no notice period
+    p = P.create_for_plan_change(
+        sub,
+        45000.0,
+        to_plan="premium",
+        effective_date=c.today,
+        notice_exemption="customer_request",
+        notice_exemption_ref="Customer upgrade request (email)",
+    )
     approve_via_inbox(
         p, (assigned(p) & (c.billing | c.billing2 | c.fm))[:1] or c.billing2, requester=c.officer
     )

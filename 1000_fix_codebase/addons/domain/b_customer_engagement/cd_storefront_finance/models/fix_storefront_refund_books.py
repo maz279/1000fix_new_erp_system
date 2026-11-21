@@ -21,6 +21,7 @@ import logging
 import re
 
 from odoo import api, fields, models
+from odoo.addons.cd_inventory.models.fix_inventory_approval import location_class
 from odoo.addons.cd_storefront.models.fix_storefront_refund import GROUP_PAYMENT
 from odoo.exceptions import UserError
 from odoo.tools import SQL
@@ -271,7 +272,11 @@ class FixStorefrontRefundBooks(models.AbstractModel):
         """The order's goods come back to the location they left, at the cost
         they left with. Resalable (grade A) into unrestricted stock; anything
         else into quarantine, where the M15 scrap / release decision is
-        taken. The whole order comes back: a return names no lines."""
+        taken. A return that names its lines (A04 ERP round 2, M38-F8)
+        brings back those lines and quantities only; one that names none
+        brings back the whole order."""
+        if "line_ids" in self._fields and self.line_ids:
+            return self._sfb_restock_lines()
         order = self.order_id.sudo()
         # returned before they ever left the ledger: nothing to bring back
         # (and what was reserved for them is free again - M38-F6)
@@ -323,6 +328,108 @@ class FixStorefrontRefundBooks(models.AbstractModel):
             line.write({"stock_state": "returned"})
         self._guarded().write({"restock_state": "restocked"})
 
+    def _sfb_quarantine(self, order, part, location, cls, lot, qty):
+        self.env["fix.stock.quarantine"].sudo()._guarded().with_context(
+            fix_quarantine_in_place=True
+        ).create(
+            {
+                "part_id": part.id,
+                "location_id": location.id,
+                "company_id": order.company_id.id,
+                "ownership_class": cls,
+                "lot_id": lot.id or False,
+                "qty": qty,
+                "reason": "defective" if self.reason in FAULT_REASONS else "customer_return",
+                "notes": "Returned on %s of storefront order %s (inspected %s)"
+                % (self.name, order.name, self.inspected_condition),
+                "source_ref": self.name,
+            }
+        )
+
+    def _sfb_restock_lines(self):
+        """M38-F8: each returned line comes back by its own quantity - into
+        the location it left, at the cost it left with, with its valuation
+        suspense row; resalable (grade A) unrestricted, else quarantined. A
+        line that never left the ledger frees that much of its reservation.
+        The order line is 'returned' once every unit it sold is back."""
+        order = self.order_id.sudo()
+        resalable = self.inspected_condition == "grade_a"
+        status = "unrestricted" if resalable else "quarantine"
+        Onhand = self.env["fix.stock.onhand"]
+        ReturnLine = self.env["fix.storefront.return.line"].sudo()
+        restocked = False
+        for rl in self.line_ids.sudo().filtered(lambda r: r.restock_state == "none"):
+            line, qty = rl.order_line_id, rl.quantity
+            if line.graded_stock_id or line.line_type != "product":
+                rl.write({"restock_state": "not_required"})
+                continue
+            if line.stock_state in ("none", "pending"):
+                # it never left: what was reserved for these units is free
+                if line.reserved_qty > 1e-9:
+                    free = min(qty, line.reserved_qty)
+                    location = line.reserved_location_id
+                    Onhand._fix_unreserve(
+                        line.stock_part_id,
+                        location,
+                        location_class(location, "owned"),
+                        free,
+                        order.name,
+                    )
+                    line.write({"reserved_qty": line.reserved_qty - free})
+                if ReturnLine._sf_live_returned(line) + 1e-9 >= line.quantity:
+                    line.write({"stock_state": "cancelled"})
+                rl.write({"restock_state": "not_required"})
+                continue
+            if line.stock_state != "issued":
+                rl.write({"restock_state": "not_required"})
+                continue
+            part, location = line.stock_part_id, line.stock_location_id
+            cls = line.stock_ownership_class or "owned"
+            cost, lot = line.stock_unit_cost, line.stock_lot_id
+            Onhand._apply(part, location, cls, qty, cost, status=status)
+            if lot:
+                lot._fix_move("in_stock" if resalable else "quarantined", location, 1.0)
+            if not resalable:
+                self._sfb_quarantine(order, part, location, cls, lot, qty)
+            self.env["fix.inventory.valuation.suspense"]._fix_post(
+                SOURCE,
+                part,
+                qty,
+                cost,
+                "%s/%s" % (order.name, self.name),
+                location=location,
+                ownership=cls,
+            )
+            rl.write({"restock_state": "restocked"})
+            restocked = True
+            back = sum(
+                ReturnLine.search(
+                    [("order_line_id", "=", line.id), ("restock_state", "=", "restocked")]
+                ).mapped("quantity")
+            )
+            if back + 1e-9 >= line.quantity:
+                line.write({"stock_state": "returned"})
+        self._guarded().write({"restock_state": "restocked" if restocked else "not_required"})
+
+    def _sfb_line_credits(self):
+        """M38-F8: the approved refund split over the returned lines by what
+        each line cost (the last line takes the rounding)."""
+        self.ensure_one()
+        lines = self.line_ids.sudo() if "line_ids" in self._fields else []
+        total = sum(lines.mapped("amount")) if lines else 0.0
+        if not lines or total <= 0.005:
+            return []
+        left, out = self.currency_id.round(self.refund_amount or 0.0), []
+        for i, rl in enumerate(lines):
+            share = (
+                left
+                if i == len(lines) - 1
+                else self.currency_id.round((self.refund_amount or 0.0) * rl.amount / total)
+            )
+            left = self.currency_id.round(left - share)
+            out.append((rl, share))
+        return out
+
     def _sfb_leg_credit(self):
         """The approved refund as an M20 credit note against the order's
         invoice, submitted into M20's ladder."""
@@ -363,21 +470,29 @@ class FixStorefrontRefundBooks(models.AbstractModel):
                     "the credit note pays the customer again (one refund per return)."
                     % (self.name, other.name)
                 )
+        credits = self._sfb_line_credits()
+        detail = "".join(
+            "; %s x %s: BDT %.2f" % (rl.product_id.display_name, format(rl.quantity, "g"), share)
+            for rl, share in credits
+        )
         note = request_credit_note(
             self,
             invoice,
             self.refund_amount,
             "return",
             "Raised by the storefront bridge: refund %s of BDT %.2f on order %s, approved by "
-            "%s; credit against invoice %s, for finance to approve and issue."
+            "%s; credit against invoice %s, for finance to approve and issue.%s"
             % (
                 self.name,
                 self.refund_amount,
                 order.name,
                 self.dofa_approved_by.name or self.env.user.name,
                 invoice.name,
+                (" Lines returned%s." % detail) if detail else "",
             ),
         )
+        for rl, share in credits:
+            rl.write({"credit_amount": share})
         self._guarded().write({"ar_credit_note_id": note.id})
 
 

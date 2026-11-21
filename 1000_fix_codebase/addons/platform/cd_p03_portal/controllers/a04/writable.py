@@ -25,7 +25,7 @@ WRITABLE = {
     "fix.alliance.scheme": frozenset(
         {
             "benefit_description",
-            "benefit_ref",
+            "benefit_promotion_id",
             "code",
             "company_id",
             "eligibility_method",
@@ -158,6 +158,7 @@ WRITABLE = {
             "is_out_of_scope",
             "is_warranty_eligible",
             "item_type",
+            "legacy_codes",
             "manufacturer_part_number",
             "mode_duration_ids",
             "name_bn",
@@ -171,7 +172,9 @@ WRITABLE = {
             "repair_level",
             "repair_warranty_days",
             "required_competency_id",
+            "required_skill_band",
             "requires_brand_authorisation",
+            "requires_brand_certification",
             "requires_certification",
             "requires_customer_consent",
             "requires_data_declaration",
@@ -184,6 +187,13 @@ WRITABLE = {
             "tooling_required",
             "vat_class",
             "workstation_class",
+        }
+    ),
+    "fix.catalogue.numbering": frozenset(
+        {
+            "item_type",
+            "padding",
+            "prefix",
         }
     ),
     "fix.catalogue.publication": frozenset(
@@ -205,6 +215,17 @@ WRITABLE = {
             "territory",
             "third_channel",
             "valid_from",
+        }
+    ),
+    "fix.channel.differential": frozenset(
+        {
+            "adjustment_pct",
+            "category_id",
+            "channel",
+            "product_code",
+            "reason",
+            "valid_from",
+            "valid_to",
         }
     ),
     "fix.charge.code": frozenset(
@@ -238,6 +259,7 @@ WRITABLE = {
         {
             "annual_value",
             "auto_renew",
+            "billing_engine",
             "billing_frequency",
             "billing_timing",
             "company_id",
@@ -829,7 +851,6 @@ WRITABLE = {
         {
             "campaign_id",
             "dofa_justification",
-            "kind",
             "name",
             "partner_id",
             "period",
@@ -889,6 +910,13 @@ WRITABLE = {
             "name",
         }
     ),
+    "fix.price.break": frozenset(
+        {
+            "card_id",
+            "threshold",
+            "unit_price",
+        }
+    ),
     "fix.price.change": frozenset(
         {
             "change_type",
@@ -938,6 +966,8 @@ WRITABLE = {
             "valid_until",
         }
     ),
+    "fix.price.override.log": frozenset(),
+    "fix.price.review": frozenset(),
     "fix.price.simulation": frozenset(
         {
             "catalogue_item_id",
@@ -974,6 +1004,7 @@ WRITABLE = {
             "name",
             "priority",
             "stackable",
+            "storefront_voucher",
             "valid_from",
             "valid_until",
             "value",
@@ -1149,14 +1180,23 @@ WRITABLE = {
     "fix.quote.review": frozenset(),
     "fix.rate.card": frozenset(
         {
+            "brand_id",
+            "break_basis",
+            "break_treatment",
             "catalogue_item_id",
             "change_reason",
             "contract_id",
+            "delivery_mode",
             "line_type",
             "min_tier",
+            "operating_unit_id",
             "partner_id",
+            "price_break_ids",
             "product_code",
             "proposed_unit_price",
+            "rate_kind",
+            "repair_level",
+            "skill_band",
             "unit_price",
             "valid_from",
             "valid_to",
@@ -1486,12 +1526,14 @@ WRITABLE = {
             "currency_id",
             "customer_id",
             "dofa_justification",
+            "line_ids",
             "operating_unit_id",
             "order_id",
             "reason",
             "refund_amount",
         }
     ),
+    "fix.storefront.return.line": frozenset(),
     "fix.storefront.return.policy": frozenset(
         {
             "category_id",
@@ -1645,6 +1687,8 @@ WRITABLE = {
             "name",
             "new_amount",
             "new_quantity",
+            "notice_exemption",
+            "notice_exemption_ref",
             "subscription_id",
             "to_plan",
         }
@@ -1792,6 +1836,7 @@ WRITABLE = {
             "response_document_id",
         }
     ),
+    "fix.warranty.claim.submission": frozenset(),
     "fix.warranty.evidence": frozenset(
         {
             "attachment_id",
@@ -1818,12 +1863,17 @@ WRITABLE = {
             "company_id",
             "coverage_scope",
             "currency_id",
+            "depreciation_basis",
+            "depreciation_cap_pct",
+            "depreciation_pct_per_month",
             "duration_months",
             "excess_amount",
             "exclusions",
             "inspection_required",
+            "max_claim_count",
             "max_device_age_months",
             "name",
+            "per_claim_limit",
             "product_type",
             "reserve_rate",
             "waiting_days",

@@ -17,3 +17,8 @@ from . import fix_m09_capture
 
 # A04 ERP audit (20 Nov 2026): claim valuation / cancel / lapse, protection limits.
 from . import fix_a04_erp_claims
+
+# isort: split
+
+# A04 ERP round 2 (21 Nov 2026): brand rule flags, submissions, chase, plan limits.
+from . import fix_a04_r2_claims

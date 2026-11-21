@@ -127,7 +127,41 @@ About 185 findings. The P0s were money that never reached the ledger, or reached
    - `cd_warranty_claims.require_brand_rate` and `require_brand_authorisation`;
    - `cd_catalogue.sale_requires_active_item`.
 
-## Deferred (product work beyond the audit's fix scope, listed honestly)
+## Round 1 is LIVE (21 Nov 2026, 15:24)
+- **How it went live.** The user approved "Deploy both". The A02 combined wave upgraded 33 modules on fix_real and fix_dev, all 18 A04 modules among them, then restarted 8069 and 8090 once.
+- **Live check** (`verify_a04_live.py`): ALL OK on both ports.
+  - Every new A04 list is served with no dropped columns.
+  - The web bundle carries the new screens.
+  - The logs show 0 ERROR lines since the restart.
+- **Doc-suite tests.** `cd_doc_suite`'s 20 TransactionCase errors were not product errors. That test class could not run under pytest, so no suite PDF was ever rendered in CI. It now runs on the odoo_env fixture: 20/20 PDFs render and every mail template attaches its PDF. Shared branch bc204bd6.
+
+## Round 2: the deferred items, built (21 Nov 2026)
+Four more streams built what round 1 had deferred, wherever no owner data is needed. Each stream report is in `evidence_a04_erp/R2-*_report.md`.
+
+| Stream | Built | New tests | Mutants red |
+|---|---|---|---|
+| R2-1 M38/M12 | M38-F14 (server-priced delivery fee and voucher), F20 (idempotent placement, customer self-cancel), F19 (published / VAT-classed catalogue, compatibility filter), F8 (per-line returns); M12-F7 (customer data masked before award), F15 (award acceptance window and lapse, seller probation cap) | 40 | 19/19 |
+| R2-2 M09/M39 | M09-F13 (brand rules at submit), F12 (chase cron, ageing), F15 (plan limits, depreciation, DOFA value bands), F16 (submission record, fault-code map, brand performance pack); M39-F16 (price-increase notice), F17 (usage and service-gate consumers), F11 (one billing engine per contract); M37-F5 links | 29 | 18/18 |
+| R2-3 M11/M37 | M11-F19 (labour rate × SRT, volume breaks, channel differentials, public indicative band, override log, AUT-PRC-08..12 reviews and scans); M37-F5/F7/F11 (plan hook, repair warranty from the item, live successor, impact preview, numbering, skill bands); M11-F15 (VAT by VAT class) | 26 | 18/20 (2 blocked by a second layer) |
+| R2-4 M40 | F23 (deal conflicts and M07 hand-off), F26 (one MDF mechanism), F28 (alliance benefit as a member-only M11 promotion), F25 (partner TDS through M51 for rebate and MDF payouts), F14 (authorisations-expiring pack) | 17 | 21/21 |
+
+**Still not built, with the reason:**
+- Referral payout-run TDS on the M51 no-TIN default: a statutory reading for A08/M51 to confirm.
+- FR-SUB-025: late usage is not re-rated into the next period.
+- Promotions that `price_for` applies by itself do not consume their budget in the storefront.
+- The `fix.storefront.rma` legacy model returns whole orders only.
+- Consumers for `pricing.*` and `catalogue.item_activated` events: the spec puts them in M36/M38/M12/M25.
+
+**New owner settings (all fail closed or default safe):**
+- delivery fee codes; voucher flags;
+- award window, probation cap, brief length;
+- DOFA value bands for protection claims; chase days; notice days; suspended-service policy;
+- channel spread, margin target, leakage alert;
+- labour rates, skill bands, numbering masks;
+- partner TDS rate code;
+- confirm the Managed Services billing default (D8).
+
+## Deferred in round 1 (see round 2 above for what was built since) beyond the audit's fix scope, listed honestly)
 - M11-F19: labour rate × SRT, and AUT-PRC-08..12 consumers.
 - M37-F5 / F7 / F11 rest.
 - M36: none left.

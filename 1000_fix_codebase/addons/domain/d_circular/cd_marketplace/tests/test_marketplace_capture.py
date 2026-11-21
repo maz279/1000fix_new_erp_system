@@ -113,6 +113,7 @@ def mc(odoo_env):
             )
         )
         q.with_user(x.operator).action_select()
+        o.with_user(x.operator).action_accept_award()  # A04 ERP round 2 (M12-F15)
         o.with_user(x.operator).action_start_job()
         return o
 

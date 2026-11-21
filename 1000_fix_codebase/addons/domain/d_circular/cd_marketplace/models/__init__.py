@@ -11,3 +11,7 @@ from . import (
 # isort: split
 # the M12 capture audit's second pass extends the models above
 from . import fix_marketplace_capture
+
+# isort: split
+# A04 ERP round 2 (21 Nov 2026): job masking, award acceptance, probation
+from . import fix_marketplace_award

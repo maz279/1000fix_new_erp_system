@@ -5,6 +5,7 @@ from . import (
     fix_catalogue_item,
     fix_catalogue_spec_records,
     fix_catalogue_structure,
+    fix_catalogue_usage,
     fix_commercial_line,
     fix_device_model,
     fix_rbom,

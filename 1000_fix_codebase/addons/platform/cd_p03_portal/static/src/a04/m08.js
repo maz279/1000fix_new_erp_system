@@ -271,6 +271,7 @@ export const SCREENS = {
           { name: 'annual_value', required: true, label: 'Annual Contract Value (BDT)' },
           { name: 'term_value', label: 'Term Value, excl. VAT (BDT)', readonly: true },
           { name: 'accepted_total', label: 'Accepted Total, incl. VAT (BDT)', readonly: true },
+          { name: 'billing_engine', label: 'Billed By (M08 contract billing or M39 subscription; Contract Manager)' },
           { name: 'billing_frequency', required: true, label: 'Billing Frequency' },
           { name: 'billing_timing', required: true, label: 'Billed In Arrears / In Advance' },
           { name: 'retention_pct', label: 'Retention Withheld (%)' },

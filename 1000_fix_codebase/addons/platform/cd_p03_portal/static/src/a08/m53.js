@@ -365,8 +365,10 @@ export const SCREENS = {
           { name: 'customer_id', required: true, label: "Customer" },
           { name: 'contract_id', label: "Contract" },
           { name: 'plan', required: true, label: "Plan" },
-          { name: 'billing_cycle', required: true, label: "Billing Cycle" },
-          { name: 'recurring_amount', required: true, label: "Recurring Amount" },
+          // A04 ERP round 2 (M37-F5): a catalogue plan sets the cycle and the M11 price
+          { name: 'plan_def_id', label: "Catalogue Plan (sets cycle and M11 price)" },
+          { name: 'billing_cycle', label: "Billing Cycle (from the plan when one is chosen)" },
+          { name: 'recurring_amount', label: "Recurring Amount (empty = the plan's M11 price)" },
           { name: 'start_date', required: true, label: "Start Date" },
           { name: 'next_invoice_date', label: "First Invoice Date (afterwards moved only by the billing run)" },
           { name: 'grace_period_days', label: "Grace Period (days, set at creation)" },

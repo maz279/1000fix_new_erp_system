@@ -99,7 +99,11 @@ export const SCREENS = {
     actions: [
       { m: 'action_request_approval', l: 'Submit Plan Change for Approval', states: ['draft'], ask: 'Business justification (mandatory from Tier 2)', kwarg: 'justification' },
       { m: 'action_recall_approval', l: 'Recall Approval Request', states: ['pending'] },
-      { m: 'action_void', l: 'Void', states: ['draft', 'pending'] }
+      { m: 'action_void', l: 'Void', states: ['draft', 'pending'] },
+      // A04 ERP round 2 M39-F16 (BRU-SUB-07): an increase applies only after the notice period
+      { m: 'action_send_price_notice', l: 'Send Price Notice to the Customer', states: ['draft', 'pending', 'approved'],
+        asks: [{ kwarg: 'channel', label: 'Channel (email / sms / letter / portal)' },
+          { kwarg: 'reference', label: 'Evidence reference (optional)' }] }
     ] },
   'M39-autopay': { kind: 'model_list', model: 'fix.subscription.autopay',
     stateField: 'state',
@@ -162,7 +166,7 @@ export const SCREENS = {
   'M39-rpt-deferred': { kind: 'table_report', module: 'M39', report: 'deferred_revenue_bridge', title: 'Deferred Revenue Bridge', period: false },
 
   'M39-subs': { kind: 'model_list', model: 'fix.subscription', stateField: 'state',
-    cols: ['name', 'customer_id', 'plan', 'billing_cycle', 'recurring_amount', 'next_invoice_date', 'state'] },
+    cols: ['name', 'customer_id', 'plan', 'billing_cycle', 'recurring_amount', 'next_invoice_date', 'service_gate', 'state'] },
   'M39-record': {
 
     lines: {
@@ -214,8 +218,10 @@ export const SCREENS = {
       { tab: 'billing', title: 'Recurring Tariff, Billing Cycles & Dates',
         fields: [
           { name: 'plan', required: true, label: 'Service Level Plan' },
-          { name: 'billing_cycle', required: true, label: 'Billing Frequency' },
-          { name: 'recurring_amount', required: true, label: 'Cycle Recurring Amount (BDT)' },
+          // M37-F5: a plan definition sets the cycle and the M11 price (leave the amount empty)
+          { name: 'plan_def_id', label: 'Catalogue Plan (sets cycle and M11 price)' },
+          { name: 'billing_cycle', label: 'Billing Frequency (from the plan when one is chosen)' },
+          { name: 'recurring_amount', label: 'Cycle Recurring Amount (BDT; empty = the plan\'s M11 price)' },
           { name: 'start_date', required: true, label: 'Subscription Start Date' },
           { name: 'next_invoice_date', required: true, label: 'Next Scheduled Invoice Date' }
         ] },
@@ -339,6 +345,14 @@ export const SCREENS = {
           { name: 'amount', label: 'Net Adjustment Amount (BDT, computed)', readonly: true },
           { name: 'days_remaining', label: 'Unused Days of the Billed Cycle', readonly: true },
           { name: 'effective_date', required: true, label: 'Effective Cut-off Date' },
+          // A04 ERP round 2 M39-F16: a price increase waits for the customer's notice
+          { name: 'is_price_increase', label: 'Price Increase', readonly: true },
+          { name: 'notice_exemption', label: 'No Notice Because (customer request needs evidence)' },
+          { name: 'notice_exemption_ref', label: 'Exemption Evidence' },
+          { name: 'notice_sent_at', label: 'Price Notice Sent', readonly: true },
+          { name: 'notice_channel', label: 'Notice Channel', readonly: true },
+          { name: 'notice_ref', label: 'Notice Evidence', readonly: true },
+          { name: 'price_applies_from', label: 'New Price Applies From', readonly: true },
           { name: 'dofa_tier_required', label: 'DOFA Tier (credit)', readonly: true },
           { name: 'approval_state', label: 'Approval', readonly: true },
           { name: 'state', label: 'Billing Settlement State', readonly: true },

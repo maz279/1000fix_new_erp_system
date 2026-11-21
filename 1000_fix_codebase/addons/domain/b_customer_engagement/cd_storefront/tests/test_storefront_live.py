@@ -15,7 +15,7 @@ from odoo.addons.cd_storefront.controllers import storefront_api
 from odoo.addons.cd_storefront.controllers.storefront_api import StorefrontApiController
 from odoo.exceptions import UserError
 
-from .test_a04_c2_c13_storefront import released_card, storefront_world
+from .test_a04_c2_c13_storefront import published_item, released_card, storefront_world
 
 
 class _Browser:
@@ -49,6 +49,7 @@ def world(odoo_env):
     # 15% VAT), live gateways with callback secrets, an approved COD rule
     storefront_world(env, charger, price=1086.96)
     released_card(env, cable, 260.87)
+    published_item(env, cable)  # A04 ERP round 2 (M38-F19): on the M37 catalogue
     return SimpleNamespace(env=env, alice=alice, staff=staff, charger=charger, cable=cable)
 
 
