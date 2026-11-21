@@ -483,3 +483,156 @@ def test_review_n7_internal_access_checks_are_not_logged_as_reads(m6):
     )
     assert res["record"]["name"] == staffed.name
     assert Log.search([("case_id", "=", staffed.id)]).mapped("channel") == ["form"]
+
+
+# ===================================================== owner: verified contacts only
+def _sent_codes(m6, case):
+    """Request the hand-over code and return where it went (None if refused)."""
+    sent = {}
+
+    def _send(self, recipient, phone, code):
+        sent.update(recipient=recipient, phone=phone, code=code)
+        return {"destination": "017*****"}
+
+    with mock.patch.object(type(case), "_handover_send_code", _send):
+        case.action_request_handover_otp()
+    return sent
+
+
+def _awaiting_handover(m6):
+    """A recovered case whose hand-over recipient is the fixture's courier."""
+    case = m6.recovered(m6.new_case())
+    case.write({"handover_recipient_id": m6.contact.id})
+    return case
+
+
+def _opened_yesterday(m6, case):
+    """Test setup: the case was opened yesterday and the fixture's courier
+    (and its verified mobile) existed before it."""
+    cr = m6.env.cr
+    cr.execute(
+        "UPDATE fix_data_recovery_case SET create_date = now() - interval '1 day' WHERE id = %s",
+        (case.id,),
+    )
+    cr.execute(
+        "UPDATE res_partner SET create_date = now() - interval '2 days' WHERE id = %s",
+        (m6.contact.id,),
+    )
+    cr.execute(
+        "UPDATE fix_contact_point SET create_date = now() - interval '2 days' "
+        "WHERE partner_id = %s",
+        (m6.contact.id,),
+    )
+    m6.env.invalidate_all()
+
+
+def _verified_mobile(m6, partner, phone):
+    point = m6.env["fix.contact.point"].create(
+        {"partner_id": partner.id, "contact_type": "mobile", "value": phone}
+    )
+    # stands for the verified OTP the operator could complete on his own phone
+    point._guarded().write({"state": "verified", "verification_method": "otp"})
+    return point
+
+
+def test_owner_an_operator_cannot_route_the_code_to_his_own_new_contact(m6):
+    case = _awaiting_handover(m6)
+    _opened_yesterday(m6, case)
+    # an operator who may create contacts (Contact/Creation)
+    m6.tech.sudo().write({"group_ids": [(4, m6.env.ref("base.group_partner_manager").id)]})
+    own = (
+        m6.env["res.partner"]
+        .with_user(m6.tech)
+        .create({"name": "Operator's phone", "parent_id": m6.customer.id, "phone": "01999000111"})
+    )
+    # not verified at all: refused
+    with pytest.raises(UserError, match="not verified in the party master"):
+        case.write({"handover_recipient_id": own.id})
+    # even with the mobile verified (he holds the phone and answers the OTP):
+    # a contact added after the case was opened needs a data steward
+    _verified_mobile(m6, own, "01999000111")
+    with pytest.raises(UserError, match="added after the case was opened"):
+        case.write({"handover_recipient_id": own.id})
+    assert case.handover_recipient_id == m6.contact
+    # a forged choice gets no code either
+    case.sudo()._guarded().write({"handover_recipient_id": own.id})
+    with pytest.raises(UserError, match="added after the case was opened"):
+        _sent_codes(m6, case)
+    assert not case.handover_code_hash
+
+
+def test_owner_a_steward_verified_representative_can_be_chosen(m6):
+    case = _awaiting_handover(m6)
+    _opened_yesterday(m6, case)
+    courier = m6.env["res.partner"].create(
+        {"name": "Hired courier", "parent_id": m6.customer.id, "phone": "01888000222"}
+    )
+    _verified_mobile(m6, courier, "01888000222")
+    rel = (
+        m6.env["fix.party.relationship"]
+        .with_user(m6.tech)
+        .create(
+            {
+                "party_a_id": courier.id,
+                "relation_type": "authorised_rep",
+                "party_b_id": m6.customer.id,
+                "evidence": "Signed authority letter from the customer",
+            }
+        )
+    )
+    with pytest.raises(UserError, match="added after the case was opened"):
+        case.write({"handover_recipient_id": courier.id})
+    steward = _user(m6, "steward", "cd_party_master.group_party_data_steward")
+    rel.with_user(steward).action_verify()
+    case.write({"handover_recipient_id": courier.id})
+    sent = _sent_codes(m6, case)
+    assert sent["recipient"] == courier and sent["phone"] == "01888000222"
+
+
+def test_owner_the_customer_and_a_verified_older_contact_always_can(m6):
+    case = _awaiting_handover(m6)
+    _opened_yesterday(m6, case)
+    # an older contact whose mobile was never verified is not chosen
+    plain = m6.env["res.partner"].create(
+        {"name": "Unverified relative", "parent_id": m6.customer.id, "phone": "01777000333"}
+    )
+    m6.env.cr.execute(
+        "UPDATE res_partner SET create_date = now() - interval '2 days' WHERE id = %s",
+        (plain.id,),
+    )
+    m6.env.invalidate_all()
+    with pytest.raises(UserError, match="not verified in the party master"):
+        case.write({"handover_recipient_id": plain.id})
+    # the courier existed before the case, with his mobile verified
+    assert case.handover_recipient_id == m6.contact
+    assert _sent_codes(m6, case)["recipient"] == m6.contact
+    # the customer itself, verified or not
+    case.write({"handover_recipient_id": m6.customer.id})
+    assert not case.handover_code_hash  # changing the recipient voided the code
+    assert _sent_codes(m6, case)["recipient"] == m6.customer
+
+
+def test_owner_media_goes_back_only_to_a_verified_recipient(m6):
+    case = m6.recovering(m6.new_case())
+    case.quote_ids.filtered(lambda q: q.state == "accepted")._guarded().write(
+        {"no_data_no_fee_applies": False}
+    )
+    case._guarded().write({"state": "unrecoverable"})
+    case.with_user(m6.manager2).action_waive_charge(note="no data, goodwill waiver of the fee")
+    _opened_yesterday(m6, case)
+    m6.tech.sudo().write({"group_ids": [(4, m6.env.ref("base.group_partner_manager").id)]})
+    own = (
+        m6.env["res.partner"]
+        .with_user(m6.tech)
+        .create({"name": "Operator's phone", "parent_id": m6.customer.id, "phone": "01999000444"})
+    )
+    _verified_mobile(m6, own, "01999000444")
+    unit = case.media_unit_ids.with_user(m6.tech)
+    # the operator passes his own new contact as the return recipient
+    with pytest.raises(UserError, match="added after the case was opened"):
+        unit.action_return(handler=m6.custodian.login, recipient=own.id)
+    assert not unit.pending_kind and unit.location != "returned_to_customer"
+    # the customer itself takes it back
+    unit.action_return(handler=m6.custodian.login, recipient=m6.customer.id)
+    unit.with_user(m6.custodian).action_confirm_move()
+    assert unit.location == "returned_to_customer" and unit.returned_to_id == m6.customer

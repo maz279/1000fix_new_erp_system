@@ -38,6 +38,7 @@ from libs.py.fix_events import publish
 
 from .fix_data_case import GROUP_LAB_MANAGER, GROUP_OPERATOR, _norm_serial, _require_role
 from .fix_data_case_ext import _resolve_user
+from .fix_data_case_secure import _bd_mobile
 
 _logger = logging.getLogger(__name__)
 
@@ -220,7 +221,96 @@ class FixDataRecoveryCaseA02R2(models.Model):
                         "handed to. A Data Lab Manager corrects it (Correct Customer), with "
                         "the reason, on the custody ledger." % rec.name
                     )
+        if vals.get("handover_recipient_id") and not self._fix_guard_open():
+            # owner decision (verified contacts only): the recipient chosen is
+            # the customer or an M33-verified contact of the customer
+            partner = self.env["res.partner"].sudo().browse(vals["handover_recipient_id"])
+            for rec in self.filtered("id"):
+                denial = rec._m06_recipient_denial(partner)
+                if denial:
+                    raise UserError("Case %s: %s." % (rec.name, denial))
         return super().write(vals)
+
+    def _m06_recipient_denial(self, recipient) -> str:
+        """Owner decision (A02 pass 2, verified contacts only): '' when
+        ``recipient`` may receive this case's data (and so its hand-over
+        code), else why not.
+
+        - the customer itself always may;
+        - another contact of the customer may only when the mobile the code
+          goes to is VERIFIED on that contact in the party master (M33
+          fix.contact.point);
+        - a contact added after the case was opened, or whose verified mobile
+          was added after it, also needs a data steward's verification (M33
+          fix.party.relationship 'authorised representative', four eyes, with
+          its evidence): an operator cannot add his own phone as a contact
+          and route the code to himself. Couriers and representatives go
+          through that verification."""
+        self.ensure_one()
+        recipient = recipient.sudo()
+        customer = self.customer_id.sudo()
+        account = customer.commercial_partner_id
+        if not recipient or recipient in (customer | account):
+            return ""
+        if recipient.commercial_partner_id != account:
+            return "%s is not the customer %s or one of its contacts" % (
+                recipient.display_name,
+                customer.display_name,
+            )
+        phone = _bd_mobile(recipient.phone or getattr(recipient, "mobile", False))
+        if not phone:
+            return (
+                "%s has no mobile on file: the data goes to the customer, or to a contact "
+                "whose mobile is verified in the party master" % recipient.display_name
+            )
+        points = (
+            self.env["fix.contact.point"]
+            .sudo()
+            .search(
+                [
+                    ("partner_id", "=", recipient.id),
+                    ("contact_type", "in", ("mobile", "whatsapp")),
+                    ("state", "=", "verified"),
+                ]
+            )
+            .filtered(lambda p: _bd_mobile(p.value) == phone)
+        )
+        if not points:
+            return (
+                "the mobile of %s is not verified in the party master (M33): verify the "
+                "contact's mobile there before the data, and the hand-over code, go to it"
+                % recipient.display_name
+            )
+        opened = self.create_date
+        late = bool(
+            opened
+            and (
+                (recipient.create_date and recipient.create_date > opened)
+                or min(points.mapped("create_date")) > opened
+            )
+        )
+        if late:
+            vouched = (
+                self.env["fix.party.relationship"]
+                .sudo()
+                .search_count(
+                    [
+                        ("party_a_id", "=", recipient.id),
+                        ("party_b_id", "in", (customer | account).ids),
+                        ("relation_type", "=", "authorised_rep"),
+                        ("verified", "=", True),
+                        ("date_to", "=", False),
+                    ]
+                )
+            )
+            if not vouched:
+                return (
+                    "%s (or the mobile verified on it) was added after the case was opened: "
+                    "a data steward verifies them as the customer's authorised representative "
+                    "in the party master (M33) before the data can go to them"
+                    % recipient.display_name
+                )
+        return ""
 
     def action_correct_customer(self, partner_id=None, reason=None):
         """A Data Lab Manager corrects the case's customer after intake. The
@@ -296,6 +386,11 @@ class FixDataRecoveryCaseA02R2(models.Model):
                         self.customer_id.display_name,
                     )
                 )
+        # owner decision: verified contacts only (checked again when the code
+        # is sent and at the hand-over: a phone or a verification can change)
+        denial = self._m06_recipient_denial(recipient)
+        if denial:
+            raise UserError("Case %s: %s." % (self.name, denial))
         return recipient
 
     # ------------------------------------------------------------ M06-02
@@ -841,6 +936,12 @@ class FixDataMediaUnitA02R2(models.Model):
                 "%s is not the customer %s or one of its contacts."
                 % (partner.display_name, case.customer_id.name)
             )
+        # owner decision (verified contacts only): the customer's media is the
+        # same customer data leaving, so it goes to the same recipients as
+        # the recovered data
+        denial = case._m06_recipient_denial(partner)
+        if denial:
+            raise UserError("Media %s cannot be returned: %s." % (self.seal_number, denial))
         return partner
 
     def action_return(self, handler="", recipient=None):
