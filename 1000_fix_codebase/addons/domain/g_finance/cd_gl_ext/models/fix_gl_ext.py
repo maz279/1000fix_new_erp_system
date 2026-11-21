@@ -1432,7 +1432,13 @@ def _attach_dimensions(env, move, dimension_by_line):
         # company's FIRST OU, which on fix_real is "Main Operating Unit", and
         # _check_branch_ou refused the posting for 57 of 73 branches. The
         # first paid service order at any of them could not be invoiced.
-        branch = env["fix.branch"].browse(dim_vals.get("branch_id") or []).exists()
+        # fix.branch lives in an optional module: without it there is no
+        # branch OU to fall back to, only the company's.
+        branch = (
+            env["fix.branch"].browse(dim_vals.get("branch_id") or []).exists()
+            if "fix.branch" in env
+            else False
+        )
         branch_ou = branch.operating_unit_id if branch else env["operating.unit"]
         if branch_ou and branch_ou.company_id != move.company_id:
             branch_ou = env["operating.unit"]
