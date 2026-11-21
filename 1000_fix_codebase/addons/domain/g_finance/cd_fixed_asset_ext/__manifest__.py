@@ -34,7 +34,7 @@ CD-M49-01 (P08-M08, rebuilt for A08) — fixed assets on the seam M19 built:
 - THE M49 <-> M54 BREAK (AR-006 4.1 pair 14): M54 consumes depreciation
   EVENTS (depreciation.accrued, now published only for POSTED charges)
 """,
-    "version": "19.0.1.2.1",
+    "version": "19.0.1.2.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Accounting/Fixed Assets",

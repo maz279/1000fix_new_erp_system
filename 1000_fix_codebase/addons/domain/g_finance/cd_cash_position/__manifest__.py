@@ -39,7 +39,7 @@ carried, net of its charges: Dr bank (net) + Dr courier charges / Cr COD
 clearing (gross), prepared by an accountant and settled by a different
 Accounting Administrator.
 """,
-    "version": "19.0.1.5.2",
+    "version": "19.0.1.5.3",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Treasury",
