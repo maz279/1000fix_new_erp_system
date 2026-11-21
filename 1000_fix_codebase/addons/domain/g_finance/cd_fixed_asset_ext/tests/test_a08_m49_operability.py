@@ -452,11 +452,15 @@ def _posted_disposal(c, asset, **kw):  # noqa: F811
 def test_m49_10_disposal_routed_to_m18_opens_a_collection(c, m49_js):  # noqa: F811
     assert not offered(m49_js, "M49-form-disposal")["ewaste_route"].get("readonly")
     asset = seam_asset(c)
-    disposal = _posted_disposal(c, asset, ewaste_route=True)
+    # A05 M18-14: the hand-off carries the item's weight and material
+    disposal = _posted_disposal(
+        c, asset, ewaste_route=True, ewaste_weight_kg=3.5, ewaste_material="other"
+    )
     xmlid = "cd_fixed_asset_ext.consumer_asset_disposed_m18"
     relay(c, "asset.disposed", "fix.fixed.asset", asset.id, xmlid)
     collection = c.env["fix.ewaste.collection"].sudo().browse(disposal.ewaste_collection_res_id)
     assert collection.exists() and collection.state == "collected"
+    assert collection.weight_kg == 3.5
     assert (collection.source_model, collection.source_res_id) == (disposal._name, disposal.id)
     assert collection.customer_id == c.co.partner_id and collection.company_id == c.co
     assert disposal.ewaste_collection_ref == collection.name

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- cd_billing_engine — A05 FIN-14: revenue earned over a service period
+     (fix_ar_revenue_deferral.py). Company / operating-unit isolation of the
+     two new models (AS-03, same shape as the generated rules) and the daily
+     straight-line release. -->
+<odoo>
+    <record id="rule_fix_ar_revenue_deferral_company" model="ir.rule">
+        <field name="name">fix.ar.revenue.deferral: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_revenue_deferral"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_revenue_deferral_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.revenue.deferral: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_revenue_deferral"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_revenue_deferral_log_company" model="ir.rule">
+        <field name="name">fix.ar.revenue.deferral.log: allowed companies</field>
+        <field name="model_id" ref="model_fix_ar_revenue_deferral_log"/>
+        <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+    </record>
+    <record id="rule_fix_ar_revenue_deferral_log_operating_unit" model="ir.rule">
+        <field name="name">fix.ar.revenue.deferral.log: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_ar_revenue_deferral_log"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('operating_unit_id', '=', False), ('operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
+    <data noupdate="1">
+        <record id="ir_cron_ar_revenue_deferral_release" model="ir.cron">
+            <field name="name">AR: release service-period revenue (straight-line, daily)</field>
+            <field name="model_id" ref="model_fix_ar_revenue_deferral"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_release()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+    </data>
+</odoo>

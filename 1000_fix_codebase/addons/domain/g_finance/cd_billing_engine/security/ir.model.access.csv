@@ -118,3 +118,9 @@ access_fix_ar_unbilled_exception_account_invoice,fix.ar.unbilled.exception.accou
 access_fix_ar_unbilled_exception_account_user,fix.ar.unbilled.exception.account.user,model_fix_ar_unbilled_exception,account.group_account_user,1,1,1,0
 access_fix_ar_unbilled_exception_account_manager,fix.ar.unbilled.exception.account.manager,model_fix_ar_unbilled_exception,account.group_account_manager,1,1,1,0
 access_fix_credit_limit_change,fix.credit.limit.change,model_fix_credit_limit_change,base.group_user,1,1,1,0
+access_fix_ar_revenue_deferral_account_readonly,fix.ar.revenue.deferral.account.readonly,model_fix_ar_revenue_deferral,account.group_account_readonly,1,0,0,0
+access_fix_ar_revenue_deferral_account_user,fix.ar.revenue.deferral.account.user,model_fix_ar_revenue_deferral,account.group_account_user,1,0,0,0
+access_fix_ar_revenue_deferral_account_manager,fix.ar.revenue.deferral.account.manager,model_fix_ar_revenue_deferral,account.group_account_manager,1,0,0,0
+access_fix_ar_revenue_deferral_log_account_readonly,fix.ar.revenue.deferral.log.account.readonly,model_fix_ar_revenue_deferral_log,account.group_account_readonly,1,0,0,0
+access_fix_ar_revenue_deferral_log_account_user,fix.ar.revenue.deferral.log.account.user,model_fix_ar_revenue_deferral_log,account.group_account_user,1,0,0,0
+access_fix_ar_revenue_deferral_log_account_manager,fix.ar.revenue.deferral.log.account.manager,model_fix_ar_revenue_deferral_log,account.group_account_manager,1,0,0,0

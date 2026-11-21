@@ -87,5 +87,13 @@
             <field name="padding">5</field>
             <field name="company_id" eval="False"/>
         </record>
+        <!-- A05 FIN-12: the voucher a cash payment is paid out on. -->
+        <record id="seq_fix_payment_cash_voucher" model="ir.sequence">
+            <field name="name">Cash Payment Voucher</field>
+            <field name="code">fix.payment.cash.voucher</field>
+            <field name="prefix">CPV/%(year)s/</field>
+            <field name="padding">5</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>

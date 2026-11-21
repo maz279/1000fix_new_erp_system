@@ -242,6 +242,24 @@ def _post_ar_move(env, company, entry_date, ref, lines, dimension_by_line, sourc
     journal = journal or _ar_journal(env, company)
     if not journal:
         return None, "GL not posted: no general journal for %s" % company.name
+    # A05 FIN-26: a line of 0.00 / 0.00 (the VAT output of a 0% or exempt
+    # invoice, its credit-note and cancellation mirrors) is not written: the
+    # ledger carries no zero-value VAT line. The dimensions follow the lines
+    # that remain.
+    kept = [
+        (idx, line)
+        for idx, line in enumerate(lines)
+        if round(line[2] or 0.0, 2) or round(line[3] or 0.0, 2)
+    ]
+    if len(kept) != len(lines):
+        dimension_by_line = {
+            new: (dimension_by_line or {}).get(old)
+            for new, (old, _line) in enumerate(kept)
+            if (dimension_by_line or {}).get(old) is not None
+        }
+        lines = [line for _idx, line in kept]
+    if not lines:
+        return None, "GL not posted: nothing to post"
     missing = [line[0] for line in lines if not line[0]]
     if missing:
         return None, "GL not posted: account role unconfigured for %s" % company.name

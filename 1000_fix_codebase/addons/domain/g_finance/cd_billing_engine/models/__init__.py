@@ -10,6 +10,7 @@ from . import (
     fix_ar_engine,
     fix_ar_impairment,
     fix_ar_invoice_document,
+    fix_ar_revenue_deferral,
     fix_billing_engine,
     fix_contract_billing_walker,
     fix_credit_limit_change,

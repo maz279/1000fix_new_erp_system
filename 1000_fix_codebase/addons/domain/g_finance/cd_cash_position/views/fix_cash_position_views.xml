@@ -111,7 +111,8 @@
                 <header>
                     <button name="action_prepare" type="object" string="Prepare for Release" class="btn-primary" invisible="state != 'pending'"/>
                     <button name="action_release" type="object" string="Release to Bank" class="btn-primary" invisible="state != 'prepared'" groups="account.group_account_manager"/>
-                    <button name="action_confirm_bank" type="object" string="Confirm from Statement" class="btn-primary" invisible="state != 'sent'"/>
+                    <button name="action_confirm_bank" type="object" string="Confirm from Statement" class="btn-primary" invisible="state != 'sent' or method == 'cash'"/>
+                    <button name="action_pay_cash_voucher" type="object" string="Pay Out Cash Voucher" class="btn-primary" invisible="state != 'sent' or method != 'cash'"/>
                     <button name="action_mark_failed" type="object" string="Bank Rejected" invisible="state != 'sent'"/>
                     <button name="action_retry" type="object" string="Re-queue" invisible="state != 'failed'"/>
                     <button name="action_cancel" type="object" string="Cancel" invisible="state not in ('pending', 'prepared', 'failed')"/>
@@ -131,8 +132,10 @@
                             <field name="currency_id" invisible="1"/>
                             <field name="company_id" invisible="1"/>
                             <field name="operating_unit_id"/>
+                            <field name="branch_id"/>
                             <field name="amount"/>
                             <field name="method"/>
+                            <field name="original_payment_ref" invisible="method != 'card'"/>
                             <field name="rail" invisible="method != 'bank_transfer'"/>
                             <field name="journal_id"/>
                             <field name="debit_account_id"/>
@@ -157,6 +160,10 @@
                             <field name="confirmation_source"/>
                             <field name="bank_confirmed"/>
                             <field name="instruction_attachment_id"/>
+                            <field name="cash_voucher_no" invisible="method != 'cash'"/>
+                            <field name="cash_paid_by_id" invisible="method != 'cash'"/>
+                            <field name="cash_paid_at" invisible="method != 'cash'"/>
+                            <field name="cash_received_by" invisible="method != 'cash'"/>
                         </group>
                         <group string="Ledger">
                             <field name="sent_at"/>

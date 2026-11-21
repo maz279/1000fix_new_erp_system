@@ -321,6 +321,11 @@ class FixAssetDepreciationRun(models.Model):
                         ("company_id", "=", company.id),
                         ("book", "=", book),
                         ("period_start", "=", period),
+                        # A05 FIN-15: a run scoped to a few assets (Accrue
+                        # Month, a rental unit's capitalisation catch-up) is
+                        # not the company's month run; those assets are
+                        # skipped by it as already charged
+                        ("asset_ids", "=", False),
                     ]
                 ):
                     continue

@@ -26,6 +26,7 @@ from .fix_asset_common import (
     post_entry,
     require_accounts,
     require_group,
+    resale_stock_account,
     revaluation_ladder,
 )
 
@@ -559,7 +560,16 @@ class FixAssetDisposal(models.Model):
     )
     currency_id = fields.Many2one(related="asset_id.currency_id")
     kind = fields.Selection(
-        [("sale", "Sale"), ("scrap", "Scrap"), ("write_off", "Write-Off (Lost / Missing)")],
+        [
+            ("sale", "Sale"),
+            ("scrap", "Scrap"),
+            ("write_off", "Write-Off (Lost / Missing)"),
+            # A05 M13-14: a retired rental unit goes to refurbished resale stock
+            # (IAS 16.68A: carrying amount to inventory, no gain or loss) or to
+            # recycling (derecognised, its residual value a loss)
+            ("transfer_resale", "Transfer to Resale Stock"),
+            ("recycle", "Recycle (E-Waste)"),
+        ],
         string="Type",
         required=True,
         default="sale",
@@ -631,6 +641,29 @@ class FixAssetDisposal(models.Model):
     )
     ewaste_collection_ref = fields.Char(string="M18 Collection", readonly=True, copy=False)
     ewaste_collection_res_id = fields.Integer(string="M18 Collection ID", readonly=True, copy=False)
+    # A05 M18-14: what M18 receives - the device, its weight and material
+    # (an item with no weight cannot be mass-balanced in M18)
+    ewaste_device_res_id = fields.Integer(
+        string="Device (M17) ID",
+        help="The fix.device record of the item, when it is a registered device: M18 carries "
+        "its serial and wipe evidence from it.",
+    )
+    ewaste_weight_kg = fields.Float(string="E-Waste Weight (kg)", digits=(12, 3))
+    ewaste_material = fields.Selection(
+        [
+            ("phone", "Mobile Phone"),
+            ("laptop", "Laptop"),
+            ("tablet", "Tablet"),
+            ("accessory", "Accessory"),
+            ("battery", "Battery"),
+            ("other", "Other"),
+        ],
+        string="E-Waste Material",
+    )
+    # A05 FIN-15 / M13-14: the business document that started the disposal
+    # (a rental retirement), set by the system API only
+    source_model = fields.Char(string="Source Model", readonly=True, copy=False, index=True)
+    source_res_id = fields.Integer(string="Source Record", readonly=True, copy=False, index=True)
 
     _TERMS = frozenset(
         {
@@ -641,6 +674,9 @@ class FixAssetDisposal(models.Model):
             "proceeds",
             "proceeds_account_id",
             "ewaste_route",
+            "ewaste_device_res_id",
+            "ewaste_weight_kg",
+            "ewaste_material",
         }
     )
 
@@ -684,6 +720,8 @@ class FixAssetDisposal(models.Model):
             "tax_balancing",
             "ewaste_collection_ref",
             "ewaste_collection_res_id",
+            "source_model",
+            "source_res_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -728,6 +766,20 @@ class FixAssetDisposal(models.Model):
                 raise ValidationError(
                     self.env._("A write-off has no proceeds — use Sale or Scrap.")
                 )
+            if rec.kind in ("transfer_resale", "recycle") and rec.proceeds:
+                raise ValidationError(
+                    self.env._(
+                        "A transfer to resale stock or to recycling has no proceeds: the resale "
+                        "or the recovered material is sold and invoiced later — use Sale for a "
+                        "sale now."
+                    )
+                )
+
+    @api.constrains("ewaste_weight_kg")
+    def _check_ewaste_weight(self):
+        for rec in self:
+            if rec.ewaste_weight_kg < 0:
+                raise ValidationError(self.env._("A weight cannot be negative."))
 
     def action_submit(self):
         """Route the disposal for approval by the authority its amount needs."""
@@ -749,6 +801,20 @@ class FixAssetDisposal(models.Model):
             if rec.proceeds and not (rec.partner_id and rec.proceeds_account_id):
                 raise UserError(
                     self.env._("A sale names the buyer and the proceeds clearing account.")
+                )
+            if rec.kind in ("transfer_resale", "recycle") and not (rec.reason or "").strip():
+                raise UserError(
+                    self.env._("Record why %s goes to %s.", rec.asset_id.display_name, rec.kind)
+                )
+            if rec.ewaste_route and not (rec.ewaste_weight_kg > 0 and rec.ewaste_material):
+                # A05 M18-14: M18 mass-balances by weight; a 0 kg 'other'
+                # item is not an e-waste hand-off
+                raise UserError(
+                    self.env._(
+                        "%s goes to M18 for physical disposal: record its weight (kg) and "
+                        "material first.",
+                        rec.name,
+                    )
                 )
             rec._guarded().write({"state": "submitted"})
             if rec._approval_needed():
@@ -841,7 +907,10 @@ class FixAssetDisposal(models.Model):
             cost = asset.cost
             accumulated = money(asset.accumulated_depreciation + asset.impairment_total)
             nbv = money(cost - accumulated)
-            gain_loss = money(rec.proceeds - nbv)
+            # A05 M13-14: to resale stock at its carrying amount (no gain/loss)
+            to_stock = rec.kind == "transfer_resale"
+            stock_account = resale_stock_account(self.env, asset.company_id) if to_stock else None
+            gain_loss = 0.0 if to_stock else money(rec.proceeds - nbv)
             in_tax_book = bool(cat.tax_rate_code or asset.tax_accumulated)
             tax_wdv = money(asset.tax_wdv) if in_tax_book else 0.0
             tax_balancing = money(rec.proceeds - tax_wdv) if in_tax_book else 0.0
@@ -863,6 +932,8 @@ class FixAssetDisposal(models.Model):
                 (rec.proceeds_account_id, rec.proceeds, 0.0, label),
                 (cat.asset_account_id, 0.0, cost, label),
             ]
+            if to_stock:
+                lines.append((stock_account, nbv, 0.0, label))
             if gain_loss > 0:
                 lines.append((cat.gain_account_id, 0.0, gain_loss, label))
             elif gain_loss < 0:
@@ -917,18 +988,35 @@ class FixAssetDisposal(models.Model):
             [("source_model", "=", disposal._name), ("source_res_id", "=", disposal.id)], limit=1
         )
         if not collection:
-            collection = Collection._guarded().create(
-                {
-                    "company_id": disposal.company_id.id,
-                    "operating_unit_id": disposal.operating_unit_id.id or False,
-                    "customer_id": disposal.company_id.partner_id.id,
-                    "material_type": "other",
-                    "item_count": 1,
-                    "source_model": disposal._name,
-                    "source_res_id": disposal.id,
-                    "source_ref": disposal.name,
-                }
+            # A05 M18-14: the device, its weight and material travel with it
+            if not (disposal.ewaste_weight_kg > 0 and disposal.ewaste_material):
+                raise UserError(
+                    self.env._(
+                        "%s is routed to M18 without a weight and material: M18 does not "
+                        "receive a 0 kg item.",
+                        disposal.name,
+                    )
+                )
+            vals = {
+                "company_id": disposal.company_id.id,
+                "operating_unit_id": disposal.operating_unit_id.id or False,
+                "customer_id": disposal.company_id.partner_id.id,
+                "material_type": disposal.ewaste_material,
+                "weight_kg": disposal.ewaste_weight_kg,
+                "item_count": 1,
+                "source_model": disposal._name,
+                "source_res_id": disposal.id,
+                "source_ref": disposal.name,
+            }
+            device_model = (
+                Collection._fields["device_id"].comodel_name
+                if "device_id" in Collection._fields
+                else None
             )
+            if disposal.ewaste_device_res_id and device_model in self.env:
+                device = self.env[device_model].browse(disposal.ewaste_device_res_id).exists()
+                vals["device_id"] = device.id or False
+            collection = Collection._guarded().create(vals)
             collection.message_post(
                 body=self.env._(
                     "Received from M49 disposal %s of asset %s.", disposal.name, asset.display_name

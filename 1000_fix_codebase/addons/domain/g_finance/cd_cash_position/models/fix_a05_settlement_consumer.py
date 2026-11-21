@@ -3,12 +3,26 @@
 # waiting on a finance consumer; the A05 build hands the approved settlement
 # to finance by event and nothing consumed it).
 #
-# fix.ewaste.settlement is approved under the routed M63 control (amount and
-# payee pinned by the A05 guards); this consumer raises the money document:
+# fix.ewaste.settlement is approved under the routed M63 control (amount,
+# payee, operating unit, branch, payment method and payee account pinned by
+# the A05 guards); this consumer raises the money document:
 #   * incentive / recycler_fee (money LEAVES): a PENDING M50 payout
-#     instruction on the payee - treasury releases it; nothing is paid before;
-#   * recovery_income (money ARRIVES): a DRAFT M20 invoice on the payer,
-#     for finance to issue.
+#     instruction through _fix_request_payment - pinned to the approval
+#     (payee, account, amount, approver), on the settlement's operating unit,
+#     debiting the owner's 'E-waste Collection & Recycling Cost' expense
+#     (D1, cd_ewaste.account_code.recycling_cost). Treasury releases it;
+#     nothing is paid before;
+#   * recovery_income (money ARRIVES): a DRAFT M20 invoice through
+#     _fix_ar_invoice_from_source - crediting 400109 Other Income (D1,
+#     cd_ewaste.account_code.recovery_income) on the batch's operating unit and
+#     branch, VAT by the M51 determination (standard rate, D2), for finance
+#     to issue.
+#
+# A05 ERP build S3 (20 Nov 2026): M18-01..04, FIN-05/06/11, XC-05. The old
+# consumer created the execution directly (never pinned: treasury could re-point
+# it), with no debit account (Dr Bank Suspense), on the company's first OU, and
+# invoiced income at VAT 0 to 400100.
+#
 # Same rules as the other relay consumers: relay only (superuser, from
 # cron_relay); the payload is a claim, not evidence - the settlement is
 # re-read, its state must be "approved", and the amount comes from the
@@ -64,71 +78,102 @@ class FixA05SettlementConsumers(models.AbstractModel):
             raise UserError("%s refused: settlement %s has no amount." % (label, rec.name))
         if not rec.partner_id:
             raise UserError("%s refused: settlement %s has no payee." % (label, rec.name))
-        company = rec.company_id or self.env.company
+        if not rec.approved_by_id:
+            raise UserError("%s refused: settlement %s has no approver." % (label, rec.name))
+        if not rec.operating_unit_id:
+            # FIN-11: never the company's first OU
+            raise UserError("%s refused: settlement %s has no operating unit." % (label, rec.name))
 
         if rec.kind in PAY_KINDS:
-            # money out: a pending M50 instruction treasury releases
-            Execution = self.env["fix.payment.execution"].sudo()
-            existing = Execution.search(
-                [("source_model", "=", rec._name), ("source_id", "=", rec.id)], limit=1
-            )
-            if existing:
-                return {"model": existing._name, "id": existing.id, "created": False}
-            pay = Execution.create(
-                {
-                    "company_id": company.id,
-                    "operating_unit_id": self._any_ou(company).id,
-                    "source_model": rec._name,
-                    "source_id": rec.id,
-                    "payee": rec.partner_id.name,
-                    "partner_id": rec.partner_id.id,
-                    "amount": amount,
-                    "method": "bank_transfer",
-                }
-            )
-            rec.message_post(
-                body="Raised by the ewaste.settlement_approved hand-off: pending M50 "
-                "payout of BDT %.2f to %s (%s). Treasury releases it; nothing is paid "
-                "before then." % (amount, rec.partner_id.name, rec.kind)
-            )
-            return {"model": pay._name, "id": pay.id, "created": True}
+            return self._fix_pay(rec, amount)
+        return self._fix_invoice(rec, amount)
 
-        # recovery_income: money in - a draft M20 invoice on the payer
+    def _fix_pay(self, rec, amount):
+        """Money out: a pending, pinned M50 instruction treasury releases."""
+        Execution = self.env["fix.payment.execution"].sudo()
+        existing = Execution.search(
+            [("source_model", "=", rec._name), ("source_id", "=", rec.id)], limit=1
+        )
+        if existing:
+            return {"model": existing._name, "id": existing.id, "created": False}
+        if not rec.payment_method:
+            raise UserError("Settlement %s names no payment method." % rec.name)
+        expense = rec._fix_money_account("recycling_cost")
+        pay = Execution._fix_request_payment(
+            rec._name,
+            rec.id,
+            rec.partner_id,
+            rec.partner_bank_id,
+            amount,
+            rec.currency_id,
+            rec.name,
+            rec.approved_by_id,
+            method=rec._fix_pay_method(),
+            debit_account_id=expense.id,
+            company_id=rec.company_id.id,
+            operating_unit_id=rec.operating_unit_id.id,
+            # I3 (S6 wiring): the confirmation posts on the settlement's branch
+            branch_id=rec.branch_id.id or False,
+        )
+        rec.message_post(
+            body="Raised by the ewaste.settlement_approved hand-off: pending M50 payout %s of "
+            "BDT %.2f to %s (%s, %s), debiting %s %s. Treasury releases it; nothing is paid "
+            "before then."
+            % (
+                pay.name,
+                amount,
+                rec.partner_id.name,
+                rec.kind,
+                rec.payment_method,
+                expense.code,
+                expense.name,
+            )
+        )
+        return {"model": pay._name, "id": pay.id, "created": True}
+
+    def _fix_invoice(self, rec, amount):
+        """Money in: a draft M20 invoice on the payer, VAT by M51 (D2)."""
         Invoice = self.env["fix.ar.invoice"].sudo()
         existing = Invoice.search(
             [("source_model", "=", rec._name), ("source_id", "=", rec.id)], limit=1
         )
         if existing:
             return {"model": existing._name, "id": existing.id, "created": False}
-        invoice = Invoice.create(
-            {
-                "company_id": company.id,
-                "operating_unit_id": self._any_ou(company).id,
-                "customer_id": rec.partner_id.id,
-                "currency_id": rec.currency_id.id,
-                "source_model": rec._name,
-                "source_id": rec.id,
-                "invoice_date": fields.Date.context_today(rec),
-                "manual_reason": "E-waste material-recovery income %s" % rec.name,
-                "line_ids": [
-                    (
-                        0,
-                        0,
-                        {
-                            "description": "Material-recovery income %s" % rec.name,
-                            "taxable_amount": amount,
-                            "vat_amount": 0.0,
-                            "line_total": amount,
-                        },
-                    )
-                ],
-            }
+        if not hasattr(Invoice, "_fix_ar_invoice_from_source"):
+            raise UserError(
+                "Recovery income %s is invoiced through M20 (_fix_ar_invoice_from_source), "
+                "which is not installed." % rec.name
+            )
+        income = rec._fix_money_account("recovery_income")
+        lines = rec.recovery_ids
+        description = "Recovered material (scrap) sale, batch %s" % rec.batch_id.name
+        if lines:
+            description += ": " + ", ".join(
+                "%s %.3f kg"
+                % (
+                    dict(line._fields["material_class"].selection).get(
+                        line.material_class, line.material_class
+                    ),
+                    line.weight_kg,
+                )
+                for line in lines
+            )
+        invoice = Invoice._fix_ar_invoice_from_source(
+            rec,
+            rec.partner_id,
+            # no treatment code: M51 determines the standard rate (owner D2)
+            [{"description": description[:250], "taxable_amount": amount}],
+            "E-waste material-recovery income %s approved by %s"
+            % (rec.name, rec.approved_by_id.name),
+            credit_account=income,
+            operating_unit=rec.operating_unit_id,
+            branch=rec.branch_id or None,
+            invoice_date=fields.Date.context_today(rec.with_context(tz="Asia/Dhaka")),
+            issue=False,
         )
         rec.message_post(
-            body="Raised by the ewaste.settlement_approved hand-off: draft M20 invoice "
-            "%s for BDT %.2f on %s, for finance to issue." % (invoice.name, amount, rec.partner_id.name)
+            body="Raised by the ewaste.settlement_approved hand-off: draft M20 invoice %s for "
+            "BDT %.2f (ex VAT) on %s, crediting %s %s, for finance to issue."
+            % (invoice.name, amount, rec.partner_id.name, income.code, income.name)
         )
         return {"model": invoice._name, "id": invoice.id, "created": True}
-
-    def _any_ou(self, company):
-        return self.env["operating.unit"].sudo().search([("company_id", "=", company.id)], limit=1)

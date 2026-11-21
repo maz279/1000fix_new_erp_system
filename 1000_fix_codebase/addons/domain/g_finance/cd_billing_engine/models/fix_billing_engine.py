@@ -1003,6 +1003,10 @@ class FixArInvoice(models.Model):
                 "taxable_amount": line["taxable_amount"],
                 "product_id": line.get("product_id") or False,
             }
+            # A05 FIN-14: a line earned over a period (fix_ar_revenue_deferral)
+            for key in ("service_period_start", "service_period_end"):
+                if line.get(key):
+                    vals[key] = line[key]
             code = line.get("vat_treatment_code")
             if code:
                 row = (
