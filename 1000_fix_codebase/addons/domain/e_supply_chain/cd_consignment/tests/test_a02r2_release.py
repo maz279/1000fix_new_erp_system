@@ -328,6 +328,60 @@ def test_m03_05_the_tariff_charges_the_leg_at_confirm(w):
     assert heavy.logistics_charge_bdt == 0.0 and not heavy.logistics_tariff_id
 
 
+def test_d22_a_delivery_legs_own_charge_is_in_its_cod(w, monkeypatch):
+    """A03 review (s3 P2): the charge was priced after the confirm derived
+    the COD, so the rider never collected it (and nothing billed it). The
+    leg is priced first; the order's amount due carries its charges."""
+    zone = w.env["fix.zone"].create({"name": "R2 Zone D", "code": "R2ZD"})
+    w.env["fix.logistics.tariff"].with_user(w.manager).create(
+        {"zone_id": zone.id, "weight_from_kg": 0, "weight_to_kg": 5, "charge_bdt": 100}
+    )
+    Order = type(w.env["fix.service.order"])
+    # the estimate part stands in; the charge part is the order's own
+    monkeypatch.setattr(
+        Order, "_fix_amount_due", lambda self: 2300.0 + self._fix_logistics_charges()
+    )
+    order = w.make_ready(_unready_order(w))
+    leg = w.cons(service_order_id=order.id, zone_id=zone.id, actual_weight_kg=1.0)
+    leg.with_user(w.hub).action_confirm()
+    assert leg.logistics_charge_bdt == 100.0 and leg.cod_amount == 2400.0
+    (charge,) = order._fix_extra_charges()
+    assert charge["code"] == "CHG-TRANSPORT" and charge["net"] == 100.0
+    assert leg.name in charge["description"]
+    assert not leg._m03_delivery_release_problem()
+
+
+def test_s3_a_courier_booking_with_a_stale_cod_holds_the_leg(w, monkeypatch):
+    """A03 review (s3 P2): a booking copies the leg's COD and locks it; the
+    draft leg re-derived its COD after a payment, and the courier collected
+    the old figure. The leg does not leave until the booking is re-made."""
+    _due(w, monkeypatch, 2300.0)
+    order = w.make_ready(_unready_order(w))
+    partner = _partner(w, cod_supported=True)
+    leg = w.cons(service_order_id=order.id, rider_id=False)
+    leg.sudo()._guarded().write({"courier_partner_id": partner.id})
+    assert leg.cod_amount == 2300.0
+    booking = (
+        w.env["fix.courier.booking"]
+        .with_user(w.hub)
+        .create({"partner_id": partner.id, "consignment_id": leg.id})
+    )
+    assert booking.cod_amount == 2300.0
+    _due(w, monkeypatch, 1800.0)  # the customer paid 500 at the counter meanwhile
+    err = refused(w.env, lambda: leg.with_user(w.hub).action_confirm())
+    assert err and "courier booking %s collects BDT 2300.00" % booking.name in err
+    assert "cancel the booking and book again" in err and leg.state == "draft"
+    booking.with_user(w.hub).action_cancel(reason="COD changed after a counter payment")
+    leg.with_user(w.hub).action_confirm()
+    assert leg.state == "confirmed" and leg.cod_amount == 1800.0
+    rebook = (
+        w.env["fix.courier.booking"]
+        .with_user(w.hub)
+        .create({"partner_id": partner.id, "consignment_id": leg.id})
+    )
+    assert rebook.cod_amount == 1800.0 and not leg._m03_delivery_release_problem()
+
+
 # ================================================== M03-07 liable parties
 def test_m03_07_no_payout_to_the_liable_party(w):
     cl = w.claim(3000.0, declared=5000.0, liability="customer")

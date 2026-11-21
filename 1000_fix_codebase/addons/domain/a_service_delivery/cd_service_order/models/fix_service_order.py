@@ -1130,6 +1130,16 @@ class FixServiceOrder(models.Model):
                 return ests.sorted(lambda e: (e.version, e.id))[-1]
         return self.env["fix.estimate"]
 
+    def _fix_extra_charges(self) -> list:
+        """Customer charges of this order outside its estimate, each a dict
+        {code, line_type, description, net}: ``code`` the catalogue charge
+        code, ``net`` the price before VAT. M02 adds unwaived wasted-visit
+        fees (D21), M03 the pick-and-drop tariff charges (D22). The billing
+        engine adds their VAT to the amount due and bills them on the
+        repair's tax invoice."""
+        self.ensure_one()
+        return []
+
     def _fix_amount_due(self) -> float:
         self.ensure_one()
         est = self._fix_governing_estimate()

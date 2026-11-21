@@ -259,11 +259,40 @@ class FixServiceOrderSettlementReceipts(models.Model):
         )
         return round(sum(receipts.mapped("amount")), 2)
 
+    def _fix_extra_charge_determination(self, on_date=None):
+        """M51's VAT on the order's charges outside the estimate (D21 wasted
+        visits, D22 pick and drop): (charges, determination), or ([], None)."""
+        self.ensure_one()
+        charges = self._fix_extra_charges()
+        if not charges:
+            return [], None
+        lines = [
+            tax_logic.TaxLine(
+                product_code=charge["code"],
+                qty=Decimal("1"),
+                unit_price=Decimal(str(charge["net"])).quantize(TWO_PLACES, ROUND_HALF_UP),
+                discount=Decimal("0"),
+            )
+            for charge in charges
+        ]
+        on_date = on_date or dhaka_date(fields.Datetime.now())
+        return charges, m51_determine(self.env, lines, on_date=on_date, company=self.company_id)
+
+    def _fix_extra_charges_due(self) -> float:
+        """The customer price (VAT inside) of the order's extra charges."""
+        _charges, determination = self._fix_extra_charge_determination()
+        if determination is None:
+            return 0.0
+        return round(sum(float(line.line_total) for line in determination.lines), 2)
+
     def _fix_amount_due(self) -> float:
-        """What the customer still pays to settle: the governing estimate less
-        the advances already received on the order (A02 ERP audit M04-F7: a
-        paid diagnostic fee was charged again in the repair settlement)."""
+        """What the customer still pays to settle: the governing estimate and
+        the order's extra charges (D21/D22, VAT added), less the advances
+        already received on the order (A02 ERP audit M04-F7: a paid
+        diagnostic fee was charged again in the repair settlement)."""
         due = super()._fix_amount_due()
+        if due > 0:
+            due = round(due + self._fix_extra_charges_due(), 2)
         if due <= 0:
             return due
         return max(round(due - self._fix_advances_held(), 2), 0.0)
