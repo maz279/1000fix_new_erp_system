@@ -507,3 +507,44 @@ def test_d5_foreign_advance_is_taken_back_at_its_own_bdt(p2p):
     # FX: 10,000 rate loss on the goods (110 -> 120), 4,000 gain on the advance
     assert lines["990030"][:2] == [10000.0, 4000.0]
     assert sum(move.line_ids.mapped("debit")) == pytest.approx(sum(move.line_ids.mapped("credit")))
+
+
+# ------------------------------------------- A06 integration: non-stock goods
+def test_integration_non_stock_goods_receipt_credits_grni_and_the_bill_clears_it(p2p):
+    """Goods on a PO that are not spare parts make no M15 receipt, so nothing
+    credited GRNI while the bill debited it. The M16 receipt now accrues them
+    (Dr expense / Cr GRNI at the receipt value) and the bill nets GRNI to 0.
+    Mutation: no accrual on posting -> GRNI keeps the bill's 1,000 debit."""
+    env = p2p["env"]
+    po = _sent_po(p2p, [(p2p["product"], 10, 100.0)])
+    po.action_record_receipt({po.line_ids.id: 10})
+    receipt = po.receipt_ids
+    accrual = receipt.ap_grni_move_id
+    assert accrual, "the non-stock goods receipt posted no GRNI accrual"
+    lines = _by_account(accrual)
+    assert lines["990503"][:2] == [0.0, 1000.0]
+    bill = _bill(p2p, po, [(p2p["product"], 10, 100.0)])
+    _post(bill)
+    grni = env["account.move.line"].search(
+        [
+            ("account_id", "=", p2p["accounts"]["grni"].id),
+            ("move_id", "in", (accrual | bill.move_id).ids),
+        ]
+    )
+    assert sum(grni.mapped("balance")) == 0.0
+
+
+def test_integration_a_service_entry_is_accrued_once(p2p):
+    """The service entry's own receipt is not accrued a second time."""
+    env = p2p["env"]
+    po = _sent_po(p2p, [(p2p["service"], 2, 500.0)])
+    entry = env["fix.purchase.service.entry"].create(
+        {
+            "purchase_order_id": po.id,
+            "po_line_id": po.line_ids.id,
+            "qty_confirmed": 2,
+            "description": "Two AC units serviced",
+        }
+    )
+    entry.action_confirm()
+    assert entry.move_id and not entry.receipt_id.ap_grni_move_id

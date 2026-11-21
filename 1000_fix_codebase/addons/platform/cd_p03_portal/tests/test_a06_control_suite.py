@@ -107,7 +107,14 @@ EMPLOYEE_WRITABLE = {"fix.requisition", "fix.purchase.service.entry"}
 
 # Supplier bank-detail proposals are confidential (M42-3): not even readable
 # by employees outside the supplier stewards and approvers.
-CONFIDENTIAL = {"fix.supplier.bank.change"}
+CONFIDENTIAL = {
+    "fix.supplier.bank.change",
+    # A06 ERP audit P30 (spec section 13): negotiated prices are for the buyers,
+    # procurement approvers / managers, supplier stewards and accountants only
+    "fix.supplier.price.list",
+    "fix.supplier.price.change",
+    "fix.procurement.approved.source",
+}
 
 # Approvals the audit required to be routed by amount (S3, R4).
 ROUTED = ("fix.requisition", "fix.purchase.order", "fix.import.lc")

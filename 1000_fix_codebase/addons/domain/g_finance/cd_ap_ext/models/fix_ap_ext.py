@@ -1177,10 +1177,12 @@ class FixVendorInvoice(models.Model):
         product of the linked PO, or of a received import without a PO."""
         if line.cwip_id:
             return False
-        if (
-            self.requisition_id
-            and line.product_id in self.requisition_id.sudo().line_ids.product_id
-        ):
+        po = self.requisition_id.sudo()
+        if po and "capex_request_id" in po._fields and po.capex_request_id:
+            # A06 X25 (agreed with A07): a capital purchase never passes through
+            # GRNI - its receipt posts nothing and the bill debits CWIP
+            return False
+        if po and line.product_id in po.line_ids.product_id:
             return True
         return bool(self._fix_grni_source_lines(line))  # A06 X11
 

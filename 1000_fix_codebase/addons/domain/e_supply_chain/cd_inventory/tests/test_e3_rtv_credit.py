@@ -45,10 +45,15 @@ def _accounts(env):
     acc("990131", "Test input VAT", "asset_current")
     acc("990252", "Test VDS payable", "liability_current")
     acc("990253", "Test TDS payable", "liability_current")
+    # A06 ERP audit P12 / X14: the bill posts its price and rate differences
+    acc("990007", "E3 purchase price variance", "expense")
+    acc("990030", "E3 FX gain / loss", "expense")
     icp = env["ir.config_parameter"].sudo()
     for param, code in (
         ("cd_ap_ext.account_code.ap", "990201"),
         ("cd_ap_ext.account_code.grni", "990503"),
+        ("cd_ap_ext.account_code.ppv", "990007"),
+        ("cd_ap_ext.account_code.fx_gain_loss", "990030"),
         ("cd_tax_engine_bd.vat_input_account_code", "990131"),
         ("cd_tax_engine_bd.account_code.vds_payable", "990252"),
         ("cd_tax_engine_bd.account_code.tds_payable", "990253"),

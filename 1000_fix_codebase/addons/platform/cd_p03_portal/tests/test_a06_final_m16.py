@@ -171,8 +171,20 @@ def onboard(w, p03, partner):
             "fix.supplier.screening",
             {"supplier_id": sid, "screening_type": key, "result": "clear"},
         )
-        press(p03, steward, "fix.supplier.screening", rec, "action_clear")
-    qual = write_ok(p03, steward, "fix.supplier.qualification", {"supplier_id": sid, "score": 82})
+        # A06 ERP audit P20: whoever recorded a screening does not clear it
+        press(p03, second, "fix.supplier.screening", rec, "action_clear")
+    # A06 ERP audit P08: the categories a supplier may supply are approved on
+    # its qualification (the PO category gate is on)
+    qual = write_ok(
+        p03,
+        steward,
+        "fix.supplier.qualification",
+        {
+            "supplier_id": sid,
+            "score": 82,
+            "category_ids": [(6, 0, [w.product.categ_id.id])],
+        },
+    )
     press(p03, steward, "fix.supplier.qualification", qual, "action_start")
     press(p03, approver, "fix.supplier.qualification", qual, "action_approve")
     gate = write_ok(
