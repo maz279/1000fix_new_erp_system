@@ -496,3 +496,70 @@ def grni_rows_as_of(env, as_of, company=None):
                     }
                 )
     return rows
+
+
+def grir_po_summary_as_of(env, as_of, company=None):
+    """GR/IR both ways per PO, on the same posted basis as GRNI (X26): what was
+    accepted (at its receipt value) and what posted bills billed (at their BDT
+    figure), and per product the part billed AHEAD of acceptance - invoiced,
+    not received - at the bill's price. A product received never nets another
+    product billed. With the three-way match a bill posts only for received
+    goods, so "invoiced, not received" is what was billed and then shipped
+    back to the vendor before its credit note. {po: {vendor, received_value,
+    invoiced_value, invoiced_not_received}} for POs received or billed."""
+    Bill = env["fix.vendor.invoice"]
+    out = {}
+
+    def row(po):
+        return out.setdefault(
+            po,
+            {
+                "vendor": po.vendor_id,
+                "received_value": 0.0,
+                "invoiced_value": 0.0,
+                "invoiced_not_received": 0.0,
+            },
+        )
+
+    billed_qty = defaultdict(float)
+    billed_value = defaultdict(float)
+    for bill in _bills_as_of(env, as_of, company):
+        if bill.bill_type != "po" or not bill.requisition_id:
+            continue
+        po = bill.requisition_id.sudo()
+        for line in bill.line_ids:
+            key = (po, line.product_id)
+            billed_qty[key] += line.quantity or 0.0
+            billed_value[key] += line.line_total_bdt or 0.0
+            row(po)["invoiced_value"] += line.line_total_bdt or 0.0
+    domain = [("state", "=", "posted"), ("receipt_id.received_on", "<=", as_of)]
+    if company:
+        domain.append(("receipt_id.company_id", "=", company.id))
+    accepted = defaultdict(float)
+    for rl in env["fix.purchase.receipt.line"].sudo().search(domain):
+        pol = rl.po_line_id
+        qty = (rl.qty_received or 0.0) - (rl.qty_rejected or 0.0)
+        if qty <= 0:
+            continue
+        accepted[(pol.order_id, pol.product_id)] += qty
+        row(pol.order_id)["received_value"] += qty * Bill._fix_receipt_unit_value(pol)
+    # goods shipped back to the vendor by the date are no longer received
+    if "fix.stock.rtv" in env:
+        rtvs = (
+            env["fix.stock.rtv"]
+            .sudo()
+            .search([("purchase_order_id", "!=", False), ("state", "in", RTV_GONE_STATES)])
+        )
+        for rtv in rtvs:
+            day = fields.Date.to_date(rtv.shipped_at) if rtv.shipped_at else None
+            if rtv.quarantine_id or (day and day > as_of):
+                continue
+            accepted[(rtv.purchase_order_id, rtv.part_id.product_id)] -= rtv.qty or 0.0
+    for key, qty in billed_qty.items():
+        ahead = qty - accepted.get(key, 0.0)
+        if ahead > 1e-6 and qty > 1e-9:
+            row(key[0])["invoiced_not_received"] += ahead * billed_value[key] / qty
+    for vals in out.values():
+        for k in ("received_value", "invoiced_value", "invoiced_not_received"):
+            vals[k] = _q(vals[k])
+    return out

@@ -118,10 +118,12 @@ class FixVendorInvoiceImport(models.Model):
     def _post_approved_bill(self):
         docs = self.sudo().import_cost_ids
         if docs:
-            bdt = self.env.ref("base.BDT")
-            if self.currency_id != bdt:
+            # the documents' amounts are in the company currency (BDT on the
+            # estate): the bill paying them must be in it too
+            if self.currency_id != self.company_id.currency_id:
                 raise UserError(
-                    "Bill %s carries import cost documents and must be in BDT." % self.invoice_ref
+                    "Bill %s carries import cost documents and must be in %s."
+                    % (self.invoice_ref, self.company_id.currency_id.name)
                 )
             total = round(sum(docs.mapped("amount_bdt")), 2)
             if abs(total - round(self.subtotal, 2)) > 0.005:

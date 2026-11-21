@@ -408,9 +408,13 @@ def test_erp_m44_17_escalation_cron_is_wired_and_escalates_once(c):
 
 # ------------------------------------------------------------- X11 / X08 / M44-19
 def test_erp_x11_import_bill_without_po_clears_grni(c):
+    """A bill naming a no-PO import is AP's import bill (X11): it is matched
+    against the RECEIVED import and clears GRNI at the receipt value
+    (cd_ap_ext test_x11 / test_integration_*). Before the goods are received
+    it is not matched, so it can neither be paid nor clear anything."""
     bill = _posted_bill(c, 100.0, c.bdt)
-    account = bill._expense_account(bill.line_ids)
-    assert account == c.acc["grni"], "not the product's expense account"
+    assert bill.bill_type == "import" and bill.import_order_ref == c.order
+    assert bill.match_state == "blocked" and "not received" in (bill.match_detail or "")
 
 
 def test_erp_x08_cost_document_bill_relieves_the_landed_accrual(c):

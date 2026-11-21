@@ -753,7 +753,7 @@ def gr_ir(env, date_from=None, date_to=None, **params):
             ["The AP sub-ledger (cd_ap_ext) is not installed: there is no GRNI basis."],
             empty="No GRNI basis.",
         )
-    from odoo.addons.cd_ap_ext.models.fix_ap_grni import grni_rows_as_of
+    from odoo.addons.cd_ap_ext.models.fix_ap_grni import grir_po_summary_as_of, grni_rows_as_of
 
     allowed = set(env.companies.ids)
     buckets = {}
@@ -772,6 +772,9 @@ def gr_ir(env, date_from=None, date_to=None, **params):
                 "invoiced_qty": 0.0,
                 "open_qty": 0.0,
                 "received_not_invoiced": 0.0,
+                "received_value": 0.0,
+                "invoiced_value": 0.0,
+                "invoiced_not_received": 0.0,
                 "oldest_days": None,
             },
         )
@@ -781,14 +784,43 @@ def gr_ir(env, date_from=None, date_to=None, **params):
         row["received_not_invoiced"] += r["accrual"]
         if r["age_days"] is not None:
             row["oldest_days"] = max(row["oldest_days"] or 0, r["age_days"])
+    # the other direction on the same posted basis: billed ahead of receipt
+    for po, vals in grir_po_summary_as_of(env, as_of).items():
+        if po.company_id.id not in allowed:
+            continue
+        row = buckets.setdefault(
+            po.name,
+            {
+                "po": po.name,
+                "vendor": vals["vendor"].name or "",
+                "received_qty": 0.0,
+                "invoiced_qty": 0.0,
+                "open_qty": 0.0,
+                "received_not_invoiced": 0.0,
+                "received_value": 0.0,
+                "invoiced_value": 0.0,
+                "invoiced_not_received": 0.0,
+                "oldest_days": None,
+            },
+        )
+        for k in ("received_value", "invoiced_value", "invoiced_not_received"):
+            row[k] = vals[k]
     rows = []
     for row in buckets.values():
         for k in ("received_qty", "invoiced_qty", "open_qty"):
             row[k] = round(row[k], 3)
-        row["received_not_invoiced"] = round(row["received_not_invoiced"], 2)
+        for k in (
+            "received_not_invoiced",
+            "received_value",
+            "invoiced_value",
+            "invoiced_not_received",
+        ):
+            row[k] = round(row[k], 2)
+        if not row["received_not_invoiced"] and not row["invoiced_not_received"]:
+            continue  # received and billed alike: nothing to reconcile
         row["oldest_days"] = "" if row["oldest_days"] is None else row["oldest_days"]
         rows.append(row)
-    rows.sort(key=lambda r: -r["received_not_invoiced"])
+    rows.sort(key=lambda r: -(r["received_not_invoiced"] + r["invoiced_not_received"]))
     return _pack(
         "GR/IR Reconciliation — received not invoiced as at %s (BDT)" % as_of,
         [
@@ -797,7 +829,10 @@ def gr_ir(env, date_from=None, date_to=None, **params):
             "received_qty",
             "invoiced_qty",
             "open_qty",
+            "received_value",
+            "invoiced_value",
             "received_not_invoiced",
+            "invoiced_not_received",
             "oldest_days",
         ],
         {
@@ -806,7 +841,10 @@ def gr_ir(env, date_from=None, date_to=None, **params):
             "received_qty": "Accepted",
             "invoiced_qty": "Billed / Returned",
             "open_qty": "Open Qty",
+            "received_value": "Received Value (BDT)",
+            "invoiced_value": "Invoiced Value (BDT)",
             "received_not_invoiced": "Received, Not Invoiced (BDT)",
+            "invoiced_not_received": "Invoiced, Not Received (BDT)",
             "oldest_days": "Oldest (days)",
         },
         rows,
@@ -815,13 +853,16 @@ def gr_ir(env, date_from=None, date_to=None, **params):
             "rejections excluded), less returns shipped by then and quantity billed on bills "
             "posted by then net of return credit notes, at the receipt value in BDT (the M15 "
             "receipt cost, else the approved price at the order's stamped rate). The same basis "
-            "as the AP GRNI accrual; the total ties to the GRNI account (100503)."
+            "as the AP GRNI accrual; the total ties to the GRNI account (100503).",
+            "Invoiced, not received: per product, what posted bills billed beyond the accepted "
+            "quantity, at the bill's BDT price (a product received never nets another billed).",
         ],
         totals={
             "po": "Total",
             "received_not_invoiced": round(sum(r["received_not_invoiced"] for r in rows), 2),
+            "invoiced_not_received": round(sum(r["invoiced_not_received"] for r in rows), 2),
         },
-        empty="Nothing received and not invoiced at the period end.",
+        empty="Nothing received and not invoiced, or invoiced and not received, at the period end.",
     )
 
 
