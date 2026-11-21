@@ -19,9 +19,11 @@ from odoo.addons.cd_ap_ext.tests.test_supplier_advance_payment import (
 from odoo.exceptions import UserError
 
 
-def _remit(c, amount, po=None, bills=None, scope_key=None):  # noqa: F811
+def _remit(c, amount, po=None, bills=None, scope_key=None, currency=None):  # noqa: F811
     """What M44's LC payment does: settle in AP, post one balanced entry
-    (the bank side is a stand-in account here), attach it."""
+    (the bank side is a stand-in account here), attach it. The remittance is
+    in the LC's currency; here the company's own (BDT on the estate, as the
+    bills this fixture raises), so its company-currency value is `amount`."""
     env = c.env
     Settlement = env["fix.ap.lc.settlement"].sudo()
     source = po or c.vendor
@@ -29,7 +31,7 @@ def _remit(c, amount, po=None, bills=None, scope_key=None):  # noqa: F811
         c.company,
         c.ou,
         c.vendor,
-        env.ref("base.BDT"),
+        currency or c.company.currency_id,
         amount,
         amount,
         "2026-11-20",
@@ -86,6 +88,21 @@ def test_partial_remittance_lowers_what_the_bill_still_pays(c, adv_account):  # 
     assert b.lc_settled_amount == pytest.approx(1000.0)
     assert b.total_payable == pytest.approx(payable - 1000.0)
     assert b.payment_state == "not_paid"
+
+
+def test_a_remittance_in_another_currency_does_not_settle_the_bill(c, adv_account):  # noqa: F811
+    """A bill and the LC remittance that settles it agree on the currency."""
+    b = bill(c, 5000.0)
+    approve(c, b)
+    other = (
+        c.env["res.currency"]
+        .with_context(active_test=False)
+        .search([("id", "!=", b.currency_id.id)], limit=1)
+    )
+    assert other
+    with pytest.raises(UserError, match="cannot be settled by it"):
+        _remit(c, 1000.0, bills=b, currency=other)
+    assert not b.lc_settled_amount
 
 
 def test_a_bill_in_a_payment_run_is_not_settled_again(c, adv_account):  # noqa: F811
