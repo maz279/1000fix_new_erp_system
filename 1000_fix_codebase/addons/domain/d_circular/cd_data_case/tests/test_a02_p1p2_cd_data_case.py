@@ -333,7 +333,9 @@ def test_p2_z4_work_is_for_the_named_staff_only(m6):
 def test_p2_z4_read_needs_the_assigned_custodian(m6):
     case = m6.recovering(m6.new_case())
     stranger = m6.user("othercust", "cd_data_case.group_z4_custodian")
-    with pytest.raises(AccessError, match="assigned staff"):
+    # A02 pass 2 review: the M06-02 record rule now refuses an unassigned
+    # custodian before the Z4 staff check does
+    with pytest.raises(AccessError):
         case.with_user(stranger).action_access_recovered_data(step_up_token="123456")
     with pytest.raises(UserError, match="Access Denied"):  # assigned: on to the TOTP step
         case.with_user(m6.custodian).action_access_recovered_data(step_up_token="123456")
@@ -350,7 +352,8 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
     assert "error" in res
     with pytest.raises(UserError, match="64 hex digits"):
         case.action_record_image(source_hash="abc", image_hash="def")
-    with pytest.raises(AccessError, match="assigned staff"):
+    # an operator not named on the case cannot even see it (M06-02)
+    with pytest.raises(AccessError):
         case.with_user(m6.tech2).action_record_image(hashes="%s %s" % (m6.digest, m6.digest))
     out = m6.p03_action(
         m6.tech, CASE, case, "action_record_image", {"hashes": "%s %s" % (m6.digest, m6.digest)}
@@ -362,9 +365,11 @@ def test_p2_imaging_is_a_verified_step_and_the_hash_freezes(m6):
         case.action_recovered()
     with pytest.raises(UserError, match="Segregation of duties"):
         case.action_verify_image(recomputed_hash=m6.digest)
+    # the second person is the case's custodian (an unassigned operator does
+    # not see the case: M06-02)
     with pytest.raises(UserError, match="does not match"):
-        case.with_user(m6.tech2).action_verify_image(recomputed_hash="f" * 64)
-    case.with_user(m6.tech2).action_verify_image(recomputed_hash=m6.digest.upper())
+        case.with_user(m6.custodian).action_verify_image(recomputed_hash="f" * 64)
+    case.with_user(m6.custodian).action_verify_image(recomputed_hash=m6.digest.upper())
     assert case.image_verify_method == "second_person" and case.image_matches_source
     assert case.image_sha256_hash == m6.digest
     with pytest.raises(UserError, match="frozen"):
@@ -490,7 +495,10 @@ def test_b4_auto_purge_only_on_a_verified_certificate_for_the_media(m6):
     no_cert = m6.handed_over(m6.new_case(serial="WD-NOCERT-%d" % m6.n), target="T-A")
     _cert(m6, "SOME-OTHER-DRIVE-%d" % m6.n)  # binds another serial
     with_cert = m6.handed_over(m6.new_case(serial="WD-CERT-%d" % m6.n), target="T-B")
-    cert = _cert(m6, with_cert.media_serial_number)
+    # A02 pass 2 M06-04 (D15): the purge is proved by the lab's purge
+    # certificate of the case, never by a drive certificate
+    _cert(m6, with_cert.media_serial_number)
+    cert = m6.purge_cert(with_cert)
     _past_retention(no_cert)
     _past_retention(with_cert)
     assert Case.cron_retention_purge() == 1

@@ -1174,7 +1174,8 @@ class FixRentalTurnaround(models.Model):
             return "the turnaround checklist is incomplete (%s)" % ", ".join(missing)
         if self._data_bearing():
             cert = self.data_wipe_certificate_id
-            denial = cert._fix_certify_denial(asset.serial_no)
+            # A02 pass 2 review (M06-05): bound to THIS turnaround
+            denial = cert._fix_certify_denial(asset.serial_no, consumer=self.sudo())
             if denial:
                 return (
                     "unit %s is data-bearing (%s): %s — attach M06's verified wipe "

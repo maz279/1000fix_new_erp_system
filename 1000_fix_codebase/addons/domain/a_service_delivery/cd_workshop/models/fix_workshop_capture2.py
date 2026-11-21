@@ -1263,7 +1263,8 @@ class FixWorkshopTransfer(models.Model):
             return True
         dst = self.to_workshop_id.sudo()
         user = self.env.user
-        if dst.manager_id and dst.manager_id == user:
+        # manager_id is an employee (A02 pass 2 review: it was compared to the user)
+        if dst.manager_id and dst.manager_id.user_id == user:
             return True
         return _is_supervisor(self.env) and user in dst.supervisor_user_ids
 

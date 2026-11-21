@@ -301,7 +301,8 @@ class FixEwasteCollection(models.Model):
         if not self.wipe_required:
             return ""
         cert = self.sudo().wipe_certificate_id
-        return cert._fix_certify_denial(self._fix_serial())
+        # A02 pass 2 review (M06-05): bound to THIS collection
+        return cert._fix_certify_denial(self._fix_serial(), consumer=self.sudo())
 
     def _check_target_state(self, new_state, vals=None):
         """The gate of each target state. Runs on EVERY path (A05 E4)."""
@@ -491,8 +492,17 @@ class FixEwasteCollection(models.Model):
         for rec in self:
             if rec.state != "triaged":
                 raise UserError("Destruction from triaged state")
+            # the M18 user must be allowed to change this collection
+            rec.check_access("write")
             if not rec.wipe_certificate_id:
-                Wipe = self.env["fix.data.wipe.certificate"]
+                # A02 pass 2 review B7: only the data lab records a wipe
+                # certificate (M06-12), so M18 opens the pending destruction
+                # certificate as an authorised system write, after its own
+                # checks above. It certifies nothing yet: the lab attaches the
+                # log and the photo, a second person witnesses it in their own
+                # session (D16) and the wipe verifier verifies it before the
+                # item is released (_fix_wipe_denial).
+                Wipe = self.env["fix.data.wipe.certificate"].sudo()
                 wipe = Wipe.create(
                     {
                         "device_id": rec.device_id.id,

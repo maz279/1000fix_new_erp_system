@@ -131,8 +131,8 @@ def test_f14_clocked_labour_and_consumables_hit_the_cost_gate(m31):
 
 
 # ============================================================ F15/F16 tests and QC
-def _step(m, lower=3.0, upper=4.5):
-    proto = m.env["fix.workshop.test.protocol"].create(
+def _step(m, lower=3.0, upper=4.5, proto=None):
+    proto = proto or m.env["fix.workshop.test.protocol"].create(
         {"code": "F15-%d" % m.workshop.id, "name": "F15 rail check"}
     )
     return m.env["fix.workshop.test.step"].create(
@@ -157,10 +157,13 @@ def _result(m, job, step, value, **vals):
 def test_f15_qc_does_not_pass_a_failed_test_and_results_are_kept(m31):
     job = m31.job()
     _qc_ready(m31, job)
-    step = _step(m31)
+    # A02 pass 2 M31-04: QC is judged on the job's own protocol, so the rail
+    # check is one of its steps (its first step already passed)
+    step = _step(m31, proto=job.protocol_id)
     bad = _result(m31, job, step, 5.2)
     assert not bad.passed and job.test_failed_count == 1
-    with refused(m31.env, UserError, "1 test\\(s\\) failed"):
+    # A02 pass 2 M31-04: refused on the job's protocol (its latest result failed)
+    with refused(m31.env, UserError, "latest result failed for"):
         job.with_user(m31.qc).action_pass_qc(notes="looks fine")
     # the failed reading is evidence: not rewritten, not deleted
     with refused(m31.env, UserError, "not edited"):
@@ -170,7 +173,7 @@ def test_f15_qc_does_not_pass_a_failed_test_and_results_are_kept(m31):
     # a re-test is a new result; the latest result of the test is what counts
     _result(m31, job, step, 4.0)
     job.invalidate_recordset()
-    assert job.test_failed_count == 0 and len(job.test_result_ids) == 2
+    assert job.test_failed_count == 0 and len(job.test_result_ids) == 3
     job.with_user(m31.qc).action_pass_qc(notes="re-tested in limits")
     assert job.state == "ready"
 
@@ -344,6 +347,10 @@ def test_f21_reports_stay_in_the_callers_companies(m31):
     job = _closed(
         m31, completed_at=fields.Datetime.now(), is_rework=True, rework_reason="F21 probe"
     )
+    # A02 pass 2 M31-11: the rework report reads the loop rows, not the flag
+    m31.env["fix.workshop.rework"].sudo().create(
+        {"job_id": job.id, "iteration": 1, "failed_at_state": "qc", "reason": "F21 probe"}
+    )
     line = m31.env["fix.workshop.part.line"].create(
         {"job_id": job.id, "product_id": m31.product.id, "lot_serial_number": "F21-SER"}
     )
@@ -359,6 +366,7 @@ def test_f21_reports_stay_in_the_callers_companies(m31):
     assert line.lot_serial_number not in text(theirs, "parts_genealogy")
     assert m31.workshop.name in text(m31.env, "bench_utilisation")
     assert m31.workshop.name not in text(theirs, "bench_utilisation")
-    cycle = {r["level"]: r["delivered"] for r in p03.REPORTS["cycle_time"](theirs)["rows"]}
+    # A02 pass 2 M31-02: the cycle-time report counts the jobs the bench released
+    cycle = {r["level"]: r["released"] for r in p03.REPORTS["cycle_time"](theirs)["rows"]}
     assert cycle["L1"] == 0
     assert p03.kpis(theirs)["parts_fitment"] is None

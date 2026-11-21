@@ -127,6 +127,8 @@ export const SCREENS = {
       { m: 'action_take_custody', l: 'Hand to Lab (Take Custody)', ask: 'Login of the lab colleague who receives it', kwarg: 'handler' },
       { m: 'action_log_custody_transfer', l: 'Hand Over Custody', ask: 'Login of the colleague who receives it', kwarg: 'handler' },
       { m: 'action_confirm_custody', l: 'Confirm I Received It' },
+      /* A02 pass 2 review: the requester (or a lab manager) withdraws an unconfirmed hand-off */
+      { m: 'action_withdraw_handoff', l: 'Withdraw Hand-off', ask: 'Why the hand-off is withdrawn', kwarg: 'reason' },
       /* M06-01: the customer is fixed after intake; a lab manager corrects it */
       { m: 'action_correct_customer', l: 'Correct Customer (Lab Manager)', asks: [
         { kwarg: 'partner_id', label: 'Correct customer (contact id)', number: true },
@@ -167,6 +169,7 @@ export const SCREENS = {
         { kwarg: 'location', label: 'Location (z4_lab/cleanroom/vault/reception)' },
         { kwarg: 'handler', label: 'Login of the colleague who receives it' }] },
       { m: 'action_confirm_move', l: 'Confirm I Received It' },
+      { m: 'action_withdraw_move', l: 'Withdraw Move', ask: 'Why the move is withdrawn', kwarg: 'reason' },
       /* A02 ERP audit M06-F11: the named witness confirms in their own session */
       { m: 'action_break_seal_with_witness', l: 'Request Seal Break (names the witness)', ask: 'Witness login (a second person, not you)', kwarg: 'witness_user_id' },
       { m: 'action_confirm_seal_break', l: 'Confirm as Witness' },

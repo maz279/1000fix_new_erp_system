@@ -118,6 +118,8 @@ def m31(odoo_env):
             "max_concurrent_jobs": 20,
         }
     )
+    # A02 pass 2 review: a new bench is not ESD-verified until today's check
+    (l1 | l2).action_log_daily_esd(5.0, 50.0)
     ou = env["operating.unit"].search([], limit=1)
     # one legal entity per company (fix_entity_company_unique): reuse it
     entity = env["fix.entity"].search([("company_id", "=", env.company.id)], limit=1) or env[

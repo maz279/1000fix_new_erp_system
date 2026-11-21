@@ -52,6 +52,8 @@ CLOCK_STOP_STATES = ("qc_pending", "ready", "released", *CLOSED_JOB_STATES)
 NO_CLOCK_STATES = ("qc_pending", "ready", "released")
 # the test protocol is fixed once the job is handed to burn-in / QC
 PROTOCOL_LOCKED_STATES = ("burn_in", "qc_pending", "ready", "released", *CLOSED_JOB_STATES)
+# A02 pass 2 review: in test, a job with NO protocol may still be given one
+PROTOCOL_SETTABLE_WHEN_EMPTY = ("burn_in", "qc_pending")
 # M31-09: a BER is declared when repairing costs this share of the device's
 # value or more (a policy number: 100 = the repair costs at least the value)
 BER_RATIO_PARAM = "cd_workshop.ber_cost_to_value_pct"
@@ -144,7 +146,9 @@ class FixWorkshopJobA02R2(models.Model):
         if len(self) == 1:
             if self.state != "draft":
                 locked |= {"maintenance_request_id"}
-            if self.state in PROTOCOL_LOCKED_STATES:
+            if self.state in PROTOCOL_LOCKED_STATES and (
+                self.protocol_id or self.state not in PROTOCOL_SETTABLE_WHEN_EMPTY
+            ):
                 locked |= {"protocol_id"}
         return locked
 
@@ -208,6 +212,9 @@ class FixWorkshopJobA02R2(models.Model):
                 if (
                     "protocol_id" in vals
                     and rec.state in PROTOCOL_LOCKED_STATES
+                    # a job that reached test with no protocol gets one (QC is
+                    # judged on it); one it has is never swapped
+                    and (rec.protocol_id or rec.state not in PROTOCOL_SETTABLE_WHEN_EMPTY)
                     and rec._fix_guard_differs("protocol_id", vals["protocol_id"], rec.protocol_id)
                 ):
                     raise UserError(
@@ -379,7 +386,7 @@ class FixWorkshopJobA02R2(models.Model):
             [("order_id", "=", int(order_id or 0)), ("state", "in", ("ready", "released"))]
         )
         closed = []
-        for job in jobs.with_context(m31_order_delivered=True):
+        for job in jobs:  # sudo: action_deliver trusts the relay (A02 pass 2 review)
             if job.state == "ready":
                 job._guarded().write(
                     {"released_at": fields.Datetime.now(), "released_by_id": self.env.uid}
@@ -469,7 +476,10 @@ class FixWorkshopJobA02R2(models.Model):
         (or M01's own cancellation cascade). Reserved parts are released and
         parts M15 issued to the job go back BEFORE the job is cancelled (M15
         refuses a return from a closed job); M01 is told."""
-        system = self.env.su or self.env.context.get("m31_ber_closing")
+        # A02 pass 2 review B6: only trusted code skips the supervisor and the
+        # reason (M01's cancellation cascade already runs as the superuser);
+        # no context key a client can send does
+        system = self.env.su
         reason = (reason or self.env.context.get("m31_cancel_reason") or "").strip()
         if not system:
             self._m31_require_group((GROUP_SUPERVISOR,), "Cancelling a workshop job")
@@ -694,6 +704,32 @@ class FixWorkshopA02R2(models.Model):
     """M31-12: the supervisors of a workshop (who accept a transfer into it)."""
 
     _inherit = "fix.workshop"
+
+    def write(self, vals):
+        """A02 pass 2 review: a supervisor never appoints himself supervisor or
+        manager of a workshop (he would then accept transfers into it)."""
+        if not self.env.su and {"supervisor_user_ids", "manager_id"} & set(vals):
+            user = self.env.user
+            for rec in self:
+                before = rec.supervisor_user_ids
+                if "supervisor_user_ids" in vals:
+                    field = self._fields["supervisor_user_ids"]
+                    after = field.convert_to_record(
+                        field.convert_to_cache(vals["supervisor_user_ids"], rec), rec
+                    )
+                    if user in after and user not in before:
+                        raise UserError(
+                            "Segregation of duties: %s does not add himself as a supervisor of "
+                            "workshop %s; another manager does." % (user.name, rec.name)
+                        )
+                if "manager_id" in vals:
+                    employee = self.env["hr.employee"].sudo().browse(vals["manager_id"] or [])
+                    if employee and employee.user_id == user and rec.manager_id != employee:
+                        raise UserError(
+                            "Segregation of duties: %s does not make himself manager of "
+                            "workshop %s; another manager does." % (user.name, rec.name)
+                        )
+        return super().write(vals)
 
     supervisor_user_ids = fields.Many2many(
         "res.users",

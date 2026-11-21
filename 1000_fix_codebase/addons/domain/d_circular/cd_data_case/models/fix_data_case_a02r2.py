@@ -58,6 +58,32 @@ STANDARDS = {
     "cryptographic_erase": "NIST SP 800-88 Rev. 1 - Purge (Cryptographic Erase)",
     "physical_destruction": "NIST SP 800-88 Rev. 1 - Destroy (witnessed)",
 }
+# Finance role (cd_billing_engine's name; M20 is optional for M06)
+GROUP_ACCOUNT_ADMIN = "account.group_account_manager"
+
+# A02 pass 2 review B3/B4: in-process switches. A JSON-RPC caller can put any
+# key it likes in the context, but not these objects, so only this module's
+# own confirmation and purge paths can set them (the fix.guarded.mixin token
+# pattern).
+CONFIRM_KEY = "m06_custody_confirming"
+PURGE_KEY = "m06_case_purge"
+_PURGE_TOKEN = object()
+
+
+class _M06Confirmation:
+    """The named receiver's confirmation of a custody hand-off, with the
+    requester as the ledger's witness: a recorded second user, never a value
+    a caller typed."""
+
+    __slots__ = ("witness_id",)
+
+    def __init__(self, witness_id):
+        self.witness_id = witness_id
+
+
+def _m06_confirmation(env):
+    value = env.context.get(CONFIRM_KEY)
+    return value if isinstance(value, _M06Confirmation) else None
 
 
 def _internal_receiver(env, value, what):
@@ -80,6 +106,22 @@ def _internal_receiver(env, value, what):
     if not user.active or user.share or not user.has_group(GROUP_OPERATOR):
         raise UserError("%s: %s is not an active data-lab colleague." % (what, user.name))
     return user
+
+
+def _m06_assert_may_withdraw(env, requester, what):
+    if env.su or env.user == requester or env.user.has_group(GROUP_LAB_MANAGER):
+        return
+    raise AccessError(
+        "Only %s, who asked for the hand-off of %s, or a lab manager withdraws it."
+        % (requester.name, what)
+    )
+
+
+def _m06_drop_confirm_activity(record, receiver):
+    """The receiver's 'Confirm custody' to-do goes with the withdrawn move."""
+    record.sudo().activity_ids.filtered(
+        lambda a: a.user_id == receiver and (a.summary or "").startswith("Confirm custody")
+    ).unlink()
 
 
 class FixDataCaseReadLog(models.Model):
@@ -248,8 +290,18 @@ class FixDataRecoveryCaseA02R2(models.Model):
         self._m06_log_reads("read")
         return result
 
+    def check_access(self, operation):
+        """A02 pass 2 review: a caller-scoped P03 form opens one case by id
+        and checks read access on it before serving its fields (field reads,
+        not read()); that check is the form's read, and is logged."""
+        super().check_access(operation)
+        if operation == "read" and self.ids:
+            self._m06_log_reads("access")
+
     def _m06_log_reads(self, channel):
-        if self.env.su or not self.ids or self.env.context.get("m06_no_read_log"):
+        # A02 pass 2 review B5: no caller-settable switch turns the log off;
+        # system code that must not log reads as the superuser
+        if self.env.su or not self.ids:
             return
         uid, ids = self.env.uid, list(self.ids)
 
@@ -283,13 +335,15 @@ class FixDataRecoveryCaseA02R2(models.Model):
 
     # ------------------------------------------------------------ M06-03
     def _custody_log(self, action, description, media_unit=None, witness_id=False):
-        witness_id = witness_id or self.env.context.get("m06_custody_witness") or False
+        confirmation = _m06_confirmation(self.env)
+        if not witness_id and confirmation:
+            witness_id = confirmation.witness_id
         return super()._custody_log(
-            action, description, media_unit=media_unit, witness_id=witness_id
+            action, description, media_unit=media_unit, witness_id=witness_id or False
         )
 
     def _m06_confirming(self):
-        return self.env.su or self.env.context.get("m06_custody_confirming")
+        return self.env.su or _m06_confirmation(self.env) is not None
 
     def action_take_custody(self, handler=None):
         """Custody starts on sealed media (M06-03). The person taking the
@@ -386,14 +440,39 @@ class FixDataRecoveryCaseA02R2(models.Model):
             )
             # the move is recorded as the receiver (sudo keeps the uid): he
             # need not otherwise see the case he is handed
-            ctx = rec.sudo().with_context(
-                m06_custody_confirming=True, m06_custody_witness=requester.id
-            )
+            ctx = rec.sudo().with_context(**{CONFIRM_KEY: _M06Confirmation(requester.id)})
             who = "%s (from %s)" % (self.env.user.name, requester.name)
             if kind == "intake":
                 ctx.action_take_custody(handler=who)
             else:
                 ctx.action_log_custody_transfer(who, role="Received", location=note)
+        return True
+
+    def action_withdraw_handoff(self, reason=None):
+        """The requester (or a lab manager) withdraws a hand-off its receiver
+        has not confirmed: a wrong receiver, or one who is away, no longer
+        blocks the case (A02 pass 2 review)."""
+        for rec in self:
+            if not rec.custody_request_kind:
+                raise UserError("Case %s has no custody hand-off to withdraw." % rec.name)
+            _m06_assert_may_withdraw(self.env, rec.custody_request_by_id, "case %s" % rec.name)
+            receiver = rec.custody_request_to_id
+            kind = rec.custody_request_kind
+            rec._guarded().write(
+                {
+                    "custody_request_kind": False,
+                    "custody_request_by_id": False,
+                    "custody_request_to_id": False,
+                    "custody_request_at": False,
+                    "custody_request_note": False,
+                }
+            )
+            rec._custody_log(
+                "custody_withdrawn",
+                "[%s withdrawn] %s withdrew the hand-off to %s%s"
+                % (kind, self.env.user.name, receiver.name, (": %s" % reason) if reason else ""),
+            )
+            _m06_drop_confirm_activity(rec, receiver)
         return True
 
     def action_take_custody_me(self):
@@ -441,7 +520,9 @@ class FixDataRecoveryCaseA02R2(models.Model):
         if not cert:
             return "no purge certificate is attached"
         # verified, its evidence unchanged since (the P0 checks) first
-        denial = cert.with_context(m06_case_purge=True)._fix_certify_denial(cert.serial_number)
+        denial = cert.with_context(**{PURGE_KEY: _PURGE_TOKEN})._fix_certify_denial(
+            cert.serial_number
+        )
         if denial:
             return denial
         if cert.purpose != "case_purge":
@@ -473,29 +554,76 @@ class FixDataRecoveryCaseA02R2(models.Model):
 
     # ------------------------------------------------------------ M06-07
     def action_waive_charge(self, note=None):
+        """The waiver drops the case's unbilled draft with it. An ISSUED
+        invoice is finance's (A08 M20-8): it is cancelled through M20's own
+        action by an Accounting Administrator who neither raised nor issued
+        it - the waiving lab manager when he is one, else it is routed to
+        them (A02 pass 2 review)."""
         result = super().action_waive_charge(note=note)
         for rec in self:
             invoice = rec._data_invoice()
             if not invoice:
                 continue
             reason = "Charge waived on data case %s: %s" % (rec.name, note)
-            if invoice.state in ("draft", "issued") and (invoice.amount_paid or 0.0) <= 0.005:
-                invoice.sudo().action_cancel(reason=reason)
-                rec.message_post(body="Invoice AR/%s cancelled: the charge is waived." % invoice.id)
-            else:
+            label = "AR/%s" % invoice.id
+            if (invoice.amount_paid or 0.0) > 0.005 or invoice.state not in ("draft", "issued"):
                 rec.message_post(
-                    body="Invoice AR/%s is %s with payments on it: finance raises the credit "
-                    "note for the waived charge." % (invoice.id, invoice.state)
+                    body="Invoice %s is %s with payments on it: finance raises the credit "
+                    "note for the waived charge." % (label, invoice.state)
                 )
+            elif invoice.state == "draft":
+                # no number, Mushak row or GL yet: the system's own draft goes
+                invoice.sudo().action_cancel(reason=reason)
+                rec.message_post(body="Invoice %s cancelled: the charge is waived." % label)
+            elif rec._m06_may_cancel_issued(invoice):
+                invoice.with_env(self.env).action_cancel(reason=reason)
+                rec.message_post(body="Invoice %s cancelled: the charge is waived." % label)
+            else:
+                rec._m06_route_invoice_to_finance(invoice, reason)
         return result
 
+    def _m06_may_cancel_issued(self, invoice) -> bool:
+        user = self.env.user
+        return bool(
+            self.env.ref(GROUP_ACCOUNT_ADMIN, raise_if_not_found=False)
+            and user.has_group(GROUP_ACCOUNT_ADMIN)
+            and user not in (invoice.create_uid | invoice.issued_by_id)
+        )
+
+    def _m06_route_invoice_to_finance(self, invoice, reason):
+        """The issued invoice of a waived charge stays open until an
+        Accounting Administrator (not its raiser or issuer) cancels it."""
+        self.ensure_one()
+        group = self.env.ref(GROUP_ACCOUNT_ADMIN, raise_if_not_found=False)
+        excluded = invoice.create_uid | invoice.issued_by_id | self.env.user
+        admins = (
+            group.sudo().user_ids.filtered(lambda u: u.active and not u.share) - excluded
+            if group
+            else self.env["res.users"]
+        )
+        note = (
+            "Invoice AR/%s is issued: an Accounting Administrator who neither raised nor "
+            "issued it cancels it in M20 (%s)." % (invoice.id, reason)
+        )
+        for user in admins:
+            invoice.sudo().activity_schedule(
+                "mail.mail_activity_data_todo",
+                summary="Cancel invoice AR/%s: charge waived" % invoice.id,
+                note=note,
+                user_id=user.id,
+            )
+        self.message_post(body=note)
+
     def action_approve_credit(self, note=None):
+        """The credit decision puts the receivable on the customer's account:
+        the draft is issued through M20's own action AS the deciding user, so
+        the Accountant role and the invoice's issue checks apply (A02 pass 2
+        review: it was issued as the superuser)."""
         result = super().action_approve_credit(note=note)
         for rec in self:
             invoice = rec._data_invoice()
             if invoice and invoice.state == "draft":
-                # the receivable goes on the customer's account now
-                invoice.sudo().action_issue()
+                invoice.with_env(self.env).action_issue()
         return result
 
     # ------------------------------------------------------------ M06-11
@@ -608,11 +736,13 @@ class FixDataMediaUnitA02R2(models.Model):
         return super()._fix_guarded_fields() | set(self._PENDING)
 
     def _log(self, text, action="media_moved", witness_id=False):
-        witness_id = witness_id or self.env.context.get("m06_custody_witness") or False
-        return super()._log(text, action=action, witness_id=witness_id)
+        confirmation = _m06_confirmation(self.env)
+        if not witness_id and confirmation:
+            witness_id = confirmation.witness_id
+        return super()._log(text, action=action, witness_id=witness_id or False)
 
     def _m06_confirming(self):
-        return self.env.su or self.env.context.get("m06_custody_confirming")
+        return self.env.su or _m06_confirmation(self.env) is not None
 
     def _m06_request(self, kind, receiver, location=False, recipient=False):
         self.ensure_one()
@@ -692,6 +822,26 @@ class FixDataMediaUnitA02R2(models.Model):
             unit._m06_request("return", receiver, recipient=partner)
         return True
 
+    def action_withdraw_move(self, reason=None):
+        """The requester (or a lab manager) withdraws a move or return its
+        receiver has not confirmed (A02 pass 2 review)."""
+        for unit in self:
+            if not unit.pending_kind:
+                raise UserError("Media %s has no move to withdraw." % unit.seal_number)
+            _m06_assert_may_withdraw(
+                self.env, unit.pending_requested_by_id, "media %s" % unit.seal_number
+            )
+            receiver = unit.pending_receiver_id
+            kind = unit.pending_kind
+            unit._guarded().write(dict.fromkeys(self._PENDING, False))
+            unit._log(
+                "%s withdrawn by %s (was to be confirmed by %s)%s"
+                % (kind, self.env.user.name, receiver.name, (": %s" % reason) if reason else ""),
+                action="custody_withdrawn",
+            )
+            _m06_drop_confirm_activity(unit, receiver)
+        return True
+
     def action_confirm_move(self):
         """The named receiver confirms the move (or the return to the
         customer) in their own session; the ledger names both people."""
@@ -706,9 +856,7 @@ class FixDataMediaUnitA02R2(models.Model):
             kind, location = unit.pending_kind, unit.pending_location
             requester, recipient = unit.pending_requested_by_id, unit.pending_recipient_id
             unit._guarded().write(dict.fromkeys(self._PENDING, False))
-            ctx = unit.sudo().with_context(
-                m06_custody_confirming=True, m06_custody_witness=requester.id
-            )
+            ctx = unit.sudo().with_context(**{CONFIRM_KEY: _M06Confirmation(requester.id)})
             who = "%s (from %s)" % (self.env.user.name, requester.name)
             if kind == "transfer":
                 ctx.action_transfer(location, handler=who)
@@ -885,29 +1033,51 @@ class FixDataWipeCertificateA02R2(models.Model):
             self._m06_check_matrix()
         return result
 
-    def _m06_check_matrix(self):
-        """D16: the method must be allowed for the media kind, its
-        confidentiality and its disposition (from the request)."""
-        for cert in self:
-            if cert.purpose != "media" or not cert.media_kind:
-                continue
-            req = cert.wipe_request_id
-            level = req.confidentiality_level if req else "high"
-            disposition = req.disposition if req else "resale"
-            rule = self.env["fix.data.sanitisation.rule"]._m06_rule_for(
-                cert.media_kind, level, disposition
-            )
+    def _m06_matrix_denial(self) -> str:
+        """D16: '' when the method is allowed for the media kind, its
+        confidentiality and its disposition (from the request; with no
+        request, high confidentiality going to resale), else why not. A
+        blank media kind is judged as the most restrictive: the method must
+        be allowed for every media kind (A02 pass 2 review, D16)."""
+        self.ensure_one()
+        cert = self.sudo()
+        if cert.purpose != "media" or not cert.method:
+            return ""
+        req = cert.wipe_request_id
+        level = req.confidentiality_level if req else "high"
+        disposition = req.disposition if req else "resale"
+        Rule = self.env["fix.data.sanitisation.rule"]
+        kinds = [cert.media_kind] if cert.media_kind else [k for k, _l in Rule._fields[
+            "media_kind"].selection]  # fmt: skip
+        for kind in kinds:
+            rule = Rule._m06_rule_for(kind, level, disposition)
             if rule and not rule._allows(cert.method):
-                raise UserError(
-                    "The sanitisation matrix does not allow %s for %s media of %s "
-                    "confidentiality going to %s."
+                return (
+                    "the sanitisation matrix does not allow %s for %s media of %s "
+                    "confidentiality going to %s%s"
                     % (
                         dict(self._fields["method"].selection).get(cert.method),
-                        cert.media_kind,
+                        kind,
                         level,
                         disposition,
+                        ""
+                        if cert.media_kind
+                        else " (the media kind is not recorded, so it "
+                        "is judged as the strictest kind)",
                     )
                 )
+        return ""
+
+    def _m06_check_matrix(self):
+        """D16, when a certificate is recorded and verified: a recorded media
+        kind is judged here; a blank one is judged (as the strictest kind) at
+        the release of the device (_fix_certify_denial with its consumer)."""
+        for cert in self:
+            if not cert.media_kind:
+                continue
+            denial = cert._m06_matrix_denial()
+            if denial:
+                raise UserError(denial[0].upper() + denial[1:] + ".")
 
     def _evidence_gaps(self) -> list[str]:
         gaps = super()._evidence_gaps()
@@ -950,20 +1120,27 @@ class FixDataWipeCertificateA02R2(models.Model):
     def _fix_certify_denial(self, serial, consumer=None, since=None) -> str:
         """M06-04 / M06-05. Backwards compatible: ``consumer`` (the record
         that consumes the certificate, e.g. a trade-in) and ``since`` (when
-        it took the device in) are optional; when given, the certificate
-        must have been verified after that intake and answer that record's
-        wipe request."""
+        it took the device in) are optional. When given (every M14 / M18 /
+        M13 / M06 release passes it), the certificate must have been
+        verified after that intake, must not answer a wipe request raised
+        for another record or another module, and its method must pass the
+        D16 matrix (a blank media kind judged as the strictest)."""
         denial = super()._fix_certify_denial(serial)
         if denial or not self:
             return denial
         cert = self.sudo()
-        if cert.purpose == "case_purge" and not self.env.context.get("m06_case_purge"):
+        if cert.purpose == "case_purge" and self.env.context.get(PURGE_KEY) is not _PURGE_TOKEN:
             return (
                 "certificate %s records a data-case purge (the lab's own copy): it certifies "
                 "no device's media" % cert.name
             )
         if consumer:
             start = since or consumer.create_date
+            if start:
+                # verified_at is stored to the second; create_date carries
+                # microseconds (a wipe verified in the intake's second is not
+                # an earlier cycle)
+                start = start.replace(microsecond=0)
             if start and cert.verified_at and cert.verified_at < start:
                 return (
                     "certificate %s was verified on %s, before %s took the device in (%s): it "
@@ -974,16 +1151,21 @@ class FixDataWipeCertificateA02R2(models.Model):
             refs = {_norm_serial(consumer.display_name)}
             if "name" in consumer._fields:
                 refs.add(_norm_serial(consumer.name))
-            if not req or _norm_serial(req.source_ref) not in refs:
-                return "certificate %s answers no wipe request raised for %s" % (
+            # a request that names its record binds the certificate to it
+            if req and (req.source_ref or "").strip() and _norm_serial(req.source_ref) not in refs:
+                return "certificate %s answers no wipe request raised for %s (it answers %s)" % (
                     cert.name,
                     consumer.display_name,
+                    req.source_ref,
                 )
             sources = CONSUMER_SOURCES.get(consumer._name)
-            if sources and req.source not in sources:
+            if req and sources and req.source not in sources:
                 return "certificate %s answers a %s request, not %s" % (
                     cert.name,
                     req.source,
                     consumer._description,
                 )
+            denial = cert._m06_matrix_denial()
+            if denial:
+                return "certificate %s: %s" % (cert.name, denial)
         return ""

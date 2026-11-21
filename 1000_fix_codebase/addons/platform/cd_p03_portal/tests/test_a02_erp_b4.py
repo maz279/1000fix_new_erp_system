@@ -541,14 +541,21 @@ def test_workshop_job_card_prints_the_repair(b4):
             }
         )
     )
-    m.env["fix.workshop.part.line"].sudo().create(
-        {
-            "job_id": job.id,
-            "product_id": m.product.id,
-            "quantity": 1.0,
-            "fitted_serial_number": "PMIC-B4-1",
-        }
+    line = (
+        m.env["fix.workshop.part.line"]
+        .sudo()
+        .create(
+            {
+                "job_id": job.id,
+                "product_id": m.product.id,
+                "quantity": 1.0,
+                "fitted_serial_number": "PMIC-B4-1",
+            }
+        )
     )
+    # A02 pass 2 M31-10: the card prints only the parts fitted on the bench
+    # (consumed); test setup marks this one fitted
+    line._guarded().write({"reservation_state": "consumed"})
     html = _html(m.env, "cd_p03_portal.report_a02_workshop_job", job)
     for text in (
         "WORKSHOP JOB CARD / REPAIR REPORT",

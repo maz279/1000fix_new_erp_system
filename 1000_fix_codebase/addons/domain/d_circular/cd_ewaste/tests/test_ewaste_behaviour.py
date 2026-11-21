@@ -47,13 +47,31 @@ def _verified_destruction_cert(env, serial):
     """The destruction operator's M06 certificate, evidence attached and verified,
     bound to the item it certifies (A02 audit M06-1: here the collection)."""
     log = env["ir.attachment"].create({"name": "shred.log", "raw": b"shredder run 42: PASS"})
+    photo = env["ir.attachment"].create({"name": "shredded.jpg", "raw": b"shredded media"})
     cert = env["fix.data.wipe.certificate"].create(
         {
             "method": "physical_destruction",
             "wipe_log_attachment_id": log.id,
+            "destruction_photo_attachment_id": photo.id,
             "serial_number": serial,
         }
     )
+    # D16 (A02 pass 2): a second person of the data lab witnessed it
+    witness = (
+        env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Destruction witness %s" % serial,
+                "login": "ew.witness.%s@a05.test" % serial.lower(),
+                "group_ids": [
+                    (6, 0, [env.ref("base.group_user").id,
+                            env.ref("cd_data_case.group_data_recovery_operator").id])
+                ],
+            }
+        )
+    )  # fmt: skip
+    cert.with_user(witness).action_witness_destruction()
     cert.action_verify()
     return cert
 

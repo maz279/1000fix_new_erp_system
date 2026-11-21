@@ -720,14 +720,17 @@ def _turnaround(c):
     return r, t.with_user(c.clerk)
 
 
-def _cert(c, serial):
+def _cert(c, serial, request=None, method="nist_800_88_purge"):
+    # A02 pass 2 review (D16): a unit leaving for its next renter is judged by
+    # the sanitisation matrix at release; Purge passes it for any media kind
     log = c.env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
     cert = c.env["fix.data.wipe.certificate"].create(
         {
-            "method": "nist_800_88",
+            "method": method,
             "serial_number": serial,
             "sector_count": 1000,
             "wipe_log_attachment_id": log.id,
+            "wipe_request_id": request.id if request else False,
         }
     )
     cert.action_verify()
@@ -754,6 +757,23 @@ def test_turnaround_release_needs_the_checklist_and_a_verified_wipe(c, p03):
     t.write({"data_wipe_certificate_id": _cert(c, "OTHER-SN").id})
     with pytest.raises(UserError, match="certifies media"):
         t.action_ready()
+    # A02 pass 2 review (M06-05): a certificate answering another record's
+    # wipe request does not release this unit
+    other = c.env["fix.data.wipe.request"].create(
+        {
+            "source": "customer",
+            "source_ref": "SOMEONE-ELSES-ORDER",
+            "serial_number": SN,
+            "confidentiality_level": "high",
+            "disposition": "internal_reuse",
+        }
+    )
+    t.write({"data_wipe_certificate_id": _cert(c, SN, request=other).id})
+    with pytest.raises(UserError, match="no wipe request raised for"):
+        t.action_ready()
+    # a Clear of a unit of unrecorded media kind fails the D16 matrix
+    clear = _cert(c, SN, method="nist_800_88")
+    assert "sanitisation matrix" in clear._fix_certify_denial(SN, consumer=t.sudo())
     cert = _cert(c, SN)
     t.write({"data_wipe_certificate_id": cert.id})
     t.action_ready()

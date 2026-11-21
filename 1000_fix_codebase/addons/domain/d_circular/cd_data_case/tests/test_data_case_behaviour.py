@@ -554,6 +554,25 @@ def test_verification_requires_the_operators_evidence(odoo_env):
         serial_number="WD-SHRED-1",
         wipe_log_attachment_id=_wipe_log(odoo_env).id,
     )
+    # D16 (A02 pass 2): photographed and witnessed by a second lab person
+    destroyed.write(
+        {"destruction_photo_attachment_id": _wipe_log(odoo_env, b"photo of the platter").id}
+    )
+    witness = (
+        odoo_env["res.users"]
+        .with_context(no_reset_password=True)
+        .create(
+            {
+                "name": "Destruction witness",
+                "login": "dc.destruction.witness@a02.test",
+                "group_ids": [
+                    (6, 0, [odoo_env.ref("base.group_user").id,
+                            odoo_env.ref("cd_data_case.group_data_recovery_operator").id])
+                ],
+            }
+        )
+    )  # fmt: skip
+    destroyed.with_user(witness).action_witness_destruction()
     destroyed.action_verify()  # no sectors for a shredded platter
     assert destroyed.sanitization_status == "verified"
 
@@ -602,9 +621,10 @@ def test_verified_evidence_is_frozen_and_tampering_is_refused(odoo_env):
     assert tampered.sanitization_status == "failed"
 
 
-def test_certificate_keeps_explicit_certifier_and_uses_sequence(odoo_env):
+def test_certificate_stamps_its_certifier_and_uses_sequence(odoo_env):
+    # A02 pass 2 M06-12: certified_by is the recording user, never typed
     cert = odoo_env[CERT].create({"certified_by": "Ext. Auditor", "method": "cryptographic_erase"})
-    assert cert.certified_by == "Ext. Auditor"
+    assert cert.certified_by == odoo_env.user.name
     assert cert.name.startswith("DWC/")
 
 

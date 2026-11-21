@@ -117,7 +117,9 @@ def device(x):
 
 
 def cert(x, dev, verified=True):
-    vals = {"method": "nist_800_88", "serial_number": dev.serial_number}
+    # A02 pass 2 review (D16): a resale device is judged by the sanitisation
+    # matrix at release; Purge passes it for any media kind
+    vals = {"method": "nist_800_88_purge", "serial_number": dev.serial_number}
     if verified:
         log = x.env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
         vals.update(sector_count=1000, wipe_log_attachment_id=log.id)

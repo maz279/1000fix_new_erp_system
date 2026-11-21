@@ -168,9 +168,10 @@ class FixWorkshopBench(models.Model):
         tracking=True,
         help="FLAW-31.2: IEC 61340-5-1 requires < 1000.0 MΩ (< 1x10^9 Ω)",
     )
+    # A02 pass 2 review: a new bench is not ESD-verified until its first
+    # daily check is logged (the default of today let it pass unchecked)
     esd_last_verified_date = fields.Date(
         string="Daily ESD Log Date",
-        default=dhaka_today,
         tracking=True,
     )
     esd_compliant_today = fields.Boolean(

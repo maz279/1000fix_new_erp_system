@@ -27,9 +27,10 @@ class TestWorkshopCore:
             WORKSHOP_JOB_STATES,
         )
 
-        # 12 with the A02 audit's BER / scrap exit (M31-9)
-        assert len(WORKSHOP_JOB_STATES) == 12
-        assert len(VALID_JOB_TRANSITIONS) == 12
+        # 12 with the A02 audit's BER / scrap exit (M31-9); 13 with A02 pass 2
+        # M31-02's 'released' (the bench releases, M01's hand-over delivers)
+        assert len(WORKSHOP_JOB_STATES) == 13
+        assert len(VALID_JOB_TRANSITIONS) == 13
 
         # Terminal states
         assert VALID_JOB_TRANSITIONS["delivered"] == set()
@@ -42,7 +43,8 @@ class TestWorkshopCore:
         assert "burn_in" in VALID_JOB_TRANSITIONS["in_repair"]
         assert "qc_pending" in VALID_JOB_TRANSITIONS["burn_in"]
         assert "ready" in VALID_JOB_TRANSITIONS["qc_pending"]
-        assert "delivered" in VALID_JOB_TRANSITIONS["ready"]
+        assert "released" in VALID_JOB_TRANSITIONS["ready"]
+        assert "delivered" in VALID_JOB_TRANSITIONS["released"]
 
         # Rework loop exists
         assert "qc_failed" in VALID_JOB_TRANSITIONS["qc_pending"]

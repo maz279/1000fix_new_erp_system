@@ -836,14 +836,17 @@ class FixTradeinRequest(models.Model):
             )
         )
 
-    @staticmethod
-    def _wipe_gate_denial(cert, device=None) -> str:
+    def _wipe_gate_denial(self, cert, device=None) -> str:
         """'' when ``cert`` is a VERIFIED M06 wipe certificate for this
         device's media serial, else why not. A02 audit M06-1: the status alone
-        was forgeable and one certificate released any number of devices."""
+        was forgeable and one certificate released any number of devices.
+        A02 pass 2 review (M06-05): bound to THIS trade-in - verified after it
+        took the device in, never answering another record's wipe request."""
         if not cert:
             return "no M06 data wipe certificate is attached"
-        return cert._fix_certify_denial(cert._fix_media_serial(device))
+        return cert._fix_certify_denial(
+            cert._fix_media_serial(device), consumer=self[:1].sudo() or None
+        )
 
     # ---- provenance (E7, M14-5/6) ---------------------------------------------
     def _provenance_rows(self):

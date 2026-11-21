@@ -359,12 +359,17 @@ def test_m31_07_the_cost_gate_is_the_price_without_vat(m31):
 
 def test_m31_07_variance_is_against_the_estimated_cost(m31):
     m31.workshop.labour_rate_per_hour = 600.0
+    # a stock item, so the commercial line standard types its line a part (a
+    # non-stock item is a service charge, costed as labour time)
+    screen = m31.env["product.product"].create(
+        {"name": "R2 screen %d" % m31.workshop.id, "is_storable": True, "standard_price": 500.0}
+    )
     so = m31.order()
     est = m31.env["fix.estimate"].create(
         {
             "order_id": so.id,
             "line_ids": [
-                (0, 0, {"description": "Screen", "product_id": m31.product.id,
+                (0, 0, {"description": "Screen", "product_id": screen.id,
                         "quantity": 1.0, "unit_price": 2000.0}),
                 (0, 0, {"description": "Labour", "line_type": "labour",
                         "quantity": 1.0, "unit_price": 800.0}),
@@ -375,7 +380,8 @@ def test_m31_07_variance_is_against_the_estimated_cost(m31):
     est.invalidate_recordset(["state"])
     job = _to_repair(m31, m31.job(so=so))
     # the part at its standard cost + 1 labour hour at the workshop's 600
-    assert abs(job.estimated_cost - (m31.product.standard_price + 600.0)) < 0.01
+    assert est.line_ids.mapped("line_type") == ["part", "labour"]
+    assert abs(job.estimated_cost - (screen.standard_price + 600.0)) < 0.01
 
 
 # ============================================================ M31-08

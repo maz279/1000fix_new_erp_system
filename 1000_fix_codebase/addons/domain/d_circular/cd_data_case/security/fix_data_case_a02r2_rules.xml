@@ -6,14 +6,20 @@
   the intake queue of cases nobody is named on yet; a Data Lab Manager sees
   all. Group rules OR together, so the manager rule widens the operator rule.
   The company / operating-unit isolation rules still apply on top.
+
+  A02 pass 2 review (21 Nov): the operator scope was a GROUP rule, so it was
+  ORed with the base.group_user operating-unit rule (fix_isolation_rules.xml)
+  and restricted nothing: every operator still read every case of his units.
+  The scope rules are now GLOBAL (ANDed with every other rule), widened in
+  their own domain for the lab managers.
 -->
 <odoo>
     <!-- the case -->
     <record id="rule_fix_data_recovery_case_operator_scope" model="ir.rule">
         <field name="name">fix.data.recovery.case: operators see their own cases and the intake queue</field>
         <field name="model_id" ref="model_fix_data_recovery_case"/>
-        <field name="groups" eval="[(4, ref('group_data_recovery_operator'))]"/>
-        <field name="domain_force">['|', '|', '|', ('assigned_technician_id', '=', user.id), ('z4_custodian_id', '=', user.id), ('custody_request_to_id', '=', user.id), '&amp;', ('assigned_technician_id', '=', False), ('z4_custodian_id', '=', False)]</field>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_data_case.group_data_lab_manager') else ['|', '|', '|', ('assigned_technician_id', '=', user.id), ('z4_custodian_id', '=', user.id), ('custody_request_to_id', '=', user.id), '&amp;', ('assigned_technician_id', '=', False), ('z4_custodian_id', '=', False)]</field>
     </record>
     <record id="rule_fix_data_recovery_case_lab_manager_all" model="ir.rule">
         <field name="name">fix.data.recovery.case: lab managers see every case</field>
@@ -26,8 +32,8 @@
     <record id="rule_fix_data_media_unit_operator_scope" model="ir.rule">
         <field name="name">fix.data.media.unit: operators see the media of their cases</field>
         <field name="model_id" ref="model_fix_data_media_unit"/>
-        <field name="groups" eval="[(4, ref('group_data_recovery_operator'))]"/>
-        <field name="domain_force">['|', '|', '|', '|', ('pending_receiver_id', '=', user.id), ('seal_break_witness_id', '=', user.id), ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_data_case.group_data_lab_manager') else ['|', '|', '|', '|', ('pending_receiver_id', '=', user.id), ('seal_break_witness_id', '=', user.id), ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
     </record>
     <record id="rule_fix_data_media_unit_lab_manager_all" model="ir.rule">
         <field name="name">fix.data.media.unit: lab managers see all media</field>
@@ -38,8 +44,8 @@
     <record id="rule_fix_data_recovery_attempt_operator_scope" model="ir.rule">
         <field name="name">fix.data.recovery.attempt: operators see the attempts of their cases</field>
         <field name="model_id" ref="model_fix_data_recovery_attempt"/>
-        <field name="groups" eval="[(4, ref('group_data_recovery_operator'))]"/>
-        <field name="domain_force">['|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_data_case.group_data_lab_manager') else ['|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
     </record>
     <record id="rule_fix_data_recovery_attempt_lab_manager_all" model="ir.rule">
         <field name="name">fix.data.recovery.attempt: lab managers see all attempts</field>
@@ -50,8 +56,8 @@
     <record id="rule_fix_data_quote_operator_scope" model="ir.rule">
         <field name="name">fix.data.quote: operators see the quotations of their cases</field>
         <field name="model_id" ref="model_fix_data_quote"/>
-        <field name="groups" eval="[(4, ref('group_data_recovery_operator'))]"/>
-        <field name="domain_force">['|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_data_case.group_data_lab_manager') else ['|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
     </record>
     <record id="rule_fix_data_quote_lab_manager_all" model="ir.rule">
         <field name="name">fix.data.quote: lab managers see all quotations</field>
@@ -62,8 +68,8 @@
     <record id="rule_fix_data_custody_event_operator_scope" model="ir.rule">
         <field name="name">fix.data.custody.event: operators see the ledger of their cases</field>
         <field name="model_id" ref="model_fix_data_custody_event"/>
-        <field name="groups" eval="[(4, ref('group_data_recovery_operator'))]"/>
-        <field name="domain_force">['|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
+        <field name="groups" eval="[(6, 0, [])]"/>
+        <field name="domain_force">[(1, '=', 1)] if user.has_group('cd_data_case.group_data_lab_manager') else ['|', '|', '|', ('case_id.assigned_technician_id', '=', user.id), ('case_id.z4_custodian_id', '=', user.id), ('case_id.custody_request_to_id', '=', user.id), '&amp;', ('case_id.assigned_technician_id', '=', False), ('case_id.z4_custodian_id', '=', False)]</field>
     </record>
     <record id="rule_fix_data_custody_event_lab_manager_all" model="ir.rule">
         <field name="name">fix.data.custody.event: lab managers see every ledger</field>

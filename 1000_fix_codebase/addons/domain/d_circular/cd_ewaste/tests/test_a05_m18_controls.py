@@ -58,23 +58,59 @@ def test_wipe_gate_runs_on_every_path(m):
     dev = m.device()
     col = m.collection(device_id=dev.id)
     m.triage(col, "recycle", data_bearing=True)
+    # A02 pass 2 review B7: the M18 clerk records no certificate himself
+    # (M06-12), but secure destruction opens the pending one for the lab
+    assert refused(
+        m.env,
+        lambda: m.env["fix.data.wipe.certificate"]
+        .with_user(m.clerk)
+        .create({"method": "physical_destruction", "serial_number": dev.serial_number}),
+    )
     col.action_secure_destruction()
     assert col.wipe_certificate_id.sanitization_status == "pending_verification"
     assert refused(m.env, lambda: col.action_recycle())
     # trusted code too: the gate is in the state change, not in the action
     assert refused(m.env, lambda: col.sudo()._guarded().write({"state": "recycled"}))
-    # the legitimate path: the verifier verifies the operator's evidence
+    # the legitimate path: the lab's evidence and witness, then the verifier
     cert = col.wipe_certificate_id
-    cert.sudo().write(
-        {
-            "wipe_log_attachment_id": m.env["ir.attachment"]
-            .create({"name": "log", "raw": b"shred ok"})
-            .id
-        }
-    )
-    cert.with_user(m.verifier).action_verify()
+    m.complete_destruction(cert)
     col.action_recycle()
     assert col.state == "recycled"
+
+
+# ======================================= A02 pass 2 review: consumer binding
+def test_a_certificate_raised_for_another_collection_does_not_release(m):
+    dev = m.device()
+    col = m.collection(device_id=dev.id)
+    other = m.collection(device_id=m.device().id)
+    req = m.env["fix.data.wipe.request"].create(
+        {
+            "source": "m18_recycling",
+            "source_ref": other.name,
+            "serial_number": dev.serial_number,
+            "confidentiality_level": "high",
+            "disposition": "recycling",
+        }
+    )
+    cert = (
+        m.env["fix.data.wipe.certificate"]
+        .with_user(m.wipe_tech)
+        .create(
+            {
+                "method": "physical_destruction",
+                "serial_number": dev.serial_number,
+                "wipe_request_id": req.id,
+                "media_kind": "flash",
+            }
+        )
+    )
+    m.complete_destruction(cert)
+    m.triage(col, "recycle", data_bearing=True)
+    col.write({"wipe_certificate_id": cert.id})
+    assert "no wipe request raised for" in col._fix_wipe_denial()
+    col.action_secure_destruction()
+    assert refused(m.env, lambda: col.action_recycle())
+    assert col.state == "destruction"
 
 
 # ============================================== E4 / M18-2: one cert one item

@@ -29,6 +29,10 @@ SURFACES = {
     "fix.data.recovery.case": {
         "order": "id desc",
         "limit": 200,
+        # A02 pass 2 review: read AS THE CALLER (M06-02 - an operator sees
+        # his assigned cases and the intake queue, lab managers all), and
+        # every list or form read lands in the case read log
+        "caller_scoped": True,
         "actions": {
             "action_take_custody",
             "action_log_custody_transfer",
@@ -56,6 +60,8 @@ SURFACES = {
             # correction, and the receiver's confirmation of a hand-off
             "action_correct_customer",
             "action_confirm_custody",
+            # A02 pass 2 review: the requester withdraws an unconfirmed hand-off
+            "action_withdraw_handoff",
         },
     },
     "fix.data.wipe.certificate": {
@@ -72,11 +78,13 @@ SURFACES = {
     "fix.data.recovery.attempt": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {"action_finish"},
     },
     "fix.data.media.unit": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         # A02 audit M06-11: only the strict seal break (a named witness) is offered
         "actions": {
             "action_transfer",
@@ -87,6 +95,7 @@ SURFACES = {
             "action_destroy",
             # A02 pass 2 M06-03: the receiver confirms a move or a return
             "action_confirm_move",
+            "action_withdraw_move",
         },
     },
     "fix.data.cleanroom.slot": {
@@ -102,6 +111,7 @@ SURFACES = {
     "fix.data.quote": {
         "order": "id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": {
             "action_send",
             "action_accept",
@@ -122,10 +132,16 @@ SURFACES = {
     # A02 pass 2: the sanitisation matrix (D16, the Quality Manager keeps it)
     # and the case read log (M06-02, lab managers read it)
     "fix.data.sanitisation.rule": {"order": "media_kind, id", "limit": 200, "actions": set()},
-    "fix.data.case.read.log": {"order": "read_at desc, id desc", "limit": 300, "actions": set()},
+    "fix.data.case.read.log": {
+        "order": "read_at desc, id desc",
+        "limit": 300,
+        "actions": set(),
+        "caller_scoped": True,
+    },
     "fix.data.custody.event": {
         "order": "event_at desc, id desc",
         "limit": 200,
+        "caller_scoped": True,
         "actions": set(),
     },
     "fix.data.confidentiality.undertaking": {
@@ -201,14 +217,17 @@ def kpis(env):
     eval_turnaround = round(sum(e.eval_hours for e in evals) / len(evals), 1) if evals else None
 
     purge_verifications = Case.search_count([*domain, ("state", "=", "purged")])
-    # A02 pass 2 M06-11 (D17): handed-over cases past their retention date
-    purge_overdue = Case.search_count(
-        [
-            *domain,
-            ("state", "=", "handover"),
-            ("retention_until", "!=", False),
-            ("retention_until", "<", fields.Date.context_today(Case)),
-        ]
+    # A02 pass 2 M06-11 (D17): handed-over cases past their retention date,
+    # not those kept on an approved retention (legal) hold (A02 pass 2 review)
+    purge_overdue = len(
+        Case.search(
+            [
+                *domain,
+                ("state", "=", "handover"),
+                ("retention_until", "!=", False),
+                ("retention_until", "<", fields.Date.context_today(Case)),
+            ]
+        ).filtered(lambda case: not case._retention_held())
     )
 
     return {

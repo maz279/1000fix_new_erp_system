@@ -146,7 +146,9 @@ def test_m06_05_a_certificate_is_tied_to_the_record_that_consumes_it(m6):
     serial = "SN-R2-%d" % m6.n
     req = _request(m6, serial)
     req.sudo().write({"source_ref": consumer.name})
-    cert = _cert(m6, serial, request=req)
+    # A02 pass 2 review (D16): at release the matrix judges the method (a
+    # Clear of high-confidentiality media is refused); Purge passes it
+    cert = _cert(m6, serial, method="nist_800_88_purge", request=req)
     assert cert._fix_certify_denial(serial) == ""  # the old call still works
     later = cert.verified_at + timedelta(days=1)
     assert "earlier cycle" in cert._fix_certify_denial(serial, consumer=consumer, since=later)
@@ -208,7 +210,7 @@ def test_m06_09_the_matrix_refuses_a_clear_of_resale_media(m6):
         "wipe_request_id": req.id,
         "media_kind": "flash",
     }
-    with pytest.raises(UserError, match="does not allow"):
+    with pytest.raises(UserError, match="does not allow"), m6.env.cr.savepoint():
         m6.env[CERT].with_user(m6.tech).create(dict(vals, method="nist_800_88"))
     cert = m6.env[CERT].with_user(m6.tech).create(dict(vals, method="cryptographic_erase"))
     assert cert.standard_ref.startswith("NIST SP 800-88")

@@ -26,6 +26,8 @@ G = types.SimpleNamespace(
     compliance="cd_ewaste.group_ewaste_compliance_officer",
     finance="cd_ewaste.group_ewaste_finance_approver",
     verifier="cd_data_case.group_wipe_verifier",
+    # A02 pass 2 review B7: only the data lab records a wipe certificate
+    wipe_operator="cd_data_case.group_data_recovery_operator",
 )
 
 
@@ -78,6 +80,8 @@ class M18:
         self.compliance2 = make_user(env, "compliance2", [G.compliance])
         self.cfo = make_user(env, "cfo", [G.finance])
         self.verifier = make_user(env, "verifier", [G.verifier])
+        self.wipe_tech = make_user(env, "wipetech", [G.wipe_operator])
+        self.wipe_witness = make_user(env, "wipewitness", [G.wipe_operator])
         self.customer = env["res.partner"].create({"name": "M18 Donor"})
         brand = env["fix.brand"].create({"name": "M18Brand", "code": "M18BR%d" % next(_SEQ)})
         self.dmodel = env["fix.device.model"].create({"name": "M18 Phone", "brand_id": brand.id})
@@ -132,20 +136,33 @@ class M18:
         return self.env["fix.ewaste.collection"].with_user(user or self.clerk).create(vals)
 
     def verified_cert(self, serial):
-        log = self.env["ir.attachment"].create(
-            {"name": "shred.log", "raw": b"run %s: PASS" % serial.encode()}
-        )
+        """The real M06 path (A02 pass 2 review B7): the data lab records the
+        destruction with its log, a second lab person witnesses it in their
+        own session, and the wipe verifier verifies it."""
         cert = (
             self.env["fix.data.wipe.certificate"]
-            .with_user(self.clerk)
-            .create(
-                {
-                    "method": "physical_destruction",
-                    "wipe_log_attachment_id": log.id,
-                    "serial_number": serial,
-                }
-            )
+            .with_user(self.wipe_tech)
+            .create({"method": "physical_destruction", "serial_number": serial})
         )
+        return self.complete_destruction(cert)
+
+    def complete_destruction(self, cert):
+        """The lab attaches the shredder log and the photo of a destruction
+        certificate (one M18 opened, or its own), the witness confirms it,
+        the verifier verifies it."""
+        Att = self.env["ir.attachment"].with_user(self.wipe_tech)
+        tag = (cert.serial_number or str(cert.id)).encode()
+        cert.with_user(self.wipe_tech).write(
+            {
+                "wipe_log_attachment_id": Att.create(
+                    {"name": "shred.log", "raw": b"run %s: PASS" % tag}
+                ).id,
+                "destruction_photo_attachment_id": Att.create(
+                    {"name": "shredded.jpg", "raw": b"photo of %s shredded" % tag}
+                ).id,
+            }
+        )
+        cert.with_user(self.wipe_witness).action_witness_destruction()
         cert.with_user(self.verifier).action_verify()
         assert cert.sanitization_status == "verified"
         return cert

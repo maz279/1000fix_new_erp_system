@@ -97,7 +97,9 @@ def test_the_cap_is_the_latest_approved_version_and_counts_labour(m31):
     v2 = _approved_estimate(m31, so, 10000.0)
     v2.sudo().write({"version": 2})
     job = _to_repair(m31, m31.job(so=so))
-    assert (job.estimate_id, job.estimate_ceiling) == (v2, v2.approved_total or v2.grand_total)
+    # A02 pass 2 M31-07 (D14): the ceiling is v2's price without VAT
+    assert (job.estimate_id, job.estimate_ceiling) == (v2, job._m31_estimate_price_ex_vat(v2))
+    assert job.estimate_ceiling < (v2.approved_total or v2.grand_total)
     ceiling = job.estimate_ceiling
     # P0 summed v1 + v2: a 25,000 part fitted under a 10,000 approval
     with refused(m31.env, UserError, "BRU-WSR-11"):

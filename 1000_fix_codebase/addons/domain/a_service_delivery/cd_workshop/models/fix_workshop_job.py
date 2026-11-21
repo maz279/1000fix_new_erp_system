@@ -1005,7 +1005,10 @@ class FixWorkshopJob(models.Model):
         bench releases the job (action_release); a job of no service order (a
         refurbishment or an M45 work order) is closed by its supervisor."""
         for rec in self:
-            if not self.env.su and not self.env.context.get("m31_order_delivered"):
+            # A02 pass 2 review: M01's delivered event closes the job as the
+            # superuser (consume_service_order_delivered); no context key a
+            # client sends lets the bench deliver
+            if not self.env.su:
                 if rec.sudo().order_id:
                     raise UserError(
                         "Job %s closes when its service order %s is handed to the customer "

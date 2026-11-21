@@ -196,9 +196,20 @@ def _branch_fence(env, model):
     units = getattr(env.user, "operating_unit_ids", None)
     if not units:
         return []
-    if "operating_unit_id" in model._fields:
+    has_ou, has_branch = "operating_unit_id" in model._fields, "branch_id" in model._fields
+    if has_ou and has_branch:
+        # A02 pass 2 review: the record's own unit, else its branch's (an order
+        # with no unit of its own, at a branch of the reader's, was dropped)
+        return [
+            "|",
+            ("operating_unit_id", "in", units.ids),
+            "&",
+            ("operating_unit_id", "=", False),
+            ("branch_id.operating_unit_id", "in", units.ids),
+        ]
+    if has_ou:
         return [("operating_unit_id", "in", units.ids)]
-    if "branch_id" in model._fields:
+    if has_branch:
         return [("branch_id.operating_unit_id", "in", units.ids)]
     return []
 

@@ -50,6 +50,8 @@ CUSTODY_ACTIONS = [
     # first half of a two-person custody move (the receiver confirms it)
     ("customer_corrected", "Customer Corrected (Lab Manager)"),
     ("custody_requested", "Custody Hand-off Requested"),
+    # A02 pass 2 review: the requester withdraws a hand-off not yet confirmed
+    ("custody_withdrawn", "Custody Hand-off Withdrawn"),
 ]
 
 

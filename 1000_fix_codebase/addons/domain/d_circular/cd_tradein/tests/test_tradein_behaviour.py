@@ -137,7 +137,8 @@ def _in(env, state, evidence=True, **vals):
 
 def _cert(env, verified=True, **vals):
     """The wipe operator's M06 certificate, with real evidence when verified."""
-    vals.setdefault("method", "nist_800_88")
+    # A02 pass 2 review (D16): Purge passes the matrix at release for any media
+    vals.setdefault("method", "nist_800_88_purge")
     vals.setdefault("serial_number", WIPE_SN)
     if verified:
         log = env["ir.attachment"].create({"name": "wipe.log", "raw": b"nwipe: PASS"})
