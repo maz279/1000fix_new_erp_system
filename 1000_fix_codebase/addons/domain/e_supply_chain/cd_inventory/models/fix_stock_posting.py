@@ -101,6 +101,8 @@ ACCOUNT_ROLES = {
 DEFAULT_BRAND_ACCOUNTS = {
     "samsung": "100506",
     "xiaomi": "100508",
+    # owner decision 21 Nov 2026: Redmi (Xiaomi's sub-brand) with Xiaomi
+    "redmi": "100508",
     "huawei": "100509",
     "cooler": "100510",
     "whirlpool": "100511",
