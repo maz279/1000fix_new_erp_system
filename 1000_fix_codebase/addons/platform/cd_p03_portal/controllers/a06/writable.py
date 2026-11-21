@@ -567,6 +567,14 @@ WRITABLE = {
         }
     ),
     "fix.purchase.order.line": frozenset(),
+    "fix.purchase.price.amendment": frozenset(
+        {
+            "evidence_ref",
+            "new_price",
+            "po_line_id",
+            "reason",
+        }
+    ),
     "fix.purchase.proforma": frozenset(
         {
             "amount",
@@ -836,7 +844,6 @@ WRITABLE = {
     ),
     "fix.supplier": frozenset(
         {
-            "approved_category_ids",
             "buyer_id",
             "category",
             "classification",
@@ -956,6 +963,7 @@ WRITABLE = {
     "fix.supplier.qualification": frozenset(
         {
             "auditor_id",
+            "category_ids",
             "notes",
             "questionnaire_id",
             "score",

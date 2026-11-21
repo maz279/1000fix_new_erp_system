@@ -299,6 +299,7 @@ def contract_coverage(env, date_from=None, date_to=None, **params):
             ends.get(agreement.supplier_id.id) or agreement.term_to, agreement.term_to
         )
     covered = set(docs.mapped("supplier_id").ids) | set(ends)
+    spend = _spend_by_supplier(env, active, date_from, date_to)
     rows = []
     for supplier in active:
         end = ends.get(supplier.id)
@@ -307,30 +308,66 @@ def contract_coverage(env, date_from=None, date_to=None, **params):
                 "supplier": supplier.name,
                 "segment": dict(supplier._fields["segment"].selection).get(supplier.segment),
                 "contract": "yes" if supplier.id in covered else "no",
+                "spend": round(spend.get(supplier.id, 0.0), 2),
                 "ends": str(end) if end else "",
                 "status": dict(supplier._fields["status"].selection).get(supplier.status),
             }
         )
-    rows.sort(key=lambda r: (r["contract"] == "yes", r["supplier"]))
+    rows.sort(key=lambda r: (r["contract"] == "yes", -r["spend"], r["supplier"]))
     gaps = len([r for r in rows if r["contract"] == "no"])
+    total = sum(r["spend"] for r in rows)
+    under = sum(r["spend"] for r in rows if r["contract"] == "yes")
     return _pack(
-        "Contract Coverage — active suppliers under an agreement in force",
-        ["supplier", "segment", "contract", "ends", "status"],
+        "Contract Coverage — spend with active suppliers under an agreement in force",
+        ["supplier", "segment", "contract", "spend", "ends", "status"],
         {
             "supplier": "Supplier",
             "segment": "Segment",
             "contract": "Contract",
+            "spend": "Spend (BDT)",
             "ends": "Agreement Ends",
             "status": "Status",
         },
         rows,
         [
-            "Coverage %d/%d active suppliers; %d gap(s). A supplier is covered by an "
-            "agreement in force today or by a verified signed contract that is valid today."
-            % (len(active) - gaps, len(active), gaps)
+            "Coverage by spend: BDT %s of BDT %s (%.1f%%) issued PO spend in the period is with "
+            "suppliers under contract; %d/%d active suppliers covered, %d gap(s). A supplier is "
+            "covered by an agreement in force today or a verified signed contract valid today."
+            % (
+                round(under, 2),
+                round(total, 2),
+                (under / total * 100.0) if total else 0.0,
+                len(active) - gaps,
+                len(active),
+                gaps,
+            )
         ],
+        totals={"supplier": "Total", "spend": round(total, 2)},
         empty="No active suppliers yet.",
     )
+
+
+def _spend_by_supplier(env, suppliers, date_from=None, date_to=None):
+    """A06 P34: issued PO spend in BDT per supplier, by order date in the
+    period (the M16 basis: drafts, cancellations and superseded orders out)."""
+    if "fix.purchase.order" not in env or not suppliers:
+        return {}
+    from .m16 import _bdt, _day, _issued, _within
+
+    by_partner = {s.partner_id.commercial_partner_id.id: s.id for s in suppliers}
+    orders = env["fix.purchase.order"].search(
+        [
+            ("company_id", "in", env.companies.ids),
+            ("vendor_id.commercial_partner_id", "in", list(by_partner)),
+        ]
+    )
+    out = {}
+    for order in orders:
+        if not _issued(order) or not _within(_day(order.date_order), date_from, date_to):
+            continue
+        sid = by_partner.get(order.vendor_id.commercial_partner_id.id)
+        out[sid] = out.get(sid, 0.0) + _bdt(order, order.amount_total)
+    return out
 
 
 def compliance_log(env, date_from=None, date_to=None, **params):
