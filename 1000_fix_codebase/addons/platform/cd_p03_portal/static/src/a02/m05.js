@@ -113,7 +113,7 @@ export const MODULE = {
       ['8', 'MSP Service Desk', 13, { model: 'fix.msp.alert', cols: ['message', 'asset_id', 'source', 'order_id', 'state', 'escalated'], screens: ['M05-tickets', 'M05-problem', 'M05-contacts', 'M05-major-incidents'], reports: ['Alert-to-Ticket Conversion'], forms: ['MSP Ticket', 'Change Record', 'Client Contact', 'Major Incident'], create: 'M05-form-ticket', domain: ['|', ['state', 'in', ['ticketed', 'resolved']], ['source', '!=', 'monitoring']] }],
       /* 9 FR-RMS-035: the monthly report is generated from its contract,
        * never typed - its figures decide the SLA credit. No button before. */
-      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-credits', 'M05-review-meetings', 'M05-roadmap', 'M05-terms-history'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture'], forms: ['Monthly Service Report', 'SLA Credit', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
+      ['9', 'Client Reporting', 9, { model: 'fix.msp.service.report', cols: ['msp_contract_id', 'period_label', 'alert_count', 'resolved_count', 'sla_attainment_pct'], screens: ['M05-reviews', 'M05-sla', 'M05-credits', 'M05-review-meetings', 'M05-roadmap', 'M05-terms-history', 'M05-billing-recon'], reports: ['MSP SLA Attainment by Client', 'SLA Credit Register', 'Security Posture', 'MSP Fee vs M39 Billing Reconciliation'], forms: ['Monthly Service Report', 'SLA Credit', 'Service Review Meeting', 'Roadmap Item'], create: 'M05-form-monthly-report' }],
       /* 10 FR-RMS-047/048, spec 8.3: the button opened the MSP contract; no
        * record held the onboarding project, its checklist or the go-live
        * from which SLA clocks bind (capture audit pass 2, 2026-11-18) */
@@ -1190,6 +1190,7 @@ export const SCREENS = {
 
 /* built-in report chips -> the screen that shows that report */
 export const REPORT_ROUTES = {
+  "M05:MSP Fee vs M39 Billing Reconciliation": "M05-billing-recon",
   "M05:MSP SLA Attainment by Client": "M05-sla",
   "M05:Remote Resolution Rate": "M05-rpt-resolution",
   "M05:Patch Compliance Report": "M05-rpt-patch",

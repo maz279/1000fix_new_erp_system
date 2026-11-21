@@ -358,8 +358,8 @@ export const SCREENS = {
           { name: 'pickup_signature_attachment_id', label: "Customer Signature", readonly: true },
           { name: 'pickup_photo_attachment_id', label: "Package Photo", readonly: true },
           { name: 'pickup_serial_scanned', label: "Serial Scanned", readonly: true },
-          { name: 'pickup_proof_by_id', label: "Recorded By", readonly: true },
-          { name: 'outbound_seal_number', label: "Outbound Seal No", readonly: true }
+          /* the outbound seal is recorded on the Custody tab (one field, one place) */
+          { name: 'pickup_proof_by_id', label: "Recorded By", readonly: true }
         ] },
       { tab: 'journey', title: "Multi-Leg Consignment Route & Rider Assignment", note: "One leg of a journey: a pickup or delivery for a service order, a branch transfer, or a return to vendor (name the purchase order: its vendor receives the delivery code). Legs made by the M01 hand-over arrive here filled in. The operating unit defaults to yours; the type is fixed once the leg is confirmed.",
         fields: [

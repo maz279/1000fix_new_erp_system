@@ -6,9 +6,10 @@
 # amendment of an MSP contract (covered devices up OR down, per-device price)
 # is recorded in its terms history (fix.msp.terms.amendment) with the monthly
 # fee delta, and published as msp.commercial_terms_amended. This consumer
-# turns the amendments not yet billed into ONE price change of the
-# subscription, through M39's own controlled path (a draft proration routed
-# for approval: never applied by its requester).
+# turns the amendments not yet billed into price changes of the subscription,
+# ONE PER EFFECTIVE DATE applied in sequence (owner decision, 21 Nov 2026),
+# through M39's own controlled path (a draft proration routed for approval:
+# never applied by its requester).
 #
 # Pass 2 fixed how uplifts were lost or overwritten (M05-S05):
 #   * the consumer refused an event whose device count was not the contract's
@@ -27,8 +28,8 @@
 # Relay-only (superuser) like every hand-back consumer. cd_subscription does
 # not depend on cd_msp_contract: the M05 records are reached by model name,
 # and without M05 there is nothing to bill.
-from odoo import api, fields, models
-from odoo.exceptions import AccessError, UserError
+from odoo import SUPERUSER_ID, api, fields, models
+from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
@@ -163,7 +164,23 @@ class FixSubscriptionMspUplift(models.AbstractModel):
         return True
 
     def _msp_bill_pending(self, msp):
-        """One price change for every amendment of ``msp`` not yet billed."""
+        """The next price change for the amendments of ``msp`` not yet billed:
+        ONE PRORATION PER EFFECTIVE DATE, oldest first (owner decision,
+        21 Nov 2026).
+
+        One proration carries one effective date. Batching every unbilled
+        amendment into one prorated them all from the EARLIEST date, so an
+        uplift dated the 20th was charged from the 10th as well. Now the
+        amendments sharing the earliest date are billed together, prorated
+        from that date; the later ones wait, and are billed when that change
+        is decided (applied, rejected or voided: _msp_bill_next), from the
+        amount it left on the subscription. Each amendment is thus charged
+        from its own date and on the price in force then, exactly once.
+
+        An in-flight change is superseded (voided, its amendments billed
+        again) when the earliest unbilled date gains an amendment, or an
+        amendment dated before it arrives; a change for a later date never
+        touches it."""
         Amendment = self.env["fix.msp.terms.amendment"].sudo()._guarded()
         Proration = self.env["fix.subscription.proration"].sudo()
         rows = Amendment.search(
@@ -190,6 +207,16 @@ class FixSubscriptionMspUplift(models.AbstractModel):
         rows = rows.filtered(lambda r: r.billing_state in ("pending", "requested"))
         if not rows.filtered(lambda r: r.billing_state == "pending"):
             return {"created": False, "reason": "nothing new to bill"}
+        first = min(rows.mapped("effective_date"))
+        group = rows.filtered(lambda r: r.effective_date == first)
+        covered = rows.filtered(lambda r: r.billing_state == "requested")
+        later = rows - group
+        waiting_note = "Billed after the change from %s is decided." % first
+        if in_flight and covered == group:
+            # the change for the earliest date is already with its approver;
+            # the later amendments follow once it is decided
+            later.write({"billing_note": waiting_note})
+            return {"created": False, "reason": "waiting for the change from %s" % first}
         subs = self._msp_live_subscriptions(msp)
         if len(subs) != 1:
             note = (
@@ -205,8 +232,15 @@ class FixSubscriptionMspUplift(models.AbstractModel):
             )
             return {"skipped": "%d subscriptions" % len(subs)}
         sub = subs
+        for pro in in_flight:
+            # superseded: the earliest date changed (a new amendment on it, or
+            # one dated before it); its amendments are billed again
+            pro._approval_void("superseded by a later MSP fee change")
+            pro._guarded().write({"state": "void", "approval_state": "none"})
+            pro.message_post(body="Voided: superseded by a later MSP fee change of %s." % msp.name)
+        (covered - group).write({"billing_state": "pending", "billing_ref": False})
         months = CYCLE_MONTHS.get(sub.billing_cycle, 1)
-        delta = round(sum(rows.mapped("monthly_delta")), 2)
+        delta = round(sum(group.mapped("monthly_delta")), 2)
         new_amount = round(max((sub.recurring_amount or 0.0) + delta * months, 0.0), 2)
         if new_amount <= 0.005:
             # A02 pass-2 review: a price change to 0 is an M39 'cancel', and
@@ -216,27 +250,27 @@ class FixSubscriptionMspUplift(models.AbstractModel):
                 "the monthly fee falls to BDT 0: a price change cannot end the subscription; "
                 "finance cancels %s in M39" % sub.name
             )
-            rows.filtered(lambda r: r.billing_state == "pending").write(
-                {"billing_state": "flagged", "billing_note": note[:250]}
-            )
+            group.write({"billing_state": "flagged", "billing_note": note[:250]})
             msp.message_post(body="MSP fee change not billed automatically: %s." % note)
             return {"skipped": "fee falls to 0"}
-        for pro in in_flight:
-            # superseded by one change covering every unbilled amendment
-            pro._approval_void("superseded by a later MSP fee change")
-            pro._guarded().write({"state": "void", "approval_state": "none"})
-            pro.message_post(body="Voided: superseded by a later MSP fee change of %s." % msp.name)
-        effective = max(min(rows.mapped("effective_date")), sub.start_date or fields.Date.today())
+        effective = max(first, sub.start_date or fields.Date.today())
         reason = "%s of %s (%s): BDT %+.2f a month - %s" % (
             MARKER,
             msp.name,
-            ", ".join("terms #%s from %s" % (r.id, r.effective_date) for r in rows),
+            ", ".join("terms #%s from %s" % (r.id, r.effective_date) for r in group),
             delta,
-            "; ".join(r.reason or "" for r in rows)[:200],
+            "; ".join(r.reason or "" for r in group)[:200],
         )
         proration = Proration.create_for_plan_change(sub, new_amount, effective_date=effective)
         proration.action_request_approval(justification=reason)
-        rows.write({"billing_state": "requested", "billing_ref": AMENDMENT_REF % proration.id})
+        group.write(
+            {
+                "billing_state": "requested",
+                "billing_ref": AMENDMENT_REF % proration.id,
+                "billing_note": False,
+            }
+        )
+        later.write({"billing_note": waiting_note})
         sub.message_post(body=reason)
         return {
             "model": sub._name,
@@ -244,7 +278,24 @@ class FixSubscriptionMspUplift(models.AbstractModel):
             "created": True,
             "new_amount": new_amount,
             "proration_id": proration.id,
+            "waiting": len(later),
         }
+
+    @api.model
+    def _msp_bill_next(self, msps):
+        """After a change is decided, the next date's amendments of each MSP
+        contract are billed, by the system (the approver of one change does
+        not raise the next). A failure is noted and never undoes the
+        decision."""
+        system = self.env(user=SUPERUSER_ID, su=True)["fix.subscription.msp.uplift"]
+        for msp in msps:
+            try:
+                with self.env.cr.savepoint():
+                    system._msp_bill_pending(msp.with_env(system.env))
+            except (UserError, ValidationError) as exc:
+                msp.sudo().message_post(
+                    body="The next MSP fee change was not billed automatically: %s" % exc
+                )
 
     def _msp_proration_of(self, row):
         ref = row.billing_ref or ""
@@ -283,3 +334,42 @@ class FixSubscriptionMspUplift(models.AbstractModel):
             )
             churned += 1
         return {"churned": churned}
+
+
+class FixSubscriptionProrationMsp(models.Model):
+    """When an MSP fee change is decided (applied, rejected or voided), the
+    next date's amendments of its contract are billed: one proration per
+    effective date, in sequence."""
+
+    _inherit = "fix.subscription.proration"
+
+    def _msp_contracts(self):
+        Amendment = self.env.get("fix.msp.terms.amendment")
+        if Amendment is None or not self:
+            return None
+        rows = Amendment.sudo().search(
+            [("billing_ref", "in", [AMENDMENT_REF % rec.id for rec in self])]
+        )
+        return rows.mapped("msp_contract_id")
+
+    def _msp_bill_next(self, msps):
+        if msps:
+            self.env["fix.subscription.msp.uplift"]._msp_bill_next(msps)
+
+    def _proration_apply_to_subscription(self):
+        msps = self._msp_contracts()
+        result = super()._proration_apply_to_subscription()
+        self._msp_bill_next(msps)
+        return result
+
+    def _approval_on_rejected(self, comment):
+        msps = self._msp_contracts()
+        result = super()._approval_on_rejected(comment)
+        self._msp_bill_next(msps)
+        return result
+
+    def action_void(self):
+        msps = self._msp_contracts()
+        result = super().action_void()
+        self._msp_bill_next(msps)
+        return result

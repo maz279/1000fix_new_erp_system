@@ -70,6 +70,13 @@ def m6(odoo_env):
     contact = env["res.partner"].create(
         {"name": "Customer's courier", "parent_id": customer.id, "phone": "01711000777"}
     )
+    # owner decision (verified contacts only): the courier's mobile is verified
+    # in the party master (M33); test setup stands for its verified OTP
+    env["fix.contact.point"].create(
+        {"partner_id": contact.id, "contact_type": "mobile", "value": "01711000777"}
+    )._guarded().write(
+        {"state": "verified", "verified_at": fields.Datetime.now(), "verification_method": "otp"}
+    )
     digest = "%064x" % (0xD06 * n)
 
     def undertake(case, *people):
@@ -403,9 +410,12 @@ def test_p2_handover_needs_a_verified_recipient_receipt_and_target(m6):
     stranger = m6.env["res.partner"].create({"name": "Walk-in stranger", "phone": "01711000888"})
     with pytest.raises(UserError, match="name the handover recipient"):
         case.action_handover(verification="123456")
-    case.write({"handover_recipient_id": stranger.id, "encrypted_target_serial": "TGT-X1"})
+    with pytest.raises(UserError, match="not the customer"):
+        case.write({"handover_recipient_id": stranger.id})
+    case.sudo()._guarded().write({"handover_recipient_id": stranger.id})  # a forged choice
     with pytest.raises(UserError, match="not the customer"):
         case.action_request_handover_otp()
+    case.write({"encrypted_target_serial": "TGT-X1"})
     case.write({"handover_recipient_id": m6.contact.id})
     with pytest.raises(UserError, match="confirm the target drive"):
         case.action_handover(verification="123456")

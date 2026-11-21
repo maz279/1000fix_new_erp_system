@@ -1,0 +1,10 @@
+dispatcher OUs now 58
+branch Motijheel Service Center OU OU Motijheel Service Center
+dispatcher shariful.islam@1000fix.com | approver admin | technician Jafor Hossen jafar.hossain@1000fix.com | certs on DB 0
+OK   S3 M01 on-site order -> M02 field order waiting for dispatch -> order SO000942, field order FO/2026/00098 pending_dispatch, branch Motijheel Service Center
+OK   M22 an uncertified technician is refused at dispatch (the control holds) -> refused: M22 eligibility: dispatch of FO/2026/00098 blocked — FR-LMS-039: Jafor Hossen holds no ACTIVE brand certification for Dell
+OK   M22 dispatcher requests a per-order certification waiver -> waiver CWV/2026/0001 state draft approval pending
+OK   M63 the approver decides it from the inbox (not the requester) -> waiver approved
+OK   M02 dispatcher dispatches from the screen (dispatch decision) -> decision DD/2026/00002 override False; field order dispatched to Jafor Hossen
+OK   M02 technician accepts, travels, arrives on GPS, works, completes -> field order completed, arrival 23.7905, 90.3735
+SUMMARY 6 / 6
