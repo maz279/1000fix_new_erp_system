@@ -325,7 +325,9 @@ def test_page8_network_policy_refuses_a_policy_where_the_part_is_not_held(m43):
     _refused(m43.env, net.with_user(m43.planner).action_approve, match="Approver")
     net.with_user(m43.approver).action_approve()
     m43.segment(abc="c")
-    pol = m43.policy(2.0, 1.0, 10, state="draft")  # at loc, not held there
+    # a branch store the policy does not list (m43.loc is a central store,
+    # which this policy holds)
+    pol = m43.policy(2.0, 1.0, 10, state="draft", loc=m43.location("N"))
     _refused(m43.env, pol.with_user(m43.planner).action_activate, match="does not hold")
     ok = m43.policy(2.0, 1.0, 10, state="draft", loc=m43.loc2)
     ok.with_user(m43.planner).action_activate()
