@@ -246,6 +246,24 @@ class FixVendorInvoiceGrni(models.Model):
         exception (filled in by cd_vendor_portal, which owns the register)."""
         return []
 
+    def _fix_non_po_source_covered(self):
+        """A06 integration (A07 money contract, audit owner item O6): a non-PO
+        bill whose EVERY line carries matched cost entries of an approved
+        operational source document - a lease's rent, a verified facility work
+        order, a completed vehicle service (A07 fix.asset.cost.entry, matched
+        to the payee on the same branch) - is controlled by that document's own
+        approval and payee: the M42 register requirement (BRU-PRO-02) does not
+        apply. The stock-part ban (BRU-PRO-01) and the refusal of a deactivated
+        supplier still do."""
+        self.ensure_one()
+        lines = self.line_ids
+        if not lines or "asset_cost_entry_ids" not in lines._fields:
+            return False
+        return all(
+            line.sudo().asset_cost_entry_ids.filtered(lambda e: e.state in ("matched", "posted"))
+            for line in lines
+        )
+
     def _fix_check_non_po(self):
         self.ensure_one()
         if self.bill_type != "non_po":
@@ -258,7 +276,7 @@ class FixVendorInvoiceGrni(models.Model):
                 % (self.invoice_ref, ", ".join(parts.mapped("display_name")))
             )
         problems = self._fix_non_po_supplier_problems()
-        if problems and not self.non_po_exception_by_id:
+        if problems and not self.non_po_exception_by_id and not self._fix_non_po_source_covered():
             raise UserError(
                 "BRU-PRO-02: bill %s is a non-PO bill from %s, which %s. An Accounting "
                 "Administrator records an exception before it is submitted."
