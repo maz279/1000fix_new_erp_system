@@ -419,6 +419,39 @@ def _raise_next_leg(m03, env, order, call):
     return res
 
 
+# a 1x1 PNG, base64 (pickup evidence must be an image)
+_PNG_B64 = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+
+
+def _door_proof(env, leg):
+    """A02 pass 2 M03-04: what a service order's pickup records at the
+    customer's door before it leaves - the customer's signature, a package
+    photo, the device serial, and the outbound seal and weight (as the
+    cd_consignment fixture's door_proof does, with a signature for the code)."""
+    for kind in ("signature", "photo"):
+        image = env["ir.attachment"].create(
+            {
+                "name": "%s.png" % kind,
+                "datas": _PNG_B64,
+                "mimetype": "image/png",
+                "res_model": leg._name,
+                "res_id": leg.id,
+            }
+        )
+        leg.action_attach_pickup_evidence(attachment_id=image.id, kind=kind)
+    serial = leg.service_order_id.device_serial
+    if serial:
+        leg.action_scan_pickup_serial(serial=serial)
+    door = {}
+    if not leg.outbound_seal_number:
+        door["outbound_seal_number"] = "SEAL-DOOR-%s" % leg.id
+    if not leg.dispatch_weight_g:
+        door["dispatch_weight_g"] = 500.0
+    if door:
+        leg.write(door)
+    assert not leg._m03_pickup_proof_missing()
+
+
 def test_the_next_leg_form_runs_the_whole_collection_journey(m03, journey, call):
     """Pickup, then (after the device arrives and the repair is ready) the
     delivery back - through the same endpoint the form's save uses."""
@@ -433,8 +466,12 @@ def test_the_next_leg_form_runs_the_whole_collection_journey(m03, journey, call)
     assert pickup.consignment_type == "pickup"
     pickup.declared_value_bdt = 5000
     pickup.action_confirm()
+    _door_proof(env, pickup)  # A02 pass 2 (M03-04): proof at the customer's door
     pickup.action_start_transit()
-    pickup.action_verify_hub_intake()
+    # the door fitted a seal and weighed the parcel: the hub checks both
+    pickup.action_verify_hub_intake(
+        inbound_seal=pickup.outbound_seal_number, receive_weight_g=pickup.dispatch_weight_g
+    )
     pickup.action_confirm_receipt()
     order.state = "diagnostic"
     res = _raise_next_leg(m03, env, order, call)
@@ -448,7 +485,10 @@ def test_the_next_leg_form_runs_the_whole_collection_journey(m03, journey, call)
         "qc_pending",
     ):
         order.state = state
-    env["fix.qc.checklist"].create({"order_id": order.id, "state": "passed"})
+    # A02 pass 2 (M01-09): Ready reads the checklist of the current QC round
+    env["fix.qc.checklist"].create(
+        {"order_id": order.id, "state": "passed", "qc_round": order.qc_round}
+    )
     order.state = "ready"
     assert order in env["fix.service.order"].search(pick)
     res = _raise_next_leg(m03, env, order, call)

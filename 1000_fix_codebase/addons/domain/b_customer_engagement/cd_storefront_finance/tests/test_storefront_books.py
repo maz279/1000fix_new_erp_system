@@ -722,8 +722,13 @@ def test_g10_courier_cod_is_cleared_by_the_courier_remittance(sf):
     )
     w.params.set_param("cd_cash_position.account_code.courier_charges", charges.code)
     courier = _courier(w)
+    # D22 (A02 pass 2): a courier's delivery charges are checked against its
+    # rate card; the contracted rates give BDT 60 for this unweighed parcel
+    # (base 60 + 0 kg x 20), which is what the payout below deducts
+    courier.write({"base_rate": 60.0, "per_kg_rate": 20.0})
     order, _rider = _courier_delivered(w, courier=courier)
     assert order.posting_state == "posted" and _balance(env, clearing) == 2500.0
+    assert order.carrier_consignment_id.base_freight_bdt == 60.0
     maker = _mk(env, "sfb_cr_maker_%d" % order.id, "account.group_account_user")
     checker = _mk(env, "sfb_cr_checker_%d" % order.id, "account.group_account_manager")
     bank = env["account.journal"].create(

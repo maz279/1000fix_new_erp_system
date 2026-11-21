@@ -1038,7 +1038,8 @@ export const REPORT_ROUTES = {
   "M04:Uncollected Device Ageing": "M04-uncollected",
   "M04:Counter Sales by Category": "M04-kiosk",
   "M04:Shift Variance Register": "M04-banking",
-  "M04:Branch Comparison League": "M04-dashboard"
+  "M04:Branch Comparison League": "M04-dashboard",
+  "M04:Front-Desk Money Not Yet in the Books": "M04-books"
 };
 
 /* every M04 form chip is a declared in-workspace form (FORM_CHIPS) */

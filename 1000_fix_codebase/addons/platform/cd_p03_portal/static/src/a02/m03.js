@@ -65,7 +65,7 @@ export const MODULE = {
    * nothing writes a scan or a seal verdict directly. */
   forms: ['Consignment', 'Next Journey Leg', 'Courier Booking', 'Damage Claim', 'Courier Partner',
     'Seal for Dispatch', 'Hub Intake Scan', 'Proof of Delivery Record', 'Rider & Vehicle Assignment',
-    'Rider COD Settlement', 'Courier POD Record', 'Rider Certification'],
+    'Rider COD Settlement', 'Courier POD Record', 'Rider Certification', 'Pick & Drop Tariff Band'],
   cross: ['M01 pick&drop orders', 'M04 counter handover', 'M46 fleet & drivers', 'M50 COD settlement', 'M17 custody chain'],
   freg: {
     src: 93,

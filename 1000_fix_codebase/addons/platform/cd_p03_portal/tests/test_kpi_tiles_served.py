@@ -298,7 +298,8 @@ WIRED = {
     "M38": {
         "conversion": (NUM, lambda e: m38._carts(e)),
         "cart_abandon": (NUM, lambda e: m38._carts(e)),
-        "bkash_share": (NUM, lambda e: m38._orders(e)),
+        # A04 ERP audit M38-F16: the bKash share is of money taken (paid orders)
+        "bkash_share": (NUM, lambda e: m38._orders(e, paid_only=True)),
         "rma_rate": (NUM, lambda e: m38._orders(e)),
     },
     "M39": {

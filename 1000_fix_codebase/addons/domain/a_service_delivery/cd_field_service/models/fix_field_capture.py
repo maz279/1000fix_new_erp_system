@@ -830,11 +830,28 @@ class FixFieldVisitException(models.Model):
     wasted_fee_bdt = fields.Float(string="Wasted-Visit Fee (BDT)", readonly=True)
     fee_waived_by_id = fields.Many2one("res.users", string="Fee Waived By", readonly=True)
     fee_waive_reason = fields.Text(string="Fee Waiver Reason", readonly=True)
+    # the fee's standing, which Waive Fee is offered on (only 'due' is waivable)
+    fee_state = fields.Selection(
+        [("none", "No Fee"), ("due", "Fee Due"), ("waived", "Fee Waived")],
+        string="Fee Status",
+        compute="_compute_fee_state",
+        store=True,
+    )
     zone_id = fields.Many2one("fix.zone", string="Zone", readonly=True, index=True)
     recorded_by_id = fields.Many2one(
         "res.users", string="Recorded By", readonly=True, default=lambda self: self.env.user
     )
     recorded_at = fields.Datetime(string="Recorded At", readonly=True, default=fields.Datetime.now)
+
+    @api.depends("wasted_fee_bdt", "fee_waived_by_id")
+    def _compute_fee_state(self):
+        for rec in self:
+            if rec.fee_waived_by_id:
+                rec.fee_state = "waived"
+            elif rec.wasted_fee_bdt > 0:
+                rec.fee_state = "due"
+            else:
+                rec.fee_state = "none"
 
     @api.model_create_multi
     def create(self, vals_list):

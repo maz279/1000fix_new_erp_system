@@ -558,8 +558,8 @@ export const SCREENS = {
       { m: 'action_cancel', l: 'Cancel Proposal', states: ['draft'] }
     ] },
   /* A04 ERP audit M40-F16: each draw's stock move and M20 invoice (raised by
-   * Record Draw on the allocation; read only). */
-  'M40-draws': { kind: 'model_list', model: 'fix.reseller.draw',
+   * Record Draw on the allocation; read only, so the list has no + New). */
+  'M40-draws': { kind: 'model_list', model: 'fix.reseller.draw', create: false,
     cols: ['allocation_id', 'partner_id', 'sequence', 'qty', 'unit_price', 'move_id', 'invoice_id'] },
   'M40-contacts': { kind: 'model_list', model: 'fix.partner.contact.role',
     cols: ['partner_id', 'contact_id', 'role', 'portal_scope', 'primary', 'email', 'phone'] },
