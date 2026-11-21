@@ -493,3 +493,58 @@ def test_erp_m44_26_landed_sheet_is_bdt(c):
     stage_received(c)
     sheet = landed(c, currency_id=c.usd.id)
     _refused(sheet.with_user(c.approver).action_finalise, match="BDT")
+
+
+# ------------------------------------------------- A06 integration: AP import bill
+def _import_bill(c, **extra):
+    vals = {
+        "operating_unit_id": c.ou.id,
+        "vendor_id": c.supplier.id,
+        "currency_id": c.usd.id,
+        "invoice_ref": "INT-%s" % c.tag,
+        "line_ids": [
+            (
+                0,
+                0,
+                {
+                    "product_id": c.product.id,
+                    "description": "LCD",
+                    "quantity": 1,
+                    "unit_price": 1000.0,
+                },
+            )
+        ],
+    }
+    vals.update(extra)
+    return c.env["fix.vendor.invoice"].sudo().create(vals)
+
+
+def test_integration_one_link_from_a_bill_to_its_import(c):
+    """M44's import_order_id and AP's import bill (bill_type import +
+    import_order_ref, X11) are one fact: naming the import makes the bill that
+    import's bill, and the import lists it among its supplier bills."""
+    bill = _import_bill(c, import_order_id=c.order.id)
+    assert bill.bill_type == "import"
+    assert bill.import_order_ref == c.order and bill.import_order_id == c.order
+    assert bill in c.order._import_supplier_bills()
+    other = _import_bill(
+        c,
+        invoice_ref="INT2-%s" % c.tag,
+        bill_type="import",
+        import_order_ref="fix.import.order,%d" % c.order.id,
+    )
+    assert other.import_order_id == c.order
+
+
+def test_integration_import_goods_bill_withholds_no_tds_or_vds(c):
+    """AIT and import VAT/AT were collected by customs on the Bill of Entry:
+    the foreign supplier's goods bill withholds neither TDS nor VDS."""
+    vds = c.env["fix.tax.rate"].sudo().search([("tax_kind", "=", "vds")], limit=1)
+    bill = _import_bill(c, import_order_id=c.order.id)
+    if vds:
+        bill.sudo().write({"vds_rate_id": vds.id})
+        assert not bill.vds_rate_id
+    line = bill.line_ids
+    assert line.tds_amount == 0.0
+    assert "s.120" in (line.tds_section or "")
+    assert bill.vds_amount == 0.0 and bill.tds_amount == 0.0

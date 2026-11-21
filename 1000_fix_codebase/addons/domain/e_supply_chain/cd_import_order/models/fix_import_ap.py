@@ -24,17 +24,46 @@ from .fix_import_common import FINANCE, import_account, require_group
 class FixVendorInvoiceImport(models.Model):
     _inherit = "fix.vendor.invoice"
 
+    # A06 integration: ONE link from a bill to its import. AP (cd_ap_ext, X11)
+    # owns the no-PO import bill: bill_type "import" + import_order_ref, its
+    # three-way match against the received import and the GRNI clearing at the
+    # receipt value. This Many2one is the same fact seen from M44 (stored,
+    # searchable: the LC settlement scope and the import's bill list): set it
+    # and the bill becomes that import's bill; it follows import_order_ref.
     import_order_id = fields.Many2one(
         "fix.import.order",
         string="Import Order (M44)",
         index=True,
         ondelete="restrict",
-        help="The import this supplier bill is for. With no M16 PO, the bill clears the "
-        "import's GRNI (X11).",
+        compute="_compute_import_order_id",
+        inverse="_inverse_import_order_id",
+        store=True,
+        readonly=False,
+        help="The import this supplier bill is for. With no M16 PO, it is an import bill that "
+        "clears the import's GRNI (X11).",
     )
     import_cost_ids = fields.One2many(
         "fix.import.cost", "bill_id", string="Import Cost Documents Billed"
     )
+
+    @api.depends("import_order_ref")
+    def _compute_import_order_id(self):
+        for bill in self:
+            ref = bill.import_order_ref
+            if ref and ref._name == "fix.import.order":
+                bill.import_order_id = ref.id
+            elif not bill.requisition_id:
+                bill.import_order_id = False
+
+    def _inverse_import_order_id(self):
+        for bill in self:
+            order = bill.import_order_id
+            if bill.requisition_id:
+                continue  # a PO-linked import bill uses the PO's three-way match
+            vals = {"import_order_ref": "fix.import.order,%d" % order.id if order else False}
+            if order:
+                vals["bill_type"] = "import"
+            bill.write(vals)
 
     @api.constrains("import_order_id", "vendor_id", "company_id")
     def _check_import_order(self):
@@ -49,10 +78,42 @@ class FixVendorInvoiceImport(models.Model):
             # X08: the document is capitalised by the landed cost; its bill
             # relieves the accrual the final sheet credits
             return import_account(self.env, self.company_id, "landed_accrual")
-        if self.import_order_id and not self.requisition_id:
-            # X11: clears the GRNI the import receipt credited
-            return import_account(self.env, self.company_id, "grni")
+        # X11 (goods of an import with no PO) is AP's import bill: it clears
+        # GRNI at the receipt value with the FX split (cd_ap_ext fix_ap_grni)
         return super()._expense_account(line)
+
+    # ---- A06 integration: no withholding on an import supplier's goods ----
+    def _fix_is_import_goods_bill(self):
+        """The foreign supplier's bill for imported goods: income tax (AIT,
+        ITA 2023 s.120) and VAT/AT were collected by customs on the Bill of
+        Entry, so no TDS or VDS is withheld again from the supplier. A local
+        cost document's bill (C&F agent, freight, bank) is NOT one."""
+        self.ensure_one()
+        if self.sudo().import_cost_ids:
+            return False
+        if self.bill_type == "import" or self.import_order_id:
+            return True
+        po = self.requisition_id.sudo()
+        return bool(po and "import_order_ids" in po._fields and po.import_order_ids)
+
+    def _fix_clear_import_vds(self):
+        for bill in self:
+            if bill.vds_rate_id and bill._fix_is_import_goods_bill():
+                bill.sudo()._guarded().write({"vds_rate_id": False})
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        bills = super().create(vals_list)
+        bills._fix_clear_import_vds()
+        return bills
+
+    def write(self, vals):
+        res = super().write(vals)
+        if not self.env.context.get("fix_import_vds_cleared") and (
+            {"bill_type", "import_order_ref", "requisition_id", "vds_rate_id"} & set(vals)
+        ):
+            self.with_context(fix_import_vds_cleared=True)._fix_clear_import_vds()
+        return res
 
     def _post_approved_bill(self):
         docs = self.sudo().import_cost_ids
@@ -86,6 +147,31 @@ class FixVendorInvoiceImport(models.Model):
         if self.import_order_id and not scope:
             return [("scope_key", "=", self.import_order_id._import_scope_key())]
         return scope
+
+
+class FixVendorInvoiceLineImport(models.Model):
+    _inherit = "fix.vendor.invoice.line"
+
+    @api.depends(
+        "invoice_id.bill_type",
+        "invoice_id.import_order_ref",
+        "invoice_id.requisition_id",
+        "invoice_id.import_cost_ids",
+    )
+    def _compute_tds(self):
+        """A06 integration: the import supplier's goods bill withholds no TDS:
+        AIT was collected at import on the Bill of Entry (ITA 2023 s.120)."""
+        super()._compute_tds()
+        for line in self:
+            inv = line.invoice_id
+            if inv and inv._fix_is_import_goods_bill():
+                line.update(
+                    {
+                        "tds_amount": 0.0,
+                        "tds_multiplier": 1.0,
+                        "tds_section": "AIT collected at import (ITA 2023 s.120)",
+                    }
+                )
 
 
 class FixImportCostBill(models.Model):
