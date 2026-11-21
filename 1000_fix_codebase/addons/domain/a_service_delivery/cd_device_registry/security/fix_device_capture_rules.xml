@@ -50,4 +50,15 @@
         <field name="groups" eval="[(4, ref('base.group_user'))]"/>
         <field name="domain_force">['|', ('estate_id.company_id', '=', False), ('estate_id.company_id', 'in', company_ids)]</field>
     </record>
+    <!--
+      A07 ERP audit FIN-26 (R2a, 2026-11-21): a bulk device load was fenced by company
+      only. Its branch ("Registered At") is optional: a load with no branch stays
+      visible across the company; one with a branch follows the branch's operating unit.
+    -->
+    <record id="rule_fix_device_bulk_load_operating_unit" model="ir.rule">
+        <field name="name">fix.device.bulk.load: allowed operating units (internal users)</field>
+        <field name="model_id" ref="model_fix_device_bulk_load"/>
+        <field name="groups" eval="[(4, ref('base.group_user'))]"/>
+        <field name="domain_force">['|', ('branch_id', '=', False), ('branch_id.operating_unit_id', 'in', operating_unit_ids)]</field>
+    </record>
 </odoo>

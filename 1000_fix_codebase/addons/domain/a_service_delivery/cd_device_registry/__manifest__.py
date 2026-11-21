@@ -11,7 +11,7 @@ Warranty status (consumed by M09 in Phase 7). Ownership and transfer-of-ownershi
 (exposed to customers via portal P01 in Phase 5). Device history — every service
 order against a device, permanently.
 """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.2.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Service Delivery/Registry",
@@ -42,6 +42,9 @@ order against a device, permanently.
         "data/fix_warranty_expiry_cron.xml",
         # M17 capture pass 2: sequences and the stewardship sweep.
         "data/fix_device_capture_data.xml",
+        # A07 ERP audit (2026-11-20): circular-economy, M15 and timeline
+        # consumers, and the dormancy job.
+        "data/fix_device_erp_data.xml",
         "views/fix_device_views.xml",
     ],
     "installable": True,

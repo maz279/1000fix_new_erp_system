@@ -21,7 +21,9 @@ class FixWarrantyExpiry(models.Model):
 
         A07 P1 (M17, AUT-AST-10) runs in the same job: each expiry is published
         as device.warranty_expired, and cover about to end is announced once."""
-        today = fields.Date.context_today(self)
+        # A07 ERP audit M17-31: the cron user's time zone (Europe/Brussels on
+        # fix_real, UTC when unset) put expiry up to a Dhaka day late.
+        today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
         stale = self.sudo().search(
             [("status", "in", ("active", "pending")), ("end_date", "<", today)]
         )

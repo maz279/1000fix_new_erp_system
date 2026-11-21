@@ -1,7 +1,7 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "device.warranty_updated",
-  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (1 call site(s)); payload derived from the publishing code.",
+  "description": "Published by cd_device_registry through libs.py.fix_events.publish() (A07 ERP audit 2026-11-20, hand-written).",
   "type": "object",
   "required": [
     "event_id",
@@ -33,10 +33,10 @@
       "type": "object",
       "required": [
         "device_id",
-        "serial_number",
-        "brand",
-        "model",
-        "owner_id"
+        "warranty_id",
+        "warranty_type",
+        "status",
+        "change"
       ],
       "properties": {
         "device_id": {
@@ -45,7 +45,8 @@
         "serial_number": {
           "type": [
             "string",
-            "boolean"
+            "boolean",
+            "null"
           ]
         },
         "brand": {
@@ -56,14 +57,29 @@
           ]
         },
         "model": {
-          "type": "string"
+          "type": [
+            "string",
+            "boolean",
+            "null"
+          ]
         },
         "owner_id": {
           "type": [
             "integer",
-            "boolean",
             "null"
           ]
+        },
+        "warranty_id": {
+          "type": "integer"
+        },
+        "warranty_type": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "change": {
+          "type": "string"
         }
       },
       "additionalProperties": false
@@ -71,7 +87,7 @@
   },
   "x-owner-module": "cd_device_registry",
   "x-publishers": [
-    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device.py"
+    "addons/domain/a_service_delivery/cd_device_registry/models/fix_device_erp.py"
   ],
-  "x-derived-from": "publish() call AST (tooling/generators/generate_event_schemas.py)"
+  "x-derived-from": "hand-written (A07 ERP audit S1)"
 }

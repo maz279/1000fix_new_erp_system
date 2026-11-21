@@ -127,7 +127,7 @@ export const SCREENS = {
     cols: ['name', 'record_label', 'role_group', 'no_holder', 'raise_count', 'last_raised_on', 'acknowledged_by_id', 'state'],
     actions: [{ m: 'action_acknowledge', l: 'Acknowledge' }] },
   'M17-assets': { kind: 'model_list', model: 'fix.device', stateField: 'state',
-    cols: ['name', 'serial_number', 'asset_tag', 'device_model_id', 'owner_id', 'population', 'state', 'lifecycle_stage', 'neir_status', 'approval_state'],
+    cols: ['name', 'serial_number', 'asset_tag', 'device_model_id', 'owner_id', 'population', 'state', 'custody_state', 'ownership_disputed', 'identifier_quarantined', 'lifecycle_stage', 'neir_status', 'approval_state'],
     // A07 audit M17-8: the state moves only through these. A Branch Manager
     // other than the flagger clears a lost flag; scrap is decided from the M63
     // approval inbox by a Device Quality Manager who did not request it.
@@ -139,6 +139,12 @@ export const SCREENS = {
       { m: 'action_confirm_identity', l: 'Confirm Provisional Identity' },
       { m: 'action_mark_lost', l: 'Flag Lost / Stolen', ask: 'How was the loss or theft reported?', kwarg: 'reason' },
       { m: 'action_clear_lost', l: 'Clear Lost Flag (Branch Manager)', ask: 'How was it recovered, or why is the report withdrawn?', kwarg: 'reason' },
+      // A07 ERP audit (2026-11-20) D12(b): a disputed ownership holds the device
+      // like a lost flag; a Branch Manager who did not raise it clears it.
+      { m: 'action_flag_disputed', l: 'Flag Ownership Disputed', ask: 'Who disputes the ownership, and on what basis?', kwarg: 'reason' },
+      { m: 'action_clear_dispute', l: 'Clear Ownership Dispute (Branch Manager)', ask: 'How was the dispute settled?', kwarg: 'reason' },
+      // M17-11: the purchase date is corrected only by a Warranty Officer.
+      { m: 'action_correct_purchase_date', l: 'Correct Purchase Date (Warranty Officer, staged on the form)' },
       { m: 'action_set_vintage', l: 'Lifecycle: Vintage', ask: 'Basis for the decision?', kwarg: 'reason' },
       { m: 'action_return_to_active', l: 'Lifecycle: Back to Active (from Vintage)', ask: 'Basis for the decision?', kwarg: 'reason' },
       { m: 'action_set_end_of_support', l: 'Lifecycle: End of OEM Support', ask: 'Basis for the decision?', kwarg: 'reason' },
@@ -148,8 +154,8 @@ export const SCREENS = {
     ] },
   'M17-asset': { kind: 'model_list', model: 'fix.device',
     cols: ['serial_number', 'imei_1', 'imei_2', 'mac_address', 'legacy_reference', 'estate_id'] },
-  'M17-360': { kind: 'table_report', module: 'M17', report: 'asset_360', title: 'Asset 360', period: false },
-  'M17-identifiers': { kind: 'table_report', module: 'M17', report: 'identifiers', title: 'Multi-Identifier Model', period: false },
+  'M17-360': { kind: 'table_report', module: 'M17', report: 'asset_360', title: 'Asset 360', period: true },
+  'M17-identifiers': { kind: 'table_report', module: 'M17', report: 'identifiers', title: 'Multi-Identifier Model', period: true },
   'M17-merge': { kind: 'model_list', model: 'fix.device.identity', stateField: 'state',
     cols: ['name', 'primary_device_id', 'duplicate_device_id', 'match_reason', 'match_score', 'state', 'approval_state'],
     // A07 audit M17-3: a Device Quality Manager who neither raised nor
@@ -166,8 +172,8 @@ export const SCREENS = {
   'M17-history': { kind: 'model_list', create: false, model: 'fix.device.history', stateField: 'event_type',
     empty: 'Nothing has happened to these devices yet. A history row is written by each service order, repair, ownership transfer and registry event on the device; it is not entered by hand.',
     cols: ['date', 'device_id', 'event_type', 'description', 'technician_id'] },
-  'M17-genealogy': { kind: 'table_report', module: 'M17', report: 'parts_genealogy', title: 'Parts Genealogy', period: false },
-  'M17-rework': { kind: 'table_report', module: 'M17', report: 'repeat_fault', title: 'Repeat-Fault Detection', period: false },
+  'M17-genealogy': { kind: 'table_report', module: 'M17', report: 'parts_genealogy', title: 'Parts Genealogy', period: true },
+  'M17-rework': { kind: 'table_report', module: 'M17', report: 'repeat_fault', title: 'Repeat-Fault Detection', period: true },
   'M17-components': { kind: 'model_list', model: 'fix.device.component', stateField: 'state',
     cols: ['device_id', 'part_name', 'part_number', 'serial_no', 'installed_on', 'warranty_until', 'removed_on', 'disposition', 'state'],
     actions: [
@@ -203,7 +209,7 @@ export const SCREENS = {
     ] },
   'M17-estates': { kind: 'model_list', model: 'fix.device.estate',
     cols: ['name', 'client_id', 'site', 'department', 'cost_centre', 'manager_id', 'active'] },
-  'M17-bulk': { kind: 'table_report', module: 'M17', report: 'bulk_registration', title: 'Bulk Registration', period: false },
+  'M17-bulk': { kind: 'table_report', module: 'M17', report: 'bulk_registration', title: 'Bulk Registration', period: true },
   'M17-conditions': { kind: 'model_list', model: 'fix.device.condition', stateField: 'state',
     cols: ['name', 'device_id', 'grade', 'functional_ok', 'battery_health_pct', 'graded_on', 'state'],
     actions: [{ m: 'action_confirm', l: 'Confirm Grade' }] },
@@ -227,11 +233,11 @@ export const SCREENS = {
     ] },
 
   /* Report chips -> their own computed pack */
-  'M17-rpt-base': { kind: 'table_report', module: 'M17', report: 'installed_base', title: 'Installed Base by Brand/Model', period: false },
-  'M17-rpt-repeat': { kind: 'table_report', module: 'M17', report: 'repeat_fault', title: 'Repeat-Fault Pareto', period: false },
-  'M17-rpt-estate': { kind: 'table_report', module: 'M17', report: 'estate_coverage', title: 'Estate Coverage by Client', period: false },
-  'M17-rpt-custody': { kind: 'table_report', module: 'M17', report: 'custody_exceptions', title: 'Custody Exceptions', period: false },
-  'M17-rpt-quality': { kind: 'table_report', module: 'M17', report: 'data_quality', title: 'Data Quality Scorecard', period: false },
+  'M17-rpt-base': { kind: 'table_report', module: 'M17', report: 'installed_base', title: 'Installed Base by Brand/Model', period: true },
+  'M17-rpt-repeat': { kind: 'table_report', module: 'M17', report: 'repeat_fault', title: 'Repeat-Fault Pareto', period: true },
+  'M17-rpt-estate': { kind: 'table_report', module: 'M17', report: 'estate_coverage', title: 'Estate Coverage by Client', period: true },
+  'M17-rpt-custody': { kind: 'table_report', module: 'M17', report: 'custody_exceptions', title: 'Custody Exceptions', period: true },
+  'M17-rpt-quality': { kind: 'table_report', module: 'M17', report: 'data_quality', title: 'Data Quality Scorecard', period: true },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M17-form-asset': {
@@ -274,13 +280,29 @@ export const SCREENS = {
           { name: 'estate_node_id', label: 'Estate Site / Department / User', readonly: true },
           { name: 'population', label: 'Population', readonly: true },
           { name: 'branch_id', label: 'Registered At' },
-          { name: 'purchase_date', label: 'Purchase Date' }
+          { name: 'purchase_date', label: 'Purchase Date' },
+          { name: 'custody_state', label: 'Custody State', readonly: true },
+          { name: 'custody_party_id', label: 'Held By', readonly: true },
+          { name: 'custody_branch_id', label: 'Held At', readonly: true },
+          { name: 'dormant', label: 'Dormant', readonly: true },
+          { name: 'ownership_disputed', label: 'Ownership Disputed', readonly: true },
+          { name: 'dispute_reason', label: 'Dispute', readonly: true },
+          { name: 'identifier_quarantined', label: 'Quarantined (Identifier Conflict)', readonly: true }
+        ] },
+      { tab: 'correction', title: 'Purchase Date Correction', note: 'Once recorded, the purchase date decides warranty and plan eligibility and is changed only here: fill these, save, then press Correct Purchase Date on the asset list (Warranty Officer). The receipt or invoice showing the date is required.',
+        fields: [
+          { name: 'purchase_date_correction', label: 'Corrected Purchase Date' },
+          { name: 'purchase_date_correction_reason', label: 'Correction Reason' },
+          { name: 'purchase_date_proof_file', type: 'file', label: 'Upload Purchase Proof' },
+          { name: 'purchase_date_proof_filename', label: 'Proof File Name' },
+          { name: 'purchase_date_proof_document_id', label: 'Or Choose Filed Proof' }
         ] },
       { tab: 'transfer', title: 'Ownership Transfer', note: 'Fill these, save, then press Transfer Ownership on the asset list (Device Registry Agent). The type, the reason and the evidence are required: a sale receipt, deed or signed hand-over, uploaded here or chosen from those already filed, and used for one transfer only. The system records the evidence; it does not ask the new owner to accept. They are cleared once the transfer is recorded. A lost, scrapped, provisional or NEIR-blocked device is not transferred.',
         fields: [
           { name: 'transfer_to_partner_id', label: 'Transfer To' },
           { name: 'transfer_type_pending', label: 'Transfer Type' },
           { name: 'transfer_reason', label: 'Transfer Reason' },
+          { name: 'transfer_effective_date', label: 'Effective On (default today)' },
           { name: 'transfer_evidence_file', type: 'file', label: 'Upload Transfer Evidence' },
           { name: 'transfer_evidence_filename', label: 'Evidence File Name' },
           { name: 'transfer_evidence_document_id', label: 'Transfer Evidence' }
@@ -621,6 +643,7 @@ export const SCREENS = {
       kwargs: {
         new_owner_id: 'transfer_to_partner_id', transfer_type: 'transfer_type_pending',
         reason: 'transfer_reason', evidence_document_id: 'transfer_evidence_document_id',
+        effective_date: 'transfer_effective_date',
         evidence_file: 'transfer_evidence_file', evidence_filename: 'transfer_evidence_filename'
       }
     },
@@ -633,6 +656,7 @@ export const SCREENS = {
           { name: 'transfer_to_partner_id', required: true, label: 'Transfer To', readonly: true },
           { name: 'transfer_type_pending', required: true, label: 'Transfer Type', readonly: true },
           { name: 'transfer_reason', required: true, label: 'Transfer Reason', readonly: true },
+          { name: 'transfer_effective_date', label: 'Effective On (default today)', readonly: true },
           { name: 'transfer_evidence_file', type: 'file', label: 'Upload Transfer Evidence', readonly: true },
           { name: 'transfer_evidence_filename', label: 'Evidence File Name', readonly: true },
           { name: 'transfer_evidence_document_id', label: 'Or Choose Filed Evidence', readonly: true }
@@ -660,7 +684,7 @@ export const SCREENS = {
     saveAction: {
       method: 'action_mark_lost', label: 'Flag Lost / Stolen',
       done: 'Flagged: its open service orders are on hold until a Branch Manager clears it',
-      kwargs: { reason: 'lost_reason' }
+      kwargs: { reason: 'lost_reason', flag_type: 'lost_flag_type_pending', police_ref: 'lost_police_ref_pending' }
     },
     sections: [
       { title: 'Step 2 of 2: How It Was Reported',
@@ -669,7 +693,9 @@ export const SCREENS = {
           { name: 'name', label: 'Device', readonly: true },
           { name: 'owner_id', label: 'Owner', readonly: true },
           { name: 'state', label: 'State', readonly: true },
-          { name: 'lost_reason', required: true, label: 'How Was the Loss or Theft Reported?', readonly: true }
+          { name: 'lost_reason', required: true, label: 'How Was the Loss or Theft Reported?', readonly: true },
+          { name: 'lost_flag_type_pending', label: 'Lost or Stolen (default Lost)', readonly: true },
+          { name: 'lost_police_ref_pending', label: 'GD / Police Report No. (required for Stolen)', readonly: true }
         ] }
     ]
   },
@@ -868,7 +894,14 @@ export const SCREENS = {
   // a reason-coded transaction.
   'M17-populations': { kind: 'model_list', model: 'fix.device.population.change',
     note: 'Every change of a device\x27s population, with its reason. Rental-pool or refurbishment stock becomes customer-owned only with the ownership transfer that sold or gave it.',
-    cols: ['name', 'device_id', 'from_population', 'to_population', 'reason_code', 'ownership_id', 'recorded_by_id', 'recorded_at'] },
+    cols: ['name', 'device_id', 'from_population', 'to_population', 'reason_code', 'ownership_id', 'state', 'recorded_by_id', 'approved_by_id', 'recorded_at'],
+    // A07 ERP audit M17-17: a requested change applies when an Operations
+    // Director (R05) who did not request it approves it.
+    stateField: 'state',
+    actions: [
+      { m: 'action_approve', l: 'Approve (Operations Director)' },
+      { m: 'action_reject', l: 'Reject (Operations Director)', ask: 'Why is the change rejected?', kwarg: 'reason' }
+    ] },
   'M17-form-population': {
     kind: 'model_form',
     model: 'fix.device.population.change',
@@ -981,8 +1014,9 @@ export const SCREENS = {
     note: 'Provisional identities, probable duplicates, identifier conflicts and incomplete records, by branch. A daily check adds provisional devices left unresolved and escalates issues left open too long.',
     cols: ['name', 'device_id', 'issue_type', 'severity', 'assigned_branch_id', 'assigned_to_id', 'age_days', 'escalated', 'state'],
     actions: [
+      { m: 'action_assign', l: 'Assign (Branch Manager)', ask: 'Login of the user who works the issue?', kwarg: 'user_id' },
       { m: 'action_start', l: 'Start Work' },
-      { m: 'action_resolve', l: 'Resolve', ask: 'How was the record put right?', kwarg: 'resolution' }
+      { m: 'action_resolve', l: 'Resolve (conflict / duplicate: Quality Manager)', ask: 'How was the record put right?', kwarg: 'resolution' }
     ] },
   'M17-form-quality-issue': {
     kind: 'model_form',
@@ -998,7 +1032,7 @@ export const SCREENS = {
           { name: 'severity', required: true, label: 'Severity' },
           { name: 'description', type: 'text', required: true, label: 'What Is Wrong' },
           { name: 'assigned_branch_id', label: 'Assigned Branch' },
-          { name: 'assigned_to_id', label: 'Assigned To' },
+          { name: 'assigned_to_id', label: 'Assigned To (Assign on the list)', readonly: true },
           { name: 'name', label: 'Reference', readonly: true },
           { name: 'state', label: 'State', readonly: true },
           { name: 'escalated', label: 'Escalated', readonly: true },

@@ -25,9 +25,10 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_device import (
     BRANCH_MANAGER_GROUP,
     NOT_SCRAPPABLE,
+    QUALITY_MANAGER_GROUP,
     REGISTRY_AGENT_GROUP,
 )
-from .fix_device_ops import _BOOKKEEPING, _latest_today
+from .fix_device_ops import _BOOKKEEPING, RELEASE_EVENTS, _latest_today
 
 # FR-AST-022: exactly one population per asset.
 POPULATIONS = [
@@ -84,6 +85,13 @@ STEWARD_PROVISIONAL_DAYS_PARAM = "cd_device_registry.steward_provisional_days"
 STEWARD_PROVISIONAL_DAYS_DEFAULT = 7
 STEWARD_ESCALATION_DAYS_PARAM = "cd_device_registry.steward_escalation_days"
 STEWARD_ESCALATION_DAYS_DEFAULT = 14
+# A07 ERP audit (2026-11-20) M17-17, spec §13: R05 (Operations Director)
+# approves population changes. A requested change applies only on approval by
+# a holder who did not request it.
+POPULATION_APPROVER_GROUP = "cd_device_registry.group_device_population_approver"
+# M17-12, BRU-AST-05: identifier conflicts and duplicates are the Quality
+# Manager's (R32) to resolve.
+QM_ISSUE_TYPES = ("conflict", "duplicate")
 
 
 def _norm(value) -> str:
@@ -321,8 +329,22 @@ class FixDeviceCapture(models.Model):
         label = dict(EXTRA_IDENTIFIER_TYPES)[identifier_type]
         self.message_post(body="%s %s recorded by %s." % (label, value, self.env.user.name))
         if others:
+            involved = self | others.device_id
+            involved.sudo()._a07_quarantine(
+                "%s %s is on %s" % (label, value, ", ".join(involved.mapped("display_name")))
+            )
+            self._publish(
+                "device.identifier_conflict",
+                {
+                    "device_id": self.id,
+                    "identifier_type": identifier_type,
+                    "value": value,
+                    "other_device_ids": others.device_id.ids,
+                    "recorded_by": self.env.uid,
+                },
+            )
             Issue = self.env["fix.device.quality.issue"].sudo()._guarded()
-            for device in self | others.device_id:
+            for device in involved:
                 Issue.create(
                     {
                         "device_id": device.id,
@@ -639,7 +661,7 @@ class FixDeviceCustodyAccessoryGate(models.Model):
         tick: a device goes back to its customer only when every accessory
         received with it is returned or recorded missing."""
         super()._check_release(vals)
-        if vals.get("event") != "issued":
+        if vals.get("event") not in RELEASE_EVENTS:
             return
         held = (
             self.env["fix.device.accessory"]
@@ -787,9 +809,32 @@ class FixDevicePopulationChange(models.Model):
         "res.users", string="Recorded By", readonly=True, default=lambda self: self.env.uid
     )
     recorded_at = fields.Datetime(string="Recorded At", readonly=True, default=fields.Datetime.now)
+    # A07 ERP audit M17-17: a person's change is requested, and applies only
+    # when an Operations Director (R05) who did not request it approves it.
+    # A change the registry makes itself (a transfer, an end-of-life route, a
+    # trade-in or recycling event) is applied at once.
+    state = fields.Selection(
+        [("requested", "Awaiting Approval"), ("applied", "Applied"), ("rejected", "Rejected")],
+        string="Status",
+        default="applied",
+        required=True,
+        readonly=True,
+        index=True,
+    )
+    approved_by_id = fields.Many2one("res.users", string="Approved By", readonly=True, copy=False)
+    approved_at = fields.Datetime(string="Approved At", readonly=True, copy=False)
+    decision_note = fields.Char(string="Decision Note", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"from_population", "recorded_by_id", "recorded_at"}
+        return super()._fix_guarded_fields() | {
+            "from_population",
+            "recorded_by_id",
+            "recorded_at",
+            "state",
+            "approved_by_id",
+            "approved_at",
+            "decision_note",
+        }
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -820,6 +865,18 @@ class FixDevicePopulationChange(models.Model):
             ):
                 self._check_ownership_evidence(device, vals.get("ownership_id"))
             vals["from_population"] = device.population
+            if not trusted:
+                pending = self.sudo().search(
+                    [("device_id", "=", device.id), ("state", "=", "requested")], limit=1
+                )
+                if pending:
+                    raise UserError(
+                        "%s already has a population change awaiting approval (%s)."
+                        % (device.display_name, pending.name)
+                    )
+                vals["state"] = "requested"
+            else:
+                vals.setdefault("state", "applied")
             if vals.get("name", "New") in (False, "", "New"):
                 vals["name"] = _seq(self.env, "fix.device.population.change", "DPOP/New")
         # from_population is the registry's to set, so the insert takes the token
@@ -827,23 +884,118 @@ class FixDevicePopulationChange(models.Model):
             super(FixDevicePopulationChange, self._guarded()).create(vals_list).with_env(self.env)
         )
         for rec in records:
-            rec.device_id.sudo()._guarded().write(
-                {"population": rec.to_population, "population_changed_at": rec.recorded_at}
-            )
-            labels = dict(POPULATIONS)
-            rec.device_id.message_post(
-                body="Population %s → %s (%s) by %s%s."
-                % (
-                    labels.get(rec.from_population),
-                    labels.get(rec.to_population),
-                    dict(POPULATION_REASONS)[rec.reason_code],
-                    rec.recorded_by_id.name,
-                    (": %s" % rec.notes) if rec.notes else "",
+            if rec.state == "applied":
+                rec._apply()
+            else:
+                rec.device_id.message_post(
+                    body="Population change %s → %s requested by %s: awaiting an Operations "
+                    "Director's approval."
+                    % (
+                        dict(POPULATIONS).get(rec.from_population),
+                        rec._to_label(),
+                        rec.recorded_by_id.name,
+                    )
                 )
-            )
         return records
 
-    def _check_ownership_evidence(self, device, ownership_id):
+    def _to_label(self):
+        return dict(POPULATIONS).get(self.to_population, self.to_population)
+
+    def _apply(self):
+        """Move the device's population and tell M49/M13/M14/M15
+        (device.population_changed, with the approver)."""
+        self.ensure_one()
+        self.device_id.sudo()._guarded().write(
+            {"population": self.to_population, "population_changed_at": fields.Datetime.now()}
+        )
+        labels = dict(POPULATIONS)
+        self.device_id.message_post(
+            body="Population %s → %s (%s) by %s%s%s."
+            % (
+                labels.get(self.from_population),
+                labels.get(self.to_population),
+                dict(POPULATION_REASONS)[self.reason_code],
+                self.recorded_by_id.name,
+                (", approved by %s" % self.approved_by_id.name) if self.approved_by_id else "",
+                (": %s" % self.notes) if self.notes else "",
+            )
+        )
+        self.device_id._publish(
+            "device.population_changed",
+            {
+                "device_id": self.device_id.id,
+                "change_id": self.id,
+                "from_population": self.from_population or None,
+                "to_population": self.to_population,
+                "reason_code": self.reason_code,
+                "ownership_id": self.ownership_id.id or None,
+                "recorded_by": self.recorded_by_id.id or None,
+                "approved_by": self.approved_by_id.id or None,
+            },
+        )
+
+    def _assert_approver(self):
+        self.ensure_one()
+        if self.env.su:
+            return
+        if not self.env.user.has_group(POPULATION_APPROVER_GROUP):
+            raise UserError(
+                "A population change is approved by an Operations Director (R05), which %s is "
+                "not." % self.env.user.name
+            )
+        if self.env.user in (self.recorded_by_id | self.create_uid):
+            raise UserError(
+                "Segregation of duties: you requested %s, so another Operations Director "
+                "approves it." % self.name
+            )
+
+    def action_approve(self):
+        for rec in self:
+            if rec.state != "requested":
+                raise UserError("%s is not awaiting approval." % rec.name)
+            rec._assert_approver()
+            device = rec.device_id
+            if device.population != rec.from_population:
+                raise UserError(
+                    "%s has moved to %s since %s was requested; reject it and request again."
+                    % (device.display_name, device._population_label(), rec.name)
+                )
+            if device.state == "scrapped":
+                raise UserError("%s is scrapped." % device.display_name)
+            if rec.from_population in COMPANY_POPULATIONS and rec.to_population == "customer_owned":
+                rec._check_ownership_evidence(device, rec.ownership_id.id, exclude=rec)
+            rec._guarded().write(
+                {
+                    "state": "applied",
+                    "approved_by_id": self.env.uid,
+                    "approved_at": fields.Datetime.now(),
+                }
+            )
+            rec._apply()
+        return True
+
+    def action_reject(self, reason=None):
+        if not (reason or "").strip():
+            raise UserError("Say why the population change is rejected.")
+        for rec in self:
+            if rec.state != "requested":
+                raise UserError("%s is not awaiting approval." % rec.name)
+            rec._assert_approver()
+            rec._guarded().write(
+                {
+                    "state": "rejected",
+                    "approved_by_id": self.env.uid,
+                    "approved_at": fields.Datetime.now(),
+                    "decision_note": reason.strip(),
+                }
+            )
+            rec.device_id.message_post(
+                body="Population change %s rejected by %s: %s"
+                % (rec.name, self.env.user.name, reason.strip())
+            )
+        return True
+
+    def _check_ownership_evidence(self, device, ownership_id, exclude=None):
         ownership = self.env["fix.device.ownership"].sudo().browse(ownership_id or 0).exists()
         if not ownership:
             raise UserError(
@@ -858,14 +1010,27 @@ class FixDevicePopulationChange(models.Model):
         # both are transaction timestamps, so a transfer recorded in the same
         # transaction as the change that brought the device in is not "earlier"
         last = self.sudo().search(
-            [("device_id", "=", device.id)], order="create_date desc, id desc", limit=1
+            [
+                ("device_id", "=", device.id),
+                ("state", "=", "applied"),
+                ("id", "not in", (exclude or self.browse()).ids),
+            ],
+            order="create_date desc, id desc",
+            limit=1,
         )
         if last and ownership.create_date and ownership.create_date < last.create_date:
             raise UserError(
                 "Ownership transfer %s predates the device's last population change; it does not "
                 "show the device leaving 1000FiX's stock." % ownership.display_name
             )
-        used = self.sudo().search([("ownership_id", "=", ownership.id)], limit=1)
+        used = self.sudo().search(
+            [
+                ("ownership_id", "=", ownership.id),
+                ("state", "!=", "rejected"),
+                ("id", "not in", (exclude or self.browse()).ids),
+            ],
+            limit=1,
+        )
         if used:
             raise UserError(
                 "Ownership transfer %s already supports population change %s."
@@ -1374,6 +1539,15 @@ class FixDeviceEolDecision(models.Model):
             "End-of-life decision %s: %s, approved by %s. Basis: %s"
             % (self.name, dict(EOL_ROUTES)[self.route], self.decided_by_id.name, self.basis),
         )
+        # A07 ERP audit M17-10 / AUT-AST-17: the route was a label. M14 / M18
+        # are told (device.end_of_life), and a refurbish or dispose route closes
+        # the device's open plans and 1000FiX entitlements.
+        if self.route in ("refurbish", "dispose"):
+            device._a07_close_for_end_of_life(
+                "end-of-life decision %s (%s)" % (self.name, dict(EOL_ROUTES)[self.route]),
+                route=self.route,
+                decision=self,
+            )
 
 
 # =============================================================================
@@ -1382,7 +1556,7 @@ class FixDeviceEolDecision(models.Model):
 class FixDeviceQualityIssue(models.Model):
     _name = "fix.device.quality.issue"
     _description = "Device Stewardship Issue"
-    _inherit = ["fix.guarded.mixin", "mail.thread"]
+    _inherit = ["fix.guarded.mixin", "mail.thread", "mail.activity.mixin"]
     _order = "escalated desc, severity_rank, raised_at, id"
 
     name = fields.Char(string="Reference", required=True, default="New", copy=False)
@@ -1429,6 +1603,8 @@ class FixDeviceQualityIssue(models.Model):
     resolved_at = fields.Datetime(string="Resolved At", readonly=True, copy=False)
 
     def _fix_guarded_fields(self) -> set:
+        # A07 ERP audit M17-12: a clerk wrote himself in as the assignee and then
+        # resolved an identifier conflict he caused. A Branch Manager assigns.
         return super()._fix_guarded_fields() | {
             "state",
             "escalated",
@@ -1438,6 +1614,7 @@ class FixDeviceQualityIssue(models.Model):
             "resolved_at",
             "raised_by_id",
             "raised_at",
+            "assigned_to_id",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -1490,9 +1667,31 @@ class FixDeviceQualityIssue(models.Model):
         self.ensure_one()
         if self.env.su or self.env.uid == self.assigned_to_id.id:
             return
+        if self.issue_type in QM_ISSUE_TYPES and self.env.user.has_group(QUALITY_MANAGER_GROUP):
+            # BRU-AST-05: conflicts and duplicates are the Quality Manager's.
+            return
         self.device_id._assert_role(
             BRANCH_MANAGER_GROUP, "Working an issue assigned to someone else"
         )
+
+    def action_assign(self, user_id=None):
+        """A Branch Manager assigns the issue to a steward (M17-12)."""
+        Users = self.env["res.users"].sudo()
+        text = str(user_id or "").strip()
+        user = (
+            Users.browse(int(text)).exists()
+            if text.isdigit()
+            else Users.search([("login", "=", text)], limit=1)
+        )
+        if not user or not user._is_internal():
+            raise UserError("Choose the internal user who works the issue.")
+        for rec in self:
+            if rec.state == "resolved":
+                raise UserError("%s is resolved." % rec.name)
+            rec.device_id._assert_role(BRANCH_MANAGER_GROUP, "Assigning a stewardship issue")
+            rec._guarded().write({"assigned_to_id": user.id})
+            rec.message_post(body="Assigned to %s by %s." % (user.name, self.env.user.name))
+        return True
 
     def action_start(self):
         for rec in self:
@@ -1509,6 +1708,16 @@ class FixDeviceQualityIssue(models.Model):
             if rec.state == "resolved":
                 raise UserError("%s is already resolved." % rec.name)
             rec._assert_steward()
+            if rec.issue_type in QM_ISSUE_TYPES:
+                # BRU-AST-05: a conflict or duplicate is the Quality Manager's.
+                rec.device_id._assert_role(
+                    QUALITY_MANAGER_GROUP, "Resolving an identifier conflict or duplicate"
+                )
+                if not self.env.su and self.env.user == rec.raised_by_id:
+                    raise UserError(
+                        "Segregation of duties: you raised %s, so another Quality Manager "
+                        "resolves it." % rec.name
+                    )
             if rec.issue_type == "provisional" and rec.device_id.state == "provisional":
                 raise UserError(
                     "%s is still provisional: capture its identifier and confirm the identity "
@@ -1522,7 +1731,29 @@ class FixDeviceQualityIssue(models.Model):
                     "resolved_at": fields.Datetime.now(),
                 }
             )
+            if rec.issue_type == "conflict":
+                rec.device_id.sudo()._a07_release_quarantine()
         return True
+
+    def _escalation_users(self):
+        """Who an escalation reaches: the branch's manager, else the device
+        branch managers of the device's company (M17-30)."""
+        self.ensure_one()
+        branch = self.assigned_branch_id.sudo()
+        users = self.env["res.users"]
+        manager = branch.manager_id if "manager_id" in branch._fields else users
+        if manager and manager._name == "res.users":
+            users |= manager
+        elif manager and manager._name == "hr.employee":
+            users |= manager.user_id
+        if not users:
+            group = self.env.ref(BRANCH_MANAGER_GROUP, raise_if_not_found=False)
+            company = self.device_id.sudo().company_id
+            if group:
+                users = group.sudo().all_user_ids.filtered(
+                    lambda u: company in u.company_ids and not u._is_superuser()
+                )
+        return users.filtered(lambda u: u.active and u._is_internal())
 
     @api.model
     def cron_steward_sweep(self):
@@ -1576,4 +1807,18 @@ class FixDeviceQualityIssue(models.Model):
                 body="Escalated to the Branch Manager: open for more than %d days."
                 % escalation_days
             )
+            # M17-30: chatter alone reached nobody; the manager gets an activity.
+            for user in issue._escalation_users()[:3]:
+                issue.activity_schedule(
+                    "mail.mail_activity_data_todo",
+                    user_id=user.id,
+                    summary="Stewardship issue %s escalated" % issue.name,
+                    note="%s on %s has been open for more than %d days: %s"
+                    % (
+                        issue.name,
+                        issue.device_id.display_name,
+                        escalation_days,
+                        issue.description,
+                    ),
+                )
         return True

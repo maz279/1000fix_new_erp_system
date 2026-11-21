@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  A07 ERP audit (2026-11-20), M17 stream S1.
+
+  - The R05 role that approves a population change (spec §13, M17-17).
+  - Consumers (each idempotent, keyed on the source record or the event id):
+    LEAD-02 M15 issues become installed components; M17-04 trade-in, resale and
+    recycling move the device's owner, population and state; M17-15 the
+    workshop, field, rental and trade-in modules write the device timeline.
+  - The dormancy job (FR-AST-045 / M17-14) and the rework window (D13).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="group_device_population_approver" model="res.groups">
+            <field name="name">Device Operations Director (Population Approver)</field>
+            <field name="privilege_id" ref="privilege_device_registry"/>
+            <field name="implied_ids" eval="[(4, ref('group_device_registry_user'))]"/>
+            <field name="user_ids" eval="[(4, ref('base.user_admin'))]"/>
+            <field name="comment">R05 Operations Director: approves a requested population change (rental pool, refurbishment stock, e-waste...), never one they requested (spec §13, BRU-AST-10).</field>
+        </record>
+
+        <record id="param_rework_window_days" model="ir.config_parameter">
+            <field name="key">cd_device_registry.rework_window_days</field>
+            <field name="value">30</field>
+        </record>
+        <record id="param_dormancy_days" model="ir.config_parameter">
+            <field name="key">cd_device_registry.dormancy_days</field>
+            <field name="value">365</field>
+        </record>
+
+        <record id="ir_cron_device_dormancy" model="ir.cron">
+            <field name="name">M17: mark devices with no activity as dormant</field>
+            <field name="model_id" ref="model_fix_device"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dormancy_sweep()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+
+        <record id="consumer_stock_consumed_component" model="fix.event.consumer">
+            <field name="name">M17: a part issued to a device's job is installed in the device (genealogy)</field>
+            <field name="event_type">stock.consumed</field>
+            <field name="model">fix.device.component</field>
+            <field name="method">consume_stock_consumed</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_stock_returned_component" model="fix.event.consumer">
+            <field name="name">M17: a part returned to stock leaves the device's installed components</field>
+            <field name="event_type">stock.returned</field>
+            <field name="model">fix.device.component</field>
+            <field name="method">consume_stock_returned</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_tradein_collected_device" model="fix.event.consumer">
+            <field name="name">M17: a collected trade-in is trade-in intake in 1000FiX custody</field>
+            <field name="event_type">tradein.collected</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_tradein_collected</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_tradein_paid_device" model="fix.event.consumer">
+            <field name="name">M17: a paid trade-in passes the device to 1000FiX</field>
+            <field name="event_type">tradein.paid</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_tradein_paid</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_graded_stock_sold_device" model="fix.event.consumer">
+            <field name="name">M17: a resold unit's 1000FiX cover is active and the device passes to its buyer</field>
+            <field name="event_type">graded_stock.sold</field>
+            <field name="model">fix.warranty</field>
+            <field name="method">consume_graded_stock_sold</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_ewaste_collected_device" model="fix.event.consumer">
+            <field name="name">M17: a device handed in for recycling is e-waste pending</field>
+            <field name="event_type">ewaste.collected</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_ewaste_collected</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_ewaste_certificate_device" model="fix.event.consumer">
+            <field name="name">M17: the M18 disposal certificate scraps the device and closes its plans and cover</field>
+            <field name="event_type">ewaste.certificate_issued</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_ewaste_certificate_issued</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_workshop_job_transitioned_device" model="fix.event.consumer">
+            <field name="name">M17: workshop job transitions on the device timeline; BER raises end of life</field>
+            <field name="event_type">workshop.job.transitioned</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_workshop_job_transitioned</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_field_order_completed_device" model="fix.event.consumer">
+            <field name="name">M17: a completed field visit on the device timeline</field>
+            <field name="event_type">field_order.completed</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_workshop_qc_device" model="fix.event.consumer">
+            <field name="name">M17: workshop QC on the device timeline</field>
+            <field name="event_type">workshop.qc.completed</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_rental_delivered_device" model="fix.event.consumer">
+            <field name="name">M17: a rented-out device (timeline and custody)</field>
+            <field name="event_type">rental.delivered</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_rental_returned_device" model="fix.event.consumer">
+            <field name="name">M17: a device back from rental (timeline and custody)</field>
+            <field name="event_type">rental.returned</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_tradein_refurbished_device" model="fix.event.consumer">
+            <field name="name">M17: a refurbished trade-in on the device timeline</field>
+            <field name="event_type">tradein.refurbished</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+        <record id="consumer_tradein_graded_device" model="fix.event.consumer">
+            <field name="name">M17: a graded trade-in on the device timeline</field>
+            <field name="event_type">tradein.graded</field>
+            <field name="model">fix.device</field>
+            <field name="method">consume_device_activity</field>
+            <field name="module">cd_device_registry</field>
+        </record>
+    </data>
+</odoo>
