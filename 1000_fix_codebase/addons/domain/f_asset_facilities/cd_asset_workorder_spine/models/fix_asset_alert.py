@@ -58,7 +58,53 @@ ROUTES = {
     "iot.rule_alert_raised": ("M48", IOT_OPERATOR, "A sensor rule raised an alert"),
     "telemetry.stream_suspended": ("M48", IOT_ADMIN, "A telemetry stream was suspended"),
     "telemetry.consent_revoked": ("M48", CONSENT, "Telemetry consent was revoked"),
+    # A07 ERP audit (2026-11-20) M47-17: routed only when the payload says so (_route)
+    "site.outage": ("M47", OPS_DIRECTOR, "A branch could not operate (infrastructure outage)"),
+    "site.status_changed": ("M47", BRANCH_LEAD, "A site was suspended or closed"),
 }
+CFO = "cd_entity_config.group_dofa_tier_4"
+CEO = "cd_entity_config.group_dofa_tier_5"
+
+
+def _route(event):
+    """(module, [role groups], text) for an event, or None.
+
+    A07 ERP audit (2026-11-20) M47-15: the deciding roles hear of what they
+    decide. A licence about to expire goes to the Facility Manager, then at 30
+    days the Branch Operations Lead, at 15 the Operations Director (AUT-FAC-01);
+    a lapse and the operating-risk exception to the Operations Director and the
+    CEO (AUT-FAC-03, BRU-FAC-02); a renewal decision, a rent review or a break
+    option to the CFO (AUT-FAC-04, BRU-FAC-05). M47-17: an outage only when the
+    branch stopped, a status change only to suspended or closed."""
+    etype = event.get("event_type")
+    base = ROUTES.get(etype)
+    if not base:
+        return None
+    module, group, text = base
+    payload = event.get("payload") or {}
+    if etype == "site.compliance_expiring":
+        days = payload.get("days_remaining")
+        days = int(days) if days is not None else 999
+        if days <= 15:
+            return module, [OPS_DIRECTOR], "A statutory licence expires within 15 days"
+        if days <= 30:
+            return module, [BRANCH_LEAD], "A statutory licence expires within 30 days"
+        return module, [FACILITY], text
+    if etype in ("site.compliance_expired", "site.risk_exception_raised"):
+        return module, [OPS_DIRECTOR, CEO], text
+    if etype == "lease.renewal_decision_required":
+        return module, [CFO], "A lease renewal decision is needed (CFO)"
+    if etype == "lease.critical_date_due":
+        if (payload.get("responsible_role") or "") == "CFO":
+            return module, [CFO], "A lease critical date needs the CFO's decision"
+        return module, [FACILITY], text
+    if etype == "site.outage":
+        return (module, [group], text) if payload.get("branch_stopped") else None
+    if etype == "site.status_changed":
+        if payload.get("to_status") in ("suspended", "closed"):
+            return module, [group], text
+        return None
+    return module, [group], text
 
 
 class FixAssetAlert(models.Model):
@@ -95,13 +141,43 @@ class FixAssetAlert(models.Model):
         "res.company", required=True, readonly=True, default=lambda self: self.env.company
     )
 
+    # A07 ERP audit (2026-11-20) M47-15: every role told so far (xmlids, comma
+    # separated). An escalation to a new role tells it even while the row is open.
+    notified_groups = fields.Char(readonly=True)
+
+    def _alert_holders(self, group_xmlids, company):
+        users = self.env["res.users"]
+        for xmlid in group_xmlids:
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            if group:
+                users |= group.sudo().all_user_ids
+        return users.filtered(
+            lambda u: u.active and not u.share and (not company or company in u.company_ids.ids)
+        )
+
+    def _alert_role_label(self, group_xmlids):
+        labels = []
+        for xmlid in group_xmlids:
+            group = self.env.ref(xmlid, raise_if_not_found=False)
+            labels.append(group.display_name if group else xmlid)
+        return ", ".join(labels)
+
+    def _alert_tell(self, users, summary):
+        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
+        if todo:
+            for user in users:
+                self.activity_schedule(
+                    activity_type_id=todo.id, summary=summary[:200], user_id=user.id
+                )
+
     @api.model
     def consume_asset_alert(self, event):
-        """Every routed event. Idempotent per event: its id is kept on the row's log."""
-        route = ROUTES.get(event.get("event_type"))
+        """Every routed event. A repeat raises the count on the open row; a
+        repeat that escalates to a role not yet told gives that role its to-do."""
+        route = _route(event)
         if not route:
             return False
-        module, group_xmlid, text = route
+        module, group_xmlids, text = route
         res_model = event.get("aggregate") or False
         res_id = event.get("aggregate_id") or 0
         now = fields.Datetime.now()
@@ -125,11 +201,28 @@ class FixAssetAlert(models.Model):
             limit=1,
         )
         if existing:
-            existing.write({"raise_count": existing.raise_count + 1, "last_raised_on": now})
+            told = set(filter(None, (existing.notified_groups or "").split(",")))
+            new = [g for g in group_xmlids if g not in told]
+            vals = {"raise_count": existing.raise_count + 1, "last_raised_on": now}
+            if new:
+                holders = existing._alert_holders(new, company)
+                vals.update(
+                    {
+                        "name": "%s: %s" % (text, label),
+                        "notified_groups": ",".join(sorted(told | set(new))),
+                        "role_group": existing._alert_role_label(group_xmlids),
+                        "no_holder": existing.no_holder and not holders,
+                    }
+                )
+                existing.write(vals)
+                existing._alert_tell(holders, "%s: %s" % (text, label))
+                existing.message_post(
+                    body="Escalated to %s." % (", ".join(holders.mapped("name")) or "nobody")
+                )
+            else:
+                existing.write(vals)
             return True
-        group = self.env.ref(group_xmlid, raise_if_not_found=False)
-        holders = group.sudo().all_user_ids.filtered("active") if group else self.env["res.users"]
-        holders = holders.filtered(lambda u: not u.share)
+        holders = Alert._alert_holders(group_xmlids, company)
         alert = Alert.create(
             {
                 "name": "%s: %s" % (text, label),
@@ -138,20 +231,14 @@ class FixAssetAlert(models.Model):
                 "res_model": res_model,
                 "res_id": res_id,
                 "record_label": label,
-                "role_group": group.display_name if group else group_xmlid,
+                "role_group": Alert._alert_role_label(group_xmlids),
+                "notified_groups": ",".join(sorted(group_xmlids)),
                 "no_holder": not holders,
                 "last_raised_on": now,
                 "company_id": company,
             }
         )
-        todo = self.env.ref("mail.mail_activity_data_todo", raise_if_not_found=False)
-        if todo:
-            for user in holders:
-                alert.activity_schedule(
-                    activity_type_id=todo.id,
-                    summary=alert.name[:200],
-                    user_id=user.id,
-                )
+        alert._alert_tell(holders, alert.name)
         return True
 
     def action_acknowledge(self):
@@ -159,9 +246,11 @@ class FixAssetAlert(models.Model):
         for rec in self.sudo():
             if rec.state != "open":
                 raise UserError(self.env._("%s is already acknowledged.", rec.name))
-            route = ROUTES.get(rec.event_type)
-            group_xmlid = route and route[1]
-            if group_xmlid and not self.env.user.has_group(group_xmlid):
+            told = [g for g in (rec.notified_groups or "").split(",") if g]
+            if not told:
+                route = ROUTES.get(rec.event_type)
+                told = [route[1]] if route else []
+            if told and not any(self.env.user.has_group(g) for g in told):
                 raise UserError(
                     self.env._("Acknowledging this alert needs the %s role.", rec.role_group)
                 )

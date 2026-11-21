@@ -57,6 +57,9 @@
         },
         "after": {
           "type": "object"
+        },
+        "sent_rows_revised": {
+          "type": "array"
         }
       },
       "additionalProperties": false

@@ -61,8 +61,14 @@ def c(odoo_env):
     x.fm = _user(env, "a07p1_m47l_fm", x.co, x.ou, FM)
     x.fm2 = _user(env, "a07p1_m47l_fm2", x.co, x.ou, FM)
     x.cfo = _user(env, "a07p1_m47l_cfo", x.co, x.ou, TIER % 4)
+    # an operating unit: a costed job goes to AP on the site's cost centre (M47-13)
     x.site = env["fix.site"].create(
-        {"name": "A07P1L Branch", "company_id": x.co.id, "state": "active"}
+        {
+            "name": "A07P1L Branch",
+            "company_id": x.co.id,
+            "state": "active",
+            "operating_unit_id": x.ou.id,
+        }
     )
     x.landlord = env["res.partner"].create({"name": "A07P1L Landlord"})
     x.vendor = env["res.partner"].create({"name": "A07P1L Generator Vendor"})
@@ -92,7 +98,12 @@ def _lease(c, user=None, **kw):
         "deposit": 600000.0,
     }
     vals.update(kw)
-    return c.env["fix.site.lease"].with_user(user or c.fm).create(vals)
+    lease = c.env["fix.site.lease"].with_user(user or c.fm).create(vals)
+    # D6 (A07 ERP audit 2026-11-20): a lease a person records is a draft until
+    # its commitment is approved; these tests start from a recorded lease
+    lease.sudo()._guarded().write({"state": "active"})
+    lease.sudo()._lease_commence()
+    return lease
 
 
 # ------------------------------------------------------------- rent schedule
@@ -119,7 +130,11 @@ def test_recording_a_lease_builds_the_escalated_schedule_and_the_extract(c):
     env = c.env(user=c.fm.id, context=dict(c.env.context, allowed_company_ids=c.co.ids))
     row = next(r for r in m47.lease_expiry(env)["rows"] if r["lease"] == ls.name)
     assert row["rent"] == ls.current_rent
-    cost = next(r for r in m47.cost_per_site(env)["rows"] if r["site"] == c.site.name)
+    # M47-21: the cost pack is one period: this month's rent falls in this month
+    first = c.today.replace(day=1)
+    last = first + relativedelta(months=1, days=-1)
+    pack = m47.cost_per_site(env, date_from=str(first), date_to=str(last))
+    cost = next(r for r in pack["rows"] if r["site"] == c.site.name)
     assert cost["rent"] == ls.current_rent
 
 

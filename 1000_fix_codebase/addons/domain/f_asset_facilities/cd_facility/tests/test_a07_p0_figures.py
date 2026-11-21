@@ -305,6 +305,11 @@ def test_lease_recorded_past_end_is_expired(c):
             }
         )
     )
+    # D6: recorded as a draft; once its commitment is approved it is recorded,
+    # and a lease recorded after its end date is expired, not active
+    assert lease.state == "draft"
+    lease.sudo()._guarded().write({"state": "active"})
+    lease.sudo()._lease_commence()
     assert lease.state == "expired"
     k = m47.kpis(c.cenv)
     assert k["leases_expiring_90d"] == 0 and k["leases_past_end"] == 0, k

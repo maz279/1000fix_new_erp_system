@@ -113,5 +113,12 @@
             <field name="padding">4</field>
             <field name="company_id" eval="False"/>
         </record>
+        <record id="seq_fix_site_charge" model="ir.sequence">
+            <field name="name">Site Charge (deposit, advance, licence fee, penalty)</field>
+            <field name="code">fix.site.charge</field>
+            <field name="prefix">SCHG/%(year)s/</field>
+            <field name="padding">4</field>
+            <field name="company_id" eval="False"/>
+        </record>
     </data>
 </odoo>
