@@ -138,6 +138,13 @@ the fix, re-checked by the reviewer, and the follow-up findings closed:
 - Skips explained: guarded-field checks on models with no guarded fields (by design); optional modules
   not installed on the test DB; data-dependent checks with no rows of that kind (A03 contact-centre
   gap-closure); the local residency service returning synthetic IDs.
+- After the A06 wave (restart 22 Nov), live check: 132/132 A02 screens on 8069 and 8090, 0 errors,
+  0 dropped columns. Walks re-run on a fresh copy of the deployed fix_real, now with real-time stock GL:
+  repair journey 18/18 (part issued from Warranty HO at stock cost), declined fee 9/9, field dispatch
+  6/6 (`evidence_a02_erp/a02_*_fix_real_after_a06_deploy_2026-11-22.txt`).
+- M06 hand-over bypass (found in the A03 re-check): a recipient mobile verified only after the case
+  opened passed the "verified contacts only" rule. Fixed in 4e735862: such a mobile is refused unless a
+  data steward vouches for it (vouch recorded with who and when on the contact point).
 
 ## Still the business's to supply
 - **Technician certifications** (HR records them in M22, owner 20 Nov). Until a technician holds one,
