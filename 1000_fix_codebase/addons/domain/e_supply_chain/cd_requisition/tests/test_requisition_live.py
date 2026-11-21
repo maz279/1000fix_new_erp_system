@@ -13,6 +13,7 @@ from types import SimpleNamespace
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_requisition.tests.p2p_fixtures import qualify_categories
 from odoo.exceptions import UserError
 
 
@@ -40,6 +41,7 @@ def ctx(odoo_env):
         env["fix.supplier.document"].create(
             {"supplier_id": supplier.id, "doc_type": doc_type, "state": "valid"}
         )
+    qualify_categories(env, supplier)  # A06 P08: categories approved by a qualification
     compressor, capacitor = env["product.product"].create(
         [{"name": "Compressor 1.5T"}, {"name": "Run Capacitor 35uF"}]
     )
@@ -104,7 +106,8 @@ def test_po_numbering_and_totals(ctx):
     assert first.amount_total == 1360.0
     assert first.line_ids.mapped("line_total") == [1000.0, 360.0]
     assert second.amount_total == 0.0
-    assert (first.state, first.currency_id) == ("draft", ctx.env.ref("base.BDT"))
+    # A06 D5: the company's currency (BDT on the estate)
+    assert (first.state, first.currency_id) == ("draft", ctx.env.company.currency_id)
 
 
 def test_explicit_po_reference_is_kept(ctx):
@@ -115,7 +118,13 @@ def test_send_publishes_po_issued(ctx):
     po = _sent(ctx)
     assert po.state == "sent" and po.sent_at
     assert _events(ctx.env, "po.issued", "fix.purchase.order", po.id) == [
-        {"po_ref": po.name, "vendor_id": ctx.vendor.id, "amount_total": 1360.0, "currency": "BDT"}
+        {
+            "po_ref": po.name,
+            "vendor_id": ctx.vendor.id,
+            "amount_total": 1360.0,
+            "currency": ctx.env.company.currency_id.name,
+            "fx_rate": 1.0,  # A06 P29: the rate the order went out at
+        }
     ]
     assert po.line_ids.mapped("approved_unit_price") == [500.0, 120.0]
 

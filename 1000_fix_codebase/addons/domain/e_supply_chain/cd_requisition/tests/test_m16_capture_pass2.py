@@ -21,6 +21,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 import pytest
+from odoo.addons.cd_requisition.tests.p2p_fixtures import close_rfq
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 _spec = importlib.util.spec_from_file_location(
@@ -167,7 +168,7 @@ def test_C03_invitations_never_withdrawn_deadline_only_extended(c):
         r.with_user(c.buyer).write({"response_deadline": False})
     r.with_user(c.buyer).write({"response_deadline": SOON + timedelta(days=7)})
     _bid(c, r, c.vendor, 1000)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     with pytest.raises(UserError, match="event record"):
         r.with_user(c.buyer).write({"invited_vendor_ids": [(4, c.vendor3.id)]})
 
@@ -208,7 +209,7 @@ def test_D01_bid_terms_compare_and_are_sealed_with_the_price(c):
     )
     assert bid.total_price == pytest.approx(10000)
     _bid(c, r, c.vendor4, 1100)
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     for vals in ({"warranty_months": 24}, {"incoterm": "exw"}, {"payment_terms": "advance"}):
         with pytest.raises(UserError, match="sealed"):
             bid.with_user(c.buyer).write(vals)
@@ -222,7 +223,7 @@ def test_E01_award_po_carries_the_bid_terms_and_they_are_pinned(c):
         _bid(c, r, v, p, payment_terms="45 days", incoterm="ddp")
         for v, p in zip(vendors, [1000, 1100, 1200], strict=True)
     ]
-    r.with_user(c.buyer).action_close()
+    close_rfq(r, c.buyer)
     award = (
         c.env["fix.procurement.award"]
         .with_user(c.buyer)
