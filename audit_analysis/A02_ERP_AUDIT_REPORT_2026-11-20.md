@@ -160,6 +160,11 @@ the fix, re-checked by the reviewer, and the follow-up findings closed:
   field dispatch 6/6 (`evidence_a02_erp/a02_*_deployed_fix_real_copy_2026-11-22.txt`). The live
   databases themselves are not walked: a rolled-back walk still consumes invoice and Mushak numbers.
 - A03 (independent reviewer): no open findings on A02.
+- Read-only check of the deployed billing/courier code on the live databases (compute only, rolled
+  back, no numbers used): fix_real has 0 open service orders and 0 live legs; fix_dev's 6 open orders
+  all keep their amount due; 0 stale courier bookings, 0 errors; CHG-TRANSPORT and CHG-CALLOUT present;
+  tariff and wasted-visit fee unset on both, so no charge arises until the business sets them
+  (`evidence_a02_erp/a02_live_readonly_billing_check_2026-11-22.txt`).
 
 ## A03 review P1/P2 findings, re-checked one by one (22 Nov, tip d233cb24)
 The review's serious (P1) and lower (P2) findings had been reported on the stream branches and never
