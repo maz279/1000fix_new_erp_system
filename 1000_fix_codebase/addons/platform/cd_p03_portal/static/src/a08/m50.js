@@ -144,14 +144,15 @@ export const SCREENS = {
     cols: ['name','code','bank_id','bank_acc_number','fix_branch_name','fix_routing_number','fix_account_type','fix_treasury_role','currency_id','fix_gl_balance','fix_unmatched_lines'],
     domain: [['type','=','bank']], context: { default_type: 'bank' } },
   'M50-statements': { kind: 'model_list', model: 'fix.bank.statement.import',
-    cols: ['journal_id','filename','format_type','state','imported_count','create_date'],
-    stateField: 'state', actions: [{m:'action_import',l:'Import'}] },
+    cols: ['journal_id','filename','format_type','state','imported_count','skipped_count','opening_balance','closing_balance','quarantine_reason','create_date'],
+    stateField: 'state', actions: [{m:'action_import',l:'Import'}],
+    empty: 'Imports land here. A file that fails balance or sequence validation is quarantined whole — never partially processed (FR-TRE-006).' },
   /* M50 capture audit: statement lines arrive only by import (the model
    * refuses a typed line), so the list offers no "+ New"; page 2's button
    * is the Bank Statement Import. */
   'M50-recon': { kind: 'model_list', model: 'fix.bank.statement.line', create: false,
     empty: 'Statement lines arrive with each imported bank statement (Statements Import).',
-    cols: ['date','journal_id','reference','narration','amount','match_state','matched_kind','external_class','matched_invoice_ref'],
+    cols: ['date','journal_id','reference','narration','amount','match_state','matched_kind','external_class','matched_invoice_ref','matched_instalment_id'],
     stateField: 'match_state',
     actions: [{m:'auto_match',l:'Auto-Match'},{m:'action_apply_rules',l:'Apply Matching Rules'},{m:'action_confirm_manual_match',l:'Confirm Manual Match'},{m:'action_post_bank_charge',l:'Book as Bank Charge'}] },
   'M50-reconstatements': { kind: 'model_list', model: 'fix.bank.reconciliation',
@@ -208,8 +209,12 @@ export const SCREENS = {
     stateField: 'state',
     actions: [{m:'action_approve',l:'Approve & Apply'},{m:'action_reject',l:'Reject'}] },
   'M50-repayments': { empty: 'Repayment instalments are scheduled from the facility\'s terms.', kind: 'model_list', model: 'fix.facility.repayment',
-    cols: ['facility_id','sequence','due_date','principal','interest','total','state','is_overdue'],
-    stateField: 'state', create: false, actions: [{m:'action_pay',l:'Pay Instalment'}] },
+    cols: ['facility_id','sequence','due_date','principal','interest','total','state','is_overdue','paid_by_id','statement_line_id'],
+    stateField: 'state', create: false, actions: [
+      {m:'action_pay',l:'Mark Paid (await bank debit)'},
+      {m:'action_confirm_bank',l:'Confirm Bank Debit (2nd person)'},
+      {m:'action_withdraw_payment',l:'Withdraw Payment Mark'}
+    ] },
   'M50-covenants': { kind: 'model_list', model: 'fix.facility.covenant',
     cols: ['facility_id','name','metric','operator','threshold','state','last_value','last_result','last_tested'],
     stateField: 'state',

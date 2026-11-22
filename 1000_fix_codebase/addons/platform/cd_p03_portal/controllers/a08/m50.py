@@ -136,7 +136,11 @@ SURFACES = {
         "limit": 100,
         "actions": {"action_approve", "action_reject"},
     },
-    "fix.facility.repayment": {"order": "due_date, id", "limit": 300, "actions": {"action_pay"}},
+    "fix.facility.repayment": {
+        "order": "due_date, id",
+        "limit": 300,
+        "actions": {"action_pay", "action_confirm_bank", "action_withdraw_payment"},
+    },
     "fix.facility.covenant": {
         "order": "facility_id, id",
         "limit": 200,
