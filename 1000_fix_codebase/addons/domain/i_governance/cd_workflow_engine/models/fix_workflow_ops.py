@@ -346,6 +346,43 @@ class FixApprovalSubstitution(models.Model):
             )
         return ""
 
+    @api.model
+    def _mutual_delegation_problem(self, absent_user, delegate_user, start, end):
+        """Why `delegate_user` may not also stand in for `absent_user` over a
+        period that overlaps his own delegation the other way, or ''.
+
+        A11 audit F17: A could substitute for B while B substituted for A.
+        Both legitimately held the tier and every decision carried on-behalf,
+        so no authority was widened — but the two of them systematically
+        exchanged their queues and absence tracking meant nothing. The
+        refusal names both people and the period that clashes."""
+        if not (absent_user and delegate_user and start and end):
+            return ""
+        Employee = self.env["hr.employee"].sudo()
+        absent_emp = Employee.search([("user_id", "=", absent_user.id)], limit=1)
+        delegate_emp = Employee.search([("user_id", "=", delegate_user.id)], limit=1)
+        if not (absent_emp and delegate_emp):
+            return ""  # no employee record: nothing the engine routes on
+        back = (
+            self.sudo()
+            .search(
+                [
+                    ("state", "=", "active"),
+                    ("absent_approver_id", "=", delegate_emp.id),
+                    ("delegate_id", "=", absent_emp.id),
+                ]
+            )
+            .filtered(lambda s: s.start_date <= end and start <= s.end_date)
+        )
+        if back:
+            return (
+                "Mutual delegation refused: %s already delegates to %s (active until %s) "
+                "overlapping this period — two people cannot substitute for each other, "
+                "their queues would only swap places."
+                % (delegate_user.name, absent_user.name, back[:1].end_date)
+            )
+        return ""
+
     # ---- create / write ----------------------------------------------------
     @api.model_create_multi
     def create(self, vals_list):
@@ -399,7 +436,7 @@ class FixApprovalSubstitution(models.Model):
                         raise UserError("A substitution cannot be back-dated to %s." % start)
         return super().write(vals)
 
-    @api.constrains("absent_approver_id", "delegate_id", "state")
+    @api.constrains("absent_approver_id", "delegate_id", "state", "start_date", "end_date")
     def _check_delegate(self):
         for rec in self:
             absent, _manager, delegate = rec._sub_parties()
@@ -409,6 +446,13 @@ class FixApprovalSubstitution(models.Model):
                 problem = self._delegate_policy_problem(absent, delegate)
                 if problem:
                     raise ValidationError(problem)
+                # A11 audit F17: no A <-> B. The dates are constrained too, so
+                # re-dating an active row into a clash is refused as well.
+                mutual = self._mutual_delegation_problem(
+                    absent, delegate, rec.start_date, rec.end_date
+                )
+                if mutual:
+                    raise ValidationError(mutual)
 
     # ---- transitions -------------------------------------------------------
     def action_activate(self):
@@ -430,6 +474,12 @@ class FixApprovalSubstitution(models.Model):
             problem = self._delegate_policy_problem(absent, delegate)
             if problem:
                 raise UserError(problem)
+            # A11 audit F17: activating the other direction of an existing
+            # delegation is refused here as well — the constraint above only
+            # sees rows that are already active.
+            mutual = self._mutual_delegation_problem(absent, delegate, rec.start_date, rec.end_date)
+            if mutual:
+                raise UserError(mutual)
             rec._guarded().write(
                 {
                     "state": "active",

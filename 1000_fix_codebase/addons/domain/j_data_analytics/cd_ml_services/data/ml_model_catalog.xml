@@ -19,7 +19,7 @@
         <field name="implementation">rule_based</field>
         <field name="status">production</field>
         <field name="owning_module">cd_ml_services over cd_service_order (M01 fault taxonomy)</field>
-        <field name="notes">Token-overlap matching of free text against the 26-code fix.fault.code taxonomy (code/name/description). Deterministic and explainable — not a neural classifier.</field>
+        <field name="notes">Token-overlap matching of free text against the ACTIVE fix.fault.code taxonomy (code/name/description) — the OCR &amp; Bengali NLP screen counts the active codes live; the old "26-code" figure was stale (A2-F14c). Deterministic and explainable — not a neural classifier.</field>
     </record>
     <record id="ml_model_predictive_maintenance" model="fix.ml.model">
         <field name="name">Predictive Maintenance — equipment failure predictions</field>

@@ -98,7 +98,7 @@ class AnalyticsApiController(http.Controller):
 
     @http.route("/analytics/kpis", type="jsonrpc", auth="user", readonly=True)
     def kpis(self, **kwargs):
-        """Backend-computed KPIs for a dashboard area (read_group over the
+        """Backend-computed KPIs for a dashboard area (_read_group over the
         real models — no snapshot tables, no portal-side math).
 
         executive/branch/technician: service-order aggregations (M01).
@@ -115,10 +115,10 @@ class AnalyticsApiController(http.Controller):
                     "message": "dashboard must be one of %s" % ", ".join(sorted(valid)),
                 }
             }
-        order_groups = request.env["fix.service.order"].read_group(
-            [], ["id:count(id)"], ["state"], lazy=False
-        )
-        by_state = {g["state"]: g["id"] for g in order_groups}
+        # Odoo 19: _read_group returns one tuple per group — the group values
+        # in groupby order, then one value per aggregate (__count last here).
+        order_groups = request.env["fix.service.order"]._read_group([], ["state"], ["__count"])
+        by_state = {group[0]: group[-1] for group in order_groups}
         result = {
             "dashboard": dashboard,
             "orders_by_state": by_state,
@@ -126,18 +126,14 @@ class AnalyticsApiController(http.Controller):
         }
         if dashboard in ("branch", "technician"):
             field = "branch_id" if dashboard == "branch" else "technician_id"
-            groups = request.env["fix.service.order"].read_group(
-                [], ["id:count(id)"], [field], lazy=False
-            )
+            groups = request.env["fix.service.order"]._read_group([], [field], ["__count"])
             result["breakdown"] = [
-                {"name": g[field][1] if g[field] else "(unassigned)", "open": g["id"]}
-                for g in groups
+                {"name": group[0].display_name if group[0] else "(unassigned)", "open": group[-1]}
+                for group in groups
             ]
         if dashboard == "warranty":
-            claim_groups = request.env["fix.warranty.claim"].read_group(
-                [], ["id:count(id)"], ["state"], lazy=False
-            )
-            result["claims_by_state"] = {g["state"]: g["id"] for g in claim_groups}
+            claim_groups = request.env["fix.warranty.claim"]._read_group([], ["state"], ["__count"])
+            result["claims_by_state"] = {group[0]: group[-1] for group in claim_groups}
         if dashboard == "people":
             emp_model = request.env["hr.employee"].sudo()
             orphaned = (

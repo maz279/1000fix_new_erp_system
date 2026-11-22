@@ -63,6 +63,13 @@ def _model(env, kind="lead_scoring", **extra):
         # the declared data-sufficiency bar (capture audit pass 2)
         "min_history_months": 6,
         "min_volume": 500,
+        # BRU-AIM-11 (A2-F10): a NEW promotion needs a named consumer, an
+        # accuracy target and a defined fallback. The probe declares them so
+        # these tests still exercise the gate/bias refusals they are about;
+        # test_ml_a11_fixes.py proves the refusals themselves.
+        "consumer_modules": "M07 Sales (probe)",
+        "accuracy_target": "AUC > 0.70 (probe)",
+        "fallback_definition": "Lead stays unscored; the sales representative qualifies it (probe)",
     }
     vals.update(extra)
     model = env["fix.ml.model"].create(vals)

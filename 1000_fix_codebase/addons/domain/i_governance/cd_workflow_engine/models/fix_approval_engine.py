@@ -30,15 +30,20 @@ from datetime import datetime, time, timedelta
 
 import pytz
 from odoo import api, fields, models
-from odoo.exceptions import UserError, ValidationError
+from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.models import BaseModel
 from odoo.tools.safe_eval import safe_eval
+from psycopg2.extensions import TransactionRollbackError
 
 from libs.py.fix_events import publish
 
 _logger = logging.getLogger(__name__)
 
 TASK_KEY = "fix_approval_task"
+
+# The recorded interventions on a request belong to the DoA Administrator
+# (A11 audit F09), like every other governance act in this module.
+DOA_ADMIN = "cd_workflow_engine.group_doa_administrator"
 
 # Company-wide default working calendar for approval SLAs (A03 audit R7, W2):
 # the id of a fix.working.calendar. Used when neither the matrix row nor the
@@ -84,6 +89,9 @@ HISTORY_EVENTS = [
     ("escalated", "Escalated"),
     ("expired", "Final Action on Expiry"),
     ("handed_back", "Handed Back by an Ended Delegation"),
+    # A11 audit F09: a request whose tasks were lost says so when the cron
+    # re-derives its approvers, instead of quietly counting as pending forever.
+    ("requeued", "Re-Queued (Tasks Were Lost)"),
 ]
 
 # A11 audit E4 (M63-6): an approval covers WHO is paid, in WHICH currency and
@@ -223,6 +231,56 @@ class FixApprovalMatrix(models.Model):
     date_from = fields.Date(string="Effective From")
     date_to = fields.Date(string="Effective To")
     active = fields.Boolean(default=True)
+    # ---- dead-rule visibility (A11 audit F05, flag only) --------------------
+    # Three of the live estate's six rows (`write_off`, `estimate`, `expense`,
+    # all with no res_model) can never match a record: _match pairs such a row
+    # with records whose _approval_domain equals its decision_domain, and no
+    # model declares those keys (their real keys are ar_writeoff,
+    # inventory_writeoff, estimate_discount...). The rows are NOT changed and
+    # _match is NOT changed — re-pointing a dormant row would change live
+    # approval routing, which is an owner decision. These two fields just make
+    # the dead rows say so on the rule book itself.
+    matches_any_model = fields.Boolean(
+        string="Can Match a Record",
+        compute="_compute_matches_any_model",
+        help="False when no document model can ever reach this rule: it never "
+        "governed anything and never will until an owner re-points it.",
+    )
+    rule_note = fields.Char(
+        string="Rule Note",
+        compute="_compute_matches_any_model",
+        help="Why this rule can never match, in one sentence.",
+    )
+
+    @api.depends("res_model", "decision_domain")
+    def _compute_matches_any_model(self):
+        # One registry pass serves every row: which decision domains some
+        # non-abstract model actually declares.
+        declared = {}
+        for name, model in self.env.registry.items():
+            if model._abstract or model._transient:
+                continue  # a wizard is not a document anyone routes
+            key = getattr(model, "_approval_domain", None)
+            if key and key not in declared:
+                declared[key] = name
+        for row in self:
+            if row.res_model:
+                if row.res_model in self.env:
+                    row.matches_any_model, row.rule_note = True, False
+                else:
+                    row.matches_any_model = False
+                    row.rule_note = (
+                        "The rule names model %r, which does not exist on this "
+                        "database — it can never match." % row.res_model
+                    )
+            elif declared.get(row.decision_domain):
+                row.matches_any_model, row.rule_note = True, False
+            else:
+                row.matches_any_model = False
+                row.rule_note = (
+                    "No document model declares the decision domain %r — this "
+                    "rule can never match." % row.decision_domain
+                )
 
     # ---- validation on save (A11 audit E1, M63-7) ---------------------------
     # A malformed condition crashed every request of its domain with a
@@ -1138,20 +1196,112 @@ class FixApprovalRequest(models.Model):
             if task.activity_id:
                 task.activity_id.sudo().unlink()
 
-    def _finish(self, state, event, user, task=None, comment=None, record_state=None):
-        """Close this request: decide it, cancel open tasks, stamp the record."""
+    def _committed_state(self):
+        """(state, decided_by_id) as COMMITTED, read through a cursor of its own.
+
+        Odoo cursors run REPEATABLE READ (sql_db.py), so this transaction's
+        own reads keep returning the snapshot taken when it began: a value
+        another transaction committed afterwards is invisible here, however
+        often the ORM cache is invalidated. Only a new transaction can say
+        what the database now holds — which is exactly what a loser of the
+        decide-path race needs to be told."""
         self.ensure_one()
-        now = fields.Datetime.now()
-        self.sudo().write(
-            {
-                "state": state,
-                "decided_at": now,
-                "decided_by_id": user.id,
-                "on_behalf_of_id": task.on_behalf_of_id.id if task else False,
-                "cycle_hours": round((now - self.requested_at).total_seconds() / 3600.0, 2),
-            }
+        cr = self.env.registry.cursor()
+        try:
+            cr.execute(
+                "SELECT state, decided_by_id FROM fix_approval_request WHERE id = %s",
+                [self.id],
+            )
+            return cr.fetchone()
+        finally:
+            cr.close()
+
+    def _decision_lock(self):
+        """The request's row lock, and its state as COMMITTED, not cached.
+
+        A11 audit F10 (the decide-path race): _decide_check read the request,
+        the task and the assignee, and the writes happened later — two
+        approvers acting in the same window both passed the check and both
+        decisions then took effect, the second overturning the first with no
+        refusal anywhere. Every decision now takes this lock first.
+
+        Under REPEATABLE READ a row another transaction committed after this
+        transaction's snapshot cannot be locked at all: PostgreSQL raises
+        SerializationFailure instead of waiting (Odoo's HTTP layer retries
+        such a request as a whole). That refusal is the loser signal, and it
+        carries the one fact worth reporting — who decided first, read from
+        the committed state. A failure that leaves the request still pending
+        (the hourly cron bumped only reminded_at) is not a lost decision, so
+        it is re-raised for Odoo's own retry rather than refused.
+
+        The lock is held to the end of the transaction — releasing a
+        savepoint would hand it back early."""
+        self.ensure_one()
+        try:
+            with self.env.cr.savepoint():
+                self.env.cr.execute(
+                    "SELECT state, decided_by_id FROM fix_approval_request WHERE id = %s "
+                    "FOR UPDATE",
+                    [self.id],
+                )
+                row = self.env.cr.fetchone()
+        except TransactionRollbackError:
+            row = self._committed_state()
+            if not row or row[0] != "pending":
+                self._raise_already_decided(row)
+            raise
+        # What this environment cached about the request, its tasks and its
+        # record may predate the locked read: drop it, so every later read of
+        # this decision sees the locked truth.
+        tasks = self.task_ids
+        self.invalidate_recordset()
+        tasks.invalidate_recordset()
+        record = None
+        if self.res_model in self.env:
+            record = self.env[self.res_model].browse(self.res_id).exists()
+        if record:
+            record.invalidate_recordset()
+        if row and row[0] != "pending":
+            self._raise_already_decided(row)
+        return row
+
+    def _raise_already_decided(self, row):
+        if not row:
+            raise UserError(
+                "This approval request no longer exists; the decision did not take effect."
+            )
+        state = dict(REQUEST_STATES).get(row[0], row[0]) or row[0]
+        who = "another session"
+        if row[1]:
+            who = self.env["res.users"].sudo().browse(row[1]).name
+        raise UserError(
+            "This approval request was already decided by %s (it is now %s), so the "
+            "decision you just made at the same moment did not take effect. Refresh "
+            "your inbox." % (who, state)
         )
-        self._close_tasks(except_task=task)
+
+    def _finish(self, state, event, user, task=None, comment=None, record_state=None):
+        """Close this request: decide it, cancel open tasks, stamp the record.
+
+        A11 audit F10: the closing write is atomic against a concurrent
+        decision. The task paths already hold the row lock from _decide_check;
+        recall, void and the cron's final action never went through it, so the
+        lock is re-taken here, inside a savepoint — a refused or failed finish
+        leaves nothing half-written behind."""
+        self.ensure_one()
+        with self.env.cr.savepoint():
+            self._decision_lock()
+            now = fields.Datetime.now()
+            self.sudo().write(
+                {
+                    "state": state,
+                    "decided_at": now,
+                    "decided_by_id": user.id,
+                    "on_behalf_of_id": task.on_behalf_of_id.id if task else False,
+                    "cycle_hours": round((now - self.requested_at).total_seconds() / 3600.0, 2),
+                }
+            )
+            self._close_tasks(except_task=task)
         self._log(event, user=user, task=task, comment=comment)
         record = self._record(self.env(su=True))
         if record and record_state and record.approval_request_id == self:
@@ -1229,53 +1379,271 @@ class FixApprovalRequest(models.Model):
             )
         )
         for req in overdue:
-            record = req._record(self.env(su=True))
-            if not record:
-                continue
-            due = req._approval_due(now, record)
-            pending_tasks = req.task_ids.filtered(lambda t: t.state == "pending")
-            if not req.reminded_at:
-                req.write({"reminded_at": now})
+            try:
+                with self.env.cr.savepoint():
+                    self._escalate_one(req, now)
+            except Exception:
+                _logger.exception(
+                    "M63 escalation failed for request %s; the other overdue requests "
+                    "are still processed this run.",
+                    req.name,
+                )
+        self._rescue_orphans(now)
+
+    def _escalate_one(self, req, now):
+        """One overdue request's remind / escalate / final-action step."""
+        record = req._record(self.env(su=True))
+        if not record:
+            return
+        due = req._approval_due(now, record)
+        pending_tasks = req.task_ids.filtered(lambda t: t.state == "pending")
+        if not req.reminded_at:
+            req.write({"reminded_at": now})
+            pending_tasks._guarded().write({"due_at": due})
+            req._log("reminded", user=self.env.user, comment="approval overdue; reminder sent")
+            publish(self.env, "approval.reminder", req.res_model, req.res_id, {"request": req.name})
+            return
+        if req.escalation_level < req._rule_value("max_escalations"):
+            targets = req._next_tier_holders(record)
+            if targets:
+                level = req.escalation_level + 1
+                req.write({"escalation_level": level})
+                req._open_tasks(targets, level=level)
                 pending_tasks._guarded().write({"due_at": due})
-                req._log("reminded", user=self.env.user, comment="approval overdue; reminder sent")
-                publish(
-                    self.env, "approval.reminder", req.res_model, req.res_id, {"request": req.name}
-                )
-                continue
-            if req.escalation_level < req._rule_value("max_escalations"):
-                targets = req._next_tier_holders(record)
-                if targets:
-                    level = req.escalation_level + 1
-                    req.write({"escalation_level": level})
-                    req._open_tasks(targets, level=level)
-                    pending_tasks._guarded().write({"due_at": due})
-                    req._log(
-                        "escalated",
-                        user=self.env.user,
-                        comment="escalated to %s" % ", ".join(u.name for u, _b in targets),
-                    )
-                    publish(
-                        self.env,
-                        "approval.escalated",
-                        req.res_model,
-                        req.res_id,
-                        {"request": req.name, "level": level, "to": [u.id for u, _b in targets]},
-                    )
-                    continue
-            req.write({"final_action_done": True})
-            if req._rule_value("final_action") == "reject":
-                req._finish(
-                    "rejected",
-                    "expired",
-                    self.env.user,
-                    comment="auto-rejected: no decision after every escalation",
-                    record_state="rejected",
-                )
-                record._approval_on_rejected("auto-rejected on expiry")
-            else:
                 req._log(
-                    "expired", user=self.env.user, comment="no decision after every escalation"
+                    "escalated",
+                    user=self.env.user,
+                    comment="escalated to %s" % ", ".join(u.name for u, _b in targets),
                 )
+                publish(
+                    self.env,
+                    "approval.escalated",
+                    req.res_model,
+                    req.res_id,
+                    {"request": req.name, "level": level, "to": [u.id for u, _b in targets]},
+                )
+                return
+        req.write({"final_action_done": True})
+        if req._rule_value("final_action") == "reject":
+            req._finish(
+                "rejected",
+                "expired",
+                self.env.user,
+                comment="auto-rejected: no decision after every escalation",
+                record_state="rejected",
+            )
+            record._approval_on_rejected("auto-rejected on expiry")
+        else:
+            # A11 audit F08: the "keep pending" expiry used to be silent — one
+            # history row nobody reads, no event, no notice, so a request could
+            # die quietly in a full inbox (and a group-routed request, which
+            # has no tier to escalate through, went straight here). The event
+            # says who it still waits for; the contact centre's consumer turns
+            # it into the last warning. The request itself stays pending — the
+            # engine never auto-approves.
+            req._log("expired", user=self.env.user, comment="no decision after every escalation")
+            waiting = req.task_ids.filtered(lambda t: t.state == "pending").mapped(
+                "assigned_user_id"
+            )
+            publish(
+                self.env,
+                "approval.expired",
+                req.res_model,
+                req.res_id,
+                {
+                    "request": req.name,
+                    "record": req.res_name,
+                    "rule": req.matrix_id.display_name or "the default rule",
+                    "level": req.escalation_level,
+                    "waiting_for": [u.id for u in waiting],
+                },
+            )
+
+    # ---- orphaned requests (A11 audit F09) ---------------------------------
+    @api.model
+    def _rescue_orphans(self, now=None):
+        """A pending request with no open task is no longer immortal.
+
+        A helper of cron_escalate_overdue, not a cron of its own: the name
+        deliberately avoids the cron_ prefix, because check_deployment_wiring
+        treats every such method as a job that must own an ir.cron record.
+
+        Whatever lost its tasks — a crash between the request's creation and
+        _open_tasks, a deleted-task bug, a direct-ORM fixture — the request
+        counted as pending and overdue forever: the cron above only ever
+        looked at requests WITH a pending task past due, and only the
+        requester could end it. Once such a request is older than its own
+        SLA, the approvers are re-derived once: somebody gets the task again
+        (with the trail saying so), or — when nobody can approve the record —
+        the request is voided with the full trail instead of waiting forever.
+        """
+        now = now or fields.Datetime.now()
+        orphans = (
+            self.sudo()
+            .search([("state", "=", "pending")])
+            .filtered(lambda r: not r.task_ids.filtered(lambda t: t.state == "pending"))
+        )
+        for req in orphans:
+            try:
+                with self.env.cr.savepoint():
+                    self._rescue_one_orphan(req, now)
+            except Exception:
+                _logger.exception(
+                    "M63 orphan rescue failed for request %s; the other orphaned "
+                    "requests are still processed this run.",
+                    req.name,
+                )
+
+    def _rescue_one_orphan(self, req, now):
+        record = req._record(self.env(su=True))
+        if not record:
+            return
+        if req._approval_due(start=req.requested_at, record=record) > now:
+            return  # inside its SLA: quiet, not orphaned
+        # Re-derive on the request's own pinned rule, minus everyone the
+        # request itself forbids (the requester, the creator, the
+        # amount-changer, anyone already assigned to it).
+        excluded = record._approval_excluded_for(req)
+        approvers = [
+            (user, behalf)
+            for user, behalf in record._approval_resolve(req.matrix_id, req.tier)
+            if user not in excluded
+        ]
+        if approvers:
+            req._open_tasks(approvers, level=req.escalation_level)
+            req._log(
+                "requeued",
+                user=self.env.user,
+                comment="the request had no open task; approvers re-derived and routed "
+                "again to %s" % ", ".join(u.name for u, _b in approvers),
+            )
+            publish(
+                self.env,
+                "approval.requested",
+                req.res_model,
+                req.res_id,
+                {
+                    "request": req.name,
+                    "tier": req.tier or None,
+                    "amount": req.amount,
+                    "approver_ids": [u.id for u, _b in approvers],
+                },
+            )
+            return
+        req._finish(
+            "voided",
+            "voided",
+            self.env.user,
+            comment="no open task for an SLA past due and nobody can approve the record: "
+            "voided by the overdue sweep so it cannot wait forever",
+            record_state="none",
+        )
+        record.sudo()._approval_clear_stamp(
+            "the request %s lost its tasks and had no approver left" % req.name
+        )
+
+    # ---- the DoA Administrator's recorded way out (A11 audit F09) -----------
+    def action_void_request(self, reason=None):
+        """Void a request that can no longer be decided, and record why.
+
+        A pending request that lost its tasks, or was routed to people who
+        have all left, used to be immortal: the cron ignored it and only the
+        requester could recall it. This is the DoA Administrator's
+        intervention — the requester keeps his recall, this is the
+        administrator's. It is evidence: a reason of at least a sentence, an
+        append-only history row with the actor, the time and the state before
+        and after, the approval.decided event, and — mirroring what a recall
+        clears — no stamp left on the record.
+        """
+        if not (self.env.su or self.env.user.has_group(DOA_ADMIN)):
+            raise AccessError("Only a DoA Administrator voids an approval request.")
+        for req in self:
+            if req.state != "pending":
+                raise UserError(
+                    "Only a pending approval request can be voided: %s is %s."
+                    % (req.name, dict(REQUEST_STATES).get(req.state, req.state) or req.state)
+                )
+            text = (reason or "").strip()
+            if len(text) < 10:
+                raise UserError(
+                    "State why %s is voided (at least a sentence): the reason is kept "
+                    "with the request for audit." % req.name
+                )
+            record = req._record(self.env(su=True))
+            req._finish(
+                "voided",
+                "voided",
+                self.env.user,
+                comment="DoA intervention, pending -> voided: %s" % text,
+                record_state="none",
+            )
+            if record:
+                record.sudo()._approval_clear_stamp(
+                    "the request %s was voided by %s" % (req.name, self.env.user.name)
+                )
+        return True
+
+    # ---- event consumer (A11 audit F08) ------------------------------------
+    @api.model
+    def consume_approval_expired(self, event: dict) -> dict:
+        """The keep-pending expiry's last warning, delivered in-module.
+
+        A11 audit F08 required the expiry to stop being silent. The e-mail/SMS
+        consumer for the other four approval.* events lives in
+        cd_contact_centre; that module's files were being rewritten by another
+        session while this fix was built (the edits reverted within seconds,
+        twice), so the consumer ships here instead: the engine guarantees the
+        notice itself — one to-do for the requester and a chatter note on the
+        record — rather than publishing an event nobody consumes. Called only
+        by the event relay; idempotent per request, so a replayed event adds
+        nothing.
+        """
+        if not self.env.su:
+            raise AccessError("Approval event consumers run only from the event relay.")
+        payload = event.get("payload") or {}
+        name = payload.get("request")
+        req = self.sudo().search([("name", "=", name)], limit=1) if name else self.browse()
+        if not req:
+            return {"notified": 0, "reason": "request not found"}
+        if not req.requested_by_id:
+            return {"notified": 0, "reason": "no requester to notify"}
+        waiting = req.task_ids.filtered(lambda t: t.state == "pending").mapped("assigned_user_id")
+        summary = "Approval still pending: %s" % req.name
+        Activity = self.env["mail.activity"].sudo()
+        existing = Activity.search_count(
+            [
+                ("res_model", "=", req._name),
+                ("res_id", "=", req.id),
+                ("summary", "=", summary),
+                ("user_id", "=", req.requested_by_id.id),
+            ]
+        )
+        if existing:
+            return {"notified": 0, "reason": "already notified", "request": req.name}
+        Activity.create(
+            {
+                "res_model": req._name,
+                "res_id": req.id,
+                "activity_type_id": self.env.ref("mail.mail_activity_data_todo").id,
+                "user_id": req.requested_by_id.id,
+                "date_deadline": fields.Date.context_today(self),
+                "summary": summary,
+                "note": "%s is still pending after %s escalation(s); it waits for %s "
+                "(event %s)." % (
+                    req.res_name,
+                    payload.get("level") or 0,
+                    ", ".join(waiting.mapped("name")) or "no open task",
+                    event.get("event_id") or "-",
+                ),
+            }
+        )
+        record = req._record(self.env(su=True))
+        if record and hasattr(record, "message_post"):
+            record.message_post(
+                body="Approval %s is still pending after every escalation: it waits for %s."
+                % (req.name, ", ".join(waiting.mapped("name")) or "no open task")
+            )
+        return {"notified": 1, "request": req.name}
 
     # ---- KPIs (R11) --------------------------------------------------------
     def _decided_by_a_conflicted_user(self):
@@ -1430,6 +1798,13 @@ class FixWorkflowTask(models.Model):
 
     def _decide_check(self):
         self.ensure_one()
+        if self.request_id:
+            # A11 audit F10 (decide-path race): the checks below run under the
+            # request's row lock, on the state as committed — not on what this
+            # transaction cached before another approver's decision committed.
+            # A loser here is told who decided the request instead of quietly
+            # overturning them a few statements later.
+            self.request_id._decision_lock()
         if self.state != "pending":
             raise UserError("Decide a pending task")
         assignee = self.assigned_user_id or self.assigned_to_id.user_id

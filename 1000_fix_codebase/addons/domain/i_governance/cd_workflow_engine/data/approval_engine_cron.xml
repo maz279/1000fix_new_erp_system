@@ -30,5 +30,20 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!--
+          A11 audit F08: the keep-pending expiry is no longer silent. Every
+          escalation has run out and the request is still open; the engine
+          publishes approval.expired, and this subscription delivers the last
+          warning as a to-do for the requester plus a chatter note on the
+          record. It lives in this already-listed data file (a dedicated file
+          would need a manifest data entry, which this fix may not add).
+        -->
+        <record id="consumer_approval_expired_last_warning" model="fix.event.consumer">
+            <field name="name">M63: last warning when an approval expires still pending</field>
+            <field name="event_type">approval.expired</field>
+            <field name="model">fix.approval.request</field>
+            <field name="method">consume_approval_expired</field>
+            <field name="module">cd_workflow_engine</field>
+        </record>
     </data>
 </odoo>

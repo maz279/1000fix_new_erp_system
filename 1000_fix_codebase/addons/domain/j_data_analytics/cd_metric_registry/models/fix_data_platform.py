@@ -12,10 +12,13 @@
 # rules, retention shortens only through an approval, and a legal hold blocks
 # every purge.
 import datetime
+import logging
 
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
+
+_logger = logging.getLogger(__name__)
 
 CONTRACT_SUBSTANTIVE = (
     "dataset_code",
@@ -31,6 +34,42 @@ CONTRACT_SUBSTANTIVE = (
 # Incident SLA hours by severity (G4): the due time is measured on the M63
 # working calendar when one is configured for the company, else wall clock.
 INCIDENT_SLA_HOURS = {"critical": 4, "high": 24, "medium": 72, "low": 168}
+
+# A11 deep audit A3-F10 (2026-11-23): what happens at the end of retention is a
+# CHOICE the purge honours, not a string comparison on prose. The four live
+# policies read "archive after 36 months", "retain 7 years (tax), then archive"
+# and "retain 7 years, then pseudonymise" — none of which ever equalled
+# "delete", so action_purge could never delete and no reader could see the
+# intended disposition at all.
+DISPOSITIONS = [
+    ("retain", "Retain (keep, no action)"),
+    ("archive", "Archive (move to cold storage)"),
+    ("pseudonymise", "Pseudonymise (replace identifiers)"),
+    ("delete", "Delete (erase the records)"),
+]
+
+# Ordered most-specific first: a sentence naming both ("retain 7 years, then
+# pseudonymise") means the LAST act, and "archive" is the weaker act when a
+# sentence names an archive step before the final one.
+_DISPOSITION_WORDS = (
+    ("pseudonymise", ("pseudonym",)),
+    ("delete", ("delete", "erase", "erased", "destroy")),
+    ("archive", ("archive", "cold storage", "cold tier")),
+)
+
+
+def disposition_from_text(text):
+    """The disposition a prose purge rule states, or None when it states none.
+
+    Deliberately narrow: only the words that name a disposition, never a
+    guess from a number ("retain 7 years" alone states no end act)."""
+    lowered = (text or "").strip().lower()
+    if not lowered:
+        return None
+    for disposition, words in _DISPOSITION_WORDS:
+        if any(word in lowered for word in words):
+            return disposition
+    return None
 
 
 class FixDataPipeline(models.Model):
@@ -231,13 +270,21 @@ class FixDataRun(models.Model):
         """Measure the entity's measurable rules after a successful load.
 
         Measuring is the engine's act, not the load finisher's: the runner
-        stamps the rule and writes evidence rows it must be able to write."""
+        stamps the rule and writes evidence rows it must be able to write.
+        A rule the runner cannot measure is skipped WITH its reason in the
+        log — never silently (A3-F06)."""
         entity = self.pipeline_id.target_entity_id.sudo()
         for rule in entity.rule_ids.filtered(lambda r: r.active):
-            try:
-                rule.sudo().action_measure()
-            except UserError:
+            blocker = rule._measure_blocker()
+            if blocker:
+                _logger.info(
+                    "Run %s: quality rule %s not measured — %s",
+                    self.display_name,
+                    rule.display_name,
+                    blocker,
+                )
                 continue  # not measurable — never guessed
+            rule.sudo().action_measure()
 
 
 class FixDataContract(models.Model):
@@ -313,6 +360,22 @@ class FixDataContract(models.Model):
         for rec in self:
             if rec.state == "active" and rec.breaking_change_notice_days < 1:
                 raise ValidationError("An active contract must give consumers notice (>= 1 day).")
+
+    @api.constrains("state", "producer_signed_by")
+    def _check_active_is_signed(self):
+        # A11 deep audit A3-F04 (2026-11-23): both live estates carried three
+        # contracts 'active' with no producer signature, seeded past
+        # action_activate. The born-draft guard refuses a born-active contract
+        # and the activation itself needs the signature; this refuses the
+        # same state arriving by any other write, and a signature cleared
+        # from an active contract afterwards.
+        for rec in self:
+            if rec.state == "active" and not rec.producer_signed_by:
+                raise ValidationError(
+                    "Contract %s v%s is ACTIVE but its producer side is UNSIGNED — a "
+                    "contract activates on BOTH signatures (BRU-DAT-10)."
+                    % (rec.dataset_code, rec.version)
+                )
 
     def write(self, vals):
         # The active row is frozen (A11 audit E04-E07: schema 1.0 -> 9.9 and
@@ -512,6 +575,21 @@ class FixMetricDefinition(models.Model):
         for rec in self:
             published = rec.version_ids.filtered(lambda v: v.state == "published")
             rec.current_version_id = published[:1]
+
+    @api.constrains("state", "current_version_id")
+    def _check_published_has_version(self):
+        # A11 deep audit A3-F04 (2026-11-23): five definitions sat 'published'
+        # with no version at all on both live estates (seeded), and the
+        # "Metrics Published" tile counted them. The born-draft guard refuses
+        # a born-published definition; this refuses the same state by a write,
+        # so 'published' always means a published version resolves.
+        for rec in self:
+            if rec.state == "published" and not rec.current_version_id:
+                raise ValidationError(
+                    "Metric %s is PUBLISHED with no published version behind it — a "
+                    "definition reaches published only when one of its versions is "
+                    "published through an approved request (M63)." % rec.code
+                )
 
     def action_retire(self):
         """Retiring is a deliberate act on a published metric; a draft just
@@ -1070,9 +1148,29 @@ class FixRetentionPolicy(models.Model):
     )
     storage_cost_per_gb = fields.Float(string="Storage cost / GB (BDT)", default=12.0)
     volume_gb = fields.Float(string="Current volume (GB)")
-    monthly_cost = fields.Float(compute="_compute_cost", store=True)
+    # Money carries a currency (and the workspace grid then formats the column
+    # with ৳ off the `monetary` kind — an A11 tile/report/grid must not print a
+    # bare 2880 next to a ৳-labelled figure elsewhere).
+    currency_id = fields.Many2one(
+        "res.currency",
+        string="Currency",
+        default=lambda self: self.env.company.currency_id,
+    )
+    monthly_cost = fields.Monetary(
+        compute="_compute_cost", store=True, currency_field="currency_id"
+    )
     purge_rule = fields.Char(
-        help="What happens at the end of retention: archive, pseudonymise, delete."
+        help="What happens at the end of retention, in words (archive, pseudonymise, "
+        "delete). The Disposition field is what the purge honours; this text is the "
+        "governance sentence a person reads.",
+    )
+    disposition = fields.Selection(
+        DISPOSITIONS,
+        required=True,
+        default="retain",
+        help="What a disposition run does with records past retention: nothing "
+        "(retain), archive, pseudonymise or delete. Only Delete removes records; "
+        "every other choice is reported as eligible with evidence.",
     )
     legal_hold = fields.Boolean(
         string="Legal Hold",
@@ -1087,6 +1185,19 @@ class FixRetentionPolicy(models.Model):
     def _compute_cost(self):
         for rec in self:
             rec.monthly_cost = round((rec.volume_gb or 0.0) * (rec.storage_cost_per_gb or 0.0), 2)
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        # A3-F10: a policy captured with its sentence ("retain 7 years, then
+        # pseudonymise") states its disposition in words; derive the machine
+        # copy on the way in so the purge has something to honour. An explicit
+        # `disposition` in the payload always wins.
+        for vals in vals_list:
+            if "disposition" not in vals:
+                stated = disposition_from_text(vals.get("purge_rule"))
+                if stated:
+                    vals["disposition"] = stated
+        return super().create(vals_list)
 
     @api.constrains("retention_months", "statutory_floor_months")
     def _check_period(self):
@@ -1215,8 +1326,8 @@ class FixRetentionPolicy(models.Model):
 
     def action_purge(self):
         """Run the disposition: WITH an evidence row. When the entity maps to
-        a model and the rule says delete, records past the cutoff are
-        deleted; anything else is REPORTED (the evidence row carries the
+        a model AND the policy's DISPOSITION is delete, records past the cutoff
+        are deleted; anything else is REPORTED (the evidence row carries the
         eligible count). A legal hold refuses the whole action."""
         self._require_officer("Running a disposition")
         Evidence = self.env["fix.data.purge.evidence"]
@@ -1239,7 +1350,11 @@ class FixRetentionPolicy(models.Model):
                 if date_field:
                     cutoff_dt = datetime.datetime.combine(cutoff, datetime.time.min)
                     eligible = Model.search_count([(date_field, "<", cutoff_dt)])
-                    if eligible and (rec.purge_rule or "").strip().lower() == "delete":
+                    # A3-F10: the SELECTION decides, not a lowercase comparison
+                    # against free text (no live policy's prose ever equalled
+                    # "delete", so nothing could ever be purged while the
+                    # screen looked like it could).
+                    if eligible and rec.disposition == "delete":
                         old = Model.search([(date_field, "<", cutoff_dt)])
                         purged = len(old)
                         old.unlink()
@@ -1323,3 +1438,470 @@ class FixDataPurgeEvidence(models.Model):
 
     def unlink(self):
         raise UserError("Disposition evidence is append-only.")
+
+
+class FixDataEntityRepair(models.Model):
+    """A11 deep audit A3-F04 (2026-11-23): the SEED-INTEGRITY REPAIR.
+
+    Both live estates carry rows no model path can produce: five metric
+    definitions "published" with no version, three contracts "active" with no
+    producer signature, four pipelines stamped with a last success no run
+    produced, three quality rules "passing" that were never measured — and every
+    pipeline, contract and rule hanging off one entity that is not theirs (a
+    Customer API Resource; an inventory snapshot is not a customer API).
+
+    This is an explicit, logged, IDEMPOTENT repair the data owner runs by hand
+    on an estate (it is not a migration: a migration would hide it, and the
+    same rows need the same fix after any restore). It only touches rows in
+    exactly those impossible shapes, never deletes anything, leaves definition
+    text and retention periods alone, and writes a note on every row it
+    changes. A second call changes nothing and reports zeros."""
+
+    _inherit = "fix.data.entity"
+
+    # The hub the seeder hung everything on. A repair re-points a row only
+    # while it still targets THIS entity: a row an officer has since pointed
+    # somewhere else is their decision, not residue.
+    _RESIDUE_HUB = "Customer API Resource"
+
+    # The technical part of the mapping: an entity that maps to one real model.
+    _ENTITY_MODELS = (
+        ("Service Orders Table", "fix.service.order"),
+        ("Customer API Resource", "res.partner"),
+        ("Identity Documents", "fix.identity.document"),
+    )
+
+    # Registered datasets the seeders never created (name, type, model, owning
+    # module, classification), by the pipeline that feeds them.
+    _NEW_ENTITIES = {
+        "PL-AR-INCR": (
+            "AR invoice ledger",
+            "table",
+            "fix.ar.invoice",
+            "Finance (M20)",
+            "confidential",
+        ),
+        "PL-INV-DAILY": (
+            "Inventory snapshot",
+            "table",
+            "fix.stock.onhand",
+            "Supply Chain (M15)",
+            "internal",
+        ),
+        "PL-BKASH": ("bKash settlement files", "file", False, "Treasury (M50)", "confidential"),
+    }
+
+    # Where each seeded pipeline and contract belongs (by its own code/name).
+    _PIPELINE_TARGETS = {
+        "PL-SO-CDC": "Service Orders Table",
+        "PL-INV-DAILY": "Inventory snapshot",
+        "PL-AR-INCR": "AR invoice ledger",
+        "PL-BKASH": "bKash settlement files",
+    }
+    _CONTRACT_TARGETS = {
+        "DS-SERVICE-ORDER": "Order Events Stream",
+        "DS-AR-INVOICE": "AR invoice ledger",
+        "DS-INVENTORY-SNAP": "Inventory snapshot",
+    }
+
+    # A rule's own name states its subject; a check field is set only where the
+    # estate's design names one (see runbook.md, "Quality rules").
+    _RULE_FIXES = {
+        "Orders Complete": ("Service Orders Table", False),
+        "Customer Unique": ("Customer API Resource", "legacy_reference"),
+        "Events Fresh": ("Order Events Stream", False),
+    }
+
+    @api.model
+    def action_repair_seed_residue(self):
+        """Repair the seeded impossible states; returns a dict of counts."""
+        env = self.env
+        if not (
+            env.su
+            or env.user.has_group("cd_metric_registry.group_data_governance_officer")
+            or env.user.has_group("cd_workflow_engine.group_doa_administrator")
+        ):
+            raise UserError(
+                "The seed-integrity repair is a Data Governance Officer's (or DoA "
+                "Administrator's) act: it moves published metrics, active contracts "
+                "and retention dispositions."
+            )
+        today = fields.Date.context_today(self)
+        counts = dict.fromkeys(
+            (
+                "metric_definitions_drafted",
+                "contracts_unsigned_to_draft",
+                "contracts_active_left_frozen",
+                "pipeline_stamps_cleared",
+                "rules_unmeasured",
+                "rules_repointed",
+                "rules_check_field_set",
+                "entities_modelled",
+                "entities_created",
+                "entities_unmapped",
+                "pipelines_repointed",
+                "contracts_repointed",
+                "dispositions_derived",
+                "policy_currencies_set",
+            ),
+            0,
+        )
+
+        def _note(records, what):
+            """Every repaired row keeps a written account of what was wrong.
+
+            A model with chatter carries the note on the record; the metric
+            definition has no chatter (and no notes field), so its account is
+            the _logger line written above — never a silent change."""
+            body = "Repaired by action_repair_seed_residue on %s: %s" % (today, what)
+            for record in records:
+                if hasattr(type(record), "message_post"):
+                    record.message_post(body=body)
+
+        def _annotate(entities, what):
+            """An entity has a description field: the note goes there AND on
+            the chatter (the catalogue is read more than the chatter)."""
+            body = "Repaired by action_repair_seed_residue on %s: %s" % (today, what)
+            for entity in entities:
+                entity.write({"description": ("%s\n%s" % (entity.description, body)).strip()})
+                entity.message_post(body=body)
+
+        # a. A definition 'published' with no version was never published.
+        metrics = env["fix.metric.definition"].sudo().search([("state", "=", "published")])
+        stale_metrics = metrics.filtered(lambda m: not m.current_version_id)
+        for metric in stale_metrics:
+            metric.write({"state": "draft"})
+            _logger.info(
+                "M62 repair: metric %s published -> draft (no published version)", metric.code
+            )
+        _note(
+            stale_metrics,
+            "was 'published' with no version behind it; set to draft (the definition "
+            "text is unchanged)",
+        )
+        counts["metric_definitions_drafted"] = len(stale_metrics)
+
+        # b. An active contract without the producer signature was never
+        # activated; its unsigned initial state is draft.
+        unsigned = (
+            env["fix.data.contract"]
+            .sudo()
+            .search([("state", "=", "active"), ("producer_signed_by", "=", False)])
+        )
+        for contract in unsigned:
+            contract.with_context(fix_contract_activation=True).write({"state": "draft"})
+            _logger.info(
+                "M62 repair: contract %s v%s active -> draft (producer side unsigned)",
+                contract.dataset_code,
+                contract.version,
+            )
+        _note(
+            unsigned,
+            "was 'active' with no producer signature; set to draft — activation is "
+            "the co-signature plus an approved request",
+        )
+        counts["contracts_unsigned_to_draft"] = len(unsigned)
+
+        # c. A success stamp no run produced. The stamps are the run engine's
+        # act; a pipeline with no recorded run never succeeded.
+        Run = env["fix.data.run"].sudo()
+        stamped = (
+            env["fix.data.pipeline"]
+            .sudo()
+            .search(["|", ("last_run_at", "!=", False), ("last_success_at", "!=", False)])
+        )
+        never_ran = stamped.filtered(lambda p: not Run.search_count([("pipeline_id", "=", p.id)]))
+        for pipeline in never_ran:
+            pipeline._guarded().write({"last_run_at": False, "last_success_at": False})
+            _logger.info(
+                "M62 repair: pipeline %s run stamps cleared (no recorded run)", pipeline.code
+            )
+        _note(
+            never_ran,
+            "carried last-run/last-success stamps with no recorded run; both cleared "
+            "(run stamps come only from a finished run)",
+        )
+        counts["pipeline_stamps_cleared"] = len(never_ran)
+
+        # d. 'passing' with a NULL last_measured is a verdict nobody measured.
+        # The condition is the true SQL NULL the seeder wrote, not the False a
+        # manual result writes (a manual verdict for a person must survive).
+        # Flush first: a raw SELECT cannot see writes the ORM still holds in
+        # its cache, so a second call would otherwise re-count the same rows.
+        env.flush_all()
+        env.cr.execute(
+            "SELECT id FROM fix_data_quality_rule "
+            "WHERE state = 'passing' AND last_measured IS NULL"
+        )
+        rule_ids = [row[0] for row in env.cr.fetchall()]
+        unmeasured = env["fix.data.quality.rule"].sudo().browse(rule_ids).exists()
+        for rule in unmeasured:
+            rule.write(
+                {
+                    "state": "untested",
+                    "last_checked": False,
+                    "last_result": 0.0,
+                    "last_measured": False,
+                }
+            )
+            _logger.info("M62 repair: rule %s passing -> untested (never measured)", rule.name)
+        _note(
+            unmeasured,
+            "was 'passing' with no measurement behind it; set to Not yet tested and "
+            "the seeded result cleared",
+        )
+        counts["rules_unmeasured"] = len(unmeasured)
+
+        # e. Entity mapping (the obvious technical part only).
+        for name, model_name in self._ENTITY_MODELS:
+            for entity in env["fix.data.entity"].sudo().search(
+                [("name", "=", name), ("res_model", "=", False)]
+            ):
+                if model_name in env:
+                    entity.write({"res_model": model_name})
+                    counts["entities_modelled"] += 1
+                    _logger.info("M62 repair: entity %s mapped to %s", name, model_name)
+                    _annotate(entity, "res_model was unset; mapped to %s" % model_name)
+                else:
+                    counts["entities_unmapped"] += 1
+                    _logger.warning(
+                        "M62 repair: entity %s NOT mapped — model %s is not installed",
+                        name,
+                        model_name,
+                    )
+        # The two that have no single model stay NULL — say so, so nobody reads
+        # a blank as "not looked at".
+        for name in ("Order Events Stream", "SLA Attainment KPI"):
+            entity = env["fix.data.entity"].sudo().search([("name", "=", name)], limit=1)
+            if entity and not entity.res_model:
+                _logger.info(
+                    "M62 repair: entity %s stays without a model (it has no single "
+                    "Odoo model; a rule on it is not measurable)",
+                    name,
+                )
+
+        hub = env["fix.data.entity"].sudo().search([("name", "=", self._RESIDUE_HUB)], limit=1)
+
+        # e2. The registers the seeders never created, and the re-pointing.
+        for code, (name, kind, model_name, owner, classification) in self._NEW_ENTITIES.items():
+            pipelines = env["fix.data.pipeline"].sudo().search([("code", "=", code)])
+            if not pipelines:
+                continue
+            entity = env["fix.data.entity"].sudo().search([("name", "=", name)], limit=1)
+            if not entity:
+                if model_name and model_name not in env:
+                    # Never map an entity to a model this estate lacks; create
+                    # it unmapped and let the quality/inventory owner map it.
+                    _logger.warning(
+                        "M62 repair: entity %s created WITHOUT res_model — %s is not "
+                        "installed on this estate",
+                        name,
+                        model_name,
+                    )
+                    model_name = False
+                entity = env["fix.data.entity"].sudo().create(
+                    {
+                        "name": name,
+                        "entity_type": kind,
+                        "res_model": model_name or False,
+                        "owner_module": owner,
+                        "classification": classification,
+                        # The row it is being created FOR decides the company.
+                        "company_id": pipelines[0].company_id.id,
+                        "description": (
+                            "Repaired by action_repair_seed_residue on %s: entity "
+                            "registered because the seeded pipelines for this dataset "
+                            "were pointed at %s, an entity that is not theirs."
+                            % (today, self._RESIDUE_HUB)
+                        ),
+                    }
+                )
+                counts["entities_created"] += 1
+                _logger.info("M62 repair: entity %s created (module %s)", name, owner)
+            for pipeline in pipelines:
+                if pipeline.target_entity_id == entity or not hub:
+                    continue
+                if pipeline.target_entity_id != hub:
+                    continue  # an officer moved it: their decision, not residue
+                pipeline.write({"target_entity_id": entity.id})
+                counts["pipelines_repointed"] += 1
+                _logger.info(
+                    "M62 repair: pipeline %s re-pointed %s -> %s",
+                    code,
+                    hub.display_name,
+                    name,
+                )
+                _note(
+                    pipeline,
+                    "targeted %s, which is not this pipeline's dataset; re-pointed to %s"
+                    % (hub.display_name, name),
+                )
+
+        for code, target_name in self._PIPELINE_TARGETS.items():
+            target = env["fix.data.entity"].sudo().search([("name", "=", target_name)], limit=1)
+            if not target or not hub:
+                if hub and not target:
+                    _logger.warning(
+                        "M62 repair: pipeline %s left on %s — no entity named %r exists",
+                        code,
+                        hub.display_name,
+                        target_name,
+                    )
+                continue
+            for pipeline in env["fix.data.pipeline"].sudo().search([("code", "=", code)]):
+                if pipeline.target_entity_id != hub or pipeline.target_entity_id == target:
+                    continue
+                pipeline.write({"target_entity_id": target.id})
+                counts["pipelines_repointed"] += 1
+                _logger.info(
+                    "M62 repair: pipeline %s re-pointed %s -> %s",
+                    code,
+                    hub.display_name,
+                    target_name,
+                )
+                _note(
+                    pipeline,
+                    "targeted %s, which is not this pipeline's dataset; re-pointed to %s"
+                    % (hub.display_name, target_name),
+                )
+
+        for code, target_name in self._CONTRACT_TARGETS.items():
+            target = env["fix.data.entity"].sudo().search([("name", "=", target_name)], limit=1)
+            if not target or not hub:
+                if hub and not target:
+                    _logger.warning(
+                        "M62 repair: contract %s left on %s — no entity named %r exists",
+                        code,
+                        hub.display_name,
+                        target_name,
+                    )
+                continue
+            for contract in env["fix.data.contract"].sudo().search([("dataset_code", "=", code)]):
+                if contract.entity_id != hub or contract.entity_id == target:
+                    continue
+                if contract.state == "active":
+                    # An active contract's terms are frozen; the owner versions
+                    # it. Counted, never silently skipped.
+                    counts["contracts_active_left_frozen"] += 1
+                    _logger.warning(
+                        "M62 repair: contract %s is active and frozen on %s — version "
+                        "it to move the entity (left as is)",
+                        code,
+                        hub.display_name,
+                    )
+                    continue
+                contract.with_context(fix_contract_activation=True).write(
+                    {"entity_id": target.id}
+                )
+                counts["contracts_repointed"] += 1
+                _logger.info(
+                    "M62 repair: contract %s re-pointed %s -> %s",
+                    code,
+                    hub.display_name,
+                    target_name,
+                )
+                _note(
+                    contract,
+                    "covered %s, which is not this dataset; re-pointed to %s"
+                    % (hub.display_name, target_name),
+                )
+
+        # e3. The three seeded rules: entity by name, check field only where
+        # the estate's design names one (never a guess — see runbook.md).
+        Rule = env["fix.data.quality.rule"].sudo()
+        for rule_name, (target_name, check_field) in self._RULE_FIXES.items():
+            target = env["fix.data.entity"].sudo().search([("name", "=", target_name)], limit=1)
+            if not target or not hub:
+                if hub and not target:
+                    _logger.warning(
+                        "M62 repair: rule %s left on %s — no entity named %r exists",
+                        rule_name,
+                        hub.display_name,
+                        target_name,
+                    )
+                continue
+            for rule in Rule.search([("name", "=", rule_name)]):
+                # Only a rule still on the residue hub is residue; one an
+                # officer has re-pointed is their ruling.
+                if rule.entity_id != hub:
+                    continue
+                vals = {}
+                if target != rule.entity_id:
+                    vals["entity_id"] = target.id
+                if check_field and not rule.check_field:
+                    model_name = target.res_model
+                    if model_name and model_name in env and check_field in env[model_name]._fields:
+                        vals["check_field"] = check_field
+                    else:
+                        _logger.warning(
+                            "M62 repair: rule %s keeps no check field — %s has no column %r",
+                            rule_name,
+                            model_name or "the entity's model",
+                            check_field,
+                        )
+                if not vals:
+                    continue
+                rule.write(vals)
+                if "entity_id" in vals:
+                    counts["rules_repointed"] += 1
+                if "check_field" in vals:
+                    counts["rules_check_field_set"] += 1
+                _logger.info(
+                    "M62 repair: rule %s on %s (check field %s)",
+                    rule_name,
+                    target_name,
+                    vals.get("check_field") or rule.check_field or "not set",
+                )
+                _note(
+                    rule,
+                    "was attached to %s, which is not the dataset it names; re-pointed "
+                    "to %s%s"
+                    % (
+                        hub.display_name,
+                        target_name,
+                        " and given the check field %r" % vals["check_field"]
+                        if vals.get("check_field")
+                        else (
+                            " and left without a check field — the rule's name states no "
+                            "column, so the runner reports it as not measurable"
+                        ),
+                    ),
+                )
+
+        # f. A prose purge rule states a disposition; the purge honours the
+        # Selection, so derive it where the text states one. Periods and
+        # statutory floors are NOT touched (an owner decision).
+        policies = env["fix.data.retention.policy"].sudo().search([("active", "=", True)])
+        # The cost figure is Money: a policy captured before the currency field
+        # existed is unit-less. Give it its own company's currency (the rate is
+        # declared in BDT); never invent a different one.
+        missing_currency = policies.filtered(lambda p: not p.currency_id)
+        for policy in missing_currency:
+            policy.write({"currency_id": policy.company_id.currency_id.id})
+            _logger.info(
+                "M62 repair: policy %s given %s (the cost figure is money)",
+                policy.display_name,
+                policy.company_id.currency_id.name,
+            )
+        counts["policy_currencies_set"] = len(missing_currency)
+        for policy in policies:
+            stated = disposition_from_text(policy.purge_rule)
+            if stated and policy.disposition != stated:
+                policy.write({"disposition": stated})
+                counts["dispositions_derived"] += 1
+                _logger.info(
+                    "M62 repair: policy %s disposition derived %r from its purge rule",
+                    policy.display_name,
+                    stated,
+                )
+                _note(
+                    policy,
+                    "disposition derived as %r from the purge rule %r (the purge "
+                    "honours the Selection, not the prose)" % (stated, policy.purge_rule),
+                )
+
+        _logger.info(
+            "M62 repair complete: %s",
+            ", ".join("%s=%s" % (key, counts[key]) for key in sorted(counts)),
+        )
+        return counts

@@ -1,7 +1,12 @@
 /** @odoo-module **/
 /* A11 · Insights & Intelligence — M26 AI/ML Services (v2 re-audit).
- * Registry: 4 groups / 10 screens / 4 reports / 3 forms / freg 58; the
- * capture audit (2026-11-14) adds the evidence lists the pages capture into.
+ * True counts in this file: 5 groups (the registry's four first — Portfolio,
+ * Operations, Governance, Generative — then the Evidence Registers the capture
+ * audits added), 20 navigable screens + 6 computed report screens in SCREENS,
+ * 6 report chips (the registry's 4 + the accuracy log + the portfolio summary),
+ * 15 forms, freg 58 functions in 7 sub-modules. The registry contract names 4
+ * groups / 10 screens / 4 reports / 3 forms; the extras below are evidence
+ * surfaces it does not name, not a claim against it.
  * The model registry and inference engines are real (fix.ml.*), governance
  * records are real, and generative/OCR surfaces declare their true status.
  *
@@ -51,40 +56,47 @@ export const MODULE = {
     { l: 'Inferences (7d)', m: 'runs_7d' }
   ],
   groups: [
+    /* The registry's four groups, verbatim, first (A2-F13/registry contract). */
     { en: 'Portfolio', screens: [
       { id: 'M26-models', en: 'Model Portfolio (14)', bn: 'মডেল পোর্টফোলিও', t: 'g' },
-      { id: 'M26-registry', en: 'Model Registry', bn: 'মডেল রেজিস্ট্রি', t: 'g' },
-      { id: 'M26-training', en: 'Training Runs', bn: 'ট্রেনিং রান', t: 'g' },
-      { id: 'M26-runs', en: 'Inference Run Log', bn: 'ইনফারেন্স রান লগ', t: 'g' },
-      { id: 'M26-ai', en: 'Predictive Failure Predictions', bn: 'প্রেডিক্টিভ ফেইলিউর', t: 'g' },
-      { id: 'M26-risks', en: 'AI Risk Register', bn: 'এআই ঝুঁকি রেজিস্টার', t: 'g' }
+      { id: 'M26-registry', en: 'Model Registry', bn: 'মডেল রেজিস্ট্রি', t: 'g' }
     ]},
     { en: 'Operations', screens: [
-      { id: 'M26-deploy', en: 'Deployment Patterns', bn: 'ডিপ্লয়মেন্ট প্যাটার্ন', t: 'g' },
-      { id: 'M26-monitor', en: 'Production Monitoring', bn: 'প্রোডাকশন মনিটরিং', t: 'r' },
-      { id: 'M26-drift-log', en: 'Drift Observations', bn: 'ড্রিফট পর্যবেক্ষণ', t: 'g' },
-      { id: 'M26-performance', en: 'Production Performance', bn: 'প্রোডাকশন পারফরম্যান্স', t: 'g' },
-      { id: 'M26-fallback', en: 'Inference Fallback', bn: 'ফলব্যাক', t: 'r' },
-      { id: 'M26-fallback-tests', en: 'Fallback Tests', bn: 'ফলব্যাক পরীক্ষা', t: 'g' }
+      { id: 'M26-deploy', en: 'Deployment Patterns', bn: 'স্থাপন পদ্ধতি', t: 'g' },
+      { id: 'M26-monitor', en: 'Production Monitoring', bn: 'উৎপাদন পর্যবেক্ষণ', t: 'r' },
+      { id: 'M26-fallback', en: 'Inference Fallback', bn: 'ফলব্যাক', t: 'r' }
     ]},
     { en: 'Governance', screens: [
-      { id: 'M26-governance', en: 'Guard Rails & HITL', bn: 'গার্ড রেল', t: 'g' },
-      { id: 'M26-gates', en: 'Evaluation Gate Log', bn: 'মূল্যায়ন গেট', t: 'g' },
-      { id: 'M26-sufficiency', en: 'Data-Sufficiency Gates', bn: 'ডেটা পর্যাপ্ততা গেট', t: 'g' },
-      { id: 'M26-bias-tests', en: 'Bias Tests', bn: 'বায়াস পরীক্ষা', t: 'g' },
-      { id: 'M26-bias', en: 'Bias Testing', bn: 'বায়াস টেস্টিং', t: 'r' },
+      { id: 'M26-governance', en: 'Guard Rails & HITL', bn: 'গার্ডরেল', t: 'g' },
+      { id: 'M26-bias', en: 'Bias Testing', bn: 'পক্ষপাত পরীক্ষা', t: 'r' },
       { id: 'M26-cards', en: 'Model Cards', bn: 'মডেল কার্ড', t: 'g' }
     ]},
     { en: 'Generative', screens: [
-      { id: 'M26-genai', en: 'Self-Hosted GenAI + RAG', bn: 'জেনএআই ও RAG', t: 'r' },
-      { id: 'M26-ocr', en: 'OCR & Bengali NLP', bn: 'ওসিআর ও বাংলা এনএলপি', t: 'r' }
+      { id: 'M26-genai', en: 'Self-Hosted GenAI + RAG', bn: 'জেনএআই', t: 'r' },
+      { id: 'M26-ocr', en: 'OCR & Bengali NLP', bn: 'ওসিআর', t: 'r' }
+    ]},
+    /* Evidence registers added by the capture audits (2026-11-14/19) — after
+     * the registry's screens, never instead of them. */
+    { en: 'Evidence Registers', screens: [
+      { id: 'M26-training', en: 'Training Runs', bn: 'ট্রেনিং রান', t: 'g' },
+      { id: 'M26-runs', en: 'Inference Run Log', bn: 'ইনফারেন্স রান লগ', t: 'g' },
+      { id: 'M26-ai', en: 'Predictive Failure Predictions', bn: 'প্রেডিক্টিভ ফেইলিউর', t: 'g' },
+      { id: 'M26-risks', en: 'AI Risk Register', bn: 'এআই ঝুঁকি রেজিস্টার', t: 'g' },
+      { id: 'M26-drift-log', en: 'Drift Observations', bn: 'ড্রিফট পর্যবেক্ষণ', t: 'g' },
+      { id: 'M26-performance', en: 'Production Performance', bn: 'প্রোডাকশন পারফরম্যান্স', t: 'g' },
+      { id: 'M26-fallback-tests', en: 'Fallback Tests', bn: 'ফলব্যাক পরীক্ষা', t: 'g' },
+      { id: 'M26-gates', en: 'Evaluation Gate Log', bn: 'মূল্যায়ন গেট', t: 'g' },
+      { id: 'M26-sufficiency', en: 'Data-Sufficiency Gates', bn: 'ডেটা পর্যাপ্ততা গেট', t: 'g' },
+      { id: 'M26-bias-tests', en: 'Bias Tests', bn: 'বায়াস পরীক্ষা', t: 'g' }
     ]}
   ],
-  reports: ['Model Performance Pack', 'Override Analysis', 'Drift Report', 'Fairness Summary', 'Model Accuracy & Retraining Log'],
+  reports: ['Model Performance Pack', 'Override Analysis', 'Drift Report', 'Fairness Summary', 'Model Accuracy & Retraining Log', 'Portfolio Summary'],
   forms: ['ML Model', 'Model Version', 'Evaluation Gate', 'Guard-Rail Config', 'AI Risk', 'Drift Observation', 'Fallback Test',
     'Model Card', 'Record Human Decision', 'Classify Fault Text', 'Run ML Model Inference',
     'Training Run', 'Data-Sufficiency Gate', 'Bias Test', 'Performance Observation'],
-  cross: ['M02 Dispatch', 'M15 Parts', 'M48 Predictive Maintenance'],
+  /* Registry verbatim (A2-F13): the old list named M15 Parts, which appears
+   * nowhere in the contract, and omitted M43/M32. */
+  cross: ['M02 dispatch scoring', 'M43 demand forecasts', 'M48 predictive failure', 'M32 conversational AI'],
   freg: { src: 58, sub: [
     ['1', 'Portfolio & Governance', 10, { model: 'fix.ml.model', cols: ['code', 'name', 'kind', 'consumer_modules', 'risk_class', 'owner_id', 'review_date', 'status'],
       screens: ['M26-models', 'M26-risks', 'M26-governance'], reports: ['Model Performance Pack'],
@@ -115,7 +127,11 @@ const RETIRE = { m: 'action_retire', l: 'Retire',
 export const SCREENS = {
   /* Portfolio */
   'M26-models': { kind: 'model_list', model: 'fix.ml.model',
-    cols: ['code', 'name', 'kind', 'implementation', 'status', 'consumer_modules', 'risk_class', 'owner_id', 'review_date', 'run_count', 'last_run_at'] },
+    cols: ['code', 'name', 'kind', 'implementation', 'status', 'consumer_modules', 'risk_class', 'owner_id', 'review_date', 'run_count', 'last_run_at'],
+    /* A2-F01/A2-F08: the '(14 models)' title is an owner decision, so the
+     * honest measured line lives one click away, computed — the shared grid
+     * template has no note slot of its own. */
+    links: [{ s: 'M26-rpt-portfolio', l: 'Portfolio Summary' }] },
   'M26-registry': { kind: 'model_list', model: 'fix.ml.model.version', stateField: 'state',
     cols: ['model_id', 'version', 'state', 'deployment_mode', 'bias_status', 'drift_score', 'approved_by'],
     /* state moves only through these (the deploy itself lands from the Model
@@ -180,6 +196,7 @@ export const SCREENS = {
   'M26-accuracy': { kind: 'table_report', module: 'M26', report: 'model_accuracy_retraining', title: 'Model Accuracy & Retraining Log', period: false },
 
   /* Report packs (the four registry chips) */
+  'M26-rpt-portfolio': { kind: 'table_report', module: 'M26', report: 'model_portfolio', title: 'Portfolio Summary', period: false },
   'M26-rpt-performance': { kind: 'table_report', module: 'M26', report: 'model_performance_pack', title: 'Model Performance Pack', period: false },
   'M26-rpt-override': { kind: 'table_report', module: 'M26', report: 'override_analysis', title: 'Override Analysis', period: false },
   'M26-rpt-drift': { kind: 'table_report', module: 'M26', report: 'drift_report', title: 'Drift Report', period: false },
@@ -273,9 +290,11 @@ export const SCREENS = {
     sections: [
       {
         title: 'Gate Result',
-        note: 'One recorded gate per evaluation: accuracy, latency budget, bias, explainability or safety. The reviewer must not be the person who registered the version. A recorded gate is evidence: it cannot be edited - record a new one.',
+        note: 'One recorded gate per evaluation: accuracy, latency budget, bias, explainability or safety. The reviewer must not be the person who registered the version. A recorded gate is evidence: it cannot be edited - record a new one. A DEPLOYED version may be re-evaluated (periodic review): the gate is then evidence only and does not change the version state; a failed gate on a deployed version alerts the model owner.',
         fields: [
-          { name: 'version_id', required: true, label: 'Model Version', domain: [['state', 'in', ['draft', 'evaluated']]] },
+          /* D-L15: deployed versions were excluded, so no live version (all six
+           * are deployed) could ever be re-evaluated. */
+          { name: 'version_id', required: true, label: 'Model Version', domain: [['state', 'in', ['draft', 'evaluated', 'deployed']]] },
           { name: 'gate', required: true, label: 'Gate' },
           { name: 'result', required: true, label: 'Result' },
           { name: 'notes', label: 'Notes' }
@@ -305,7 +324,8 @@ export const SCREENS = {
           { name: 'name', required: true, label: 'Guard-Rail Name' },
           { name: 'model_id', label: 'Applies to Model' },
           { name: 'rule', required: true, label: 'Condition (precise)' },
-          { name: 'threshold', label: 'Threshold' },
+          /* A2-F14(b): derived from the rule on save — one enforced number. */
+          { name: 'threshold', readonly: true, label: 'Threshold (derived from the condition)' },
           { name: 'action', required: true, label: 'Action' },
           { name: 'active', label: 'Active' },
           { name: 'note', label: 'Note' }
@@ -628,6 +648,7 @@ export const SCREENS = {
 
 /* built-in report chips -> their computed pack (D17) */
 export const REPORT_ROUTES = {
+  'M26:Portfolio Summary': 'M26-rpt-portfolio',
   'M26:Model Performance Pack': 'M26-rpt-performance',
   'M26:Override Analysis': 'M26-rpt-override',
   'M26:Drift Report': 'M26-rpt-drift',

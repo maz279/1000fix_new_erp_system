@@ -53,8 +53,12 @@ LEAD_SCORE_DEFAULT_WEIGHTS = {
 
 # What the M26 spec (§5.3-5.5) declares for each kind the estate runs: the
 # named consumer, the stated target and the defined fallback (FR-AIM-001).
-# Lead scoring and the BI aggregator have no spec line, so no target or
-# fallback is invented for them.
+# Lead scoring and the BI aggregator have no spec line, so no accuracy TARGET
+# is invented for them (BRU-AIM-11 demands one before a non-advisory model
+# may promote again - that is the owner's declaration to make). Their
+# FALLBACKS however are measured behaviour, not aspiration: M07 already
+# leaves the lead unscored and M25 already shows '-' when no snapshot exists,
+# so those are stated here (A2-F10: two deployed models read 'not declared').
 PORTFOLIO_FROM_SPEC = {
     "dispatch_scoring": {
         "consumer_modules": "M02 Dispatch",
@@ -88,10 +92,13 @@ PORTFOLIO_FROM_SPEC = {
     },
     "lead_scoring": {
         "consumer_modules": "M07 Sales",
+        "fallback_definition": "Lead stays unscored and is qualified by the sales "
+        "representative; M07 shows 'unscored'",
         "risk_class": "people_affecting",
     },
     "bi_aggregator": {
         "consumer_modules": "M25 Business Intelligence",
+        "fallback_definition": "Tile shows '—' with freshness 'never'",
         "risk_class": "advisory",
     },
 }
@@ -116,6 +123,10 @@ class FixMlModel(models.Model):
 
     _name = "fix.ml.model"
     _description = "AI/ML Model (Registry)"
+    # A2-F09: the lifecycle events' in-Odoo consumer posts its audit trail on
+    # the model and raises a to-do for a named owner, so the record carries
+    # chatter and activities (the version already does).
+    _inherit = ["mail.thread", "mail.activity.mixin"]
     _order = "code"
 
     company_id = fields.Many2one(
@@ -207,6 +218,30 @@ class FixMlModel(models.Model):
             if vals:
                 model.write(vals)
         return True
+
+    @api.model
+    def action_fill_missing_declarations(self):
+        """A2-F10 (BRU-AIM-11): fill ONLY blank consumer_modules /
+        accuracy_target / fallback_definition from the module's declared
+        catalogue (PORTFOLIO_FROM_SPEC) - a non-blank value is never
+        overwritten. The catalogue records are `noupdate`, so an upgrade
+        alone does not carry a NEW declaration onto an existing row: the
+        lead runs this idempotent action on each estate after upgrading.
+        Returns the number of models that gained a declaration."""
+        filled = 0
+        for model in self.sudo().search([]):
+            declared = PORTFOLIO_FROM_SPEC.get(model.kind) or {}
+            vals = {
+                key: value
+                for key, value in declared.items()
+                if key in ("consumer_modules", "accuracy_target", "fallback_definition")
+                and value
+                and not model[key]
+            }
+            if vals:
+                model.write(vals)
+                filled += 1
+        return filled
 
     def factor_weights(self):
         """The weight vector in force for this model."""

@@ -20,6 +20,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.translate import _
 
+from libs.py.fix_events import publish
+
 # A PSI at or above 0.2 is the conventional "significant shift" line, and the
 # Drift Report already bands >= 0.2 as an alert; an observation may state its
 # own threshold.
@@ -145,6 +147,26 @@ class FixMlDriftObservation(models.Model):
                 )
         records = super().create(vals_list)
         records.mapped("version_id")._sync_drift_score()
+        # A2-F09: an observation in the ALERT band is a drift alert — the
+        # owner gets a to-do (the consumer) and the outbox carries it for a
+        # future GRC subscriber. A watch-band observation stays silent here;
+        # the version's drift score and the Drift Report already carry it.
+        for record in records.filtered("breached"):
+            publish(
+                self.env,
+                "model.drift_alert",
+                "fix.ml.model",
+                record.version_id.model_id.id,
+                {
+                    "model": record.version_id.model_id.code,
+                    "version": record.version_id.version,
+                    "actor": (record.recorded_by or self.env.user).name,
+                    "feature": record.feature_name,
+                    "psi": record.psi,
+                    "reason": _("PSI %.4f breached the threshold %.4f")
+                    % (record.psi, record.threshold),
+                },
+            )
         return records
 
     def write(self, vals):

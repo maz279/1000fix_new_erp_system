@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  cd_workflow_engine's in-Odoo event consumer (A11 fix B1, FF-48).
+
+  automation.register.loaded is published by action_load_register; the
+  deployment-wiring gate listed it as event_without_consumer — a register
+  reload nobody reacted to. The relay cron hands each event here once; the
+  consumer is idempotent per event and raises a same-day to-do on every
+  automation whose binding is broken (see consume_register_loaded).
+-->
+<odoo>
+    <data noupdate="1">
+        <record id="consumer_automation_register_loaded" model="fix.event.consumer">
+            <field name="name">M63: react to an automation register reload</field>
+            <field name="event_type">automation.register.loaded</field>
+            <field name="model">fix.automation</field>
+            <field name="method">consume_register_loaded</field>
+            <field name="module">cd_workflow_engine</field>
+        </record>
+    </data>
+</odoo>

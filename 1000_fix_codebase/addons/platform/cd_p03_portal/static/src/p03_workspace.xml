@@ -3443,6 +3443,13 @@
                                         </div>
                                     </div>
 
+                                    <!-- A screen-level caption declared by the fragment (A11 audit:
+                                         M62-ingestion must be able to say "pipeline register — no
+                                         executor is connected"). Without this slot the note was
+                                         carried as data and never shown. -->
+                                    <p t-if="state.gl.modelCfg.caption" style="font-size: 12px; color: var(--ink-500); margin: 0 0 8px;">
+                                        <t t-esc="t(state.gl.modelCfg.caption)"/>
+                                    </p>
                                     <!-- D365 Interactive Table with Clickable Sort Headers -->
                                     <div class="tbl-wrap">
                                         <table class="fx-table">

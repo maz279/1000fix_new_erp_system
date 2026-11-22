@@ -911,12 +911,20 @@ export class P03Workspace extends Component {
     }
 
     kpiCaption(kpi) {
-        return this.t({
-            live: "Live from Odoo",
-            noactivity: "No activity yet",
-            nosource: "No data source",
-            unserved: "No value served",
-        }[this.kpiState(kpi)]);
+        // A KPI may ship its OWN basis caption: M25 sends `c`, M62 sends `basis`.
+        // Either way a figure then says what it counts (A11 audit A1-F03: tiles
+        // whose basis differed from what their label said). Before this the
+        // caption was ignored and every tile showed a generic state line.
+        const own = kpi.c || kpi.basis;
+        return this.t(
+            own ||
+                {
+                    live: "Live from Odoo",
+                    noactivity: "No activity yet",
+                    nosource: "No data source",
+                    unserved: "No value served",
+                }[this.kpiState(kpi)]
+        );
     }
 
     kpiTitle(kpi) {

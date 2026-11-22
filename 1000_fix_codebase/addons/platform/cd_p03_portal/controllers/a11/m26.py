@@ -19,6 +19,39 @@ _logger = logging.getLogger(__name__)
 # classification: Live' claim is measured against this, not asserted).
 _BENGALI_RE = re.compile(r"[ঀ-৿]")
 
+# The specification's portfolio (FR-AIM-018..031) names 14 models. The label
+# "(14 models)" is an owner decision and stays; the portfolio pack reports the
+# MEASURED counts beside it (A2-F01: 7 rows existed, 9 spec models had none).
+_PORTFOLIO_SPEC_MODELS = 14
+
+
+def _labels(env, model_name, field_name):
+    """A selection field's labels, read from the model definition itself — the
+    same source /p03/model/records labels the grids with. A pack must print
+    the label, never the raw enum key (D-L06: `live_engine`, `production`,
+    `deployed`, `untested` were shown where the grids showed words)."""
+    field = env[model_name]._fields.get(field_name)
+    if field is None or field.type != "selection":
+        return {}
+    return dict(field._description_selection(env))
+
+
+def _safe_caller_search(env, model_name, domain, order=None):
+    """Read a register another area owns, AS THE CALLER, inside a savepoint:
+    the screen's status must degrade to its declared static state when the
+    model is absent or refuses the read, never 500 the whole pack."""
+    if model_name not in env:
+        return []
+    try:
+        with env.cr.savepoint():
+            return list(env[model_name].search(domain, order=order))
+    except Exception:
+        _logger.warning(
+            "M26: could not read %s as the caller — the catalog falls back to its static text",
+            model_name,
+        )
+        return []
+
 SURFACES = {
     # Capture audit 2026-11-14: every M26 form surface now declares what its
     # form may write (R3). Without it the Model Version form posted `state`
@@ -230,6 +263,9 @@ def model_accuracy_retraining(env, **params):
     iteration; nothing here is estimated."""
     runs = _runs(env)
     models = _models(env)
+    outcome_labels = _labels(env, "fix.ml.training.run", "outcome")
+    implementation_labels = _labels(env, "fix.ml.model", "implementation")
+    status_labels = _labels(env, "fix.ml.model", "status")
     week_ago = fields_datetime_now() - datetime.timedelta(days=7)
     rows = []
     for model in models:
@@ -246,7 +282,10 @@ def model_accuracy_retraining(env, **params):
             {
                 "training_runs": len(trainings),
                 "last_training": "%s (%s)"
-                % (trainings[0].ended_at.strftime("%d %b %Y"), trainings[0].outcome)
+                % (
+                    trainings[0].ended_at.strftime("%d %b %Y"),
+                    outcome_labels.get(trainings[0].outcome, trainings[0].outcome),
+                )
                 if trainings
                 else "never",
                 "last_performance": "%s %s (floor %s)%s"
@@ -255,8 +294,10 @@ def model_accuracy_retraining(env, **params):
                 else "not measured",
                 "code": model.code,
                 "model": model.name,
-                "implementation": model.implementation,
-                "status": model.status,
+                "implementation": implementation_labels.get(
+                    model.implementation, model.implementation
+                ),
+                "status": status_labels.get(model.status, model.status),
                 "runs_total": model.run_count,
                 "runs_7d": len(week_runs),
                 "avg_latency_ms": round(sum(latencies) / len(latencies), 1) if latencies else None,
@@ -330,18 +371,26 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 def model_performance_pack(env, date_from=None, date_to=None, **params):
     """Per model: measured run volume, success rate, latency, last run."""
     runs = _runs(env)
+    implementation_labels = _labels(env, "fix.ml.model", "implementation")
+    status_labels = _labels(env, "fix.ml.model", "status")
     rows = []
+    computed_total = 0
+    runs_total = 0
     for model in _models(env):
         model_runs = runs.search([("model_id", "=", model.id)])
         computed = model_runs.filtered(lambda r: r.state == "computed")
         failed = model_runs.filtered(lambda r: r.state == "failed")
         lat = [r.latency_ms for r in computed if r.latency_ms]
+        computed_total += len(computed)
+        runs_total += len(model_runs)
         rows.append(
             {
                 "code": model.code,
                 "model": model.name,
-                "implementation": model.implementation,
-                "status": model.status,
+                "implementation": implementation_labels.get(
+                    model.implementation, model.implementation
+                ),
+                "status": status_labels.get(model.status, model.status),
                 "runs": len(model_runs),
                 "failed": len(failed),
                 "success_pct": round(len(computed) / len(model_runs) * 100.0, 1)
@@ -353,20 +402,13 @@ def model_performance_pack(env, date_from=None, date_to=None, **params):
                 else "—",
             }
         )
+    # A2-F14(a): with no run anywhere the success ratio has no denominator —
+    # it is None ("—"), never 0%, which would read as "every run failed".
     totals = {
         "code": "Total",
-        "runs": sum(r["runs"] for r in rows),
+        "runs": runs_total,
         "failed": sum(r["failed"] for r in rows),
-        "success_pct": round(
-            sum(1 for r in rows if r["success_pct"] is not None)
-            and (
-                sum(r["success_pct"] or 0 for r in rows)
-                / max(1, len([r for r in rows if r["success_pct"] is not None]))
-            ),
-            1,
-        )
-        if rows
-        else None,
+        "success_pct": round(computed_total / runs_total * 100.0, 1) if runs_total else None,
     }
     return _pack(
         "Model Performance Pack — measured runs, success and latency",
@@ -402,11 +444,18 @@ def model_performance_pack(env, date_from=None, date_to=None, **params):
 
 
 def override_analysis(env, date_from=None, date_to=None, **params):
-    """Human-in-the-loop overrides: runs where the operator's final decision
-    differs from the engine suggestion."""
-    runs = _runs(env).search([("suggested_value", "!=", False)])
+    """Human-in-the-loop overrides: runs on which a person RECORDED a final
+    decision, and how many of those differ from the engine suggestion.
+
+    A2-F07: the denominator is the run with a `final_value` — a suggestion
+    nobody acted on is not a decision. The old basis (every run carrying a
+    suggestion) reported 439 'decisions' and 0.0% override while no human had
+    ever looked: a model can look never-overridden when it was never reviewed.
+    With no decision recorded the ratio is None ('—'), never 0.0."""
+    runs = _runs(env).search([("final_value", "!=", False)])
+    decided = runs.filtered(lambda r: (r.final_value or "").strip())
     by_model = {}
-    for r in runs:
+    for r in decided:
         row = by_model.setdefault(
             r.model_code or "?",
             {"code": r.model_code or "?", "decisions": 0, "overrides": 0, "reasons": set()},
@@ -425,20 +474,19 @@ def override_analysis(env, date_from=None, date_to=None, **params):
                 "overrides": row["overrides"],
                 "override_pct": round(row["overrides"] / row["decisions"] * 100.0, 1)
                 if row["decisions"]
-                else 0.0,
+                else None,
                 "reasons": "; ".join(sorted(row["reasons"])) or "—",
             }
         )
-    rows.sort(key=lambda r: -r["override_pct"])
+    rows.sort(key=lambda r: -(r["override_pct"] or 0.0))
+    total_decisions = sum(r["decisions"] for r in rows)
     totals = {
         "code": "Total",
-        "decisions": sum(r["decisions"] for r in rows),
+        "decisions": total_decisions,
         "overrides": sum(r["overrides"] for r in rows),
-        "override_pct": round(
-            sum(r["overrides"] for r in rows) / sum(r["decisions"] for r in rows) * 100.0, 1
-        )
-        if sum(r["decisions"] for r in rows)
-        else 0.0,
+        "override_pct": round(sum(r["overrides"] for r in rows) / total_decisions * 100.0, 1)
+        if total_decisions
+        else None,
     }
     return _pack(
         "Override Analysis — human decisions against engine suggestions",
@@ -452,8 +500,9 @@ def override_analysis(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Ground truth is the operator's final decision captured on the run. "
-            "A model with 0 recorded decisions has no override evidence yet."
+            "Ground truth is the operator's final decision captured on the run; a run "
+            "with no final decision is a suggestion nobody acted on and is not counted. "
+            "A model with 0 recorded decisions has no override evidence yet — '—', not 0%."
         ],
         totals=totals if rows else None,
         empty="No human decisions captured yet — set Final Human Decision on an inference run.",
@@ -462,13 +511,14 @@ def override_analysis(env, date_from=None, date_to=None, **params):
 
 def drift_report(env, date_from=None, date_to=None, **params):
     versions = env["fix.ml.model.version"].search([("drift_score", ">", 0.0)])
+    state_labels = _labels(env, "fix.ml.model.version", "state")
     rows = []
     for v in versions:
         rows.append(
             {
                 "model": v.model_id.code,
                 "version": v.version,
-                "state": v.state,
+                "state": state_labels.get(v.state, v.state),
                 "drift_score": round(v.drift_score, 3),
                 "band": "alert" if v.drift_score >= 0.2 else "watch",
                 "deployed_at": v.deployed_at.strftime("%Y-%m-%d") if v.deployed_at else "—",
@@ -497,6 +547,8 @@ def drift_report(env, date_from=None, date_to=None, **params):
 
 def fairness_summary(env, date_from=None, date_to=None, **params):
     versions = env["fix.ml.model.version"].search([])
+    bias_labels = _labels(env, "fix.ml.model.version", "bias_status")
+    state_labels = _labels(env, "fix.ml.model.version", "state")
     counts = {"untested": 0, "passed": 0, "failed": 0}
     rows = []
     for v in versions:
@@ -506,9 +558,9 @@ def fairness_summary(env, date_from=None, date_to=None, **params):
             {
                 "model": v.model_id.code,
                 "version": v.version,
-                "bias": v.bias_status,
+                "bias": bias_labels.get(v.bias_status, v.bias_status),
                 "failed_gates": len(failed_gates),
-                "state": v.state,
+                "state": state_labels.get(v.state, v.state),
             }
         )
     totals = {
@@ -583,6 +635,8 @@ def production_monitoring(env, date_from=None, date_to=None, **params):
 def fallback_status(env, date_from=None, date_to=None, **params):
     runs = _runs(env)
     guardrails = env["fix.ml.guardrail"].search([("active", "=", True)])
+    status_labels = _labels(env, "fix.ml.model", "status")
+    outcome_labels = _labels(env, "fix.ml.fallback.test", "outcome")
     # BRU-AIM-06: a fallback counts when it was TESTED - the newest test per model
     tests = env["fix.ml.fallback.test"].search([], order="tested_at desc, id desc")
     rows = []
@@ -599,10 +653,12 @@ def fallback_status(env, date_from=None, date_to=None, **params):
         rows.append(
             {
                 "code": model.code,
-                "status": model.status,
+                "status": status_labels.get(model.status, model.status),
                 "fallback": model.fallback_definition or "not declared",
                 "last_test": last_test.tested_at.strftime("%Y-%m-%d") if last_test else "never",
-                "test_outcome": last_test.outcome if last_test else "—",
+                "test_outcome": outcome_labels.get(last_test.outcome, last_test.outcome)
+                if last_test
+                else "—",
                 "fallback_rules": len(fallbacks),
                 "last_failure": last_failed.ran_at.strftime("%Y-%m-%d %H:%M")
                 if last_failed
@@ -646,27 +702,82 @@ def fallback_status(env, date_from=None, date_to=None, **params):
 
 
 def genai_catalog(env, date_from=None, date_to=None, **params):
-    """Self-hosted GenAI + RAG: honest capability status. No LLM endpoint is
-    provisioned in this estate; the catalog says so instead of faking runs."""
-    rows = [
-        {
-            "capability": "Self-hosted LLM inference",
-            "status": "Porting phase",
-            "detail": "No model endpoint provisioned — no generation is simulated.",
-        },
-        {
-            "capability": "RAG over knowledge base (M61)",
-            "status": "Porting phase",
-            "detail": "Requires the vector index + LLM endpoint; neither exists yet.",
-        },
-    ]
+    """Self-hosted GenAI + RAG: the status is DERIVED from M32's provider
+    register and its ask log (A2-F12), read as the caller in a savepoint —
+    the old two static rows claimed no endpoint existed while the estate
+    held an active self-hosted chat provider, and could never go stale.
+    With no generation ever served, the measured count says exactly that;
+    when the model is not installed, the declared static text stands."""
+    rows = []
+    provider_installed = "fix.assistant.llm.provider" in env
+    if provider_installed:
+        state_labels = _labels(env, "fix.assistant.llm.provider", "state")
+        residency_labels = _labels(env, "fix.assistant.llm.provider", "residency")
+        profile_labels = _labels(env, "fix.assistant.llm.provider", "latency_profile")
+        providers = _safe_caller_search(env, "fix.assistant.llm.provider", [], order="sequence, id")
+        asks = _safe_caller_search(env, "fix.assistant.ask", [], order="asked_at desc, id desc")
+        active = [p for p in providers if p.state == "active" and p.active]
+        for provider in providers:
+            rows.append(
+                {
+                    "capability": "LLM provider — %s (%s)" % (provider.name, provider.code),
+                    "status": state_labels.get(provider.state, provider.state),
+                    "detail": "Residency: %s · profile: %s · model: %s · endpoint key: %s · "
+                    "may receive customer context: %s"
+                    % (
+                        residency_labels.get(provider.residency, provider.residency),
+                        profile_labels.get(provider.latency_profile, provider.latency_profile),
+                        provider.model_name or "—",
+                        provider.endpoint_config_key or "—",
+                        "yes" if provider.may_receive_customer_context else "no",
+                    ),
+                }
+            )
+        generated = [a for a in asks if a.engine == "llm"]
+        refused = [a for a in asks if a.engine == "refused"]
+        grounded = [a for a in asks if a.engine == "rule_grounder"]
+        rows.append(
+            {
+                "capability": "Generative answers served (measured)",
+                "status": "%d generation(s) served" % len(generated),
+                "detail": "%d ask record(s) in total — %d answered by a rule grounder, "
+                "%d refused. A configured provider is not a generation: this count is "
+                "the evidence." % (len(asks), len(grounded), len(refused)),
+            }
+        )
+        rows.append(
+            {
+                "capability": "RAG over knowledge base (M61)",
+                "status": "Not implemented",
+                "detail": "No vector index exists in the estate; %d provider(s) configured "
+                "(%d active). Grounding today is M32's ORM grounder."
+                % (len(providers), len(active)),
+            }
+        )
+    else:
+        rows = [
+            {
+                "capability": "Self-hosted LLM inference",
+                "status": "Porting phase",
+                "detail": "No model endpoint provisioned — no generation is simulated.",
+            },
+            {
+                "capability": "RAG over knowledge base (M61)",
+                "status": "Porting phase",
+                "detail": "Requires the vector index + LLM endpoint; neither exists yet.",
+            },
+        ]
+    implementation_labels = _labels(env, "fix.ml.model", "implementation")
     for model in _models(env).filtered(lambda m: m.kind in ("fault_classifier", "bi_aggregator")):
         rows.append(
             {
                 "capability": model.name,
                 "status": "Live (deterministic)",
                 "detail": "Owning module %s — %s"
-                % (model.owning_module or "n/a", model.implementation),
+                % (
+                    model.owning_module or "n/a",
+                    implementation_labels.get(model.implementation, model.implementation),
+                ),
             }
         )
     return _pack(
@@ -675,8 +786,9 @@ def genai_catalog(env, date_from=None, date_to=None, **params):
         {"capability": "Capability", "status": "Status", "detail": "Detail"},
         rows,
         [
-            "The platform's AI is deterministic and explainable. Generative "
-            "features are listed with their true status — nothing is simulated."
+            "The platform's AI is deterministic and explainable. The provider rows and "
+            "the generation count are read live from M32's register and ask log "
+            "(as the caller) — nothing is simulated, and the status cannot go stale."
         ],
     )
 
@@ -723,12 +835,96 @@ def bengali_nlp_catalog(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Bengali coverage above is counted live from fix.fault.code, not "
-            "asserted. OCR and speech are declared gaps, not silent no-ops."
+            "asserted. The measured taxonomy holds %d active fault code(s) — the "
+            "catalog's old fixed-count note was stale (A2-F14c). OCR and speech "
+            "are declared gaps, not silent no-ops." % len(codes),
         ],
     )
 
 
+def portfolio_summary(env):
+    """The Model Portfolio's honest summary line, computed from the registry
+    (A2-F01/A2-F08): the '(14 models)' title is an owner decision, so the
+    screen states the MEASURED counts beside the specification's number."""
+    models = _models(env)
+    live = models.filtered(lambda m: m.status == "production")
+    planned = models.filtered(lambda m: m.status == "planned")
+    return (
+        "%d registered · %d live · %d planned — the specification's portfolio "
+        "names %d models; the rest are not registered yet."
+        % (len(models), len(live), len(planned), _PORTFOLIO_SPEC_MODELS)
+    )
+
+
+def model_portfolio(env, date_from=None, date_to=None, **params):
+    """The Model Portfolio, computed: the honest summary line as the title and
+    one row per registered model with the grids' labels."""
+    models = _models(env)
+    kind_labels = _labels(env, "fix.ml.model", "kind")
+    implementation_labels = _labels(env, "fix.ml.model", "implementation")
+    status_labels = _labels(env, "fix.ml.model", "status")
+    risk_labels = _labels(env, "fix.ml.model", "risk_class")
+    rows = []
+    for model in models:
+        rows.append(
+            {
+                "code": model.code,
+                "model": model.name,
+                "kind": kind_labels.get(model.kind, model.kind),
+                "implementation": implementation_labels.get(
+                    model.implementation, model.implementation
+                ),
+                "status": status_labels.get(model.status, model.status),
+                "risk_class": risk_labels.get(model.risk_class, model.risk_class or "—"),
+                "consumer": model.consumer_modules or "not declared",
+                "fallback": "declared"
+                if (model.fallback_definition or "").strip()
+                else "not declared",
+                "versions": len(model.version_ids),
+                "owner": model.owner_id.name if model.owner_id else "—",
+            }
+        )
+    return _pack(
+        "Model Portfolio — " + portfolio_summary(env),
+        [
+            "code",
+            "model",
+            "kind",
+            "implementation",
+            "status",
+            "risk_class",
+            "consumer",
+            "fallback",
+            "versions",
+            "owner",
+        ],
+        {
+            "code": "Code",
+            "model": "Model",
+            "kind": "Kind",
+            "implementation": "Implementation",
+            "status": "Status",
+            "risk_class": "Risk Class",
+            "consumer": "Named Consumer(s)",
+            "fallback": "Fallback",
+            "versions": "Versions",
+            "owner": "Model Owner",
+        },
+        rows,
+        [
+            portfolio_summary(env),
+            "Of the %d rows, five dispatch_scoring/fault_classifier/predictive_maintenance/"
+            "tradein_valuation/demand_forecast are among the specification's 14; lead scoring "
+            "and the BI aggregator are engines the registry governs besides it." % len(rows),
+            "A model without a named consumer, a stated target and a defined fallback is "
+            "not deployed (BRU-AIM-11) — the fallback column shows who has declared one.",
+        ],
+        empty="No model is registered yet.",
+    )
+
+
 REPORTS = {
+    "model_portfolio": model_portfolio,
     "model_accuracy_retraining": model_accuracy_retraining,
     "model_performance_pack": model_performance_pack,
     "override_analysis": override_analysis,
@@ -752,7 +948,11 @@ def _ml_kpis(env):
     alerts = env["fix.predictive.maintenance"].search_count(
         [("prediction", "=", "failure_predicted")]
     )
-    decided = runs.search([("suggested_value", "!=", False)])
+    # A2-F07: the denominator is the HUMAN decision, not the engine's
+    # suggestion — a suggestion nobody acted on must not inflate the base.
+    decided = runs.search([("final_value", "!=", False)]).filtered(
+        lambda r: (r.final_value or "").strip()
+    )
     overridden = decided.filtered(lambda r: r.overridden)
     try:
         drift_alerts = env["fix.ml.model.version"].search_count([("drift_score", ">=", 0.2)])

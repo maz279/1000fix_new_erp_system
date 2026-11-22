@@ -35,6 +35,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.translate import _
 
+from libs.py.fix_events import publish
+
 
 def _evidence_refusal(env, what):
     return UserError(
@@ -325,6 +327,24 @@ class FixMlBiasTest(models.Model):
                         rec.segments_tested,
                     ),
                 }
+            )
+            # A2-F09: a completed bias test is a domain event — its consumer
+            # posts the result on the model's chatter (M60 GRC may consume it
+            # from the outbox later).
+            publish(
+                self.env,
+                "model.bias_test_completed",
+                "fix.ml.model",
+                rec.model_id.id,
+                {
+                    "model": rec.model_id.code,
+                    "version": rec.version_id.version,
+                    "actor": (rec.documented_by or self.env.user).name,
+                    "assessment": dict(rec._fields["assessment"].selection).get(
+                        rec.assessment, rec.assessment
+                    ),
+                    "reason": _("Segments tested: %s") % (rec.segments_tested or ""),
+                },
             )
         return records
 

@@ -12,7 +12,7 @@
     " predictive maintenance, fault-code classification, trade-in valuation,"
     " BI aggregation. Demand forecasting stays honestly 'planned' until the"
     " M15 consumption-history seam exists.",
-    "version": "19.0.0.4.1",
+    "version": "19.0.0.4.2",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",
@@ -27,6 +27,9 @@
         "cd_tradein",
         "cd_bi_reporting",
         "cd_workflow_engine",
+        # A2-F09: the lifecycle events go to the transactional outbox and are
+        # delivered to this module's in-Odoo consumers (fix.event.consumer).
+        "cd_event_outbox",
     ],
     "data": [
         "security/ml_security.xml",
@@ -37,6 +40,7 @@
         "data/ml_versions.xml",
         "data/ml_model_portfolio.xml",
         "data/m48_precision.xml",
+        "data/fix_ml_event_consumers.xml",
     ],
     "installable": True,
     "application": False,

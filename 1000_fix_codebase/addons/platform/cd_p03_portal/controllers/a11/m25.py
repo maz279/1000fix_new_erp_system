@@ -11,6 +11,14 @@
 # stamps (an edit no longer resurrects a January delivery), the
 # approved-estimate tile is named what it is (Approved quotes), and the
 # count tiles count records instead of carrying constants.
+#
+# Deep-audit fixes (Nov 2026): the AR figures include the legacy take-on
+# still open on the AR control (M20's source of truth — the live estate
+# carries 15.4 crore of it that the invoice-only tiles reported as 0); each
+# optional metric source runs in its own savepoint so one SQL failure cannot
+# blank every tile and abort the export; cockpit telemetry is written before
+# the payload; money columns carry ৳ on screen and in every export; packs
+# honour (or refuse) their period parameters instead of ignoring them.
 import datetime
 import logging
 
@@ -132,11 +140,13 @@ def _companies(env):
 
 def _has_bi_group(env, xmlid):
     """Membership of a cd_bi_reporting group (True for the superuser). The
-    portal does not depend on that module, so resolve by ref."""
+    portal does not depend on that module, so resolve by xmlid through the
+    user's own group set — has_group traverses implications, so a BI Finance
+    Reader (whose group implies the company-wide one) counts for both gates;
+    the old `env.user in group.user_ids` missed every implied member."""
     if env.su:
         return True
-    group = env.ref(xmlid, raise_if_not_found=False)
-    return bool(group) and env.user in group.user_ids
+    return env.user.has_group(xmlid)
 
 
 def _is_company_wide(env):
@@ -314,11 +324,16 @@ def weekly_exec_review(env, **params):
         },
         "rows": rows,
         "notes": [
-            "Approved counts estimates approved in the week; invoiced counts customer invoices "
-            "issued or paid.",
+            # A1-F03: the estimate buckets are keyed by the week the estimate
+            # was CREATED (fix.estimate has no approval-date stamp to bucket
+            # by) — the note says created, not approved.
+            "Estimate value counts APPROVED estimates in the week they were created "
+            "(fix.estimate carries no approval-date stamp); invoiced counts customer "
+            "invoices issued or paid.",
             "Delivered counts orders by the date they were delivered or closed; a later edit "
             "does not move them.",
         ],
+        "kinds": {"estimates_approved": "monetary", "invoiced_taxable": "monetary"},
     }
 
 
@@ -327,9 +342,15 @@ def commercial_board(env, **params):
     opportunity value by stage (crm.lead). Nothing is forecast beyond what the
     pipeline records hold."""
     pipelines = _read(env, "fix.pipeline").search([("active", "=", True)])
-    leads = _read(env, "crm.lead").search(
-        _bi_domain(env, "crm.lead", [("type", "=", "opportunity")])
-    )
+    # A1-F13: the lead totals are PER PIPELINE (crm.lead.pipeline_id), not the
+    # company-wide search repeated on every row. A build without that relation
+    # drops the two columns rather than inventing a per-pipeline split.
+    leads = _read(env, "crm.lead")
+    per_pipeline = "pipeline_id" in leads._fields
+    if per_pipeline:
+        leads = leads.search(_bi_domain(env, "crm.lead", [("type", "=", "opportunity")]))
+    else:
+        leads = leads.browse()
     rows = []
     for pipeline in pipelines:
         stream = dict(pipeline._fields["revenue_stream"].selection).get(
@@ -342,14 +363,21 @@ def commercial_board(env, **params):
             stage_count = len(_json.loads(pipeline.stages_json or "[]"))
         except Exception:
             stage_count = 0
+        mine = (
+            leads.filtered(lambda lead, p=pipeline: lead.pipeline_id.id == p.id)
+            if per_pipeline
+            else leads
+        )
         rows.append(
             {
                 "stream": stream,
                 "pipeline": pipeline.code,
                 "stages": stage_count,
                 "probability": pipeline.default_probability or 0.0,
-                "open_opportunities": len(leads),
-                "open_value": round(sum(leads.mapped("expected_revenue")), 2),
+                "open_opportunities": len(mine) if per_pipeline else None,
+                "open_value": round(sum(mine.mapped("expected_revenue")), 2)
+                if per_pipeline
+                else None,
             }
         )
     return _pack(
@@ -361,14 +389,16 @@ def commercial_board(env, **params):
             "stages": "Stages",
             "probability": "Default Probability %",
             "open_opportunities": "Open Opportunities",
-            "open_value": "Open Expected Revenue",
+            "open_value": "Open Expected Revenue (৳)",
         },
         rows,
         [
             "Stage count comes from the pipeline's own stage definition. Open value sums "
-            "expected_revenue on open CRM opportunities - it is not a forecast model."
+            "expected_revenue on THIS pipeline's open CRM opportunities (leads without a "
+            "pipeline are counted nowhere) - it is not a forecast model."
         ],
         empty="No active pipelines.",
+        kinds={"open_value": "monetary"},
     )
 
 
@@ -457,8 +487,18 @@ def _exec_payload(env):
         groupby=["branch_id"],
         aggregates=["__count"],
     )
+    # A1-F02: the group value is the branch record (or a False group for
+    # unassigned orders) — resolve the DISPLAY NAME in one lookup instead of
+    # letting the raw ORM repr ("fix.branch(281,)") reach the CEO board.
+    branch_ids = {b.id for b, _count in branch_rows if b}
+    branch_names = {
+        b.id: b.display_name for b in _read(env, "fix.branch").browse(sorted(branch_ids)) if b
+    }
     branches = sorted(
-        ({"branch": (b[1] if isinstance(b, tuple) else str(b)), "open": c} for b, c in branch_rows),
+        (
+            {"branch": branch_names.get(b.id, "Unassigned") if b else "Unassigned", "open": c}
+            for b, c in branch_rows
+        ),
         key=lambda d: -d["open"],
     )[:6]
 
@@ -475,6 +515,9 @@ def _exec_payload(env):
         "trend": trend_series,
         "channels": channels,
         "branches": branches,
+        # A3-F03: while a data entity is flagged degraded the executive board
+        # says so too, not just the role cockpits
+        "notes": _quality_incident_notes(env),
     }
 
 
@@ -487,26 +530,37 @@ class P03BiApi(http.Controller):
         env = request.env
         payload = _exec_payload(env)
         fresh = payload["kpis"]["bi_data_freshness"]
+        # A1-F01: each optional KPI probe runs in its own savepoint and a
+        # failure is logged — one broken source withholds only ITS tile.
         try:
-            dashboards = _read(env, "fix.bi.dashboard").search_count(
-                _bi_domain(env, "fix.bi.dashboard", [])
-            )
-        except Exception:
+            with env.cr.savepoint():
+                # A1-F03: "live" counts what a reader can actually open — a
+                # CERTIFIED dashboard (drafts are the author's workspace and
+                # retired ones left the audience; BRU-BID-06).
+                dashboards = _read(env, "fix.bi.dashboard").search_count(
+                    _bi_domain(env, "fix.bi.dashboard", [("state", "=", "certified")])
+                )
+        except Exception as exc:
+            _logger.warning("M25 metric dashboards_live unavailable: %s", exc)
             dashboards = None
         try:
-            schedules = _read(env, "fix.bi.distribution.schedule").search_count(
-                _bi_domain(env, "fix.bi.distribution.schedule", [("active", "=", True)])
-            )
-        except Exception:
+            with env.cr.savepoint():
+                schedules = _read(env, "fix.bi.distribution.schedule").search_count(
+                    _bi_domain(env, "fix.bi.distribution.schedule", [("active", "=", True)])
+                )
+        except Exception as exc:
+            _logger.warning("M25 metric scheduled_distributions unavailable: %s", exc)
             schedules = None
         usage = _weekly_usage(env)
         # KPI-094: packs retired from the spreadsheet-retirement register
         # (FR-BID-034); None - withheld - when the register is unreadable.
         try:
-            retired = _read(env, "fix.bi.manual.pack").search_count(
-                _bi_domain(env, "fix.bi.manual.pack", [("state", "=", "retired")])
-            )
-        except Exception:
+            with env.cr.savepoint():
+                retired = _read(env, "fix.bi.manual.pack").search_count(
+                    _bi_domain(env, "fix.bi.manual.pack", [("state", "=", "retired")])
+                )
+        except Exception as exc:
+            _logger.warning("M25 metric spreadsheets_retired unavailable: %s", exc)
             retired = None
         return {
             "M25": {
@@ -514,13 +568,18 @@ class P03BiApi(http.Controller):
                 "open_orders": payload["kpis"]["open_orders"],
                 "in_repair": payload["kpis"]["in_repair"],
                 "delivered_mtd": payload["kpis"]["delivered_mtd"],
+                # A1-F03: the key keeps its historical name for compatibility,
+                # but what it holds is the value of APPROVED QUOTES — the
+                # companion key says so.
                 "revenue_mtd": payload["kpis"]["revenue_mtd"],
+                "approved_quotes_mtd": payload["kpis"]["revenue_mtd"],
                 "invoiced_mtd": payload["kpis"]["invoiced_mtd"],
                 # registry KPI strip (M25 spec): MEASURED counts (E5/M25-7 —
                 # the old `9 +` and constant `6` are gone).
                 "dashboards_live": dashboards,
-                # the report library actually registered below
-                "standard_reports": len(REPORTS),
+                # A1-F03: the canonical library (STANDARD_REPORTS, 6) — not
+                # len(REPORTS), which counts self-listing catalogues too.
+                "standard_reports": len(STANDARD_REPORTS),
                 "weekly_manager_usage": usage,
                 "load_time_p95": None,
                 "scheduled_distributions": schedules,
@@ -547,15 +606,27 @@ class P03BiApi(http.Controller):
             _require_finance_reader(request.env)
         elif role == "all":
             _require_company_wide(request.env)
-        payload = _role_payload(request.env, role)
-        payload["notes"] = payload["notes"] + _annotation_notes(request.env, role)
-        # FR-BID-033: who viewed which cockpit from which device class
+        # FR-BID-033 + A1-F05: the view is logged BEFORE the payload is
+        # computed — a failing metric source used to abort the transaction
+        # and silently destroy the telemetry row with it.
         try:
             agent = request.httprequest.headers.get("User-Agent")
         except Exception:
             agent = None
         if "fix.bi.content.usage" in request.env:
-            request.env["fix.bi.content.usage"]._log_view("role_dashboard", "M25:%s" % role, agent)
+            logged = request.env["fix.bi.content.usage"]._log_view(
+                "role_dashboard", "M25:%s" % role, agent
+            )
+            if not logged:
+                _logger.warning(
+                    "M25 usage telemetry not written for role %s (see _log_view)", role
+                )
+        payload = _role_payload(request.env, role)
+        payload["notes"] = (
+            payload["notes"]
+            + _annotation_notes(request.env, role)
+            + _quality_incident_notes(request.env)
+        )
         return payload
 
     @http.route("/p03/bi/embed/token", type="jsonrpc", auth="user")
@@ -594,22 +665,47 @@ def _annotation_notes(env, role):
     ]
 
 
+def _quality_incident_notes(env):
+    """A3-F03 (the M62 half of the degraded-surface rule): while any data
+    entity is flagged degraded, every cockpit says so — a figure from an
+    affected source may be wrong and the reader is told before they read a
+    tile. The model is optional (M62 not installed → no note, never an
+    error), and the read sits in its own savepoint."""
+    if "fix.data.entity" not in env:
+        return []
+    try:
+        with env.cr.savepoint():
+            degraded = _read(env, "fix.data.entity").search(
+                _bi_domain(env, "fix.data.entity", [("degraded", "=", True)]), limit=20
+            )
+            if not degraded:
+                return []
+            return [
+                "Data quality incident open on %s — figures from that source may be affected."
+                % ", ".join(degraded.mapped("name"))
+            ]
+    except Exception as exc:
+        _logger.warning("M25 quality incident note unavailable: %s", exc)
+        return []
+
+
 def _weekly_usage(env):
-    """Distinct users who logged in during the last 7 days (res.users.log is
-    the only usage telemetry the platform actually records; dashboard-level
-    telemetry has no model and is never invented). E6: counted within the
-    caller's allowed companies only — one company's activity is not another
-    company's usage — and read through _read, so a caller who may not read
+    """Distinct users who viewed BI content in the last 7 days
+    (fix.bi.content.usage — the module's own telemetry, FR-BID-033). A1-F03:
+    the old basis counted res.users.log (any login, BI or not); the tile is
+    named manager usage of BI, so 0 is honest when nobody used BI. E6: read
+    through _read within the caller's companies, so a caller who may not read
     the log at all has the tile WITHHELD (None → '—') instead of a sudo
     count of a source they cannot see (M25 K07)."""
     try:
-        since = datetime.datetime.now() - datetime.timedelta(days=7)
-        rows = _read(env, "res.users.log").search([("create_date", ">=", since)])
-        users = rows.mapped("create_uid").filtered(
-            lambda u: bool(set(u.company_ids.ids) & set(_companies(env)))
-        )
-        return len(users)
-    except Exception:
+        with env.cr.savepoint():
+            since = datetime.datetime.now() - datetime.timedelta(days=7)
+            rows = _read(env, "fix.bi.content.usage").search(
+                _bi_domain(env, "fix.bi.content.usage", [("viewed_at", ">=", since)])
+            )
+            return len(set(rows.mapped("user_id").ids))
+    except Exception as exc:
+        _logger.warning("M25 metric weekly_manager_usage unavailable: %s", exc)
         return None
 
 
@@ -626,13 +722,106 @@ ROLE_TITLES = {
 }
 
 
-def _metrics(env):
+def _to_date(value, label="date_to"):
+    """A1-F04: period parameters arrive as strings (the run generator stamps
+    str(date)); coerce once, refusing garbage loudly."""
+    if value in (None, ""):
+        return None
+    if isinstance(value, datetime.datetime):
+        return value.date()
+    if isinstance(value, datetime.date):
+        return value
+    try:
+        return datetime.date.fromisoformat(str(value)[:10])
+    except ValueError as exc:
+        raise UserError("%s must be a date (YYYY-MM-DD), not %r." % (label, value)) from exc
+
+
+def _resolve_period(date_from, date_to):
+    """A1-F04: the period an MTD pack actually applies. The window is
+    month-to-date ENDING at date_to (default today); a date_from that is not
+    the first of that month is refused — before, a run could be stamped with
+    a period the pack silently never applied."""
+    end = _to_date(date_to) or datetime.date.today()
+    month_start = end.replace(day=1)
+    start = _to_date(date_from, "date_from")
+    if start is not None and start != month_start:
+        raise UserError(
+            "This pack is measured month-to-date; date_from must be the first of "
+            "the month (use %s for the month of %s, or leave date_from empty)."
+            % (month_start, end)
+        )
+    return end
+
+
+def _takeon_ar_totals(env, as_of=None):
+    """The legacy take-on still open on the AR control, summed over the
+    caller's companies — the SAME source of truth M20 reads (its
+    takeon_ar_opening, which reads the GL as superuser: WE gate who sees the
+    result). Returns (outstanding, overdue_60d) or (None, None) when the
+    caller holds no finance entitlement or the helper is unavailable
+    (D-L01/A1-F07: the live estate carries 15.4 crore of migrated open
+    receivables the invoice-only tiles reported as 0)."""
+    if not (_has_bi_group(env, "cd_bi_reporting.group_bi_finance") or _is_company_wide(env)):
+        return None, None
+    try:
+        with env.cr.savepoint():
+            from odoo.addons.cd_billing_engine.models.fix_ar_engine import takeon_ar_opening
+
+            outstanding = overdue = 0.0
+            for company in env["res.company"].browse(_companies(env)):
+                for opening in takeon_ar_opening(env, company, as_of=as_of).values():
+                    residual = opening["residual"] or 0.0
+                    outstanding += residual
+                    # the SAME basis M20's ageing and ECL run use
+                    # (fix_ar_impairment.action_compute): days past the
+                    # take-on's OWN date; >60 is past the d31_60 bucket.
+                    if opening["date"] and (as_of - opening["date"]).days > 60:
+                        overdue += residual
+            return outstanding, overdue
+    except Exception as exc:
+        _logger.warning("M25 metric ar_outstanding_takeon unavailable: %s", exc)
+        return None, None
+
+
+def _gl_ar_balance(env):
+    """A1-F07: the receivable control balance per the GENERAL LEDGER — the
+    Σ balance of posted move lines on receivable accounts (asset_receivable)
+    in the caller's companies, read as the CALLER through _read (their
+    record rules; never a raw sudo — a caller who may not read the GL gets
+    None and the pack says 'GL not readable by your account')."""
+    try:
+        with env.cr.savepoint():
+            groups = _read(env, "account.move.line")._read_group(
+                [
+                    ("company_id", "in", _companies(env)),
+                    ("parent_state", "=", "posted"),
+                    ("account_id.account_type", "=", "asset_receivable"),
+                ],
+                [],
+                ["balance:sum"],
+            )
+            return round(sum(g[0] or 0.0 for g in groups), 2)
+    except Exception as exc:
+        _logger.warning("M25 metric gl_ar_balance unavailable: %s", exc)
+        return None
+
+
+def _metrics(env, as_of=None):
     """The measured metric bank every role dashboard and pack reads from.
     E6: every read is the caller's read (record rules apply) filtered by the
     caller's companies; a source the caller may not read withholds its tile
-    instead of leaking through sudo."""
-    today = datetime.date.today()
+    instead of leaking through sudo.
+
+    A1-F04: `as_of` (default today) anchors the month-to-date windows, so a
+    pack generated for a past month reports that month; snapshot counts (open
+    orders, headcount, dunning...) stay CURRENT and the pack notes say so.
+    A1-F01: every optional source runs in its own savepoint and a failure is
+    logged — one broken source withholds only its own tiles, never the
+    transaction."""
+    today = as_of or datetime.date.today()
     month_start = today.replace(day=1)
+    day_end = datetime.datetime.combine(today, datetime.time.max)
     orders = _read(env, "fix.service.order")
     estimates = _read(env, "fix.estimate")
     invoices = _read(env, "fix.ar.invoice")
@@ -644,13 +833,11 @@ def _metrics(env):
     m["in_repair"] = orders.search_count(
         _bi_domain(env, "fix.service.order", [("state", "=", "in_repair")])
     )
-    m["delivered_mtd"] = orders.search_count(
-        _bi_domain(
-            env,
-            "fix.service.order",
-            _delivered_extra(datetime.datetime.combine(month_start, datetime.time.min)),
-        )
-    )
+    delivered_dom = _delivered_extra(datetime.datetime.combine(month_start, datetime.time.min))
+    # as-of: the delivery stamp must also fall ON or BEFORE the as-of day (an
+    # order closed without a delivered_at stamp is never excluded by it)
+    delivered_dom += ["|", ("delivered_at", "=", False), ("delivered_at", "<=", day_end)]
+    m["delivered_mtd"] = orders.search_count(_bi_domain(env, "fix.service.order", delivered_dom))
     m["revenue_mtd"] = sum(
         estimates.search(
             _bi_domain(
@@ -663,6 +850,7 @@ def _metrics(env):
                         ">=",
                         datetime.datetime.combine(month_start, datetime.time.min),
                     ),
+                    ("create_date", "<=", day_end),
                 ],
             )
         ).mapped("grand_total")
@@ -671,26 +859,62 @@ def _metrics(env):
         _bi_domain(
             env,
             "fix.ar.invoice",
-            [("state", "in", ISSUED_INVOICE_STATES), ("invoice_date", ">=", month_start)],
+            [
+                ("state", "in", ISSUED_INVOICE_STATES),
+                ("invoice_date", ">=", month_start),
+                ("invoice_date", "<=", today),
+            ],
         )
     )
     m["invoiced_mtd"] = len(inv_mtd)
     m["invoiced_taxable_mtd"] = sum(inv_mtd.mapped("taxable_amount"))
-    open_inv = invoices.search(
-        _bi_domain(env, "fix.ar.invoice", [("state", "=", "issued")])
-    ).filtered(lambda i: i.amount_residual > 0.005)
-    m["ar_outstanding"] = sum(open_inv.mapped("amount_residual"))
-    m["overdue_gt_60d"] = sum(
-        i.amount_residual
-        for i in open_inv
-        if (today - i.invoice_date).days - i._payment_terms_days() > 60
-    )
+    # D-L01/A1-F07: the AR tiles (ALL of them — the legs and the totals) are
+    # finance figures gated on the BI finance / company-wide entitlement; an
+    # unentitled caller gets None ('—'), never a partial AR that pretends the
+    # migrated take-on does not exist.
+    if _has_bi_group(env, "cd_bi_reporting.group_bi_finance") or _is_company_wide(env):
+        open_inv = invoices.search(
+            _bi_domain(env, "fix.ar.invoice", [("state", "=", "issued")])
+        ).filtered(lambda i: i.amount_residual > 0.005)
+        m["ar_outstanding_invoices"] = sum(open_inv.mapped("amount_residual"))
+        m["overdue_gt_60d_invoices"] = sum(
+            i.amount_residual
+            for i in open_inv
+            if (today - i.invoice_date).days - i._payment_terms_days() > 60
+        )
+        # the migrated open receivables (M20's take-on) join the AR figures —
+        # the SAME source of truth M20 reads, aged on the SAME basis
+        takeon_open, takeon_overdue = _takeon_ar_totals(env, as_of=today)
+        m["ar_outstanding_takeon"] = takeon_open
+        m["overdue_gt_60d_takeon"] = takeon_overdue
+        if takeon_open is None:
+            # the helper is unavailable: the tile's stated basis is
+            # "invoices + take-on", so showing the invoice half alone would
+            # understate the AR — withhold instead (logged above)
+            m["ar_outstanding"] = m["overdue_gt_60d"] = None
+        else:
+            m["ar_outstanding"] = m["ar_outstanding_invoices"] + takeon_open
+            m["overdue_gt_60d"] = m["overdue_gt_60d_invoices"] + takeon_overdue
+    else:
+        for key in (
+            "ar_outstanding_invoices",
+            "overdue_gt_60d_invoices",
+            "ar_outstanding_takeon",
+            "overdue_gt_60d_takeon",
+            "ar_outstanding",
+            "overdue_gt_60d",
+        ):
+            m[key] = None
     m["collected_mtd"] = sum(
         receipts.search(
             _bi_domain(
                 env,
                 "fix.ar.receipt",
-                [("state", "=", "confirmed"), ("receipt_date", ">=", month_start)],
+                [
+                    ("state", "=", "confirmed"),
+                    ("receipt_date", ">=", month_start),
+                    ("receipt_date", "<=", today),
+                ],
             )
         ).mapped("amount")
     )
@@ -711,70 +935,84 @@ def _metrics(env):
         _bi_domain(env, "fix.estimate", [("state", "=", "sent")])
     )
     try:
-        Complaints = _read(env, "fix.complaint")
-        m["complaints_open"] = Complaints.search_count(
-            _bi_domain(
-                env,
-                "fix.complaint",
-                [("state", "not in", ("closed", "resolved", "rejected", "cancelled"))],
+        with env.cr.savepoint():
+            Complaints = _read(env, "fix.complaint")
+            m["complaints_open"] = Complaints.search_count(
+                _bi_domain(
+                    env,
+                    "fix.complaint",
+                    [("state", "not in", ("closed", "resolved", "rejected", "cancelled"))],
+                )
             )
-        )
-        m["complaints_total"] = Complaints.search_count(_bi_domain(env, "fix.complaint", []))
-    except Exception:
+            m["complaints_total"] = Complaints.search_count(_bi_domain(env, "fix.complaint", []))
+    except Exception as exc:
+        _logger.warning("M25 metric complaints_open/complaints_total unavailable: %s", exc)
         m["complaints_open"] = m["complaints_total"] = None
     try:
-        m["ncr_open"] = _read(env, "fix.ncr").search_count(
-            _bi_domain(
-                env,
-                "fix.ncr",
-                [("state", "not in", ("closed", "verified", "rejected", "cancelled"))],
+        with env.cr.savepoint():
+            m["ncr_open"] = _read(env, "fix.ncr").search_count(
+                _bi_domain(
+                    env,
+                    "fix.ncr",
+                    [("state", "not in", ("closed", "verified", "rejected", "cancelled"))],
+                )
             )
-        )
-    except Exception:
+    except Exception as exc:
+        _logger.warning("M25 metric ncr_open unavailable: %s", exc)
         m["ncr_open"] = None
     try:
-        Lead = _read(env, "crm.lead")
-        # company filter explicit: a lead with no company shows nowhere
-        # rather than on every company's board (K05).
-        lead_dom = _bi_domain(
-            env, "crm.lead", [("type", "=", "opportunity"), ("active", "=", True)]
-        )
-        m["leads_open"] = Lead.search_count(lead_dom)
-        m["pipeline_value"] = sum(Lead.search(lead_dom).mapped("expected_revenue"))
-    except Exception:
+        with env.cr.savepoint():
+            Lead = _read(env, "crm.lead")
+            # company filter explicit: a lead with no company shows nowhere
+            # rather than on every company's board (K05).
+            lead_dom = _bi_domain(
+                env, "crm.lead", [("type", "=", "opportunity"), ("active", "=", True)]
+            )
+            m["leads_open"] = Lead.search_count(lead_dom)
+            m["pipeline_value"] = sum(Lead.search(lead_dom).mapped("expected_revenue"))
+    except Exception as exc:
+        _logger.warning("M25 metric leads_open/pipeline_value unavailable: %s", exc)
         m["leads_open"] = m["pipeline_value"] = None
     try:
-        m["loyalty_members"] = _read(env, "fix.loyalty.account").search_count(
-            _bi_domain(env, "fix.loyalty.account", [])
-        )
-    except Exception:
+        with env.cr.savepoint():
+            m["loyalty_members"] = _read(env, "fix.loyalty.account").search_count(
+                _bi_domain(env, "fix.loyalty.account", [])
+            )
+    except Exception as exc:
+        _logger.warning("M25 metric loyalty_members unavailable: %s", exc)
         m["loyalty_members"] = None
     try:
-        m["employees_active"] = _read(env, "hr.employee").search_count(
-            _bi_domain(env, "hr.employee", [("active", "=", True)])
-        )
-        m["present_today"] = _read(env, "hr.attendance").search_count(
-            [
-                ("check_in", ">=", datetime.datetime.combine(today, datetime.time.min)),
-                ("employee_id.company_id", "in", _companies(env)),
-            ]
-        )
-    except Exception:
+        with env.cr.savepoint():
+            m["employees_active"] = _read(env, "hr.employee").search_count(
+                _bi_domain(env, "hr.employee", [("active", "=", True)])
+            )
+            m["present_today"] = _read(env, "hr.attendance").search_count(
+                [
+                    ("check_in", ">=", datetime.datetime.combine(today, datetime.time.min)),
+                    ("employee_id.company_id", "in", _companies(env)),
+                ]
+            )
+    except Exception as exc:
+        _logger.warning("M25 metric employees_active/present_today unavailable: %s", exc)
         m["employees_active"] = m["present_today"] = None
     try:
-        m["requisitions_open"] = _read(env, "fix.requisition").search_count(
-            _bi_domain(env, "fix.requisition", [("state", "in", ("draft", "approved"))])
-        )
-    except Exception:
+        with env.cr.savepoint():
+            m["requisitions_open"] = _read(env, "fix.requisition").search_count(
+                _bi_domain(env, "fix.requisition", [("state", "in", ("draft", "approved"))])
+            )
+    except Exception as exc:
+        _logger.warning("M25 metric requisitions_open unavailable: %s", exc)
         m["requisitions_open"] = None
     try:
-        m["dunning_active"] = _read(env, "fix.dunning").search_count(
-            [
-                ("invoice_id.state", "=", "issued"),
-                ("invoice_id.company_id", "in", _companies(env)),
-            ]
-        )
-    except Exception:
+        with env.cr.savepoint():
+            m["dunning_active"] = _read(env, "fix.dunning").search_count(
+                [
+                    ("invoice_id.state", "=", "issued"),
+                    ("invoice_id.company_id", "in", _companies(env)),
+                ]
+            )
+    except Exception as exc:
+        _logger.warning("M25 metric dunning_active unavailable: %s", exc)
         m["dunning_active"] = None
     return {k: (round(v, 2) if isinstance(v, float) else v) for k, v in m.items()}
 

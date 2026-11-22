@@ -555,7 +555,7 @@ class TestRetentionControls:
         entity = _entity(env, "warehouse.fact_retention_dup")
         Policy = env["fix.data.retention.policy"]
         Policy.create({"name": "first", "entity_id": entity.id, "retention_months": 84})
-        with pytest.raises(ValidationError, match="one.*policy per entity"), env.cr.savepoint():
+        with pytest.raises(ValidationError, match=r"one.*policy per entity"), env.cr.savepoint():
             Policy.create({"name": "second", "entity_id": entity.id, "retention_months": 24})
 
     def test_shortening_is_an_approval_not_an_edit(self, env, officer):
@@ -579,11 +579,11 @@ class TestRetentionControls:
     def test_legal_hold_blocks_every_disposition_and_movement(self, env, officer, make_user):
         p = self._policy(env, officer, retention_months=84)
         p.with_user(officer).write({"legal_hold": True})
-        with pytest.raises(UserError, match="(?i)legal hold"), env.cr.savepoint():
+        with pytest.raises(UserError, match=r"(?i)legal hold"), env.cr.savepoint():
             p.with_user(officer).write({"retention_months": 120})
-        with pytest.raises(UserError, match="(?i)legal hold"), env.cr.savepoint():
+        with pytest.raises(UserError, match=r"(?i)legal hold"), env.cr.savepoint():
             p.with_user(officer).action_request_shorten(24)
-        with pytest.raises(UserError, match="(?i)legal hold"), env.cr.savepoint():
+        with pytest.raises(UserError, match=r"(?i)legal hold"), env.cr.savepoint():
             p.with_user(officer).action_purge()
         stranger = make_user()
         with pytest.raises(UserError, match="Governance Officer"), env.cr.savepoint():

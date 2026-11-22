@@ -15,6 +15,8 @@ from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 from odoo.tools.translate import _
 
+from libs.py.fix_events import publish
+
 # Kinds whose output affects people (spec §13 names dispatch ranking and
 # seller-facing lead scores): promoting one of these without a PASSED bias
 # gate is refused — 'untested' is not silently treated as 'passed'.
@@ -335,6 +337,34 @@ class FixMlModelVersion(models.Model):
                 )
                 % (self.model_id.kind, self.display_name)
             )
+        # BRU-AIM-11 (A2-F10): a model deploys only with a named consumer, an
+        # accuracy target and a defined fallback — "or not deployed". The rule
+        # runs at PROMOTION only, so the grandfathered deployed baselines keep
+        # serving; it is NEW promotions that fail closed until the owner
+        # completes the declaration. An advisory model states no target (the
+        # BI aggregator measures nothing it could miss), so the target is
+        # demanded of every other risk class.
+        missing = []
+        if not (self.model_id.consumer_modules or "").strip():
+            missing.append("a named consumer (Named Consumer(s))")
+        if not (self.model_id.fallback_definition or "").strip():
+            missing.append("a defined fallback (Defined Fallback)")
+        if (
+            self.model_id.risk_class != "advisory"
+            and not (self.model_id.accuracy_target or "").strip()
+        ):
+            missing.append("an accuracy target (Accuracy Target)")
+        if missing:
+            raise UserError(
+                _(
+                    "Model %s cannot be promoted: its portfolio declaration "
+                    "lacks %s. A model without a consumer, a target and a "
+                    "fallback is not deployed (BRU-AIM-11). Declare the "
+                    "missing %s on its Portfolio Declaration, or retire the "
+                    "model."
+                )
+                % (self.model_id.code, " and ".join(missing), "entry/entries")
+            )
 
     def action_request_promotion(self, justification=None):
         """Route the promotion through M63: a Model Owner who is not the
@@ -386,6 +416,23 @@ class FixMlModelVersion(models.Model):
                 )
                 % approver.name
             )
+            # A2-F09: the promotion is a domain event — its consumer posts the
+            # audit trail on the model's chatter (and any future GRC subscriber
+            # reads it from the outbox).
+            publish(
+                self.env,
+                "model.promoted",
+                "fix.ml.model",
+                rec.model_id.id,
+                {
+                    "model": rec.model_id.code,
+                    "version": rec.version,
+                    "actor": approver.name,
+                    "reason": _(
+                        "Deployed through the M63 promotion request; serving resolves this version."
+                    ),
+                },
+            )
         return True
 
     def action_retire(self, confirmation=None):
@@ -416,6 +463,21 @@ class FixMlModelVersion(models.Model):
                     body=_("Retired by %s. Consumer confirmation: %s")
                     % (self.env.user.name, confirmation.strip())
                 )
+            # A2-F09: retirement is a domain event too — consumers of the model
+            # (and M60 GRC) learn the fallback is now the standing path.
+            publish(
+                self.env,
+                "model.retired",
+                "fix.ml.model",
+                rec.model_id.id,
+                {
+                    "model": rec.model_id.code,
+                    "version": rec.version,
+                    "actor": self.env.user.name,
+                    "reason": (confirmation or "").strip()
+                    or _("Retired by a Model Owner with no confirmation text."),
+                },
+            )
         return True
 
     def _approval_on_rejected(self, comment):
@@ -493,7 +555,26 @@ class FixMlEvaluationGate(models.Model):
                         )
                         % rec.display_name
                     )
-        return super().create(vals_list)
+        records = super().create(vals_list)
+        # A2-F09: a FAILED gate is a lifecycle event. On a deployed version it
+        # is evidence only (it does not move the state — D-L15), but it is
+        # exactly what the model's owner must learn about, so the consumer
+        # raises a to-do for them (and posts the chatter record).
+        for record in records.filtered(lambda g: g.result == "failed"):
+            publish(
+                self.env,
+                "model.gate_failed",
+                "fix.ml.model",
+                record.version_id.model_id.id,
+                {
+                    "model": record.version_id.model_id.code,
+                    "version": record.version_id.version,
+                    "actor": (record.checked_by or self.env.user).name,
+                    "gate": record.gate,
+                    "reason": record.notes or _("Gate '%s' was recorded failed.") % record.gate,
+                },
+            )
+        return records
 
     def write(self, vals):
         raise UserError(
@@ -531,8 +612,9 @@ class FixMlGuardrail(models.Model):
         "is a list).",
     )
     threshold = fields.Float(
-        help="Kept for the screens; the parsed number in `rule` is what the "
-        "inference path enforces."
+        help="Derived from `rule` on every save (A2-F14): the parsed number in "
+        "the rule is what the inference path enforces, so this field carries "
+        "the same number for the screens and can never disagree with it."
     )
     action = fields.Selection(
         [
@@ -545,6 +627,32 @@ class FixMlGuardrail(models.Model):
     )
     active = fields.Boolean(default=True)
     note = fields.Char()
+
+    @api.model_create_multi
+    def create(self, vals_list):
+        for vals in vals_list:
+            parsed = parse_guardrail_rule(vals.get("rule"))
+            if parsed:
+                # A2-F14(b): one source. The enforced number is parsed from
+                # `rule`; `threshold` is written FROM it, so a rail cannot
+                # display one number while the engine enforces another.
+                vals["threshold"] = parsed[2]
+        return super().create(vals_list)
+
+    def write(self, vals):
+        if "rule" in vals:
+            vals = dict(vals)
+            parsed = parse_guardrail_rule(vals.get("rule"))
+            if parsed:
+                vals["threshold"] = parsed[2]
+            else:
+                vals.pop("threshold", None)
+        elif "threshold" in vals:
+            # A threshold typed on its own states nothing the rule does not:
+            # the rule is the enforced source, so the number is dropped rather
+            # than saved as a decorative second value.
+            vals = {key: value for key, value in vals.items() if key != "threshold"}
+        return super().write(vals)
 
     @api.constrains("rule")
     def _check_rule(self):

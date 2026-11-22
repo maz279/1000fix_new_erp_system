@@ -5,7 +5,15 @@
 # own record rules apply and every source with a company is filtered by the
 # caller's allowed companies. Only the explicit "BI company-wide" charter
 # (m25._read) gets elevated reads.
+#
+# A11 deep audit A3-F05 (2026-11-23): the registry's six tiles now exist —
+# Certified Metrics, Quality Tests Passing, Freshness Lag, Lineage Coverage,
+# PII Columns Masked, Warehouse Cost MTD — and each is computed by the same
+# helper its report pack uses, so a tile can never disagree with its report.
+# An unmeasurable value is None ("—", never a fabricated 0).
 import datetime
+
+from odoo.exceptions import AccessError
 
 from .m25 import _bi_domain, _read
 
@@ -137,6 +145,8 @@ WRITABLE = {
             "volume_gb",
             "storage_cost_per_gb",
             "purge_rule",
+            # A3-F10: what the purge honours — a Selection a person picks.
+            "disposition",
             "active",
             "statutory_floor_months",
             "legal_hold",
@@ -332,9 +342,22 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
-def quality_scorecard(env, date_from=None, date_to=None, **params):
-    """Per entity: rules defined, tests run, pass rate over the latest test of
-    each rule. 'Never tested' is stated as such, never counted as a pass."""
+# ---- the shared bases (one helper per number: a tile and its pack read the
+# ---- same function, so they can never disagree) -------------------------------
+def _latest_tests(rules, tests):
+    """{rule id: the latest test row} — latest by (checked_at, id)."""
+    latest = {}
+    for test in tests:
+        key = (test.checked_at or datetime.datetime.min, test.id)
+        current = latest.get(test.rule_id.id)
+        if current is None or key > (current.checked_at or datetime.datetime.min, current.id):
+            latest[test.rule_id.id] = test
+    return latest
+
+
+def _quality_rows(env):
+    """Per entity: rules, the latest test of each, how many were MEASURED, and
+    the plain reason when nothing can be measured (A3-F06/F16)."""
     entities = _read(env, "fix.data.entity").search(_bi_domain(env, "fix.data.entity", []))
     rules = _read(env, "fix.data.quality.rule").search(_bi_domain(env, "fix.data.quality.rule", []))
     tests = _read(env, "fix.data.quality.test").search(_bi_domain(env, "fix.data.quality.test", []))
@@ -342,14 +365,18 @@ def quality_scorecard(env, date_from=None, date_to=None, **params):
     for entity in entities:
         my_rules = rules.filtered(lambda r, e=entity: r.entity_id.id == e.id)
         my_tests = tests.filtered(lambda t, ids=my_rules.ids: t.rule_id.id in ids)
-        latest = []
+        latest = _latest_tests(my_rules, my_tests)
+        measured = [test for test in latest.values() if test.measured]
+        passed = len([test for test in measured if test.passed])
+        reasons = []
         for rule in my_rules:
-            mine = my_tests.filtered(lambda t, rid=rule.id: t.rule_id.id == rid)
-            if mine:
-                latest.append(
-                    mine.sorted(lambda t: (t.checked_at or datetime.datetime.min, t.id))[-1]
-                )
-        passed = len([t for t in latest if t.passed])
+            # The rule's OWN statement of what stops the runner, so the
+            # scorecard and the rule list can never give different reasons.
+            # A rule with a manual result but no way to measure still states
+            # why: manual evidence is not a measurement.
+            blocker = rule._measure_blocker()
+            if blocker and blocker not in reasons:
+                reasons.append(blocker)
         rows.append(
             {
                 "entity": entity.name,
@@ -361,34 +388,20 @@ def quality_scorecard(env, date_from=None, date_to=None, **params):
                 else "—",
                 "rules": len(my_rules),
                 "tested": len(latest),
+                "measured": len(measured),
+                "manual": len(latest) - len(measured),
                 "passed": passed,
-                "pass_pct": round(100.0 * passed / len(latest), 1) if latest else None,
+                "pass_pct": round(100.0 * passed / len(measured), 1) if measured else None,
+                "reason": "; ".join(reasons) or "—",
             }
         )
-    rows.sort(key=lambda r: (r["pass_pct"] is None, r["pass_pct"] or 0.0))
-    untested = len([r for r in rows if r["rules"] and not r["tested"]])
-    return _pack(
-        "Data Quality Scorecard — %d entit(ies), %d with untested rules" % (len(rows), untested),
-        ["entity", "owner", "classification", "rules", "tested", "passed", "pass_pct"],
-        {
-            "entity": "Entity",
-            "owner": "Owning Module",
-            "classification": "Classification",
-            "rules": "Rules",
-            "tested": "Rules Tested",
-            "passed": "Passed",
-            "pass_pct": "Pass %",
-        },
-        rows,
-        [
-            "Pass rate uses the latest test per rule. An entity whose rules were never run shows "
-            "no pass rate — it is not assumed green."
-        ],
-        empty="No data entities registered.",
-    )
+    rows.sort(key=lambda r: (r["pass_pct"] is None, r["pass_pct"] or 0.0, r["entity"]))
+    return rows
 
 
-def freshness_sla(env, date_from=None, date_to=None, **params):
+def _freshness_rows(env):
+    """The Freshness SLA rows: age in minutes from the pipeline's own last
+    success, 'never' when it has not completed once."""
     pipelines = _read(env, "fix.data.pipeline").search(
         _bi_domain(env, "fix.data.pipeline", [("state", "=", "active")])
     )
@@ -413,6 +426,130 @@ def freshness_sla(env, date_from=None, date_to=None, **params):
             }
         )
     rows.sort(key=lambda r: (r["breach"] != "Yes", r["pipeline"]))
+    return rows
+
+
+def _lineage_counts(env):
+    """(entity recordset, lineage recordset, entities with >= 1 edge)."""
+    entities = _read(env, "fix.data.entity").search(_bi_domain(env, "fix.data.entity", []))
+    lineage = _read(env, "fix.data.lineage").search(_bi_domain(env, "fix.data.lineage", []))
+    covered = len(
+        set(lineage.mapped("source_entity_id").ids) | set(lineage.mapped("target_entity_id").ids)
+    )
+    return entities, lineage, covered
+
+
+def _cost_rows(env):
+    """(per-domain cost rows, monthly total) from the active policies."""
+    policies = _read(env, "fix.data.retention.policy").search(
+        _bi_domain(env, "fix.data.retention.policy", [("active", "=", True)])
+    )
+    groups = {}
+    for pol in policies:
+        domain = pol.entity_id.owner_module or "unassigned"
+        g = groups.setdefault(domain, {"entities": 0, "volume": 0.0, "cost": 0.0, "hot": 0})
+        g["entities"] += 1
+        g["volume"] += pol.volume_gb or 0.0
+        g["cost"] += pol.monthly_cost or 0.0
+        if pol.tier == "hot":
+            g["hot"] += 1
+    rows = [
+        {
+            "domain": k,
+            "entities": v["entities"],
+            "hot": v["hot"],
+            "volume_gb": round(v["volume"], 2),
+            "monthly_cost": round(v["cost"], 2),
+            "annual_cost": round(v["cost"] * 12.0, 2),
+        }
+        for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["cost"])
+    ]
+    return rows, round(sum(r["monthly_cost"] for r in rows), 2)
+
+
+def _published_metric_definitions(env):
+    """(all definitions, the LIVE ones that resolve a published version).
+
+    'Published' may only mean a published version is behind it (A3-F04: the
+    seeded rows carried the state with no version at all), and a RETIRED
+    definition is not a live certified metric even though its last version
+    stays published for the consumers that still resolve it."""
+    definitions = _read(env, "fix.metric.definition").search(
+        _bi_domain(env, "fix.metric.definition", [])
+    )
+    return definitions, definitions.filtered(
+        lambda d: d.state == "published"
+        and d.current_version_id
+        and d.current_version_id.state == "published"
+    )
+
+
+def _pii_columns_masked(env):
+    """Active sensitive-field rules, read AS THE CALLER (M29 owns the register).
+
+    None when the caller may not read it: a count served for rows the caller
+    cannot see would be a sudo count dressed as their access. The ACL is
+    checked explicitly — a search alone does not enforce read access, so a
+    caller without it would otherwise get a count of rows they cannot open."""
+    if "fix.sensitive.field" not in env:
+        return None
+    try:
+        Model = _read(env, "fix.sensitive.field")
+        Model.check_access("read")
+        rows = Model.search(_bi_domain(env, "fix.sensitive.field", [("active", "=", True)]))
+    except AccessError:
+        return None
+    return len(rows)
+
+
+def quality_scorecard(env, date_from=None, date_to=None, **params):
+    """Per entity: rules, the latest test of each, the MEASURED share of them,
+    the pass rate over MEASURED tests only, and the reason when nothing can be
+    measured. 'Never tested' is stated as such, never counted as a pass."""
+    rows = _quality_rows(env)
+    untested = len([r for r in rows if r["rules"] and not r["tested"]])
+    unmeasurable = len([r for r in rows if r["rules"] and not r["measured"]])
+    return _pack(
+        "Data Quality Scorecard — %d entit(ies), %d with untested rules, "
+        "%d with no measurable rule" % (len(rows), untested, unmeasurable),
+        [
+            "entity",
+            "owner",
+            "classification",
+            "rules",
+            "tested",
+            "measured",
+            "manual",
+            "passed",
+            "pass_pct",
+            "reason",
+        ],
+        {
+            "entity": "Entity",
+            "owner": "Owning Module",
+            "classification": "Classification",
+            "rules": "Rules",
+            "tested": "Rules Tested",
+            "measured": "Measured",
+            "manual": "Manual Evidence",
+            "passed": "Passed (measured)",
+            "pass_pct": "Pass % (measured)",
+            "reason": "Why not measurable",
+        },
+        rows,
+        [
+            "Measured = the latest test of that rule was measured by the runner (Measure Now "
+            "or the hourly cron); Manual Evidence = a result a person recorded, which is "
+            "evidence but never a measurement.",
+            "Pass rate uses MEASURED tests only. An entity whose rules were never run shows no "
+            "pass rate, and one whose rules cannot run states why — neither is assumed green.",
+        ],
+        empty="No data entities registered.",
+    )
+
+
+def freshness_sla(env, date_from=None, date_to=None, **params):
+    rows = _freshness_rows(env)
     breaches = len([r for r in rows if r["breach"] == "Yes"])
     return _pack(
         "Freshness SLA — %d active pipeline(s), %d breaching" % (len(rows), breaches),
@@ -429,18 +566,16 @@ def freshness_sla(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Age is measured from the last successful run to now; 'never' means the pipeline has "
-            "not completed once, which is itself a finding."
+            "not completed once, which is itself a finding.",
+            "This estate has no pipeline executor connected: a run — and therefore a last "
+            "success — exists only when one was recorded (a finish in the workspace).",
         ],
         empty="No active pipelines.",
     )
 
 
 def lineage_coverage(env, date_from=None, date_to=None, **params):
-    entities = _read(env, "fix.data.entity").search(_bi_domain(env, "fix.data.entity", []))
-    lineage = _read(env, "fix.data.lineage").search(_bi_domain(env, "fix.data.lineage", []))
-    covered = len(
-        set(lineage.mapped("source_entity_id").ids) | set(lineage.mapped("target_entity_id").ids)
-    )
+    entities, lineage, covered = _lineage_counts(env)
     rows = []
     for entity in entities:
         incoming = lineage.filtered(lambda ln, e=entity: ln.target_entity_id.id == e.id)
@@ -475,30 +610,7 @@ def lineage_coverage(env, date_from=None, date_to=None, **params):
 
 
 def cost_per_domain(env, date_from=None, date_to=None, **params):
-    policies = _read(env, "fix.data.retention.policy").search(
-        _bi_domain(env, "fix.data.retention.policy", [("active", "=", True)])
-    )
-    groups = {}
-    for pol in policies:
-        domain = pol.entity_id.owner_module or "unassigned"
-        g = groups.setdefault(domain, {"entities": 0, "volume": 0.0, "cost": 0.0, "hot": 0})
-        g["entities"] += 1
-        g["volume"] += pol.volume_gb or 0.0
-        g["cost"] += pol.monthly_cost or 0.0
-        if pol.tier == "hot":
-            g["hot"] += 1
-    rows = [
-        {
-            "domain": k,
-            "entities": v["entities"],
-            "hot": v["hot"],
-            "volume_gb": round(v["volume"], 2),
-            "monthly_cost": round(v["cost"], 2),
-            "annual_cost": round(v["cost"] * 12.0, 2),
-        }
-        for k, v in sorted(groups.items(), key=lambda kv: -kv[1]["cost"])
-    ]
-    total = round(sum(r["monthly_cost"] for r in rows), 2)
+    rows, total = _cost_rows(env)
     return _pack(
         "Cost per Domain — BDT %.2f per month across %d domain(s)" % (total, len(rows)),
         ["domain", "entities", "hot", "volume_gb", "monthly_cost", "annual_cost"],
@@ -534,6 +646,12 @@ REPORTS = {
 
 
 def kpis(env):
+    """The registry's six tiles (A11 deep audit A3-F05) plus the operational
+    counters. Every value is computed by the same helper its pack uses.
+
+    None is honest and renders "—": no measured test yet, no pipeline ever
+    succeeded, no entities to cover, or a register the caller may not read.
+    """
     pipelines = _read(env, "fix.data.pipeline").search(
         _bi_domain(env, "fix.data.pipeline", [("state", "=", "active")])
     )
@@ -543,10 +661,31 @@ def kpis(env):
     contracts = _read(env, "fix.data.contract").search(
         _bi_domain(env, "fix.data.contract", [("state", "=", "active")])
     )
-    metrics = _read(env, "fix.metric.definition").search(
-        _bi_domain(env, "fix.metric.definition", [("state", "=", "published")])
-    )
+    _definitions, certified = _published_metric_definitions(env)
+
+    quality_rows = _quality_rows(env)
+    measured = sum(row["measured"] for row in quality_rows)
+    measured_passed = sum(row["passed"] for row in quality_rows)
+    # The OLDEST last success = the biggest age among the pipelines that have
+    # ever succeeded; None ("never") when none has.
+    ages = [row["age_min"] for row in _freshness_rows(env) if isinstance(row["age_min"], int)]
+    entities, _lineage, covered = _lineage_counts(env)
+    _cost, cost_total = _cost_rows(env)
+    # Only a contract whose invariants hold is active: state 'active' AND the
+    # producer signature (the seeded unsigned rows are not active contracts).
+    signed_contracts = contracts.filtered(lambda c: c.producer_signed_by)
+
     return {
+        # ---- the registry's six tiles, in the registry's order ----
+        "certified_metrics": len(certified),
+        "quality_tests_passing": (
+            round(100.0 * measured_passed / measured, 1) if measured else None
+        ),
+        "freshness_lag": max(ages) if ages else None,
+        "lineage_coverage_pct": round(100.0 * covered / len(entities), 1) if entities else None,
+        "pii_columns_masked": _pii_columns_masked(env),
+        "warehouse_cost_mtd": cost_total,
+        # ---- operational counters (kept for the workspace) ----
         "pipelines_active": len(pipelines),
         "runs_24h": len(
             runs.filtered(
@@ -558,6 +697,6 @@ def kpis(env):
         "quality_tests": len(tests),
         "quality_failures": len(tests.filtered(lambda t: not t.passed)),
         "incidents_open": len(incidents.filtered(lambda i: i.state == "open")),
-        "contracts_active": len(contracts),
-        "metrics_published": len(metrics),
+        "contracts_active": len(signed_contracts),
+        "metrics_published": len(certified),
     }

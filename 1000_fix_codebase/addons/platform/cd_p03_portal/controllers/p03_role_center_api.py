@@ -490,7 +490,11 @@ KPI_CATALOG = {
         "warn_pos": True,
     },
     "awaiting_approval": {
-        "label": "Awaiting Approval",
+        # Service orders waiting for the CUSTOMER to approve the estimate (the
+        # M01 state), not the approver's inbox. The bare label read as "waiting
+        # for me" beside M63's Awaiting My Approval, which is a different queue
+        # (A11 audit A4-F12).
+        "label": "Awaiting Customer Approval",
         "fn": _kpi_awaiting_approval,
         "fmt": "int",
         "screen": "M01-all",

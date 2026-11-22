@@ -1,8 +1,14 @@
 /** @odoo-module **/
 /* A11 · Insights & Intelligence — M62 Data Platform & Governance.
- * Registry-faithful: 4 groups / 11 screens / 4 reports / 3 forms / freg 62.
- * Scope note: freshness and cost are measured from the recorded runs and the
- * declared volumes; nothing here is a cloud-billing estimate.
+ * Registry-faithful: the 4 registry groups and 11 registry screens come first,
+ * then 11 operational screens (22 nav screens in all); 4 report packs; 17
+ * forms (43 screen definitions). Registry contract: KPI tiles, bn labels and
+ * cross-links are copied from scratch/a11_deep/registry_a11.json.
+ *
+ * Scope note (A11 deep audit A3-F02, 2026-11-23): this is a PIPELINE REGISTER
+ * — no executor is connected on this estate, so a run — and therefore a last
+ * success — exists only when one was recorded. Freshness and cost are measured
+ * from those records and the declared volumes; nothing here is a cloud bill.
  *
  * Capture audit 2026-11-18: every sub-module page now captures each record
  * it covers. Before, page 7 (Security & Cost) offered no "+ New" and no
@@ -14,54 +20,74 @@
 export const MODULE = {
   area: 'A11', code: 'M62', en: 'Data Platform & Governance', title: 'M62 · Data Platform & Governance',
   bn: 'ডেটা প্ল্যাটফর্ম', icon: '🗄️',
-  desc: 'Ingestion pipelines with CDC and freshness SLOs, the medallion progression and backfill history, dimensional entities with documented lineage, data contracts, the metric registry, quality tests and incidents, and retention cost per domain.',
+  desc: 'Ingestion pipelines with CDC and freshness SLOs, the medallion progression and backfill history, dimensional entities with documented lineage, data contracts, the metric registry, quality tests and incidents, and retention cost per domain. Pipeline register — no executor is connected on this estate: run stamps come only from recorded runs, so freshness is measured from those records and cost from the declared volumes, never from a cloud bill.',
+  // The registry's six tiles first (A11 deep audit A3-F05), then the
+  // operational counters. `basis` states what each number counts; a null value
+  // is honest and renders "—" (never a fabricated 0). Units ride prefix/suffix
+  // because the tile caption itself is the engine's ("Live from Odoo").
   kpis: [
-    { l: 'Pipelines Active', m: 'pipelines_active' },
-    { l: 'Runs (24h)', m: 'runs_24h' },
-    { l: 'Runs Failed', m: 'runs_failed' },
-    { l: 'Quality Failures', m: 'quality_failures' },
-    { l: 'Incidents Open', m: 'incidents_open' },
-    { l: 'Metrics Published', m: 'metrics_published' }
+    { l: 'Certified Metrics', m: 'certified_metrics',
+      basis: 'definitions published with a published version behind them; 0 is honest' },
+    { l: 'Quality Tests Passing', m: 'quality_tests_passing', suffix: '%',
+      basis: '% of the latest tests that were MEASURED and passed; blank when none was ever measured' },
+    { l: 'Freshness Lag', m: 'freshness_lag', suffix: ' min',
+      basis: 'minutes since the OLDEST last success among active pipelines; blank when none has ever run' },
+    { l: 'Lineage Coverage', m: 'lineage_coverage_pct', suffix: '%',
+      basis: 'entities with at least one lineage edge / all catalogue entities' },
+    { l: 'PII Columns Masked', m: 'pii_columns_masked',
+      basis: 'active sensitive-field rules, read as you; blank when your account may not read them' },
+    { l: 'Warehouse Cost MTD', m: 'warehouse_cost_mtd', prefix: '৳ ',
+      basis: 'sum of the monthly cost of the active retention policies — a projection, not a cloud bill' },
+    { l: 'Pipelines Active', m: 'pipelines_active',
+      basis: 'registry rows; no executor is connected on this estate — run stamps come only from recorded runs' },
+    { l: 'Runs (24h)', m: 'runs_24h', basis: 'recorded runs started in the last 24 hours' },
+    { l: 'Runs Failed', m: 'runs_failed', basis: 'recorded runs in state failed' },
+    { l: 'Quality Failures', m: 'quality_failures', basis: 'every recorded test row that failed, measured or typed' },
+    { l: 'Incidents Open', m: 'incidents_open', basis: 'quality incidents in state open' },
+    { l: 'Metrics Published', m: 'metrics_published', basis: 'definitions that resolve a published version' }
   ],
   groups: [
-    { en: 'Record Coverage', screens: [
-      { id: 'M62-data-lineage', en: "Data Lineage", bn: "Data Lineage", t: 'g' }
-    ]},
     { en: 'Pipelines', screens: [
-      { id: 'M62-sources', en: 'Data Sources', bn: 'ডেটা উৎস', t: 'g' },
       { id: 'M62-ingestion', en: 'Ingestion & CDC', bn: 'ইনজেশন', t: 'g' },
-      { id: 'M62-medallion', en: 'Medallion Progression', bn: 'মেডেলিয়ন', t: 'g' },
-      { id: 'M62-backfill', en: 'Replay & Backfill', bn: 'ব্যাকফিল', t: 'g' }
+      { id: 'M62-medallion', en: 'Medallion Progression', bn: 'মেডালিয়ন', t: 'g' },
+      { id: 'M62-backfill', en: 'Replay & Backfill', bn: 'রিপ্লে', t: 'g' },
+      { id: 'M62-sources', en: 'Data Sources', bn: 'ডেটা উৎস', t: 'g' }
     ]},
     { en: 'Modelling', screens: [
-      { id: 'M62-dimensional', en: 'Dimensional Model', bn: 'ডাইমেনশনাল', t: 'g' },
-      { id: 'M62-dimensions', en: 'Conformed Dimensions', bn: 'কনফর্মড ডাইমেনশন', t: 'g' },
-      { id: 'M62-contracts', en: 'Data Contracts', bn: 'ডেটা কন্ট্রাক্ট', t: 'g' }
+      { id: 'M62-dimensional', en: 'Dimensional Model', bn: 'মাত্রিক মডেল', t: 'g' },
+      { id: 'M62-contracts', en: 'Data Contracts', bn: 'ডেটা চুক্তি', t: 'g' },
+      { id: 'M62-dimensions', en: 'Conformed Dimensions', bn: 'কনফর্মড ডাইমেনশন', t: 'g' }
     ]},
     { en: 'Governance', screens: [
-      { id: 'M62-metrics', en: 'Metric Registry', bn: 'মেট্রিক', t: 'g' },
+      { id: 'M62-metrics', en: 'Metric Registry', bn: 'মেট্রিক রেজিস্ট্রি', t: 'g' },
+      { id: 'M62-catalog', en: 'Catalogue & Glossary', bn: 'ক্যাটালগ', t: 'g' },
+      { id: 'M62-quality', en: 'Quality Tests & Incidents', bn: 'গুণগত পরীক্ষা', t: 'g' },
+      { id: 'M62-observability', en: 'Observability', bn: 'পর্যবেক্ষণযোগ্যতা', t: 'r' },
       { id: 'M62-metric-versions', en: 'Metric Versions', bn: 'মেট্রিক সংস্করণ', t: 'g' },
       { id: 'M62-metric-consumers', en: 'Metric Consumers', bn: 'মেট্রিক ব্যবহারকারী', t: 'g' },
-      { id: 'M62-catalog', en: 'Catalogue & Glossary', bn: 'ক্যাটালগ', t: 'r' },
       { id: 'M62-glossary', en: 'Business Glossary', bn: 'ব্যবসায়িক শব্দকোষ', t: 'g' },
-      { id: 'M62-quality', en: 'Quality Tests & Incidents', bn: 'কোয়ালিটি', t: 'g' },
-      { id: 'M62-observability', en: 'Observability', bn: 'পর্যবেক্ষণ', t: 'r' },
       { id: 'M62-incidents', en: 'Data Incidents', bn: 'ডেটা ঘটনা', t: 'g' },
       { id: 'M62-rules', en: 'Quality Rules', bn: 'কোয়ালিটি নিয়ম', t: 'g' }
     ]},
     { en: 'Security', screens: [
       { id: 'M62-masking', en: 'Masking & Access', bn: 'মাস্কিং', t: 'g' },
+      { id: 'M62-retention', en: 'Retention & Cost', bn: 'সংরক্ষণ ও ব্যয়', t: 'g' },
       { id: 'M62-declass', en: 'Declassification Authorisations', bn: 'শ্রেণি হ্রাস অনুমোদন', t: 'g' },
       { id: 'M62-erasure', en: 'Analytical Erasure', bn: 'বিশ্লেষণী মুছে ফেলা', t: 'g' },
-      { id: 'M62-retention', en: 'Retention & Cost', bn: 'রিটেনশন', t: 'g' },
       { id: 'M62-disposition', en: 'Disposition Evidence', bn: 'নিষ্পত্তির প্রমাণ', t: 'g' }
+    ]},
+    // The extra operational screens (not in the registry contract) come after
+    // the registry's four groups, never before them.
+    { en: 'Record Coverage', screens: [
+      { id: 'M62-data-lineage', en: "Data Lineage", bn: "Data Lineage", t: 'g' }
     ]}
   ],
   reports: ['Data Quality Scorecard', 'Freshness SLA', 'Lineage Coverage', 'Cost per Domain'],
   forms: ['Data Contract', 'Metric Definition', 'Quality Test', 'Data Source', 'Data Pipeline', 'Pipeline Run',
     'Data Entity', 'Conformed Dimension', 'Metric Version', 'Metric Consumer', 'Glossary Term', 'Quality Rule',
     'Data Incident', 'Data Lineage', 'Retention Policy', 'Declassification Authorisation', 'Analytical Erasure'],
-  cross: ['M25 BI', 'M26 ML', 'M29 classification', 'M33 rights requests', 'M60 controls'],
+  // The registry's cross-links, verbatim (A11 deep audit A3-F05).
+  cross: ['M25 dashboards', 'M29 row/column security', 'M63 automation triggers'],
   freg: { src: 62, sub: [
     ['1', 'Ingestion', 10, { model: 'fix.data.pipeline', cols: ['code', 'name', 'data_source_id', 'source_system', 'layer', 'load_mode', 'schedule', 'state'], screens: ['M62-ingestion', 'M62-sources', 'M62-backfill'], reports: ['Freshness SLA'], forms: ['Data Pipeline', 'Data Source', 'Pipeline Run'] }],
     ['2', 'Medallion & Transformation', 9, { model: 'fix.data.run', cols: ['name', 'pipeline_id', 'kind', 'stage', 'started_at', 'rows_written', 'state'], screens: ['M62-medallion', 'M62-backfill'], reports: ['Freshness SLA'], forms: ['Pipeline Run'] }],
@@ -82,6 +108,10 @@ export const SCREENS = {
     cols: ['code', 'name', 'source_type', 'owner_module', 'business_owner_id', 'steward_id', 'pipeline_count', 'state'],
     actions: [{ m: 'action_activate', l: 'Activate' }, { m: 'action_retire', l: 'Retire' }] },
   'M62-ingestion': { kind: 'model_list', model: 'fix.data.pipeline', stateField: 'state',
+    // A3-F02: the list is a register, not a running platform. (The generic
+    // list template renders report notes, not screen notes; the sentence is
+    // also carried on the pipeline form's own note and in MODULE.desc.)
+    caption: 'Pipeline register — no executor is connected on this estate; run stamps come only from recorded runs.',
     cols: ['code', 'name', 'data_source_id', 'layer', 'target_entity_id', 'load_mode', 'schedule', 'freshness_sla_minutes', 'state'],
     actions: [{ m: 'action_pause', l: 'Pause' }, { m: 'action_resume', l: 'Resume' }] },
   'M62-medallion': { kind: 'model_list', model: 'fix.data.run', stateField: 'state',
@@ -118,7 +148,14 @@ export const SCREENS = {
       { m: 'action_request_approval', l: 'Request Publication (M63)' }] },
   'M62-metric-consumers': { kind: 'model_list', model: 'fix.metric.consumer',
     cols: ['definition_id', 'consumer', 'consumer_type', 'note'] },
-  'M62-catalog': { kind: 'table_report', module: 'M62', report: 'lineage_coverage', title: 'Catalogue & Glossary (lineage)', period: false },
+  // A11 deep audit A3-F05 (D-L09): "Catalogue & Glossary" opened the Lineage
+  // Coverage report. It is the entity CATALOGUE now (name, type,
+  // classification, owning module, steward, layer, model, degraded flag) with
+  // its own form; Lineage Coverage stays its own report chip (page 6 reports).
+  // The glossary is the register this module owns, reachable as its own chip
+  // in the same group — the engine has no per-screen link slot.
+  'M62-catalog': { kind: 'model_list', model: 'fix.data.entity', title: 'Catalogue',
+    cols: ['name', 'entity_type', 'classification', 'owner_module', 'steward_id', 'warehouse_layer', 'res_model', 'degraded'] },
   'M62-glossary': { kind: 'model_list', model: 'fix.glossary.term',
     cols: ['term_en', 'term_bn', 'owner_id', 'synonyms', 'metric_ids'] },
   'M62-quality': { kind: 'model_list', model: 'fix.data.quality.test',
@@ -130,7 +167,7 @@ export const SCREENS = {
   'M62-masking': { kind: 'model_list', model: 'fix.sensitive.field', create: false,
     cols: ['model_name', 'field_name', 'sensitivity', 'data_class', 'masking_rule'] },
   'M62-retention': { kind: 'model_list', model: 'fix.data.retention.policy',
-    cols: ['entity_id', 'tier', 'retention_months', 'statutory_floor_months', 'pending_months', 'legal_hold', 'volume_gb', 'monthly_cost', 'purge_rule'],
+    cols: ['entity_id', 'tier', 'retention_months', 'statutory_floor_months', 'pending_months', 'legal_hold', 'volume_gb', 'monthly_cost', 'disposition', 'purge_rule'],
     actions: [{ m: 'action_request_shorten', l: 'Request Shortening (M63)',
       asks: [{ kwarg: 'new_months', label: 'New retention period (months)', number: true }] },
       { m: 'action_purge', l: 'Run Disposition' }] },
@@ -353,7 +390,7 @@ export const SCREENS = {
       { id: 'order', label: 'Dependencies & Owner', bn: 'নির্ভরতা ও মালিক', icon: '🔗', badge: '5' }
     ],
     sections: [
-      { tab: 'pipeline', title: 'Pipeline', note: 'Source, target entity, layer, load mode and the freshness SLO. The SLO is what the Freshness SLA report breaches against. With a data source picked, the source system defaults to its code; the source must be active.',
+      { tab: 'pipeline', title: 'Pipeline', note: 'Source, target entity, layer, load mode and the freshness SLO. The SLO is what the Freshness SLA report breaches against. With a data source picked, the source system defaults to its code; the source must be active. Pipeline register: no executor is connected on this estate, so a run exists only when one is recorded here and a last success only from a finished run.',
         fields: [
           { name: 'code', required: true, label: 'Pipeline Code' },
           { name: 'name', required: true, label: 'Pipeline Name' },
@@ -448,13 +485,14 @@ export const SCREENS = {
       { id: 'cost', label: 'Cost', bn: 'খরচ', icon: '💰', badge: '3' }
     ],
     sections: [
-      { tab: 'retention', title: 'Retention (FR-DAT-036, BRU-DAT-16)', note: 'One active policy per entity. A period below the statutory floor is refused. Shortening an active policy is a request routed through M63 (Request Shortening on the list). A legal hold, set and lifted by a Data Governance Officer, blocks every purge and every shortening.',
+      { tab: 'retention', title: 'Retention (FR-DAT-036, BRU-DAT-16)', note: 'One active policy per entity. A period below the statutory floor is refused. Shortening an active policy is a request routed through M63 (Request Shortening on the list). A legal hold, set and lifted by a Data Governance Officer, blocks every purge and every shortening. The Disposition is what a disposition run does at the end of the period — only Delete removes records; every other choice is reported as eligible with evidence, and the prose Purge Rule is the sentence people read.',
         fields: [
           { name: 'entity_id', required: true, label: 'Entity' },
           { name: 'tier', required: true, label: 'Tier' },
           { name: 'retention_months', required: true, label: 'Retention (months)' },
           { name: 'statutory_floor_months', label: 'Statutory Floor (months)' },
-          { name: 'purge_rule', label: 'Purge Rule (archive / pseudonymise / delete)' },
+          { name: 'disposition', required: true, label: 'Disposition (what the purge does)' },
+          { name: 'purge_rule', label: 'Purge Rule (the governance sentence)' },
           { name: 'legal_hold', label: 'Legal Hold' },
           { name: 'pending_months', readonly: true, label: 'Shortening To (awaiting approval)' },
           { name: 'active', label: 'Active' }

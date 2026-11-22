@@ -3,7 +3,7 @@
     "name": "1000FiX Data Platform & Governance",
     "summary": "M62: Data Platform & Governance",
     "description": "CD-M62-01 (P11).",
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",

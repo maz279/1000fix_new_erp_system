@@ -49,6 +49,10 @@ class FixDataEntity(models.Model):
             ("event", "Event Stream"),
             ("report", "Report/KPI"),
             ("document", "Document Type"),
+            # A11 deep audit A3-F04: a settlement or extract FILE is neither a
+            # table nor a document type; the residue repair creates the bKash
+            # settlement entity as one.
+            ("file", "File / Extract"),
         ],
         required=True,
         default="table",
@@ -196,7 +200,14 @@ class FixDataQualityRule(models.Model):
     the rule AND by every test row. For every rule type the observed value is
     a QUALITY PERCENTAGE where higher is better, so 'below threshold = the
     rule fires' is true for both sides. A 99%-complete load passes, a 10%
-    load fails — the old test comparator had this backwards."""
+    load fails — the old test comparator had this backwards.
+
+    A11 deep audit A3-F04/F06 (2026-11-23): a rule is born "Not yet tested".
+    It used to be born 'passing', so a rule nobody had ever measured showed
+    green — on estates where the runner could measure nothing at all.
+    `_measure_blocker()` is the ONE statement of why the runner cannot
+    measure a rule: the runner raises it, the hourly cron logs it, the rule
+    list shows it and the scorecard prints it."""
 
     _name = "fix.data.quality.rule"
     _description = "Data Quality Rule"
@@ -226,12 +237,15 @@ class FixDataQualityRule(models.Model):
         string="Check Field",
         help="The column the runner measures on the entity's Odoo model "
         "(completeness: % of rows where it is set; uniqueness: % of rows with "
-        "a distinct value). Empty: the rule records manual results only.",
+        "a distinct value; timeliness: the date or datetime column the "
+        "freshness window is measured on). Empty: the rule records manual "
+        "results only.",
     )
     freshness_window_hours = fields.Integer(
         string="Freshness Window (hours)",
         default=24,
-        help="Timeliness only: records touched inside this window count as fresh.",
+        help="Timeliness only: records whose check-field timestamp falls inside "
+        "this window count as fresh.",
     )
     active = fields.Boolean(default=True)
     last_checked = fields.Datetime(readonly=True)
@@ -244,11 +258,43 @@ class FixDataQualityRule(models.Model):
         "result is labelled as such and never shown as a measurement.",
     )
     state = fields.Selection(
-        [("passing", "Passing"), ("failing", "Failing")],
-        default="passing",
+        [
+            ("untested", "Not yet tested"),
+            ("passing", "Passing"),
+            ("failing", "Failing"),
+        ],
+        default="untested",
         required=True,
         tracking=True,
+        help="Not yet tested: no result was ever recorded. A verdict follows "
+        "a measurement by the runner or a manual result recorded through "
+        "Record Result (which is labelled manual).",
     )
+    measure_blocker = fields.Char(
+        compute="_compute_measure_blocker",
+        string="Why the runner cannot measure",
+        help="Empty when the hourly runner can measure this rule; otherwise the "
+        "one thing that stops it.",
+    )
+
+    @api.depends("entity_id.res_model", "check_field", "rule_type")
+    def _compute_measure_blocker(self):
+        for rec in self:
+            rec.measure_blocker = rec._measure_blocker()
+
+    @api.constrains("state", "last_checked")
+    def _check_verdict_has_result(self):
+        # A3-F04: 'passing' with nothing behind it is the seeded state the
+        # live estates carried. A verdict (either way) needs a result that
+        # was recorded — by the runner, or by a person and labelled as such.
+        for rec in self:
+            if rec.state in ("passing", "failing") and not rec.last_checked:
+                raise ValidationError(
+                    "Rule %s is %s with no result ever recorded — a verdict "
+                    "follows a measurement or a recorded manual result; until "
+                    "then the rule is Not yet tested."
+                    % (rec.name, dict(rec._fields["state"].selection)[rec.state])
+                )
 
     # ---- THE comparator (A11 audit E5, M62-1) ------------------------------
     def _evaluate(self, observed):
@@ -266,6 +312,38 @@ class FixDataQualityRule(models.Model):
             return None
         return self.env[name]
 
+    def _measure_blocker(self):
+        """Why the runner cannot measure this rule, or None when it can.
+
+        ONE statement of it, read by the runner, the cron's log line, the
+        rule list and the scorecard: a rule cannot be 'skipped' in one place
+        and look measurable in another."""
+        self.ensure_one()
+        model_name = self.entity_id.res_model
+        if not model_name or model_name not in self.env:
+            return (
+                "entity %s maps to no Odoo model, so nothing can be measured. Map the "
+                "entity (res_model) or record a manual result." % self.entity_id.display_name
+            )
+        if not self.check_field:
+            return "no check field is set, so nothing can be measured."
+        field = self.env[model_name]._fields.get(self.check_field)
+        if field is None:
+            return "%s has no column %r." % (model_name, self.check_field)
+        if self.rule_type not in ("completeness", "uniqueness", "timeliness"):
+            return (
+                "%s is measured by people, not by a table scan — record its result "
+                "manually; the runner will not invent one."
+                % dict(self._fields["rule_type"].selection)[self.rule_type]
+            )
+        if self.rule_type == "timeliness" and field.type not in ("date", "datetime"):
+            return (
+                "a timeliness rule measures a date or datetime column (the timestamp "
+                "the window is measured on), and %s is a %s column."
+                % (self.check_field, field.type)
+            )
+        return None
+
     def _measure(self):
         """MEASURE the entity: a real read_group over the entity's model.
 
@@ -274,32 +352,10 @@ class FixDataQualityRule(models.Model):
         a rule type whose truth lives outside one table). Never invents a
         number."""
         self.ensure_one()
+        blocker = self._measure_blocker()
+        if blocker:
+            raise UserError("Rule %s: %s" % (self.display_name, blocker))
         Model = self._measurable_model()
-        if Model is None:
-            raise UserError(
-                "Rule %s: entity %s maps to no Odoo model, so nothing can be "
-                "measured. Map the entity (res_model) or record a manual "
-                "result." % (self.display_name, self.entity_id.display_name)
-            )
-        if not self.check_field:
-            raise UserError(
-                "Rule %s: no check field is set, so nothing can be measured." % self.display_name
-            )
-        if self.check_field not in Model._fields:
-            raise UserError(
-                "Rule %s: %s has no column %r."
-                % (self.display_name, self.entity_id.res_model, self.check_field)
-            )
-        # An empty table is only a free 100% for a rule the runner can count;
-        # accuracy/consistency raise BEFORE this point whatever the table size
-        # (an empty evidence register must not hand an unmeasurable rule a
-        # perfect score).
-        if self.rule_type not in ("completeness", "uniqueness", "timeliness"):
-            raise UserError(
-                "Rule %s: %s is measured by people, not by a table scan — record "
-                "its result manually; the runner will not invent one."
-                % (self.display_name, dict(self._fields["rule_type"].selection)[self.rule_type])
-            )
         total = Model.sudo().search_count([])
         if not total:
             return 100.0
@@ -316,15 +372,20 @@ class FixDataQualityRule(models.Model):
             populated = sum(count for _value, count in groups)
             return round(100.0 * distinct / populated, 2) if populated else 100.0
         if self.rule_type == "timeliness":
-            # Timeliness measures freshness as a percentage of records
-            # touched inside the window the rule names (default: 24 hours).
+            # The share of records whose OWN timestamp (the rule's check
+            # field) falls inside the window. It used to count write_date,
+            # which any unrelated edit bumps — so an old row looked fresh
+            # because somebody corrected a typo in it.
             window_hours = self.freshness_window_hours or 24
-            fresh_cutoff = fields.Datetime.now() - relativedelta(hours=window_hours)
-            fresh = Model.sudo().search_count([("write_date", ">=", fresh_cutoff)])
+            cutoff = fields.Datetime.now() - relativedelta(hours=window_hours)
+            if Model._fields[self.check_field].type == "date":
+                cutoff = cutoff.date()
+            fresh = Model.sudo().search_count([(self.check_field, ">=", cutoff)])
             return round(100.0 * fresh / total, 2)
+        # Unreachable while the blocker refuses every other type first; kept
+        # so the method can never fall through to returning no number.
         raise UserError(
-            "Rule %s: %s is measured by people, not by a table scan — record "
-            "its result manually; the runner will not invent one."
+            "Rule %s: %s is not a rule type the runner measures."
             % (self.display_name, dict(self._fields["rule_type"].selection)[self.rule_type])
         )
 
@@ -389,17 +450,29 @@ class FixDataQualityRule(models.Model):
 
     @api.model
     def _cron_run_checks(self):
-        """Hourly: measure every active rule whose entity can be measured.
-        Rules that cannot be measured are skipped, never guessed."""
-        ran = 0
+        """Hourly: measure every active rule the runner can measure.
+
+        A rule it cannot measure is LOGGED with its reason and counted as
+        skipped, never dropped in silence (A3-F06: the cron measured nothing
+        on either estate for as long as nobody could see that it skipped
+        everything). Returns both counts."""
+        measured = 0
+        skipped = 0
         for rule in self.search([("active", "=", True)]):
-            try:
-                rule.action_measure()
-                ran += 1
-            except UserError:
+            blocker = rule._measure_blocker()
+            if blocker:
+                skipped += 1
+                _logger.warning(
+                    "M62 DQ runner SKIPPED rule %s (entity %s): %s",
+                    rule.display_name,
+                    rule.entity_id.display_name,
+                    blocker,
+                )
                 continue
-        _logger.info("M62 DQ runner: measured %s rule(s)", ran)
-        return ran
+            rule.action_measure()
+            measured += 1
+        _logger.info("M62 DQ runner: measured %s rule(s), skipped %s", measured, skipped)
+        return {"measured": measured, "skipped": skipped}
 
 
 class FixDataDeclassificationAuth(models.Model):

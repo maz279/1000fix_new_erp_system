@@ -217,9 +217,12 @@ WIRED = {
         ),
     },
     "M26": {
+        # A11 audit A2-F07: the denominator is the runs where a HUMAN recorded a
+        # decision (final_value), not every run that carried a suggestion — a
+        # suggestion nobody reviewed is not an agreement by the operator.
         "override_rate": (
             NUM,
-            lambda e: e["fix.ml.inference.run"].search_count([("suggested_value", "!=", False)]),
+            lambda e: e["fix.ml.inference.run"].search_count([("final_value", "!=", False)]),
         ),
     },
     "M27": {
