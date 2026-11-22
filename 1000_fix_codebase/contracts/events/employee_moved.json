@@ -48,6 +48,9 @@
             "boolean"
           ]
         },
+        "changed_fields": {
+          "type": "array"
+        },
         "employee_id": {
           "type": "integer"
         },

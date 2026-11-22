@@ -55,7 +55,7 @@
           "type": "string"
         },
         "subsistence_pct": {
-          "description": "Type not statically derivable from `pct` (addons/domain/h_people/cd_hr_core/models/fix_hr_disciplinary.py:383)."
+          "description": "Type not statically derivable from `pct` (addons/domain/h_people/cd_hr_core/models/fix_hr_disciplinary.py:436)."
         }
       },
       "additionalProperties": false

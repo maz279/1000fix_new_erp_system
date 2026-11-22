@@ -18,12 +18,20 @@ The M21<->M29 interface break (AR-006 section 4.1 pair 17):
 - M21 CALLS M29's published API for role assignment (sync one-way)
 - NEVER synchronous-both-ways — that is a distributed monolith
 """,
-    "version": "19.0.1.0.0",
+    "version": "19.0.1.0.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Platform/HR",
     "depends": ["base", "mail", "hr", "cd_entity_config", "cd_event_outbox", "cd_party_master"],
-    "data": ["security/ir.model.access.csv"],
+    "data": [
+        "security/ir.model.access.csv",
+        # A09 ERP audit M58-F1: a hire through M58 dead-ended at onboarding
+        # completion because no employee code existed and nothing minted one.
+        # The code is now taken from this sequence at creation
+        # (models/hr_employee_ext.py, _fix_next_employee_code); a hand-typed
+        # code is still honoured and never overwritten.
+        "data/employee_code_sequence.xml",
+    ],
     "installable": True,
     "application": False,
     "x_cd_id": "CD-M21-01",

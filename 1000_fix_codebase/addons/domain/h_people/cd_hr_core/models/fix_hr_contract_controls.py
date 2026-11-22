@@ -44,6 +44,10 @@ PAY_TERMS = (
     "dearness_allowance",
     "adhoc_allowance",
 )
+# BLR 2015 r.19(4) particulars of the letter of appointment that are terms of
+# the contract (A09 ERP audit M21-F2). Optional: a blank one is no term, so a
+# sign-off requested before these fields existed stays valid (see _fix_terms).
+R194_TERMS = ("wage_scale", "increment_rate", "other_facilities")
 CONTRACT_TERMS = (
     "employee_id",
     "company_id",
@@ -56,6 +60,7 @@ CONTRACT_TERMS = (
     "currency_id",
     "date_end",
     *PAY_TERMS,
+    *R194_TERMS,
 )
 EXPIRY_ALERT_DAYS = (90, 60, 30)  # AUT-HCM-06 fixed-term expiry alerts
 PROBATION_ALERT_DAYS = 14
@@ -176,6 +181,8 @@ class FixEmploymentContractControls(models.Model):
         out = {}
         for name in CONTRACT_TERMS:
             value = self[name]
+            if name in R194_TERMS and not str(value or "").strip():
+                continue
             out[name] = value.id if isinstance(value, models.BaseModel) else value
         return out
 

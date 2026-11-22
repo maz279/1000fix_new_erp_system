@@ -31,56 +31,8 @@
     },
     "payload": {
       "type": "object",
-      "required": [
-        "employee_id",
-        "employee_code",
-        "branch_id",
-        "primary_role",
-        "joined_date",
-        "name",
-        "work_email"
-      ],
-      "properties": {
-        "employee_id": {
-          "type": "integer"
-        },
-        "employee_code": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "branch_id": {
-          "type": [
-            "integer",
-            "boolean",
-            "null"
-          ]
-        },
-        "primary_role": {
-          "type": [
-            "string",
-            "boolean",
-            "null"
-          ]
-        },
-        "joined_date": {
-          "type": [
-            "string",
-            "null"
-          ]
-        },
-        "name": {
-          "type": [
-            "string",
-            "boolean"
-          ]
-        },
-        "work_email": {
-          "description": "Type not statically derivable from `rec.work_email or None` (addons/platform/cd_employee_core/models/hr_employee_ext.py:116 via _emit_jml() at addons/platform/cd_employee_core/models/hr_employee_ext.py:192)."
-        }
-      },
-      "additionalProperties": false
+      "additionalProperties": true,
+      "description": "Payload built dynamically (`payload`, addons/platform/cd_employee_core/models/hr_employee_ext.py:173 via _emit_jml() at addons/platform/cd_employee_core/models/hr_employee_ext.py:262); its keys are not statically derivable."
     }
   },
   "x-owner-module": "cd_employee_core",

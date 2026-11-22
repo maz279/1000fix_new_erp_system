@@ -39,6 +39,40 @@ MATERNITY_MAX_SURVIVING_CHILDREN = 1
 ANNUAL_LEAVE_DAYS_PER_EARNED_DAY = 18
 ANNUAL_LEAVE_SERVICE_YEARS = 1
 
+# Labour (Amendment) Act 2026 (Act No. 43 of 2026, passed 10 Apr 2026; the
+# ordinance of 17 Nov 2025) — lead-verified statutory facts, two independent
+# secondary sources, and the owner's counsel confirms the gazette text:
+#   * s.46: the maternity benefit is 120 days — 60 days before and 60 days
+#     after the delivery (was 112: 8 weeks + 8 weeks);
+#   * s.118(1): 13 days of festival holidays per calendar year (was 11);
+#   * the death-benefit qualifying service is 1 year (was 2; s.19).
+# The 2026 figures reach EXISTING data only through the owner's approval:
+# ir.config_parameter cd_hr_core.apply_labour_act_2026_figures == 'approved'
+# (the 19.0.0.7.0 post-migrate and res.company._apply_labour_act_2026_figures
+# apply them; seeds for fresh installs carry them already).
+LABOUR_ACT_2026_PARAM = "cd_hr_core.apply_labour_act_2026_figures"
+MATERNITY_SPLIT_DAYS_2026 = 60  # s.46: 60 days before + 60 days after
+
+try:  # stream B2 is adding this helper in fix_hr_core.py (module level)
+    from .fix_hr_core import _labour_act_2026_applied as _b2_2026_helper
+except ImportError:
+    _b2_2026_helper = None
+
+
+def _labour_act_2026_applied(env) -> bool:
+    """Is the owner's approval for the 2026 Act figures on record?
+
+    Stream B2 is adding a helper of this name in fix_hr_core.py (for the base
+    statutory floors), as a module function or on the model; use whichever is
+    there, else read the parameter."""
+    if _b2_2026_helper is not None:
+        return _b2_2026_helper(env)
+    helper = getattr(env["fix.leave.type"], "_labour_act_2026_applied", None)
+    if helper is not None:
+        return helper()
+    return env["ir.config_parameter"].sudo().get_param(LABOUR_ACT_2026_PARAM) == "approved"
+
+
 LIVE_STATES = ("submitted", "approved")
 # Fields that change what was asked for; frozen once the request leaves draft.
 REQUEST_TERMS = ("employee_id", "leave_type_id", "date_from", "date_to", "company_id")
@@ -68,7 +102,10 @@ class ResCompanyLeaveSettings(models.Model):
         default=0.0,
         help="BRU-WFM-04: a leave is not approved when, with it, more than this share of the "
         "employee's team (department, or the line manager's reports) would be on approved "
-        "leave on any of its days. 0 = not checked (not ruled; A09 decision).",
+        "leave on any of its days. 0 = not checked (not ruled; A09 decision). "
+        "READINESS (M21-F20): the figure is the owner's — labour counsel to "
+        "advise; until it is set (company setting fix_leave_coverage_max_pct, "
+        "currently 0) the check stays off and no number is chosen by the code.",
     )
     fix_leave_coverage_mode = fields.Selection(
         [("flag", "Flag the request"), ("block", "Refuse the approval")],
@@ -125,7 +162,13 @@ class FixLeaveTypeControls(models.Model):
     @api.model
     def _fix_seed_leave_rules(self):
         """Data hook (idempotent): sick needs a certificate; maternity counts
-        every calendar day."""
+        every calendar day; the unpaid type is flagged for payroll.
+
+        The EXISTING statutory figures (maternity 112, festival 11, the
+        holiday exclusion of casual/sick, the death-benefit years) are the
+        owner's to move: the 2026 Act figures reach them only through
+        res.company._apply_labour_act_2026_figures() with the owner's
+        approval, never through this seed hook."""
         Type = self.sudo()
         Type.search([("code", "=", "sick"), ("requires_certificate", "=", False)]).write(
             {"requires_certificate": True}
@@ -133,11 +176,28 @@ class FixLeaveTypeControls(models.Model):
         Type.search(["|", ("code", "=", "maternity"), ("maternity", "=", True)]).filtered(
             "excludes_holidays"
         ).write({"excludes_holidays": False})
+        # M55-F4: the Leave Without Pay type (seeded in statutory_leave_data.xml
+        # for every install). The is_unpaid flag is being added on the base
+        # model by stream B2; until it lands the flag cannot be stored and
+        # _fix_is_unpaid() falls back to the code.
+        if "is_unpaid" in Type._fields:
+            Type.search([("code", "=", "unpaid"), ("is_unpaid", "=", False)]).write(
+                {"is_unpaid": True}
+            )
         return True
 
     def _fix_is_certificate_type(self):
         self.ensure_one()
         return self.requires_certificate or self.code == "sick"
+
+    def _fix_is_unpaid(self):
+        """M55-F4: is this an unpaid leave type? The is_unpaid flag lives on
+        the base model (fix_hr_core.py, stream B2); read it defensively and
+        fall back to the seeded code until it lands."""
+        self.ensure_one()
+        if "is_unpaid" in self._fields:
+            return bool(self.is_unpaid)
+        return self.code == "unpaid"
 
     def action_verify_citation(self):
         """HR records that the statutory citation was checked today."""
@@ -343,23 +403,76 @@ class FixLeaveRequestRouted(models.Model):
         (cd_attendance overrides: roster on_leave)."""
         return True
 
+    def _fix_days_in_year(self, year):
+        """The request's charged days falling in calendar `year` (M55-F15: a
+        leave that spans a year boundary charges each day to the calendar
+        year it falls in, not all of them to the starting year)."""
+        self.ensure_one()
+        if not (self.date_from and self.date_to):
+            return 0
+        start = max(fields.Date.to_date(self.date_from), date(year, 1, 1))
+        end = min(fields.Date.to_date(self.date_to), date(year, 12, 31))
+        if end < start:
+            return 0
+        charged = (end - start).days + 1
+        if self.leave_type_id.sudo().excludes_holidays and "fix.hr.holiday" in self.env:
+            charged -= (
+                self.env["fix.hr.holiday"]
+                .sudo()
+                .search_count(
+                    [
+                        ("company_id", "=", self.company_id.id or self.env.company.id),
+                        ("tentative", "=", False),
+                        ("date", ">=", start),
+                        ("date", "<=", end),
+                    ]
+                )
+            )
+        return max(charged, 0)
+
     def _fix_year_taken(self, code, year):
         self.ensure_one()
+        # M55-F15: every approved leave OVERLAPPING the year contributes only
+        # the days that fall inside it.
         return sum(
-            self.sudo()
-            .search(
+            lv._fix_days_in_year(year)
+            for lv in self.sudo().search(
                 [
                     ("id", "!=", self.id),
                     ("employee_id", "=", self.employee_id.id),
                     ("leave_type_id.code", "=", code),
                     ("company_id", "=", self.company_id.id),
                     ("state", "=", "approved"),
-                    ("date_from", ">=", date(year, 1, 1)),
                     ("date_from", "<=", date(year, 12, 31)),
+                    ("date_to", ">=", date(year, 1, 1)),
                 ]
             )
-            .mapped("days")
         )
+
+    @api.model
+    def _fix_unpaid_days_between(self, employee, date_from, date_to):
+        """M55-F4: approved unpaid-leave days of `employee` inside
+        [date_from, date_to] (calendar days, clipped to the range), so payroll
+        can withhold pay for exactly the days taken. Returns a day count."""
+        if not employee:
+            return 0.0
+        date_from = fields.Date.to_date(date_from)
+        date_to = fields.Date.to_date(date_to)
+        if not date_from or not date_to or date_to < date_from:
+            return 0.0
+        total = 0
+        for lv in self.sudo().search(
+            [
+                ("employee_id", "=", employee.id),
+                ("state", "=", "approved"),
+                ("date_from", "<=", date_to),
+                ("date_to", ">=", date_from),
+            ]
+        ):
+            if not lv.leave_type_id._fix_is_unpaid():
+                continue
+            total += (min(lv.date_to, date_to) - max(lv.date_from, date_from)).days + 1
+        return float(total)
 
     def _fix_check_maternity(self):
         self.ensure_one()
@@ -385,6 +498,12 @@ class FixLeaveRequestRouted(models.Model):
                 "(BLA s.46(2)): %s has %d recorded." % (emp.name, emp.children)
             )
         half = (self.leave_type_id.entitlement_days or 0) // 2
+        if _labour_act_2026_applied(self.env):
+            # Labour (Amendment) Act 2026 s.46: 120 days = 60 before + 60
+            # after the confinement; the split never allows more than 60 days
+            # on a side even if the owner raises the type above the statutory
+            # 120. With the switch off this is today's entitlement//2 split.
+            half = min(half, MATERNITY_SPLIT_DAYS_2026)
         before = (conf - self.date_from).days
         after = (self.date_to - conf).days + 1
         if before > half or after > half:
@@ -467,7 +586,9 @@ class FixLeaveRequestRouted(models.Model):
             if rec.company_id.fix_leave_coverage_mode == "block" and not statutory:
                 raise UserError(
                     "%s cannot be approved: team coverage would fall below the threshold "
-                    "(BRU-WFM-04): %s." % (rec.display_name, note)
+                    "(BRU-WFM-04): %s. The threshold is the company setting "
+                    "fix_leave_coverage_max_pct (owner/counsel decision)."
+                    % (rec.display_name, note)
                 )
             rec.message_post(body="Team coverage below the threshold (BRU-WFM-04): %s." % note)
 
@@ -515,14 +636,23 @@ class FixLeaveRequestRouted(models.Model):
                             rec.date_from,
                         )
                     )
+            elif ltype._fix_is_unpaid():
+                # M55-F4: unpaid leave has no per-year entitlement figure to
+                # exhaust (none exists in the Act; the approval decision
+                # governs) — its days are tracked for payroll through
+                # _fix_unpaid_days_between.
+                pass
             else:
-                year = rec.date_from.year
-                taken = rec._fix_year_taken(ltype.code, year)
-                if taken + rec.days > ltype.entitlement_days:
-                    raise UserError(
-                        "Entitlement exhausted: %d approved + %d requested > %d days in %d"
-                        % (taken, rec.days, ltype.entitlement_days, year)
-                    )
+                # M55-F15: each calendar year the request spans is checked with
+                # only the days charged to that year.
+                for year in range(rec.date_from.year, rec.date_to.year + 1):
+                    days_in_year = rec._fix_days_in_year(year)
+                    taken = rec._fix_year_taken(ltype.code, year)
+                    if taken + days_in_year > ltype.entitlement_days:
+                        raise UserError(
+                            "Entitlement exhausted: %d approved + %d requested > %d days in %d"
+                            % (taken, days_in_year, ltype.entitlement_days, year)
+                        )
             if ltype._fix_is_certificate_type() and not rec.medical_certificate:
                 raise UserError(
                     "%s needs a registered medical practitioner's certificate attached "
@@ -660,14 +790,67 @@ class HrEmployeeLeaveAccrual(models.Model):
     def _fix_leave_days_worked(self, date_from, date_to):
         """Days of work performed in [date_from, date_to] for the s.117 accrual.
 
-        The 'service' basis is here; cd_attendance adds the 'attendance' basis."""
+        The 'service' basis is here; cd_attendance adds the 'attendance' basis
+        (unchanged). BLA 2006 s.117 (lead-verified): a day of leave — paid or
+        unpaid — and a festival holiday is NOT a day of work performed, so the
+        service basis credits every day of service less one weekly holiday in
+        seven (s.103), less the registered holidays and the approved leave days
+        that the weekly approximation has not already removed (a holiday or
+        leave day falling on the weekly day off is removed once, not twice)."""
         self.ensure_one()
+        date_from = fields.Date.to_date(date_from)
+        date_to = fields.Date.to_date(date_to)
         if date_to < date_from:
             return 0
         if self.sudo().company_id.fix_annual_leave_basis != "service":
             return 0
         days = (date_to - date_from).days + 1
-        return days - days // 7
+        worked = days - days // 7
+        if worked <= 0:
+            return 0
+        # the weekly-off day(s): what the resource calendar does not cover,
+        # else Friday (the s.103 weekly holiday the approximation removes)
+        calendar = self.sudo().resource_calendar_id
+        if calendar and calendar.attendance_ids:
+            weekly_off = {0, 1, 2, 3, 4, 5, 6} - {
+                int(d) for d in calendar.attendance_ids.mapped("dayofweek")
+            }
+        else:
+            weekly_off = {4}
+        excluded = set()
+        if "fix.hr.holiday" in self.env:
+            for hol in (
+                self.env["fix.hr.holiday"]
+                .sudo()
+                .search(
+                    [
+                        ("company_id", "=", self.sudo().company_id.id),
+                        ("tentative", "=", False),
+                        ("date", ">=", date_from),
+                        ("date", "<=", date_to),
+                    ]
+                )
+            ):
+                excluded.add(hol.date)
+        for lv in (
+            self.env["fix.leave.request"]
+            .sudo()
+            .search(
+                [
+                    ("employee_id", "=", self.id),
+                    ("state", "=", "approved"),
+                    ("date_from", "<=", date_to),
+                    ("date_to", ">=", date_from),
+                ]
+            )
+        ):
+            day = max(fields.Date.to_date(lv.date_from), date_from)
+            end = min(fields.Date.to_date(lv.date_to), date_to)
+            while day <= end:
+                excluded.add(day)
+                day += timedelta(days=1)
+        extra = sum(1 for d in excluded if d.weekday() not in weekly_off)
+        return max(worked - extra, 0)
 
     def _fix_annual_leave_years(self, as_of):
         """[(year_start, year_end)] of the service years completed by `as_of`."""

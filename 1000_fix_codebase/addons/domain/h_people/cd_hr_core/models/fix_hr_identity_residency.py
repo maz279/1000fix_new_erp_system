@@ -639,6 +639,25 @@ class FixHrIdentityAccessLog(models.Model):
     company_id = fields.Many2one("res.company", readonly=True, index=True)
     read_at = fields.Datetime(default=fields.Datetime.now, required=True, readonly=True)
 
+    @api.depends("read_at", "purpose")
+    def _compute_display_name(self):
+        """A row has no name field (A09 ERP audit UI-F10): without this every
+        row read "fix.hr.identity.access.log,<id>". The label carries the
+        number, the time and the declared purpose only - never the identifier
+        (the log never holds it) nor the employee it was read for."""
+        for rec in self:
+            when = ""
+            if rec.read_at:
+                local = rec.with_context(tz=rec.env.context.get("tz") or "Asia/Dhaka")
+                when = fields.Datetime.context_timestamp(local, rec.read_at).strftime(
+                    "%Y-%m-%d %H:%M"
+                )
+            rec.display_name = "Identity read #%s · %s · %s" % (
+                rec.id or "",
+                when,
+                (rec.purpose or "read")[:60],
+            )
+
     @api.model_create_multi
     def create(self, vals_list):
         if not self.env.su:

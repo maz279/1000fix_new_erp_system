@@ -23,6 +23,7 @@
 #     the settle step refuses it.
 import base64
 import json
+from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
 from odoo import api, fields, models
@@ -31,6 +32,36 @@ from odoo.exceptions import UserError, ValidationError
 from .fix_hr_controls_common import EXECUTIVE, OFFICER, digest
 
 OPEN_CASE = ("draft", "noticed", "hearing", "decision")
+
+# Bangladesh Labour Rules 2015 r.31 (lead-verified): the service certificate
+# is issued within 15 days of the worker's application — working days, the
+# Friday-Saturday weekend and the calendar's company holidays excluded.
+SERVICE_CERTIFICATE_WORKING_DAYS = 15
+
+
+def _add_bd_working_days(env, start, days, calendar=None):
+    """`start` plus `days` working days on `calendar`: the days the resource
+    calendar covers, else Sunday-Thursday (the estate's weekend is
+    Friday-Saturday), and never a company-wide leave of the calendar. Like
+    fix_hr_controls_common.add_working_days, but the no-calendar default
+    excludes both weekend days."""
+    start = fields.Date.to_date(start)
+    weekdays = (
+        {int(d) for d in calendar.attendance_ids.mapped("dayofweek")} if calendar else set()
+    ) or {0, 1, 2, 3, 6}
+    holidays = set()
+    if calendar:
+        for leave in calendar.global_leave_ids:
+            day = leave.date_from.date()
+            while day <= leave.date_to.date():
+                holidays.add(day)
+                day += timedelta(days=1)
+    day, counted = start, 0
+    while counted < days:
+        day += timedelta(days=1)
+        if day.weekday() in weekdays and day not in holidays:
+            counted += 1
+    return day
 
 
 class FixHrAbandonment(models.Model):
@@ -388,13 +419,47 @@ class FixHrExitLifecycles(models.Model):
     service_certificate_id = fields.Many2one(
         "fix.hr.document", string="Service Certificate (s.31)", readonly=True, copy=False
     )
+    # M21-F25 / BLR 2015 r.31: the certificate is due 15 working days from the
+    # WORKER'S APPLICATION, and a later application re-opens the issue.
+    service_certificate_applied_on = fields.Date(
+        string="Certificate Applied On (s.31)",
+        readonly=True,
+        copy=False,
+        help="The worker's application for the service certificate: the r.31 clock "
+        "(15 working days, Friday-Saturday weekend and company holidays excluded) "
+        "runs from this date.",
+    )
+    service_certificate_due_date = fields.Date(
+        compute="_compute_service_certificate_due",
+        store=True,
+        string="Certificate Due (BLR r.31)",
+        help="15 working days after the application (Bangladesh Labour Rules 2015 r.31).",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
             "abandonment_id",
             "nominee_payout_lines",
             "service_certificate_id",
+            "service_certificate_applied_on",
         }
+
+    @api.depends("service_certificate_applied_on", "company_id")
+    def _compute_service_certificate_due(self):
+        for rec in self:
+            if not rec.service_certificate_applied_on:
+                rec.service_certificate_due_date = False
+                continue
+            calendar = (
+                rec.employee_id.sudo().resource_calendar_id
+                or (rec.company_id or self.env.company).resource_calendar_id
+            )
+            rec.service_certificate_due_date = _add_bd_working_days(
+                rec.env,
+                rec.service_certificate_applied_on,
+                SERVICE_CERTIFICATE_WORKING_DAYS,
+                calendar,
+            )
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -524,8 +589,33 @@ class FixHrExitLifecycles(models.Model):
         return json.loads(self.nominee_payout_lines or "[]")
 
     # ---- s.31: the service certificate ----------------------------------------------
+    def action_record_service_certificate_application(self, applied_on=None):
+        """HR records the worker's APPLICATION for the s.31 certificate (BLR
+        2015 r.31): the 15-working-day clock starts here, and a LATER
+        application re-opens the issue of a certificate already generated."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            if rec.state in ("draft", "cancelled"):
+                raise UserError("The certificate application follows a confirmed exit.")
+            rec._hr_require(OFFICER, "Recording a certificate application")
+            applied = fields.Date.to_date(applied_on) if applied_on else today
+            if applied > today:
+                raise ValidationError("The application date cannot be in the future.")
+            rec._guarded().write({"service_certificate_applied_on": applied})
+            rec.message_post(
+                body="Service certificate applied for on %s: due by %s (BLR r.31: within %d "
+                "working days of the application)."
+                % (applied, rec.service_certificate_due_date, SERVICE_CERTIFICATE_WORKING_DAYS)
+            )
+        return True
+
     def action_issue_service_certificate(self):
-        """Generate the s.31 certificate of service (HR, never the leaver)."""
+        """Generate the s.31 certificate of service (HR, never the leaver).
+
+        M21-F25: issuing on a cleared/settled exit without an application
+        stays as a convenience, but it no longer blocks a later statutory
+        application: a certificate already issued is superseded once the worker
+        applies again AFTER its issue date (BLR r.31)."""
         today = fields.Date.context_today(self)
         docs = self.env["fix.hr.document"]
         for rec in self:
@@ -535,9 +625,22 @@ class FixHrExitLifecycles(models.Model):
             if not self.env.su and self.env.user in rec._hr_subject_users():
                 raise UserError("A service certificate is never self-issued.")
             if rec.service_certificate_id:
-                raise UserError(
-                    "%s already has service certificate %s."
-                    % (rec.name, rec.service_certificate_id.name)
+                last = rec.service_certificate_id
+                # the clock is date-granular: an application on or after the
+                # issue date is a later application
+                later_application = bool(
+                    rec.service_certificate_applied_on
+                    and (not last.issued_on or rec.service_certificate_applied_on >= last.issued_on)
+                )
+                if not later_application:
+                    raise UserError(
+                        "%s already has service certificate %s (issued %s): a later "
+                        "application (Record Application) re-opens the issue (BLR r.31)."
+                        % (rec.name, last.name, last.issued_on or "-")
+                    )
+                rec.message_post(
+                    body="Service certificate %s superseded: the worker applied again on %s "
+                    "(BLR r.31)." % (last.name, rec.service_certificate_applied_on)
                 )
             emp = rec.employee_id.sudo()
             joined = emp.joining_date or emp.joined_date

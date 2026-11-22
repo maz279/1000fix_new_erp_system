@@ -13,9 +13,14 @@
 import logging
 
 from odoo import api, fields, models
-from odoo.exceptions import AccessError
+from odoo.exceptions import AccessError, UserError
 
 logger = logging.getLogger(__name__)
+
+# The master's employee-code sequence (data/employee_code_sequence.xml). Its
+# number continues the codes already on record (A09 ERP audit M58-F1: a hire
+# got no code, so the onboarding gate refused to complete until HR typed one).
+EMPLOYEE_CODE_SEQUENCE = "hr.employee.code"
 
 
 class HrEmployeeExt(models.Model):
@@ -103,31 +108,81 @@ class HrEmployeeExt(models.Model):
     # -------------------------------------------------------------
     # JML event emission (P03-M08-T04, AS-08 via fix_events)
     # -------------------------------------------------------------
+    @api.model
+    def _fix_next_employee_code(self):
+        """The next code of the master's sequence that no employee holds.
+
+        A hand-typed code above the sequence's start is skipped, never
+        duplicated. False when the sequence is not installed (the employee is
+        then created without a code, as before, and announces no joiner)."""
+        Employee = self.sudo().with_context(active_test=False)
+        for _attempt in range(100):
+            code = self.env["ir.sequence"].sudo().next_by_code(EMPLOYEE_CODE_SEQUENCE)
+            if not code:
+                return False
+            if not Employee.search_count([("employee_code", "=", code)]):
+                return code
+        raise UserError(
+            "The employee code sequence gives only codes that are already in use: "
+            "check it in Settings > Technical > Sequences."
+        )
+
     @api.model_create_multi
     def create(self, vals_list):
-        # A10 P1-3: an employee born holding a conflicting role pair is a
+        # A09 P1-3: an employee born holding a conflicting role pair is a
         # conflict, not a fresh start.
         for vals in vals_list:
             if vals.get("primary_role_id") or vals.get("additional_role_ids"):
                 self.env["fix.sod.control"].gate_role_set(self._sod_final_role_set(vals))
+        # A09 ERP audit M58-F1: a code is minted only when none is supplied (the
+        # workspace form posts its blank input). A typed code is honoured as
+        # typed; a code already on record is never changed (it is permanent).
+        for vals in vals_list:
+            if not str(vals.get("employee_code") or "").strip():
+                code = self._fix_next_employee_code()
+                if code:
+                    vals["employee_code"] = code
         records = super().create(vals_list)
         for rec in records:
-            if rec.employment_status in ("active", "joining"):
-                rec._emit_jml(
-                    "employee.joined",
-                    {
-                        "employee_id": rec.id,
-                        "employee_code": rec.employee_code,
-                        "branch_id": rec.branch_id.id if rec.branch_id else None,
-                        "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
-                        "joined_date": str(rec.joined_date) if rec.joined_date else None,
-                        # M29 FR-SEC-027 creates the identity from this event: the
-                        # account's display name and (password-setup) mail address
-                        "name": rec.name,
-                        "work_email": rec.work_email or None,
-                    },
-                )
+            if rec.employee_code and rec.employment_status in ("active", "joining"):
+                rec._emit_joiner()
         return records
+
+    def _fix_joined_payload(self):
+        """What M29 provisions a joiner from (FR-SEC-027)."""
+        self.ensure_one()
+        return {
+            "employee_id": self.id,
+            "employee_code": self.employee_code,
+            "branch_id": self.branch_id.id if self.branch_id else None,
+            "primary_role": self.primary_role_id.code if self.primary_role_id else None,
+            "joined_date": str(self.joined_date) if self.joined_date else None,
+            # the account's display name and (password-setup) mail address
+            "name": self.name,
+            "work_email": self.work_email or None,
+        }
+
+    def _emit_joiner(self):
+        """employee.joined, only for an employee M29 can key an identity on.
+
+        A09 ERP audit X-F14: the master screen published it for an employee
+        with no employee code, which the identity service can only fail. Such
+        an employee announces itself when its code is first set (see write)."""
+        self.ensure_one()
+        if self.sudo().employee_code and self.employment_status in ("active", "joining"):
+            self._emit_jml("employee.joined", self._fix_joined_payload())
+
+    def _fix_joiner_announced(self):
+        """The employees of this set whose joiner event is already on the bus."""
+        Outbox = self.env["fix.event.outbox"].sudo()
+        announced = Outbox.search(
+            [
+                ("event_type", "=", "employee.joined"),
+                ("aggregate", "=", "hr.employee"),
+                ("aggregate_id", "in", [i for i in self.ids if isinstance(i, int)]),
+            ]
+        ).mapped("aggregate_id")
+        return self.filtered(lambda rec: rec.id in announced)
 
     def write(self, vals):
         # The leaver set is decided on the status BEFORE the archive: after
@@ -135,6 +190,13 @@ class HrEmployeeExt(models.Model):
         leavers = self.browse()
         if "active" in vals and not vals["active"]:
             leavers = self.filtered(lambda rec: rec.employment_status == "active")
+        # A09 ERP audit X-F14: an employee created without a code published no
+        # joiner; it announces itself when a code is first set on it.
+        uncoded = (
+            self.filtered(lambda rec: not rec.sudo().employee_code)
+            if str(vals.get("employee_code") or "").strip()
+            else self.browse()
+        )
         # A10 P1-3: the employee master is the real grant path for business
         # roles — a direct write must clear the same SoD gate assign_role
         # does, against the employee's FULL final set.
@@ -156,6 +218,11 @@ class HrEmployeeExt(models.Model):
                         "primary_role": rec.primary_role_id.code if rec.primary_role_id else None,
                     },
                 )
+        late_joiners = uncoded.filtered(
+            lambda rec: rec.sudo().employee_code and rec.employment_status in ("active", "joining")
+        )
+        for rec in late_joiners - late_joiners._fix_joiner_announced():
+            rec._emit_joiner()
         return result
 
     def action_mark_left(self):

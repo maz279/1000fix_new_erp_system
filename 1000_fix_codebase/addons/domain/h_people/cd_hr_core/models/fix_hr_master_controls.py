@@ -97,6 +97,40 @@ class HrEmployeeMasterControls(models.Model):
         copy=False,
         help="When the employee.left consumer archived the leaver's Odoo login",
     )
+    # M21-F13 / FR-HCM-008 (spec 8.1): "suspended" is derived on the master,
+    # like notice_period, while an open disciplinary case holds a running
+    # s.24 suspension, so the attendance and dispatch consumers can see it on
+    # the employee. cd_employee_core (the employment_status owner) is not
+    # touched: the value is added here.
+    employment_status = fields.Selection(
+        selection_add=[("suspended", "Suspended (disciplinary, BLA s.24)")],
+        ondelete={"suspended": "set default"},
+    )
+    fix_disciplinary_case_ids = fields.One2many(
+        "fix.hr.disciplinary.case", "employee_id", string="Disciplinary Cases"
+    )
+    fix_suspension_active = fields.Boolean(
+        string="Suspended (BLA s.24)",
+        compute="_compute_fix_suspension",
+        store=True,
+        index=True,
+        help="A disciplinary case of this employee holds a running suspension "
+        "pending enquiry (BLA s.24). Derived; searchable, so attendance and "
+        "dispatch can exclude the worker while it runs.",
+    )
+    fix_suspension_case_id = fields.Many2one(
+        "fix.hr.disciplinary.case",
+        compute="_compute_fix_suspension",
+        store=True,
+        string="Suspension Case",
+    )
+
+    @api.depends("fix_disciplinary_case_ids.suspended", "fix_disciplinary_case_ids.state")
+    def _compute_fix_suspension(self):
+        for rec in self:
+            running = rec.sudo().fix_disciplinary_case_ids.filtered("suspended")[:1]
+            rec.fix_suspension_active = bool(running)
+            rec.fix_suspension_case_id = running
 
     # ---- computed evidence flags (M21-10) ------------------------------------
     @api.depends("document_ids.doc_type", "document_ids.verified", "document_ids.acknowledged")
@@ -136,14 +170,70 @@ class HrEmployeeMasterControls(models.Model):
         ids = [i for i in self.ids if isinstance(i, int)]
         if not ids:
             return
+        # A09 M21: the master form captures the Date of Joining in
+        # `joining_date` (cd_hr_core) while the platform's derivation reads
+        # the legacy `joined_date`, which nothing on the M21 path writes — a
+        # worker who joined years ago read "joining" on every master, KPI and
+        # dispatch list. The base status uses, in order, the master's Date of
+        # Joining and the ACTIVE employment contract's joining date (the
+        # contract take-on of D1 loads contracts, not master dates), BEFORE
+        # the suspension/notice overlays below (a suspended worker whose base
+        # read "joining" was never marked suspended). The legacy field still
+        # works through the super() derivation.
+        today = fields.Date.today()
+        joining = self.browse()
+        for rec in self:
+            if (
+                rec.active
+                and not rec.left_date
+                and rec.employment_status == "joining"
+                and rec.joining_date
+                and rec.joining_date <= today
+            ):
+                rec.employment_status = "active"
+            elif (
+                rec.active
+                and not rec.left_date
+                and rec.employment_status == "joining"
+                and not rec.joining_date
+            ):
+                joining |= rec
+        if joining:
+            # one batch read, not one search per employee (list views)
+            contracts = (
+                self.env["fix.employment.contract"]
+                .sudo()
+                .search(
+                    [("employee_id", "in", joining.ids), ("state", "=", "active")],
+                    order="joining_date desc",
+                )
+            )
+            started = {}
+            for contract in contracts:
+                started.setdefault(contract.employee_id.id, contract.joining_date)
+            for rec in joining:
+                day = started.get(rec.id)
+                if day and day <= today:
+                    rec.employment_status = "active"
         serving = (
             self.env["fix.hr.exit"]
             .sudo()
             .search([("employee_id", "in", ids), ("state", "in", ("notice", "cleared"))])
             .mapped("employee_id")
         )
+        # M21-F13: a running s.24 suspension of an open disciplinary case is
+        # visible on the master (a decided or withdrawn case ends its
+        # suspension, so `suspended` alone identifies a running one).
+        suspended = (
+            self.env["fix.hr.disciplinary.case"]
+            .sudo()
+            .search([("employee_id", "in", ids), ("suspended", "=", True)])
+            .mapped("employee_id")
+        )
         for rec in self:
-            if rec in serving and rec.employment_status == "active":
+            if rec in suspended and rec.employment_status in ("active", "notice_period"):
+                rec.employment_status = "suspended"
+            elif rec in serving and rec.employment_status == "active":
                 rec.employment_status = "notice_period"
 
     @api.model

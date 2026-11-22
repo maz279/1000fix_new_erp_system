@@ -414,9 +414,15 @@ class FixHrDisciplinaryCase(models.Model):
                 raise UserError("A suspension lasts at most %d days (s.24)." % SUSPENSION_MAX_DAYS)
             pct = (rec.company_id or self.env.company).fix_hr_suspension_subsistence_pct
             if not pct:
+                # M21-F20 readiness note: the rate is the owner's (labour
+                # counsel to rule, BLA s.24). The setting sits at 0 = not
+                # ruled, so NO suspension can start until it is set.
                 raise UserError(
-                    "The subsistence allowance rate for a suspended worker is not ruled "
-                    "(company setting, labour counsel decision): a suspension cannot start."
+                    "The subsistence allowance rate for a suspended worker is not ruled: "
+                    "the company setting fix_hr_suspension_subsistence_pct "
+                    "(Settings, Companies, Suspense & Separation figures) is 0, so no "
+                    "suspension can start until labour counsel rules the rate (OWNER "
+                    "decision, BLA s.24)."
                 )
             until = today + relativedelta(days=days - 1)
             rec._guarded().write(
