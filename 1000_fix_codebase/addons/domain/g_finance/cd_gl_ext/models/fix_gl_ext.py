@@ -59,6 +59,33 @@ def m19_source(env):
     return env.context.get(M19_SOURCE_KEY) if has_m19_token(env) else None
 
 
+# A08 M19-F2 (T-03/T-07): the period-lock escape hatch of the posting funnel.
+# The funnel refuses any posting dated inside the company lock dates, on every
+# source, whoever runs the code — Odoo's own lock enforcement stops at the
+# superuser (and merely re-dates instead of refusing) while every engine and
+# cron runs as the superuser, so a hard-closed period silently took their
+# back-dated postings. The ONLY door back into a closed period is an
+# approved, time-boxed fix.period.reopen: the environment its
+# with_reopen_posting() issues carries this token. An object, like the M19
+# posting token above: a JSON-RPC caller can put any key in the context, but
+# not this one.
+REOPEN_POST_KEY = "fix_m19_reopen_posting"  # a context key, not a secret
+_REOPEN_POST_TOKEN = object()
+
+
+def has_reopen_post_token(env) -> bool:
+    """True only inside an environment an approved fix.period.reopen issued.
+    Tolerates the plain-dict envs of the pure-unit suites: no context, no
+    token."""
+    context = getattr(env, "context", None)
+    return bool(context) and context.get(REOPEN_POST_KEY) is _REOPEN_POST_TOKEN
+
+
+def reopen_posting_context():
+    """The context only fix.period.reopen.with_reopen_posting() hands out."""
+    return {REOPEN_POST_KEY: _REOPEN_POST_TOKEN}
+
+
 def holds(user, xmlid) -> bool:
     """The user holds the role. The Accounting Administrator does every
     Accountant duty: Odoo 19's manager group does not imply group_account_user,
@@ -617,6 +644,23 @@ class FixPeriodClose(models.Model):
                 "close and reconcile the suspense." % (self.period_end, count, value)
             )
         unposted = self._fix_suspense_unposted()
+        # BRU-APE-22 H (FR-APE-031): a confirmed GRNI accrual whose entry or
+        # next-period reversal is not both posted must not ride through the
+        # close — the period's received-not-invoiced liability would be absent.
+        try:
+            blockers = (
+                self.env["fix.ap.grni.accrual"]
+                .sudo()
+                ._fix_close_blockers(self.company_id, self.period_end)
+            )
+        except KeyError:
+            blockers = self.env["fix.ap.grni.accrual"]
+        if blockers:
+            raise UserError(
+                "Period %s cannot close: %d confirmed GRNI accrual(s) (%s) have no posted "
+                "GL entry yet (BRU-APE-22 H / FR-APE-031)."
+                % (self.period_end, len(blockers), ", ".join(blockers.mapped("display_name")[:3]))
+            )
         if unposted:
             raise UserError(
                 "Period %s cannot close: %d stock valuation entries of the period (%s) have no "
@@ -898,6 +942,74 @@ class FixPeriodClose(models.Model):
                 )
             )
 
+    def _fix_check_no_pending_entries(self):
+        """A08 M19-F1 (BRU-FIN-05 H, FR-FIN-020, AUT-FIN-07): a period is
+        ready — and stays ready until it closes — only when nothing in it is
+        still unposted. The ready check used to look at the checklist, the
+        inventory suspense, the VAT 9.1 and the bank lines only, so a draft
+        journal entry (or a manual draft awaiting its review) dated inside
+        the period passed `ready`, the month CLOSED and the company lock
+        closed around the unposted work. Both lanes now block and are named
+        in the refusal: unposted draft journal entries (account.move in
+        draft dated in the period) and pending manual drafts (the fix.gl
+        review lane: fix.journal.posting.log rows still 'requested')."""
+        for close in self:
+            start = close.period_end.replace(day=1)
+            end = close.period_end
+            drafts = (
+                close.env["account.move"]
+                .sudo()
+                .search(
+                    [
+                        ("company_id", "=", close.company_id.id),
+                        ("state", "=", "draft"),
+                        ("date", ">=", start),
+                        ("date", "<=", end),
+                    ],
+                )
+            )
+            pending = (
+                close.env["fix.journal.posting.log"]
+                .sudo()
+                .search(
+                    [
+                        ("company_id", "=", close.company_id.id),
+                        ("state", "=", "requested"),
+                        ("move_id.date", ">=", start),
+                        ("move_id.date", "<=", end),
+                    ],
+                )
+            )
+            bits = []
+            if drafts:
+                bits.append(
+                    "%d draft journal %s dated %s..%s (%s)"
+                    % (
+                        len(drafts),
+                        "entry" if len(drafts) == 1 else "entries",
+                        start,
+                        end,
+                        ", ".join(drafts.mapped("display_name")),
+                    )
+                )
+            if pending:
+                bits.append(
+                    "%d manual draft%s awaiting review (%s)"
+                    % (
+                        len(pending),
+                        "" if len(pending) == 1 else "s",
+                        ", ".join(
+                            "%s dated %s" % (p.move_id.sudo().display_name, p.move_id.sudo().date)
+                            for p in pending
+                        ),
+                    )
+                )
+            if bits:
+                raise UserError(
+                    "Period %s is not ready to close: %s. Post or discard what belongs to the "
+                    "period first (BRU-FIN-05, AUT-FIN-07)." % (close.period_end, "; ".join(bits))
+                )
+
     def action_ready(self):
         require_role(self.env, ACCOUNT_USER, "The close ready check")
         for close in self:
@@ -912,6 +1024,7 @@ class FixPeriodClose(models.Model):
                 raise UserError("Close steps still open: %s" % ", ".join(blocking.mapped("name")))
             close._fix_check_suspense_clear()
             close._fix_check_vat_return_reconciled()
+            close._fix_check_no_pending_entries()
             if close.suspense_closing:
                 raise UserError(
                     "Suspense account must be zero at close (AR-006 §5.4) — "
@@ -972,6 +1085,9 @@ class FixPeriodClose(models.Model):
                 )
             close._fix_check_bank_reconciled()
             close._fix_check_vat_return_reconciled()
+            # AUT-FIN-07: nothing may land between the ready check and the
+            # close itself — a draft raised after ready still blocks (M19-F1).
+            close._fix_check_no_pending_entries()
             lock = close._fix_set_company_lock()
             close._guarded().write(
                 {
@@ -1534,8 +1650,17 @@ PERSON_STATES_DIMENSIONS = ("manual", "template", "api")
 
 def _m19_post(env, moves, source):
     """Post `moves` through the guarded account.move._post with the M19
-    token. Manual-style sources are refused on a closed period (no silent
-    re-date); sub-ledger sources follow Odoo's lock behaviour."""
+    token. A08 M19-F2 (T-03/T-07): the funnel enforces the period lock
+    itself, before anything posts — Odoo's own lock check stops at the
+    superuser (where it silently re-dates instead of refusing), and every
+    engine and cron runs as the superuser, so a hard-closed period silently
+    took their back-dated postings. A locked period is a fiscal-calendar
+    invariant, not a convenience check: it binds whoever calls the funnel,
+    on every source. The one door back in is the env an approved
+    fix.period.reopen issues (with_reopen_posting); a user the reopen names
+    also posts through their own Odoo lock exception."""
+    if not has_reopen_post_token(env):
+        moves.with_env(env)._fix_check_not_in_closed_period()
     moves.with_env(env).with_context(**m19_context(source))._post(soft=False)
 
 

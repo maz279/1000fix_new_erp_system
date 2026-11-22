@@ -235,16 +235,20 @@ def p03(c):
 def test_m19_P01_close_sets_lock_and_posting_stays_out(c):
     """Proper path: steps by their owners on real evidence -> ready -> manager closes;
     the company lock date is the period end; a sub-ledger posting dated in the period
-    lands after it, a manual one is refused."""
+    is refused — never silently re-dated onto the next period (A08 M19-F2, T-03) —
+    and a manual one too."""
     from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
 
     close = proper_close(c)
     assert close.state == "closed" and close.closed_by_id == c.mgr
     assert c.co.fiscalyear_lock_date == PE and close.is_locked
-    move, _d = post_with_dimensions(
-        c.env(user=c.acct.id), _vals(c, IN_PERIOD, 500.0), _line_dims(c), source="api"
-    )
-    assert move.state == "posted" and move.date > PE
+    with (
+        pytest.raises(UserError, match=r"Period closed.*T-03"),
+        c.env.cr.savepoint(),
+    ):
+        post_with_dimensions(
+            c.env(user=c.acct.id), _vals(c, IN_PERIOD, 500.0), _line_dims(c), source="api"
+        )
     with pytest.raises(UserError, match="Period closed"):
         draft_je(c, c.acct, 700.0, d=IN_PERIOD)
 
@@ -380,6 +384,116 @@ def test_m19_P09_forged_future_close_impossible(c):
     with pytest.raises(UserError, match="locked after it ends"):
         c.co.with_user(c.mgr).write({"fiscalyear_lock_date": date(2099, 12, 31)})
     assert c.co.fiscalyear_lock_date != date(2099, 12, 31)
+
+
+def test_m19_P13_unposted_work_of_the_period_blocks_ready_and_close(c):
+    """A08 M19-F1 (BRU-FIN-05, FR-FIN-020, AUT-FIN-07): the ready check used to pass
+    with a draft journal entry (and a manual draft awaiting its review) dated inside
+    the period, and the month CLOSED and locked around the unposted work. Both lanes
+    now refuse the ready check and the close itself; with the period cleared of them
+    the close passes."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import discard_journal_entry
+
+    evidence = "account.move,%d" % sys_post(c, date(2026, 9, 1), 10.0).id
+    reconciled_vat_return(c.env, c.co, PE)  # C10: the VAT step needs a reconciled 9.1
+    close = c.env["fix.period.close"].with_user(c.acct).create({"period_end": PE})
+    close.with_user(c.acct).action_generate_standard_steps()
+    for ln in close.line_ids:
+        owner = c.mgr if ln.sequence == 100 else (c.stk if ln.sequence == 10 else c.acct)
+        ln.with_user(owner).action_mark_done(evidence)
+    # an unposted draft entry dated inside the period blocks the ready check
+    draft = c.env["account.move"].create(_vals(c, IN_PERIOD, 80.0))
+    with pytest.raises(UserError, match="BRU-FIN-05"):
+        close.with_user(c.acct).action_ready()
+    assert close.state == "in_progress"
+    draft.button_cancel()
+    # a manual draft awaiting its review (the fix.gl 'requested' lane) blocks too
+    move, _log = draft_je(c, c.acct, 90.0, d=IN_PERIOD)
+    with (
+        pytest.raises(UserError, match=r"awaiting review.*AUT-FIN-07"),
+        c.env.cr.savepoint(),
+    ):
+        close.with_user(c.acct).action_ready()
+    discard_journal_entry(c.env(user=c.acct.id), move, reason="belongs to October after all")
+    close.with_user(c.acct).action_ready()
+    assert close.state == "ready_to_close"
+    # nothing may land between the ready check and the close itself either
+    late = c.env["account.move"].create(_vals(c, date(2026, 9, 20), 40.0))
+    with pytest.raises(UserError, match="BRU-FIN-05"), c.env.cr.savepoint():
+        close.with_user(c.mgr).action_close()
+    assert close.state == "ready_to_close"
+    late.button_cancel()
+    close.with_user(c.mgr).action_close()
+    assert close.state == "closed" and c.co.fiscalyear_lock_date == PE
+
+
+def test_m19_P14_hard_closed_period_refuses_subledger_postings_as_superuser(c):
+    """A08 M19-F2 (T-03/T-07): with the company locked at the period end, code running
+    as the superuser used to post a sub-ledger entry dated inside the closed period
+    (Odoo's own lock check stops at the superuser, and silently re-dates). The M19
+    funnel now refuses it — on the create-and-post path and on the post-existing-draft
+    path alike."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+
+    proper_close(c)
+    assert c.co.fiscalyear_lock_date == PE
+    with (
+        pytest.raises(UserError, match=r"Period closed.*T-03"),
+        c.env.cr.savepoint(),
+    ):
+        post_with_dimensions(c.env, _vals(c, IN_PERIOD, 500.0), _line_dims(c), source="api")
+    draft = c.env["account.move"].create(_vals(c, IN_PERIOD, 300.0))
+    with pytest.raises(UserError, match="Period closed"), c.env.cr.savepoint():
+        draft._fix_m19_post("asset")
+    assert draft.state == "draft"
+
+
+def test_m19_P15_posting_after_an_approved_reopen(c):
+    """A08 M19-F2 (T-03/T-07, BRU-FIN-06): the one door back into a hard-closed
+    period is an approved, time-boxed period reopen. The beneficiary posts through
+    their own Odoo lock exception; elevated code posts only in the environment the
+    reopen issues; a plain superuser env is still refused, so is a human who is not
+    the beneficiary; and a revoked reopen issues nothing."""
+    from odoo.addons.cd_gl_ext.models.fix_gl_ext import post_with_dimensions
+
+    close = proper_close(c)
+    end = fields.Datetime.now() + timedelta(days=1)
+    reopen = close.with_user(c.acct).action_request_reopen(
+        user_id=c.acct.id, reason="late accrual", end_datetime=end
+    )
+    approve_as(c, reopen, c.mgr2)
+    assert reopen.state == "approved" and reopen.lock_exception_id.state == "active"
+    # the beneficiary posts through their own lock exception
+    move, _d = post_with_dimensions(
+        c.env(user=c.acct.id), _vals(c, IN_PERIOD, 250.0), _line_dims(c), source="api"
+    )
+    assert move.state == "posted" and move.date == IN_PERIOD
+    # a plain superuser env is still refused: the exception names one user
+    with (
+        pytest.raises(UserError, match=r"Period closed.*T-03"),
+        c.env.cr.savepoint(),
+    ):
+        post_with_dimensions(c.env, _vals(c, IN_PERIOD, 260.0), _line_dims(c), source="api")
+    # elevated code posts in the environment the approved reopen issues
+    issued = reopen.with_reopen_posting()
+    move2, _d2 = post_with_dimensions(
+        issued, _vals(c, IN_PERIOD, 270.0), _line_dims(c), source="api"
+    )
+    assert move2.state == "posted" and move2.date == IN_PERIOD
+    # a human who is not the beneficiary is not issued that environment
+    with pytest.raises(UserError, match="admits"), c.env.cr.savepoint():
+        reopen.with_user(c.acct2).with_reopen_posting()
+    # once revoked, the reopen issues nothing and the beneficiary is out again
+    reopen.with_user(c.mgr2).action_revoke()
+    with pytest.raises(UserError, match="approved, still-active"), c.env.cr.savepoint():
+        reopen.with_reopen_posting()
+    with (
+        pytest.raises(UserError, match="Period closed"),
+        c.env.cr.savepoint(),
+    ):
+        post_with_dimensions(
+            c.env(user=c.acct.id), _vals(c, IN_PERIOD, 280.0), _line_dims(c), source="api"
+        )
 
 
 def test_m19_P10_plain_user_cannot_lock_via_p03(c, p03):

@@ -12,7 +12,11 @@
 #                          the M19 token, i.e. through the API; control
 #                          accounts refuse manual-style lines (COA-02,
 #                          BRU-FIN-13); a manual entry dated in a closed
-#                          period is refused, never silently re-dated.
+#                          period is refused, never silently re-dated — and
+#                          the M19 posting funnel (post_with_dimensions /
+#                          post_existing_moves in fix_gl_ext) refuses EVERY
+#                          entry dated in a locked period, superuser code
+#                          included (A08 M19-F2, T-03/T-07).
 #   account.move.button_draft
 #                          a posted manual entry is never reset (BRU-FIN-12:
 #                          reverse it); a superuser reset voids its approval.
@@ -45,8 +49,10 @@ from .fix_gl_ext import (
     _publish_posted,
     has_fiscal_lock_token,
     has_m19_token,
+    has_reopen_post_token,
     m19_context,
     m19_source,
+    reopen_posting_context,
     require_role,
 )
 
@@ -172,8 +178,15 @@ class AccountMove(models.Model):
                     )
 
     def _fix_check_not_in_closed_period(self):
-        """A manual entry is refused in a locked period (no silent re-date);
-        a user holding an approved reopen exception may post there."""
+        """A locked period takes no posting, on any source, whoever runs the
+        code (BRU-FIN-06, T-03/T-07): the lock is a fiscal-calendar
+        invariant, and Odoo's own enforcement stops at the superuser — where
+        it silently re-dates instead of refusing. A user an approved reopen
+        names still posts through their Odoo lock exception (their user lock
+        dates lift); code posting on the beneficiary's behalf runs in the
+        environment fix.period.reopen.with_reopen_posting() issued."""
+        if has_reopen_post_token(self.env):
+            return
         for move in self:
             if not move.date:
                 continue
@@ -182,7 +195,7 @@ class AccountMove(models.Model):
                 lock = max(d for d, _f in violated)
                 raise UserError(
                     "Period closed: %s is dated %s, on or before the lock date %s. A closed "
-                    "period takes no manual posting without an approved reopen (BRU-FIN-06)."
+                    "period takes no posting without an approved reopen (BRU-FIN-06, T-03)."
                     % (move.display_name, move.date, lock)
                 )
 
@@ -228,7 +241,13 @@ class AccountMove(models.Model):
             # the field guards trust it; the API itself still applies COA-02
             # to manual-style sources whoever calls it.
             manual_style._fix_check_control_accounts()
-            manual_style._fix_check_not_in_closed_period()
+        # A08 M19-F2 (T-03/T-07): unlike the convenience checks above, the
+        # period lock is a fiscal-calendar invariant — it binds superuser
+        # code too. A manual entry never slips into a closed period because
+        # its posting happened to run elevated; only an approved reopen
+        # (the lock exception, or the env with_reopen_posting() issues)
+        # admits it.
+        manual_style._fix_check_not_in_closed_period()
         if token:
             # An approval covers what it was given for: the entry posted is the
             # entry that was approved.
@@ -792,6 +811,50 @@ class FixPeriodReopen(models.Model):
                 rec.lock_exception_id.sudo().action_revoke()
             rec._guarded().write({"state": "revoked"})
         return True
+
+    def with_reopen_posting(self):
+        """The environment postings into this reopened period run in (T-03/
+        T-07, BRU-FIN-06) — the one door the M19 funnel's period lock leaves
+        open for elevated code. It is issued only while the reopen is
+        approved and its lock exception is still active, and only for the
+        user the reopen names: the environment posts AS that beneficiary, so
+        their Odoo lock exception applies (Odoo itself never re-dates the
+        entry) and the posting log says who posted. A human caller must BE
+        that user. The token the environment carries is an object: like the
+        guarded mixin's transition token, no RPC caller can put it in a
+        context; only this method hands it out."""
+        if not self:
+            raise UserError("Name the period reopen the postings run under (BRU-FIN-06, T-03).")
+        users = self.sudo().mapped("user_id")
+        if len(users) > 1:
+            raise UserError("Post under one reopen at a time: they name different users.")
+        for rec in self.sudo():
+            exc = rec.lock_exception_id
+            if rec.state != "approved" or not exc or exc.state != "active":
+                raise UserError(
+                    "Postings into %s are admitted only by an approved, still-active period "
+                    "reopen (fix.period.reopen): approve one for the beneficiary first "
+                    "(BRU-FIN-06, T-03)."
+                    % (rec.close_id.sudo().display_name if rec.close_id else "the closed period")
+                )
+            if not self.env.su and self.env.uid != rec.user_id.id:
+                raise UserError(
+                    "The reopen of %s admits %s only; post as that user or run in the "
+                    "environment this reopen issues for them (BRU-FIN-06)."
+                    % (
+                        rec.close_id.sudo().display_name if rec.close_id else "the period",
+                        rec.user_id.sudo().name,
+                    )
+                )
+        # Elevated, but as the beneficiary: the exception Odoo granted them is
+        # what lifts the lock, so the entry keeps its date and the audit trail
+        # names the user the reopen admitted.
+        beneficiary = users[:1].ids or [self.env.uid]
+        return self.env(
+            user=beneficiary[0],
+            su=True,
+            context=dict(self.env.context, **reopen_posting_context()),
+        )
 
 
 # ===================================================== control-flag change
