@@ -1016,8 +1016,9 @@ def test_a_mover_opens_one_access_review_and_changes_no_access(w):
     mover_user = _user(w.env)
     emp = _emp(w.env, mover_user)
     groups_before = mover_user.group_ids
-    dept = w.env["hr.department"].create({"name": "A09 Mover Destination"})
-    emp.write({"department_id": dept.id})  # announced as employee.moved
+    # X-F15: a department alone is not a move; a job change is
+    job = w.env["hr.job"].create({"name": "A09 Mover Destination"})
+    emp.write({"job_id": job.id})  # announced as employee.moved
     assert _events(w.env, "employee.moved", emp.id)
     with pytest.raises(AccessError):
         w.env(user=w.plain.id)["hr.employee"].consume_employee_moved(

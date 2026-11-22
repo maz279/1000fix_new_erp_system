@@ -117,11 +117,9 @@ def test_late_confirmation_breaches_the_one_hour_target(odoo_env, hr_manager):
     with mock.patch.object(fields.Datetime, "now", return_value=left + timedelta(hours=3)):
         late.with_user(hr_manager).action_confirm_keycloak_deprovisioned()
     payload = _events(odoo_env, "employee.keycloak.deprovisioned", late.id)[0]
-    assert (payload["hours"], payload["within_sla"], payload["employee_code"]) == (
-        3.0,
-        False,
-        "",
-    )
+    assert (payload["hours"], payload["within_sla"]) == (3.0, False)
+    # a create mints the employee code (M58-F1): the event carries it
+    assert late.employee_code and payload["employee_code"] == late.employee_code
 
 
 def test_confirmation_is_an_hr_manager_control(odoo_env, emp):
@@ -168,24 +166,26 @@ def test_kpi_090_counts_unconfirmed_leavers_24h_after_the_leaver_event(odoo_env)
 
 def test_mover_events(odoo_env, emp):
     dept = odoo_env["hr.department"].create({"name": "Field Service"})
+    # A09 ERP audit X-F15: a department on its own is context, not an access
+    # move — it announces nothing
     emp.write({"department_id": dept.id})
-    assert _events(odoo_env, "employee.moved", emp.id) == [
-        {"employee_code": "E-0042", "department": "Field Service"}
-    ]
+    assert _events(odoo_env, "employee.moved", emp.id) == []
     location = odoo_env["hr.work.location"].create(
         {"name": "Uttara Hub", "address_id": odoo_env.company.partner_id.id}
     )
     emp.write({"work_location_id": location.id})  # regression: was `work_location`
     job = odoo_env["hr.job"].create({"name": "Senior Technician"})
     emp.write({"job_id": job.id})
-    assert len(_events(odoo_env, "employee.moved", emp.id)) == 3
+    moves = _events(odoo_env, "employee.moved", emp.id)
+    assert [m["employee_code"] for m in moves] == ["E-0042", "E-0042"]
     emp.write({"private_email": "farhana@example.com"})  # not a move
-    assert len(_events(odoo_env, "employee.moved", emp.id)) == 3
+    assert len(_events(odoo_env, "employee.moved", emp.id)) == 2
     blank = odoo_env["hr.employee"].create({"name": "No Dept"})
     blank.write({"job_id": job.id})
-    assert _events(odoo_env, "employee.moved", blank.id) == [
-        {"employee_code": "", "department": ""}
-    ]
+    moved = _events(odoo_env, "employee.moved", blank.id)
+    # a create mints the employee code (M58-F1): the event names it
+    assert blank.employee_code
+    assert len(moved) == 1 and moved[0]["employee_code"] == blank.employee_code
 
 
 # --- organisation structure --------------------------------------------------------
@@ -209,9 +209,12 @@ def test_reporting_line_loop_is_refused(odoo_env):
 
 def test_contract_reference(odoo_env, emp):
     assert _contract(odoo_env, emp).name == "CNT/E-0042/PERMANENT/2024"
-    no_code = odoo_env["hr.employee"].create({"name": "Rubel"})
-    assert _contract(odoo_env, no_code, contract_type="probation").name == (
-        "CNT/Rubel/PROBATION/2024"
+    # a create in the estate mints the employee code (M58-F1); the reference
+    # names the CODE, never a changeable name
+    minted = odoo_env["hr.employee"].create({"name": "Rubel"})
+    assert minted.employee_code
+    assert _contract(odoo_env, minted, contract_type="probation").name == (
+        "CNT/%s/PROBATION/2024" % minted.employee_code
     )
     draft = odoo_env["fix.employment.contract"].new({"contract_type": "part_time"})
     assert draft.name == "CNT/EMP/PART_TIME/%d" % fields.Date.today().year
@@ -292,7 +295,6 @@ def test_contract_document_generation(odoo_env, emp):
         {
             "contract": "CNT/E-0042/PERMANENT/2024",
             "document_id": doc.id,
-            "statutory_density": 52.0,
         }
     ]
 
@@ -307,7 +309,8 @@ def test_contract_documents_for_every_contract_of_a_batch(odoo_env, emp):
     # no template chosen: the Form 6 contract template is picked
     assert set(docs.mapped("template_id.document_type")) == {"contract"}
     no_code = base64.b64decode(pair[1].document_id.attachment_id.datas).decode()
-    assert "Employee: Rubel (Code: N/A)\n" in no_code
+    # a create mints the code (M58-F1), so the letter prints it
+    assert "Employee: Rubel (Code: %s)\n" % other.employee_code in no_code
 
 
 def test_document_generation_refuses_invalid_contract(odoo_env, emp):
