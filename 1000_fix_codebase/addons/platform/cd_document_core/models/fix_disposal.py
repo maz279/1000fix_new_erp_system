@@ -35,6 +35,18 @@ class FixDisposalRecord(models.Model):
     certificate_doc_id = fields.Many2one(
         "fix.document", string="Destruction Certificate", readonly=True, ondelete="restrict"
     )
+    # A10 deep audit (2026-11-22, A2-F04): the fingerprint of WHAT was wiped,
+    # sealed on the register before the bytes go — the surviving document row
+    # recomputes its checksum to False after the wipe, so without this the
+    # system could not prove which payload a disposal destroyed.
+    payload_sha256 = fields.Char(
+        readonly=True,
+        help="The sha256 of the destroyed bytes, sealed at disposal time.",
+    )
+    payload_size = fields.Integer(
+        readonly=True,
+        help="The byte count of the destroyed payload, sealed at disposal time.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -43,6 +55,8 @@ class FixDisposalRecord(models.Model):
             "disposed_on",
             "performed_by_id",
             "certificate_doc_id",
+            "payload_sha256",
+            "payload_size",
         }
 
     def unlink(self):

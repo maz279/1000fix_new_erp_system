@@ -614,12 +614,22 @@ class FixDocument(models.Model):
         Disposal = self.env["fix.disposal.record"].sudo()
         for rec in self:
             rec.action_assert_can_destroy()
+            # A10 deep audit (2026-11-22, A2-F04): seal WHAT is being destroyed
+            # BEFORE the bytes go — the surviving row's checksum recomputes to
+            # False after the wipe, so the register and the certificate are the
+            # only places the destroyed payload's fingerprint lives.
+            sealed_hash = rec.checksum_sha256 or ""
+            raw = rec.attachment_id.sudo().datas if rec.attachment_id else False
+            sealed_size = len(base64.b64decode(raw)) if raw else 0
             # the certificate files through the service env: a Records Officer
             # decides the disposal, but the attachment store is not theirs
             certificate = self.sudo().attach(
                 name="Destruction Certificate — %s" % rec.name,
                 datas=base64.b64encode(
-                    ("Disposed %s — %s" % (fields.Datetime.now(), method)).encode("utf-8")
+                    (
+                        "Disposed %s — %s\nPayload sha256 %s (%d bytes)."
+                        % (fields.Datetime.now(), method, sealed_hash or "—", sealed_size)
+                    ).encode("utf-8")
                 ),
                 document_type="destruction_certificate",
                 res_model="fix.document",
@@ -632,6 +642,8 @@ class FixDocument(models.Model):
                     "method": method,
                     "certificate_doc_id": certificate.id,
                     "performed_by_id": self.env.user.id,
+                    "payload_sha256": sealed_hash,
+                    "payload_size": sealed_size,
                 }
             )
             if rec.attachment_id:

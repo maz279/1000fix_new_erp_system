@@ -10,4 +10,5 @@ from . import (
     fix_legal_hold,
     fix_retention_class,
     ir_attachment_ext,
+    res_users_tiers,
 )

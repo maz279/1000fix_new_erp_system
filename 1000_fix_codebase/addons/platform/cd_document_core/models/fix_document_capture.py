@@ -1358,9 +1358,19 @@ class FixDisposalBatch(models.Model):
                     docs.with_user(self.env.user).sudo().with_context(
                         **{BATCH_KEY: _BATCH_TOKEN}
                     ).action_dispose(rec.method)
+                    sealed = {
+                        r.document_id.id: r
+                        for r in self.env["fix.disposal.record"].sudo().search(
+                            [("document_id", "in", docs.ids), ("batch_id", "=", rec.id)]
+                        )
+                    }
                     self.env["fix.disposal.record"].sudo().search(
                         [("document_id", "in", docs.ids), ("batch_id", "=", False)]
                     ).write({"batch_id": rec.id})
+                    # A10 deep audit (2026-11-22, A2-F04): the manifest seals
+                    # each destroyed payload's sha256 from the disposal
+                    # register — the wiped rows can no longer answer for their
+                    # own bytes.
                     manifest = json.dumps(
                         {
                             "batch": rec.name,
@@ -1372,6 +1382,8 @@ class FixDisposalBatch(models.Model):
                                     "id": d.id,
                                     "name": d.name,
                                     "expired": str(d.retention_expires or ""),
+                                    "sha256": (sealed.get(d.id).payload_sha256 or ""),
+                                    "bytes": (sealed.get(d.id).payload_size or 0),
                                 }
                                 for d in docs
                             ],
