@@ -16,6 +16,19 @@
 #     on file, lateness is recorded and a cron escalates the clock;
 #   * injury compensation is approved from the M63 inbox and handed to
 #     payroll as `hse.compensation.awarded` (I5).
+#
+# A09 ERP audit R7 (2026-11-22), M59-F1..F14 (builder B7): the notice forms
+# follow the Rules as they read — Form 27 is THE accident notice (fatal /
+# serious within 2 working days, r.69(2); minor within 7 days, r.70), Form
+# 27(A) the final report (2 months or on the worker's return, r.69(3)), Form
+# 27(B) the dangerous-occurrence notice (3 working days, r.71), Form 28 the
+# register (s.80(2), r.73(1) — s.90 is the safety record book, not this
+# register), Form 29 the occupational-disease notice (24 hours, r.74). The
+# classification, the instant notice, the final report, the half-yearly
+# return, the compensation floor (BLA ss.150-152 as amended: death Tk
+# 2,00,000; permanent total Tk 2,50,000) and the 2026 Act items (s.61A work
+# refusal, Department of Labour recipient, commuting accidents) live here and
+# in fix_hse_statutory.py.
 from datetime import timedelta
 
 from dateutil.relativedelta import relativedelta
@@ -24,8 +37,39 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 
 from libs.py.fix_events import publish
 
+from .fix_hse_notice import AUTHORITY_LABELS, NOTICE_AUTHORITIES
+
 REPORTABLE_TYPES = ("injury", "battery_thermal", "fire", "chemical_exposure")
 SEVERITY_ORDER = ("low", "medium", "high")
+# BLR r.71 / s.81 (as replaced by the 2026 Act s.23): explosion, ignition,
+# fire, irruption of water or fumes — notifiable within 3 working days
+# whether or not anyone was hurt.
+DANGEROUS_OCCURRENCE_TYPES = ("battery_thermal", "fire", "chemical_exposure")
+# BLA s.80(2) + BLR r.73(1): EVERY accident and dangerous occurrence is
+# entered in the Form 28 register — a near miss is neither.
+REGISTER_ENTRY_TYPES = (
+    "injury",
+    "battery_thermal",
+    "fire",
+    "chemical_exposure",
+    "environmental",
+    "property_damage",
+)
+# BLR r.69(1): the instant notice of a fatal or serious accident goes to each
+# of these authorities at once; s.80(1) (2026 Act s.22) adds the Department of
+# Labour office as a recipient of the written notice.
+INSTANT_NOTICE_AUTHORITIES = (
+    ("inspector_general", "Inspector General (DIFE)"),
+    ("deputy_commissioner", "Deputy Commissioner"),
+    ("dife_inspector", "Local DIFE Inspector"),
+    ("fire_service", "Fire Service and Civil Defence"),
+    ("hospital", "Hospital treating the victim"),
+    ("industrial_police", "Industrial Police"),
+)
+# BLA ss.150-152, Fifth Schedule (NOT touched by the 2026 Act): the statutory
+# minimum compensation. Sourced figures handed to this build by the audit.
+COMPENSATION_DEATH_BDT = 200000.0
+COMPENSATION_PERMANENT_TOTAL_BDT = 250000.0
 
 
 def _param(env, key, default):
@@ -150,10 +194,59 @@ class FixHseIncident(models.Model):
     injured_employee_id = fields.Many2one("hr.employee", string="Injured Person")
     description = fields.Text(required=True)
     is_reportable = fields.Boolean(
-        string="DIFE Reportable",
+        string="Statutory Notice Due",
         compute="_compute_notice_due",
         store=True,
-        help="Opens a Form 28 register entry and needs the DIFE notice before closure.",
+        help="True when the Rules require an accident / dangerous-occurrence "
+        "notice (Form 27 or 27(B)) before closure. A first-aid-only accident "
+        "is not notifiable but still enters the Form 28 register.",
+    )
+    register_required = fields.Boolean(
+        string="Form 28 Register Entry Required",
+        compute="_compute_notice_due",
+        store=True,
+        help="BLA s.80(2) / BLR r.73(1): every accident and every dangerous "
+        "occurrence is entered in the Form 28 register, first-aid cases "
+        "included; a near miss is neither.",
+    )
+    # R7 M59-F3: the reportable classification the Rules actually drive.
+    outcome = fields.Selection(
+        [
+            ("death", "Fatal (loss of life)"),
+            ("serious", "Serious (no return within 20 days)"),
+            ("minor", "Minor (absent 48 hours to 20 days)"),
+            ("dangerous_occurrence", "Dangerous Occurrence (injured or not)"),
+            ("first_aid", "First Aid Only (no statutory notice)"),
+            ("none", "Not an Accident (near miss)"),
+        ],
+        string="Reportable Classification",
+        compute="_compute_notice_due",
+        store=True,
+        help="Fatal / serious: BLR r.69 (Form 27 within 2 working days + instant "
+        "notice + final report Form 27(A)). Minor: BLR r.70 (Form 27 within 7 "
+        "days). Dangerous occurrence: BLR r.71 (Form 27(B) within 3 working "
+        "days). First aid: no notice, but a Form 28 entry (s.80(2), r.73(1)).",
+    )
+    is_fatal = fields.Boolean(
+        string="Fatality",
+        tracking=True,
+        help="The accident caused a loss of life. Recorded by an HSE Officer "
+        "at triage; a fatality is an outcome of its own (BLR r.69(1)).",
+    )
+    commuting_accident = fields.Boolean(
+        string="Commuting Accident",
+        help="An accident while commuting. Notifiable for statistics only — no "
+        "compensation liability attaches (s.80 as replaced by the 2026 Act "
+        "s.22).",
+    )
+    absence_days = fields.Integer(
+        string="Days of Absence",
+        compute="_compute_absence_days",
+        store=True,
+        help="Days the injured worker has been away after the accident: the "
+        "recorded lost days once they return, the elapsed days until they do. "
+        "20 days or more makes the accident serious (BLR r.69); 48 hours or "
+        "more makes it minor (BLR r.70).",
     )
     # BRU-HSE-01 / T-10: an anonymous report keeps no link to its reporter:
     # it is written by the system user, with no reporter, no chatter author
@@ -198,27 +291,48 @@ class FixHseIncident(models.Model):
     reported_at = fields.Datetime(default=fields.Datetime.now, readonly=True)
     accident_datetime = fields.Datetime(string="Accident Date & Time", default=fields.Datetime.now)
     notice_due = fields.Datetime(
-        string="DIFE Notice Deadline (Working Days, BLA s.80)",
+        string="Notice Deadline (BLA s.80 / BLR rr.69-71)",
         compute="_compute_notice_due",
         store=True,
     )
     notice_form = fields.Selection(
         [
-            ("form_27", "Form 27 - Fatal / Lost-Time Accident Notice (BLR r.70)"),
-            ("form_27a", "Form 27(a) - Dangerous Occurrence Notice (BLR r.70)"),
-            ("form_27b", "Form 27(b) - Minor Injury Notice (BLR r.70)"),
-            ("none", "Not Reportable"),
+            (
+                "form_27",
+                "Form 27 - Accident Notice (r.69(2) fatal/serious 2 working days; "
+                "r.70 minor 7 days)",
+            ),
+            (
+                "form_27a",
+                "Form 27(A) - Final Report (r.69(3): 2 months or on return; tracked "
+                "on the register entry)",
+            ),
+            ("form_27b", "Form 27(B) - Dangerous Occurrence Notice (r.71: 3 working days)"),
+            ("none", "No Statutory Notice (first aid / register only)"),
         ],
-        string="Statutory DIFE Notice Form",
+        string="Statutory Notice Form",
         compute="_compute_notice_due",
         store=True,
     )
     immediate_notification_required = fields.Boolean(
-        string="Immediate Phone/Fax Notice Required (BLA s.80)",
+        string="Instant Notice Required (BLR r.69(1))",
         compute="_compute_notice_due",
         store=True,
+        help="A fatal or serious accident (death, or no return within 20 days) "
+        "is announced at once to the Inspector General, the Deputy "
+        "Commissioner, the local Inspector, the Fire Service, the hospital and "
+        "the Industrial Police. Recorded line by line on the register entry.",
     )
-    dife_notice_ref = fields.Char(string="DIFE Form 27/27(a) Dispatch Ref", readonly=True)
+    dife_notice_ref = fields.Char(
+        string="DIFE Form 27 / 27(B) Dispatch Ref", readonly=True, copy=False
+    )
+    redated = fields.Boolean(
+        string="Accident Date Corrected",
+        readonly=True,
+        copy=False,
+        help="Set when the accident date was corrected by the logged redate "
+        "action; the original and corrected values are on the record's log.",
+    )
 
     def _fix_guarded_fields(self) -> set:
         return super()._fix_guarded_fields() | {
@@ -233,6 +347,7 @@ class FixHseIncident(models.Model):
             "closed_by_id",
             "closed_on",
             "alert_sent_on",
+            "redated",
         }
 
     def _fix_form_locked_fields(self) -> set:
@@ -250,32 +365,98 @@ class FixHseIncident(models.Model):
             rec.capa_open_count = len(live.filtered(lambda c: c.state != "verified"))
             rec.capa_verified = bool(live) and not rec.capa_open_count
 
-    @api.depends("accident_datetime", "reported_at", "incident_type", "severity")
+    @api.depends(
+        "accident_datetime",
+        "reported_at",
+        "incident_type",
+        "severity",
+        "is_fatal",
+        "absence_days",
+    )
     def _compute_notice_due(self):
-        # The window is a decision for labour counsel (spec Q-04): a setting
-        # that keeps the 2 working days the code has always used.
+        """R7 M59-F1/F3: the classification and every clock it drives.
+
+        Form 27 is THE accident notice — fatal / serious within the s.80(1)
+        window of 2 working days (BLR r.69(2)), minor within 7 days (r.70).
+        Dangerous occurrences take Form 27(B) within 3 working days (r.71;
+        s.81 as replaced by the 2026 Act s.23). A first-aid-only accident
+        takes no notice at all (its Form 28 register entry is still opened,
+        s.80(2)). The 20-day escalation is computed: an absence that reaches
+        20 days makes the accident serious however it was reported.
+        """
+        serious_days = _int_param(self.env, "cd_hse.serious_absence_days", 20)
+        minor_days = _int_param(self.env, "cd_hse.minor_absence_days", 2)
         days = _int_param(self.env, "cd_hse.dife_notice_working_days", 2)
+        occurrence_days = _int_param(self.env, "cd_hse.dangerous_occurrence_working_days", 3)
         hol_dates = _holiday_dates(self.env)
         for rec in self:
             base_dt = rec.accident_datetime or rec.reported_at or fields.Datetime.now()
-            if rec.incident_type in REPORTABLE_TYPES and rec.severity in ("medium", "high"):
+            if rec.incident_type == "near_miss":
+                outcome = "none"
+            elif rec.incident_type in DANGEROUS_OCCURRENCE_TYPES:
+                outcome = "dangerous_occurrence"
+            elif rec.is_fatal:
+                outcome = "death"
+            elif rec.absence_days >= serious_days or (
+                rec.incident_type == "injury" and rec.severity == "high"
+            ):
+                outcome = "serious"
+            elif rec.absence_days >= minor_days or (
+                rec.incident_type == "injury" and rec.severity == "medium"
+            ):
+                outcome = "minor"
+            elif rec.incident_type == "injury":
+                outcome = "first_aid"
+            else:
+                # property damage / a spill with no injury and no fire:
+                # a register entry (r.73(1) reads on every accident), no notice
+                outcome = "first_aid"
+            rec.outcome = outcome
+            rec.register_required = rec.incident_type in REGISTER_ENTRY_TYPES
+            rec.immediate_notification_required = outcome in ("death", "serious")
+            if outcome in ("death", "serious"):
                 rec.notice_due = _add_bd_working_days(base_dt, days, hol_dates)
-                if rec.incident_type == "injury":
-                    rec.notice_form = "form_27"
-                else:
-                    rec.notice_form = "form_27a"
-                rec.immediate_notification_required = rec.severity == "high"
+                rec.notice_form = "form_27"
                 rec.is_reportable = True
-            elif rec.incident_type == "injury" and rec.severity == "low":
-                rec.notice_due = _add_bd_working_days(base_dt, days, hol_dates)
+            elif outcome == "minor":
+                rec.notice_due = base_dt + timedelta(
+                    days=_int_param(self.env, "cd_hse.minor_notice_days", 7)
+                )
+                rec.notice_form = "form_27"
+                rec.is_reportable = True
+            elif outcome == "dangerous_occurrence":
+                rec.notice_due = _add_bd_working_days(base_dt, occurrence_days, hol_dates)
                 rec.notice_form = "form_27b"
-                rec.immediate_notification_required = False
-                rec.is_reportable = False
+                rec.is_reportable = True
             else:
                 rec.notice_due = False
                 rec.notice_form = "none"
-                rec.immediate_notification_required = False
                 rec.is_reportable = False
+
+    @api.depends(
+        "accident_datetime",
+        "statutory_record_id.lost_work_days",
+        "statutory_record_id.return_to_work_date",
+    )
+    def _compute_absence_days(self):
+        """Days away: the recorded lost days, else the elapsed days since the
+        accident (the 20-day escalation of BLR r.69 runs by itself while the
+        worker is away). Refreshed for open incidents by the notice clock
+        cron."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            start = rec.accident_datetime.date() if rec.accident_datetime else None
+            if not start:
+                rec.absence_days = 0
+                continue
+            reg = rec.sudo().statutory_record_id
+            if reg and reg.return_to_work_date:
+                rec.absence_days = max(0, (reg.return_to_work_date - start).days)
+            elif reg and reg.lost_work_days:
+                rec.absence_days = reg.lost_work_days
+            else:
+                # away and not yet back: the absence still counts (r.69)
+                rec.absence_days = max(0, (today - start).days)
 
     # ---- reporting --------------------------------------------------------
     @api.model_create_multi
@@ -364,32 +545,34 @@ class FixHseIncident(models.Model):
             }:
                 raise UserError("A closed incident no longer changes.")
         result = super().write(vals)
-        if {"incident_type", "severity"} & set(vals):
+        if {"incident_type", "severity", "is_fatal"} & set(vals):
             self.filtered("id")._fix_open_register()
         return result
 
     def _fix_open_register(self):
-        """BLA s.90 / BLR r.73: a reportable incident has a Form 28 entry, opened
-        whenever the incident becomes reportable (at report or on escalation).
-        Opened with sudo: the reporter needs no right on the register."""
+        """BLA s.80(2) / BLR r.73(1): EVERY accident and dangerous occurrence
+        has a Form 28 entry, opened at report or on escalation — a first-aid
+        injury and a low-severity fire included; a near miss has none. s.90 is
+        the 25+-worker safety record book, not this register. Opened with
+        sudo: the reporter needs no right on the register."""
         Register = self.env["fix.statutory.accident.register"].sudo()
         for rec in self:
-            if not rec.is_reportable or rec.statutory_record_id:
+            if not rec.register_required or rec.statutory_record_id:
                 continue
             worker = rec.injured_employee_id or rec.employee_id
             if not worker and rec.anonymous:
                 # never refuse a safety report: the HSE Officer names the
                 # injured worker at triage, which opens the register entry
                 rec.message_post(
-                    body="Reportable, filed anonymously with no injured worker named: triage "
+                    body="Register-required, filed anonymously with no worker named: triage "
                     "must name the worker to open the Form 28 entry."
                 )
                 continue
             if not worker:
                 raise UserError(
                     "A %s-severity %s must name the injured worker or the reporter: "
-                    "the BLA 2006 s.90 / BLR 2015 r.73 accident register records "
-                    "the worker involved." % (rec.severity, rec.incident_type)
+                    "the BLA 2006 s.80(2) / BLR 2015 r.73(1) accident register "
+                    "records the worker involved." % (rec.severity, rec.incident_type)
                 )
             # The statutory register records the date the accident HAPPENED,
             # not the date it was keyed in.
@@ -407,7 +590,7 @@ class FixHseIncident(models.Model):
                     ),
                     "nature_of_injury": rec.description,
                     "notice_form_type": rec.notice_form
-                    if rec.notice_form in ("form_27", "form_27a")
+                    if rec.notice_form in ("form_27", "form_27b")
                     else "form_27",
                 }
             )
@@ -418,11 +601,25 @@ class FixHseIncident(models.Model):
         self.ensure_one()
         return self.is_reportable or self.severity in ("medium", "high")
 
+    def _fix_is_party(self):
+        """R7 M59-F5: the reporter and the subject of an incident are parties
+        to it; neither investigates nor closes it."""
+        self.ensure_one()
+        if self.env.su:
+            return False
+        parties = self.employee_id.user_id | self.injured_employee_id.user_id
+        return self.env.user in parties
+
     def action_investigate(self):
         _require_hse(self.env, "open an investigation")
         for rec in self:
             if rec.state != "reported":
                 raise UserError("Investigate a reported incident.")
+            if rec._fix_is_party():
+                raise UserError(
+                    "You reported %s or are the worker it happened to; another HSE "
+                    "Officer investigates it." % rec.name
+                )
             rec._guarded().write(
                 {
                     "state": "investigating",
@@ -467,15 +664,39 @@ class FixHseIncident(models.Model):
                 problems.append("a CAPA is not verified effective (BRU-HSE-06)")
         elif live.filtered(lambda c: c.state == "open"):
             problems.append("a CAPA is not done")
-        if self.is_reportable and not self.statutory_record_id.dife_notified:
-            problems.append(
-                "BLA 2006 s.80 / BLR 2015 r.70: the DIFE Form 27/27(a) notice is not dispatched"
+        if self.is_reportable:
+            reg = self.sudo().statutory_record_id
+            if not reg.dife_notified:
+                problems.append(
+                    "BLA 2006 s.80 / BLR 2015 rr.69-71: the Form 27 / 27(B) notice is not "
+                    "dispatched"
+                )
+            elif not reg.dol_notified:
+                problems.append(
+                    "BLA 2006 s.80(1) (2026 Act s.22): the notice to the Department of "
+                    "Labour office is not recorded"
+                )
+            problems.extend(
+                "BLR r.69(1): the instant notice to the %s is not recorded" % label
+                for label in reg._fix_instant_notice_missing()
             )
+            if (
+                reg.final_report_required
+                and reg.final_report_due_on
+                and reg._fix_final_report_due()
+                and not reg.final_report_filed_on
+            ):
+                problems.append("BLR r.69(3): the final report Form 27(A) is due and not filed")
         return problems
 
     def action_close(self):
         _require_hse(self.env, "close an incident")
         for rec in self:
+            if rec._fix_is_party():
+                raise UserError(
+                    "You reported %s or are the worker it happened to; another HSE "
+                    "Officer closes it." % rec.name
+                )
             problems = rec._fix_close_problems()
             if problems:
                 raise UserError("Cannot close %s: %s." % (rec.name, "; ".join(problems)))
@@ -487,6 +708,42 @@ class FixHseIncident(models.Model):
                 }
             )
         return True
+
+    def action_redate(self, new_datetime=None, reason=None):
+        """R7 M59-F14: the accident date is corrected by a logged action, never
+        by editing the report: the original report stays as given, the clocks
+        are recomputed from the corrected date and both dates are on the log."""
+        _require_hse(self.env, "correct an accident date")
+        if not (reason or "").strip():
+            raise UserError("State why the accident date is corrected.")
+        new_dt = fields.Datetime.to_datetime(new_datetime)
+        if not new_dt:
+            raise UserError("Give the corrected accident date and time.")
+        for rec in self:
+            old = rec.accident_datetime
+            if new_dt == old:
+                raise UserError("%s already carries that accident date." % rec.name)
+            rec.sudo()._guarded().write({"accident_datetime": new_dt, "redated": True})
+            if rec.statutory_record_id:
+                rec.statutory_record_id.sudo()._guarded().write({"accident_date": new_dt.date()})
+            rec.message_post(
+                body="Accident date corrected from %s to %s by %s: %s"
+                % (old, new_dt, self.env.user.name, reason.strip())
+            )
+            if rec.statutory_record_id:
+                rec.statutory_record_id.message_post(
+                    body="Accident date follows the HSE case %s: corrected from %s to %s (%s)."
+                    % (rec.name, old, new_dt.date(), reason.strip())
+                )
+        return True
+
+    def unlink(self):
+        """R7 M59-F5: an incident is an immutable record — nobody unlinks it,
+        superuser included; a wrong report is reclassified or closed, not
+        deleted."""
+        raise UserError(
+            "An HSE incident is a record (T-09); it is reclassified or closed, never " "deleted."
+        )
 
     def action_triage(self, note=None, injured_employee=None):
         """An HSE Officer triages a report (an anonymous one above all): the
@@ -927,12 +1184,15 @@ class FixSafetyCommitteeMeeting(models.Model):
 
 
 class FixStatutoryAccidentRegister(models.Model):
-    """M59: Mandatory Accident and Dangerous Occurrence Register under
-    Bangladesh Labour Act 2006 §80/§89/§90 & Bangladesh Labour Rules 2015 Rule 70 (Forms 27/27a/27b)
-    and Rule 73 (Form 28; legacy ref Form 33/34)."""
+    """M59: the Form 28 Accident and Dangerous Occurrence Register — BLA 2006
+    s.80(2) with BLR 2015 r.73(1) (s.90 is the 25+-worker safety record book,
+    NOT this register). The notices it tracks: Form 27 (accident notice,
+    rr.69(2)/70), Form 27(A) (final report, r.69(3)), Form 27(B) (dangerous
+    occurrence, r.71) and the instant notice of r.69(1); Form 29
+    (occupational disease, r.74) lives on fix.hse.disease.notice."""
 
     _name = "fix.statutory.accident.register"
-    _description = "Statutory Accident Register (BLA s.80/s.90 Form 27/28 & Form 33/34)"
+    _description = "Statutory Accident Register (BLA s.80(2) Form 28)"
     _inherit = ["mail.thread", "mail.activity.mixin", "fix.people.approval.mixin"]
     _order = "accident_date desc"
 
@@ -959,28 +1219,70 @@ class FixStatutoryAccidentRegister(models.Model):
     lost_work_days = fields.Integer(string="Lost Work Days", default=0)
     notice_form_type = fields.Selection(
         [
-            ("form_27", "Form 27 - Fatal / Lost-Time Accident (BLR r.70)"),
-            ("form_27a", "Form 27(a) - Dangerous Occurrence (BLR r.70)"),
-            ("form_27b", "Form 27(b) - Minor Injury Notice (BLR r.70)"),
+            (
+                "form_27",
+                "Form 27 - Accident Notice (r.69(2) fatal/serious 2 working days; r.70 minor 7 days)",
+            ),
+            (
+                "form_27a",
+                "Form 27(A) - Final Report (r.69(3): 2 months or on return)",
+            ),
+            ("form_27b", "Form 27(B) - Dangerous Occurrence Notice (r.71: 3 working days)"),
         ],
-        string="Notice Form Type (BLR r.70)",
+        string="Notice Form Type (BLR rr.69-71)",
         default="form_27",
     )
     notice_due = fields.Datetime(
-        related="incident_id.notice_due", store=True, string="DIFE Notice Deadline"
+        related="incident_id.notice_due", store=True, string="Notice Deadline"
     )
     dife_notified = fields.Boolean(
-        string="DIFE Form 27 / 27(a) Notice Dispatched",
+        string="DIFE Notice Dispatched (Form 27 / 27(B))",
         default=False,
         readonly=True,
         tracking=True,
-        help="Notice to DIFE within the statutory window for a reportable injury: "
-        "BLA 2006 s.80 with BLR 2015 r.70 (Forms 27 / 27(a) / 27(b)). The "
-        "register itself is kept under s.90 with r.73 (Form 28).",
+        help="Notice to the DIFE Inspector within the statutory window: BLA 2006 "
+        "s.80(1) (replaced by the 2026 Act s.22) with BLR 2015 rr.69(2)/70/71. "
+        "The register itself is kept under s.80(2) with r.73(1) (Form 28).",
     )
     dife_notification_date = fields.Date(string="DIFE Notice Date", readonly=True)
     dife_ack_ref = fields.Char(string="DIFE Acknowledgement Reference", readonly=True)
-    dife_notice_file = fields.Binary(string="Form 27 / 27(a) as Dispatched", attachment=True)
+    # R7 M59-F14: s.80(1) (2026 Act s.22) names TWO recipients — the DIFE
+    # Inspector and the Department of Labour regional/divisional office.
+    dol_notified = fields.Boolean(
+        string="Department of Labour Office Notified",
+        default=False,
+        readonly=True,
+        tracking=True,
+        help="BLA s.80(1) as replaced by the 2026 Act s.22: the written notice "
+        "goes to the DIFE Inspector AND the Department of Labour "
+        "regional/divisional office.",
+    )
+    dol_notification_date = fields.Date(string="DoL Notice Date", readonly=True)
+    dol_ack_ref = fields.Char(string="DoL Acknowledgement Reference", readonly=True)
+    # R7 M59-F2: the instant notice of BLR r.69(1) — a line per named authority.
+    instant_notice_required = fields.Boolean(
+        string="Instant Notice Required (r.69(1))",
+        compute="_compute_filings",
+        store=True,
+        help="A fatal or serious accident is announced at once to the Inspector "
+        "General, the Deputy Commissioner, the local Inspector, the Fire "
+        "Service, the hospital and the Industrial Police.",
+    )
+    instant_notice_ids = fields.One2many(
+        "fix.hse.notice.recipient", "register_id", string="Instant Notice Authorities"
+    )
+    instant_notice_complete = fields.Boolean(compute="_compute_filings", store=True)
+    # R7 M59-F2: the final report Form 27(A) — 2 months from the accident, or
+    # on the worker's return, whichever is earlier for a returned worker.
+    final_report_required = fields.Boolean(
+        string="Final Report Form 27(A) Required (r.69(3))", compute="_compute_filings", store=True
+    )
+    final_report_due_on = fields.Date(
+        string="Final Report Due (r.69(3))", compute="_compute_filings", store=True
+    )
+    final_report_filed_on = fields.Date(string="Final Report Filed On", readonly=True, copy=False)
+    final_report_ref = fields.Char(string="Final Report Reference", readonly=True, copy=False)
+    dife_notice_file = fields.Binary(string="Form 27 / 27(B) as Dispatched", attachment=True)
     dife_notice_filename = fields.Char()
     dife_notified_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     notified_late = fields.Boolean(
@@ -989,12 +1291,37 @@ class FixStatutoryAccidentRegister(models.Model):
     notice_escalation_level = fields.Integer(
         readonly=True, copy=False, help="0 none, 1 due within a working day, 2 deadline passed."
     )
+    # R7 M59-F4: BOTH half-yearly duties — the register copy to the Inspector
+    # General within 15 days after 30 June / 31 December (BLA s.80(3)), and the
+    # half-yearly report to the Inspector within 10 working days after each
+    # six months (BLR r.73(2)). The earlier is shown as due first.
     half_year_return_due = fields.Date(
-        string="Form 28 Half-Yearly Return Due Date",
+        string="Register Copy to Inspector General Due (s.80(3): 15 days)",
         compute="_compute_half_year_due",
         store=True,
     )
-    half_year_return_filed_on = fields.Date(string="Form 28 Return Filed On")
+    half_year_report_due = fields.Date(
+        string="Half-Yearly Report to Inspector Due (r.73(2): 10 working days)",
+        compute="_compute_half_year_due",
+        store=True,
+    )
+    half_year_first_due = fields.Date(
+        string="Next Half-Yearly Filing Due", compute="_compute_half_year_due", store=True
+    )
+    half_year_return_filed_on = fields.Date(
+        string="Register Copy Filed On",
+        help="The copy of the Form 28 register sent to the Inspector General " "(s.80(3)).",
+    )
+    half_year_report_filed_on = fields.Date(
+        string="Half-Yearly Report Filed On",
+        help="The half-yearly report to the Inspector (BLR r.73(2)).",
+    )
+    half_year_reminded_cycle = fields.Char(
+        readonly=True,
+        copy=False,
+        help="The half-year (e.g. 2026H2) the reminder cron last fired for; one "
+        "reminder per cycle.",
+    )
     return_to_work_date = fields.Date(
         string="Worker Returned to Work On",
         readonly=True,
@@ -1025,6 +1352,41 @@ class FixStatutoryAccidentRegister(models.Model):
         "approved by someone other than the assessor.",
     )
     compensation_reason = fields.Text(string="Assessment Basis / Workings")
+    # R7 builder B7 item 4: the statutory compensation floor, BLA ss.150-152
+    # (Fifth Schedule; NOT touched by the 2026 Act). The percentage-of-loss
+    # schedule stays a RECORDED value (medical assessment, OWNER) — it is
+    # never invented here.
+    loss_of_earning_percent = fields.Float(
+        string="Loss of Earning Capacity (%)",
+        help="The medically assessed percentage of permanent partial disablement "
+        "(Fifth Schedule read with s.150). Recorded from the medical "
+        "assessment; the module does not derive it.",
+    )
+    monthly_wages_bdt = fields.Float(
+        string="Monthly Wages (BDT)",
+        help="One twelfth of the preceding 12 months' wages (s.151): recorded "
+        "from payroll for the temporary-disablement floor.",
+    )
+    statutory_compensation_min = fields.Float(
+        string="Statutory Minimum Compensation (BDT)",
+        compute="_compute_compensation_min",
+        store=True,
+        help="The floor the Rules set for the recorded outcome: death Tk 2,00,000; "
+        "permanent total disablement Tk 2,50,000; permanent partial the "
+        "scheduled percentage of Tk 2,50,000; temporary disablement the "
+        "wage-continuation rule (full monthly wages for 2 months, two-thirds "
+        "for the next 2, half thereafter, after a 4-day wait, for the "
+        "disablement or 1 year whichever is shorter). BLA ss.150-152.",
+    )
+    below_statutory_minimum = fields.Boolean(
+        string="Below the Statutory Minimum", compute="_compute_compensation_min", store=True
+    )
+    below_minimum_reason = fields.Text(
+        string="Reason for Awarding Below the Statutory Minimum",
+        help="An award below the statutory minimum is refused unless the reason "
+        "is recorded here (a recorded settlement basis, an admitted "
+        "over-award correction, or the owner's direction).",
+    )
     statutory_compensation_bdt = fields.Float(
         string="Approved Statutory Compensation (BDT)",
         readonly=True,
@@ -1050,9 +1412,15 @@ class FixStatutoryAccidentRegister(models.Model):
             "dife_notified",
             "dife_notification_date",
             "dife_ack_ref",
+            "dol_notified",
+            "dol_notification_date",
+            "dol_ack_ref",
             "dife_notified_by_id",
             "notified_late",
             "notice_escalation_level",
+            "final_report_filed_on",
+            "final_report_ref",
+            "half_year_reminded_cycle",
             "statutory_compensation_bdt",
             "compensation_approved_by_id",
             "compensation_approved_on",
@@ -1106,19 +1474,133 @@ class FixStatutoryAccidentRegister(models.Model):
             locked |= set(self._COMPENSATION_TERMS)
         return locked
 
+    @api.depends(
+        "incident_id.outcome",
+        "instant_notice_ids.notified_on",
+        "accident_date",
+        "return_to_work_date",
+    )
+    def _compute_filings(self):
+        """R7 M59-F2: the instant notice (r.69(1)) and the final report
+        Form 27(A) (r.69(3): 2 months from the accident, or on the worker's
+        return — whichever is earlier for a returned worker)."""
+        for rec in self:
+            outcome = rec.sudo().incident_id.outcome
+            rec.instant_notice_required = outcome in ("death", "serious")
+            rec.final_report_required = outcome in ("death", "serious")
+            if rec.return_to_work_date and rec.accident_date:
+                rec.final_report_due_on = min(
+                    rec.accident_date + relativedelta(months=2), rec.return_to_work_date
+                )
+            elif rec.accident_date:
+                rec.final_report_due_on = rec.accident_date + relativedelta(months=2)
+            else:
+                rec.final_report_due_on = False
+            lines = rec.sudo().instant_notice_ids
+            if rec.instant_notice_required and lines:
+                rec.instant_notice_complete = not lines.filtered(lambda line: not line.notified_on)
+            else:
+                rec.instant_notice_complete = not rec.instant_notice_required
+
+    def _fix_instant_notice_missing(self):
+        """The authorities of BLR 2015 r.69(1) not yet recorded as told.
+
+        One line per authority (`fix.hse.notice.recipient`); an empty
+        `notified_on` means told-but-not-recorded, which the close gate treats
+        as not done. Nothing is missing when the accident is neither fatal nor
+        serious (the instant notice is not required then)."""
+        self.ensure_one()
+        if not self.instant_notice_required:
+            return []
+        told = set(
+            self.sudo()
+            .instant_notice_ids.filtered(lambda line: line.notified_on)
+            .mapped("authority")
+        )
+        return [AUTHORITY_LABELS[code] for code, _label in NOTICE_AUTHORITIES if code not in told]
+
+    def _fix_final_report_due(self):
+        """True once the final report Form 27(A) has fallen due (r.69(3))."""
+        self.ensure_one()
+        if not self.final_report_due_on:
+            return False
+        today = fields.Date.context_today(self)
+        return fields.Date.to_date(self.final_report_due_on) <= today
+
     @api.depends("accident_date")
     def _compute_half_year_due(self):
+        """R7 M59-F4: both dates — the register copy to the Inspector General
+        within 15 days after 30 June / 31 December (s.80(3)); the half-yearly
+        report to the Inspector within 10 WORKING days after the six months
+        (r.73(2)). The earlier of the two is what falls due first."""
         from datetime import date as dt_date
 
+        hol = _holiday_dates(self.env)
         for rec in self:
             if rec.accident_date:
                 d = fields.Date.to_date(rec.accident_date)
-                if d.month <= 6:
-                    rec.half_year_return_due = dt_date(d.year, 7, 15)
-                else:
-                    rec.half_year_return_due = dt_date(d.year + 1, 1, 15)
+                period_end = dt_date(d.year, 6, 30) if d.month <= 6 else dt_date(d.year, 12, 31)
+                rec.half_year_return_due = period_end + timedelta(days=15)
+                # 10 working days after the period end (Fri/Sat weekend).
+                rec.half_year_report_due = _add_bd_working_days(
+                    fields.Datetime.to_datetime(period_end), 10, hol
+                ).date()
+                rec.half_year_first_due = min(rec.half_year_return_due, rec.half_year_report_due)
             else:
                 rec.half_year_return_due = False
+                rec.half_year_report_due = False
+                rec.half_year_first_due = False
+
+    @api.depends(
+        "compensation_basis",
+        "loss_of_earning_percent",
+        "monthly_wages_bdt",
+        "compensation_proposed",
+        "accident_date",
+        "return_to_work_date",
+    )
+    def _compute_compensation_min(self):
+        """R7 builder B7 item 4: the statutory floor from the recorded outcome
+        (BLA ss.150-152, Fifth Schedule — untouched by the 2026 Act). For
+        temporary disablement the floor runs on the wage-continuation rule
+        over the recorded absence and needs the monthly wages; without them
+        it is 0.0 and the approval says why it cannot be checked."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            basis = rec.compensation_basis
+            floor = 0.0
+            if basis == "death":
+                floor = COMPENSATION_DEATH_BDT
+            elif basis == "permanent_total":
+                floor = COMPENSATION_PERMANENT_TOTAL_BDT
+            elif basis == "permanent_partial":
+                # the scheduled percentage of the permanent-total amount
+                floor = round(
+                    (rec.loss_of_earning_percent or 0.0) / 100.0 * COMPENSATION_PERMANENT_TOTAL_BDT,
+                    2,
+                )
+            elif basis == "temporary" and rec.monthly_wages_bdt and rec.accident_date:
+                # no liability where inability to work is 3 days or less; after
+                # the 4-day wait: full monthly wages for 2 months, two-thirds
+                # for the next 2, half thereafter, for the disablement or 1
+                # year whichever is shorter (s.151).
+                end = rec.return_to_work_date or today
+                total_days = min(max((end - rec.accident_date).days, 0), 365)
+                payable = max(total_days - 3, 0)
+                daily = rec.monthly_wages_bdt / 30.0
+                floor = round(
+                    daily
+                    * (
+                        min(payable, 60) * 1.0
+                        + min(max(payable - 60, 0), 60) * (2.0 / 3.0)
+                        + max(payable - 120, 0) * 0.5
+                    ),
+                    2,
+                )
+            rec.statutory_compensation_min = floor
+            rec.below_statutory_minimum = bool(
+                rec.compensation_proposed and floor and rec.compensation_proposed < floor
+            )
 
     @api.model_create_multi
     def create(self, vals_list):

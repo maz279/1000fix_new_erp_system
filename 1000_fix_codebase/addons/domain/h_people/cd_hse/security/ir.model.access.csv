@@ -48,3 +48,5 @@ access_fix_hse_location_hazard_role,fix.hse.location.hazard.role,model_fix_hse_l
 access_fix_hse_emergency_plan_user,fix.hse.emergency.plan.reader,model_fix_hse_emergency_plan,base.group_user,1,0,0,0
 access_fix_hse_emergency_plan_role,fix.hse.emergency.plan.role,model_fix_hse_emergency_plan,cd_hse.group_hse_officer,1,1,1,1
 access_fix_driver_hse,fix.driver.hse,cd_vehicle_ext.model_fix_driver,cd_hse.group_hse_officer,1,1,1,0
+access_fix_hse_notice_recipient_role,fix.hse.notice.recipient.role,model_fix_hse_notice_recipient,cd_hse.group_hse_officer,1,1,1,1
+access_fix_hse_notice_recipient_reader,fix.hse.notice.recipient.reader,model_fix_hse_notice_recipient,base.group_user,1,0,0,0

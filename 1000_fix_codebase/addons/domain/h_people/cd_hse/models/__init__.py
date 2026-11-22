@@ -2,6 +2,7 @@
 # ruff: noqa: I001
 from . import (
     res_users_hse,
+    fix_hse_notice,
     fix_hse,
     fix_hse_ops,
     fix_hse_investigation,
