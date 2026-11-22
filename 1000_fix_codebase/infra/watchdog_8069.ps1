@@ -24,7 +24,7 @@ while ($true) {
     if (-not $alive) {
         Write-Host "Odoo port 8069 not active, starting Odoo (fix_real)..."
         try {
-            $proc = Start-Process -FilePath $py -ArgumentList "vendor/odoo/odoo-bin", "-c", "infra/odoo-conf/local.resolved.conf", "-d", "fix_real", "--http-port=8069", "--logfile=$root\infra\odoo-data\cih_8069.log" -WorkingDirectory $root -NoNewWindow -PassThru
+            $proc = Start-Process -FilePath $py -ArgumentList "vendor/odoo/odoo-bin", "-c", "infra/odoo-conf/local.resolved.conf", "-d", "fix_real", "--http-port=8069", "--logfile=`"$root\infra\odoo-data\cih_8069.log`"" -WorkingDirectory $root -NoNewWindow -PassThru
             Write-Host "Spawned Odoo 8069 (fix_real) process PID $($proc.Id)"
         } catch {
             Write-Host "Spawn failed: $($_.Exception.Message)"
