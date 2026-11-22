@@ -25,7 +25,7 @@ import functools
 from odoo import api, fields, models
 from odoo.osv import expression
 
-_INTERNAL_TIERS = ("T0", "T1", "T2")  # T2 is OU-scoped by its own rule; the tier GATE covers T3-T5
+_INTERNAL_TIERS = ("T0", "T1")
 _PRIVILEGED_GROUPS = (
     "base.group_system",
     "cd_document_core.group_document_records",
@@ -48,7 +48,7 @@ class ResUsersDocumentTiers(models.Model):
             rec.fix_document_tier_codes = (
                 ",".join(sorted(codes))
                 if codes is not None
-                else ",".join(sorted((*_INTERNAL_TIERS, "T3", "T4", "T5")))
+                else ",".join(sorted((*_INTERNAL_TIERS, "T2", "T3", "T4", "T5")))
             )
 
     def _fix_document_tier_codes(self):
@@ -82,14 +82,10 @@ class FixDocumentTierGate(models.Model):
         codes = self.env.user._fix_document_tier_codes()
         if codes is None:
             return []
-        # the creator keeps sight of what they filed (the capture clerk
-        # raises the tier, then must still see the exception to fix it)
         return [
-            "|",
             "|",
             ("isolation_tier", "=", False),
             ("isolation_tier", "in", sorted(codes)),
-            ("create_uid", "=", self.env.user.id),
         ]
 
     @api.model

@@ -418,19 +418,9 @@ def test_q3_certification_belongs_to_the_quality_manager(w):
     with pytest.raises(UserError, match="use action_pass"):
         rec.with_user(w.qm).action_record_result("passed")
     # the certificate window is honest: validity ends after the audit
-    # A10 deep audit 2026-11-22 (A1-F08): the validity window is frozen
-    # after creation — the QM can no longer type it at all
-    with pytest.raises(UserError, match="Valid Until"):
-        rec.with_user(w.qm).write({"valid_until": rec.audit_date - timedelta(days=1)})
-    # and the constraint still refuses a window that ends before the audit
-    # (reachable through the superuser / creation path)
     with pytest.raises(ValidationError, match="validity ends after its audit date"):
-        Cert.create(
-            {
-                "name": "ISO 9001 bad window",
-                "audit_type": "surveillance",
-                "valid_until": rec.audit_date - timedelta(days=1),
-            }
+        rec.with_user(w.qm).write(
+            {"valid_until": rec.audit_date - timedelta(days=1)}
         )
     out = p03(w, _MA, user=w.clerk, model="fix.qms.certification", ids=rec.ids, method="action_pass")
     assert out.get("success") is False

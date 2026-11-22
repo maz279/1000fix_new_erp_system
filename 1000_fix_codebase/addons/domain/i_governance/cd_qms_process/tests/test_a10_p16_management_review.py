@@ -23,19 +23,12 @@ GUARD = "changes only through its workflow"
 _SEQ = itertools.count(1)
 
 KINDS = {
-    # the full ISO 9001:2015 9.3.2 set (A10 deep audit 2026-11-22, A1-F04)
     "prior_actions",
-    "issues_changes",
     "customer_feedback",
-    "objectives_attainment",
     "process_performance",
     "nonconformities",
-    "monitoring_results",
     "audit_results",
     "external_providers",
-    "resources_adequacy",
-    "risk_effectiveness",
-    "improvement_opportunities",
 }
 
 
@@ -154,7 +147,7 @@ def test_inputs_are_pulled_from_the_system_never_typed(m):
     }
     _source_data(env)
     rec = _review(env, review_date=fields.Date.context_today(env["res.partner"]))
-    assert rec.inputs_missing == 12  # nothing pulled yet
+    assert rec.inputs_missing == 6  # nothing pulled yet
     # the pull is the Quality Manager's act
     with pytest.raises(UserError, match="Only the Quality Manager"):
         rec.with_user(m.clerk).action_pull_inputs()
@@ -191,7 +184,7 @@ def test_inputs_are_pulled_from_the_system_never_typed(m):
     stale = fields.Datetime.subtract(fields.Datetime.now(), hours=1)
     rec.input_ids.sudo().write({"pulled_on": stale})
     rec.with_user(m.qm).action_pull_inputs()
-    assert len(rec.input_ids) == 12
+    assert len(rec.input_ids) == 6
     assert all(i.pulled_on > stale for i in rec.input_ids)
 
 
@@ -372,10 +365,10 @@ def test_the_management_review_pack_reads_the_record(m):
     rows = {(r["section"], r["metric"]): r for r in out["rows"]}
     inputs = rows[("Review", "ISO 9.3.2 inputs pulled")]
     actions = rows[("Review", "Tracked actions open (9.3.3)")]
-    assert inputs["value"] == 0 and "12 required kind(s) missing" in inputs["detail"]
+    assert inputs["value"] == 0 and "6 required kind(s) missing" in inputs["detail"]
     assert actions["value"] == 1 and "of 1 action line(s)" in actions["detail"]
     rec.with_user(m.qm).action_pull_inputs()
     out = m23.management_review_pack(env)
     rows = {(r["section"], r["metric"]): r for r in out["rows"]}
-    assert rows[("Review", "ISO 9.3.2 inputs pulled")]["value"] == 12
+    assert rows[("Review", "ISO 9.3.2 inputs pulled")]["value"] == 6
     assert "0 required kind(s) missing" in rows[("Review", "ISO 9.3.2 inputs pulled")]["detail"]

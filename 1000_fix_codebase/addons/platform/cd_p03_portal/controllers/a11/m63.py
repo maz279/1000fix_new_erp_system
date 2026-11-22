@@ -668,9 +668,22 @@ def kpis(env):
         coverage[row.coverage_state] += 1
     # A4-F06: both rates come from the routine-work register (the 85% target's
     # denominator); with no registered work they are None ("—"), never 0.0.
-    routine_total, routine_automated, routine_stp = _routine_work_totals(env)
-    automation_rate = round(routine_automated / routine_total * 100.0, 1) if routine_total else None
-    stp_share = round(routine_stp / routine_total * 100.0, 1) if routine_total else None
+    #
+    # The register's OWN rule wins on what "automated volume" means: a task
+    # counts as automated only when it names the automation that does it, and
+    # the volume it contributes is the share that automation completes with no
+    # human step (`automated_volume` = volume_per_month x stp_rate/100, zero
+    # unless automated). So the automation rate and the straight-through share
+    # are the same figure BY CONSTRUCTION here — the register cannot express
+    # "automated but still needs a human". Both keys stay because the
+    # specification asks for two measures; the pack notes say they coincide.
+    # (An earlier pass computed the rate as plain coverage — the whole volume of
+    # any task with an automation attached — which contradicted the model's
+    # documented definition and its `_automation_rate()`; the module's own
+    # definition is authoritative.)
+    routine_total, _routine_automated, routine_stp = _routine_work_totals(env)
+    automation_rate = round(routine_stp / routine_total * 100.0, 1) if routine_total else None
+    stp_share = automation_rate
     # A4-F13: escalations = approval-history escalations this month PLUS
     # escalated workflow instances this month. If the caller may not read the
     # history the tile is None, not a smaller number.

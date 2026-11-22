@@ -1,8 +1,6 @@
 # A10 deep audit (2026-11-22): map the content-loaded quality gates' legacy
 # free-text stage to the enforceable checkpoint. The two live rows (QG-01
 # "Job creation", QG-02 "Before customer handover") predate the field.
-# The new column arrives with its default, so the mapping rewrites a row
-# whose stage names a checkpoint — it never relies on a NULL first value.
 
 _STAGE_TO_CHECKPOINT = [
     ("job creation", "job_creation"),
@@ -19,8 +17,13 @@ def migrate(cr, version):
             """
             UPDATE fix_qms_gate
                SET checkpoint = %s
-             WHERE lower(stage) LIKE %s
-               AND checkpoint IS DISTINCT FROM %s
+             WHERE checkpoint IS NULL
+               AND lower(stage) LIKE %s
             """,
-            (checkpoint, "%" + needle + "%", checkpoint),
+            (checkpoint, "%" + needle + "%"),
         )
+    # anything still unassigned bites at the QC pass (the conservative
+    # default for an unlabelled blocking gate)
+    cr.execute(
+        "UPDATE fix_qms_gate SET checkpoint = 'qc_pass' WHERE checkpoint IS NULL"
+    )
