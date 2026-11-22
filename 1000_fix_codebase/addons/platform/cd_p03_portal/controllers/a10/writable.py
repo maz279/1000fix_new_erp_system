@@ -673,6 +673,7 @@ WRITABLE = {
             "independence_note",
             "independence_required",
             "independence_value_threshold",
+            "checkpoint",
             "mandatory_checklist_id",
             "name",
             "sequence",

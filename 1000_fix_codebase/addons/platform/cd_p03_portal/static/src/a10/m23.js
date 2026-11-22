@@ -421,6 +421,7 @@ export const SCREENS = {
           { name: 'company_id', required: true, label: "Company" },
           { name: 'sequence', label: "Sequence" },
           { name: 'stage', label: "Process Stage" },
+          { name: 'checkpoint', required: true, label: "Checkpoint (where the gate bites)" },
           { name: 'mandatory_checklist_id', label: "Mandatory Checklist" },
           { name: 'blocking', label: "Blocks Progression" }
         ] },
