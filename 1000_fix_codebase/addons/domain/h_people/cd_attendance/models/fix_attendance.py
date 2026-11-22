@@ -1522,7 +1522,11 @@ class FixAttendanceRecord(models.Model):
         the record. Idempotent: one open escalation per record."""
         self = self.sudo()
         today = fields.Date.context_today(self.with_context(tz="Asia/Dhaka"))
-        Period = self.env.get("fix.payroll.period", None)
+        # Odoo's Environment has __contains__/__getitem__ but NO .get(); a
+        # cross-area model is looked up the membership way (ruff SIM401's
+        # env.get() suggestion does not exist on the Environment).
+        in_estate = "fix.payroll.period" in self.env
+        Period = self.env["fix.payroll.period"] if in_estate else None
         escalated = 0
         for company in self.env["res.company"].search([]):
             days = company.fix_attendance_exception_escalate_days or 0

@@ -576,7 +576,10 @@ def gate_readiness(env, date_from=None, date_to=None, **params):
     # fix.device.device_type is a RELATED selection: its own `selection` is
     # empty, so _description_selection on it returns [] and the pack listed no
     # device type at all. Read the source field on fix.device.model instead.
-    device_model = env.get("fix.device", None)
+    # Odoo's Environment has no .get(): the membership lookup is the one that
+    # works (ruff SIM401's env.get() suggestion would AttributeError).
+    has_device = "fix.device" in env
+    device_model = env["fix.device"] if has_device else None
     field = device_model._fields.get("device_type") if device_model else None
     selection = field._description_selection(env) if field else []
     if not selection and "fix.device.model" in env:
