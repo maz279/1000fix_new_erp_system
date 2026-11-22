@@ -23,9 +23,14 @@
 #   * fix.ap.ageing.snapshot (FR-APE-013 P0, BRU-APE-23 H): the payables
 #     ageing frozen at a date. Never edited or deleted.
 #   * fix.ap.grni.accrual (FR-APE-031 P0, BRU-APE-22 H): the received-not-
-#     invoiced figure kept for a period end, against the GRNI clearing
+#     invoiced figure kept for one period end, against the GRNI clearing
 #     balance, with the estimated unrecorded liability and its basis,
 #     confirmed by a second person. GRNI was only a live report.
+#     A08 M52-F1: the confirmation now POSTS the accrual (Dr the lines'
+#     expense accounts / Cr the GRNI accrual liability, at the period end,
+#     through the AP posting funnel) and its mirror on the first day of the
+#     next period, so the vendor bills that arrive supersede it; a confirmed
+#     accrual without its posted entry is a close blocker (_fix_close_blockers).
 #   * fix.expense.card / fix.expense.card.transaction (FR-APE-038): corporate
 #     and fuel cards and their statement lines, each substantiated with a
 #     receipt, a category and a cost centre, and approved by finance (never
@@ -42,7 +47,7 @@ from odoo.exceptions import UserError, ValidationError
 
 from odoo.addons.cd_cash_position.models.treasury_common import require_other_person
 
-from .ap_gl import ap_account
+from .ap_gl import ap_account, ap_journal, post_ap_move
 from .fix_ap_controls import require_finance
 from .fix_ap_grni import grni_rows_as_of
 from .fix_ap_ext import (
@@ -71,6 +76,14 @@ def _locked_write(records, vals, open_states, what):
 
 def _next(env, code, fallback):
     return env["ir.sequence"].sudo().next_by_code(code) or fallback
+
+
+def _next_period_start(day):
+    """The first day of the period FOLLOWING `day`'s month — where a confirmed
+    GRNI accrual's mirror entry lands (the recurring engine's auto-reverse
+    idiom: fix_gl_engine._next_period_start). Day 28 + 4 always lands in the
+    next month, whatever the month's length."""
+    return (day.replace(day=28) + timedelta(days=4)).replace(day=1)
 
 
 # ============================================================ ageing / GRNI
@@ -1379,6 +1392,24 @@ class FixApGrniAccrual(models.Model):
     computed_at = fields.Datetime(readonly=True, copy=False)
     confirmed_by_id = fields.Many2one("res.users", readonly=True, copy=False)
     confirmed_at = fields.Datetime(readonly=True, copy=False)
+    # A08 M52-F1 (FR-APE-031 P0 / BRU-APE-22 H): confirmation posts the money.
+    move_id = fields.Many2one(
+        "account.move",
+        string="Accrual Entry",
+        readonly=True,
+        copy=False,
+        help="The period-end entry posted when the accrual was confirmed: Dr the "
+        "received-not-invoiced lines' expense accounts and the unrecorded "
+        "estimate, Cr the GRNI accrual liability, at the period end.",
+    )
+    reversal_move_id = fields.Many2one(
+        "account.move",
+        string="Reversal Entry",
+        readonly=True,
+        copy=False,
+        help="The mirror of the accrual entry, posted on the first day of the next "
+        "period so the vendor bills that arrive supersede the accrual.",
+    )
 
     STAMPS = (
         "name",
@@ -1392,6 +1423,8 @@ class FixApGrniAccrual(models.Model):
         "computed_at",
         "confirmed_by_id",
         "confirmed_at",
+        "move_id",
+        "reversal_move_id",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -1495,6 +1528,12 @@ class FixApGrniAccrual(models.Model):
         return True
 
     def action_confirm(self):
+        """The second person's confirm is also the posting moment (A08 M52-F1,
+        FR-APE-031 P0 / BRU-APE-22 H): the accrual becomes a GL fact — Dr the
+        received-not-invoiced lines' expense accounts and the unrecorded
+        estimate, Cr the GRNI accrual liability, dated the period end — and its
+        mirror lands on the first day of the next period, so the vendor bills
+        that arrive supersede it. A zero accrual confirms with no entry."""
         require_finance(self.env, "Confirming a GRNI accrual", manager=True)
         for a in self:
             if a.state != "computed":
@@ -1506,14 +1545,159 @@ class FixApGrniAccrual(models.Model):
                 raise UserError("A period end is confirmed once it has come.")
             if a.unrecorded_estimate and not (a.unrecorded_basis or "").strip():
                 raise UserError("Give the basis of the unrecorded liability estimate.")
+            legs = a._fix_accrual_legs()
+            move = reversal = self.env["account.move"]
+            if legs:
+                move, reversal = a._fix_post_accrual(legs)
             a._guarded().write(
                 {
                     "state": "confirmed",
                     "confirmed_by_id": self.env.user.id,
                     "confirmed_at": fields.Datetime.now(),
+                    "move_id": move.id or False,
+                    "reversal_move_id": reversal.id or False,
                 }
             )
+            if move:
+                a.message_post(
+                    body="Confirmed and posted %s (%.2f) at %s; %s reverses it on %s "
+                    "(BRU-APE-22 H)."
+                    % (
+                        move.name,
+                        move.amount_total,
+                        a.period_end,
+                        reversal.name,
+                        reversal.date,
+                    )
+                )
         return True
+
+    def _fix_accrual_legs(self):
+        """The debit side of the accrual entry: one leg per computed line at
+        its product's expense account (the convention of the P05 service-entry
+        and non-stock-goods receipts: the product's account, the module's
+        expense role as the fallback), plus one for the unrecorded liability
+        estimate at the expense role. [(account, label, amount, partner,
+        operating_unit, branch)] — never a guessed account: an unconfigured
+        role fails closed before anything posts."""
+        self.ensure_one()
+        company = self.company_id
+        legs = []
+        for ln in self.line_ids.sorted("id"):
+            amount = _q(ln.accrual)
+            if amount <= 0.005:
+                continue
+            product = ln.product_id
+            expense = (
+                product.product_tmpl_id.with_company(company)._get_product_accounts().get("expense")
+                if product
+                else None
+            ) or ap_account(self.env, company, "expense")
+            order = ln.po_line_id.sudo().order_id
+            ou = order.operating_unit_id
+            branch = order.branch_id
+            if branch and branch.operating_unit_id != ou:
+                branch = False  # fix.journal.dimension refuses a branch of another OU
+            legs.append(
+                (
+                    expense,
+                    "GRNI accrual %s %s" % (self.name, ln.order_ref or product.display_name),
+                    amount,
+                    ln.vendor_id.commercial_partner_id,
+                    ou,
+                    branch,
+                )
+            )
+        if _q(self.unrecorded_estimate) > 0.005:
+            legs.append(
+                (
+                    ap_account(self.env, company, "expense"),
+                    "Unrecorded liability estimate %s" % self.name,
+                    _q(self.unrecorded_estimate),
+                    self.env["res.partner"],  # no vendor: the estimate is ours
+                    None,
+                    None,
+                )
+            )
+        return legs
+
+    def _fix_post_accrual(self, legs):
+        """Post the accrual entry at the period end and its mirror on the first
+        day of the next period, through the AP posting funnel (post_ap_move ->
+        M19 post_with_dimensions): the AP default cost-centre and business-line
+        dimensions, each line's own operating unit / branch where its PO carries
+        them, and a fix.journal.posting.log row per entry (source
+        ap_subledger). Returns (move, reversal)."""
+        self.ensure_one()
+        env, company = self.env, self.company_id
+        journal = ap_journal(env, company, "purchase")
+        accrual_account = ap_account(env, company, "grni_accrual")
+        ref = "GRNI accrual %s" % self.name
+        lines, dims = [], {}
+        for account, label, amount, partner, ou, branch in legs:
+            i = len(lines)  # the debit leg's index; its credit mirror follows it
+            lines.append((account, label, amount, 0.0, partner))
+            lines.append((accrual_account, label, 0.0, amount, partner))
+            override = {}
+            if ou:
+                override["operating_unit_id"] = ou.id
+            if branch:
+                override["branch_id"] = branch.id
+            if override:
+                dims[i] = dict(override)  # the debit leg and its credit mirror
+                dims[i + 1] = dict(override)  # keep the line's own dimensions
+        move = post_ap_move(env, company, journal, self.period_end, ref, lines, None, dims)
+        reversal = post_ap_move(
+            env,
+            company,
+            journal,
+            _next_period_start(self.period_end),
+            "Reversal of " + ref,
+            [
+                (account, "Reversal — %s" % label, credit, debit, partner)
+                for account, label, debit, credit, partner in lines
+            ],
+            None,
+            dims,
+        )
+        return move, reversal
+
+    # A08 M52-F1: the close seam. cd_gl_ext's fix.period.close.action_close
+    # (next to its own _fix_check_* refusals) calls _fix_close_blockers and
+    # refuses the close while it returns anything; cd_ap_ext does not edit the
+    # M19 model, so the query lives here for the close owner to wire.
+    @api.model
+    def _fix_close_blockers(self, company, period_end):
+        """Confirmed GRNI accruals of `company` dated up to the closing
+        `period_end` whose GL legs are not both posted (BRU-APE-22 H: the
+        period cannot close without them). Confirmation posts the legs, so this
+        should be structurally empty — the guard stands for the record a
+        guarded write or a restore could leave behind."""
+        return (
+            self.sudo()
+            .search(
+                [
+                    ("company_id", "=", company.id if company else False),
+                    ("state", "=", "confirmed"),
+                    ("period_end", "<=", period_end),
+                ]
+            )
+            .filtered(lambda a: a._fix_close_blocked())
+        )
+
+    def _fix_close_blocked(self):
+        """True when this confirmed accrual owes GL legs it does not have
+        posted. A period with nothing received-not-invoiced and no estimate
+        confirms without an entry and blocks nothing."""
+        self.ensure_one()
+        if _q(self.grni_total + self.unrecorded_estimate) <= 0.005:
+            return False
+        return not (
+            self.move_id
+            and self.move_id.state == "posted"
+            and self.reversal_move_id
+            and self.reversal_move_id.state == "posted"
+        )
 
 
 class FixApGrniAccrualLine(models.Model):

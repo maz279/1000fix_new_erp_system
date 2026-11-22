@@ -27,6 +27,16 @@ AP_ACCOUNTS = {
     "ap": ("211000", "Trade payables (control)"),
     # Odoo generic chart: 211100 "Bills to receive" = goods received not invoiced
     "grni": ("211100", "Goods received not invoiced (GRNI clearing)"),
+    # A08 M52-F1 (FR-APE-031 P0 / BRU-APE-22 H): the period-end GRNI accrual's
+    # own liability seat. Deliberately NOT the `grni` clearing account: receipts,
+    # service entries and imports credit the clearing seat live as goods arrive,
+    # and the accrual reconciles against that balance — the accrual a second
+    # person confirms posts Dr the received-not-invoiced expense accounts / Cr
+    # THIS seat at the period end and reverses it the first day of the next
+    # period, so it must never pollute the balance it measures. Like
+    # supplier_advance there is no default: finance names the account
+    # (cd_ap_ext.account_code.grni_accrual) before any posts.
+    "grni_accrual": (None, "GRNI period-end accrual liability"),
     "expense": (None, "Default purchase / expense account"),
     "employee_payable": (None, "Employee reimbursements payable"),
     "employee_advance": (None, "Employee advances and floats"),

@@ -7,7 +7,7 @@
 from __future__ import annotations
 
 import base64
-from datetime import timedelta
+from datetime import date, timedelta
 
 import pytest
 from odoo import fields
@@ -322,6 +322,8 @@ def test_a_grni_accrual_is_computed_from_receipts_and_confirmed_by_a_second_pers
     a.with_user(c.acc1).write({"unrecorded_basis": "October utilities and rent, no bill yet"})
     a.with_user(c.mgr).action_confirm()
     assert a.state == "confirmed" and a.confirmed_by_id == c.mgr
+    # A08 M52-F1 (FR-APE-031 P0): the confirm is the posting moment
+    assert a.move_id.state == "posted" and a.reversal_move_id.state == "posted"
     with pytest.raises(UserError):
         a.with_user(c.mgr).write({"unrecorded_estimate": 1.0})
     with pytest.raises(UserError):
@@ -379,6 +381,123 @@ def test_the_accrual_creator_does_not_confirm_it(c):
         a.with_user(c.mgr).action_confirm()
     a.with_user(c.mgr2).action_confirm()
     assert a.state == "confirmed"
+
+
+# ------------------------------------------- GRNI accrual posting (A08 M52-F1)
+def _confirmed_accrual(c, estimate=0.0, basis=""):
+    """An accrual over an issued PO with its accepted receipt (superuser
+    arrangement), computed by acc1 and confirmed by the manager: the second
+    person the model requires."""
+    po = issued_po(c, qty=5.0, price=200.0, received=5.0)
+    a = (
+        c.env["fix.ap.grni.accrual"]
+        .with_user(c.acc1)
+        .create({"period_end": fields.Date.context_today(c.env.user)})
+    )
+    a.with_user(c.acc1).action_compute()
+    if estimate:
+        a.with_user(c.acc1).write({"unrecorded_estimate": estimate, "unrecorded_basis": basis})
+    a.with_user(c.mgr).action_confirm()
+    return a, po
+
+
+def test_confirming_the_accrual_posts_the_period_end_entry(c):
+    """A08 M52-F1 (FR-APE-031 P0 / BRU-APE-22 H): the second person's confirm
+    posts the money — Dr each line's expense account and the unrecorded
+    estimate, Cr the GRNI accrual liability, dated the period end, in the
+    purchase journal, with the AP dimensions on every line and the vendor on
+    the PO's leg. Mutation: the old confirm wrote only state fields and no
+    account.move appeared (probe2 G)."""
+    a, po = _confirmed_accrual(c, estimate=25000.0, basis="October utilities and rent, no bill yet")
+    move = a.move_id
+    assert move and move.state == "posted"
+    assert move.date == a.period_end and move.journal_id.type == "purchase"
+    seat = c.a["grni_accrual"]
+    credits = move.line_ids.filtered(lambda ln: ln.account_id == seat)
+    debits = move.line_ids.filtered(lambda ln: ln.account_id != seat)
+    total = pytest.approx(a.grni_total + 25000.0)
+    assert sum(credits.mapped("credit")) == total and not sum(credits.mapped("debit"))
+    assert sum(debits.mapped("debit")) == total and not sum(debits.mapped("credit"))
+    mine = debits.filtered(lambda ln: ln.name.endswith(po.name))
+    assert mine and mine.partner_id == c.vendor.commercial_partner_id
+    dims = c.env["fix.journal.dimension"].search([("move_line_id", "in", move.line_ids.ids)])
+    assert dims and all(d.operating_unit_id for d in dims)
+    assert any(d.operating_unit_id == po.operating_unit_id for d in dims)
+
+
+def test_the_accrual_entry_reverses_on_the_first_day_of_the_next_period(c):
+    """BRU-APE-22 H: the accrual is superseded next period — the mirror entry is
+    linked back on the accrual (reversal_move_id), dated the first day of the
+    month after the period end (the recurring engine's auto-reverse idiom), and
+    is an exact per-account mirror, so the pair nets to nothing once both are
+    in and the vendor bills post fresh."""
+    a, _po = _confirmed_accrual(c)
+    rev = a.reversal_move_id
+    assert rev and rev.state == "posted" and rev.journal_id == a.move_id.journal_id
+    end = fields.Date.to_date(a.period_end)
+    assert rev.date == (end.replace(day=28) + timedelta(days=4)).replace(day=1)
+
+    def per_account(move):
+        out = {}
+        for line in move.line_ids:
+            out[line.account_id] = round(out.get(line.account_id, 0.0) + line.balance, 2)
+        return out
+
+    assert not (set(per_account(a.move_id)) ^ set(per_account(rev)))
+    for account, balance in per_account(a.move_id).items():
+        assert round(balance + per_account(rev)[account], 2) == 0.0
+
+
+def test_the_posting_funnel_logs_the_accrual_and_its_reversal(c):
+    """FR-FIN-042: both entries went through the estate's funnel — one
+    fix.journal.posting.log row each, as AP sub-ledger postings."""
+    a, _po = _confirmed_accrual(c)
+    rows = c.env["fix.journal.posting.log"].search(
+        [("move_id", "in", (a.move_id | a.reversal_move_id).ids)]
+    )
+    assert {r.move_id.id for r in rows} == {a.move_id.id, a.reversal_move_id.id}
+    assert all(r.source == "ap_subledger" and r.state == "posted" for r in rows)
+
+
+def test_a_refused_confirm_posts_nothing(c):
+    """The SoD around the confirm is the gate on the money too: an accountant,
+    and the person who computed the accrual, are refused — and nothing reaches
+    the ledger while they are (the accrual stays computed, no entry, no
+    reversal)."""
+    issued_po(c, qty=5.0, price=200.0, received=5.0)
+    a = (
+        c.env["fix.ap.grni.accrual"]
+        .with_user(c.acc1)
+        .create({"period_end": fields.Date.context_today(c.env.user)})
+    )
+    a.with_user(c.acc1).action_compute()
+    before = c.env["account.move"].search_count([])
+    with pytest.raises(UserError):
+        a.with_user(c.acc2).action_confirm()  # an accountant does not confirm
+    with pytest.raises(UserError):
+        a.with_user(c.acc1).action_confirm()  # the computer is not the checker
+    assert c.env["account.move"].search_count([]) == before
+    assert a.state == "computed" and not a.move_id and not a.reversal_move_id
+
+
+def test_the_close_seam_blocks_a_confirmed_accrual_without_its_entry(c):
+    """BRU-APE-22 H: a period cannot close over a confirmed-but-unposted GRNI
+    accrual. Confirming posts both legs, so the seam is exercised on the record
+    a guarded write could leave behind; a posted accrual and an empty period's
+    accrual block nothing. _fix_close_blockers is the query the M19 close
+    checklist wires next to its own _fix_check_* refusals."""
+    Accrual = c.env["fix.ap.grni.accrual"].sudo()
+    a, _po = _confirmed_accrual(c)
+    assert not Accrual._fix_close_blockers(c.company, a.period_end)
+    a._guarded().write({"move_id": False})  # the hole the finding stood on
+    assert a in Accrual._fix_close_blockers(c.company, a.period_end)
+    assert not Accrual._fix_close_blockers(c.company, a.period_end - timedelta(days=1))
+    empty = Accrual.with_user(c.mgr).create({"period_end": date(2020, 1, 31)})
+    empty.with_user(c.mgr).action_compute()
+    assert empty.grni_total == 0.0
+    empty.with_user(c.mgr2).action_confirm()
+    assert empty.state == "confirmed" and not empty.move_id
+    assert empty not in Accrual._fix_close_blockers(c.company, empty.period_end)
 
 
 # ------------------------------------------------------------------ cards

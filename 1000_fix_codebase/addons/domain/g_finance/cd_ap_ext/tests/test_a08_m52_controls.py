@@ -146,6 +146,8 @@ def c(odoo_env):
         "employee_advance": acc("990141", "Test employee advances", "asset_current"),
         "salary_payable": acc("990231", "Test salaries payable", "liability_current"),
         "expense": acc("990600", "Test expense", "expense"),
+        # A08 M52-F1: the period-end GRNI accrual's own liability seat
+        "grni_accrual": acc("990254", "Test GRNI accrual payable", "liability_current"),
         # A06 D2 / D5: price variance and FX gain/loss of a bill vs its receipt
         "ppv": acc("990007", "Test purchase price variance", "expense"),
         "fx_gain_loss": acc("990030", "Test FX gain / loss", "expense"),
@@ -159,6 +161,7 @@ def c(odoo_env):
         ("cd_ap_ext.account_code.employee_advance", "990141"),
         ("cd_ap_ext.account_code.salary_payable", "990231"),
         ("cd_ap_ext.account_code.expense", "990600"),
+        ("cd_ap_ext.account_code.grni_accrual", "990254"),
         ("cd_ap_ext.account_code.ppv", "990007"),
         ("cd_ap_ext.account_code.fx_gain_loss", "990030"),
     ):
