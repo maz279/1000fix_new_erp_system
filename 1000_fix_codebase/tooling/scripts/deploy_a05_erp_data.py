@@ -20,6 +20,7 @@ audit_analysis/A05_ERP_AUDIT_REPORT_2026-11-21.md):
     left unsigned and inactive for the CFO and the tax adviser.
 """
 
+import json
 import os
 
 DRY = os.environ.get("A05_DRY_RUN") == "1"
@@ -101,6 +102,17 @@ for key, value in PARAMS.items():
     if (ICP.get_param(key) or "") != value:
         log.append("param %s: %r -> %r" % (key, ICP.get_param(key), value))
         ICP.set_param(key, value)
+
+# A06 real-time stock posting: a harvested part's M15 receipt credits the
+# refurbished stock it came out of (M14 records the carrying cost leaving and
+# posts no GL of its own on a real-time company). Merged into the JSON map.
+RECEIPT_MAP_KEY = "cd_inventory.stock_posting.receipt_counter_by_source"
+raw = (ICP.get_param(RECEIPT_MAP_KEY) or "").strip()
+receipt_map = json.loads(raw) if raw else {}
+if receipt_map.get("fix.tradein.harvest") != "100513":
+    receipt_map["fix.tradein.harvest"] = "100513"
+    log.append("param %s: fix.tradein.harvest -> 100513" % RECEIPT_MAP_KEY)
+    ICP.set_param(RECEIPT_MAP_KEY, json.dumps(receipt_map, sort_keys=True))
 
 # D9: role holders (owner named the logins; only those on this database)
 HOLDERS = ["ashish.kumar@1000fix.com", "mainul.hasan@1000fix.com", "tanjin.rabby@1000fix.com"]

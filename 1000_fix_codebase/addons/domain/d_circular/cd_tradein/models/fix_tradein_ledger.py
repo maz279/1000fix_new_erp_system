@@ -1345,6 +1345,15 @@ class FixGradedStockTradein(models.Model):
         self.ensure_one()
         return self.env["fix.tradein.request"].sudo().browse(self.tradein_id or 0).exists()
 
+    def _fix_books_elsewhere(self) -> bool:
+        """A unit whose trade-in is on the refurbished ledger has its books
+        kept here (payout, absorption, markdown, COGS): A06's graded posting
+        in cd_inventory stands aside so nothing is posted twice."""
+        if super()._fix_books_elsewhere():
+            return True
+        tradein = self._tradein()
+        return bool(tradein and tradein.sudo().ledger_ids)
+
     def _fix_sale_denial(self) -> str:
         denial = super()._fix_sale_denial()
         if denial:

@@ -1211,6 +1211,23 @@ class FixTradeinHarvest(models.Model):
         amount = round(self.total_value or 0.0, 2)
         if amount <= _EPS:
             return
+        Valuation = self.env["fix.inventory.valuation.suspense"].sudo()
+        if hasattr(Valuation, "_fix_realtime") and Valuation._fix_realtime(tradein.company_id):
+            # A06 real-time stock posting (fix_real since the take-on): the M15
+            # receipt of the harvested part posts Dr part stock / Cr refurbished
+            # stock itself when the storekeeper posts it (receipt counter for
+            # source fix.tradein.harvest = the refurbished-stock account). The
+            # trade-in records the carrying cost leaving; it posts no GL of its
+            # own, so the value is never taken out of 100513 twice.
+            tradein._ledger_post(
+                "harvest",
+                "harvest:%d" % self.id,
+                amount,
+                -amount,
+                [],
+                "harvest %s (GL: the M15 receipt, Cr refurbished stock)" % self.name,
+            )
+            return
         code = suspense_account_code(self.env)
         m15 = (
             self.env["account.account"]

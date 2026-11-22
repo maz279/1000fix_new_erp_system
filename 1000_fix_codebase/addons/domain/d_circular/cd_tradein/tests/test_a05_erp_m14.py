@@ -872,6 +872,81 @@ def test_qa_failed_unit_goes_parts_only_harvest_relieves_cost_residue_written_of
     assert rec.state == "closed" and rec.sudo().carrying_cost == 0.0
 
 
+def _realtime(w):
+    """The company on A06 real-time stock posting (fix_real since its take-on),
+    with the A06 graded-stock roles named, so A06's graded posting WOULD post
+    for a unit whose books nobody else keeps."""
+    w.env.company.sudo().write({"fix_stock_realtime_from": fields.Date.today()})
+    icp = w.env["ir.config_parameter"].sudo()
+    icp.set_param("cd_inventory.account_code.graded_stock", "110100")
+    icp.set_param("cd_inventory.account_code.graded_intake", "211000")
+
+
+def test_realtime_stock_posts_a_trade_in_unit_once(w):
+    """A05 x A06 merge: M14's refurbished ledger keeps a trade-in unit's books
+    (payout, absorption, COGS); A06's graded posting stands aside, so neither
+    the intake nor the sale is posted twice on a real-time company."""
+    _realtime(w)
+    rec = listed(w, grade="b", price=34500.0)
+    stock = rec.graded_stock_id
+    assert stock._fix_books_elsewhere()
+    Rows = w.env["fix.inventory.valuation.suspense"].sudo()
+    assert not stock.ledger_entry_id
+    assert not Rows.search_count([("graded_stock_id", "=", stock.id)])
+    rec.with_user(w.controller).action_counter_sell(buyer(w).id)
+    assert stock.state == "sold"
+    # the sale's cost left stock once - M14's COGS row - and A06 posted nothing
+    assert rec._ledger_row("cogs:s1").move_id
+    assert not Rows.search_count([("graded_stock_id", "=", stock.id)])
+
+
+def test_realtime_harvest_leaves_the_gl_to_the_m15_receipt(w):
+    """A05 x A06 merge: on real-time posting the M15 receipt of a harvested part
+    posts Dr part stock / Cr refurbished stock (receipt counter for
+    fix.tradein.harvest), so the trade-in records the cost leaving without a GL
+    entry of its own - never through the retired valuation suspense."""
+    _realtime(w)
+    rec = paid(w)
+    refurbishing(w, rec)
+    finish_steps(w, rec)
+    qa(w, rec, passed=6)
+    _route(w, rec).with_user(w.woapprover).action_approve()
+    Loc = w.env["fix.stock.location"]
+    loc = Loc.sudo().search([("company_id", "=", w.env.company.id)], limit=1)
+    if not loc:
+        kind = Loc._fields["location_type"].selection
+        kind = kind(Loc) if callable(kind) else kind
+        loc = Loc.create(
+            {"name": "A05 RT Harvest Bin", "code": "A05RHV", "location_type": kind[0][0]}
+        )
+    w.env["ir.config_parameter"].sudo().set_param("cd_tradein.harvest_location_id", str(loc.id))
+    Part = w.env["fix.spare.part"]
+    part = Part.sudo().search([("company_id", "in", (False, w.env.company.id))], limit=1)
+    if not part:
+        category = Part._fields["part_category"].selection
+        category = category(Part) if callable(category) else category
+        part = Part.create(
+            {"name": "A05 RT Screen", "part_number": "A05R-HV-SCR", "part_category": category[0][0]}
+        )
+    harvest = (
+        w.env["fix.tradein.harvest"]
+        .with_user(w.clerk)
+        .create(
+            {
+                "tradein_id": rec.id,
+                "component": "screen",
+                "part_id": part.id,
+                "quantity": 1,
+                "unit_value": 1500.0,
+            }
+        )
+    )
+    harvest.action_harvest()
+    relief = rec._ledger_row("harvest:%d" % harvest.id)
+    assert relief.amount == 1500.0 and relief.stock_effect == -1500.0
+    assert not relief.move_id and harvest.receipt_id
+
+
 def test_recycle_route_writes_off_at_approval_and_hands_to_m18(w):
     rec = paid(w)
     refurbishing(w, rec)
