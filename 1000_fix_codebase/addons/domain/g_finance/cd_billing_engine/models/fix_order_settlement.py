@@ -142,16 +142,22 @@ class FixServiceOrderSettlementReceipts(models.Model):
 
     def _fix_live_credit_exposure(self, customer, company) -> float:
         """What the customer owes on account right now, read at the moment of
-        release (the profile's stored exposure is recomputed only when its
-        limit or customer changes, so it went stale; and it counted neither
-        invoices raised on the customer's contact persons nor orders already
-        released on credit that are not invoiced yet, so a Finance Manager
-        could release order after order against the same room):
+        release (the release itself must never trust a stored figure: it also
+        counts orders already released on credit that are not invoiced yet,
+        which no profile field carries, so a Finance Manager could release
+        order after order against the same room):
           open residuals of issued invoices of the commercial partner and its
           contacts in the company
+        + the customer's legacy take-on still open on the AR control (M20-F1:
+          an opening balance is part of the customer's balance — the estate
+          rule the ageing snapshot already applies; without it a customer
+          migrated with a large open balance got fresh credit releases
+          counted against new invoices only)
         + the amount due of the customer's OTHER orders released on credit
           that carry no invoice yet."""
         self.ensure_one()
+        from .fix_ar_engine import takeon_ar_opening
+
         Invoice = self.env["fix.ar.invoice"].sudo()
         invoices = Invoice.search(
             [
@@ -161,6 +167,9 @@ class FixServiceOrderSettlementReceipts(models.Model):
             ]
         )
         exposure = sum(invoices.mapped("amount_residual"))
+        opening = takeon_ar_opening(self.env, company).get(customer.id)
+        if opening and abs(opening["residual"]) > 0.005:
+            exposure += opening["residual"]
         others = self.sudo().search(
             [
                 ("id", "!=", self.id),

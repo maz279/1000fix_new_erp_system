@@ -1062,6 +1062,18 @@ class FixArAllocation(models.Model):
 # ---------------------------------------------------------------------------
 # A5 — credit control (FR-ARB-030/031)
 # ---------------------------------------------------------------------------
+class ResPartner(models.Model):
+    """M20-F1 (A08 audit, Nov 2026): the stored credit exposure must follow
+    the AR lifecycle, so the partner carries the invoice inverse the
+    @api.depends path of fix.credit.profile._compute_exposure needs — an
+    issue, a receipt allocation, a credit note or a write-off moves the
+    customer's exposure the moment it moves the invoice."""
+
+    _inherit = "res.partner"
+
+    fix_ar_invoice_ids = fields.One2many("fix.ar.invoice", "customer_id", string="AR Invoices")
+
+
 class FixCreditProfile(models.Model):
     """Per-customer credit terms, limits and holds (FR-ARB-030). A hold
     blocks new invoice generation for the customer; blocking M01/M08 order
@@ -1092,7 +1104,10 @@ class FixCreditProfile(models.Model):
         compute="_compute_exposure",
         store=True,
         currency_field="currency_id",
-        help="Open issued residuals + confirmed-but-unapplied receipts never net here (receipts already reduced AR at confirm)",
+        help="Open issued residuals of the commercial partner and its contacts, plus the "
+        "legacy take-on still open on the AR control (an opening balance is owed like an "
+        "invoice — the same basis the ageing snapshot carries). Confirmed-but-unapplied "
+        "receipts never net here (receipts already reduced AR at confirm).",
     )
     over_limit = fields.Boolean(compute="_compute_exposure", store=True)
 
@@ -1100,19 +1115,49 @@ class FixCreditProfile(models.Model):
         "UNIQUE (customer_id, company_id)", "One credit profile per customer per company"
     )
 
-    @api.depends("credit_limit", "customer_id")
+    @api.depends(
+        "credit_limit",
+        "customer_id",
+        # M20-F1: the stored exposure follows the AR lifecycle — the invoice
+        # inverse on the partner (and on the commercial partner's contacts,
+        # which the exposure also counts) trips the recompute on issue, on
+        # receipt allocation, and on every settlement that moves the residual
+        # (credit note, VDS/TDS, write-off) or the state.
+        "customer_id.fix_ar_invoice_ids.state",
+        "customer_id.fix_ar_invoice_ids.amount_residual",
+        "customer_id.child_ids.fix_ar_invoice_ids.state",
+        "customer_id.child_ids.fix_ar_invoice_ids.amount_residual",
+    )
     def _compute_exposure(self):
-        Invoice = self.env["fix.ar.invoice"]
+        Invoice = self.env["fix.ar.invoice"].sudo()
+        takeon_by_company = {}
         for rec in self:
+            commercial = rec.customer_id.commercial_partner_id or rec.customer_id
             open_residuals = Invoice.search(
                 [
-                    ("customer_id", "=", rec.customer_id.id),
+                    ("customer_id", "child_of", commercial.id),
                     ("state", "=", "issued"),
                     ("company_id", "=", rec.company_id.id),
                 ]
             )
-            rec.exposure = sum(open_residuals.mapped("amount_residual"))
-            rec.over_limit = bool(rec.credit_limit) and rec.exposure > rec.credit_limit
+            invoices_open = sum(open_residuals.mapped("amount_residual"))
+            # The legacy take-on still open on the AR control is part of the
+            # customer's balance (the estate rule the ageing snapshot already
+            # applies). It is GL data read as superuser by open_takeon_balances;
+            # the exposure is a stored control measure, so it is complete for
+            # every reader — never shaped by who happened to trigger the
+            # recompute. The take-on still moves only the GL, so the stored
+            # figure refreshes on the next AR event or profile change; the
+            # invoicing gate reads it live (fix_billing_engine
+            # _credit_exposure_now) and never trusts this cache.
+            if rec.company_id.id not in takeon_by_company:
+                takeon_by_company[rec.company_id.id] = takeon_ar_opening(self.env, rec.company_id)
+            opening = takeon_by_company[rec.company_id.id].get(commercial.id)
+            takeon_open = (
+                opening["residual"] if opening and abs(opening["residual"]) > 0.005 else 0.0
+            )
+            rec.exposure = round(invoices_open + takeon_open, 2)
+            rec.over_limit = bool(rec.credit_limit) and rec.exposure > rec.credit_limit + 0.005
 
     HOLD_STAMPS = ("hold_by", "hold_date", "hold_placed_by_id")
 

@@ -15,6 +15,11 @@
 #   * M20-5: the rates come from fix.ar.ecl.rate, an effective-dated master
 #     approved by a second person, stamped onto the run by Compute; a run with
 #     no approved set in force is refused rather than given rates.
+#   * M20-F2 (A08 audit, Nov 2026): the exposure basis is the ageing
+#     snapshot's own basis — open issued invoices PLUS the legacy take-on
+#     still open on the AR control, aged from each take-on date into its real
+#     bucket. Before, the migrated open balances (the estate's entire real AR)
+#     never entered a bucket and a posted run provisioned ~0.
 from odoo import api, fields, models
 from odoo.exceptions import UserError
 
@@ -300,7 +305,15 @@ class FixArImpairment(models.Model):
         return -round(sum(lines.mapped("balance")), 2)
 
     def action_compute(self):
-        """Age every open invoice by (as-of - due date) and apply the bucket rate."""
+        """Age every open receivable by (as-of - due date) and apply the bucket
+        rate. M20-F2 (A08 audit, Nov 2026): the exposure basis is the SAME
+        ageing snapshot basis (FR-ARB-029) — open issued invoices AND the
+        legacy take-on still open on the AR control, each take-on amount aged
+        from its own take-on date and falling into its real bucket (never
+        blanket-assigned a vintage). Before, the run provisioned only new
+        invoices while the estate's real AR — the migrated open balances —
+        never entered a bucket, so a posted run provisioned ~0 (probe:
+        432.50 of exposure against a 153,860,191.59 ageing snapshot total)."""
         self.ensure_one()
         require_role(self.env, GROUP_ACCOUNTANT, "Computing the IFRS 9 provision")
         if self.state == "posted":
@@ -314,13 +327,18 @@ class FixArImpairment(models.Model):
             )
         self._guarded().write({"rate_set_id": rates.id, **{f: rates[f] for f in RATE_FIELDS}})
         self.line_ids.sudo().unlink()
+        from .fix_ar_engine import age_slot, takeon_ar_opening
+
         Invoice = self.env["fix.ar.invoice"].sudo()
+        # the snapshot's own basis: issued invoices with a real residual (the
+        # old domain also named part_paid/overdue, states the invoice
+        # selection never had — harmless then, silently wrong later)
         invoices = Invoice.search(
             [
                 ("company_id", "=", self.company_id.id),
-                ("state", "in", ("issued", "part_paid", "overdue")),
+                ("state", "=", "issued"),
             ]
-        )
+        ).filtered(lambda inv: inv.amount_residual > 0.005)
         totals = {k: 0.0 for k, *_ in BUCKETS}
         for inv in invoices:
             issued = inv.invoice_date
@@ -338,10 +356,16 @@ class FixArImpairment(models.Model):
                 key = "current"
             else:
                 key = next((k for k, _l, lo, hi in BUCKETS if lo <= days <= hi), "d90_plus")
-            outstanding = inv.amount_residual or 0.0
-            if outstanding <= 0:
+            totals[key] += inv.amount_residual
+        # the legacy take-on still open on the AR control, aged from its own
+        # take-on date into its real bucket — exactly what the ageing snapshot
+        # captures, so the run and the snapshot agree (BRU-ARB-23/FR-ARB-042
+        # provision the receivable, all of it). The amounts are GL data read
+        # as superuser; the run itself is finance-role gated above.
+        for opening in takeon_ar_opening(self.env, self.company_id, as_of=self.as_of).values():
+            if abs(opening["residual"]) <= 0.005 or not opening["date"]:
                 continue
-            totals[key] += outstanding
+            totals[age_slot((self.as_of - opening["date"]).days)] += opening["residual"]
         Line = self.env["fix.ar.impairment.line"].sudo()
         for key, label, _lo, _hi in BUCKETS:
             exposure = round(totals[key], 2)

@@ -492,6 +492,76 @@ class FixArInvoice(models.Model):
                 % (customer.name, profile.hold_reason or "no reason recorded")
             )
 
+    @api.model
+    def _credit_profile_for(self, customer, company):
+        """The customer's credit profile: on the invoiced customer itself, else
+        on its commercial parent (invoices are raised on contact persons too)."""
+        Profile = self.env["fix.credit.profile"].sudo()
+        return Profile.search(
+            [("customer_id", "=", customer.id), ("company_id", "=", company.id)], limit=1
+        ) or Profile.search(
+            [
+                ("customer_id", "=", (customer.commercial_partner_id or customer).id),
+                ("company_id", "=", company.id),
+            ],
+            limit=1,
+        )
+
+    @api.model
+    def _credit_exposure_now(self, customer, company) -> float:
+        """Live credit exposure at the moment of a gate (M20-F1 / FR-ARB-030):
+        the open issued residuals of the commercial partner and its contacts
+        PLUS the legacy take-on still open on the AR control — the same basis
+        the stored profile exposure and the ageing snapshot carry (the estate
+        rule: an opening balance is part of the customer's balance). Read
+        fresh, never from the stored field, so the gate cannot be bypassed by
+        a recompute that has not run. The take-on is GL data read as
+        superuser; this gate is a control, complete for every caller."""
+        from .fix_ar_engine import takeon_ar_opening
+
+        commercial = customer.commercial_partner_id or customer
+        invoices = (
+            self.env["fix.ar.invoice"]
+            .sudo()
+            .search(
+                [
+                    ("customer_id", "child_of", commercial.id),
+                    ("state", "=", "issued"),
+                    ("company_id", "=", company.id),
+                ]
+            )
+        )
+        exposure = sum(invoices.mapped("amount_residual"))
+        opening = takeon_ar_opening(self.env, company).get(commercial.id)
+        if opening and abs(opening["residual"]) > 0.005:
+            exposure += opening["residual"]
+        return round(exposure, 2)
+
+    def _credit_limit_check(self):
+        """FR-ARB-030 (M20-F1): a credit limit actually gates invoicing. The
+        invoice is refused while issuing it would push the customer over their
+        limit — exposure counted live, including the legacy take-on, so a
+        customer migrated with a large open balance cannot be invoiced fresh
+        money past the limit. A profile without a limit (0) gates nothing,
+        exactly like the order-release gate."""
+        for inv in self:
+            self._credit_limit_for(inv.customer_id, inv.company_id, inv.total_payable)
+
+    @api.model
+    def _credit_limit_for(self, customer, company, amount=0.0):
+        profile = self._credit_profile_for(customer, company)
+        if not profile or profile.credit_limit <= 0:
+            return
+        exposure = self._credit_exposure_now(customer, company)
+        if exposure + (amount or 0.0) > profile.credit_limit + 0.005:
+            raise UserError(
+                "Credit limit on %s (FR-ARB-030): invoicing BDT %.2f on top of BDT %.2f "
+                "already owed (open invoices + the legacy take-on still open) exceeds the "
+                "BDT %.2f credit limit. Raise the limit through a Credit Limit Change or "
+                "settle what is owed."
+                % (customer.name, amount or 0.0, exposure, profile.credit_limit)
+            )
+
     def _ar_posting_dims(self, branch_id=None, operating_unit_id=None):
         """Dimensions for every AR-family GL posting: the branch and operating
         unit, plus the configured default cost centre and business line
@@ -1071,6 +1141,9 @@ class FixArInvoice(models.Model):
             if hasattr(inv.customer_id, "_fix_assert_party_usable_downstream"):
                 inv.customer_id._fix_assert_party_usable_downstream("an invoice")
             inv._credit_hold_check()
+            # M20-F1: the limit gates the issue itself (a hold is not the only
+            # credit control that must bite at invoicing)
+            inv._credit_limit_check()
             company = inv.company_id
             # E3-20: the 6.3 row cites the invoice's gapless number (drawn in
             # this same transaction), never the internal AR/<id>
@@ -1393,6 +1466,9 @@ class FixArInvoice(models.Model):
 
         # C8: never a Mushak 6.3 dated inside a locked period
         invoice._fix_assert_date_open()
+        # M20-F1: the limit gates the issue itself — counted live, including
+        # the legacy take-on, before the invoice exists as exposure
+        invoice._credit_limit_check()
 
         # Mushak register row — same transaction (T08 atomicity)
         company = invoice.company_id
