@@ -896,7 +896,20 @@ class FixApiQuota(models.Model):
         Log = self.env["fix.integration.log"].sudo()
         at = at or fields.Datetime.now()
         minute_start = at - timedelta(seconds=60)
-        day_start = at.replace(hour=0, minute=0, second=0, microsecond=0)
+        # M28-D8: the "day" of a daily quota is the Dhaka calendar day
+        # (UTC+6, no DST), not the UTC one — a UTC midnight reset moved the
+        # limit to 06:00 local.
+        try:
+            from zoneinfo import ZoneInfo
+
+            _local = at.replace(tzinfo=ZoneInfo("UTC")).astimezone(ZoneInfo("Asia/Dhaka"))
+            day_start = (
+                _local.replace(hour=0, minute=0, second=0, microsecond=0)
+                .astimezone(ZoneInfo("UTC"))
+                .replace(tzinfo=None)
+            )
+        except Exception:
+            day_start = at.replace(hour=0, minute=0, second=0, microsecond=0)
         base = [("kind", "=", "api"), ("consumer_id", "=", consumer_id), ("measured", "=", True)]
         if endpoint_id:
             base.append(("endpoint_id", "=", endpoint_id))
@@ -1097,6 +1110,11 @@ class FixEventTopic(models.Model):
                     ("company_id", "=", topic.company_id.id),
                     ("create_date", "<", cutoff),
                     ("relayed_at", "!=", False),
+                    # M28-D3: never delete an event the external bus has not
+                    # confirmed. A lagging publisher behind a retention cutoff
+                    # would otherwise lose events permanently; 'pending' rows
+                    # wait for their publication (or the no-bus drain) instead.
+                    ("status", "=", "published"),
                 ],
                 limit=limit,
             )

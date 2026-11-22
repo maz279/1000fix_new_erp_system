@@ -126,7 +126,9 @@ class FixProjectTemplate(models.Model):
                 continue
             milestone = None
             task_name = line
-            for ms_name, ms_rec in milestones.items():
+            # Longest name first, so "Design Review: sign-off" files under
+            # "Design Review", never under "Design".
+            for ms_name, ms_rec in sorted(milestones.items(), key=lambda kv: -len(kv[0])):
                 if line.startswith(ms_name):
                     milestone = ms_rec
                     task_name = line[len(ms_name) :].lstrip(":- ")
@@ -474,13 +476,41 @@ class FixProjectBilling(models.Model):
 
     def _invoice_dimensions(self, move):
         """Every line of the invoice carries its project (the M19 project
-        dimension). Skipped only for a company with no operating unit, where
-        M19 could not store a dimension row at all."""
+        dimension) AND the project's own operating unit / branch, so a COA-03
+        chart that requires the branch dimension attributes the revenue to the
+        delivering branch instead of the company default (head office). A
+        project without an operating unit in a multi-OU company is refused by
+        name (D27 law: derive a real dimension or refuse, never post head
+        office by accident). Skipped only for a company with no operating
+        unit, where M19 could not store a dimension row at all."""
         company = self.company_id
         if not self.env["operating.unit"].sudo().search_count([("company_id", "=", company.id)]):
             return None
-        code = self.project_id.code
-        return {index: {"project_ref": code} for index in range(len(move.line_ids))}
+        unit = self.project_id.sudo().operating_unit_id
+        if not unit:
+            units = self.env["operating.unit"].sudo().search([("company_id", "=", company.id)])
+            if len(units) == 1:
+                # The only OU of the company: the project's, unambiguously.
+                unit = units
+            else:
+                raise UserError(
+                    "Set the Operating Unit on project %s before invoicing: the "
+                    "invoice's branch dimension comes from the project."
+                    % self.project_id.display_name
+                )
+        vals = {"project_ref": self.project_id.code, "operating_unit_id": unit.id}
+        branch = (
+            self.env["fix.branch"]
+            .sudo()
+            .search(
+                [("operating_unit_id", "=", unit.id), ("company_id", "=", company.id)], limit=1
+            )
+            if "fix.branch" in self.env
+            else False
+        )
+        if branch:
+            vals["branch_id"] = branch.id
+        return {index: dict(vals) for index in range(len(move.line_ids))}
 
     def _billing_assert_finance(self, what):
         """F14: a Finance user who did not manage the project or ready this line."""

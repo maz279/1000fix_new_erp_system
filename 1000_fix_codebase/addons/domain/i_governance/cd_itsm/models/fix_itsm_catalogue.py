@@ -488,6 +488,17 @@ class FixItsmLicence(models.Model):
         for rec in self:
             if rec.state == "expired":
                 raise UserError("%s has expired: renew it before assigning seats." % rec.name)
+            held = rec.seat_ids.filtered(
+                lambda s: s.state == "active" and s.employee_id == person
+            )
+            if held:
+                # M66-2: one person, one active seat per licence — a second
+                # assignment would silently eat an entitlement and inflate
+                # the utilisation figure.
+                raise UserError(
+                    "%s already holds an active seat on %s (since %s)."
+                    % (person.name, rec.name, held[0].create_date.date() if held[0].create_date else "earlier")
+                )
             used = max(rec.seats_assigned, rec.seats_declared)
             if used >= rec.seats_owned:
                 raise UserError(

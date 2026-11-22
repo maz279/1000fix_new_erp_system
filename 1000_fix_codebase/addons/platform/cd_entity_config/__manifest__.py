@@ -19,7 +19,7 @@ Owns:
 
 CD items: CD-M30-01..CD-M30-nn per tooling/cd-register.yaml.
     """,
-    "version": "19.0.1.2.0",
+    "version": "19.0.1.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "website": "https://1000fix.com",

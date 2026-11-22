@@ -18,6 +18,8 @@ export const MODULE = {
   kpis: [
     { l: 'API p95', m: 'api_p95', suffix: ' ms' },
     { l: 'Event Delivery', m: 'event_delivery', suffix: '%' },
+    { l: 'Bus Backlog', m: 'bus_pending' },
+    { l: 'Oldest Pending', m: 'oldest_bus_pending_hours', suffix: ' h' },
     { l: 'DLQ Depth', m: 'dlq_depth' },
     { l: 'Connectors Live', m: 'connectors_live' },
     { l: 'Sync Conflicts Today', m: 'sync_conflicts_today' }
