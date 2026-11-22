@@ -12,6 +12,7 @@ access_fix_talent_interview_role,fix.talent.interview.role,model_fix_talent_inte
 access_fix_talent_assessment_role,fix.talent.assessment.role,model_fix_talent_assessment,cd_talent.group_talent,1,1,1,0
 access_fix_talent_first90_role,fix.talent.first90.role,model_fix_talent_first90,cd_talent.group_talent,1,1,1,0
 access_fix_talent_check_recruit,fix.talent.check.recruit,model_fix_talent_check,cd_talent.group_talent,1,1,1,0
+access_fix_talent_offer_recruit,fix.talent.offer.recruit,model_fix_talent_offer,cd_talent.group_talent,1,1,1,0
 access_fix_job_requisition_approver,fix.job.requisition.approver,model_fix_job_requisition,cd_talent.group_requisition_approver,1,1,0,0
 access_fix_job_requisition_cfo,fix.job.requisition.cfo,model_fix_job_requisition,cd_entity_config.group_dofa_tier_4,1,1,0,0
 access_fix_candidate_offer_approver,fix.candidate.offer.approver,model_fix_candidate,cd_talent.group_offer_approver,1,1,0,0
