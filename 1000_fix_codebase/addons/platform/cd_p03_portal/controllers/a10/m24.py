@@ -220,7 +220,7 @@ def signature_status(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Signed counts signers whose state is no longer pending; the envelope completes "
+            "Signed counts signers whose signed_at is set; the envelope completes "
             "when every signer has signed."
         ],
         empty="No signature envelopes recorded.",
@@ -316,7 +316,10 @@ def kpis(env):
     # A10 M24-12: an envelope is pending only while signatures may still land
     pending = len(envelopes.filtered(lambda e: e.state in ("sent", "partially_signed")))
     held = len(docs.filtered(lambda d: d.legal_hold))
-    auto_filed = len(docs.filtered(lambda d: d.retention_class_id))
+    # A10 deep audit (2026-11-22, A2-F09): auto-filed means FILED BY A
+    # TRANSACTION (linked to its source record) — a manual upload that was
+    # merely given a retention class is not an auto-file.
+    auto_filed = len(docs.filtered(lambda d: d.res_model and d.res_id))
     return {
         "documents": len(docs),
         "auto_filed": auto_filed,

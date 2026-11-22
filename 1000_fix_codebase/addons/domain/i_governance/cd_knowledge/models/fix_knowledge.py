@@ -187,7 +187,9 @@ class FixKnowledgeArticle(models.Model):
     # The fields an edit of a PUBLISHED article turns into a new version
     # (M61-3: the edit must reach the offline devices, not die on the server).
     # Everything the offline payload carries — titles, content, and the
-    # brand/model/symptom/level the sync matches on.
+    # brand/model/symptom/level the sync matches on. tags rides along (A10
+    # deep audit 2026-11-22, A4-F07): a safety-tag edit changes what the
+    # content IS and must not slip through unversioned.
     _REVISION_FIELDS = (
         "name",
         "title_bn",
@@ -198,6 +200,7 @@ class FixKnowledgeArticle(models.Model):
         "device_model",
         "fault_symptom",
         "rework_level",
+        "tags",
     )
 
     def write(self, vals):
@@ -205,6 +208,11 @@ class FixKnowledgeArticle(models.Model):
         # the author's to improve — but it is a REVISION: the version rises
         # server-side and the event fires, so the offline sync (which reads
         # version_after + content_hash) delivers it to every device.
+        # A10 deep audit (2026-11-22, A4-F01): "the author's to improve" is
+        # now enforced as an identity fact, not a hope — the editor of
+        # published content must be the superuser, a Knowledge Publisher, or
+        # the article's own author. Any other internal user editing live
+        # field content shipped unreviewed to every device.
         revising = self.browse()
         if self and not self._fix_guard_open():
             touched = [n for n in self._REVISION_FIELDS if n in vals]
@@ -214,13 +222,30 @@ class FixKnowledgeArticle(models.Model):
                         rec._fix_guard_differs(n, vals[n], rec[n]) for n in touched
                     ):
                         revising |= rec
+                if revising and not (
+                    self.env.su or self.env.user.has_group(PUBLISHER_GROUP)
+                ):
+                    for rec in revising:
+                        owner = rec.owner_id or rec.create_uid
+                        if owner != self.env.user:
+                            raise UserError(
+                                "Published content is revised by its author or a "
+                                "Knowledge Publisher — '%s' is authored by %s. Use "
+                                "the capture queue to propose the change for review."
+                                % (rec.name, owner.name)
+                            )
         result = super().write(vals)
         for rec in revising:
             # a revision is fresh content: the review window restarts (M61-6)
+            # and the previous review no longer covers what ships — its stamps
+            # go with the content they attested (A4-F01: a surviving stamp
+            # next to changed content attests a review that never saw it).
             rec._guarded().write(
                 {
                     "version": (rec.version or 1) + 1,
                     "review_due": fields.Date.context_today(rec) + datetime.timedelta(days=365),
+                    "reviewed_by_id": False,
+                    "reviewed_on": False,
                 }
             )
             publish(
@@ -238,7 +263,11 @@ class FixKnowledgeArticle(models.Model):
             )
             rec.message_post(
                 body="Published content revised — version %d now syncing to the field "
-                "(hash %s)." % (rec.version, (rec.content_hash or "")[:12])
+                "(hash %s). The prior review no longer covers this content: its "
+                "stamps were cleared and a fresh review is due." % (
+                    rec.version,
+                    (rec.content_hash or "")[:12],
+                )
             )
             rec._fix_after_publish("revised")
         return result

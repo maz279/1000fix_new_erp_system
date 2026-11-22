@@ -402,7 +402,14 @@ def kpis(env):
     # A10 S6 (M23-10): 'open audit findings' counted AUDITS (planned and
     # executed programmes). Findings are their own record — the GRC audit
     # finding (fix.audit.finding) — and one is open until its CAPA is closed.
-    findings = env["fix.audit.finding"].search([("capa_status", "!=", "closed")])
+    # A10 deep audit (2026-11-22, A1-F07): read through env.get like the
+    # review-input snapshot does — cd_qms_process does not depend on cd_grc,
+    # and a KeyError here would kill the whole M23 KPI panel on an estate
+    # without M60.
+    findings = env.get("fix.audit.finding")
+    findings = (
+        findings.search([("capa_status", "!=", "closed")]) if findings is not None else []
+    )
     # M23 capture audit (2026-11-19): the process audit now records its own
     # findings (fix.qms.audit.finding) - an open one is any not yet closed
     process_findings = env["fix.qms.audit.finding"].search_count([("state", "!=", "closed")])
@@ -416,7 +423,19 @@ def kpis(env):
     )
     return {
         "major_ncs": len(ncrs.filtered(lambda n: n.severity in ("major", "critical"))),
-        "capa_on_time": round(len(on_time) / len(verdicts) * 100.0, 1) if verdicts else 0.0,
+        # A10 deep audit (2026-11-22, A1-F10): 'on time' is measured only over
+        # verdicts that carry a due date (a verdict without one is not 'on
+        # time', it is unmeasurable), and an empty estate is '—', never 0%.
+        "capa_on_time": (
+            round(
+                len(on_time.filtered(lambda c: c.due_on))
+                / len(verdicts.filtered(lambda c: c.due_on))
+                * 100.0,
+                1,
+            )
+            if verdicts.filtered(lambda c: c.due_on)
+            else None
+        ),
         "open_ncrs": len(open_ncrs),
         "audit_findings": len(findings) + process_findings,
         "first_pass_qc": first_pass,
