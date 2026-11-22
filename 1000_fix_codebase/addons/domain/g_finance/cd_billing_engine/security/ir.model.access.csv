@@ -117,3 +117,11 @@ access_fix_ar_unbilled_exception_account_invoice,fix.ar.unbilled.exception.accou
 access_fix_ar_unbilled_exception_account_user,fix.ar.unbilled.exception.account.user,model_fix_ar_unbilled_exception,account.group_account_user,1,1,1,0
 access_fix_ar_unbilled_exception_account_manager,fix.ar.unbilled.exception.account.manager,model_fix_ar_unbilled_exception,account.group_account_manager,1,1,1,0
 access_fix_credit_limit_change,fix.credit.limit.change,model_fix_credit_limit_change,base.group_user,1,1,1,0
+access_fix_ar_dunning_action_account_readonly,fix.ar.dunning.action.account.readonly,model_fix_ar_dunning_action,account.group_account_readonly,1,0,0,0
+access_fix_ar_dunning_action_account_invoice,fix.ar.dunning.action.account.invoice,model_fix_ar_dunning_action,account.group_account_invoice,1,0,0,0
+access_fix_ar_dunning_action_account_user,fix.ar.dunning.action.account.user,model_fix_ar_dunning_action,account.group_account_user,1,1,1,0
+access_fix_ar_dunning_action_account_manager,fix.ar.dunning.action.account.manager,model_fix_ar_dunning_action,account.group_account_manager,1,1,1,0
+access_fix_ar_dunning_handoff_account_readonly,fix.ar.dunning.handoff.account.readonly,model_fix_ar_dunning_handoff,account.group_account_readonly,1,0,0,0
+access_fix_ar_dunning_handoff_account_invoice,fix.ar.dunning.handoff.account.invoice,model_fix_ar_dunning_handoff,account.group_account_invoice,1,1,1,0
+access_fix_ar_dunning_handoff_account_user,fix.ar.dunning.handoff.account.user,model_fix_ar_dunning_handoff,account.group_account_user,1,1,1,0
+access_fix_ar_dunning_handoff_account_manager,fix.ar.dunning.handoff.account.manager,model_fix_ar_dunning_handoff,account.group_account_manager,1,1,1,0

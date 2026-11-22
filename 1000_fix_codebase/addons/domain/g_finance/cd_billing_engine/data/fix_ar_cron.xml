@@ -31,6 +31,19 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A08 M20-F5 (AUT-ARB-10): a reminder the provider refused is
+             retried, never silently dropped. The retry acts on the same
+             evidence row and is capped by
+             cd_billing_engine.dunning_retry_max (default 3). -->
+        <record id="ir_cron_ar_dunning_retry" model="ir.cron">
+            <field name="name">AR: retry failed dunning reminders (AUT-ARB-10)</field>
+            <field name="model_id" ref="model_fix_ar_dunning_action"/>
+            <field name="state">code</field>
+            <field name="code">model._cron_retry_failed()</field>
+            <field name="interval_number">2</field>
+            <field name="interval_type">hours</field>
+            <field name="active" eval="True"/>
+        </record>
         <!-- BRU-ARB-22 / AUT-ARB-20: flags receipts unapplied past
              cd_billing_engine.unapplied_escalation_days (default 7). Moves no money. -->
         <record id="ir_cron_ar_unapplied_escalation" model="ir.cron">

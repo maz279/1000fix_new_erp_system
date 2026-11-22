@@ -15,6 +15,12 @@ CD-M20-01: the M20 accounts-receivable core.
   above it the Accounting Administrator through M63 (05-04 section 7, A08 S3)
 - fix.ar.writeoff — write-offs on the same ladder, against the IFRS 9
   allowance first (A08 M20-6)
+- fix.ar.dunning.action — one delivery-evidence row per ladder step and
+  channel (A08 M20-F5, FR-ARB-032 / AUT-ARB-10): the rendered reminder,
+  the masked recipient, the provider reference or failure, immutable once
+  it reached a delivery state; the retry cron/manual action re-uses the
+  row and never re-sends a sent reminder. Call levels raise the M27
+  contact-centre handoff (fix.ar.dunning.handoff) instead of a message
 - fix.vds.certificate.received — Mushak 6.6 received from VAT withholding
   customers: settles the VDS part of the receivable and feeds the 9.1 claim
 - fix.tds.certificate.received — income tax deducted at source by
@@ -23,7 +29,7 @@ CD-M20-01: the M20 accounts-receivable core.
 - Events: invoice.created, invoice.paid, credit_note.issued,
   vds_certificate.settled (AS-08)
 """,
-    "version": "19.0.2.9.0",
+    "version": "19.0.2.10.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Finance/Receivables",

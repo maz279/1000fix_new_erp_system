@@ -7,6 +7,7 @@ from . import (
     fix_a04_claim_consumer,
     fix_a04_warranty_subscription_billing,
     fix_ar_capture,
+    fix_ar_dunning_dispatch,
     fix_ar_engine,
     fix_ar_impairment,
     fix_ar_invoice_document,

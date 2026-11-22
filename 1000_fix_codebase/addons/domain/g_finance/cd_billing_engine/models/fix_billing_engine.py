@@ -2299,11 +2299,19 @@ class FixDunning(models.Model):
         invoices (by the customer's OWN terms), creates the first run or
         advances the NT-006 ladder after each step's grace days. An open
         dispute suspends dunning for the DISPUTED AMOUNT ONLY — the
-        undisputed remainder keeps dunning. Returns measured counts."""
+        undisputed remainder keeps dunning. Returns measured counts, and the
+        ids of the runs whose step changed (`transitioned_ids`) so the
+        dispatch extension can send exactly one reminder per step
+        (A08 M20-F5, FR-ARB-032 / AUT-ARB-10)."""
         today = as_of or fields.Date.today()
         Dispute = self.env["fix.ar.dispute"]
         Invoice = self.env["fix.ar.invoice"]
         created = advanced = suppressed = skipped = kept = 0
+        # A08 M20-F5: the runs whose ladder step actually changed. The
+        # dispatch extension (fix_ar_dunning_dispatch.py) sends the reminder
+        # for exactly these — the daily re-scan of an unchanged run must not
+        # send the same reminder again.
+        transitioned = self.browse()
         invoices = Invoice.search([("state", "=", "issued")]).filtered(
             lambda inv: inv.amount_residual > 0.005
         )
@@ -2366,6 +2374,7 @@ class FixDunning(models.Model):
                     existing._guarded().write(
                         {"step": nxt, "step_date": today, "overdue_amount": dunnable}
                     )
+                    transitioned |= existing
                     advanced += 1
                 else:
                     existing._guarded().write({"overdue_amount": dunnable})
@@ -2375,7 +2384,7 @@ class FixDunning(models.Model):
                     continue
                 if days_past_due < self._fix_first_offset(inv):
                     continue
-                self._guarded().create(
+                new_run = self._guarded().create(
                     {
                         "company_id": inv.company_id.id,
                         "operating_unit_id": inv.operating_unit_id.id,
@@ -2385,6 +2394,7 @@ class FixDunning(models.Model):
                         "step_date": today,
                     }
                 )
+                transitioned |= new_run
                 created += 1
         return {
             "invoices_scanned": len(invoices),
@@ -2393,6 +2403,7 @@ class FixDunning(models.Model):
             "suppressed": suppressed,
             "fully_disputed_skipped": skipped,
             "suppression_kept": kept,
+            "transitioned_ids": transitioned.ids,
         }
 
     def _cron_run_dunning(self):
