@@ -59,6 +59,10 @@ TAX_ACCOUNT_ROLES = {
     # chart loader: 252000 "Tax Payable" -> 2-30-30-010 TDS payable
     "tds_payable": ("cd_tax_engine_bd.account_code.tds_payable", "252000"),
     "vds_payable": ("cd_tax_engine_bd.account_code.vds_payable", None),
+    # A08 M51-F4: the counter-account of a Mushak 6.7 / 6.8 note's VAT leg
+    # (the AR control account a credit note reduces / a debit note raises).
+    # No default: a note's counter-leg never lands on a guessed account.
+    "note_counter": ("cd_tax_engine_bd.note_counter_account_code", None),
 }
 
 

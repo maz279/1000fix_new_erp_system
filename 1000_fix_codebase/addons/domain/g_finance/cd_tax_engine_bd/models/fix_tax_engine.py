@@ -360,6 +360,10 @@ class FixMushakCorrection(models.Model):
                     "Mushak 9.1 line of its own." % row.mushak_no
                 )
             summary = self._fix_treatment_text(row)[0]
+        # M51-F4: the governed correction is the note issuer with no other
+        # poster — its note carries its own VAT leg (registered and posted as
+        # one atomic pair). M20's credit note and the counter refund keep the
+        # plain service contract: they post their own full reversal entry.
         return Register._fix_issue_note(
             row,
             self.correction_type,
@@ -368,6 +372,7 @@ class FixMushakCorrection(models.Model):
             self.reason,
             on_date=on_date,
             treatment_summary=summary,
+            post_vat_gl=True,
         )
 
     def _fix_require_decider(self, what):
@@ -643,12 +648,34 @@ class FixMushakRegister(models.Model):
 
     @api.model
     def _fix_issue_note(
-        self, original, kind, taxable, vat, reason, ref=None, on_date=None, treatment_summary=None
+        self,
+        original,
+        kind,
+        taxable,
+        vat,
+        reason,
+        ref=None,
+        on_date=None,
+        treatment_summary=None,
+        post_vat_gl=False,
     ):
         """A Mushak 6.7 (kind 'credit_note', amounts reduce) or 6.8 ('debit_note')
         against an issued 6.3 — the only correction of a register row. The
         supplier on the note is this company: an original carrying a placeholder
-        BIN is corrected under the company's real one (never typed)."""
+        BIN is corrected under the company's real one (never typed).
+
+        Service contract (M20 / the counter sale call this without
+        ``post_vat_gl``): the register row alone. THOSE callers post their own
+        full reversal entry (Dr revenue + Dr VAT / Cr AR) in the same flow, so
+        the GL side of the note's VAT exists without this module's help.
+
+        ``post_vat_gl=True`` (M51-F4, T-08 — the governed correction service
+        passes it, inside the note's own second-person gate): the note's VAT
+        effect posts through post_tax_move in the SAME transaction as the
+        register row — a 6.7 DEBITS VAT output against the counter-account, a
+        6.8 mirrors it — so the register and the GL move as one atomic pair and
+        the 9.1 sub-ledger reconciliation clears (IRB-09). There is no separate
+        action that could post a note's GL, or skip it."""
         if kind not in ("credit_note", "debit_note"):
             raise UserError("A register correction is a credit (6.7) or debit (6.8) note")
         if not (reason or "").strip():
@@ -663,6 +690,10 @@ class FixMushakRegister(models.Model):
         supplier_bin = original.supplier_bin
         if not valid_bin(supplier_bin):
             supplier_bin = self._fix_company_bin(company)
+        mushak_no = self._fix_next_native_mushak_no(company, on_date)
+        move = self.env["account.move"]
+        if post_vat_gl and abs(vat) >= 0.005:
+            move = self._fix_post_note_vat(company, original, kind, abs(vat), on_date, mushak_no)
         return self._fix_issue_register_row(
             {
                 "company_id": company.id,
@@ -670,7 +701,7 @@ class FixMushakRegister(models.Model):
                 "row_type": kind,
                 "original_id": original.id,
                 "reason": reason.strip(),
-                "mushak_no": self._fix_next_native_mushak_no(company, on_date),
+                "mushak_no": mushak_no,
                 "invoice_ref": ref or "%s/%s" % (kind.upper(), original.mushak_no),
                 "invoice_date": on_date,
                 "supplier_name": original.supplier_name,
@@ -682,7 +713,54 @@ class FixMushakRegister(models.Model):
                 "vat_amount": vat,
                 "total_payable": taxable + vat,
                 "treatment_summary": treatment_summary or original.treatment_summary or "",
+                "move_id": move.id or False,
+                "posted": bool(move),
             }
+        )
+
+    @api.model
+    def _fix_post_note_vat(self, company, original, kind, amount, on_date, mushak_no):
+        """M51-F4: the note's VAT leg on the VAT output account the sub-ledger
+        reconciliation reads (the same role the AR/AP postings use), against the
+        configured counter-account — fail-closed: a missing account or journal
+        refuses the NOTE (nothing is issued, nothing is posted).
+
+        6.7 credit note:  Dr VAT output / Cr counter  (output VAT falls)
+        6.8 debit note:   Dr counter    / Cr VAT output (output VAT rises)
+        """
+        from .fix_tax_compliance import post_tax_move
+        from .fix_tax_master import tax_account
+
+        vat_output = tax_account(self.env, company, "vat_output")
+        counter = tax_account(self.env, company, "note_counter")
+        journal = self.env["account.journal"].search(
+            [("company_id", "=", company.id), ("type", "=", "general")], limit=1
+        )
+        if not journal:
+            raise UserError(
+                "No general journal in %s to post the VAT leg of a Mushak 6.7 / 6.8 "
+                "note (T-08: the note and its GL entry are one atomic pair — the "
+                "note is not issued without it). Nothing was posted." % company.name
+            )
+        label = "Mushak %s %s correcting %s: VAT %.2f" % (
+            "6.7 credit note" if kind == "credit_note" else "6.8 debit note",
+            mushak_no,
+            original.mushak_no,
+            amount,
+        )
+        lines = (
+            [
+                (vat_output, label, amount, 0.0, False),
+                (counter, label, 0.0, amount, False),
+            ]
+            if kind == "credit_note"
+            else [
+                (counter, label, amount, 0.0, False),
+                (vat_output, label, 0.0, amount, False),
+            ]
+        )
+        return post_tax_move(
+            self.env, company, journal, on_date, label, lines, original.operating_unit_id
         )
 
     @api.model

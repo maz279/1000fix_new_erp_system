@@ -745,6 +745,25 @@ class FixTaxNotice(models.Model):
                     (MANAGER_GROUP, CFO_GROUP),
                     deadline=today,
                 )
+                # M51-F10: the unanswered notice also reaches the M60 risk
+                # register through the event relay (the tax.notice.overdue
+                # consumer opens one compliance entry per notice; the daily
+                # republish is a no-op to it).
+                publish(
+                    self.env,
+                    "tax.notice.overdue",
+                    "fix.tax.notice",
+                    n.id,
+                    {
+                        "notice": n.name,
+                        "notice_ref": n.notice_ref,
+                        "authority": n.authority or "",
+                        "tax_kind": n.tax_kind,
+                        "due": str(n.response_due),
+                        "owner": n.owner_id.name or "",
+                        "disputed_amount": float(n.disputed_amount or 0.0),
+                    },
+                )
             else:
                 summary = "NBR notice %s due %s" % (n.notice_ref, n.response_due)
                 if not n.activity_ids.filtered(lambda a, s=summary: a.summary == s):

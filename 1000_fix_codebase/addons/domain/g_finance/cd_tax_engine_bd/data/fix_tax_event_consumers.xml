@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  M51-F10 (A08 audit, 2026-11): M51's domain events had no consumer — a
+  sub-ledger variance, an overdue NBR notice and a filed Mushak 9.1 all
+  stopped at the outbox, and the M60 risk register / the compliance register
+  held none of them (spec 12.2/12.3 name M23/M60 as the consumers).
+
+  The consumers live in this module (models/fix_tax_event_consumers.py) and
+  write to the registers READ-ONLY through the event relay; each is
+  idempotent, so a relay redelivery creates nothing.
+-->
+<odoo>
+    <data noupdate="1">
+
+        <record id="consumer_vat_subledger_variance_risk" model="fix.event.consumer">
+            <field name="name">M60: a VAT sub-ledger variance opens one compliance risk per period (IRB-09)</field>
+            <field name="event_type">vat_subledger.variance_detected</field>
+            <field name="model">fix.vat.return</field>
+            <field name="method">consume_vat_subledger_variance</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+
+        <record id="consumer_tax_notice_overdue_risk" model="fix.event.consumer">
+            <field name="name">M60: an overdue NBR notice opens one compliance risk per notice</field>
+            <field name="event_type">tax.notice.overdue</field>
+            <field name="model">fix.tax.notice</field>
+            <field name="method">consume_notice_overdue</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+
+        <record id="consumer_vat_return_filed_evidence" model="fix.event.consumer">
+            <field name="name">M23/M60: a filed Mushak 9.1 discharges the period's compliance obligation, evidenced by the NBR acknowledgement</field>
+            <field name="event_type">vat_return.filed</field>
+            <field name="model">fix.vat.return</field>
+            <field name="method">consume_vat_return_filed</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+
+        <record id="consumer_vat_return_filed_online_evidence" model="fix.event.consumer">
+            <field name="name">M23/M60: an online-filed Mushak 9.1 discharges the period's compliance obligation, evidenced by the IVAS token</field>
+            <field name="event_type">vat_return.filed_online</field>
+            <field name="model">fix.vat.return</field>
+            <field name="method">consume_vat_return_filed</field>
+            <field name="module">cd_tax_engine_bd</field>
+        </record>
+
+    </data>
+</odoo>

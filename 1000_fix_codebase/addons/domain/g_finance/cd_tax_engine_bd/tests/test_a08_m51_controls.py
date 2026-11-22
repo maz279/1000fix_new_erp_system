@@ -101,6 +101,8 @@ def c(odoo_env):
     icp.set_param("cd_tax_engine_bd.vat_input_account_code", x.vat_in.code)
     icp.set_param("cd_tax_engine_bd.account_code.tds_payable", x.tds_payable.code)
     icp.set_param("cd_tax_engine_bd.account_code.vds_payable", x.vds_payable.code)
+    # M51-F4: the counter-account of a Mushak 6.7 / 6.8 note's VAT leg
+    icp.set_param("cd_tax_engine_bd.note_counter_account_code", x.ar.code)
     x.journal = x.cenv["account.journal"].create(
         {
             "name": "A08 M51 misc %s" % n,
