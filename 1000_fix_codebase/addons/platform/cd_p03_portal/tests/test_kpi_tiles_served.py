@@ -155,9 +155,9 @@ WIRED = {
     "M08": {
         "renewal_rate": (
             NUM,
-            lambda e: e["fix.contract.renewal"]
-            .sudo()
-            .search_count([("state", "in", ("won", "lost"))]),
+            lambda e: (
+                e["fix.contract.renewal"].sudo().search_count([("state", "in", ("won", "lost"))])
+            ),
         ),
         "entitlement_utilisation": (
             NUM,

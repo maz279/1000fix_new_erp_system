@@ -52,6 +52,7 @@ def _safe_caller_search(env, model_name, domain, order=None):
         )
         return []
 
+
 SURFACES = {
     # Capture audit 2026-11-14: every M26 form surface now declares what its
     # form may write (R3). Without it the Model Version form posted `state`

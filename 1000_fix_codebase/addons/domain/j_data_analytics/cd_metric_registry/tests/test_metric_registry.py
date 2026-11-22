@@ -816,8 +816,7 @@ class TestDeclassification:
         # time passes (the constraint stops a plain backdate, so age the row
         # directly, as the nightly cron would find it)
         env.cr.execute(
-            "UPDATE fix_data_declassification_auth SET expires_on = CURRENT_DATE - 1 "
-            "WHERE id = %s",
+            "UPDATE fix_data_declassification_auth SET expires_on = CURRENT_DATE - 1 WHERE id = %s",
             (auth.id,),
         )
         env.invalidate_all()

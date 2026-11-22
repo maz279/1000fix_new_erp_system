@@ -1607,38 +1607,40 @@ class FixApprovalRequest(models.Model):
             return {"notified": 0, "reason": "request not found"}
         if not req.requested_by_id:
             return {"notified": 0, "reason": "no requester to notify"}
+        record = req._record(self.env(su=True))
+        if not record or not hasattr(record, "activity_schedule"):
+            return {"notified": 0, "reason": "the routed record is gone"}
         waiting = req.task_ids.filtered(lambda t: t.state == "pending").mapped("assigned_user_id")
         summary = "Approval still pending: %s" % req.name
+        # One to-do per request for its requester; a replayed event adds none.
+        # The activity sits on the RECORD (the request model carries no
+        # activity mixin) and names the request, so the requester opens the
+        # document the approval is about.
         Activity = self.env["mail.activity"].sudo()
         existing = Activity.search_count(
             [
-                ("res_model", "=", req._name),
-                ("res_id", "=", req.id),
+                ("res_model", "=", record._name),
+                ("res_id", "=", record.id),
                 ("summary", "=", summary),
                 ("user_id", "=", req.requested_by_id.id),
             ]
         )
         if existing:
             return {"notified": 0, "reason": "already notified", "request": req.name}
-        Activity.create(
-            {
-                "res_model": req._name,
-                "res_id": req.id,
-                "activity_type_id": self.env.ref("mail.mail_activity_data_todo").id,
-                "user_id": req.requested_by_id.id,
-                "date_deadline": fields.Date.context_today(self),
-                "summary": summary,
-                "note": "%s is still pending after %s escalation(s); it waits for %s "
-                "(event %s)." % (
-                    req.res_name,
-                    payload.get("level") or 0,
-                    ", ".join(waiting.mapped("name")) or "no open task",
-                    event.get("event_id") or "-",
-                ),
-            }
+        record.activity_schedule(
+            "mail.mail_activity_data_todo",
+            date_deadline=fields.Date.context_today(self),
+            summary=summary,
+            note="%s is still pending after %s escalation(s); it waits for %s (event %s)."
+            % (
+                req.res_name,
+                payload.get("level") or 0,
+                ", ".join(waiting.mapped("name")) or "no open task",
+                event.get("event_id") or "-",
+            ),
+            user_id=req.requested_by_id.id,
         )
-        record = req._record(self.env(su=True))
-        if record and hasattr(record, "message_post"):
+        if hasattr(record, "message_post"):
             record.message_post(
                 body="Approval %s is still pending after every escalation: it waits for %s."
                 % (req.name, ", ".join(waiting.mapped("name")) or "no open task")

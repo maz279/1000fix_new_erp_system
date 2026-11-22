@@ -544,21 +544,22 @@ class TestF08ExpiredConsumer:
         first = c.env["fix.approval.request"].consume_approval_expired(event)
         assert first["notified"] == 1
         Activity = c.env["mail.activity"].sudo()
-        todo = Activity.search(
-            [("res_model", "=", req._name), ("res_id", "=", req.id)]
-        )
-        assert todo and todo.user_id == clerk, todo
-        assert req.name in (todo.summary or "")
+        # The record already carries one to-do per approver (from _open_tasks);
+        # the last warning is its own, identifiable by the summary.
+        warning = [
+            ("res_model", "=", rec._name),
+            ("res_id", "=", rec.id),
+            ("summary", "=", "Approval still pending: %s" % req.name),
+        ]
+        todo = Activity.search(warning)
+        assert len(todo) == 1 and todo.user_id == clerk, todo
         assert c.t2.name in (todo.note or "")
         body = " ".join(rec.sudo().message_ids.mapped("body"))
         assert "still pending" in body and req.name in body
         # A replayed event adds no second to-do and no second note.
         again = c.env["fix.approval.request"].consume_approval_expired(event)
         assert again["notified"] == 0
-        assert (
-            Activity.search_count([("res_model", "=", req._name), ("res_id", "=", req.id)])
-            == len(todo)
-        )
+        assert Activity.search_count(warning) == len(todo)
 
     def test_the_consumer_refuses_a_direct_call(self, c):
         with pytest.raises(AccessError, match="relay"):

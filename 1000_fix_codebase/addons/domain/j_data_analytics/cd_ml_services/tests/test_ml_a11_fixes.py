@@ -215,9 +215,9 @@ def test_the_guardrail_threshold_is_derived_from_the_rule(env):
     rail.write({"rule": "confidence < 0.60"})
     assert rail.threshold == pytest.approx(0.6)
     rail.write({"threshold": 99})
-    assert rail.threshold == pytest.approx(
-        0.6
-    ), "a lone threshold edit cannot diverge from the rule"
+    assert rail.threshold == pytest.approx(0.6), (
+        "a lone threshold edit cannot diverge from the rule"
+    )
 
 
 # ------------------------------------------------- lifecycle events (A2-F09)

@@ -79,5 +79,29 @@
             <field name="comment">May open the finance pack and the CFO role dashboard (AR outstanding, overdue, collections). Export of those packs is logged (BRU-BID-11).</field>
         </record>
 
+        <!-- A1-F08: company isolation for the module's own content models the
+             isolation-rule generator does not cover (these three are defined
+             with a required company_id but were left with no ir.rule, so any
+             internal user could read every company's dashboards, schedules
+             and alert subscriptions). Hand-written here on the standard
+             domain — the generator leaves a model alone when a hand-written
+             rule restricts the same column (see generate-isolation-rules.py),
+             so security/fix_isolation_rules.xml stays generated-only. -->
+        <record id="rule_fix_bi_dashboard_company_handwritten" model="ir.rule">
+            <field name="name">fix.bi.dashboard: allowed companies</field>
+            <field name="model_id" ref="model_fix_bi_dashboard"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_fix_bi_distribution_schedule_company_handwritten" model="ir.rule">
+            <field name="name">fix.bi.distribution.schedule: allowed companies</field>
+            <field name="model_id" ref="model_fix_bi_distribution_schedule"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        </record>
+        <record id="rule_fix_bi_alert_subscription_company_handwritten" model="ir.rule">
+            <field name="name">fix.bi.alert.subscription: allowed companies</field>
+            <field name="model_id" ref="model_fix_bi_alert_subscription"/>
+            <field name="domain_force">['|', ('company_id', '=', False), ('company_id', 'in', company_ids)]</field>
+        </record>
+
     </data>
 </odoo>

@@ -283,14 +283,13 @@ class FixBiDistributionSchedule(models.Model):
 
     @api.model
     def _valid_report_keys(self):
-        """The report library the portal registers (controllers/a11/m25.py).
-        Read dynamically so the module never hard-codes a second list that
-        would drift from the real one."""
-        try:
-            from odoo.addons.cd_p03_portal.controllers.a11 import m25
-        except ImportError:
-            return set()
-        return {"M25:%s" % key for key in getattr(m25, "REPORTS", {})}
+        """The M25 report library — the canonical keys now live in THIS
+        module (fix_bi_library), not the portal controller (A1-F10: a domain
+        addon must not import cd_p03_portal, and without the portal this
+        validator used to refuse every key because the list was empty)."""
+        from .fix_bi_library import valid_report_keys
+
+        return valid_report_keys()
 
     @api.constrains("report_key")
     def _check_report_key(self):
@@ -299,7 +298,7 @@ class FixBiDistributionSchedule(models.Model):
             if rec.report_key and rec.report_key not in valid:
                 raise ValidationError(
                     _("Report key %r is not in the M25 report library. Valid keys: %s.")
-                    % (rec.report_key, ", ".join(sorted(valid)) or "(library unavailable)")
+                    % (rec.report_key, ", ".join(sorted(valid)))
                 )
 
     def _recipients_list(self):
@@ -524,22 +523,34 @@ class FixBiAlertSubscription(models.Model):
     def _known_metric_keys(self):
         """The metric bank the portal computes (controllers/a11/m25.py),
         resolved under the superuser so the key list never depends on the
-        saving user's read scope — the keys are code, not data."""
+        saving user's read scope — the keys are code, not data. Returns None
+        when the bank itself is unreachable: the constraint then REFUSES with
+        a reason (A1-F10: the three key validators share one fail mode — an
+        unknown or unverifiable key is never silently accepted)."""
         try:
             from odoo.addons.cd_p03_portal.controllers.a11 import m25
         except ImportError:
-            return set()
+            return None
         try:
             return set(m25._metrics(self.env(su=True)))
         except Exception as exc:
             _logger.warning("M25 metric bank unavailable to the alert constraint: %s", exc)
-            return set()
+            return None
 
     @api.constrains("metric_key")
     def _check_metric_key(self):
         keys = self._known_metric_keys()
-        if not keys:
-            return  # library unavailable: never guess on the user's behalf
+        if keys is None:
+            # the bank is the metric list itself: without it NO key can be
+            # vouched for, so the save is refused with the reason — not
+            # silently accepted on a guess
+            raise ValidationError(
+                _(
+                    "The M25 metric bank is unavailable (the portal workspace, "
+                    "cd_p03_portal, is not installed), so no metric can be watched "
+                    "by an alert here."
+                )
+            )
         for rec in self:
             if rec.metric_key and rec.metric_key not in keys:
                 raise ValidationError(

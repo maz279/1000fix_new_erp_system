@@ -339,17 +339,30 @@ class TestE1RuleBookLocked:
             rule.with_user(c.p).action_new_version()
 
     def test_m63_38_automation_register_owned(self, c):
+        # Engine values updated to the 19.0.1.2.0 honest taxonomy (A11 fix B1):
+        # an active row's reference must resolve, so the row names a real method.
         aut = c.env["fix.automation"].create(
-            {"code": "AUT-951", "trigger": "x", "action": "y", "engine": "airflow"}
+            {
+                "code": "AUT-951",
+                "trigger": "x",
+                "action": "y",
+                "engine": "odoo_method",
+                "engine_ref": "method:fix.service.order._flag_rework",
+                "implementation": "partial",
+            }
         )
         with pytest.raises(AccessError):
             c.env["fix.automation"].with_user(c.p).create(
-                {"code": "AUT-952", "trigger": "t", "action": "a", "engine": "airflow"}
+                {"code": "AUT-952", "trigger": "t", "action": "a", "engine": "odoo_method"}
             )
         with pytest.raises(AccessError):
-            aut.with_user(c.p).write({"active": False, "engine_ref": "dag: none"})
-        aut.with_user(c.doa).write({"engine_ref": "dag: fix_aut_951"})
-        assert aut.engine_ref == "dag: fix_aut_951" and aut.active
+            aut.with_user(c.p).write(
+                {"active": False, "engine_ref": "method:fix.service.order._flag_rework"}
+            )
+        aut.with_user(c.doa).write(
+            {"engine_ref": "method:fix.field.order.action_suggest_technicians"}
+        )
+        assert aut.engine_ref == "method:fix.field.order.action_suggest_technicians" and aut.active
 
     def test_m63_39_workflow_instance_state_not_typed(self, c):
         inst = c.env["fix.workflow.instance"].create({"res_model": "fix.complaint", "res_id": 1})

@@ -478,9 +478,11 @@ def _published_metric_definitions(env):
         _bi_domain(env, "fix.metric.definition", [])
     )
     return definitions, definitions.filtered(
-        lambda d: d.state == "published"
-        and d.current_version_id
-        and d.current_version_id.state == "published"
+        lambda d: (
+            d.state == "published"
+            and d.current_version_id
+            and d.current_version_id.state == "published"
+        )
     )
 
 
@@ -689,8 +691,10 @@ def kpis(env):
         "pipelines_active": len(pipelines),
         "runs_24h": len(
             runs.filtered(
-                lambda r: r.started_at
-                and r.started_at >= datetime.datetime.now() - datetime.timedelta(hours=24)
+                lambda r: (
+                    r.started_at
+                    and r.started_at >= datetime.datetime.now() - datetime.timedelta(hours=24)
+                )
             )
         ),
         "runs_failed": len(runs.filtered(lambda r: r.state == "failed")),

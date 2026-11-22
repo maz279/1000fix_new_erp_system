@@ -295,10 +295,7 @@ class FixMlModelVersion(models.Model):
             )
         if self.bias_status == "failed":
             raise UserError(
-                _(
-                    "Version %s failed its bias review — a failed bias gate "
-                    "blocks every promotion."
-                )
+                _("Version %s failed its bias review — a failed bias gate blocks every promotion.")
                 % self.display_name
             )
         # BRU-AIM-12 (capture audit pass 2): the newest data-sufficiency gate

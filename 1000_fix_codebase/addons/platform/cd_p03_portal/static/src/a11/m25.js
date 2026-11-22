@@ -1,6 +1,9 @@
 /** @odoo-module **/
 /* A11 · Insights & Intelligence — M25 Business Intelligence (v2 re-audit).
- * Registry-faithful: 4 groups / 13 screens / 6 reports / 3 forms / freg 58.
+ * Registry contract: 4 groups / 13 screens / 6 reports / 3 forms / freg 58
+ * (the registry's 13 screens carry its exact en/bn labels; the 13 extra
+ * pass-2 screens ship AFTER them). This file declares 26 screens / 7 report
+ * chips / 9 forms in total (A1-F14: the header used to undercount).
  * Every dashboard renders inside the shell from /p03/bi/* live reads; every
  * report chip opens its own computed pack (controllers/a11/m25.py).
  *
@@ -34,7 +37,9 @@ const SCHEDULE_REPORTS = [
   ['M25:commercial_board', 'CCO Commercial Board']
 ];
 
-/* The metric bank an alert may watch (controllers/a11/m25.py _metrics). */
+/* The metric bank an alert may watch (controllers/a11/m25.py _metrics). The
+ * AR keys split the invoices leg from the legacy take-on leg (D-L01): the
+ * totals are 'ar_outstanding' / 'overdue_gt_60d'. */
 const ALERT_METRICS = [
   ['open_orders', 'Open service orders'],
   ['in_repair', 'Orders in repair'],
@@ -46,8 +51,12 @@ const ALERT_METRICS = [
   ['invoiced_mtd', 'Invoices issued this month'],
   ['invoiced_taxable_mtd', 'Invoiced taxable value this month (BDT)'],
   ['collected_mtd', 'Collected this month (BDT)'],
-  ['ar_outstanding', 'AR outstanding (BDT)'],
-  ['overdue_gt_60d', 'AR overdue > 60 days (BDT)'],
+  ['ar_outstanding_invoices', 'AR outstanding — open invoices (BDT)'],
+  ['ar_outstanding_takeon', 'AR outstanding — legacy take-on (BDT)'],
+  ['ar_outstanding', 'AR outstanding — total (BDT)'],
+  ['overdue_gt_60d_invoices', 'AR overdue > 60d — invoices (BDT)'],
+  ['overdue_gt_60d_takeon', 'AR overdue > 60d — take-on (BDT)'],
+  ['overdue_gt_60d', 'AR overdue > 60 days — total (BDT)'],
   ['dunning_active', 'Active dunning cases'],
   ['leads_open', 'Open leads'],
   ['pipeline_value', 'Pipeline value (BDT)'],
@@ -73,21 +82,22 @@ const ROLE_CHOICES = [
 export const MODULE = {
   area: 'A11', code: 'M25', en: 'Business Intelligence', title: 'M25 · Business Intelligence',
   bn: 'বিজনেস ইন্টেলিজেন্স', icon: '📊',
-  desc: 'Role dashboards, standard report library, certified datasets, scheduled distribution, threshold alerts.',
+  desc: 'Role dashboards, standard report library, certified datasets, scheduled distribution, threshold alerts. KPI bases: Dashboards Live = certified dashboards only; Standard Reports = the canonical six; Weekly Manager Usage = distinct BI content viewers in 7 days; Scheduled Distributions = active schedules in your companies; Spreadsheets Retired = packs retired on the register.',
   kpis: [
-    { l: 'Dashboards Live', m: 'dashboards_live' },
-    { l: 'Standard Reports', m: 'standard_reports' },
-    { l: 'Weekly Manager Usage', m: 'weekly_manager_usage' },
-    { l: 'Load Time p95 (ms)', m: 'load_time_p95', src: false },
-    { l: 'Scheduled Distributions', m: 'scheduled_distributions' },
-    { l: 'Spreadsheets Retired', m: 'spreadsheets_retired' }
+    /* registry labels; `c` states the measured basis (A1-F03) */
+    { l: 'Dashboards Live', m: 'dashboards_live', c: 'certified dashboards only (drafts are the author\'s workspace)' },
+    { l: 'Standard Reports', m: 'standard_reports', c: 'the canonical six-pack library, not the catalogues' },
+    { l: 'Weekly Manager Usage', m: 'weekly_manager_usage', c: 'distinct users who viewed BI content in 7 days (fix.bi.content.usage)' },
+    { l: 'Load Time p95', m: 'load_time_p95', src: false },
+    { l: 'Scheduled Distributions', m: 'scheduled_distributions', c: 'active distribution schedules in your companies' },
+    { l: 'Spreadsheets Retired', m: 'spreadsheets_retired', c: 'packs retired on the spreadsheet-retirement register' }
   ],
   groups: [
     { en: 'Executive', screens: [
       { id: 'M25-ceo', en: 'CEO Cockpit', bn: 'সিইও ককপিট', t: 'd' },
-      { id: 'M25-coo', en: 'COO / Ops Board (Live)', bn: 'সিওও অপস বোর্ড', t: 'd' },
-      { id: 'M25-cfo', en: 'CFO Dashboard', bn: 'সিএফও ড্যাশবোর্ড', t: 'd' },
-      { id: 'M25-ccO', en: 'CCO Commercial', bn: 'সিসিও কমার্শিয়াল', t: 'd' },
+      { id: 'M25-coo', en: 'COO / Ops Board (Live)', bn: 'অপারেশন বোর্ড', t: 'd' },
+      { id: 'M25-cfo', en: 'CFO Dashboard', bn: 'সিএফও', t: 'd' },
+      { id: 'M25-ccO', en: 'CCO Commercial', bn: 'সিসিও', t: 'd' },
       { id: 'M25-weekly', en: 'Weekly Executive Review', bn: 'সাপ্তাহিক নির্বাহী রিভিউ', t: 'r' },
       { id: 'M25-annotations', en: 'Annotations', bn: 'টীকা', t: 'g' }
     ]},
@@ -95,21 +105,21 @@ export const MODULE = {
       { id: 'M25-library', en: 'Standard Report Library', bn: 'স্ট্যান্ডার্ড রিপোর্ট লাইব্রেরি', t: 'r' },
       { id: 'M25-reportdefs', en: 'Report Definitions', bn: 'রিপোর্ট সংজ্ঞা', t: 'g' },
       { id: 'M25-runs', en: 'Report Runs', bn: 'রিপোর্ট রান', t: 'g' },
-      { id: 'M25-service', en: 'Service Analytics', bn: 'সার্ভিস অ্যানালিটিক্স', t: 'd' },
-      { id: 'M25-branch', en: 'Branch League Table', bn: 'শাখা লীগ', t: 'r' },
-      { id: 'M25-finance', en: 'Finance Analytics', bn: 'ফিন্যান্স অ্যানালিটিক্স', t: 'd' },
-      { id: 'M25-people', en: 'People Analytics', bn: 'পিপল অ্যানালিটিক্স', t: 'd' },
-      { id: 'M25-quality', en: 'Quality Analytics', bn: 'কোয়ালিটি অ্যানালিটিক্স', t: 'd' }
+      { id: 'M25-service', en: 'Service Analytics', bn: 'সার্ভিস বিশ্লেষণ', t: 'd' },
+      { id: 'M25-branch', en: 'Branch League Table', bn: 'শাখা লিগ টেবিল', t: 'r' },
+      { id: 'M25-finance', en: 'Finance Analytics', bn: 'আর্থিক বিশ্লেষণ', t: 'd' },
+      { id: 'M25-people', en: 'People Analytics', bn: 'জনবল বিশ্লেষণ', t: 'd' },
+      { id: 'M25-quality', en: 'Quality Analytics', bn: 'গুণগত বিশ্লেষণ', t: 'd' }
     ]},
     { en: 'Self-Service', screens: [
       { id: 'M25-explorations', en: 'Explorations', bn: 'অনুসন্ধান', t: 'g' },
-      { id: 'M25-datasets', en: 'Certified Datasets', bn: 'সার্টিফাইড ডেটাসেট', t: 'r' },
-      { id: 'M25-builder', en: 'Dashboard Builder', bn: 'ড্যাশবোর্ড বিল্ডার', t: 'g' },
+      { id: 'M25-datasets', en: 'Certified Datasets', bn: 'প্রত্যয়িত ডেটাসেট', t: 'r' },
+      { id: 'M25-builder', en: 'Dashboard Builder', bn: 'ড্যাশবোর্ড নির্মাতা', t: 'g' },
       { id: 'M25-bi', en: 'BI Role Explorer', bn: 'বিআই রোল এক্সপ্লোরার', t: 'c' }
     ]},
     { en: 'Operations', screens: [
       { id: 'M25-schedules', en: 'Scheduled Distribution', bn: 'নির্ধারিত বিতরণ', t: 'g' },
-      { id: 'M25-alerts', en: 'Threshold Alerts', bn: 'থ্রেশহোল্ড অ্যালার্ট', t: 'g' },
+      { id: 'M25-alerts', en: 'Threshold Alerts', bn: 'সতর্কতা', t: 'g' },
       { id: 'M25-alert-raised', en: 'Raised Alerts', bn: 'উত্থাপিত অ্যালার্ট', t: 'g' },
       { id: 'M25-embedded', en: 'Embedded Surfaces', bn: 'এমবেডেড সারফেস', t: 'g' },
       { id: 'M25-sync', en: 'Sync Connections', bn: 'সিঙ্ক সংযোগ', t: 'g' },
@@ -121,7 +131,7 @@ export const MODULE = {
   reports: ['Executive Pack', 'Branch League', 'Service KPI Pack', 'Finance Pack', 'People Pack', 'Any dashboard → export', 'Standard Report Library'],
   forms: ['Dashboard', 'Distribution Schedule', 'Alert Subscription', 'Sync Connection', 'Manual Pack',
     'Annotation', 'Report Definition', 'Exploration', 'Embedded Surface'],
-  cross: ['All Modules'],
+  cross: ['M62 semantic layer', 'M26 model outputs', 'P06 analytics portal', 'M54 FP&A'],
   freg: { src: 58, sub: [
     /* a role dashboard is a saved dashboard bound to one role cockpit; its
      * business owner explains a figure with an annotation (FR-BID-009) */

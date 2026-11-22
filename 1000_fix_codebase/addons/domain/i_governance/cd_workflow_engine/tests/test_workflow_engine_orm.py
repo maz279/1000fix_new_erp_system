@@ -1,4 +1,9 @@
-"""cd_workflow_engine — live-ORM behaviour of the M63 automation register."""
+"""cd_workflow_engine — live-ORM behaviour of the M63 automation register.
+
+19.0.1.2.0 (A11 fix B1): the register's bindings are verified at runtime; the
+loader refreshes every catalogue fact; the gap report resolves references.
+The deeper binding/guard/consumer/migration tests live in test_aut_bindings.py.
+"""
 
 from __future__ import annotations
 
@@ -11,7 +16,14 @@ from odoo.exceptions import ValidationError
 def test_code_must_be_an_aut_code(odoo_env):
     with pytest.raises(ValidationError, match="AUT codes are AUT-nnn"), odoo_env.cr.savepoint():
         odoo_env["fix.automation"].create(
-            {"code": "JOB-1", "trigger": "t", "action": "a", "engine": "airflow"}
+            {
+                "code": "JOB-1",
+                "trigger": "t",
+                "action": "a",
+                "engine": "odoo_method",
+                "engine_ref": "method:fix.service.order._flag_rework",
+                "implementation": "full",
+            }
         )
 
 
@@ -23,65 +35,92 @@ def test_register_load_is_idempotent(odoo_env):
     assert model.action_load_register() == 60
     first = model.search([("code", "=", "AUT-001")])
     assert (first.engine, first.engine_ref) == (
-        "domain_service",
-        "service: cd_field_service.order_intake",
+        "odoo_method",
+        "method:fix.walkin.intake.action_complete_handover",
     )
+    assert first.binding_state == "verified"
+    # the LAST event of this load: the outbox also holds events from earlier
+    # module migrations, and their counts were taken with a partial registry
     events = odoo_env["fix.event.outbox"].search(
-        [("event_type", "=", "automation.register.loaded")]
+        [("event_type", "=", "automation.register.loaded")], order="id desc", limit=1
     )
-    assert [json.loads(e.payload) for e in events] == [{"loaded": 60, "total": 60}]
+    payload = json.loads(events.payload)
+    assert payload == {
+        "loaded": 60,
+        "refreshed": 0,
+        "verified": 52,
+        "unresolved": 0,
+        "total": 60,
+    }
 
-    # placeholders are refreshed from the catalogue; concrete refs are kept
-    placeholder = model._default_engine_ref("airflow")
-    first.engine_ref = placeholder
+    # a stale binding is REFRESHED to the catalogue's (the register states what
+    # really executes a row, so a hand-typed reference cannot survive a reload)
     second = model.search([("code", "=", "AUT-002")])
-    second.engine_ref = "dag: fix_aut_002_custom"
+    second._catalogue_write({"engine": "manual", "engine_ref": False, "implementation": "none"})
     assert model.action_load_register() == 0
-    assert first.engine_ref == "service: cd_field_service.order_intake"
-    assert second.engine_ref == "dag: fix_aut_002_custom"
+    second.invalidate_recordset()
+    assert second.engine == "odoo_method"
+    assert second.engine_ref == "method:fix.field.order.action_suggest_technicians"
+    assert second.implementation == "partial" and second.active
 
 
 def test_reload_with_a_deactivated_automation(odoo_env):
     """Regression: the existence check skipped archived rows, so a reload
-    re-created a deactivated AUT code and hit the UNIQUE(code) key."""
+    re-created a deactivated AUT code and hit the UNIQUE(code) key. And a
+    deliberate switch-off by an operator survives a reload (only the
+    implemented-by-nobody rows are forced inactive)."""
     model = odoo_env["fix.automation"]
     model.with_context(active_test=False).search([]).unlink()
     model.action_load_register()
     model.search([("code", "=", "AUT-010")]).active = False
     assert model.action_load_register() == 0
-    assert model.with_context(active_test=False).search_count([("code", "=", "AUT-010")]) == 1
+    rows = model.with_context(active_test=False).search([("code", "=", "AUT-010")])
+    assert len(rows) == 1
+    assert not rows.active, "a reload must not revive an automation an operator switched off"
 
 
-def test_engine_gap_report(odoo_env):
+def test_engine_gap_report_uses_the_binding_resolver(odoo_env):
     model = odoo_env["fix.automation"]
     model.with_context(active_test=False).search([]).unlink()
-    assert model._default_engine_ref("odoo_automated_action") == (
-        "ir.actions.server (created at activation)"
-    )
-    gap = model.create(
+    broken = model.create(
         {
             "code": "AUT-901",
             "trigger": "Stock below minimum",
             "action": "Raise requisition",
-            "engine": "odoo_automated_action",
-            "engine_ref": model._default_engine_ref("odoo_automated_action"),
+            "engine": "odoo_cron",
+            "engine_ref": "cron:cd_inventory.no_such_cron",
+            "implementation": "full",
+            "active": False,
         }
     )
-    empty = model.create(
-        {"code": "AUT-902", "trigger": "Nightly", "action": "Sync", "engine": "airflow"}
+    planned = model.create(
+        {
+            "code": "AUT-902",
+            "trigger": "Nightly",
+            "action": "Sync",
+            "engine": "manual",
+            "implementation": "none",
+        }
     )
-    done = model.create(
+    verified = model.create(
         {
             "code": "AUT-903",
             "trigger": "Order closed",
-            "action": "Invoice",
-            "engine": "domain_service",
-            "engine_ref": "route: services/billing",
+            "action": "Flag rework",
+            "engine": "odoo_method",
+            "engine_ref": "method:fix.service.order._flag_rework",
+            "implementation": "partial",
         }
     )
-    report = model.action_report_engine_gap()
-    assert {row["code"] for row in report} == {gap.code, empty.code}
-    assert done.code not in {row["code"] for row in report}
+    report = {row["code"]: row for row in model.action_report_engine_gap()}
+    assert broken.code in report and report[broken.code]["coverage_state"] == "broken"
+    # a manual row is born inactive: nothing implements it, so it claims nothing
+    assert planned.active is False
+    assert planned.code not in report
+    assert verified.code not in report
+    planned.active = True
+    report = {row["code"]: row for row in model.action_report_engine_gap()}
+    assert planned.code in report and report[planned.code]["coverage_state"] == "planned"
 
 
 def test_approval_matrix_row(odoo_env):

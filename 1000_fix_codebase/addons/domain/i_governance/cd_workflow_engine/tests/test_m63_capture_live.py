@@ -60,12 +60,16 @@ def c(odoo_env):
 
 
 def _automation(env, code="AUT-963", **kw):
+    # 19.0.1.2.0 (A11 fix B1): engine values are the honest taxonomy and an
+    # active row's reference must resolve — this helper needs a LIVE
+    # automation for the routine-work register, so it names a real method.
     vals = {
         "code": code,
         "trigger": "Nightly",
         "action": "Reconcile the day",
-        "engine": "airflow",
-        "engine_ref": "dag: fix_aut_963",
+        "engine": "odoo_method",
+        "engine_ref": "method:fix.service.order._flag_rework",
+        "implementation": "partial",
     }
     vals.update(kw)
     return env["fix.automation"].create(vals)

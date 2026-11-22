@@ -618,9 +618,7 @@ class P03BiApi(http.Controller):
                 "role_dashboard", "M25:%s" % role, agent
             )
             if not logged:
-                _logger.warning(
-                    "M25 usage telemetry not written for role %s (see _log_view)", role
-                )
+                _logger.warning("M25 usage telemetry not written for role %s (see _log_view)", role)
         payload = _role_payload(request.env, role)
         payload["notes"] = (
             payload["notes"]
@@ -748,8 +746,7 @@ def _resolve_period(date_from, date_to):
     if start is not None and start != month_start:
         raise UserError(
             "This pack is measured month-to-date; date_from must be the first of "
-            "the month (use %s for the month of %s, or leave date_from empty)."
-            % (month_start, end)
+            "the month (use %s for the month of %s, or leave date_from empty)." % (month_start, end)
         )
     return end
 
@@ -1157,6 +1154,9 @@ def _role_payload(env, role):
         "notes": [
             "Every tile is a live read of the operational tables (orders, estimates, "
             "AR, complaints, NCRs, CRM, HR). A tile with no readable source stays '—'.",
+            "AR Outstanding and Overdue > 60d cover open issued invoices PLUS the legacy "
+            "take-on still open on the AR control (M20 basis); a caller without the BI "
+            "finance entitlement sees '—' on those tiles.",
             "Each view of this cockpit is logged with its device class (FR-BID-033); "
             "p95 load time has no measurement yet and is never invented.",
         ],
@@ -1169,7 +1169,10 @@ def _role_payload(env, role):
 # ---------------------------------------------------------------------------
 
 
-def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
+def _pack(title, cols, labels, rows, notes, totals=None, empty=None, kinds=None):
+    # A1-F06: `kinds` marks money columns ("monetary") so the workspace
+    # renders them with ৳ (p03_workspace.js mlCell); the LABELS carry the
+    # unit too, because CSV/XLSX/PDF exports print labels, not kinds.
     return {
         "title": title,
         "cols": cols,
@@ -1178,74 +1181,84 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
         "totals": totals,
         "notes": notes,
         "empty": empty or "No data in this basis yet.",
+        "kinds": kinds or {},
     }
 
 
 def executive_pack(env, date_from=None, date_to=None, **params):
     # E6 (M25-2): company-wide figures are the company-wide group's charter.
     _require_company_wide(env)
-    m = _metrics(env)
+    # A1-F04: the MTD windows are computed as-of date_to (default today);
+    # a date_from that is not that month's first day is refused above.
+    as_of = _resolve_period(date_from, date_to)
+    m = _metrics(env, as_of=as_of)
     rows = [
         {
-            "metric": "Approved quotes MTD (estimate value)",
+            "metric": "Approved quotes MTD (৳)",
             "value": m["revenue_mtd"],
-            "basis": "fix.estimate state=approved, created this month",
+            "basis": "fix.estimate state=approved, created up to the as-of day",
         },
         {
             "metric": "Invoices issued MTD",
             "value": m["invoiced_mtd"],
-            "basis": "fix.ar.invoice issued/paid, invoice_date this month",
+            "basis": "fix.ar.invoice issued/paid, invoice_date this month to the as-of day",
         },
         {
-            "metric": "Invoiced taxable MTD",
+            "metric": "Invoiced taxable MTD (৳)",
             "value": m["invoiced_taxable_mtd"],
             "basis": "sum(taxable_amount) of the same invoices",
         },
         {
-            "metric": "Collected MTD",
+            "metric": "Collected MTD (৳)",
             "value": m["collected_mtd"],
-            "basis": "fix.ar.receipt state=confirmed, this month",
+            "basis": "fix.ar.receipt state=confirmed, this month to the as-of day",
         },
         {
-            "metric": "AR outstanding",
+            "metric": "AR outstanding (৳)",
             "value": m["ar_outstanding"],
-            "basis": "issued invoices with residual > 0",
+            "basis": "open issued invoices + legacy take-on still open on the AR "
+            "control (M20 basis)",
         },
         {
-            "metric": "Overdue > 60 days",
+            "metric": "Overdue > 60 days (৳)",
             "value": m["overdue_gt_60d"],
-            "basis": "residual past the customer's own credit terms",
+            "basis": "invoices past the customer's own credit terms + take-on residual "
+            "aged > 60 days from its own take-on date (M20 ageing basis)",
         },
         {
             "metric": "Open orders",
             "value": m["open_orders"],
-            "basis": "service orders in a non-terminal state",
+            "basis": "service orders in a non-terminal state (current snapshot, not as-of)",
         },
         {
             "metric": "Delivered MTD",
             "value": m["delivered_mtd"],
-            "basis": "orders with a delivered_at/closed_at stamp this month",
+            "basis": "orders with a delivered_at/closed_at stamp this month to the as-of day",
         },
         {
             "metric": "Open complaints",
             "value": m["complaints_open"],
-            "basis": "fix.complaint in a non-terminal state",
+            "basis": "fix.complaint in a non-terminal state (current snapshot, not as-of)",
         },
     ]
     return _pack(
-        "Executive Pack — measured company metrics",
+        "Executive Pack — measured company metrics (as of %s)" % as_of,
         ["metric", "value", "basis"],
         {"metric": "Metric", "value": "Value", "basis": "Basis"},
         rows,
         [
             "One row per executive figure; the basis column is the exact query the "
-            "number comes from, so nothing is accepted on trust."
+            "number comes from, so nothing is accepted on trust.",
+            "Month-to-date figures are measured up to the as-of day shown in the "
+            "title; open-order and complaint counts are current snapshots.",
         ],
     )
 
 
 def branch_league(env, date_from=None, date_to=None, **params):
-    today = datetime.date.today()
+    # A1-F04: the MTD columns honour date_to (default today); a date_from
+    # that is not that month's first day is refused.
+    today = _resolve_period(date_from, date_to)
     month_start = today.replace(day=1)
     orders = _read(env, "fix.service.order")
     groups = orders._read_group(
@@ -1290,6 +1303,7 @@ def branch_league(env, date_from=None, date_to=None, **params):
             [
                 ("state", "in", ISSUED_INVOICE_STATES),
                 ("invoice_date", ">=", month_start),
+                ("invoice_date", "<=", today),
             ],
         ),
         groupby=["branch_id"],
@@ -1319,7 +1333,7 @@ def branch_league(env, date_from=None, date_to=None, **params):
         "invoiced_mtd": round(sum(r["invoiced_mtd"] for r in rows), 2),
     }
     return _pack(
-        "Branch League — orders, workload and invoiced value",
+        "Branch League — orders, workload and invoiced value (as of %s)" % today,
         ["branch", "orders", "open", "in_repair", "delivered_mtd", "invoiced_mtd"],
         {
             "branch": "Branch",
@@ -1327,18 +1341,24 @@ def branch_league(env, date_from=None, date_to=None, **params):
             "open": "Open Now",
             "in_repair": "In Repair",
             "delivered_mtd": "Delivered MTD",
-            "invoiced_mtd": "Invoiced Taxable MTD",
+            "invoiced_mtd": "Invoiced Taxable MTD (৳)",
         },
         rows,
         [
-            "League order: invoiced taxable value this month, then open workload. "
-            "Branch is the owning branch on the order/invoice."
+            "League order: invoiced taxable value this month (to the as-of day), then "
+            "open workload. Branch is the owning branch on the order/invoice."
         ],
         totals=totals if rows else None,
+        kinds={"invoiced_mtd": "monetary"},
     )
 
 
 def service_kpi_pack(env, date_from=None, date_to=None, **params):
+    # A1-F04: every measure here is a CURRENT snapshot of the live queue —
+    # it cannot be reconstructed as-of, so the pack says so instead of
+    # silently ignoring the period. The date_from rule is still enforced so
+    # a run is never stamped with an inapplicable period.
+    _resolve_period(date_from, date_to)
     m = _metrics(env)
     orders = _read(env, "fix.service.order")
     state_rows = orders._read_group(
@@ -1377,7 +1397,9 @@ def service_kpi_pack(env, date_from=None, date_to=None, **params):
         rows,
         [
             "SLA overdue uses the order's own resolution deadline; QC failed is the "
-            "rework queue, not a quality score."
+            "rework queue, not a quality score.",
+            "Every measure is a current snapshot of the live queues — a past period "
+            "cannot be reconstructed for them, so the pack ignores date_to and says so.",
         ],
     )
 
@@ -1387,12 +1409,20 @@ def finance_pack(env, date_from=None, date_to=None, **params):
     # figures — the pack (screen AND export) is gated, and every export is
     # logged by the download route (BRU-BID-11).
     _require_finance_reader(env)
-    m = _metrics(env)
+    # A1-F04: the MTD windows are computed as-of date_to (default today).
+    as_of = _resolve_period(date_from, date_to)
+    m = _metrics(env, as_of=as_of)
+    gl = _gl_ar_balance(env)
+    difference = (
+        round(m["ar_outstanding"] - gl, 2)
+        if m["ar_outstanding"] is not None and gl is not None
+        else None
+    )
     rows = [
         {
-            "metric": "Invoiced taxable MTD",
+            "metric": "Invoiced taxable MTD (৳)",
             "value": m["invoiced_taxable_mtd"],
-            "basis": "AR invoices issued/paid this month",
+            "basis": "AR invoices issued/paid this month to the as-of day",
         },
         {
             "metric": "Invoices issued MTD",
@@ -1400,52 +1430,88 @@ def finance_pack(env, date_from=None, date_to=None, **params):
             "basis": "count of the same invoices",
         },
         {
-            "metric": "Collected MTD",
+            "metric": "Collected MTD (৳)",
             "value": m["collected_mtd"],
-            "basis": "confirmed receipts this month",
+            "basis": "confirmed receipts this month to the as-of day",
         },
         {
-            "metric": "AR outstanding",
+            "metric": "AR outstanding — open invoices (৳)",
+            "value": m["ar_outstanding_invoices"],
+            "basis": "fix.ar.invoice state=issued with residual > 0",
+        },
+        {
+            "metric": "AR outstanding — legacy take-on (৳)",
+            "value": m["ar_outstanding_takeon"],
+            "basis": "legacy take-on still open on the AR control (M20 basis: posted "
+            "journal-MIG lines on the AR control account, per customer)",
+        },
+        {
+            "metric": "AR outstanding — total (৳)",
             "value": m["ar_outstanding"],
-            "basis": "issued invoices with residual",
+            "basis": "open issued invoices + legacy take-on still open on the AR "
+            "control (M20 basis)",
         },
         {
-            "metric": "Overdue > 60d",
+            "metric": "Overdue > 60d (৳)",
             "value": m["overdue_gt_60d"],
-            "basis": "residual past customer terms",
+            "basis": "invoices past the customer's own credit terms + take-on residual "
+            "aged > 60 days from its own take-on date (M20 ageing basis)",
+        },
+        {
+            "metric": "AR per general ledger — receivable control accounts (৳)",
+            "value": gl,
+            "basis": "Σ balance of posted account.move.line on asset_receivable "
+            "accounts in your companies, read as your account"
+            if gl is not None
+            else "GL not readable by your account",
+        },
+        {
+            "metric": "Difference (AR total − GL) (৳)",
+            "value": difference,
+            "basis": "AR total − GL receivable balance; ~0 when the take-on IS the GL "
+            "and invoices post to the same control",
         },
         {
             "metric": "Active dunning rows",
             "value": m["dunning_active"],
-            "basis": "fix.dunning on issued invoices",
+            "basis": "fix.dunning on issued invoices (current snapshot, not as-of)",
         },
     ]
     return _pack(
-        "Finance Pack — billing and receivables",
+        "Finance Pack — billing and receivables (as of %s)" % as_of,
         ["metric", "value", "basis"],
         {"metric": "Measure", "value": "Value", "basis": "Basis"},
         rows,
-        ["All values are live AR reads shared with M20 (one source of truth)."],
+        [
+            "All AR values are live reads shared with M20 (one source of truth): open "
+            "invoices + the legacy take-on still open on the AR control.",
+            "The GL tie-out row lets a CFO reconcile this pack to the trial balance: "
+            "on a migrated estate the difference is ~0 because the take-on IS the GL.",
+        ],
     )
 
 
 def people_pack(env, date_from=None, date_to=None, **params):
+    # A1-F04: headcount, presence and requisitions are CURRENT snapshots —
+    # they cannot be reconstructed as-of, so the pack says so instead of
+    # silently ignoring the period.
+    _resolve_period(date_from, date_to)
     m = _metrics(env)
     rows = [
         {
             "metric": "Active employees",
             "value": m["employees_active"],
-            "basis": "hr.employee active",
+            "basis": "hr.employee active (current snapshot, not as-of)",
         },
         {
             "metric": "Checked in today",
             "value": m["present_today"],
-            "basis": "hr.attendance check_in today",
+            "basis": "hr.attendance check_in today (current snapshot, not as-of)",
         },
         {
             "metric": "Open requisitions",
             "value": m["requisitions_open"],
-            "basis": "fix.requisition draft/approved",
+            "basis": "fix.requisition draft/approved (current snapshot, not as-of)",
         },
     ]
     return _pack(
@@ -1455,15 +1521,19 @@ def people_pack(env, date_from=None, date_to=None, **params):
         rows,
         [
             "Presence is the HR attendance record, not a badge feed; requisitions are "
-            "the demand signal from M16."
+            "the demand signal from M16.",
+            "Every measure is a current snapshot — a past period cannot be "
+            "reconstructed for them, so the pack ignores date_to and says so.",
         ],
     )
 
 
 def export_catalog(env, date_from=None, date_to=None, **params):
     """The 'any dashboard → export' promise: every M25 pack with its live API
-    and the formats the platform can actually deliver (CSV from the workspace
-    button; JSON from the same endpoint)."""
+    and the formats the platform can actually deliver (CSV, Excel and PDF from
+    the same pack function — D-L03: the old note claimed PDF/XLSX was 'a
+    print-template phase', which stopped being true when report_delivery
+    landed)."""
     rows = []
     for key in (
         "executive_pack",
@@ -1477,7 +1547,7 @@ def export_catalog(env, date_from=None, date_to=None, **params):
             {
                 "report": key,
                 "endpoint": "/p03/model/report (module=M25, report=%s)" % key,
-                "formats": "CSV · JSON",
+                "formats": "CSV · Excel · PDF",
                 "dashboards": "CEO · COO · CFO · CCO · Service · Finance · People · Quality",
             }
         )
@@ -1488,7 +1558,7 @@ def export_catalog(env, date_from=None, date_to=None, **params):
                 {
                     "report": d.name,
                     "endpoint": "/p03/bi/role (role=%s)" % d.role,
-                    "formats": "CSV · JSON",
+                    "formats": "CSV · Excel · PDF",
                     "dashboards": "Saved dashboard (%s)" % d.role,
                 }
             )
@@ -1507,8 +1577,8 @@ def export_catalog(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "CSV is produced by the stable /p03/model/report payload; the workspace "
-            "Export button downloads it. PDF/XLSX rendering is a print-template phase."
+            "Every pack downloads as CSV, Excel or PDF from the workspace Export "
+            "buttons (logged in the export log)."
         ],
     )
 
@@ -1671,3 +1741,18 @@ REPORTS.update(
         "dataset_catalog": dataset_catalog,
     }
 )
+
+# A1-F10: the canonical key library lives in the DOMAIN module
+# (cd_bi_reporting.fix_bi_library) so its models can validate report keys
+# without importing this portal controller. This controller asserts its
+# REPORTS dict IS that library — the two can never drift silently.
+try:
+    from odoo.addons.cd_bi_reporting.models.fix_bi_library import REPORT_LIBRARY_KEYS
+except ImportError:  # a backend-only install without cd_bi_reporting
+    REPORT_LIBRARY_KEYS = None
+if REPORT_LIBRARY_KEYS is not None and set(REPORTS) != set(REPORT_LIBRARY_KEYS):
+    raise ImportError(
+        "controllers/a11/m25.py REPORTS drifted from "
+        "cd_bi_reporting.fix_bi_library.REPORT_LIBRARY_KEYS: %s vs %s"
+        % (sorted(REPORTS), sorted(REPORT_LIBRARY_KEYS))
+    )

@@ -208,7 +208,7 @@ class FixDataRun(models.Model):
             for rec in self:
                 if "state" in vals and vals["state"] != rec.state:
                     raise UserError(
-                        "A run changes state only through Finish or Fail, not by " "editing it."
+                        "A run changes state only through Finish or Fail, not by editing it."
                     )
         return super().write(vals)
 
@@ -850,8 +850,7 @@ class FixDataQualityTest(models.Model):
     passed = fields.Boolean(compute="_compute_passed", store=False)
     measured = fields.Boolean(
         default=False,
-        help="True when a runner measured the value; a manually typed result "
-        "is labelled as such.",
+        help="True when a runner measured the value; a manually typed result is labelled as such.",
     )
     note = fields.Char()
 
@@ -1630,8 +1629,7 @@ class FixDataEntityRepair(models.Model):
         # its cache, so a second call would otherwise re-count the same rows.
         env.flush_all()
         env.cr.execute(
-            "SELECT id FROM fix_data_quality_rule "
-            "WHERE state = 'passing' AND last_measured IS NULL"
+            "SELECT id FROM fix_data_quality_rule WHERE state = 'passing' AND last_measured IS NULL"
         )
         rule_ids = [row[0] for row in env.cr.fetchall()]
         unmeasured = env["fix.data.quality.rule"].sudo().browse(rule_ids).exists()
@@ -1654,8 +1652,10 @@ class FixDataEntityRepair(models.Model):
 
         # e. Entity mapping (the obvious technical part only).
         for name, model_name in self._ENTITY_MODELS:
-            for entity in env["fix.data.entity"].sudo().search(
-                [("name", "=", name), ("res_model", "=", False)]
+            for entity in (
+                env["fix.data.entity"]
+                .sudo()
+                .search([("name", "=", name), ("res_model", "=", False)])
             ):
                 if model_name in env:
                     entity.write({"res_model": model_name})
@@ -1699,22 +1699,26 @@ class FixDataEntityRepair(models.Model):
                         model_name,
                     )
                     model_name = False
-                entity = env["fix.data.entity"].sudo().create(
-                    {
-                        "name": name,
-                        "entity_type": kind,
-                        "res_model": model_name or False,
-                        "owner_module": owner,
-                        "classification": classification,
-                        # The row it is being created FOR decides the company.
-                        "company_id": pipelines[0].company_id.id,
-                        "description": (
-                            "Repaired by action_repair_seed_residue on %s: entity "
-                            "registered because the seeded pipelines for this dataset "
-                            "were pointed at %s, an entity that is not theirs."
-                            % (today, self._RESIDUE_HUB)
-                        ),
-                    }
+                entity = (
+                    env["fix.data.entity"]
+                    .sudo()
+                    .create(
+                        {
+                            "name": name,
+                            "entity_type": kind,
+                            "res_model": model_name or False,
+                            "owner_module": owner,
+                            "classification": classification,
+                            # The row it is being created FOR decides the company.
+                            "company_id": pipelines[0].company_id.id,
+                            "description": (
+                                "Repaired by action_repair_seed_residue on %s: entity "
+                                "registered because the seeded pipelines for this dataset "
+                                "were pointed at %s, an entity that is not theirs."
+                                % (today, self._RESIDUE_HUB)
+                            ),
+                        }
+                    )
                 )
                 counts["entities_created"] += 1
                 _logger.info("M62 repair: entity %s created (module %s)", name, owner)
@@ -1790,9 +1794,7 @@ class FixDataEntityRepair(models.Model):
                         hub.display_name,
                     )
                     continue
-                contract.with_context(fix_contract_activation=True).write(
-                    {"entity_id": target.id}
-                )
+                contract.with_context(fix_contract_activation=True).write({"entity_id": target.id})
                 counts["contracts_repointed"] += 1
                 _logger.info(
                     "M62 repair: contract %s re-pointed %s -> %s",

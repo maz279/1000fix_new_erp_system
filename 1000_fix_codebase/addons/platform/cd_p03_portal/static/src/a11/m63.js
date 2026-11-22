@@ -1,23 +1,42 @@
 /** @odoo-module **/
 /* A11 · Insights & Intelligence — M63 Process Automation (full build; the
  * inline stub showed a fake event-stream card).
- * Registry-faithful: 4 groups / 8 screens / 4 reports / 3 forms / freg 54.
- * Backend: cd_workflow_engine (fix.automation AUT register, fix.approval.matrix
- * DoA) + the new ops models (instances, unified task inbox, business rules,
- * approval substitution). */
+ * Registry contract (scratch/a11_deep/registry_a11.json M63): 4 groups / 8
+ * screens / 4 reports / 3 forms / freg 54. This fragment is a SUPERSET and
+ * says so: 5 groups / 16 screens / 5 reports / 12 forms / freg 54 (7
+ * sub-modules). The 8 registry screens keep the registry's English and
+ * Bengali labels; every extra screen is listed here so the drift is visible
+ * rather than claimed away.
+ * Backend: cd_workflow_engine (fix.automation AUT register with runtime-
+ * verified engine bindings, fix.approval.matrix DoA) + the ops models
+ * (instances, unified task inbox, business rules, approval substitution). */
 
 export const MODULE = {
   area: 'A11', code: 'M63', en: 'Process Automation', title: 'M63 · Process Automation',
   bn: 'প্রসেস অটোমেশন', icon: '⚙️',
   desc: 'Workflow definitions and the instance monitor, scheduled jobs, the delegation-of-authority matrix, substitution and out-of-office, the business-rule repository with simulation, and the unified task inbox with escalation.',
   kpis: [
-    { l: 'Automation Rate', m: 'automation_rate', suffix: '%' },
+    /* The registry's six, in its order. A None value renders "—", never 0:
+       automation_rate and stp_share have no denominator until routine work is
+       registered (see the captions below). */
+    { l: 'Automation Rate', m: 'automation_rate', suffix: '%',
+      empty: 'No routine work registered yet — the rate has no denominator' },
     { l: 'Open Workflows', m: 'open_workflows' },
     { l: 'Avg Approval Time', m: 'avg_approval_time', suffix: ' h' },
     { l: 'Rule Repository', m: 'rule_repository' },
-    { l: 'Escalations MTD', m: 'escalations_mtd' },
-    { l: 'STP Share', m: 'stp_share', suffix: '%' },
-    { l: 'Rules Never Simulated', m: 'rules_unsimulated' },
+    { l: 'Escalations MTD', m: 'escalations_mtd',
+      empty: 'No approval history readable — escalations cannot be counted' },
+    { l: 'STP Share', m: 'stp_share', suffix: '%',
+      empty: 'No routine work registered yet — the straight-through share has no denominator' },
+    /* A4-F01: the automation register counts what really executes, not rows.
+       implemented = full + verified binding; partial = partial + verified;
+       planned = nothing implements it; broken is reported by the gap report. */
+    { l: 'Automations Bound', m: 'automations' },
+    { l: 'Partially Automated', m: 'automations_partial' },
+    { l: 'Planned / Not Implemented', m: 'automations_planned' },
+    /* Renamed (A4-F07): it counts in-force DoA MATRIX rows never simulated,
+       while Rule Repository counts business rules — two different things. */
+    { l: 'DoA Rules Unsimulated', m: 'rules_unsimulated' },
     { l: 'Interventions MTD', m: 'interventions_mtd' },
     { l: 'Approvals Pending', m: 'approvals_pending' },
     { l: 'Pending > 72 h', m: 'approvals_overdue' },
@@ -44,8 +63,10 @@ export const MODULE = {
       { id: 'M63-simulation', en: 'Rule Simulation', bn: 'নিয়ম সিমুলেশন', t: 'g' }
     ]},
     { en: 'Task Inbox', screens: [
-      { id: 'M63-inbox', en: 'Awaiting My Approval', bn: 'আমার অনুমোদনের অপেক্ষায়', t: 'g' },
-      { id: 'M63-tasks', en: 'Unified Task Inbox', bn: 'একত্র কাজের ইনবক্স', t: 'g' },
+      /* The registry names M63-inbox "Unified Task Inbox" with the registry's
+       * Bengali label; M63-tasks (extra) is the all-assignees view. */
+      { id: 'M63-inbox', en: 'Unified Task Inbox', bn: 'একত্র কাজের ইনবক্স', t: 'g' },
+      { id: 'M63-tasks', en: 'All Approval Tasks', bn: 'সব অনুমোদন কাজ', t: 'g' },
       { id: 'M63-requests', en: 'Approval Requests', bn: 'অনুমোদনের অনুরোধ', t: 'g' },
       { id: 'M63-history', en: 'Approval History', bn: 'অনুমোদনের ইতিহাস', t: 'g' },
       { id: 'M63-rpt-approval', en: 'Approval KPIs', bn: 'অনুমোদন সূচক', t: 'r' },
@@ -60,7 +81,7 @@ export const MODULE = {
   forms: ['Workflow Definition', 'Approval Chain', 'Business Rule', 'Substitution / OOO', 'Rule Simulation',
     'Scheduled Workflow', 'Event-Triggered Automation', 'Automation Register Entry', 'Manual Intervention',
     'Authority Ladder', 'Ladder Band', 'Scheduled Job Registration'],
-  cross: ['All modules consume the engine', 'M60 SoD', 'M52 approval matrix', 'M29 access'],
+  cross: ['Every module with approvals', 'M60 SoD in approvals', 'M29 identity context'],
   /* M63 capture audit (2026-11-18): each page offers the record it holds.
    * Page 2 captured nothing (its substitution list had no button); page 3
    * could not reach the value ladder the DoA tier comes from; page 4 had no
@@ -68,19 +89,25 @@ export const MODULE = {
    * workflow instance by hand instead of the routine-work register and the
    * recorded manual intervention. */
   freg: { src: 54, sub: [
-    ['1', 'Workflow Engine', 11, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'failure_policy', 'active'], screens: ['M63-definitions', 'M63-monitor'], reports: ['Automation Rate by Process'], forms: ['Workflow Definition'] }],
+    ['1', 'Workflow Engine', 11, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'implementation', 'binding_state', 'coverage_state', 'executor_active', 'failure_policy', 'active'], screens: ['M63-definitions', 'M63-monitor'], reports: ['Automation Rate by Process'], forms: ['Workflow Definition'] }],
     ['2', 'Approval Chains', 10, { model: 'fix.workflow.task', cols: ['name', 'instance_id', 'assigned_to_id', 'due_at', 'decision', 'state'], screens: ['M63-requests', 'M63-inbox', 'M63-substitution', 'M63-history'], reports: ['Approval Cycle Time', 'Approval KPIs', 'Escalation Analysis'], forms: ['Substitution / OOO', 'Approval Chain'], create: 'M63-form-substitution', domain: [['task_type', '=', 'approval']] }],
-    ['3', 'DoA Matrix', 6, { model: 'fix.approval.matrix', cols: ['decision_domain', 'threshold', 'approver_role', 'notes'], screens: ['M63-doa'], reports: [], forms: ['Approval Chain', 'Authority Ladder', 'Ladder Band'] }],
+    ['3', 'DoA Matrix', 6, { model: 'fix.approval.matrix', cols: ['decision_domain', 'threshold', 'approver_role', 'approver_group_id', 'escalate_to_id', 'date_from', 'date_to', 'approval_policy', 'sla_hours', 'max_escalations', 'final_action', 'active'], screens: ['M63-doa'], reports: [], forms: ['Approval Chain', 'Authority Ladder', 'Ladder Band'] }],
     ['4', 'Business Rules', 9, { model: 'fix.business.rule', cols: ['code', 'name', 'domain_area', 'rule_type', 'version', 'active'], screens: ['M63-rules', 'M63-simulation'], reports: ['Rule Change Log', 'Automation Rate by Process'], forms: ['Business Rule', 'Rule Simulation'] }],
-    ['5', 'Scheduled & Event Jobs', 7, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'], screens: ['M63-jobs', 'M63-events'], reports: [], forms: ['Scheduled Workflow', 'Event-Triggered Automation', 'Scheduled Job Registration'], create: 'M63-form-scheduled', domain: [['engine', '=', 'airflow']] }],
+    /* The real scheduled jobs are Odoo ir.cron rows (the new scheduled_jobs
+     * pack); the register rows whose engine is odoo_cron are their submissions. */
+    ['5', 'Scheduled & Event Jobs', 7, { model: 'fix.automation', cols: ['code', 'trigger', 'engine', 'engine_ref', 'implementation', 'binding_state', 'coverage_state', 'active'], screens: ['M63-jobs', 'M63-events'], reports: [], forms: ['Scheduled Workflow', 'Event-Triggered Automation', 'Scheduled Job Registration'], create: 'M63-form-scheduled', domain: [['engine', '=', 'odoo_cron']] }],
     ['6', 'Task Inbox', 5, { model: 'fix.workflow.task', cols: ['name', 'task_type', 'assigned_to_id', 'due_at', 'state'], screens: ['M63-inbox', 'M63-tasks'], reports: ['Approval Cycle Time'], forms: [], create: false }],
     ['7', 'Audit & Performance', 6, { model: 'fix.workflow.instance', cols: ['name', 'automation_id', 'started_at', 'finished_at', 'escalated', 'state'], screens: ['M63-monitor', 'M63-interventions', 'M63-register'], reports: ['Approval KPIs', 'Escalation Analysis', 'Automation Rate by Process'], forms: ['Manual Intervention', 'Automation Register Entry'], create: 'M63-form-intervention' }]
   ] }
 };
 
 export const SCREENS = {
+  /* A4-F01: the reader must be able to see WHAT executes each row. Binding /
+   * Coverage / Executor active are computed from the engine reference at read
+   * time, never stored, and matching with the gap report by construction. */
   'M63-definitions': { kind: 'model_list', model: 'fix.automation',
-    cols: ['code', 'trigger', 'engine', 'engine_ref', 'failure_policy', 'active'] },
+    cols: ['code', 'trigger', 'engine', 'engine_ref', 'implementation', 'binding_state', 'coverage_state', 'executor_active', 'failure_policy', 'active'],
+    note: 'Engine names the mechanism that really executes the row: odoo_cron (cron:<module>.<xmlid>), odoo_method (method:<model>.<method>), event_consumer (consumer:<event_type>) or manual (nothing executes it). Implementation says how much of the action the executor performs; Binding/Coverage are verified at read time.' },
   'M63-monitor': { kind: 'model_list', model: 'fix.workflow.instance', stateField: 'state', create: false,
     cols: ['name', 'automation_id', 'res_model', 'res_id', 'started_at', 'finished_at', 'escalated', 'state'],
     /* Each button is a recorded manual intervention (FR-BPA-008): it asks why,
@@ -92,18 +119,23 @@ export const SCREENS = {
       { m: 'action_terminate', l: 'Terminate', ask: 'Why is this instance terminated?', kwarg: 'reason' }
     ],
     empty: 'No workflow instance yet. An instance is started by its automation engine; an operator acts on a running one with a recorded intervention.' },
-  'M63-jobs': { kind: 'model_list', model: 'fix.automation',
-    cols: ['code', 'trigger', 'engine', 'engine_ref', 'active'],
-    domain: [['engine', '=', 'airflow']] },
+  /* A11 pass 1, D-L13: this screen listed the 16 register rows whose engine
+   * claimed Airflow — DAGs that do not exist. It now serves the scheduled_jobs
+   * report: the REAL ir.cron estate, its owning module and its next run. */
+  'M63-jobs': { kind: 'table_report', module: 'M63', report: 'scheduled_jobs',
+    title: 'Scheduled Jobs', period: false },
   'M63-events': { kind: 'model_list', model: 'fix.automation',
-    cols: ['code', 'trigger', 'engine_ref', 'failure_policy', 'active'],
-    domain: [['engine', '=', 'odoo_automated_action']],
-    note: 'Automations started by a business event (a record created or changed), run as an Odoo automated action.' },
+    cols: ['code', 'trigger', 'engine', 'engine_ref', 'implementation', 'binding_state', 'coverage_state', 'executor_active', 'failure_policy', 'active'],
+    domain: [['engine', '=', 'event_consumer']],
+    note: 'Automations executed by an outbox event consumer (consumer:<event_type>): the published event type names the consumer row that does the work. The register records which event starts it; the consumer itself lives in the owning module.' },
   'M63-doa': { kind: 'model_list', model: 'fix.approval.matrix',
-    cols: ['name', 'decision_domain', 'res_model', 'approval_policy', 'sla_hours', 'max_escalations',
-      'final_action', 'date_from', 'date_to', 'active'],
+    /* A11 pass 1, D-L12: the grid showed neither who approves nor up to how
+     * much. Threshold is money (৳), approver_role the reconciled R-nn role. */
+    cols: ['name', 'decision_domain', 'res_model', 'threshold', 'approver_role', 'approver_group_id',
+      'approval_policy', 'sla_hours', 'max_escalations', 'escalate_to_id', 'final_action',
+      'date_from', 'date_to', 'active'],
     actions: [{ m: 'action_test_rule', l: 'Test Rule on a Record', ask: 'Record id to simulate against', kwarg: 'res_id' }],
-    note: 'The rule book the approval engine reads. The DOFA ladder sets the tier; a row sets how the approval runs. A new ruling is a new dated row, not an edit.' },
+    note: 'The rule book the approval engine reads. The DOFA ladder sets the tier; a row sets how the approval runs. Threshold is the displayed authority limit in ৳ and approver_role the reconciled role — both reference text: the coded group or the ladder authorises, the row only narrows and times it. A new ruling is a new dated row, not an edit.' },
   'M63-substitution': { kind: 'model_list', model: 'fix.approval.substitution', stateField: 'state',
     cols: ['name', 'absent_approver_id', 'delegate_id', 'start_date', 'end_date', 'state'],
     actions: [{ m: 'action_activate', l: 'Activate' }, { m: 'action_expire', l: 'Expire' }] },
@@ -160,15 +192,23 @@ export const SCREENS = {
     title: 'Workflow Definition',
     back: 'M63-definitions',
     sections: [
-      { title: 'Definition', note: 'One row of the AUT register with its named engine: an Odoo automated action, an Airflow DAG or a domain service. The trigger records what starts it.',
+      { title: 'Definition', note: 'One row of the AUT register. Engine names what really executes it: odoo_cron (a scheduled action, reference cron:<module>.<xmlid>), odoo_method (a model method run on a document step, method:<model>.<method>), event_consumer (an outbox event consumer, consumer:<event_type>) or manual (no automation — implementation must then be "none"). An active row whose reference does not resolve is refused on save.',
         fields: [
           { name: 'code', required: true, label: 'Code' },
           { name: 'trigger', required: true, label: 'Trigger' },
           { name: 'engine', required: true, label: 'Engine' },
-          { name: 'engine_ref', label: 'Engine Reference' },
+          { name: 'engine_ref', label: 'Engine Reference (cron: | method: | consumer:)' },
+          { name: 'implementation', required: true, label: 'Implementation' },
           { name: 'failure_policy', label: 'Failure Policy' },
           { name: 'action', required: true, type: 'text', label: 'Action (what runs)' },
+          { name: 'executor_note', type: 'text', label: 'Executor Note (module + file:line)' },
           { name: 'active', label: 'Active' }
+        ] },
+      { title: 'Verified Binding', note: 'Computed at read time from the engine reference: Binding (verified / unresolved / manual), Coverage (implemented = full + verified, partial, planned, broken = claims an implementation its reference cannot back) and whether the executor itself is switched on. Never typed.',
+        fields: [
+          { name: 'binding_state', readonly: true, label: 'Binding' },
+          { name: 'coverage_state', readonly: true, label: 'Coverage' },
+          { name: 'executor_active', readonly: true, label: 'Executor Active' }
         ] }
     ]
   },
@@ -390,9 +430,15 @@ export const SCREENS = {
 /* Page 5 captures workflow definitions of either trigger kind: the same AUT
  * register row, opened with its engine filled in so it shows on its list. */
 SCREENS['M63-form-scheduled'] = { ...SCREENS['M63-form-automation'], title: 'Scheduled Workflow',
-  back: 'M63-jobs', presets: { engine: 'airflow' } };
+  back: 'M63-jobs', presets: { engine: 'odoo_cron' } };
 SCREENS['M63-form-event'] = { ...SCREENS['M63-form-automation'], title: 'Event-Triggered Automation',
-  back: 'M63-events', presets: { engine: 'odoo_automated_action' } };
+  back: 'M63-events', presets: { engine: 'event_consumer' } };
+/* The third capture form on page 5 registers the row the scheduled_jobs
+ * report will show: an odoo_cron binding (cron:<module>.<xmlid>). It used to
+ * open M30's fix.scheduled.job form, which carries no engine reference at
+ * all — nothing to verify. */
+SCREENS['M63-form-job-registration'] = { ...SCREENS['M63-form-automation'],
+  title: 'Scheduled Job Registration', back: 'M63-jobs', presets: { engine: 'odoo_cron' } };
 
 export const REPORT_ROUTES = {
   'M63:Automation Rate by Process': 'M63-rpt-rate',
@@ -414,7 +460,7 @@ export const FORM_MODELS = {
   'M63:Manual Intervention': 'fix.workflow.intervention',
   'M63:Authority Ladder': 'fix.dofa.ladder',
   'M63:Ladder Band': 'fix.dofa.threshold',
-  'M63:Scheduled Job Registration': 'fix.scheduled.job'
+  'M63:Scheduled Job Registration': 'fix.automation'
 };
 
 export const FORM_CHIPS = {
@@ -427,11 +473,12 @@ export const FORM_CHIPS = {
   'M63:Event-Triggered Automation': 'M63-form-event',
   'M63:Automation Register Entry': 'M63-form-register',
   'M63:Manual Intervention': 'M63-form-intervention',
-  /* the value ladder the DoA tier comes from, and the scheduled-action
-   * registry, are kept by M30: their own forms, offered here */
+  /* the value ladder the DoA tier comes from is kept by M30: its own forms,
+   * offered here. The scheduled-job registration is an AUT row with an
+   * odoo_cron binding, captured in-workspace (see M63-form-job-registration). */
   'M63:Authority Ladder': 'M30-form-dofa-ladder',
   'M63:Ladder Band': 'M30-form-dofa-band',
-  'M63:Scheduled Job Registration': 'M30-form-job',
+  'M63:Scheduled Job Registration': 'M63-form-job-registration',
   'M63:__by_model__': {
     'fix.automation': 'M63-form-automation',
     'fix.approval.matrix': 'M63-form-doa',
@@ -445,7 +492,8 @@ export const FORM_CHIPS = {
   },
   'M63:__by_screen__': {
     'M63-definitions': 'M63-form-automation',
-    'M63-jobs': 'M63-form-scheduled',
+    /* M63-jobs is the scheduled_jobs report, not a list: its +New comes from
+     * freg sub 5's create (M63-form-scheduled), never from the report screen. */
     'M63-events': 'M63-form-event',
     'M63-simulation': 'M63-form-simulation',
     'M63-register': 'M63-form-register',

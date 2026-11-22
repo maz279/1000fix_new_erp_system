@@ -3,6 +3,9 @@
 # substitutions, business rules and the AUT/escalation signals.
 import datetime
 
+from odoo import fields
+from odoo.exceptions import AccessError, UserError
+
 # A11 audit E1: the fields /p03/model/write accepts on each M63 surface,
 # exactly what the M63 workspace forms (static/src/a11/m63.js) offer as
 # editable. A surface with no form accepts nothing. Workflow fields (states,
@@ -12,7 +15,17 @@ import datetime
 # Administrator's. Kept in step with the forms by test_a11_e1_e4.py.
 WRITABLE = {
     "fix.automation": frozenset(
-        {"code", "trigger", "engine", "engine_ref", "failure_policy", "action", "active"}
+        {
+            "code",
+            "trigger",
+            "engine",
+            "engine_ref",
+            "failure_policy",
+            "implementation",
+            "executor_note",
+            "action",
+            "active",
+        }
     ),
     # An instance is started by its automation's engine and changed only by a
     # recorded manual intervention (M63 capture audit 2026-11-18): its form
@@ -79,6 +92,23 @@ SURFACES = {
     "fix.automation": {
         "order": "code",
         "limit": 300,
+        # The grid the surface serves (mirrored by M63-definitions in the
+        # fragment): the register row, the mechanism that really executes it,
+        # and the three computed verdicts a reader needs to tell fact from
+        # fiction. binding_state / executor_active / coverage_state are
+        # computed and therefore never writable.
+        "cols": [
+            "code",
+            "trigger",
+            "engine",
+            "engine_ref",
+            "implementation",
+            "binding_state",
+            "coverage_state",
+            "executor_active",
+            "failure_policy",
+            "active",
+        ],
         "actions": set(),
         "writable": WRITABLE["fix.automation"],
     },
@@ -168,6 +198,26 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
     }
 
 
+def _routine_work_totals(env):
+    """(total volume, automated volume, straight-through volume) over the
+    routine-work register — the denominator of the automation rate.
+
+    fix.automation.register semantics (read from the model, 19.0.1.2.0):
+      volume_per_month  how often the task happens in a month
+      automated         a task counts as automated only when it names the
+                        automation that does it
+      stp_rate          the share of that volume completed with no human step
+      automated_volume  volume_per_month x stp_rate/100, and 0 unless automated
+    So the automation rate is the share of registered volume a named
+    automation covers, and the STP share is the share that flows through with
+    no human step (never the two conflated)."""
+    rows = env["fix.automation.register"].sudo().search([])
+    total = sum(rows.mapped("volume_per_month"))
+    automated = sum(row.volume_per_month for row in rows if row.automated)
+    straight_through = sum(rows.mapped("automated_volume"))
+    return total, automated, straight_through
+
+
 def automation_rate(env, date_from=None, date_to=None, **params):
     """Automation rate by process area, over the routine-work register.
 
@@ -197,9 +247,11 @@ def automation_rate(env, date_from=None, date_to=None, **params):
         }
         for key, v in sorted(groups.items())
     ]
-    rate, automated, total = env["fix.automation.register"]._automation_rate()
+    total, _coverage_volume, straight_through = _routine_work_totals(env)
+    rate = round(straight_through / total * 100.0, 1) if total else None
     return _pack(
-        "Automation Rate by Process — %s%% of routine work (target 85%%)" % rate,
+        "Automation Rate by Process — %s of routine-work volume automated straight "
+        "through (target 85%%)" % ("%.1f%%" % rate if rate is not None else "not measurable"),
         ["area", "tasks", "automated_tasks", "volume", "automated", "rate"],
         {
             "area": "Process Area",
@@ -211,18 +263,23 @@ def automation_rate(env, date_from=None, date_to=None, **params):
         },
         rows,
         [
-            "Each routine task counts by its monthly volume. An automated task counts the "
-            "share its automation completes with no human step; a task counts as automated "
-            "only when it names the automation that does it.",
+            "Each routine task counts by its monthly volume; an automated task counts the "
+            "volume its automation completes with no human step (volume x straight-through "
+            "rate), so a task 'partly automated' contributes only its automated part. A task "
+            "counts as automated only when it names the active automation that does it.",
+            "This pack weights each task by its straight-through rate. The Automation Rate "
+            "KPI next to it counts the share of registered volume a named automation "
+            "COVERS (automated or not straight through), so the two numbers differ by "
+            "design and both are stated on their tile.",
             "Without registered routine work the 85% target has no denominator and cannot "
-            "be measured, only claimed.",
+            "be measured, only claimed — the pack then shows no rate at all.",
         ],
         totals={
             "area": "Total",
             "tasks": len(entries),
             "automated_tasks": len(entries.filtered("automated")),
             "volume": total,
-            "automated": round(automated, 1),
+            "automated": round(straight_through, 1),
             "rate": rate,
         },
         empty="No routine work is registered yet: add each recurring task on the "
@@ -324,10 +381,20 @@ def escalation_analysis(env, date_from=None, date_to=None, **params):
 
 
 def rule_change_log(env, date_from=None, date_to=None, **params):
-    """Rule change log: version bumps and last editor per rule."""
+    """Rule change log: version bumps and last editor per rule.
+
+    `last_changed_on` is stored in UTC; it is printed in the CALLER's
+    timezone (the grid already does), with the zone named in the column
+    label — a pack that printed UTC beside a Dhaka grid read six hours apart
+    (A11 pass 1, D-L14)."""
     rules = env["fix.business.rule"].search([])
+    tz_name = env.tz or "UTC"
     rows = []
     for rule in rules:
+        changed_on = "—"
+        if rule.last_changed_on:
+            local = fields.Datetime.context_timestamp(rule, rule.last_changed_on)
+            changed_on = local.strftime("%Y-%m-%d %H:%M")
         rows.append(
             {
                 "code": rule.code,
@@ -336,7 +403,7 @@ def rule_change_log(env, date_from=None, date_to=None, **params):
                 "type": dict(rule._fields["rule_type"].selection).get(rule.rule_type),
                 "version": rule.version,
                 "changed_by": rule.last_changed_by.name if rule.last_changed_by else "—",
-                "changed_on": str(rule.last_changed_on or "—")[:16],
+                "changed_on": changed_on,
                 "active": "Yes" if rule.active else "No",
             }
         )
@@ -351,15 +418,93 @@ def rule_change_log(env, date_from=None, date_to=None, **params):
             "type": "Rule Type",
             "version": "Version",
             "changed_by": "Changed By",
-            "changed_on": "Changed On",
+            "changed_on": "Changed On (%s)" % tz_name,
             "active": "Active",
         },
         rows,
         [
             "Each version bump is recorded on the rule; no separate audit table exists, so "
-            "the current version and last change are the log."
+            "the current version and last change are the log. Times are shown in the "
+            "reader's timezone (%s), the same as the grid." % tz_name,
         ],
         empty="No business rules recorded.",
+    )
+
+
+def _require_scheduled_jobs_reader(env):
+    """E6 pattern (m25._require_finance_reader): the ir.cron estate is
+    infrastructure, not business data. A refused caller gets a specific
+    error, never a silent partial list."""
+    if env.su:
+        return
+    group = env.ref("cd_workflow_engine.group_doa_administrator", raise_if_not_found=False)
+    if not group or env.user not in group.user_ids:
+        raise UserError(
+            "Scheduled Jobs is reserved for DoA Administrators (M63): the Odoo "
+            "scheduled-action estate (interval, last and next run) is platform "
+            "infrastructure, not business data, and is not served to your account."
+        )
+
+
+def scheduled_jobs(env, date_from=None, date_to=None, **params):
+    """The REAL scheduled jobs of this estate: ir.cron rows, with the module
+    that owns each one. The previous "Scheduled Jobs" screen listed the 16
+    register rows whose engine claimed Airflow — DAGs that do not exist
+    (A11 pass 1, D-L13)."""
+    _require_scheduled_jobs_reader(env)
+    crons = env["ir.cron"].sudo().with_context(active_test=False).search([], order="nextcall, id")
+    owners = {}
+    rows_xml = (
+        env["ir.model.data"]
+        .sudo()
+        .search_read(
+            [("model", "=", "ir.cron"), ("res_id", "in", crons.ids)],
+            ["module", "name", "res_id"],
+        )
+    )
+    for data in rows_xml:
+        owners.setdefault(data["res_id"], "%s.%s" % (data["module"], data["name"]))
+    tz_name = env.tz or "UTC"
+
+    def _local(value):
+        if not value:
+            return "—"
+        # an empty recordset is a BaseModel too: only its env (the caller's
+        # timezone) is read
+        local = fields.Datetime.context_timestamp(env["ir.cron"], value)
+        return local.strftime("%Y-%m-%d %H:%M")
+
+    rows = []
+    for cron in crons:
+        rows.append(
+            {
+                "job": cron.cron_name or "—",
+                "module": owners.get(cron.id, "—"),
+                "interval": "%s %s" % (cron.interval_number, cron.interval_type or ""),
+                "active": "Yes" if cron.active else "No",
+                "last_run": _local(cron.lastcall),
+                "next_run": _local(cron.nextcall),
+            }
+        )
+    return _pack(
+        "Scheduled Jobs — %d Odoo scheduled action(s)" % len(rows),
+        ["job", "module", "interval", "active", "last_run", "next_run"],
+        {
+            "job": "Scheduled Action",
+            "module": "Owning Module (xmlid)",
+            "interval": "Interval",
+            "active": "Active",
+            "last_run": "Last Run (%s)" % tz_name,
+            "next_run": "Next Run (%s)" % tz_name,
+        },
+        rows,
+        [
+            "These are Odoo scheduled actions (ir.cron) — the mechanism that really runs "
+            "this estate's automations. Airflow DAGs are not used by these automations: "
+            "the register names ir.cron, model methods and event consumers.",
+            "Sorted by next run. Times are shown in the reader's timezone (%s)." % tz_name,
+        ],
+        empty="No scheduled action in the registry.",
     )
 
 
@@ -498,45 +643,71 @@ REPORTS = {
     "approval_cycle_time": approval_cycle_time,
     "escalation_analysis": escalation_analysis,
     "rule_change_log": rule_change_log,
+    "scheduled_jobs": scheduled_jobs,
 }
 
 
 def kpis(env):
-    automations = env["fix.automation"].search([])
     instances = env["fix.workflow.instance"].search([])
     tasks = env["fix.workflow.task"].search([])
     rules = env["fix.business.rule"].search([])
     decided = tasks.filtered(lambda t: t.state == "done" and t.created_at and t.decided_at)
     month_start = datetime.date.today().replace(day=1)
-    escalations = instances.filtered(
-        lambda i: i.escalated and i.started_at and i.started_at.date() >= month_start
-    )
+    month_start_dt = datetime.datetime.combine(month_start, datetime.time.min)
     running = instances.filtered(lambda i: i.state == "running")
     total_hours = sum((t.decided_at - t.created_at).total_seconds() / 3600.0 for t in decided)
     approvals = env["fix.approval.request"].approval_kpis()
     a02 = a02_control_figures(env)
+    # A4-F01: the coverage tiles count the CATALOGUE by what really executes
+    # each row — full+verified, partial+verified, nothing — never the number
+    # of rows. A 'broken' row (claims an implementation its reference cannot
+    # back) is in none of the three and is reported by the gap report.
+    catalogue = env["fix.automation"].with_context(active_test=False).search([])
+    coverage = {"implemented": 0, "partial": 0, "planned": 0, "broken": 0}
+    for row in catalogue:
+        coverage[row.coverage_state] += 1
+    # A4-F06: both rates come from the routine-work register (the 85% target's
+    # denominator); with no registered work they are None ("—"), never 0.0.
+    routine_total, routine_automated, routine_stp = _routine_work_totals(env)
+    automation_rate = round(routine_automated / routine_total * 100.0, 1) if routine_total else None
+    stp_share = round(routine_stp / routine_total * 100.0, 1) if routine_total else None
+    # A4-F13: escalations = approval-history escalations this month PLUS
+    # escalated workflow instances this month. If the caller may not read the
+    # history the tile is None, not a smaller number.
+    try:
+        with env.cr.savepoint():
+            approval_escalations = env["fix.approval.history"].search_count(
+                [("event", "=", "escalated"), ("at", ">=", month_start_dt)]
+            )
+    except AccessError:
+        approval_escalations = None
+    instance_escalations = len(
+        instances.filtered(
+            lambda i: i.escalated and i.started_at and i.started_at >= month_start_dt
+        )
+    )
+    escalations_mtd = (
+        None if approval_escalations is None else approval_escalations + instance_escalations
+    )
     return {
         "a02_variance_self_approved": a02["cash_variance_self_approved"],
         "a02_cert_self_verified": a02["wipe_cert_self_verified"],
         "a02_delivery_otp_pct": a02["delivery_otp_verified_pct"],
         "a02_completion_evidence_pct": a02["field_completion_evidence_pct"],
-        # Over the routine-work register (M63 capture audit 2026-11-18): the
-        # share of completed instances measured nothing a person does.
-        "automation_rate": env["fix.automation.register"]._automation_rate()[0],
+        "automation_rate": automation_rate,
         "rules_unsimulated": len(env["fix.approval.matrix"]._rules_in_force_never_simulated()),
         "interventions_mtd": env["fix.workflow.intervention"].search_count(
-            [("at", ">=", datetime.datetime.combine(month_start, datetime.time.min))]
+            [("at", ">=", month_start_dt)]
         ),
         "open_workflows": len(running),
         "avg_approval_time": round(total_hours / len(decided), 1) if decided else 0.0,
         "rule_repository": len(rules),
-        "escalations_mtd": len(escalations),
-        "stp_share": round(
-            len(instances.filtered(lambda i: not i.escalated)) / len(instances) * 100.0, 1
-        )
-        if instances
-        else 0.0,
-        "automations": len(automations),
+        "escalations_mtd": escalations_mtd,
+        "stp_share": stp_share,
+        "automations": coverage["implemented"],
+        "automations_partial": coverage["partial"],
+        "automations_planned": coverage["planned"],
+        "automations_broken": coverage["broken"],
         "approvals_pending": approvals["pending"],
         "approvals_overdue": approvals["pending_over_72h"],
         "approver_is_creator": approvals["approver_is_creator"],

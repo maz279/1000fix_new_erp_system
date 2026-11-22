@@ -188,10 +188,14 @@ class FixBiManualPack(models.Model):
 
     @api.constrains("replacement_report_key")
     def _check_replacement_report(self):
+        # A1-F10: the library is the domain module's own (fix_bi_library), so
+        # an unknown replacement key is always REFUSED — the old skip "if
+        # valid" only happened because the keys came from the portal
+        # controller, which a backend-only install does not have.
         valid = self.env["fix.bi.distribution.schedule"]._valid_report_keys()
         for rec in self:
             key = rec.replacement_report_key
-            if key and valid and key not in valid:
+            if key and key not in valid:
                 raise ValidationError(
                     _("Report %r is not in the M25 report library. Valid: %s.")
                     % (key, ", ".join(sorted(valid)))

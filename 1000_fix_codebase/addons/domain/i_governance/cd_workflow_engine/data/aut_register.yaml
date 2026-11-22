@@ -1,308 +1,496 @@
 # AUT register — the 60 business automations (P06-M08-T04; source: 05-05 section 12).
-# Every automation has a NAMED execution engine:
-#   odoo_automated_action — single-event, single-model (Odoo server action + outbox)
-#   airflow              — scheduled / threshold-crossing / time-window workflows
-#   domain_service       — a named services/* engine (pricing, dispatch, reconciliation, ML)
-# Extracted from the catalogue; assignments reviewed at G3.
-# T06: All 60 automations carry concrete named engine references with ZERO gaps.
+#
+# 19.0.1.2.0 (A4-F01): this file no longer CLAIMS engines, it names the
+# mechanism that really executes each row on this estate, in a form Odoo
+# verifies at runtime (models/fix_workflow_engine.py::_binding_resolver):
+#   odoo_cron       cron:<module>.<xmlid>     an ir.cron scheduled action
+#   odoo_method     method:<model>.<method>   a model method on a document step
+#   event_consumer  consumer:<event_type>     an outbox event -> consumer
+#   manual          (no reference)            nothing executes the row
+# `implementation` is the honest verdict on how much of the described
+# behaviour the executor performs (full 20 / partial 32 / none 8 at issue);
+# `executor_note` says where the code lives and what is missing. Rows with
+# implementation 'none' are loaded inactive: an automation nobody runs
+# automates nothing. trigger/action/fallback text is the catalogue's own and
+# is never rewritten by the loader.
 automations:
   - id: AUT-001
     trigger: 'Booking received on any channel'
     action: 'Create service order, evaluate entitlement, assign SLA, acknowledge to customer, enter dispatch queue'
-    engine: domain_service
-    engine_ref: 'service: cd_field_service.order_intake'
+    engine: odoo_method
+    engine_ref: 'method:fix.walkin.intake.action_complete_handover'
+    implementation: partial
+    executor_note: 'cd_front_desk/models/fix_walkin_intake.py:510,541 — the walk-in handover creates the service order (entitlement and SLA come with the order''s own create); the customer ack is the service_order.intake consumer (cd_contact_centre/models/fix_a02_notifications.py:109). Walk-in channel only: no omnichannel booking intake function exists.'
+    fallback: 'Front-desk agent books the order by hand and confirms to the customer'
   - id: AUT-002
     trigger: 'Order enters dispatch queue'
     action: 'Score candidates; auto-assign above confidence or present ranked list'
-    engine: domain_service
-    engine_ref: 'service: cd_field_service.dispatch_engine'
+    engine: odoo_method
+    engine_ref: 'method:fix.field.order.action_suggest_technicians'
+    implementation: partial
+    executor_note: 'cd_field_service/models/fix_field_order.py:2159 — the deterministic scoring engine presents a ranked list with reasons ("the dispatcher decides, the model only recommends"); dispatching is action_dispatch (:986), a dispatcher-gated human step. No auto-assign above a confidence threshold exists.'
+    fallback: 'Dispatcher assigns from the ranked list by hand'
   - id: AUT-003
     trigger: 'Technician assigned'
     action: 'Notify technician and customer; publish tracking link; update route'
-    engine: domain_service
-    engine_ref: 'service: cd_field_service.tracking_publisher'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'Nothing in the estate publishes a customer tracking link (A4 §3 AUT-003); assignment notification exists only as the field-order acceptance path, not this automation.'
+    fallback: 'Call centre informs the customer of the technician and the window'
   - id: AUT-004
     trigger: 'Diagnosis completed'
     action: 'Draft estimate from fault code and standard repair mapping'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut004_draft_estimate'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'No automatic estimate drafting from fault code; only per-fault estimate tracking exists (cd_service_order/models/fix_service_order_fault.py:59).'
+    fallback: 'Technician drafts the estimate from the diagnosis'
   - id: AUT-005
     trigger: 'Estimate issued'
     action: 'Send on preferred channels; start expiry timer; remind at 24h and 48h; expire on limit'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut005_estimate_expiry'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_service_order.ir_cron_estimate_expiry'
+    implementation: partial
+    executor_note: 'cd_service_order ir_cron_estimate_expiry expires estimates past their validity; the send is the estimate.sent consumer (fix.notif.delivery). The 24h/48h reminders do not exist.'
+    fallback: 'Service adviser phones the customer before the estimate lapses'
   - id: AUT-006
     trigger: 'Customer approves'
     action: 'Reserve parts, release work order, notify technician'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut006_customer_approve'
+    engine: odoo_method
+    engine_ref: 'method:fix.estimate.action_approve'
+    implementation: full
+    executor_note: 'cd_service_order/models/fix_estimate.py:670 — recording the customer''s approval reserves the approved parts (_fix_reserve_estimate_parts :751), drives the order to approved and publishes estimate.approved.'
+    fallback: 'Service adviser records the approval and releases the job by hand'
   - id: AUT-007
     trigger: 'Parts unavailable'
     action: 'Search network; recommend source; raise transfer or purchase; hold job; inform customer with revised ETA'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut007_parts_unavailable'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'No network parts search and no automated transfer/PO on unavailability (A4 §3 AUT-007).'
+    fallback: 'Store keeper searches stock and raises the transfer or purchase by hand'
   - id: AUT-008
     trigger: 'QC passed'
     action: 'Generate service report, raise invoice, notify customer as Ready'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut008_qc_passed_invoice'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_billing_engine.ir_cron_ar_event_process'
+    implementation: partial
+    executor_note: 'cd_billing_engine — billable-event intake on service_order.closed (ir_cron_ar_event_intake) and invoice generation (ir_cron_ar_event_process, fix_ar_cron.xml). The invoice trigger is order CLOSED, not QC passed; the QC-to-ready gate is cd_workshop/models/fix_workshop_job.py:48,63.'
+    fallback: 'Billing clerk raises the invoice from the delivered order'
   - id: AUT-009
     trigger: 'SLA at 50/75/90/100%'
     action: 'Escalate to defined roles with acknowledgement tracking'
-    engine: airflow
-    engine_ref: 'dag: fix_aut009_sla_escalation'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_service_order.ir_cron_sla_breaches'
+    implementation: full
+    executor_note: 'cd_service_order ir_cron_sla_breaches runs fix.sla.kpi.instance.cron_flag_breaches → _fire_escalation_rules (cd_service_order/models/fix_sla_escalation.py:274,314) over fix.escalation.rule threshold_pct; M02 field-order breaches escalate via cd_field_service ir_cron_field_order_sla_escalation.'
+    fallback: 'Branch manager chases the breach report manually'
   - id: AUT-010
     trigger: 'Job completed'
     action: 'Trigger CSAT survey after the configured delay'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut010_csat_survey'
+    engine: event_consumer
+    engine_ref: 'consumer:service_order.closed'
+    implementation: full
+    executor_note: 'cd_cx_feedback/models/fix_cx_feedback.py:125 — fix.survey.consume_order_closed creates the deferred survey (NT-024) and dispatches the invitation; the configured delay is applied by cd_cx_feedback ir_cron_survey_dispatch_delayed.'
+    fallback: 'CX agent sends the survey macro from the closed order'
   - id: AUT-011
     trigger: 'Same device + fault within 30 days'
     action: 'Flag rework, link records, notify quality and the original technician''s manager'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut011_rework_flag'
+    engine: odoo_method
+    engine_ref: 'method:fix.service.order._flag_rework'
+    implementation: partial
+    executor_note: 'cd_service_order/models/fix_service_order.py:3445 — _flag_rework auto-flags same device + fault category within 30 days (BRU-SRM-06) and publishes rework.detected → a major NCR (cd_qms_process/models/fix_a02r2_quality_consumers.py:108). The original technician''s manager is not notified.'
+    fallback: 'Quality reviewer spots the comeback in the weekly report'
   - id: AUT-012
     trigger: 'Device ready and uncollected'
     action: 'Reminder sequence at 3, 7, 15 and 30 days; then abandonment process'
-    engine: airflow
-    engine_ref: 'dag: fix_aut012_uncollected_reminders'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_service_order.ir_cron_uncollected_reminders'
+    implementation: full
+    executor_note: 'cd_service_order ir_cron_uncollected_reminders (3/7/15/30 days) and ir_cron_flag_abandoned_orders run the whole sequence (fix_m01_pass2_data.xml, fix_m01_lifecycle_cron.xml).'
+    fallback: 'Front desk calls the customer from the uncollected list'
   - id: AUT-013
     trigger: 'Nightly 05:00'
     action: 'Optimise all routes for the next day; publish; notify technicians'
-    engine: airflow
-    engine_ref: 'dag: fix_aut013_route_optimization'
+    engine: odoo_method
+    engine_ref: 'method:fix.field.route.action_optimize_route'
+    implementation: partial
+    executor_note: 'cd_field_service/models/fix_field_route.py:375 — nearest-neighbour + 2-opt over measured distances, one route on demand. No nightly scheduler optimises ALL routes, publishes or notifies.'
+    fallback: 'Dispatcher sequences the day''s routes by hand'
   - id: AUT-014
     trigger: 'Technician syncs offline work'
     action: 'Reconcile parts, time and evidence; release downstream actions'
-    engine: domain_service
-    engine_ref: 'service: cd_offline_engine.offline_sync_reconcile'
+    engine: odoo_method
+    engine_ref: 'method:fix.field.order.part.action_consume'
+    implementation: partial
+    executor_note: 'Offline sync protocol: cd_field_service/controllers/offline_sync_api.py:109 dispatches the batch''s parts/time/evidence commands; parts reconcile through fix.field.order.part.action_consume (fix_field_order_part.py:155). Sync conflicts are raised by cd_itsm ir_cron_sync_conflict_ingest.'
+    fallback: 'Technician reports the day''s parts and time at the counter'
   - id: AUT-015
     trigger: 'Contract expiry − 90/60/30/15 days'
     action: 'Notify customer and account owner; generate renewal quotation at 60 days'
-    engine: airflow
-    engine_ref: 'dag: fix_aut015_amc_contract_expiry'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_contract_core.ir_cron_contract_expiry'
+    implementation: full
+    executor_note: 'cd_contract_core ir_cron_contract_expiry — "contract expiry, renewal windows (AUT-015) and auto-renew drafts" (cron_expiring_contracts, data/ir_cron.xml:11).'
+    fallback: 'Account owner works the expiring-contract report'
   - id: AUT-016
     trigger: 'Contract activated'
     action: 'Generate the full preventive-maintenance schedule for the term'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut016_amc_pm_schedule'
+    engine: odoo_method
+    engine_ref: 'method:fix.contract.action_activate'
+    implementation: full
+    executor_note: 'cd_contract_core/models/fix_contract.py:1054 — action_activate calls _generate_pm_schedule (:1098, def :1476) for the contract''s term on activation.'
+    fallback: 'Contract administrator types the PM visits by hand'
   - id: AUT-017
     trigger: 'Preventive visit due − lead time'
     action: 'Create the work order and enter the dispatch queue'
-    engine: airflow
-    engine_ref: 'dag: fix_aut017_pm_visit_due_dispatch'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_contract_core.ir_cron_contract_pm_dispatch'
+    implementation: full
+    executor_note: 'cd_contract_core ir_cron_contract_pm_dispatch → cron_dispatch_due_pm_visits (data/ir_cron.xml:58-62) raises and dispatches the visit''s work order on its dispatch date.'
+    fallback: 'Planner raises the PM work order from the visit list'
   - id: AUT-018
     trigger: 'Warranty job closed'
     action: 'Create claim, assemble evidence pack, validate completeness, queue for submission'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut018_warranty_claim_pack'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_warranty_claims.ir_cron_warranty_aut018'
+    implementation: full
+    executor_note: 'cd_warranty_claims ir_cron_warranty_aut018 → _cron_aut018_intake: claims auto-create from service_order.closed (data/ir_cron_aut018.xml); evidence pack fix_warranty_claims.py:230,553.'
+    fallback: 'Warranty clerk creates the claim and uploads the evidence'
   - id: AUT-019
     trigger: 'Claim validated'
     action: 'Submit to the brand in their required format'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut019_warranty_claim_submit'
+    engine: odoo_method
+    engine_ref: 'method:fix.warranty.claim.action_submit'
+    implementation: partial
+    executor_note: 'cd_warranty_claims/models/fix_warranty_claims.py:858 — submission enforces the brand''s window (fix_a04_erp_claims.py:249) but is a Claim Officer''s action; nothing submits automatically on validation.'
+    fallback: 'Warranty clerk submits through the brand portal'
   - id: AUT-020
     trigger: 'Brand response received'
     action: 'Update claim; on approval queue for billing; on rejection open a dispute task'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut020_warranty_brand_response'
+    engine: odoo_method
+    engine_ref: 'method:fix.warranty.claim.action_decide'
+    implementation: partial
+    executor_note: 'cd_warranty_claims/models/fix_warranty_claims.py:1097 — action_decide applies the decision; the brand''s response is ingested by webhook (/brand/claims/webhook and /brand/claims/decide, cd_warranty_claims/controllers/brand_api.py:136-233). The dispute task is not automated.'
+    fallback: 'Warranty clerk keys the brand''s reply into the claim'
   - id: AUT-021
     trigger: 'Brand remittance received'
     action: 'Match to claims; post to ledger; flag unmatched'
-    engine: domain_service
-    engine_ref: 'service: cd_reconciliation.brand_remittance_match'
+    engine: odoo_method
+    engine_ref: 'method:fix.warranty.claim.action_record_remittance'
+    implementation: partial
+    executor_note: 'The brand''s advice is ingested automatically (/brand/reconciliation → action_record_remittance_advice, brand_api.py:274; fix_warranty_claims.py:1233) and a mismatch is FLAGGED, never adjusted; recording the money received (action_record_remittance :1183) is a Claim Decision Officer''s act; the OEM receivable is raised by the warranty_claim.decided consumer (cd_billing_engine).'
+    fallback: 'Finance matches the brand''s remittance advice against claims'
   - id: AUT-022
     trigger: 'Invoice issued'
     action: 'Deliver on preferred channels with payment link'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut022_invoice_delivery'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_billing_engine.ir_cron_ar_payment_link_expiry'
+    implementation: partial
+    executor_note: 'cd_billing_engine ir_cron_ar_payment_link_expiry only EXPIRES links (fix_ar_engine.py:1660). Links are minted per issued invoice and travel with every delivery (fix_ar_capture.py:1246); the delivery itself is recorded and sent by the billing assistant, not triggered on issue.'
+    fallback: 'Billing assistant sends the invoice with a payment link'
   - id: AUT-023
     trigger: 'Invoice unpaid at 7/14/21/30 days'
     action: 'Execute the dunning sequence; at 30 days enter the collections queue'
-    engine: airflow
-    engine_ref: 'dag: fix_aut023_dunning_sequence'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_billing_engine.ir_cron_ar_dunning'
+    implementation: full
+    executor_note: 'cd_billing_engine ir_cron_ar_dunning runs the AR dunning ladder (NT-006, fix_ar_cron.xml); subscription cycle invoices dun via cd_subscription ir_cron_subscription_dunning.'
+    fallback: 'Collections officer works the aged debtors report'
   - id: AUT-024
     trigger: 'Payment received'
     action: 'Match to invoice; mark paid; post to ledger; receipt to customer'
-    engine: domain_service
-    engine_ref: 'service: cd_reconciliation.payment_match_ledger'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_cash_position.ir_cron_statement_auto_match'
+    implementation: full
+    executor_note: 'cd_cash_position ir_cron_statement_auto_match (M50) auto-matches imported statement lines and posts; front-desk TrxID drawer matching is cd_front_desk/models/fix_service_order_drawer.py:97.'
+    fallback: 'Cashier matches the TrxID to the invoice at the counter'
   - id: AUT-025
     trigger: 'Subscription cycle due'
     action: 'Generate the invoice with proration and usage'
-    engine: airflow
-    engine_ref: 'dag: fix_aut025_subscription_cycle_billing'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_subscription.ir_cron_subscription_billing'
+    implementation: full
+    executor_note: 'cd_subscription ir_cron_subscription_billing → cron_generate_due_charges (data/ir_cron.xml); mid-cycle proration fix_subscription.py:545,572.'
+    fallback: 'Billing clerk raises the cycle charge by hand'
   - id: AUT-026
     trigger: 'Marketplace job completed and hold period elapsed'
     action: 'Accrue commission; add to the next payout run'
-    engine: airflow
-    engine_ref: 'dag: fix_aut026_marketplace_commission_accrual'
+    engine: odoo_method
+    engine_ref: 'method:fix.marketplace.order.action_earn_commission'
+    implementation: partial
+    executor_note: 'cd_marketplace/models/fix_marketplace.py:1136 — the operator publishes commission.earned after the customer''s review (the M12↔M53 event break); cd_settlement_ext/models/fix_a04_consumers.py:54 accrues it into the next payout. The accrual is not triggered by the hold period elapsing.'
+    fallback: 'Marketplace operator accrues the commission from the reviewed job'
   - id: AUT-027
     trigger: 'Payout run scheduled'
     action: 'Calculate, produce statements, generate the disbursement file, request approval'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut027_payout_run_disbursement'
+    engine: odoo_method
+    engine_ref: 'method:fix.payout.run.action_submit_payout'
+    implementation: full
+    executor_note: 'cd_settlement_ext/models/fix_settlement_ext.py:1718 — statements + disbursement file + the finance approval ladder (cd_billing_engine/models/fix_finance_approval.py:71); GL posting is the separate action_post_payout_to_gl (:1955).'
+    fallback: 'Settlement officer builds the payout by hand for approval'
   - id: AUT-028
     trigger: 'Refund approved'
     action: 'Execute through the original method; post; notify customer'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut028_refund_approval_exec'
+    engine: event_consumer
+    engine_ref: 'consumer:storefront.refund_approved'
+    implementation: full
+    executor_note: 'cd_cash_position/models/fix_a04_storefront_consumer.py:42 — consume_storefront_refund_approved executes the refund through the original method; treasury notes at cd_billing_engine/models/fix_ar_capture.py:1831.'
+    fallback: 'Treasury executes the approved refund manually'
   - id: AUT-029
     trigger: 'Customer registers'
     action: 'Award registration points; send welcome journey; set preferences'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut029_customer_registration_points'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'Loyalty earns on closed service orders (fix.loyalty.account.consume_service_order_closed, cd_loyalty/models/fix_loyalty_account.py:533) but no registration award, welcome journey or preference setting exists (A4 §3 AUT-029).'
+    fallback: 'Marketing enrols the new customer in the welcome journey'
   - id: AUT-030
     trigger: 'Referral converts'
     action: 'Credit both parties; notify; accrue partner commission'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut030_referral_points_credit'
+    engine: event_consumer
+    engine_ref: 'consumer:service_order.closed'
+    implementation: full
+    executor_note: 'cd_loyalty/models/fix_loyalty_account.py:533 → fix.loyalty.referral.code._convert_on_first_service (fix_loyalty_referral.py:134) → _award_points (:87): referral_bonus lines post to referrer AND referee, idempotent per receipt key, self-referrals never convert. Partner commission accrues on the partner module''s own events.'
+    fallback: 'Loyalty clerk credits both parties from the referral register'
   - id: AUT-031
     trigger: 'Stock reaches reorder point'
     action: 'Alert; draft purchase requisition with recommended quantity'
-    engine: airflow
-    engine_ref: 'dag: fix_aut031_reorder_point_requisition'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_inventory.ir_cron_replenishment_sweep'
+    implementation: partial
+    executor_note: 'cd_inventory ir_cron_replenishment_sweep (M15 reorder rules) alerts; the requisition is drafted by a buyer''s action (cd_inventory/models/fix_m15_capture.py:763), not automatically.'
+    fallback: 'Buyer drafts the requisition from the shortage alert'
   - id: AUT-032
     trigger: 'Requisition approved'
     action: 'Generate and transmit the purchase order; track acknowledgement'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut032_requisition_po_transmit'
+    engine: odoo_method
+    engine_ref: 'method:fix.procurement.award.action_create_po'
+    implementation: partial
+    executor_note: 'cd_requisition/models/fix_procurement_ops.py:620 generates the PO from the award (capture variant fix_procurement_capture.py:541); the award → PO step is a buyer''s action; acknowledgement chasing is cd_requisition ir_cron_fix_purchase_order_ack_chase.'
+    fallback: 'Buyer raises and sends the purchase order'
   - id: AUT-033
     trigger: 'Goods received and inspected'
     action: 'Update stock; allocate landed cost; trigger three-way match'
-    engine: domain_service
-    engine_ref: 'service: cd_stock_ext.goods_receipt_landed_cost'
+    engine: odoo_method
+    engine_ref: 'method:fix.import.order._import_post_m16_receipt'
+    implementation: full
+    executor_note: 'cd_import_order/models/fix_import_order.py:624 — _import_post_m16_receipt posts the M16 GRN + M15 receipt + GRNI entry on receipt (called at :463); landed cost is computed from paid BOEs (_compute_landed :250); the AP three-way match reads those posted receipts (fix_import_ap.py).'
+    fallback: 'Warehouse records the receipt; cost clerk allocates landed cost'
   - id: AUT-034
     trigger: 'Three-way match successful'
     action: 'Route the vendor invoice to the payment schedule'
-    engine: domain_service
-    engine_ref: 'service: cd_ap_ext.three_way_match_scheduler'
+    engine: odoo_method
+    engine_ref: 'method:fix.vendor.invoice._compute_match'
+    implementation: partial
+    executor_note: 'cd_ap_ext/models/fix_ap_ext.py:485 — _compute_match is the G3-06 three-way check; a PO-linked bill must use the PO''s match (cd_import_order/models/fix_import_ap.py:62) and match states gate when a bill may be paid. No scheduler routes matched bills onto a payment run.'
+    fallback: 'AP clerk schedules the matched bill for payment'
   - id: AUT-035
     trigger: 'Technician shift ends'
     action: 'Reconcile van stock; report variance to branch manager'
-    engine: domain_service
-    engine_ref: 'service: cd_field_service.van_stock_reconcile'
+    engine: odoo_method
+    engine_ref: 'method:fix.stock.van.recon.action_confirm'
+    implementation: partial
+    executor_note: 'cd_inventory/models/fix_inventory_ops.py:2236 — fix.stock.van.recon: the technician confirms the blind per-part count; a variance outside tolerance publishes stock.van_variance_detected (consumed by fix.stock.van.recon''s own issue hold) and the van''s next issue is held until an Inventory Controller resolves it. Not fired automatically at shift end.'
+    fallback: 'Store keeper counts the van and reports differences'
   - id: AUT-036
     trigger: 'Cycle count due'
     action: 'Generate the count task list by ABC class and location'
-    engine: airflow
-    engine_ref: 'dag: fix_aut036_cycle_count_abc'
+    engine: odoo_method
+    engine_ref: 'method:fix.wms.count.plan.action_generate'
+    implementation: partial
+    executor_note: 'cd_inventory/models/fix_wms_ops_spec.py:2252 (FR-WMS-031) generates blind counts + fix.wms.task rows by bin, zone or velocity (ABC) class; nothing schedules count plans when a cycle falls due.'
+    fallback: 'Inventory controller builds the count list from the ABC report'
   - id: AUT-037
     trigger: 'Dead stock threshold reached'
     action: 'Produce a disposition recommendation'
-    engine: airflow
-    engine_ref: 'dag: fix_aut037_dead_stock_disposition'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'Only "dead on arrival" device states and dead requisition states exist; no dead-stock disposition recommendation (A4 §3 AUT-037).'
+    fallback: 'Planning reviews slow movers in the monthly stock meeting'
   - id: AUT-038
     trigger: 'Asset telemetry breaches threshold'
     action: 'Raise an alert; correlate; open a ticket if the rule requires'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut038_asset_telemetry_threshold'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_stream_registry.ir_cron_iot_alert_escalation'
+    implementation: partial
+    executor_note: 'cd_stream_registry ir_cron_iot_alert_escalation escalates unacknowledged alerts within their severity SLA; rule alerts publish iot.rule_alert_raised (consumed for inspection demands by fix.maintenance.demand). No ticket is opened from a telemetry breach.'
+    fallback: 'Monitoring duty engineer works the alert queue'
   - id: AUT-039
     trigger: 'Predicted failure above confidence'
     action: 'Notify account manager; propose a proactive service booking'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut039_predicted_failure_proactive'
+    engine: event_consumer
+    engine_ref: 'consumer:iot.proactive_opportunity'
+    implementation: full
+    executor_note: 'cd_asset_workorder_spine/data/fix_event_consumers.xml:36 → fix.maintenance.demand.consume_iot_proactive_opportunity (fix_maintenance_demand.py:718) raises the proactive work order / preventive order from the prediction.'
+    fallback: 'Account manager calls the customer from the prediction report'
   - id: AUT-040
     trigger: 'E-waste item triaged for recycling'
     action: 'Verify a destruction certificate exists; batch for transfer'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut040_ewaste_destruction_cert'
+    engine: event_consumer
+    engine_ref: 'consumer:ewaste.certificate_issued'
+    implementation: partial
+    executor_note: 'cd_device_registry/models/fix_device_erp.py:631-641 — consume_ewaste_certificate_issued applies the certificate to the device record (also feeds ESG metrics); certificate VERIFICATION at triage is not wired: the certificate is consumed when issued, not checked before transfer.'
+    fallback: 'Compliance officer checks the certificate before the transfer batch'
   - id: AUT-041
     trigger: 'Certification expiry − 90/60/30/15 days'
     action: 'Notify technician, manager and HR; schedule re-certification'
-    engine: airflow
-    engine_ref: 'dag: fix_aut041_technician_recertification'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_competency.ir_cron_certification_expiry'
+    implementation: partial
+    executor_note: 'cd_competency ir_cron_certification_expiry → _cron_certification_expiry (fix_competency.py:668): one activity + certification.expiring event per certificate inside a SINGLE configurable lead time (cd_competency.expiry_lead_days, default 30) — not the 90/60/30/15 ladder described.'
+    fallback: 'Training coordinator works the expiring-certification report'
   - id: AUT-042
     trigger: 'Certification expires'
     action: 'Remove the technician from that brand''s warranty dispatch pool'
-    engine: domain_service
-    engine_ref: 'service: cd_field_service.cert_expiry_pool_revoke'
+    engine: event_consumer
+    engine_ref: 'consumer:certification.expired'
+    implementation: partial
+    executor_note: 'cd_competency consume_certification_lost flags the technician''s not-started jobs to a dispatcher and the dispatch gate refuses uncertified work (cd_field_service/models/fix_field_order_certification.py:89,145). There is no dispatch-pool object to remove the technician from — the effect is an eligibility gate.'
+    fallback: 'Dispatcher excludes the technician from brand jobs by hand'
   - id: AUT-043
     trigger: 'Month end'
     action: 'Run close checklist, accruals, prepayment amortisation, FX revaluation, recurring journals'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut043_month_end_close_checklist'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_gl_ext.ir_cron_gl_template_run'
+    implementation: partial
+    executor_note: 'cd_gl_ext ir_cron_gl_template_run generates due recurring journal template entries (accruals); the close checklist itself is started by an officer (fix.period.close.action_start_period, cd_gl_ext/models/fix_gl_ext.py:538) and FX revaluation runs inside it (fix_fx_revaluation.py).'
+    fallback: 'Finance runs the close checklist in the five-day window'
   - id: AUT-044
     trigger: 'Bank statement imported'
     action: 'Auto-match; present only exceptions'
-    engine: domain_service
-    engine_ref: 'service: cd_reconciliation.bank_statement_automatch'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_cash_position.ir_cron_statement_auto_match'
+    implementation: full
+    executor_note: 'cd_cash_position ir_cron_statement_auto_match (M50, fix_treasury_automation.xml) auto-matches imported statement lines; only exceptions are presented.'
+    fallback: 'Treasury clerk matches the statement by hand'
   - id: AUT-045
     trigger: 'Payroll period locked'
     action: 'Calculate payroll, incentives and tax; present for approval'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut045_payroll_period_lock'
+    engine: odoo_method
+    engine_ref: 'method:fix.payroll.period.action_calculate'
+    implementation: partial
+    executor_note: 'cd_payroll_bd/models/fix_payroll.py:1024 — the period lock journey (fix.payroll.state.lock) gates calculation, but it is the payroll officer''s action after lock, not automatic.'
+    fallback: 'Payroll officer calculates the locked period'
   - id: AUT-046
     trigger: 'Payroll approved'
     action: 'Generate the BEFTN file, distribute payslips, post to ledger'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut046_payroll_beftn_payslip'
+    engine: odoo_method
+    engine_ref: 'method:fix.payroll.period.action_pay'
+    implementation: partial
+    executor_note: 'cd_payroll_bd/models/fix_payroll.py:1161 — action_pay creates the BEFTN batch + MFS legs; payslip publication (action_publish_payslips :1226) and GL posting (action_post :1257) are separate releaser-gated steps; consumers payroll.beftn_submitted/settled/returned track the rail. Approval itself triggers none of them.'
+    fallback: 'Disbursement releaser runs the BEFTN batch and posting steps'
   - id: AUT-047
     trigger: 'Employee joins'
     action: 'Create identity, assign role from position profile, grant portal access, assign onboarding and mandatory training'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut047_employee_onboarding_identity'
+    engine: odoo_method
+    engine_ref: 'method:fix.candidate.action_hire'
+    implementation: partial
+    executor_note: 'cd_talent/models/fix_talent.py:856 — action_hire creates the employee, the contract and opens the onboarding plan (_fix_open_onboarding :976); statutory identity residency is M21 (cd_hr_core ir_cron_m21_identity_residency); role-from-position assignment and portal grant are not automatic.'
+    fallback: 'HR onboards the joiner with IT for access'
   - id: AUT-048
     trigger: 'Employee leaves'
     action: 'Revoke all access within one hour; deregister devices; reassign delegated authority; trigger clearance'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut048_employee_offboarding_revoke'
+    engine: event_consumer
+    engine_ref: 'consumer:employee.left'
+    implementation: full
+    executor_note: 'cd_hr_core ir_cron_m21_last_working_day publishes employee.left on the leaver''s last day; hr.employee.consume_employee_left (cd_hr_core/models/fix_hr_master_controls.py:361) archives the login and revokes sessions/devices, idempotently. The relay runs every minute (cd_event_outbox ir_cron_event_relay) and IdP outcomes drain every five minutes (cd_hr_core ir_cron_drain_identity_lifecycle_events) — inside the one-hour bound.'
+    fallback: 'HR and IT revoke access on the clearance checklist'
   - id: AUT-049
     trigger: 'Quality event (rework, failed QC, complaint)'
     action: 'Raise a non-conformance; route to the process owner'
-    engine: domain_service
-    engine_ref: 'service: cd_quality.non_conformance_routing'
+    engine: event_consumer
+    engine_ref: 'consumer:service_order.qc_failed'
+    implementation: full
+    executor_note: 'cd_qms_process/models/fix_a02r2_quality_consumers.py:73 — consume_service_order_qc_failed raises the NCR (rework.detected feeds the same register, fix_a02r2_quality_consumers.py:108); workshop NC at cd_workshop/models/fix_workshop_job.py:1316.'
+    fallback: 'Quality officer raises the NCR from the event report'
   - id: AUT-050
     trigger: 'CAPA due date + verification interval'
     action: 'Prompt effectiveness verification; reopen if not verified'
-    engine: airflow
-    engine_ref: 'dag: fix_aut050_capa_due_verification'
+    engine: odoo_method
+    engine_ref: 'method:fix.capa.action_verify'
+    implementation: partial
+    executor_note: 'cd_qms_process/models/fix_qms.py:238 — fix.capa: action_verify (:321) records the effectiveness verdict with mandatory evidence and closure follows verification (action_close :369); nothing SCHEDULES the verification prompt or reopens automatically — no cron or consumer watches CAPA due dates.'
+    fallback: 'Quality officer chases CAPA verification at the quality review'
   - id: AUT-051
     trigger: 'Document reaches end of retention'
     action: 'Present for disposal review unless under legal hold'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut051_document_retention_disposal'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_document_core.ir_cron_document_retention'
+    implementation: partial
+    executor_note: 'cd_document_core ir_cron_document_retention enforces retention (expiry sweep) and legal holds block disposal (models/fix_disposal.py:12-53); the disposal REVIEW is the register a reviewer works, not a scheduled presentation.'
+    fallback: 'Records officer reviews the disposal register'
   - id: AUT-052
     trigger: 'Access certification cycle due'
     action: 'Issue review tasks to all managers; revoke unconfirmed access at the deadline'
-    engine: airflow
-    engine_ref: 'dag: fix_aut052_access_certification_cycle'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_rbac_ext.ir_cron_certification_closeout'
+    implementation: partial
+    executor_note: 'cd_rbac_ext ir_cron_certification_closeout → cron_close_certifications (fix_security_ops.py:1183) auto-revokes unconfirmed access past its due date (FR-SEC-026); the campaign and its reviewer tasks are generated by an officer''s action_generate (:882) — no scheduler starts the cycle.'
+    fallback: 'Security officer runs the certification campaign'
   - id: AUT-053
     trigger: 'Integration error rate above threshold'
     action: 'Alert the owner; open the circuit breaker; activate the documented fallback'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut053_circuit_breaker_fallback'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_itsm.ir_cron_connector_probe'
+    implementation: partial
+    executor_note: 'cd_itsm ir_cron_connector_probe probes connector health from measured evidence; the fallback connector only RECORDS the fallback, it switches nothing (cd_itsm/models/fix_integration.py:1925). A real circuit breaker exists only in the payment router (services/payment-connectors/src/payment_connectors.py:373) — payments only.'
+    fallback: 'Integration owner switches the documented fallback by hand'
   - id: AUT-054
     trigger: 'Event in dead letter > 1 hour'
     action: 'Alert; create a triage task'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut054_dead_letter_triage'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_itsm.ir_cron_itsm_dead_letter_incidents'
+    implementation: full
+    executor_note: 'cd_itsm ir_cron_itsm_dead_letter_incidents → cron_dead_letter_incidents (fix_itsm.py:1168, BRU-IPF-14) raises one incident per dead letter older than the limit (default one hour) — the triage task; the alert is cd_event_outbox ir_cron_event_relay_age_alert.'
+    fallback: 'Platform duty works the dead-letter queue'
   - id: AUT-055
     trigger: 'Backup completes'
     action: 'Verify integrity; report; alert on failure'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut055_backup_integrity_verify'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_data_case.ir_cron_data_backup_restore_test_due'
+    implementation: partial
+    executor_note: 'The verification evidence register fix.backup.verification (cd_entity_config/models/fix_platform_ops3.py:551) is human-filed and locked once filed; cd_data_case ir_cron_data_backup_restore_test_due only raises a to-do when a plan''s restore test is overdue. No executor verifies backup integrity.'
+    fallback: 'Platform operator runs the restore test and files the evidence'
   - id: AUT-056
     trigger: 'Scheduled restore test due'
     action: 'Execute; verify; record evidence'
-    engine: airflow
-    engine_ref: 'dag: fix_aut056_scheduled_restore_test'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_data_case.ir_cron_data_backup_restore_test_due'
+    implementation: partial
+    executor_note: 'cd_data_case ir_cron_data_backup_restore_test_due (cd_data_case/models/fix_data_case_ext.py:1475) schedules one to-do per overdue plan, idempotently; the restore test itself is executed by a person and evidenced in fix.backup.verification.'
+    fallback: 'Platform operator executes the restore test and records evidence'
   - id: AUT-057
     trigger: 'Model drift detected'
     action: 'Alert the model owner; schedule retraining; continue with the current model'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut057_ml_model_drift_retrain'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'Drift observations are manual records (cd_ml_services/models/fix_ml_assurance.py:89-147); no drift cron, alert or retraining scheduler exists (lead finding A11-E5).'
+    fallback: 'Model owner reviews drift observations and books retraining'
   - id: AUT-058
     trigger: 'Security anomaly detected'
     action: 'Alert; if severity warrants, suspend the session and require re-authentication'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut058_security_anomaly_session_suspend'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'No security-anomaly → session-suspend path exists; the estate''s "anomaly" hits are CX survey anomalies, not security (A4 §3 AUT-058).'
+    fallback: 'Security duty investigates the anomaly and suspends access'
   - id: AUT-059
     trigger: 'Data quality test fails'
     action: 'Block the dependent dashboard refresh; alert the data owner'
-    engine: odoo_automated_action
-    engine_ref: 'ir.actions.server: base.action_fix_aut059_data_quality_dashboard_block'
+    engine: manual
+    engine_ref: ''
+    implementation: none
+    executor_note: 'M62 quality runs exist (cd_metric_registry ir_cron_dq_run_checks) and failing rules open incidents (data_quality.failing consumer), but nothing blocks a dashboard refresh on a failing test (A4 §3 AUT-059).'
+    fallback: 'Data owner takes the dashboard down pending the fix'
   - id: AUT-060
     trigger: 'Certificate or credential expiry − 30 days'
     action: 'Alert the owner; create a rotation task'
-    engine: airflow
-    engine_ref: 'dag: fix_aut060_credential_expiry_rotation'
+    engine: odoo_cron
+    engine_ref: 'cron:cd_itsm.ir_cron_credential_expiry_alert'
+    implementation: partial
+    executor_note: 'cd_itsm ir_cron_credential_expiry_alert → cron_alert_expiring (fix_integration.py:2332, FR-IPF-041): one alert inside a 30-day window telling Integration Admins to rotate; the rotation is performed in the secret manager and recorded by the custodian (fix.secret.rotation.action_rotate, cd_rbac_ext/models/fix_security_ops.py:1329) — no rotation task object is created.'
+    fallback: 'Integration owner rotates the credential before expiry'

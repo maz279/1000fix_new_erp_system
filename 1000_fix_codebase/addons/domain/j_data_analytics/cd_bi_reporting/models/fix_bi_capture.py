@@ -23,6 +23,7 @@ import base64
 import hashlib
 import hmac
 import json
+import logging
 import re
 import secrets
 import time
@@ -33,6 +34,8 @@ from odoo.exceptions import AccessError, UserError, ValidationError
 from odoo.tools.translate import _
 
 from .fix_bi_selfservice import CERTIFIER_GROUP, DASHBOARD_ROLES
+
+_logger = logging.getLogger(__name__)
 
 AUTHOR_GROUP = "cd_bi_reporting.group_bi_author"
 
@@ -470,6 +473,10 @@ class FixBiReportDefinition(models.Model):
             params["date_from"] = str(start)
         if end:
             params["date_to"] = str(end)
+        # A1-F04: the packs APPLY these (MTD as-of date_to; a date_from that
+        # is not that month's first day is refused by the pack), so the run
+        # row below is stamped only with parameters that took effect — the
+        # run_pack call raises before any stamping when they are inapplicable.
         module, _sep, key = self.report_key.partition(":")
         began = time.monotonic()
         as_of = fields.Datetime.now()
@@ -1205,7 +1212,10 @@ class FixBiContentUsage(models.Model):
 
     @api.model
     def _log_view(self, content_type, content_ref, user_agent=None):
-        """Record one view as the viewer. Telemetry never blocks the view."""
+        """Record one view as the viewer. Telemetry never blocks the view —
+        but a lost row is itself an incident (A1-F05 silently destroyed the
+        module's adoption measure on fix_dev), so the failure is logged, not
+        swallowed."""
         try:
             with self.env.cr.savepoint():
                 self.sudo().create(
@@ -1218,5 +1228,8 @@ class FixBiContentUsage(models.Model):
                     }
                 )
         except Exception:
+            _logger.exception(
+                "BI usage telemetry write failed for %s:%s", content_type, content_ref
+            )
             return False
         return True

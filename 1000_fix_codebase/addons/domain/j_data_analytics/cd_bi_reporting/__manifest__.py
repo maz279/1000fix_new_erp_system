@@ -12,7 +12,7 @@
     " dashboard certification lifecycle (author != steward, through M63),"
     " the entitlement-re-checking distribution worker and the append-only"
     " export log (BRU-BID-11).",
-    "version": "19.0.0.4.0",
+    "version": "19.0.0.4.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Data Platform & Governance",

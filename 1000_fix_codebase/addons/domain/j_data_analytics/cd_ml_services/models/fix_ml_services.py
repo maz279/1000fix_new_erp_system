@@ -255,8 +255,7 @@ class FixMlModel(models.Model):
                 ) from exc
             if not isinstance(loaded, dict):
                 raise UserError(
-                    "Model '%s' weights_json must be a JSON object of "
-                    "factor -> weight." % self.code
+                    "Model '%s' weights_json must be a JSON object of factor -> weight." % self.code
                 )
             return {str(k): float(v) for k, v in loaded.items()}
         return dict(LEAD_SCORE_DEFAULT_WEIGHTS)
@@ -494,7 +493,7 @@ class FixMlInferenceRun(models.Model):
             return target.search(domain)
         except AccessError as exc:
             raise UserError(
-                _("The caller may not read %s, so the engine has nothing to " "compute on: %s")
+                _("The caller may not read %s, so the engine has nothing to compute on: %s")
                 % (model_name, exc)
             ) from exc
 
@@ -628,7 +627,7 @@ class FixMlInferenceRun(models.Model):
             raise UserError("Lead scoring input carries no lead_id.")
         if "crm.lead" not in self.env:
             raise UserError(
-                "crm.lead is not installed in this database, so no lead could " "be scored."
+                "crm.lead is not installed in this database, so no lead could be scored."
             )
         lead = self._caller_read("crm.lead", lead_id)
 
@@ -841,7 +840,7 @@ class FixMlInferenceRun(models.Model):
                 rec.with_context(ml_engine_run=True).write(
                     {
                         "state": "failed",
-                        "error_note": "The caller may not read the engine's " "inputs: %s" % exc,
+                        "error_note": "The caller may not read the engine's inputs: %s" % exc,
                         "latency_ms": 0,
                     }
                 )
