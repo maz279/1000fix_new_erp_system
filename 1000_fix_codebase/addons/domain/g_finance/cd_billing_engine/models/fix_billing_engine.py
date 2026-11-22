@@ -345,9 +345,37 @@ class FixArInvoice(models.Model):
         return super()._fix_guarded_fields() | self.INVOICE_GUARDED
 
     def _fix_mushak_buyer(self):
-        """(name, BIN) of the buyer as the Mushak 6.3 states them."""
+        """(name, BIN) of the buyer as the Mushak 6.3 document states them —
+        the PRINT form: the document layer (fix_ar_invoice_document /
+        cd_doc_suite's standard) keeps the BIN as NBR prints it
+        (`001821833-0401`). The REGISTER's machine form is
+        _fix_register_buyer_bin (M51-F12)."""
         self.ensure_one()
         return self.customer_id.name, self.customer_id.vat or ""
+
+    def _fix_register_buyer_bin(self) -> str:
+        """The buyer BIN as the Mushak 6.2 / 6.3 REGISTER stores it: its 13
+        digits, or "" when the buyer states no valid one.
+
+        M51-F12 / X-1 (A08 audit): read raw, a BIN kept as NBR prints it
+        (`001821833-0401` — the format the company's own master data and
+        the invoice document header carry) made the register's _check_bins
+        constraint REFUSE the whole invoice issuance, and the
+        13-character register column would cut it mid-dash. Normalised
+        BEFORE the constraint sees it — the mirror of _company_bin's
+        supplier-side rule, with the same acceptance test (valid_bin): a
+        genuinely invalid BIN is dropped (the buyer BIN is optional on the
+        6.3 — an unregistered buyer), never a refusal of the issuance. The
+        invoice.created payload carries the same machine form so the
+        register rebuilds to identical rows."""
+        self.ensure_one()
+        from odoo.addons.cd_tax_engine_bd.models.fix_tax_engine import (
+            normalize_bin,
+            valid_bin,
+        )
+
+        vat = normalize_bin(self._fix_mushak_buyer()[1])
+        return vat if valid_bin(vat) else ""
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1159,7 +1187,8 @@ class FixArInvoice(models.Model):
                     "supplier_name": company.name,
                     "supplier_bin": self._company_bin(company),
                     "customer_name": inv._fix_mushak_buyer()[0],
-                    "customer_bin": inv._fix_mushak_buyer()[1],
+                    # M51-F12: the register takes the machine form
+                    "customer_bin": inv._fix_register_buyer_bin(),
                     "taxable_amount": inv.taxable_amount,
                     "vat_amount": inv.vat_amount,
                     "total_payable": inv.total_payable,
@@ -1187,7 +1216,7 @@ class FixArInvoice(models.Model):
                     "supplier_name": company.name,
                     "supplier_bin": self._company_bin(company),
                     "customer_name": inv._fix_mushak_buyer()[0],
-                    "customer_bin": inv._fix_mushak_buyer()[1],
+                    "customer_bin": inv._fix_register_buyer_bin(),
                     "taxable_amount": inv.taxable_amount,
                     "vat_amount": inv.vat_amount,
                     "total_payable": inv.total_payable,
@@ -1485,7 +1514,8 @@ class FixArInvoice(models.Model):
                 "supplier_name": company.name,
                 "supplier_bin": self._company_bin(company),
                 "customer_name": invoice._fix_mushak_buyer()[0],
-                "customer_bin": invoice._fix_mushak_buyer()[1],
+                # M51-F12: the register takes the machine form
+                "customer_bin": invoice._fix_register_buyer_bin(),
                 "taxable_amount": invoice.taxable_amount,
                 "vat_amount": invoice.vat_amount,
                 "total_payable": invoice.total_payable,
@@ -1518,7 +1548,7 @@ class FixArInvoice(models.Model):
                 "supplier_name": company.name,
                 "supplier_bin": self._company_bin(company),
                 "customer_name": invoice._fix_mushak_buyer()[0],
-                "customer_bin": invoice._fix_mushak_buyer()[1],
+                "customer_bin": invoice._fix_register_buyer_bin(),
                 "taxable_amount": invoice.taxable_amount,
                 "vat_amount": invoice.vat_amount,
                 "total_payable": invoice.total_payable,

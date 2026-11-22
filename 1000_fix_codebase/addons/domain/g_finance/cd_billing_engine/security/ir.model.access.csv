@@ -27,7 +27,6 @@ access_fix_ar_receipt_account_manager,fix.ar.receipt.account.manager,model_fix_a
 access_fix_ar_allocation_account_readonly,fix.ar.allocation.account.readonly,model_fix_ar_allocation,account.group_account_readonly,1,0,0,0
 access_fix_ar_allocation_account_user,fix.ar.allocation.account.user,model_fix_ar_allocation,account.group_account_user,1,1,1,1
 access_fix_ar_allocation_account_manager,fix.ar.allocation.account.manager,model_fix_ar_allocation,account.group_account_manager,1,1,1,1
-access_fix_credit_profile,fix.credit.profile,model_fix_credit_profile,base.group_user,1,0,0,0
 access_fix_credit_profile_account_readonly,fix.credit.profile.account.readonly,model_fix_credit_profile,account.group_account_readonly,1,0,0,0
 access_fix_credit_profile_account_user,fix.credit.profile.account.user,model_fix_credit_profile,account.group_account_user,1,1,1,0
 access_fix_credit_profile_account_manager,fix.credit.profile.account.manager,model_fix_credit_profile,account.group_account_manager,1,1,1,0

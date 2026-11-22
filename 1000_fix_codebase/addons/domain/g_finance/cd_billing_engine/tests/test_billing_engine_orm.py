@@ -191,6 +191,33 @@ class TestAutoInvoice:
             == before + 1
         )
 
+    def test_grouped_buyer_bin_issues_with_the_normalised_bin(self, shop):
+        """M51-F12 / X-1: a buyer BIN kept as NBR prints it (`987654321-0123`)
+        used to reach the register's _check_bins constraint raw and REFUSED
+        the whole invoice issuance. The document keeps the print form; the
+        register and the invoice.created event carry the 13 digits — the
+        mirror of _company_bin's supplier-side rule."""
+        env = shop.env
+        shop.customer.write({"vat": "%s-%s" % (CUSTOMER_BIN[:9], CUSTOMER_BIN[9:])})
+        order = _job(shop)
+        invoice = env["fix.ar.invoice"].from_closed_service_order(order, None)
+        assert invoice.state == "issued"
+        assert invoice._fix_register_buyer_bin() == CUSTOMER_BIN
+        assert invoice.mushak_id.customer_bin == CUSTOMER_BIN  # digits, not the print form
+        (event,) = _events(env, "invoice.created", invoice.id)
+        assert event["customer_bin"] == CUSTOMER_BIN
+
+    def test_invalid_buyer_bin_is_dropped_and_issuance_still_happens(self, shop):
+        """A genuinely invalid buyer BIN never refuses the issuance: the
+        buyer BIN is optional on the 6.3 (an unregistered buyer), so it is
+        dropped — exactly as the native (M51) registration path drops it."""
+        shop.customer.write({"vat": "BIN-PENDING"})
+        order = _job(shop)
+        invoice = shop.env["fix.ar.invoice"].from_closed_service_order(order, None)
+        assert invoice.state == "issued"
+        assert not invoice.mushak_id.customer_bin
+        assert invoice.mushak_id.supplier_bin == COMPANY_BIN
+
     def test_mushak_numbering_is_a_per_company_fiscal_year_sequence(self, shop):
         """Regression: numbers were search_count + 1 with a calendar-year
         prefix - two concurrent invoices could draw the same number and the

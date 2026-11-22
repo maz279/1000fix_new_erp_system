@@ -826,7 +826,15 @@ class FixMushakRegister(models.Model):
             return self.browse(existing.id)
         company = move.company_id
         partner = move.partner_id.commercial_partner_id
-        customer_bin = (partner.vat or "").replace(" ", "")
+        # M51-F12 / X-1: the buyer's BIN is NORMALISED before the acceptance
+        # test, exactly as _fix_company_bin does for the supplier. Space-
+        # stripping alone dropped a BIN kept as NBR prints it (`001821833-0401`
+        # — the format the company's own master data carries), so the Mushak
+        # 6.3 printed without the buyer BIN Rule 40(1) requires for registered
+        # buyers. valid_bin stays the acceptance test: a genuinely invalid BIN
+        # is still dropped (the register field is optional), never a refusal
+        # of the registration itself.
+        customer_bin = normalize_bin(partner.vat)
         refund = move.move_type == "out_refund"
         original = self.browse()
         if refund and move.reversed_entry_id:
@@ -968,6 +976,11 @@ class FixMushakRegister(models.Model):
             if not same_number.source_event_id:
                 same_number.source_event_id = event_id
             return same_number
+        # M51-F12: the payload's buyer BIN is normalised before the register
+        # constraint sees it, so a replay of an event published before the
+        # billing engine started normalising (raw `001821833-0401`) still
+        # lands its 13 digits instead of dying on _check_bins.
+        buyer_bin = normalize_bin(payload.get("customer_bin"))
         return Register.create(
             {
                 "mushak_no": payload["mushak_no"],
@@ -976,7 +989,7 @@ class FixMushakRegister(models.Model):
                 "supplier_name": payload["supplier_name"],
                 "supplier_bin": payload["supplier_bin"],
                 "customer_name": payload["customer_name"],
-                "customer_bin": payload.get("customer_bin") or False,
+                "customer_bin": buyer_bin if valid_bin(buyer_bin) else False,
                 "taxable_amount": payload["taxable_amount"],
                 "vat_amount": payload["vat_amount"],
                 "total_payable": payload["total_payable"],

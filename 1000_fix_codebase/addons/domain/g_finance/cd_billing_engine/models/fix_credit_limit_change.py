@@ -122,7 +122,12 @@ class FixCreditLimitChange(models.Model):
     def create(self, vals_list):
         Profile = self.env["fix.credit.profile"]
         for vals in vals_list:
-            profile = Profile.browse(vals.get("profile_id"))
+            # M20-F7: profile reads are finance-only now, but the ladder is
+            # raised by any internal user (its own ACL) — the snapshot the
+            # audit trail needs is taken as the trusted service, so a
+            # non-finance requester can still raise the change the Finance
+            # Manager decides.
+            profile = Profile.sudo().browse(vals.get("profile_id"))
             if not profile.exists():
                 raise ValidationError("Choose the credit profile to change.")
             vals["current_limit"] = profile.credit_limit
@@ -165,6 +170,18 @@ class FixCreditLimitChange(models.Model):
                 raise UserError(
                     "Segregation of duties (SOD-04): you requested this change; another "
                     "Finance Manager decides it."
+                )
+            # SOD-08 (M20 §13 / M20-F8): whoever CREATED the customer record
+            # never decides its credit limit — the maker-checker pair the
+            # spec names beyond the requester. The creator stamp is the
+            # partner's own create_uid (the M33 master's), read on the live
+            # profile link, and trusted code (su) is exempt as everywhere.
+            creator = rec.profile_id.customer_id.create_uid
+            if not self.env.su and creator and creator == self.env.user:
+                raise UserError(
+                    "Segregation of duties (SOD-08): you created the customer record %s; "
+                    "another Finance Manager decides its credit limit."
+                    % rec.profile_id.customer_id.display_name
                 )
             vals = {
                 "state": "approved" if approve else "rejected",
