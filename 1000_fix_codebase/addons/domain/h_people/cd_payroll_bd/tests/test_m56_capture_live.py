@@ -275,9 +275,10 @@ def _member(w, employee, rate, user=None):
 
 def test_once_the_register_is_kept_only_members_contribute_at_their_rates(w):
     dec = calculated(w, "2025-12", DS, DE)
-    # no register yet: the calculation is unchanged
-    assert slip_of(dec, w.karim).pf_employee_pct == 10.0
-    assert slip_of(dec, w.nasrin).pf_employee_pct == 10.0
+    # M56-F12: an EMPTY register now means NO provident fund for anyone - the
+    # old "everyone pays 10/10 by default" deducted a fund that does not exist
+    assert slip_of(dec, w.karim).pf_employee_pct == 0.0
+    assert slip_of(dec, w.nasrin).pf_employee_pct == 0.0
     m = _member(w, w.karim, 5.0)
     # a recorded (unapproved) membership changes nothing yet
     with pytest.raises(AccessError), w.env.cr.savepoint():
@@ -337,6 +338,20 @@ def test_the_first_accrual_moves_from_the_approved_opening_provision(w):
         op.action_approve()
     w.as_(w.manager)["fix.payroll.gratuity.opening"].browse(op.id).action_approve()
     assert op.state == "approved"
+    # X-F3: with eligible contracts and no gratuity accounts configured the
+    # accrual now refuses loudly (it used to write rows with move=NONE)
+    with pytest.raises(UserError, match="not configured"), w.env.cr.savepoint():
+        w.env["fix.payroll.gratuity.accrual"].sudo().cron_accrue_gratuity(as_of="2025-12-31")
+    w.co.write(
+        {
+            "payroll_gratuity_expense_account_id": _account(
+                w.env, w.co, "6150", "Gratuity Expense", "expense"
+            ).id,
+            "payroll_gratuity_provision_account_id": _account(
+                w.env, w.co, "2150", "Gratuity Provision", "liability_non_current"
+            ).id,
+        }
+    )
     w.env["fix.payroll.gratuity.accrual"].sudo().cron_accrue_gratuity(as_of="2025-12-31")
     rows = w.env["fix.payroll.gratuity.accrual"].sudo().search([("month", "=", "2025-12")])
     karim = rows.filtered(lambda r: r.employee_id == w.karim)

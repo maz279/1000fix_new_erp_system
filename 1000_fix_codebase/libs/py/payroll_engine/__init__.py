@@ -5,26 +5,36 @@
 # reachable from the Odoo module (libs.py.* is on PYTHONPATH), from pytest
 # and from services/payroll-engine (its canonical L5 service shell).
 #
-# Statutory basis (verified current FY 2026-27 / BLA 2006 & Amendment 2026):
-#   - Income Tax Act 2023 (Act 12 of 2023) / Finance Act 2024 / 2026:
-#     - Tax-free thresholds:
-#       * General: BDT 375,000
-#       * Female & Senior Citizens (>= 65y): BDT 400,000
-#       * Persons with Disabilities & Third Gender: BDT 475,000
-#       * Gazetted War-Wounded Freedom Fighters: BDT 500,000
-#       * Child with disability exemption: +BDT 50,000 per disabled dependent
+# Statutory basis (A09 audit M56-F3/F4/F5, November 2026):
+#   - Income Tax Act 2023 (Act 12 of 2023) / Finance Acts 2024-2029. The
+#     module-level constants below are the LEGACY pre-enactment draft table
+#     (375k/400k/475k/500k + a location-based minimum tax) that over-withheld
+#     from every employee; they remain the defaults for backward compatibility
+#     ONLY. The enacted tables (PwC Worldwide Tax Summaries, Bangladesh
+#     individual taxes, reviewed 31 Jul 2026) live in ENACTED_TAX_TABLES and
+#     reach the calculation through a fix.statutory.pack:
+#     - Tax-free thresholds FY 2025-26 / 2026-27:
+#       * General: BDT 400,000
+#       * Female & Senior Citizens (>= 65y): BDT 450,000
+#       * Persons with Disabilities & Third Gender: BDT 525,000
+#       * Gazetted War-Wounded Freedom Fighters: BDT 550,000
+#       * Parent / legal guardian of a physically challenged person: +BDT 50,000
+#     (FY 2027-28/2028-29 and FY 2029-30 tables: see ENACTED_TAX_TABLES.)
+#     - Minimum tax where income exceeds the threshold: BDT 5,000 (new
+#       taxpayers 1,000) - NOT location-based.
 #     - Tax Slabs:
 #       * First 300,000 @ 10%
 #       * Next 400,000 @ 15%
 #       * Next 500,000 @ 20%
 #       * Next 2,000,000 @ 25%
 #       * Balance @ 30%
-#     - Investment Tax Rebate (Section 78):
-#       * Lower of: 3% of taxable income, 15% of allowable investment, BDT 1,000,000
-#     - Minimum Tax (Section 173):
-#       * Dhaka & Chattogram City Corporation: BDT 5,000
-#       * Other City Corporations: BDT 4,000
-#       * Non-City Corporation areas: BDT 3,000
+#     - Investment Tax Rebate (Section 78): lower of 3% of taxable income,
+#       the rebate rate over allowable investment (default 15%, cap
+#       BDT 1,000,000 - parameterised, M56-F4: adviser to confirm whether the
+#       Finance Act 2026 figures 10% / 750,000 apply).
+#     - Legacy minimum tax (Section 173, superseded by the flat 5,000):
+#       Dhaka & Chattogram City Corporation BDT 5,000; other City
+#       Corporations 4,000; non-City areas 3,000.
 #   - Gratuity, Bangladesh Labour (Amendment) Act 2026:
 #     - Minimum 5 completed years required to qualify (vesting threshold).
 #     - 30 days' basic per completed year up to 12 years; 45 days' per year above 12.
@@ -56,6 +66,11 @@ from .beftn import (
 TWO = Decimal("0.01")
 
 # --- FY 2026-27 income-tax thresholds & slabs ---
+# These constants are the LEGACY pre-enactment draft table the engine shipped
+# with (A09 M56-F3: they contradict the enacted Finance Act figures). They stay
+# as the module-level default so every existing caller keeps today's numbers;
+# the enacted tables below are selected explicitly through a statutory pack
+# (fix.statutory.pack) or the income_tax(tax_table=...) keyword.
 TAX_FREE_THRESHOLDS: dict[str, Decimal] = {
     "general": Decimal("375000"),
     "female_senior": Decimal("400000"),
@@ -79,6 +94,110 @@ MINIMUM_TAX_LOCATIONS: dict[str, Decimal] = {
     "other_city_corporation": Decimal("4000"),
     "non_city": Decimal("3000"),
     "non_city_corporation": Decimal("3000"),
+}
+
+GUARDIAN_EXTRA_THRESHOLD = Decimal("50000")  # per disabled dependant / legal guardianship
+REBATE_RATE = Decimal("0.15")  # ITA 2023 s.78 investment rebate rate (as enacted 2023)
+REBATE_CAP = Decimal("1000000")  # and its absolute cap
+
+
+def _thresholds_from(table: dict | None) -> dict[str, Decimal]:
+    """Normalise a table's `thresholds` mapping to Decimals (None -> legacy)."""
+    if not table or not table.get("thresholds"):
+        return TAX_FREE_THRESHOLDS
+    return {str(k): Decimal(str(v)) for k, v in table["thresholds"].items()}
+
+
+def _slabs_from(table: dict | None) -> list[tuple[Decimal | None, Decimal]]:
+    """Normalise a table's `slabs` [(width|None, rate)] to Decimals (None -> legacy)."""
+    if not table or not table.get("slabs"):
+        return TAX_SLABS
+    slabs = []
+    for width, rate in table["slabs"]:
+        slabs.append((None if width is None else Decimal(str(width)), Decimal(str(rate))))
+    return slabs
+
+
+# --- The enacted tables (A09 M56-F3/F5; sourced by the lead: PwC Worldwide
+# Tax Summaries, Bangladesh individual taxes, reviewed 31 Jul 2026). A table
+# is a plain dict of strings so a statutory pack can store it as JSON and the
+# engine can be driven without a code release:
+#   thresholds   taxpayer-category -> tax-free ceiling
+#   guardian_extra  add-on per disabled dependant / legal guardian (BLA/ITA)
+#   slabs        [(band width | None, rate)] applied above the threshold
+#   minimum_tax  flat minimum tax where income exceeds the threshold
+#                (None keeps the legacy location-based map)
+#   rebate_rate / rebate_cap  s.78 investment-rebate parameters (defaults
+#                keep today's 15% / 1,000,000 - adviser to confirm, M56-F4)
+LEGACY_TAX_TABLE = {
+    "label": "Legacy pre-enactment draft (superseded - never a default)",
+    "thresholds": {k: str(v) for k, v in TAX_FREE_THRESHOLDS.items()},
+    "guardian_extra": "50000",
+    "slabs": [(None if w is None else str(w), str(r)) for w, r in TAX_SLABS],
+    "minimum_tax": None,
+    "rebate_rate": "0.15",
+    "rebate_cap": "1000000",
+}
+ENACTED_TAX_TABLES: dict[str, dict] = {
+    # Finance Act 2025 / 2026 - FY 2025-26 and FY 2026-27
+    "fa2025_26_2026_27": {
+        "label": "Enacted FY 2025-26 & FY 2026-27 (PwC, reviewed 31 Jul 2026)",
+        "thresholds": {
+            "general": "400000",
+            "female_senior": "450000",
+            "disabled_third_gender": "525000",
+            "freedom_fighter": "550000",
+        },
+        "guardian_extra": "50000",
+        "slabs": [
+            ("300000", "0.10"),
+            ("400000", "0.15"),
+            ("500000", "0.20"),
+            ("2000000", "0.25"),
+            (None, "0.30"),
+        ],
+        "minimum_tax": "5000",
+    },
+    # FY 2027-28 and FY 2028-29
+    "fa2027_28_2028_29": {
+        "label": "Enacted FY 2027-28 & FY 2028-29 (PwC, reviewed 31 Jul 2026)",
+        "thresholds": {
+            "general": "450000",
+            "female_senior": "500000",
+            "disabled_third_gender": "575000",
+            "freedom_fighter": "600000",
+        },
+        "guardian_extra": "50000",
+        "slabs": [
+            ("300000", "0.10"),
+            ("400000", "0.15"),
+            ("500000", "0.20"),
+            ("2000000", "0.25"),
+            ("26350000", "0.30"),
+            (None, "0.35"),
+        ],
+        "minimum_tax": "5000",
+    },
+    # FY 2029-30
+    "fa2029_30": {
+        "label": "Enacted FY 2029-30 (PwC, reviewed 31 Jul 2026)",
+        "thresholds": {
+            "general": "500000",
+            "female_senior": "550000",
+            "disabled_third_gender": "625000",
+            "freedom_fighter": "650000",
+        },
+        "guardian_extra": "50000",
+        "slabs": [
+            ("300000", "0.10"),
+            ("400000", "0.15"),
+            ("500000", "0.20"),
+            ("2000000", "0.25"),
+            ("26300000", "0.30"),
+            (None, "0.35"),
+        ],
+        "minimum_tax": "5000",
+    },
 }
 
 
@@ -128,16 +247,24 @@ def beftn_settlement_date(
 
 
 def investment_tax_rebate(
-    annual_taxable: Decimal, allowable_investment: Decimal = Decimal("0")
+    annual_taxable: Decimal,
+    allowable_investment: Decimal = Decimal("0"),
+    rate: Decimal | None = None,
+    cap: Decimal | None = None,
 ) -> Decimal:
-    """Section 78 Income Tax Act 2023: lower of 3% taxable, 15% investment, or BDT 1,000,000."""
+    """Section 78 Income Tax Act 2023: lower of 3% taxable, the rebate rate
+    over the allowable investment, or the absolute cap.
+
+    `rate` / `cap` default to today's 15% / BDT 1,000,000 (as enacted 2023);
+    the statutory pack passes the ruled figures (M56-F4: one auditor source
+    reads 10% / 750,000 - adviser to confirm)."""
     if allowable_investment < 0:
         raise ValueError("allowable investment cannot be negative")
     if allowable_investment == 0 or annual_taxable <= 0:
         return Decimal("0.00")
     limit_taxable = annual_taxable * Decimal("0.03")
-    limit_investment = allowable_investment * Decimal("0.15")
-    limit_cap = Decimal("1000000")
+    limit_investment = allowable_investment * (rate if rate is not None else REBATE_RATE)
+    limit_cap = cap if cap is not None else REBATE_CAP
     return q2(min(limit_taxable, limit_investment, limit_cap))
 
 
@@ -147,21 +274,51 @@ def income_tax(
     disabled_dependents: int = 0,
     location: str | None = None,
     allowable_investment: Decimal = Decimal("0"),
+    tax_table: dict | None = None,
+    thresholds: dict | None = None,
+    slabs: list | None = None,
+    minimum_tax: Decimal | None = None,
+    guardian_extra: Decimal | None = None,
+    rebate_rate: Decimal | None = None,
+    rebate_cap: Decimal | None = None,
 ) -> Decimal:
-    """FY 2026-27 slab tax under Income Tax Act 2023 / Finance Act 2024-2026."""
+    """Slab tax under Income Tax Act 2023 / Finance Acts 2024-2029.
+
+    Without parameters the LEGACY module table applies (backward compatible).
+    `tax_table` is a pack-stored table dict (ENACTED_TAX_TABLES shape); the
+    granular keywords override / replace its parts. A non-None `minimum_tax`
+    is a flat floor that replaces the legacy location-based map."""
     if annual_taxable < 0:
         raise ValueError("taxable income cannot be negative")
-    if category not in TAX_FREE_THRESHOLDS:
-        raise ValueError(f"unknown taxpayer category '{category}'")
     if disabled_dependents < 0:
         raise ValueError("disabled dependents count cannot be negative")
 
-    base_threshold = TAX_FREE_THRESHOLDS[category]
-    threshold = base_threshold + (Decimal("50000") * Decimal(str(disabled_dependents)))
+    table_thresholds = thresholds if thresholds is not None else _thresholds_from(tax_table)
+    table_slabs = slabs if slabs is not None else _slabs_from(tax_table)
+    table_slabs = [
+        (None if w is None else Decimal(str(w)), Decimal(str(r))) for w, r in table_slabs
+    ]
+    if category not in table_thresholds:
+        raise ValueError(f"unknown taxpayer category '{category}'")
+    if tax_table and minimum_tax is None and tax_table.get("minimum_tax") is not None:
+        minimum_tax = Decimal(str(tax_table["minimum_tax"]))
+    if guardian_extra is None:
+        guardian_extra = (
+            Decimal(str(tax_table["guardian_extra"]))
+            if tax_table and tax_table.get("guardian_extra") is not None
+            else GUARDIAN_EXTRA_THRESHOLD
+        )
+    if rebate_rate is None and tax_table and tax_table.get("rebate_rate") is not None:
+        rebate_rate = Decimal(str(tax_table["rebate_rate"]))
+    if rebate_cap is None and tax_table and tax_table.get("rebate_cap") is not None:
+        rebate_cap = Decimal(str(tax_table["rebate_cap"]))
+
+    base_threshold = Decimal(str(table_thresholds[category]))
+    threshold = base_threshold + (Decimal(str(guardian_extra)) * Decimal(str(disabled_dependents)))
 
     tax = Decimal("0")
     remaining = annual_taxable - threshold
-    for width, rate in TAX_SLABS:
+    for width, rate in table_slabs:
         if remaining <= 0:
             break
         band = remaining if width is None else min(remaining, width)
@@ -177,15 +334,19 @@ def income_tax(
 
     # Apply investment tax rebate (Section 78)
     if charged and allowable_investment > 0:
-        rebate = investment_tax_rebate(annual_taxable, allowable_investment)
+        rebate = investment_tax_rebate(
+            annual_taxable, allowable_investment, rate=rebate_rate, cap=rebate_cap
+        )
         tax = max(tax - rebate, Decimal("0"))
 
-    # Apply minimum tax if tax is payable and location is specified
-    if charged and location:
-        if location not in MINIMUM_TAX_LOCATIONS:
-            raise ValueError(f"unknown tax location '{location}'")
-        min_tax = MINIMUM_TAX_LOCATIONS[location]
-        tax = max(tax, min_tax)
+    # Apply the minimum tax floor where income exceeds the threshold
+    if charged:
+        if minimum_tax is not None:
+            tax = max(tax, Decimal(str(minimum_tax)))
+        elif location:
+            if location not in MINIMUM_TAX_LOCATIONS:
+                raise ValueError(f"unknown tax location '{location}'")
+            tax = max(tax, MINIMUM_TAX_LOCATIONS[location])
 
     return q2(tax)
 
@@ -221,23 +382,46 @@ def completed_years(joining: date, as_of: date) -> int:
     return max(years, 0)
 
 
-def gratuity(basic_monthly: Decimal, joining: date, separation: date) -> Decimal:
+def gratuity(
+    basic_monthly: Decimal,
+    joining: date,
+    separation: date,
+    min_years: int | None = None,
+    days_upto_12: int | None = None,
+    days_above_12: int | None = None,
+) -> Decimal:
     """Labour (Amendment) Act 2026: 30 days' basic per completed year up to 12
-    years, 45 days' per year above 12. Requires minimum 5 years continuous service."""
+    years, 45 days' per year above 12. Requires minimum 5 years continuous service.
+
+    The band figures default to the module constants; the statutory pack passes
+    the ruled ones (M56-F16: the defaults are NOT verified by labour counsel)."""
     years = completed_years(joining, separation)
-    if years < GRATUITY_MIN_YEARS_VESTING:
+    if years < (min_years if min_years is not None else GRATUITY_MIN_YEARS_VESTING):
         return Decimal("0.00")
     daily = basic_monthly / Decimal(30)
-    upto = min(years, 12) * GRATUITY_DAYS_UPTO_12Y
-    above = max(years - 12, 0) * GRATUITY_DAYS_ABOVE_12Y
+    upto = min(years, 12) * (days_upto_12 if days_upto_12 is not None else GRATUITY_DAYS_UPTO_12Y)
+    above = max(years - 12, 0) * (
+        days_above_12 if days_above_12 is not None else GRATUITY_DAYS_ABOVE_12Y
+    )
     return q2(daily * (upto + above))
 
 
-def resignation_compensation(basic_monthly: Decimal, joining: date, separation: date) -> Decimal:
+def resignation_compensation(
+    basic_monthly: Decimal,
+    joining: date,
+    separation: date,
+    bands: list | None = None,
+) -> Decimal:
     """Voluntary resignation is compensable under the 2026 Amendment:
-    7/15/30 days' wages per completed year by service band."""
+    7/15/30 days' wages per completed year by service band.
+
+    `bands` is [(min completed years, days of wages per year)]; the default is
+    the engine's RESIGNATION_BANDS (M56-F16: reports on the 2026 Act read
+    eligibility only from 3 years - labour counsel to confirm before the pack
+    carries different bands)."""
     years = completed_years(joining, separation)
-    days_per_year = next(d for min_years, d in reversed(RESIGNATION_BANDS) if years >= min_years)
+    rule = [(int(y), int(d)) for y, d in (bands or RESIGNATION_BANDS)]
+    days_per_year = next(d for min_years, d in reversed(rule) if years >= min_years)
     daily = basic_monthly / Decimal(30)
     return q2(daily * days_per_year * years)
 
@@ -270,20 +454,47 @@ def salary_exemption(
     return q2(min(annual_employment_income / Decimal(3), ceiling))
 
 
+OT_BASE_AMOUNTS = ("basic", "dearness", "ad_hoc", "house_rent", "conveyance", "medical")
+# The components an overtime hourly rate may be built from. The default base is
+# the engine's historical one (basic + dearness + ad-hoc, labelled BLA 2006
+# s.108); many practitioners read BLR 2015 r.239(1) as basic + house rent +
+# conveyance + medical. The statutory pack selects the ruled list (M56-F17).
+
+
 def overtime_amount(
     basic_monthly: Decimal,
     ot_hours: Decimal,
     dearness_monthly: Decimal = Decimal("0"),
     adhoc_monthly: Decimal = Decimal("0"),
     divisor_hours: Decimal = OT_DIVISOR_HOURS,
+    house_rent_monthly: Decimal | None = None,
+    conveyance_monthly: Decimal | None = None,
+    medical_monthly: Decimal | None = None,
+    base_components: tuple | list | None = None,
 ) -> Decimal:
     """Overtime per BLA 2006 s.108 & BLR 2015: 2x ordinary hourly rate over 208-hour divisor.
-    Ordinary rate base = basic + dearness allowance + ad-hoc/interim wage."""
+
+    Ordinary rate base = the sum of `base_components` (default basic + dearness
+    allowance + ad-hoc/interim wage). The house-rent / conveyance / medical
+    components are only summed when a pack's ruled base includes them."""
     if ot_hours < 0:
         raise ValueError("overtime hours cannot be negative")
     if divisor_hours <= 0:
         raise ValueError("overtime divisor hours must be positive")
-    base = basic_monthly + dearness_monthly + adhoc_monthly
+    components = tuple(base_components) if base_components is not None else OT_BASE_COMPONENTS
+    amounts = {
+        "basic": basic_monthly,
+        "dearness": dearness_monthly,
+        "ad_hoc": adhoc_monthly,
+        "house_rent": house_rent_monthly or Decimal("0"),
+        "conveyance": conveyance_monthly or Decimal("0"),
+        "medical": medical_monthly or Decimal("0"),
+    }
+    base = Decimal("0")
+    for name in components:
+        if name not in amounts:
+            raise ValueError(f"unknown overtime base component '{name}'")
+        base += amounts[name]
     hourly = base / divisor_hours
     return q2(hourly * Decimal(2) * ot_hours)
 
@@ -314,6 +525,11 @@ class PayslipInput:
     allowable_investment: Decimal = Decimal("0")
     ot_divisor_hours: Decimal = OT_DIVISOR_HOURS
     exemption_ceiling: Decimal | None = None
+    # A statutory-pack tax table (ENACTED_TAX_TABLES shape). None keeps the
+    # legacy module table (M56-F3/F5).
+    tax_table: dict | None = None
+    # The ruled overtime base (M56-F17). None keeps the legacy components.
+    ot_base_components: tuple | list | None = None
 
 
 @dataclass
@@ -343,6 +559,10 @@ def compute_payslip(inp: PayslipInput) -> PayslipResult:
         dearness_monthly=inp.dearness_allowance,
         adhoc_monthly=inp.adhoc_allowance,
         divisor_hours=inp.ot_divisor_hours,
+        house_rent_monthly=inp.house_rent,
+        conveyance_monthly=inp.conveyance_allowance,
+        medical_monthly=inp.medical_allowance,
+        base_components=inp.ot_base_components,
     )
     allowances = q2(
         inp.house_rent
@@ -373,11 +593,12 @@ def compute_payslip(inp: PayslipInput) -> PayslipResult:
 
     annual_taxable = annual_employment_income - exempt_annual
     annual_tax = income_tax(
-        max(annual_taxable, Decimal(0)),
+        max(annual_taxable, Decimal("0")),
         category=inp.taxpayer_category,
         disabled_dependents=inp.disabled_dependents,
         location=inp.tax_location,
         allowable_investment=inp.allowable_investment,
+        tax_table=inp.tax_table,
     )
     tax_month = q2(annual_tax / Decimal(12))
     net = q2(gross - pf["employee"] - tax_month)

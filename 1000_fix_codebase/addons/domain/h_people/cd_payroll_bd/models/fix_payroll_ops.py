@@ -45,6 +45,7 @@ from .fix_payroll_disbursement import (
     payroll_gl_journal,
     post_two_line_entry,
 )
+from .fix_payroll_settlement import settlement_due_date
 from .fix_payroll_statutory import (
     FESTIVAL_BONUS_CAP_MONTHS,
     FESTIVAL_BONUS_SERVICE_YEARS,
@@ -780,7 +781,9 @@ class FixFestivalBonusRun(models.Model):
                 "Festival bonus %s does not balance: amount != net + TDS + recovery." % self.name
             )
         move, _dims = post_with_dimensions(
-            self.env,
+            # M56-F2: elevated (uid kept) so a Payroll Manager with no
+            # accounting group posts; the log names the real operator.
+            self.env(su=True),
             {
                 "move_type": "entry",
                 "ref": "Festival Bonus - %s" % self.name,
@@ -1216,6 +1219,27 @@ class FixOffcyclePayment(models.Model):
         lambda self: self.env["hr.employee"]._fields["mfs_provider"].selection, readonly=True
     )
     mfs_wallet = fields.Char(readonly=True)
+    # M56-F21: the statutory final-settlement clock (BLA 2006 s.30/s.123(2)):
+    # all dues within 30 WORKING days of the last working day
+    settlement_due_on = fields.Date(
+        string="Settlement Due On (30 working days)",
+        compute="_compute_settlement_due_on",
+        store=True,
+        readonly=True,
+        help="The last working day plus 30 working days (Friday/Saturday weekend, confirmed "
+        "company holidays excluded). BLA 2006 s.30 / s.123(2): every due is payable by this "
+        "date.",
+    )
+
+    @api.depends("payment_type", "exit_id", "exit_id.last_working_day")
+    def _compute_settlement_due_on(self):
+        for rec in self:
+            due = False
+            if rec.payment_type == "settlement" and rec.exit_id:
+                exit_su = rec.exit_id.sudo()
+                if "last_working_day" in exit_su._fields:
+                    due = settlement_due_date(rec.env, rec.company_id, exit_su.last_working_day)
+            rec.settlement_due_on = due
 
     _source_event_unique = models.Constraint(
         "UNIQUE (source_event_id)", "An event creates one off-cycle payment."
@@ -1469,6 +1493,23 @@ class FixOffcyclePayment(models.Model):
                     "payment is never sent to an assumed account." % rec.employee_id.name
                 )
             rec._check_source_amount()
+            # M56-F21: the statutory clock is reported where the settlement is
+            # validated for payment (30 working days from the last working
+            # day); an overdue settlement is shouted, not whispered - paying
+            # late is still the right next step.
+            if rec.payment_type == "settlement" and rec.settlement_due_on:
+                today = fields.Date.context_today(rec)
+                if today > rec.settlement_due_on:
+                    rec.message_post(
+                        body="Final settlement OVERDUE by %d day(s) (due %s; BLA s.30/"
+                        "s.123(2): 30 working days from the last working day)."
+                        % ((today - rec.settlement_due_on).days, rec.settlement_due_on)
+                    )
+                else:
+                    rec.message_post(
+                        body="Final settlement due in %d day(s) (%s; BLA s.30/s.123(2))."
+                        % ((rec.settlement_due_on - today).days, rec.settlement_due_on)
+                    )
             rec._guarded().write(
                 {
                     "bank_account_no": account,
@@ -1687,7 +1728,9 @@ class FixOffcyclePayment(models.Model):
         if cur.compare_amounts(sum(ln["debit"] for ln in lines), sum(ln["credit"] for ln in lines)):
             raise UserError("Off-cycle payment %s does not balance." % self.name)
         move, _dims = post_with_dimensions(
-            self.env,
+            # M56-F2: elevated (uid kept) so a Payroll Manager with no
+            # accounting group posts; the log names the real operator.
+            self.env(su=True),
             {
                 "move_type": "entry",
                 "ref": "Off-Cycle Payment - %s" % self.name,

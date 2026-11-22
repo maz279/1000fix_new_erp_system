@@ -13,10 +13,13 @@
 #     not the employee - confirms it. The confirmation pins the account it
 #     confirmed: a further change needs a further confirmation.
 import hashlib
+import logging
 from datetime import timedelta
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError
+
+_logger = logging.getLogger(__name__)
 
 PAYROLL_OFFICER = "cd_payroll_bd.group_payroll_officer"
 # The master's salary-channel fields (cd_hr_core BANK_FIELDS)
@@ -130,15 +133,37 @@ class FixPayrollVariance(models.Model):
     @api.model
     def _refresh(self, period, kind, slips):
         """Replace `period`'s `kind` lines from `slips` (real or in-memory);
-        returns how many are over the company threshold."""
+        returns how many are over the company threshold.
+
+        M56-F10: a corrupt row - a slip whose employee_id is NULL (the column
+        is NOT NULL in the model but production carries one) - is SKIPPED and
+        named in the log, never inserted as a variance line: the live crash
+        was `null value in column "employee_id"` aborting the whole
+        calculation transaction."""
         threshold = period.company_id.payroll_variance_threshold_pct or 0.0
         self.sudo().search([("period_id", "=", period.id), ("kind", "=", kind)])._guarded().unlink()
         previous = self._previous_paid_period(period)
         before = {}
         for slip in previous.sudo().payslip_ids:
+            if not slip.employee_id:
+                _logger.warning(
+                    "M56-F10: payslip %s of period %s has no employee: skipped by the "
+                    "variance review",
+                    slip.id,
+                    previous.name,
+                )
+                continue
             before[slip.employee_id.id] = before.get(slip.employee_id.id, 0.0) + slip.net
         now = {}
         for slip in slips:
+            if not slip.employee_id:
+                _logger.warning(
+                    "M56-F10: payslip %s of period %s has no employee: skipped by the "
+                    "variance review",
+                    slip.id,
+                    period.name,
+                )
+                continue
             now[slip.employee_id.id] = now.get(slip.employee_id.id, 0.0) + slip.net
         vals_list = []
         for emp_id in sorted(set(before) | set(now)):

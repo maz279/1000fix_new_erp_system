@@ -100,7 +100,16 @@ def check_releaser(records, what, conflicted):
 
 def payroll_gl_journal(company, accounts, what):
     """The company's payroll journal once every account `accounts` names is
-    configured and belongs to the company; refused otherwise."""
+    configured and belongs to the company; refused otherwise.
+
+    M56-F2: the configuration is read as sudo. A Payroll Manager holds no
+    accounting group, but reading `journal.company_id` / `account.company_ids`
+    as the caller raised AccessError on account.journal and stranded the run
+    in `paid` with no ledger line. The callers keep their own authorization
+    (payroll group, state preconditions, SoD) BEFORE this reads anything; the
+    estate's other sub-ledgers read the journal the same way for a
+    non-accounting operator (cd_ap_ext: env["account.journal"].sudo())."""
+    company = company.sudo()
     journal = company.payroll_journal_id
     missing = [label for fname, label in accounts if not company[fname]]
     if not journal:
@@ -135,7 +144,12 @@ class FixJournalPostingLogPayroll(models.Model):
 
 
 def post_two_line_entry(env, company, ref, date, amount, label, debit_field, credit_field, ou=None):
-    """Dr debit_field / Cr credit_field for `amount`, posted with the OU dimension."""
+    """Dr debit_field / Cr credit_field for `amount`, posted with the OU dimension.
+
+    M56-F2: posted through an elevated env (uid kept) so a Payroll Manager
+    with no accounting group can post; the posting log still records the real
+    operator (post_with_dimensions logs env.uid, and env(su=True) keeps it)."""
+    company = company.sudo()
     currency = company.currency_id
     amount = currency.round(amount)
     if currency.compare_amounts(amount, 0.0) <= 0:
@@ -145,7 +159,7 @@ def post_two_line_entry(env, company, ref, date, amount, label, debit_field, cre
         {"account_id": company[credit_field].id, "name": label, "debit": 0.0, "credit": amount},
     ]
     move, _dims = post_with_dimensions(
-        env,
+        env(su=True),
         {
             "move_type": "entry",
             "ref": ref,

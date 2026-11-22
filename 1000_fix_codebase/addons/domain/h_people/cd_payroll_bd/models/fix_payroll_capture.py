@@ -12,9 +12,9 @@
 #     fund whatever the employee's membership. A membership names the rates
 #     and the date the employee joined the fund, with the opening balances
 #     taken on, and is approved by a Payroll Manager who did not record it.
-#     Once the company keeps the register (one approved membership), only
-#     members contribute, at their own rates; until then the calculation is
-#     unchanged.
+#     ONLY members contribute, at their own rates (M56-F12): a company with
+#     an empty register pays no PF at all - a fund that does not exist (spec
+#     Q-03) is not deducted from anyone by default.
 #   * fix.payroll.gratuity.opening (FR-PAY-022, spec Q-05 and 16.4): the
 #     first monthly accrual of an employee treated the whole historical
 #     liability as that month's movement and posted it as one month's expense,
@@ -412,14 +412,15 @@ class FixPfMember(models.Model):
     @api.model
     def _slip_rates(self, employee, company, period_start, period_end):
         """The PF rates a payslip of `period_start`..`period_end` computes with.
-        {} while the company keeps no register (the calculation is unchanged);
-        once it does, a member's own rates, and 0 for everyone else."""
-        Member = self.sudo()
-        if not Member.search_count(
-            [("company_id", "=", company.id), ("state", "in", ("active", "left"))], limit=1
-        ):
-            return {}
-        member = Member.search(
+
+        M56-F12: a provident-fund deduction is taken ONLY from an employee
+        with an approved membership in `fix.pf.member` covering the period, at
+        THAT membership's rates; everyone else - including an employee of a
+        company whose register is still empty - computes 0/0. The earlier
+        "empty register means everyone pays 10% + 10%" default deducted a fund
+        that does not exist (spec Q-03); it is gone. The rates a member pays
+        are the membership's own (the register IS the ruled list of members)."""
+        member = self.sudo().search(
             [
                 ("employee_id", "=", employee.id),
                 ("company_id", "=", company.id),

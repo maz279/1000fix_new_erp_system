@@ -383,6 +383,19 @@ def test_full_cycle_lock_calculate_approve_pay_post(payroll_co):
     _contract(env, karim, 30000.0)
     _contract(env, nasrin, 60000.0)
     _contract(env, draft_only, 90000.0, state="draft")
+    # M56-F12: PF is deducted only from members of the APPROVED register now
+    # (an empty register pays no PF at all). The two are members at 10/10 -
+    # the ruled case this test's figures were always computed under.
+    for emp in (karim, nasrin):
+        member = env["fix.pf.member"].create(
+            {
+                "employee_id": emp.id,
+                "joined_fund_on": date(2020, 1, 1),
+                "employee_rate": 10.0,
+                "employer_rate": 10.0,
+            }
+        )
+        member.action_approve()
     other_company = env["res.company"].create({"name": "Sister Concern Ltd"})
     outsider = _employee(env, "Other Company Staff", company=other_company)
     _contract(env, outsider, 45000.0)

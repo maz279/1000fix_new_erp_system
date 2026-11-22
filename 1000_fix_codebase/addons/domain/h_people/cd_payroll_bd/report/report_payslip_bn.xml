@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  cd_payroll_bd - the Bengali payslip (বেতন বিবরণী), FR-PAY-050, TR-07.
+  cd_payroll_bd - the Bengali payslip (বেতন বিবরণী), FR-PAY-050, TR-07, T-10/11.
 
   The manifest has promised "payslip.pdf - the Bengali payslip" since P08-M03;
   there was no report (A09 audit M56 §1.2 step 10). The template only READS
@@ -8,6 +8,16 @@
   runs under the reader's own access, so an employee prints their own
   published slip and nobody else's (rule_fix_payslip_own_published).
   Identifiers stay ASCII (BN-007); labels are bilingual.
+
+  A09 M56-F13: the slip explains itself - one row per allowance (the printed
+  earnings sum to Gross), the retro / on-call detail, the overpayment recovery,
+  hours, the tax basis, the fiscal-year-to-date figures, and the statutory
+  basis string the engine pins on the slip. The bank account prints MASKED to
+  the last four digits. No statutory citation is typed here: the only basis
+  line is the pinned statutory_basis string (which names the pack - and says
+  "as coded, unsourced" while the baseline is in force). The duplicate
+  template that carried "শ্রম বিধিমালা ২০১৫ এর বিধি ৩৫১" and TDS "ধারা
+  ১২৪/১৪০" (both unverifiable) was deleted from views/fix_payroll_views.xml.
 -->
 <odoo>
     <!-- the report action is action_report_payslip_bn in views/fix_payroll_views.xml -->
@@ -16,30 +26,145 @@
             <t t-foreach="docs" t-as="slip">
                 <div class="article" t-att-data-oe-model="slip._name" t-att-data-oe-id="slip.id">
                     <div class="page">
-                        <h3>বেতন বিবরণী / Payslip</h3>
-                        <p>
-                            <span>কর্মচারী / Employee:</span> <span t-field="slip.employee_id.name"/><br/>
-                            <span>বেতনকাল / Period:</span> <span t-field="slip.period_id.name"/>
-                            (<span t-field="slip.period_id.period_start"/> - <span t-field="slip.period_id.period_end"/>)<br/>
-                            <span>প্রদত্ত দিন / Paid days:</span> <span t-esc="slip.paid_days or ''"/> / <span t-esc="slip.period_days or ''"/>
-                        </p>
+                        <h3>বেতন বিবরণী / Payslip — <span t-field="slip.period_id.name"/></h3>
+                        <table class="table table-sm table-bordered">
+                            <tbody>
+                                <tr>
+                                    <td>কর্মচারী / Employee</td>
+                                    <td><span t-field="slip.employee_id.name"/></td>
+                                    <td>বেতনকাল / Period</td>
+                                    <td><span t-field="slip.period_id.name"/>
+                                        (<span t-field="slip.period_id.period_start"/> –
+                                        <span t-field="slip.period_id.period_end"/>)</td>
+                                </tr>
+                                <tr>
+                                    <td>প্রদত্ত দিন / Paid days</td>
+                                    <td><span t-esc="slip.paid_days or ''"/> /
+                                        <span t-esc="slip.period_days or ''"/></td>
+                                    <!-- M56-F13: the account prints masked to the last four digits -->
+                                    <td>ব্যাংক হিসাব / Bank account (masked)</td>
+                                    <td t-esc="'•••• ' + (slip.bank_account_no or '')[-4:]"/>
+                                </tr>
+                                <tr>
+                                    <td>রাউটিং / Routing</td>
+                                    <td><span t-esc="slip.routing_no or ''"/></td>
+                                    <td>করদাতা বিভাগ / Taxpayer category</td>
+                                    <td><span t-esc="slip.taxpayer_category or 'general'"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4>উপার্জন / Earnings</h4>
                         <table class="table table-sm">
                             <tbody>
                                 <tr><td>মূল বেতন / Basic</td><td class="text-end"><span t-field="slip.basic"/></td></tr>
-                                <tr><td>ভাতা / Allowances</td><td class="text-end"><span t-field="slip.allowances_total"/></td></tr>
-                                <tr><td>অধিকাল ভাতা / Overtime</td><td class="text-end"><span t-field="slip.overtime"/></td></tr>
-                                <tr><td>প্রণোদনা / Incentive</td><td class="text-end"><span t-field="slip.incentive"/></td></tr>
-                                <tr><td><strong>মোট বেতন / Gross</strong></td><td class="text-end"><strong><span t-field="slip.gross"/></strong></td></tr>
-                                <tr><td>ভবিষ্য তহবিল কর্তন / Provident fund</td><td class="text-end"><span t-field="slip.pf_employee"/></td></tr>
-                                <tr><td>উৎসে কর্তিত আয়কর / Income tax withheld</td><td class="text-end"><span t-field="slip.tax_withheld"/></td></tr>
-                                <tr><td><strong>নিট প্রদেয় / Net pay</strong></td><td class="text-end"><strong><span t-field="slip.net"/></strong></td></tr>
+                                <t t-if="slip.house_rent">
+                                    <tr><td>বাড়ি ভাড়া ভাতা / House rent allowance</td><td class="text-end"><span t-field="slip.house_rent"/></td></tr>
+                                </t>
+                                <t t-if="slip.medical_allowance">
+                                    <tr><td>চিকিৎসা ভাতা / Medical allowance</td><td class="text-end"><span t-field="slip.medical_allowance"/></td></tr>
+                                </t>
+                                <t t-if="slip.conveyance_allowance">
+                                    <tr><td>যাতায়াত ভাতা / Conveyance allowance</td><td class="text-end"><span t-field="slip.conveyance_allowance"/></td></tr>
+                                </t>
+                                <t t-if="slip.technical_allowance">
+                                    <tr><td>কারিগরি ভাতা / Technical allowance</td><td class="text-end"><span t-field="slip.technical_allowance"/></td></tr>
+                                </t>
+                                <t t-if="slip.dearness_allowance">
+                                    <tr><td>মহার্ঘ্য ভাতা / Dearness allowance</td><td class="text-end"><span t-field="slip.dearness_allowance"/></td></tr>
+                                </t>
+                                <t t-if="slip.adhoc_allowance">
+                                    <tr><td>অ্যাড-হক ভাতা / Ad-hoc allowance</td><td class="text-end"><span t-field="slip.adhoc_allowance"/></td></tr>
+                                </t>
+                                <t t-if="slip.other_allowance">
+                                    <!-- on-call and the retro carry-forward ride Other Allowance (M55/I8/I9) -->
+                                    <tr><td>অন্যান্য ভাতা / Other allowance</td><td class="text-end"><span t-field="slip.other_allowance"/></td></tr>
+                                </t>
+                                <tr>
+                                    <td>অতিরিক্ত কর্মঘণ্টা / Overtime
+                                        (<span t-esc="slip.ot_hours or 0.0"/> h @ 2x /
+                                        <span t-esc="slip.ot_divisor_hours or 208"/> h)</td>
+                                    <td class="text-end"><span t-field="slip.overtime"/></td>
+                                </tr>
+                                <t t-if="slip.incentive">
+                                    <tr><td>প্রণোদনা / Performance incentive (M57)</td><td class="text-end"><span t-field="slip.incentive"/></td></tr>
+                                </t>
+                                <tr>
+                                    <td><strong>মোট উপার্জন / Gross earnings</strong></td>
+                                    <td class="text-end"><strong><span t-field="slip.gross"/></strong></td>
+                                </tr>
                             </tbody>
                         </table>
-                        <p>
-                            <span>ব্যাংক হিসাব / Account:</span> <span t-esc="slip.bank_account_no or ''"/>
-                            (<span t-esc="slip.routing_no or ''"/>)<br/>
-                            <span>প্রকাশিত / Published:</span> <span t-field="slip.published_on"/><br/>
-                            <small>Digest: <span t-esc="slip.published_digest or ''"/></small>
+
+                        <!-- M56-F13: the retro detail behind the Other Allowance line
+                             (already inside gross - shown, not added again) -->
+                        <t t-if="slip.retro_adjustment_total or slip.oncall_allowance">
+                            <h4>পূর্ববর্তী সমন্বয় / Retro &amp; on-call detail (inside Other allowance)</h4>
+                            <table class="table table-sm">
+                                <tbody>
+                                    <t t-if="slip.retro_overtime_amount">
+                                        <tr><td>রেট্রো অতিরিক্ত কর্মঘণ্টা / Retro overtime (<span t-esc="slip.retro_overtime_hours or 0.0"/> h)</td><td class="text-end"><span t-field="slip.retro_overtime_amount"/></td></tr>
+                                    </t>
+                                    <t t-if="slip.retro_oncall_amount">
+                                        <tr><td>অন-কল ভাতা / On-call allowance</td><td class="text-end"><span t-field="slip.retro_oncall_amount"/></td></tr>
+                                    </t>
+                                    <t t-if="slip.retro_absence_deduction">
+                                        <tr><td>রেট্রো অনুপস্থিতি কর্তন / Retro absence (<span t-esc="slip.retro_absence_days or 0.0"/> d)</td><td class="text-end">-<span t-field="slip.retro_absence_deduction"/></td></tr>
+                                    </t>
+                                    <tr><td>সমন্বয় মোট / Retro adjustment total</td><td class="text-end"><span t-field="slip.retro_adjustment_total"/></td></tr>
+                                </tbody>
+                            </table>
+                        </t>
+
+                        <h4>কর্তন / Deductions</h4>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>ভবিষ্য তহবিল কর্তন / Provident fund — employee (<span t-esc="slip.pf_employee_pct or 0.0"/>%)</td>
+                                    <td class="text-end"><span t-field="slip.pf_employee"/></td>
+                                </tr>
+                                <tr>
+                                    <td>উৎসে কর্তিত আয়কর / Income tax withheld</td>
+                                    <td class="text-end"><span t-field="slip.tax_withheld"/></td>
+                                </tr>
+                                <t t-if="slip.recovery_deduction">
+                                    <!-- M56-F13: the overpayment recovery is a printed deduction -->
+                                    <tr><td>অতিরিক্ত প্রদান আদায় / Overpayment recovery</td><td class="text-end"><span t-field="slip.recovery_deduction"/></td></tr>
+                                </t>
+                                <tr>
+                                    <td><strong>মোট কর্তন / Total deductions</strong></td>
+                                    <td class="text-end"><strong><span t-esc="round((slip.pf_employee or 0.0) + (slip.tax_withheld or 0.0) + (slip.recovery_deduction or 0.0), 2)"/></strong></td>
+                                </tr>
+                                <tr>
+                                    <td><strong>নিট প্রদেয় / Net pay</strong></td>
+                                    <td class="text-end"><strong><span t-field="slip.net"/></strong></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <h4>কর ভিত্তি ও হিসাব / Tax basis &amp; fiscal-year figures</h4>
+                        <table class="table table-sm">
+                            <tbody>
+                                <tr>
+                                    <td>বার্ষিক করযোগ্য আয় / Projected annual taxable income</td>
+                                    <td class="text-end"><span t-field="slip.annual_taxable"/></td>
+                                    <td>প্রাপ্য ছাড় / Para 27 exemption (annual)</td>
+                                    <td class="text-end"><span t-field="slip.annual_exemption"/></td>
+                                </tr>
+                                <tr>
+                                    <td>অর্থবছরে পূর্বের আয় / FY income before this slip</td>
+                                    <td class="text-end"><span t-field="slip.ytd_prior_income"/></td>
+                                    <td>অর্থবছরে পূর্বের কর / FY tax before this slip</td>
+                                    <td class="text-end"><span t-field="slip.ytd_prior_tax"/></td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                        <p class="text-muted small">
+                            <span>সংবিধিবদ্ধ ভিত্তি / Statutory basis: </span>
+                            <span t-esc="slip.statutory_basis or ''"/><br/>
+                            <span>প্রকাশিত / Published: </span><span t-field="slip.published_on"/>
+                            <span> · Digest: <span t-esc="slip.published_digest or ''"/></span>
                         </p>
                     </div>
                 </div>

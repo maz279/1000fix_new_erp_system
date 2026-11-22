@@ -589,17 +589,11 @@ def test_the_gratuity_provision_cron_accrues_once_per_employee_and_month(w):
     Accrual = w.env["fix.payroll.gratuity.accrual"].sudo()
     with pytest.raises(UserError, match="month end"), w.env.cr.savepoint():
         Accrual.cron_accrue_gratuity(as_of="2026-01-30")
-    Accrual.cron_accrue_gratuity(as_of="2026-01-31")
-    Accrual.cron_accrue_gratuity(as_of="2026-01-31")  # idempotent
-    mine = Accrual.search([("employee_id", "in", (w.karim | w.nasrin).ids)])
-    assert len(mine) == 2
-    karim = mine.filtered(lambda r: r.employee_id == w.karim)
-    # 6 completed years at 1,000 a day x 30 days (the existing separation rule)
-    assert (karim.completed_years, karim.liability, karim.accrual) == (6, 180000.0, 180000.0)
-    assert "pack=v1 (as coded, unsourced)" in karim.statutory_basis
-    assert not karim.move_id  # finance has not configured the provision accounts
-    # February: the movement is the difference only; the provision is posted
-    # once finance configures the accounts
+    # X-F3: eligible contracts exist but finance configured no gratuity
+    # accounts - the accrual REFUSES loudly now (it used to write rows with
+    # move=NONE, an unrecorded BLA liability)
+    with pytest.raises(UserError, match="not configured"), w.env.cr.savepoint():
+        Accrual.cron_accrue_gratuity(as_of="2026-01-31")
     w.co.write(
         {
             "payroll_gratuity_expense_account_id": _account(
@@ -610,6 +604,16 @@ def test_the_gratuity_provision_cron_accrues_once_per_employee_and_month(w):
             ).id,
         }
     )
+    Accrual.cron_accrue_gratuity(as_of="2026-01-31")
+    Accrual.cron_accrue_gratuity(as_of="2026-01-31")  # idempotent
+    mine = Accrual.search([("employee_id", "in", (w.karim | w.nasrin).ids)])
+    assert len(mine) == 2
+    karim = mine.filtered(lambda r: r.employee_id == w.karim)
+    # 6 completed years at 1,000 a day x 30 days (the existing separation rule)
+    assert (karim.completed_years, karim.liability, karim.accrual) == (6, 180000.0, 180000.0)
+    assert "pack=v1 (as coded, unsourced)" in karim.statutory_basis
+    assert karim.move_id and karim.move_id.state == "posted"
+    # February: the movement is the difference only
     Accrual.cron_accrue_gratuity(as_of="2026-02-28")
     feb = Accrual.search([("employee_id", "=", w.karim.id), ("month", "=", "2026-02")])
     assert (feb.previous_liability, feb.accrual) == (180000.0, 0.0)

@@ -29,6 +29,8 @@ from odoo import fields, models
 from odoo.exceptions import UserError
 
 from libs.py.payroll_engine import (
+    ENACTED_TAX_TABLES,
+    LEGACY_TAX_TABLE,
     TAX_FREE_THRESHOLDS,
     TAX_SLABS,
     completed_years,
@@ -61,15 +63,37 @@ FESTIVAL_BONUS_CAP_MONTHS = Decimal("1")
 FESTIVAL_BONUSES_PER_YEAR = 2
 FESTIVAL_BONUS_SERVICE_YEARS = 1
 
-# Decision flags (report §7.3 tax adviser, §7.4 labour counsel). Each has only
-# the value the code uses today; a ruling adds its option and the code for it.
+# Decision flags (report §7.3 tax adviser, §7.4 labour counsel). The tax-table
+# options now carry the ENACTED Finance Act tables (A09 M56-F3/F5; sourced by
+# the lead from PwC Worldwide Tax Summaries, Bangladesh individual taxes,
+# reviewed 31 Jul 2026); the engine's pre-enactment draft stays selectable but
+# labelled superseded - it is never the default again.
 TAX_TABLE_RULES = [
     (
+        "fa2025_26_2026_27",
+        "Enacted FY 2025-26 & FY 2026-27 (400k/450k/525k/550k +50k guardian; 10-30% "
+        "bands; minimum tax 5,000) - PwC, reviewed 31 Jul 2026",
+    ),
+    (
+        "fa2027_28_2028_29",
+        "Enacted FY 2027-28 & FY 2028-29 (450k/500k/575k/600k +50k guardian; then "
+        "30% to 26.35M, 35% above) - PwC, reviewed 31 Jul 2026",
+    ),
+    (
+        "fa2029_30",
+        "Enacted FY 2029-30 (500k/550k/625k/650k +50k guardian; then 30% to 26.3M, "
+        "35% above) - PwC, reviewed 31 Jul 2026",
+    ),
+    (
         "engine_fy2026_27",
-        "Engine table FY 2026-27 (375k/400k/475k/500k; 10-30% slabs; minimum tax "
-        "5,000/4,000/3,000) - NOT confirmed by a tax adviser",
+        "Legacy engine draft FY 2026-27 (375k/400k/475k/500k; location minimum tax "
+        "5,000/4,000/3,000) - superseded by the enacted table, NOT adviser-confirmed",
     ),
 ]
+TAX_TABLES_BY_RULE = {
+    "engine_fy2026_27": LEGACY_TAX_TABLE,
+    **dict(ENACTED_TAX_TABLES),
+}
 SEPARATION_RULES = [
     (
         "engine_2026_amendment",
@@ -88,6 +112,34 @@ def digest_rows(rows) -> str:
     return hashlib.sha256(json.dumps(sorted(rows), default=str).encode()).hexdigest()
 
 
+def tax_table_summary(pack) -> str:
+    """The pack's tax figures as one short, human-readable string: the
+    thresholds per category, the guardian add-on, the band top rates and the
+    minimum tax. Printed on the Bengali payslip so the slip names the exact
+    table it withheld by (A09 M56-F13)."""
+    thresholds = pack.tax_free_thresholds or {}
+    order = ("general", "female_senior", "disabled_third_gender", "freedom_fighter")
+    parts = [
+        "%s=%sk" % (cat.split("_")[0], "%g" % (thresholds.get(cat, 0) / 1000.0))
+        for cat in order
+        if cat in thresholds
+    ]
+    head = "/".join(parts) or "engine legacy"
+    guardian = (
+        "+%gk guardian" % (pack.guardian_extra_threshold / 1000.0)
+        if (pack.guardian_extra_threshold)
+        else ""
+    )
+    slabs = pack.tax_slabs or []
+    rates = "-".join("%g%%" % (float(rate) * 100.0) for _w, rate in slabs) or "legacy"
+    floor = "minimum tax %g" % pack.minimum_tax if pack.minimum_tax else "location minimum tax"
+    rebate = "rebate %g%%/%g cap" % (
+        pack.rebate_rate_percent or 0.0,
+        pack.rebate_cap or 0.0,
+    )
+    return "thresholds %s%s; bands %s; %s; %s" % (head, guardian, rates, floor, rebate)
+
+
 def statutory_basis(company, pack=None) -> str:
     """The rules this company pays by, pinned on every slip and settlement.
 
@@ -95,14 +147,18 @@ def statutory_basis(company, pack=None) -> str:
     figures are the basis; without one, the company's decision flags."""
     floor = company.payroll_minimum_basic_monthly or 0.0
     if pack:
-        return "pack=v%d (%s); tax=%s; separation=%s; min_basic=%s; ot_divisor=%s; ceiling=%s" % (
-            pack.version,
-            "as coded, unsourced" if pack.basis == "as_coded" else "sourced",
-            pack.tax_table_rule,
-            pack.separation_rule,
-            ("%.2f" % floor) if floor else "unruled",
-            "%g" % pack.ot_divisor_hours,
-            "%g" % pack.exemption_ceiling,
+        return (
+            "pack=v%d (%s); tax=%s; %s; separation=%s; min_basic=%s; ot_divisor=%s; ceiling=%s"
+            % (
+                pack.version,
+                "as coded, unsourced" if pack.basis == "as_coded" else "sourced",
+                pack.tax_table_rule,
+                tax_table_summary(pack),
+                pack.separation_rule,
+                ("%.2f" % floor) if floor else "unruled",
+                "%g" % pack.ot_divisor_hours,
+                "%g" % pack.exemption_ceiling,
+            )
         )
     tax = company.payroll_tax_table_rule or "unset"
     sep = company.payroll_separation_rule or "unset"
@@ -337,11 +393,10 @@ class ResCompanyPayrollStatutory(models.Model):
     payroll_tax_table_rule = fields.Selection(
         TAX_TABLE_RULES,
         string="Salary Tax Table (decision)",
-        default="engine_fy2026_27",
-        help="Which salary tax table payroll withholds by. The only option is the engine's "
-        "built-in FY 2026-27 table, which no repository source confirms and which contradicts "
-        "the hr.employee category labels. A tax adviser's ruling adds the confirmed table "
-        "(A09 report §7.3).",
+        default="fa2025_26_2026_27",
+        help="Which salary tax table payroll withholds by. The enacted Finance Act tables "
+        "(PwC, reviewed 31 Jul 2026) are the options a statutory pack carries; the legacy "
+        "engine draft table is superseded and never the default (A09 report §7.3).",
     )
     payroll_separation_rule = fields.Selection(
         SEPARATION_RULES,
