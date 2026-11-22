@@ -87,6 +87,32 @@ class FixIncentiveScheme(models.Model):
             )
         )
 
+    @api.depends("version_ids.state", "version_ids.band_base", "version_ids.date_from")
+    def _compute_readiness(self):
+        """M57-F2: what blocks this scheme from computing a run today, said on
+        the schemes screen (a draft version with no band base — the seeded v1 —
+        warns before anyone opens a run)."""
+        for rec in self:
+            warnings = []
+            versions = rec.sudo().version_ids
+            for ver in versions:
+                if ver.state == "draft" and (ver.sudo().band_base or 0.0) <= 0:
+                    warnings.append(
+                        "%s is a draft with band base 0: set the band base and have the HR "
+                        "Director and the CFO approve it before any run computes."
+                        % ver.display_name
+                    )
+            if versions and not any(ver.state == "approved" for ver in versions):
+                warnings.append("No approved version: a run computes only under one.")
+            rec.readiness_warning = " ".join(warnings)
+
+    readiness_warning = fields.Char(
+        string="Readiness",
+        compute="_compute_readiness",
+        help="Why no run can compute under "
+        "this scheme yet (draft version, band base 0, no approval).",
+    )
+
     @api.model
     def _fix_scheme_for(self, company):
         """The company's scheme when it has exactly one active scheme."""
@@ -151,6 +177,31 @@ class FixIncentiveSchemeVersion(models.Model):
         help="An approved leave of at least this many days is taken out of the paid days "
         "(0 = leave is not prorated).",
     )
+    # M57-F9 (FR-PIC-028, AUT-PIC-12, BRU-PIC-15): an employee on an active
+    # PIP or under an open disciplinary case earns no incentive of this scheme.
+    pip_ineligible = fields.Boolean(
+        string="PIP / Disciplinary Ineligible",
+        default=True,
+        help="True (default): an active PIP or an open disciplinary case makes the "
+        "employee ineligible for the incentive of the period.",
+    )
+    # M57-F10: the two windows, visible and editable as scheme-version terms
+    # instead of technical parameters only. 0 = not ruled here: the estate
+    # parameter decides (0 = off). OWNER decision D3: recommend 5 / 30 days.
+    dispute_days = fields.Integer(
+        string="Dispute Window (days)",
+        default=0,
+        help="Days an employee has to dispute a computed line of a run under this "
+        "version (0 = the estate parameter cd_performance.incentive_dispute_days "
+        "decides; 0 there too = no window).",
+    )
+    clawback_days = fields.Integer(
+        string="Clawback Window (days)",
+        default=0,
+        help="A rework or credit within this many days of an order's completion claws "
+        "its share of a paid incentive back (0 = the estate parameter "
+        "cd_performance.incentive_clawback_days decides; 0 there too = off).",
+    )
     state = fields.Selection(
         [
             ("draft", "Draft"),
@@ -182,7 +233,11 @@ class FixIncentiveSchemeVersion(models.Model):
             "date_from",
             "date_to",
             "basis",
+            # M57-F23: after both signatures the version's currency and
+            # operating unit are frozen too — the meaning of the band base and
+            # the unit it belongs to cannot change under an approval.
             "currency_id",
+            "operating_unit_id",
             "band_base",
             "cut_top",
             "cut_mid",
@@ -192,6 +247,9 @@ class FixIncentiveSchemeVersion(models.Model):
             "rate_low",
             "min_service_days",
             "long_leave_days",
+            "pip_ineligible",
+            "dispute_days",
+            "clawback_days",
         }
     )
 
@@ -229,13 +287,25 @@ class FixIncentiveSchemeVersion(models.Model):
                 if not 0 <= rate <= 100:
                     raise ValidationError("A band rate is a 0-100 percentage.")
 
-    @api.constrains("date_from", "date_to", "min_service_days", "long_leave_days")
+    @api.constrains(
+        "date_from",
+        "date_to",
+        "min_service_days",
+        "long_leave_days",
+        "dispute_days",
+        "clawback_days",
+    )
     def _check_dates(self):
         for rec in self:
             if rec.date_to and rec.date_to < rec.date_from:
                 raise ValidationError("A scheme version cannot end before it starts.")
-            if rec.min_service_days < 0 or rec.long_leave_days < 0:
-                raise ValidationError("Eligibility days cannot be negative.")
+            if (
+                rec.min_service_days < 0
+                or rec.long_leave_days < 0
+                or rec.dispute_days < 0
+                or rec.clawback_days < 0
+            ):
+                raise ValidationError("Eligibility and window days cannot be negative.")
 
     @api.constrains("band_base")
     def _check_band_base(self):
@@ -331,6 +401,75 @@ class FixIncentiveSchemeVersion(models.Model):
                     "requesting its approval." % rec.display_name
                 )
 
+    def _fix_assert_lawful_window(self):
+        """M57-F21 (BRU-PIC-02 for schemes, the rule KPI definitions already
+        follow): an approved version never overlaps another approved one, and
+        a replacement is never back-dated — its effective date is today or
+        later, so a version approved today cannot change an uncomputed past
+        period."""
+        today = fields.Date.context_today(self)
+        for rec in self:
+            olds = rec.sudo().search(
+                [
+                    ("id", "!=", rec.id),
+                    ("scheme_id", "=", rec.scheme_id.id),
+                    ("state", "=", "approved"),
+                ]
+            )
+            if not olds:
+                continue
+            if rec.date_from < today:
+                raise UserError(
+                    "BRU-PIC-02: %s takes effect from today or later (%s is in the past); a "
+                    "period already measured keeps the version it was measured under, and "
+                    "an uncomputed past period keeps the version in force then."
+                    % (rec.display_name, rec.date_from)
+                )
+            for old in olds:
+                if old.date_from >= rec.date_from:
+                    raise UserError(
+                        "%s already starts on %s: a new version starts after it."
+                        % (old.display_name, old.date_from)
+                    )
+                if rec.date_to and rec.date_to >= old.date_from:
+                    raise UserError(
+                        "%s overlaps %s (in force from %s): one approved version covers a "
+                        "day at a time." % (rec.display_name, old.display_name, old.date_from)
+                    )
+
+    def _fix_assert_second_decider_feasible(self):
+        """M57-F2: the CFO signature needs a lawful second decider — an active
+        holder of the CFO group who is neither the requester nor in the HR
+        Director group. On production data the two groups hold the same two
+        accounts, so no version can be lawfully approved: say so at the
+        request, naming the group (owner decision D1: appoint the people)."""
+        group = self.env.ref(CFO, raise_if_not_found=False)
+        if not group:
+            raise UserError(
+                "The CFO approval group (%s) does not exist: no scheme version can be "
+                "approved." % CFO
+            )
+        holders = group.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+        hrd = self.env.ref(HR_DIRECTOR, raise_if_not_found=False)
+        hrd_holders = (
+            hrd.sudo().all_user_ids.filtered(lambda u: u.active and not u.share)
+            if hrd
+            else self.env["res.users"]
+        )
+        excluded = hrd_holders | self.mapped("requested_by_id") | self.mapped("hr_director_id")
+        feasible = holders - excluded
+        if not feasible:
+            raise UserError(
+                "No lawful second decider: every active holder of %s also holds %s or "
+                "requested this version (%s). Appoint a CFO who is not the HR Director "
+                "before requesting the approval (decision D1)."
+                % (
+                    group.name,
+                    hrd.name if hrd else HR_DIRECTOR,
+                    ", ".join(holders.mapped("name")) or "no active holder",
+                )
+            )
+
     def action_request_approval(self, justification=None):
         """The Incentive Officer routes a draft version to the HR Director."""
         require_group(self.env, OFFICER, "Requesting a scheme version's approval")
@@ -338,6 +477,8 @@ class FixIncentiveSchemeVersion(models.Model):
             if rec.state != "draft":
                 raise UserError("Only a draft scheme version is sent for approval.")
         self._fix_assert_complete()
+        self._fix_assert_lawful_window()
+        self._fix_assert_second_decider_feasible()
         for rec in self:
             rec._guarded().write({"state": "hr_review", "requested_by_id": self.env.user.id})
         return super().action_request_approval(justification=justification)
