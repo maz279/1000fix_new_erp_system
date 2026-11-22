@@ -211,7 +211,18 @@ class FixRiskRegister(models.Model):
     @api.constrains("residual_score", "residual_accepted_by_id")
     def _check_residual_acceptance(self):
         for rec in self:
-            if rec.residual_band == "high" and not rec.residual_accepted_by_id:
+            # A10 deep audit (2026-11-22, A3-F02): a HIGH residual may be
+            # RECORDED unaccepted — it is then pending acceptance, surfaced by
+            # above_appetite and the heat map. Requiring the acceptor at
+            # assessment time made a HIGH residual unrecordable through any
+            # path (the acceptance action presupposes the assessment), so the
+            # law now bites only where it means to: a risk whose state claims
+            # ACCEPTED must carry the named acceptor behind that residual.
+            if (
+                rec.state == "accepted"
+                and rec.residual_band == "high"
+                and not rec.residual_accepted_by_id
+            ):
                 raise ValidationError(
                     "A HIGH residual risk needs a named acceptance (residual accepted by)."
                 )
@@ -387,7 +398,17 @@ class FixRiskRegister(models.Model):
         for rec in self:
             if rec.state != "closed":
                 raise UserError("'%s' is not closed." % rec.name)
-            rec._guarded().write({"state": "open"})
+            # A10 deep audit (2026-11-22): reopening is the explicit act that
+            # ends the old acceptance — the stamps do not survive into the
+            # new assessment cycle (a stale acceptor next to a re-assessed
+            # residual would attest content it never saw).
+            rec._guarded().write(
+                {
+                    "state": "open",
+                    "residual_accepted_by_id": False,
+                    "residual_accepted_on": False,
+                }
+            )
             rec.message_post(body="Risk reopened by %s." % self.env.user.name)
         return True
 

@@ -117,8 +117,7 @@ class FixGrcControlTest(models.Model):
                 raise UserError(
                     "The control '%s' has no owner and its risk names none either: "
                     "a failed test must raise a deficiency someone is accountable "
-                    "for. Name the control's owner first (A10 P1-5, M60-9)."
-                    % control.name
+                    "for. Name the control's owner first (A10 P1-5, M60-9)." % control.name
                 )
             label = dict(rec._fields["result"].selection).get(rec.result, rec.result)
             sample = rec.sample_size or "—"
@@ -235,8 +234,7 @@ class FixGrcSodRule(models.Model):
         _require_group(
             self.env,
             OFFICER_GROUP,
-            "Only a Compliance Officer waives a segregation-of-duties rule "
-            "(A10 R1, M60-4).",
+            "Only a Compliance Officer waives a segregation-of-duties rule " "(A10 R1, M60-4).",
         )
         if not (reason or "").strip():
             raise UserError(
@@ -253,10 +251,98 @@ class FixGrcSodRule(models.Model):
                     "waived_on": fields.Date.context_today(rec),
                 }
             )
-            rec.message_post(
-                body="Waived by %s: %s" % (self.env.user.name, reason.strip())
-            )
+            rec.message_post(body="Waived by %s: %s" % (self.env.user.name, reason.strip()))
         return True
+
+    # ------------------------------------------------------------------
+    # A10 deep audit (2026-11-22, A3-F01): the governance register was empty
+    # on every estate while the controls M29 actually enforces (fix.sod.control,
+    # 61 role-pair controls on live) were invisible to M60. The register is
+    # now DERIVED from the enforced controls, DoA-register style: an upsert
+    # by source control that never touches the waiver record — a waived rule
+    # keeps its waiver across rebuilds, because the waiver is an officer's
+    # decision, not a projection of the control.
+    source_control_id = fields.Many2one(
+        "fix.sod.control",
+        string="Enforced Control (M29)",
+        index=True,
+        ondelete="set null",
+        help="The M29 control this governance row is derived from; empty on a "
+        "manually-authored rule.",
+    )
+    derived_synced_at = fields.Datetime(readonly=True)
+
+    SEVERITY_FROM_ACTION = {"block": "high", "warn": "medium", "log": "low"}
+
+    @api.model
+    def _sod_rows_from_controls(self):
+        """One register row per ACTIVE role-pair control. Group-pair controls
+        (fix.sod.control with group ends instead of role ends) have no role
+        ends to mirror and stay governed on the M29 side only — counted and
+        reported, never silently dropped."""
+        rows, skipped = [], 0
+        for ctl in self.env["fix.sod.control"].sudo().search([("active", "=", True)]):
+            if not (ctl.role_a_id and ctl.role_b_id):
+                skipped += 1
+                continue
+            rows.append(
+                {
+                    "name": "%s: %s" % (ctl.code, ctl.name),
+                    "company_id": ctl.company_id.id,
+                    "role_a": ctl.role_a_id.id,
+                    "role_b": ctl.role_b_id.id,
+                    "conflict_area": ctl.operating_unit_id.name or "",
+                    "severity": self.SEVERITY_FROM_ACTION.get(ctl.conflict_action, "medium"),
+                    "compensating_control": ctl.rationale or "",
+                    "source_control_id": ctl.id,
+                    "derived_synced_at": fields.Datetime.now(),
+                }
+            )
+        return rows, skipped
+
+    def action_rebuild_from_controls(self):
+        """Regenerate the derived rows from the enforced controls (the M60 action)."""
+        _require_group(
+            self.env,
+            OFFICER_GROUP,
+            "Rebuilding the SoD governance register is a Compliance Officer's "
+            "act — it re-reads the controls M29 enforces.",
+        )
+        res = self._sod_rebuild()
+        res["note"] = (
+            "SoD register rebuilt: %d derived row(s) created, %d updated, "
+            "%d group-pair control(s) left to M29."
+            % (res["created"], res["updated"], res["skipped_group_pair"])
+        )
+        return res
+
+    @api.model
+    def cron_rebuild_sod(self):
+        """Daily convergence: a control edited between rebuilds cannot leave
+        the register describing conflicts nothing enforces (or hiding ones
+        that are)."""
+        return self._sod_rebuild()
+
+    @api.model
+    def _sod_rebuild(self) -> dict:
+        Register = self.sudo()
+        rows, skipped = Register._sod_rows_from_controls()
+        by_source = {row["source_control_id"]: row for row in rows}
+        updated = 0
+        for rule in Register.search([("source_control_id", "!=", False)]):
+            row = by_source.pop(rule.source_control_id.id, None)
+            if row is None:
+                # the control was retired or deactivated: the rule stays as
+                # history (its waiver record is evidence); the officer retires
+                # it explicitly
+                continue
+            # state/waived_* deliberately absent: the waiver survives rebuilds
+            rule.write(row)
+            updated += 1
+        created = len(by_source)
+        if by_source:
+            Register.create(list(by_source.values()))
+        return {"created": created, "updated": updated, "skipped_group_pair": skipped}
 
 
 # A10 P1-4 (M60-6): the single delegated-authority register. The audit found
@@ -281,7 +367,10 @@ class FixGrcAuthority(models.Model):
 
     name = fields.Char(required=True, readonly=True)
     company_id = fields.Many2one(
-        "res.company", required=True, index=True, default=lambda self: self.env.company,
+        "res.company",
+        required=True,
+        index=True,
+        default=lambda self: self.env.company,
         readonly=True,
     )
     role_title = fields.Char(string="Role / Position", required=True, readonly=True)
@@ -289,14 +378,14 @@ class FixGrcAuthority(models.Model):
         currency_field="currency_id", string="Authority Limit", readonly=True
     )
     currency_id = fields.Many2one(
-        "res.currency", required=True, default=lambda self: self.env.ref("base.BDT"),
+        "res.currency",
+        required=True,
+        default=lambda self: self.env.ref("base.BDT"),
         readonly=True,
     )
     authority_scope = fields.Char(string="Scope", readonly=True)
     delegate_to = fields.Char(string="May Delegate To", readonly=True)
-    effective_from = fields.Date(
-        required=True, default=fields.Date.context_today, readonly=True
-    )
+    effective_from = fields.Date(required=True, default=fields.Date.context_today, readonly=True)
     source = fields.Selection(
         [("dofa", "DOFA ladder in force"), ("matrix", "M63 approval matrix")],
         string="Enforced Source",
@@ -389,9 +478,7 @@ class FixGrcAuthority(models.Model):
         tiers = dict(DOFA_TIERS)
         bases = dict(self.env["fix.dofa.ladder"]._fields["basis"].selection)
         for ladder in ladders:
-            currency = (
-                ladder.company_id.currency_id or self.env.ref("base.BDT")
-            ).id
+            currency = (ladder.company_id.currency_id or self.env.ref("base.BDT")).id
             for band in ladder.threshold_ids.sorted("upper_bound"):
                 rows.append(
                     {
@@ -402,9 +489,7 @@ class FixGrcAuthority(models.Model):
                         "amount_limit": band.upper_bound,
                         "authority_scope": "DOFA ladder in force · %s (%s basis)"
                         % (ladder.target_model, bases.get(ladder.basis, ladder.basis or "—")),
-                        "effective_from": (
-                            ladder.ruled_at and fields.Date.to_date(ladder.ruled_at)
-                        )
+                        "effective_from": (ladder.ruled_at and fields.Date.to_date(ladder.ruled_at))
                         or today,
                         "source": "dofa",
                         "source_ref": "fix.dofa.ladder:%d" % ladder.id,
@@ -419,11 +504,18 @@ class FixGrcAuthority(models.Model):
                     {
                         "name": rule.name
                         or "%s · %s"
-                        % (domains.get(rule.decision_domain, rule.decision_domain), rule.res_model or "every model"),
+                        % (
+                            domains.get(rule.decision_domain, rule.decision_domain),
+                            rule.res_model or "every model",
+                        ),
                         "company_id": rule.company_id.id,
                         "currency_id": (rule.currency_id or self.env.ref("base.BDT")).id,
                         "role_title": rule.approver_role
-                        or (rule.approver_group_id.name if rule.approver_group_id else "Approver per matrix"),
+                        or (
+                            rule.approver_group_id.name
+                            if rule.approver_group_id
+                            else "Approver per matrix"
+                        ),
                         "amount_limit": rule.threshold or 0.0,
                         "authority_scope": "M63 approval matrix · %s%s"
                         % (
@@ -651,8 +743,7 @@ class FixGrcPolicy(models.Model):
                 and rec.owner_id.user_id == self.env.user
             ):
                 raise UserError(
-                    "%s's owner does not approve their own policy (A10 R1, M60-11)."
-                    % rec.code
+                    "%s's owner does not approve their own policy (A10 R1, M60-11)." % rec.code
                 )
             rec._guarded().write(
                 {"state": "approved", "approved_on": fields.Date.context_today(rec)}
@@ -665,7 +756,9 @@ class FixGrcPolicy(models.Model):
         )
         for rec in self:
             if rec.state != "approved":
-                raise UserError("Only an approved policy is retired — %s is %s." % (rec.code, rec.state))
+                raise UserError(
+                    "Only an approved policy is retired — %s is %s." % (rec.code, rec.state)
+                )
             rec._guarded().write({"state": "retired"})
             rec.message_post(body="Policy retired by %s." % self.env.user.name)
         return True
@@ -722,7 +815,9 @@ class FixGrcLegal(models.Model):
         string="Outcome",
         help="How the matter ended. Required before a matter can be closed (W2).",
     )
-    close_note = fields.Text(string="Closing Note", help="The resolution terms or judgment reference.")
+    close_note = fields.Text(
+        string="Closing Note", help="The resolution terms or judgment reference."
+    )
     closed_on = fields.Date(string="Closed On")
 
     _outcome_required = "A10 W2: record the outcome and the closing note of %s before closing it."
@@ -809,9 +904,8 @@ class FixGrcPdpa(models.Model):
     @api.depends("received_on")
     def _compute_due_on(self):
         for rec in self:
-            rec.due_on = (
-                rec.received_on + datetime.timedelta(days=30) if rec.received_on else False
-            )
+            rec.due_on = rec.received_on + datetime.timedelta(days=30) if rec.received_on else False
+
     handled_by_id = fields.Many2one("hr.employee", string="Handled By")
     outcome = fields.Selection(
         [
@@ -835,7 +929,48 @@ class FixGrcPdpa(models.Model):
     def _fix_guarded_fields(self) -> set:
         # A10 R1: the outcome of a data-subject request is the DSR's decision
         # record — fulfilled/refused is an officer's act, not a typed value.
-        return super()._fix_guarded_fields() | {"outcome"}
+        # overdue_notified_on joins it: the statutory clock's evidence is the
+        # system's, not a typed value (A10 deep audit 2026-11-22, A3-F04).
+        return super()._fix_guarded_fields() | {"outcome", "overdue_notified_on"}
+
+    # A10 deep audit (2026-11-22, A3-F04): the 30-day SLA due date was derived
+    # but nothing watched it. The clock's escalation flag.
+    overdue_notified_on = fields.Date(
+        readonly=True,
+        help="The day the Compliance Officers were told this request went past "
+        "its PDPA response window (set once, by the daily clock).",
+    )
+
+    @api.model
+    def cron_dsr_overdue(self):
+        """Daily PDPA clock: an unanswered request past its 30-day window
+        tells the Compliance Officers ONCE (the DSR list keeps showing it
+        overdue; re-notification would be noise, silence would be the
+        original finding)."""
+        today = fields.Date.context_today(self)
+        overdue = (
+            self.sudo()
+            .search([("outcome", "in", ("pending", "partially")), ("due_on", "<", today)])
+            .filtered(lambda r: not r.overdue_notified_on)
+        )
+        if not overdue:
+            return True
+        group = self.env.ref("cd_grc.group_grc_officer", raise_if_not_found=False)
+        officers = (group.sudo().user_ids if group else self.env["res.users"]).filtered(
+            lambda u: u.active and not u.share
+        )
+        for rec in overdue:
+            rec._guarded().write({"overdue_notified_on": today})
+            rec.message_post(
+                body=(
+                    "PDPA response window OVERDUE: %s was received on %s and its "
+                    "30-day window closed %s. Record the outcome (fulfil/refuse) "
+                    "and answer the data subject." % (rec.name, rec.received_on, rec.due_on)
+                ),
+                partner_ids=officers.mapped("partner_id").ids,
+                subtype_xmlid="mail.mt_comment",
+            )
+        return True
 
     def action_fulfil(self):
         _require_group(
@@ -947,7 +1082,9 @@ class FixGrcWhistle(models.Model):
         string="Finding",
         help="The conclusion of the investigation. Required at closure (W1).",
     )
-    follow_up = fields.Char(string="Follow-up Action", help="What happens next because of this report.")
+    follow_up = fields.Char(
+        string="Follow-up Action", help="What happens next because of this report."
+    )
     reviewer_id = fields.Many2one(
         "res.users",
         string="Second Reviewer",
@@ -999,9 +1136,7 @@ class FixGrcWhistle(models.Model):
         if self.env.su:
             return
         if not rec.investigator_id or rec.investigator_id.user_id != self.env.user:
-            raise UserError(
-                "Only the investigator assigned to %s may do this (W1)." % rec.name
-            )
+            raise UserError("Only the investigator assigned to %s may do this (W1)." % rec.name)
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -1077,9 +1212,7 @@ class FixGrcWhistle(models.Model):
                     "it themself (W1 segregation of duties)." % rec.name
                 )
             rec._guarded().write({"investigator_id": investigator.id})
-            rec.message_post(
-                body="Investigator assigned by %s." % self.env.user.name
-            )
+            rec.message_post(body="Investigator assigned by %s." % self.env.user.name)
         return True
 
     def action_investigate(self):

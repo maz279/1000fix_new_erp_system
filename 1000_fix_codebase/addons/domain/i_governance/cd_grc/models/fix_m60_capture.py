@@ -1108,13 +1108,17 @@ class FixGrcIpAsset(models.Model):
 
 
 # ====================================================================== page 7
+# A10 deep audit (2026-11-22, A3-F04): legitimate_interest is REMOVED — under
+# the Bangladesh PDPA 2026 (which repealed the PDPO 2025 draft regime) it is
+# not an available lawful basis, and offering it in the register invited
+# recording processing that the Act does not permit. No row on any estate
+# used it (verified fix_real + fix_dev before removal).
 LAWFUL_BASES = [
     ("consent", "Consent"),
     ("contract", "Performance of a Contract"),
     ("legal_obligation", "Legal Obligation"),
     ("vital_interest", "Vital Interest"),
     ("public_task", "Public Task"),
-    ("legitimate_interest", "Legitimate Interest"),
 ]
 
 

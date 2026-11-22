@@ -47,5 +47,29 @@
             <field name="interval_type">days</field>
             <field name="active" eval="True"/>
         </record>
+        <!-- A10 deep audit (2026-11-22, A3-F01): the SoD governance register
+             is derived from the controls M29 actually enforces (fix.sod.control);
+             this clock converges it after a control edit, mirroring the DoA
+             rebuild. Waivers survive rebuilds by design. -->
+        <record id="ir_cron_grc_sod_rebuild" model="ir.cron">
+            <field name="name">M60: rebuild the SoD governance register from the enforced controls</field>
+            <field name="model_id" ref="model_fix_grc_sod_rule"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_rebuild_sod()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
+        <!-- A10 deep audit (2026-11-22, A3-F04): the PDPA 30-day DSR clock.
+             The due date was derived but nothing watched it. -->
+        <record id="ir_cron_grc_dsr_overdue" model="ir.cron">
+            <field name="name">M60: PDPA data-subject-request 30-day clock</field>
+            <field name="model_id" ref="model_fix_grc_pdpa"/>
+            <field name="state">code</field>
+            <field name="code">model.cron_dsr_overdue()</field>
+            <field name="interval_number">1</field>
+            <field name="interval_type">days</field>
+            <field name="active" eval="True"/>
+        </record>
     </data>
 </odoo>
