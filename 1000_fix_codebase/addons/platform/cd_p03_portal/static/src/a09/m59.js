@@ -673,6 +673,15 @@ export const SCREENS = {
     model: 'fix.statutory.accident.register',
     title: 'Statutory Accident Register (Form 28 — BLA s.90)',
     back: 'M59-statutory-accident-register',
+    lines: { field: 'instant_notice_ids', title: 'Instant Notice — the Six Authorities (BLR 2015 r.69(1))',
+      note: 'A fatal or serious accident is told AT ONCE to each authority: record who was told, how, when and the reference they gave. The entry cannot close while an authority is unrecorded.',
+      fields: [
+        { name: 'authority', label: 'Authority', required: true },
+        { name: 'mode', label: 'How' },
+        { name: 'notified_on', label: 'Notified At', required: true },
+        { name: 'reference', label: 'Reference / Officer Spoken To' },
+        { name: 'note', label: 'Note', type: 'text' }
+      ] },
     tabs: [
       { id: 'accident', label: 'Register Entry & Worker', bn: 'রেজিস্টার এন্ট্রি ও কর্মী', icon: '📒', badge: '5' },
       { id: 'injury', label: 'Injury & Lost Work Days', bn: 'আঘাত ও কর্মদিবস ক্ষতি', icon: '🩹', badge: '4' },
@@ -709,6 +718,8 @@ export const SCREENS = {
         note: 'Tracks Form 27/27a/27b notice acknowledgement and Form 28 half-yearly return.',
         fields: [
           { name: 'notice_form_type', label: 'Submitted Notice Form Type' },
+          { name: 'instant_notice_required', label: 'Instant Notice Required (fatal / serious)', readonly: true },
+          { name: 'instant_notice_complete', label: 'All Six Authorities Recorded', readonly: true },
           { name: 'dife_notified', label: 'Notified to DIFE Inspector', readonly: true },
           { name: 'dife_notification_date', label: 'DIFE Notification Date', readonly: true },
           { name: 'dife_ack_ref', label: 'DIFE Acknowledgement Receipt No', readonly: true },

@@ -9,9 +9,45 @@
 # the payroll groups, and only in the caller's allowed companies.
 import datetime
 
+from odoo import fields
 from odoo.exceptions import AccessError
 
 PAYROLL_GROUP = "cd_payroll_bd.group_payroll_officer"  # the manager implies it
+
+
+def _period_domain(date_from=None, date_to=None):
+    """A fix.payslip domain on the period's own start day (A09 UI-F3): the
+    date pickers a screen offers actually filter, on the natural date field."""
+    domain = []
+    if date_from:
+        domain.append(("period_id.period_start", ">=", str(date_from)))
+    if date_to:
+        domain.append(("period_id.period_start", "<=", str(date_to)))
+    return domain
+
+
+def _fy_label(day):
+    """'2026-27' for the Bangladesh fiscal year (1 July - 30 June) holding day."""
+    start_year = day.year if day.month >= 7 else day.year - 1
+    return "%d-%02d" % (start_year, (start_year + 1) % 100)
+
+
+def _ay_titles(date_from=None, date_to=None):
+    """The assessment-year label(s) a period range spans, for pack titles
+    (A09 UI-F11: never hard-coded)."""
+    labels = []
+    for day in (date_from, date_to):
+        if day:
+            try:
+                label = _fy_label(datetime.date.fromisoformat(str(day)))
+            except ValueError:
+                continue
+            if label not in labels:
+                labels.append(label)
+    if not labels:
+        return None
+    return " & ".join(labels)
+
 
 # A09 M56 build (C1): approvals are routed M63 requests. The screens offer
 # "Request Approval" and "Recall"; the decision itself is taken from the
@@ -201,7 +237,7 @@ def _pack(title, cols, labels, rows, notes, totals=None, empty=None):
 
 def salary_register(env, date_from=None, date_to=None, **params):
     """Salary register: every payslip in the period with gross and net."""
-    slips = _payroll(env, "fix.payslip")
+    slips = _payroll(env, "fix.payslip", _period_domain(date_from, date_to))
     rows = []
     for slip in slips:
         rows.append(
@@ -243,7 +279,7 @@ def salary_register(env, date_from=None, date_to=None, **params):
 
 def payroll_cost_allocation(env, date_from=None, date_to=None, **params):
     """Payroll cost allocation by branch: gross, tax and net per branch."""
-    slips = _payroll(env, "fix.payslip")
+    slips = _payroll(env, "fix.payslip", _period_domain(date_from, date_to))
     groups = {}
     for slip in slips:
         branch = (
@@ -298,7 +334,7 @@ def payroll_cost_allocation(env, date_from=None, date_to=None, **params):
 
 def tax_deduction_summary(env, date_from=None, date_to=None, **params):
     """Tax deduction summary by period."""
-    slips = _payroll(env, "fix.payslip")
+    slips = _payroll(env, "fix.payslip", _period_domain(date_from, date_to))
     groups = {}
     for slip in slips:
         key = slip.period_id.name
@@ -316,8 +352,12 @@ def tax_deduction_summary(env, date_from=None, date_to=None, **params):
         }
         for k, v in sorted(groups.items())
     ]
+    # UI-F11: the assessment year is derived from the requested range (the
+    # fiscal year a July-June year the range spans), never hard-coded.
+    ay = _ay_titles(date_from, date_to)
+    title = "Tax Deduction Summary — AY %s" % ay if ay else "Tax Deduction Summary"
     return _pack(
-        "Tax Deduction Summary — AY 2026-27",
+        title,
         ["period", "employees", "gross", "tax", "effective_rate"],
         {
             "period": "Period",
@@ -342,7 +382,7 @@ def tax_deduction_summary(env, date_from=None, date_to=None, **params):
 
 def pf_gratuity_provisions(env, date_from=None, date_to=None, **params):
     """PF and gratuity provisions from the payslips and the gratuity action."""
-    slips = _payroll(env, "fix.payslip")
+    slips = _payroll(env, "fix.payslip", _period_domain(date_from, date_to))
     rows = []
     for slip in slips:
         pf_emp = float(getattr(slip, "pf_employee", 0.0) or 0.0)
@@ -537,7 +577,9 @@ REPORTS = {
 def kpis(env):
     # an AccessError for a non-payroll caller withholds the M56 figures
     # (a09.kpis), it never computes them
-    today = datetime.date.today()
+    # UI-F8: the business day is the caller's Dhaka day (m21.py's pattern),
+    # never the server's local date.
+    today = fields.Date.context_today(env.user.with_context(tz=env.user.tz or "Asia/Dhaka"))
     periods = _payroll(env, "fix.payroll.period", order="period_start desc", limit=1)
     latest = periods[:1]
     slips = _payroll(env, "fix.payslip")
@@ -554,7 +596,12 @@ def kpis(env):
         "gross_payroll": round(
             sum(float(s.gross or 0.0) for s in slips if latest and s.period_id.id == latest.id), 2
         ),
-        "run_duration": len(slips.filtered(lambda s, ln=latest: ln and s.period_id.id == ln.id)),
+        # UI-F11: this KPI counts the latest cycle's payslips and says so -
+        # fix.payroll.period carries no calculated/posted timestamps to
+        # measure a real duration from, so it is not named "duration".
+        "payslips_in_cycle": len(
+            slips.filtered(lambda s, ln=latest: ln and s.period_id.id == ln.id)
+        ),
         "corrections": len(corrections),
         "tax_withheld_mtd": round(tax_mtd, 2),
         "festival_bonus_accrued": round(sum(float(b.total_amount or 0.0) for b in bonus), 2),

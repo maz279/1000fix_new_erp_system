@@ -6,11 +6,11 @@
 export const MODULE = {
   area: 'A09', code: 'M56', en: 'Payroll & Statutory', title: 'M56 · Payroll & Statutory',
   bn: 'বেতন ও বিধিবদ্ধ', icon: '💵',
-  desc: 'BD gross-to-net engine, income tax AY 2026-27, provident fund, gratuity, festival bonus, BEFTN bank files, payslips and certificates, quarterly withholding returns and final settlements.',
+  desc: 'BD gross-to-net engine, income tax by fiscal year (statutory pack), provident fund, gratuity, festival bonus, BEFTN bank files, payslips and certificates, quarterly withholding returns and final settlements.',
   kpis: [
     { l: 'Payroll Cycle', m: 'payroll_cycle' },
     { l: 'Gross Payroll', m: 'gross_payroll', prefix: '৳ ' },
-    { l: 'Payslips', m: 'run_duration' },
+    { l: 'Payslips', m: 'payslips_in_cycle' },
     { l: 'Corrections', m: 'corrections' },
     { l: 'Tax Withheld MTD', m: 'tax_withheld_mtd', prefix: '৳ ' },
     { l: 'Bonus Accrued', m: 'festival_bonus_accrued', prefix: '৳ ' }
@@ -32,7 +32,7 @@ export const MODULE = {
     },
     {
       en: 'Statutory', screens: [
-        { id: 'M56-tax', en: 'Income Tax (AY 2026-27)', bn: 'আয়কর', t: 'r' },
+        { id: 'M56-tax', en: 'Income Tax (TDS)', bn: 'আয়কর', t: 'r' },
         { id: 'M56-pf', en: 'Provident Fund', bn: 'প্রভিডেন্ট ফান্ড', t: 'r' },
         { id: 'M56-gratuity', en: 'Gratuity & Encashment', bn: 'গ্র্যাচুইটি', t: 'r' },
         { id: 'M56-bonus', en: 'Festival Bonus', bn: 'উৎসব বোনাস', t: 'g' },
@@ -110,9 +110,11 @@ export const SCREENS = {
     cols: ['name', 'employee_id', 'payment_type', 'payment_date', 'amount', 'approval_state', 'state'],
     actions: [{ m: 'action_request_approval', l: 'Request Approval' }, { m: 'action_recall_approval', l: 'Recall Approval Request' }, { m: 'action_pay', l: 'Release to Bank (BEFTN)' }, { m: 'action_post', l: 'Post to GL (M19)' }, { m: 'action_cancel', l: 'Cancel' }]
   },
-  'M56-tax': { kind: 'table_report', module: 'M56', report: 'tax_deduction_summary', title: 'Income Tax (AY 2026-27)', period: true },
+  'M56-tax': { kind: 'table_report', module: 'M56', report: 'tax_deduction_summary', title: 'Income Tax (TDS Summary)', period: true },
   'M56-pf': { kind: 'table_report', module: 'M56', report: 'pf_gratuity', title: 'Provident Fund', period: true },
-  'M56-gratuity': { kind: 'table_report', module: 'M56', report: 'pf_gratuity', title: 'Gratuity & Encashment', period: true },
+  /* A09 UI-F1: the Gratuity & Encashment screen reads the gratuity_provision
+   * pack (FR-PAY-022 monthly register), not the PF contributions pack. */
+  'M56-gratuity': { kind: 'table_report', module: 'M56', report: 'gratuity_provision', title: 'Gratuity & Encashment', period: true },
   /* A09 M56-9: computed per employee (one year's service, capped at one
    * month's basic, r.111(5)); never typed. */
   'M56-bonus-lines': { kind: 'model_list', model: 'fix.payroll.bonus.line', create: false,
@@ -297,7 +299,7 @@ export const SCREENS = {
       {
         tab: 'statutory',
         title: 'Statutory Funds & Terminal Benefits',
-        note: 'Provident Fund (BLA s.264) and Gratuity (BLA s.2(10)/s.27) calculation flags.',
+        note: 'Provident fund and gratuity calculation flags under the Bangladesh Labour Act 2006 and Labour Rules 2015.',
         fields: [
           { name: 'pf_applicable', label: 'Provident Fund (PF) Applicable' },
           { name: 'gratuity_applicable', label: 'Gratuity Scheme Applicable' }
@@ -784,7 +786,7 @@ export const SCREENS = {
       {
         tab: 'terminal',
         title: 'Separation Gratuity & Retrenchment Compensation',
-        note: 'BLA s.2(10)/s.27 gratuity, s.117 leave encashment, and s.20 retrenchment.',
+        note: 'Gratuity, leave encashment and retrenchment under the Bangladesh Labour Act 2006 and Labour Rules 2015.',
         fields: [
           { name: 'completed_years', readonly: true, label: 'Completed Service Years' },
           { name: 'unused_leave_days', readonly: true, label: 'Unavailed Earned Leave Days (Cap 40)' },
@@ -846,7 +848,7 @@ export const SCREENS = {
   'M56-form-certificate': {
     kind: 'model_form',
     model: 'fix.payroll.certificate',
-    title: 'Tax & Salary Certificate (ITA 2023 s.184)',
+    title: 'Tax & Salary Certificate (Income Tax Act 2023)',
     back: 'M56-certificates',
     status: { field: 'state', labels: { draft: 'Draft', issued: 'Issued' } },
     tabs: [
@@ -1005,13 +1007,24 @@ export const SCREENS = {
       {
         tab: 'figures',
         title: 'The figures payroll computes with',
-        note: 'A new figure is a new version. Version 1 is the code as it stood, unsourced; a sourced version carries its citation and evidence.',
+        note: 'A new figure is a new version. Version 1 is the code as it stood, unsourced; a sourced version carries its citation and evidence. Selecting an enacted tax table fills its thresholds and bands.',
         fields: [
           { name: 'effective_from', required: true, label: 'Effective From' },
+          { name: 'effective_to', label: 'Effective To (periods after it need the next pack)' },
           { name: 'tax_table_rule', required: true, label: 'Salary Tax Table' },
+          { name: 'tax_free_thresholds', readonly: true, label: 'Tax-Free Thresholds (per category)' },
+          { name: 'guardian_extra_threshold', label: 'Guardian / Disabled-Dependant Add-On (BDT)' },
+          { name: 'tax_slabs', readonly: true, label: 'Tax Bands (width, rate)' },
+          { name: 'minimum_tax', label: 'Minimum Tax (BDT, 0 = legacy location map)' },
+          { name: 'rebate_rate_percent', label: 'Investment Rebate Rate (%) - adviser to confirm' },
+          { name: 'rebate_cap', label: 'Investment Rebate Cap (BDT) - adviser to confirm' },
           { name: 'ot_divisor_hours', required: true, label: 'Overtime Divisor (hours / month)' },
           { name: 'exemption_ceiling', required: true, label: 'Para 27 Exemption Ceiling (BDT)' },
           { name: 'separation_rule', required: true, label: 'Gratuity & Resignation Bands' },
+          { name: 'resignation_bands', readonly: true, label: 'Resignation Bands (years, days/year)' },
+          { name: 'gratuity_bands', readonly: true, label: 'Gratuity Bands (vesting, days per year)' },
+          { name: 'ot_base_components', readonly: true, label: 'Overtime Base Components' },
+          { name: 'festival_bonus_proportionate', label: 'Festival Bonus Proportionate Under 1 Year (counsel to rule)' },
           { name: 'basis', required: true, label: 'Basis (as coded / sourced)' }
         ]
       },

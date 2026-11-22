@@ -723,13 +723,15 @@ REPORTS = {
 
 
 def _technicians(env, employees):
-    """The M02 dispatch pool: employees whose user holds Field Service /
-    Technician. It counted positions whose name contains "tech" (a Technology
-    Head counted, a Service Engineer did not)."""
+    """The M02 dispatch pool: the Field Service / Technician group's own
+    members (the rule the dispatch suggestion uses) — a dispatcher or manager
+    the group is implied into, and the Administrator, are not technicians. It
+    counted positions whose name contains "tech" (a Technology Head counted, a
+    Service Engineer did not)."""
     group = env.ref("cd_field_service.group_fix_field_service_user", raise_if_not_found=False)
     if not group:
         return 0
-    users = group.sudo().all_user_ids
+    users = group.sudo().user_ids.filtered(lambda u: u.active and not u.share)
     return len(employees.filtered(lambda e: e.user_id and e.user_id in users))
 
 

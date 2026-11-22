@@ -54,14 +54,14 @@ export const MODULE = {
       { id: 'M22-effectiveness', en: 'Effectiveness Evaluations', bn: 'প্রশিক্ষণের কার্যকারিতা', t: 'g' }
     ]}
   ],
-  reports: ['Certification Coverage by Brand', 'Expiry Forecast', 'Training Effectiveness', 'Skill-Gap Heatmap', 'Audit Evidence Pack'],
+  reports: ['Certification Coverage by Brand', 'Expiry Forecast', 'Training Effectiveness', 'Skill-Gap Heatmap', 'Audit Evidence Pack', 'Dispatch Gate Readiness'],
   forms: ['Certification', 'Course', 'Learning Path', 'Assessment', 'Device Category', 'Training Session', 'Training Budget', 'Over-Budget Request',
           'Training Need', 'Training Plan', 'Training Feedback', 'Mentoring', 'Mentoring Interaction', 'Effectiveness Evaluation'],
   cross: ['M02 Dispatch eligibility', 'M21 Workforce', 'M57 Incentives'],
   freg: { src: 52, sub: [
     ['1', 'Competency Framework', 8, { model: 'fix.competency', cols: ['code', 'name', 'device_category_id', 'repair_tier', 'required_for_dispatch'], screens: ['M22-framework', 'M22-devices', 'M22-paths'], reports: ['Skill-Gap Heatmap'], forms: ['Device Category', 'Learning Path'] }],
     ['2', 'Skill Matrix & Assessment', 10, { model: 'fix.competency.assessment', cols: ['employee_id', 'competency_id', 'assessed_on', 'level', 'passed'], screens: ['M22-assessments', 'M22-matrix', 'M22-role-gaps', 'M22-needs'], reports: ['Skill-Gap Heatmap'], forms: ['Assessment', 'Training Need'] }],
-    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility', 'M22-waivers'], reports: ['Certification Coverage by Brand', 'Expiry Forecast'], forms: ['Certification'] }],
+    ['3', 'Certification Register', 12, { model: 'fix.certification', cols: ['employee_id', 'competency_id', 'repair_tier', 'expires_on', 'status'], screens: ['M22-register', 'M22-expiry', 'M22-eligibility', 'M22-waivers'], reports: ['Certification Coverage by Brand', 'Expiry Forecast', 'Dispatch Gate Readiness'], forms: ['Certification'] }],
     ['4', 'Training Delivery', 12, { model: 'fix.training.enrollment', cols: ['course_id', 'employee_id', 'completed_on', 'state'], screens: ['M22-needs', 'M22-plans', 'M22-catalogue', 'M22-paths', 'M22-sessions', 'M22-schedule', 'M22-feedback', 'M22-budget', 'M22-budget-exceptions'], reports: ['Training Effectiveness'], forms: ['Training Need', 'Training Plan', 'Course', 'Learning Path', 'Training Session', 'Training Feedback', 'Training Budget', 'Over-Budget Request'] }],
     ['5', 'OJT & Mentoring', 5, { model: 'fix.ojt.record', cols: ['name', 'employee_id', 'mentor_id', 'hours', 'outcome'], screens: ['M22-ojt', 'M22-mentoring', 'M22-mentoring-log'], reports: ['Training Effectiveness'], forms: ['Mentoring', 'Mentoring Interaction'] }],
     ['6', 'Evidence & Analytics', 5, { model: 'fix.audit.evidence', cols: ['name', 'evidence_type', 'standard_ref', 'valid_until', 'state'], screens: ['M22-iso', 'M22-effectiveness'], reports: ['Audit Evidence Pack', 'Training Effectiveness'], forms: ['Effectiveness Evaluation'] }]
@@ -102,7 +102,7 @@ export const SCREENS = {
   'M22-paths': { kind: 'model_list', model: 'fix.learning.path',
     cols: ['name', 'target_role', 'position_ids', 'requirement_count', 'min_level', 'active'],
     actions: [{ m: 'action_raise_gap_needs', l: 'Raise Training Needs from Gaps' }] },
-  'M22-role-gaps': { kind: 'table_report', module: 'M22', report: 'role_gap_analysis', title: 'Role Gap Analysis', period: false },
+  'M22-role-gaps': { kind: 'table_report', module: 'M22', report: 'role_gap_analysis', title: 'Role Gap Analysis', period: true },
   'M22-needs': { kind: 'model_list', model: 'fix.training.need', stateField: 'state',
     cols: ['name', 'employee_id', 'competency_id', 'course_id', 'source', 'priority', 'due_date', 'plan_id', 'enrollment_id', 'state'],
     actions: [{ m: 'action_enrol', l: 'Enrol (closes on a pass)' },
@@ -161,6 +161,9 @@ export const SCREENS = {
   'M22-rpt-training': { kind: 'table_report', module: 'M22', report: 'training_effectiveness', title: 'Training Effectiveness', period: true },
   'M22-rpt-skillgap': { kind: 'table_report', module: 'M22', report: 'skill_gap_heatmap', title: 'Skill-Gap Heatmap', period: true },
   'M22-rpt-audit': { kind: 'table_report', module: 'M22', report: 'audit_evidence', title: 'Audit Evidence Pack', period: true },
+  /* M22-F2: the dispatch gate's own readiness — ungated device types and
+     tier-less gating competencies, next to the eligibility screen. */
+  'M22-rpt-gatereadiness': { kind: 'table_report', module: 'M22', report: 'gate_readiness', title: 'Dispatch Gate Readiness', period: false },
 
   /* ============ D365 IN-WORKSPACE FORMS ============ */
   'M22-form-certification': {
@@ -185,6 +188,7 @@ export const SCREENS = {
           { name: 'brand_id', label: 'OEM Brand Partner' },
           { name: 'device_category_id', label: 'Device Category' },
           { name: 'repair_tier', label: 'Certified Repair Tier (L1-L4)' },
+          { name: 'brand_critical', label: 'Brand-Critical (OEM audit; expiry alerts holder AND manager)' },
           { name: 'operating_unit_id', label: 'Operating Unit' }
         ]
       },
@@ -901,7 +905,8 @@ export const REPORT_ROUTES = {
   'M22:Expiry Forecast': 'M22-rpt-expiry',
   'M22:Training Effectiveness': 'M22-rpt-training',
   'M22:Skill-Gap Heatmap': 'M22-rpt-skillgap',
-  'M22:Audit Evidence Pack': 'M22-rpt-audit'
+  'M22:Audit Evidence Pack': 'M22-rpt-audit',
+  'M22:Dispatch Gate Readiness': 'M22-rpt-gatereadiness'
 };
 
 export const FORM_MODELS = {
