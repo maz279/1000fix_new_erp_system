@@ -19,6 +19,8 @@
 #                          approved by the line manager.
 #
 # A locked attendance period is closed to all three (BRU-WFM-10).
+from datetime import timedelta
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
@@ -269,6 +271,25 @@ class FixOncallCallout(models.Model):
                 )
             rec._guarded().write({"state": "cancelled"})
         return True
+
+    # --- M55-F3 (attendance side): the verified callout hours payroll reads -------
+    @api.model
+    def _fix_payroll_verified_callout_hours(self, employee, date_from, date_to):
+        """VERIFIED callout hours of `employee` for callouts CALLED inside
+        [date_from, date_to] (FR-WFM-044: verified by someone other than the
+        person on call and the recorder — the standby allowance itself reaches
+        payroll through fix.hr.oncall.approved_allowance). Superuser read:
+        payroll must see every operating unit."""
+        end = fields.Date.to_date(date_to) + timedelta(days=1)
+        callouts = self.sudo().search(
+            [
+                ("employee_id", "=", employee.id),
+                ("state", "=", "verified"),
+                ("called_at", ">=", fields.Datetime.to_datetime(date_from)),
+                ("called_at", "<", fields.Datetime.to_datetime(end)),
+            ]
+        )
+        return round(sum(callouts.mapped("hours")), 2)
 
 
 class FixCapacityForecast(models.Model):
