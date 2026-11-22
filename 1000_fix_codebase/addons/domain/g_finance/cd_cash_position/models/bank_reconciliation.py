@@ -237,6 +237,7 @@ class FixBankReconciliation(models.Model):
                 | line.matched_deposit_id.credit_move_id
                 | line.matched_gateway_id.move_id
                 | line.matched_cheque_id.payment_execution_id.move_id
+                | line.matched_instalment_id.move_id
             )
             if found:
                 moves |= found

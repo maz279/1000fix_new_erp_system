@@ -31,7 +31,9 @@ import csv
 import hashlib
 import io
 import logging
+import re
 from datetime import timedelta
+from decimal import Decimal
 
 from odoo import api, fields, models
 from odoo.exceptions import AccessError, UserError, ValidationError
@@ -1458,17 +1460,64 @@ class FixBankStatementImport(models.Model):
         string="Format",
     )
     state = fields.Selection(
-        [("draft", "Draft"), ("imported", "Imported"), ("duplicate", "Duplicate File")],
+        [
+            ("draft", "Draft"),
+            ("imported", "Imported"),
+            ("duplicate", "Duplicate File"),
+            # M50-F3 (FR-TRE-006 / T-03): a statement that failed sequence or
+            # arithmetic validation. NOTHING was imported — the file is kept as
+            # evidence of the failure and a corrected file is imported on a new
+            # record. The existing states keep their semantics.
+            ("quarantined", "Quarantined (Failed Validation)"),
+        ],
         default="draft",
         required=True,
         tracking=True,
     )
+    currency_id = fields.Many2one(
+        "res.currency",
+        default=lambda self: self.env.company.currency_id,
+        required=True,
+    )
     imported_count = fields.Integer(string="Lines Imported", readonly=True)
+    skipped_count = fields.Integer(
+        string="Lines Skipped (Already Known)",
+        readonly=True,
+        help="Rows of this file already imported by an earlier statement file "
+        "(matched on date, amount, reference, narration and account).",
+    )
     file_hash = fields.Char(string="File Hash", readonly=True)
+    opening_balance = fields.Monetary(
+        string="Opening Balance",
+        currency_field="currency_id",
+        readonly=True,
+        help="The balance the bank says the statement opens at (MT940 :60F:).",
+    )
+    closing_balance = fields.Monetary(
+        string="Closing Balance",
+        currency_field="currency_id",
+        readonly=True,
+        help="The balance the bank says the statement closes at (MT940 :62F:).",
+    )
+    has_balances = fields.Boolean(
+        string="Balances Captured", readonly=True, help="The file carried opening/closing balances."
+    )
+    parser_warnings = fields.Text(string="Parser Warnings", readonly=True)
+    quarantine_reason = fields.Text(string="Quarantine Reason", readonly=True)
     line_ids = fields.One2many("fix.bank.statement.line", "import_id", string="Lines")
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "imported_count", "file_hash"}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "imported_count",
+            "skipped_count",
+            "file_hash",
+            "opening_balance",
+            "closing_balance",
+            "has_balances",
+            "parser_warnings",
+            "quarantine_reason",
+        }
 
     def _fix_form_locked_fields(self) -> set:
         locked = super()._fix_form_locked_fields()
@@ -1584,13 +1633,32 @@ class FixBankStatementImport(models.Model):
                     file_hash=file_hash,
                 )
             )
+            state = {
+                "duplicate_file": "duplicate",
+                "quarantined": "quarantined",
+            }.get(result["status"], "imported")
             rec._guarded().write(
                 {
-                    "state": "duplicate" if result["status"] == "duplicate_file" else "imported",
+                    "state": state,
                     "imported_count": result["imported"],
+                    "skipped_count": result.get("skipped", 0),
                     "file_hash": result["file_hash"],
+                    "opening_balance": result.get("opening_balance") or 0.0,
+                    "closing_balance": result.get("closing_balance") or 0.0,
+                    "has_balances": bool(result.get("has_balances")),
+                    "parser_warnings": "\n".join(result.get("warnings") or ()) or False,
+                    "quarantine_reason": result.get("quarantine_reason") or False,
                 }
             )
+            if result["status"] == "quarantined":
+                rec.message_post(body=result.get("quarantine_reason") or "")
+            elif result.get("duplicates_recovered"):
+                rec.message_post(
+                    body=(
+                        "%s identical rows re-read from the file: a bank feed imports every "
+                        "movement it reports (T-03)." % result["duplicates_recovered"]
+                    )
+                )
         return True
 
 
@@ -1631,6 +1699,11 @@ class FixBankStatementLine(models.Model):
     matched_deposit_id = fields.Many2one("fix.cash.deposit", string="Matched Cash Deposit")
     matched_cheque_id = fields.Many2one("fix.cheque", string="Matched Cheque")
     matched_gateway_id = fields.Many2one("fix.gateway.settlement", string="Matched Settlement")
+    matched_instalment_id = fields.Many2one(
+        "fix.facility.repayment",
+        string="Matched Loan Instalment",
+        help="The facility instalment this imported debit confirms (FR-TRE-010).",
+    )
     matched_invoice_ref = fields.Char(string="Matched Invoice")
     matched_kind = fields.Selection(
         [
@@ -1638,6 +1711,7 @@ class FixBankStatementLine(models.Model):
             ("deposit", "Branch Cash Deposit"),
             ("cheque", "Cheque"),
             ("gateway", "Gateway / MFS Settlement"),
+            ("instalment", "Loan Instalment"),
             ("charge", "Bank Charge"),
         ],
         string="Matched To",
@@ -1648,12 +1722,21 @@ class FixBankStatementLine(models.Model):
     charge_move_id = fields.Many2one("account.move", string="Charge Entry", readonly=True)
     statement_sequence = fields.Char(string="Statement Sequence", index=True)
     statement_file_hash = fields.Char(string="Statement File Hash", index=True)
+    line_hash = fields.Char(
+        string="Line Hash",
+        index=True,
+        readonly=True,
+        copy=False,
+        help="Content identity of the movement (date, amount, reference, narration, "
+        "account): a re-downloaded statement re-imports nothing (M50-F2).",
+    )
 
     _MATCH_DOCS = (
         "matched_payment_id",
         "matched_deposit_id",
         "matched_cheque_id",
         "matched_gateway_id",
+        "matched_instalment_id",
     )
     _EVIDENCE = (
         "amount",
@@ -1663,6 +1746,7 @@ class FixBankStatementLine(models.Model):
         "journal_id",
         "currency_id",
         "company_id",
+        "line_hash",
     )
 
     def _fix_guarded_fields(self) -> set:
@@ -1675,6 +1759,7 @@ class FixBankStatementLine(models.Model):
             "charge_move_id",
             "statement_sequence",
             "statement_file_hash",
+            "line_hash",
             "import_id",
         }
 
@@ -1745,6 +1830,180 @@ class FixBankStatementLine(models.Model):
                         )
         return super().write(vals)
 
+    @staticmethod
+    def _fix_line_content_hash(row_date, amount, reference, narration, journal_id) -> str:
+        """Content identity of ONE bank movement: date, amount, reference,
+        narration and the account it moved on (M50-F2b). Two legitimate
+        identical transactions share a hash — it identifies the row, never
+        the database line, so nothing here is unique."""
+        try:
+            dt = fields.Date.to_date(row_date)
+            dt_key = dt.isoformat() if dt else str(row_date or "")
+        except Exception:
+            dt_key = str(row_date or "")
+        raw = "|".join(
+            (
+                dt_key,
+                "%.2f" % float(amount or 0.0),
+                (reference or "").strip(),
+                (narration or "").strip(),
+                str(journal_id or 0),
+            )
+        )
+        return hashlib.sha256(raw.encode("utf-8")).hexdigest()
+
+    @staticmethod
+    def _fix_mt940_entry_chunks(content: str) -> list[str]:
+        """One chunk per :61: entry of an MT940 file, in file order. The
+        entry's :86: narration (and its continuation lines) stay with it, so
+        a chunk re-parses to exactly the line the full parse produced."""
+        tag_re = re.compile(r"^:(\d{2}[A-Z]?):")
+        chunks: list[str] = []
+        current: list[str] = []
+        for raw_line in content.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+            tag = tag_re.match(line)
+            if tag and tag.group(1) == "61":
+                if current:
+                    chunks.append("\n".join(current))
+                current = [line]
+            elif current:
+                if tag and tag.group(1) != "86":
+                    # any tag but :86: ends the entry (":62F:", ":20:", ...)
+                    chunks.append("\n".join(current))
+                    current = []
+                else:
+                    current.append(line)
+        if current:
+            chunks.append("\n".join(current))
+        return chunks
+
+    @staticmethod
+    def _fix_csv_row_chunks(content: str) -> list[str]:
+        """Header + one data row per chunk, re-serialised with the feed's own
+        delimiter so quoted fields survive the round trip."""
+        header_line = content.split("\n", 1)[0]
+        delim = max((",", "\t", ";"), key=header_line.count)
+        rows = list(csv.reader(io.StringIO(content), delimiter=delim))
+        header_idx = None
+        for idx, row in enumerate(rows[:10]):
+            labels = {
+                str(c or "").strip().lower().replace(" ", "").replace(".", ""): pos
+                for pos, c in enumerate(row or [])
+            }
+            if any("date" in key and "value" not in key for key in labels):
+                header_idx = idx
+                break
+        if header_idx is None:
+            return []
+        chunks = []
+        for row in rows[header_idx + 1 :]:
+            if not any(c is not None and str(c).strip() for c in row):
+                continue
+            buf = io.StringIO()
+            csv.writer(buf, delimiter=delim).writerows([rows[header_idx], row])
+            chunks.append(buf.getvalue())
+        return chunks
+
+    @classmethod
+    def _fix_reparse_every_row(cls, file_content: str, format_type: str) -> list[dict]:
+        """Re-read the feed one entry/row at a time. The shared parser
+        deduplicates identical rows INSIDE one file, but a bank feed reports
+        every movement it made: two identical rows are two lines of real
+        money (M50-F2a) and both must import. Handing the parser one row at
+        a time is the only way to get every row back through the SAME
+        parsing rules."""
+        from services.reconciliation.src.bank_feed_parser import parse_bank_feed
+
+        content = file_content.lstrip("\ufeff").strip()
+        is_mt940 = format_type == "mt940" or (
+            format_type == "auto" and (content.startswith(":20:") or ":61:" in content)
+        )
+        chunks = (
+            cls._fix_mt940_entry_chunks(content) if is_mt940 else cls._fix_csv_row_chunks(content)
+        )
+        rows: list[dict] = []
+        for chunk in chunks:
+            parsed = parse_bank_feed(chunk, format_type="mt940" if is_mt940 else "csv")
+            rows.extend(
+                {
+                    "date": item.date,
+                    "amount": item.amount,
+                    "reference": item.reference,
+                    "narration": item.narration,
+                }
+                for item in parsed.lines
+            )
+        return rows
+
+    @classmethod
+    def _fix_parse_feed(cls, file_content: str, format_type: str) -> dict:
+        """Parse the feed into row dicts plus its balances and warnings.
+
+        Returns rows (date/amount/reference/narration per row — every row the
+        bank reported, M50-F2a), warnings, opening/closing balances (None for
+        formats that carry none, e.g. CSV), the statement sequence and how
+        many in-file duplicates had to be re-read."""
+        try:
+            from services.reconciliation.src.bank_feed_parser import parse_bank_feed
+
+            parsed = parse_bank_feed(file_content, format_type=format_type)
+            rows = [
+                {
+                    "date": item.date,
+                    "amount": item.amount,
+                    "reference": item.reference,
+                    "narration": item.narration,
+                }
+                for item in parsed.lines
+            ]
+            recovered = 0
+            if parsed.duplicate_lines_skipped:
+                recovered = parsed.duplicate_lines_skipped
+                rows = cls._fix_reparse_every_row(file_content, format_type)
+            return {
+                "rows": rows,
+                "warnings": list(parsed.warnings),
+                "opening_balance": parsed.opening_balance,
+                "closing_balance": parsed.closing_balance,
+                "statement_sequence": parsed.sequence_number,
+                "duplicates_recovered": recovered,
+            }
+        except Exception:  # noqa: S110 - deliberate: see below
+            # discard anything the parser produced before it failed — the
+            # fallback re-reads the whole file (no duplicated lines, and no
+            # balances to validate)
+            pass
+        rows = []
+        reader = csv.DictReader(io.StringIO(file_content))
+        for row in reader:
+            dt_str = row.get("Date") or row.get("date")
+            amt_str = (
+                row.get("Amount")
+                or row.get("amount")
+                or row.get("Credit")
+                or row.get("credit", "0")
+            )
+            if dt_str and amt_str:
+                rows.append(
+                    {
+                        "date": dt_str,
+                        "amount": float(amt_str),
+                        "reference": row.get("Reference") or row.get("reference") or "",
+                        "narration": row.get("Description") or row.get("narration") or "",
+                    }
+                )
+        return {
+            "rows": rows,
+            "warnings": [],
+            "opening_balance": None,
+            "closing_balance": None,
+            "statement_sequence": False,
+            "duplicates_recovered": 0,
+        }
+
     @api.model
     def import_bank_feed(
         self,
@@ -1758,7 +2017,15 @@ class FixBankStatementLine(models.Model):
         and sequence audit. Reached through fix.bank.statement.import
         (action_import) or trusted service code — never typed in by RPC.
         ``file_hash`` lets the caller hash the ORIGINAL file bytes (an XLSX
-        re-read as CSV must still dedup against the workbook it came from)."""
+        re-read as CSV must still dedup against the workbook it came from).
+
+        M50-F2 / M50-F3 (FR-TRE-006, T-03 / BRU-TRE-18): every row the bank
+        reports imports (two identical transactions are two movements), a
+        row already known from an EARLIER import is skipped (per-line content
+        hash — a re-downloaded file with any byte change re-imports nothing),
+        and a statement carrying balances that break sequence continuity or
+        arithmetic is QUARANTINED with zero lines created: never partially
+        processed."""
         if not (self.env.su or self._fix_guard_has_token()):
             raise AccessError("Bank statements are imported from a statement file record.")
         file_hash = file_hash or hashlib.sha256(file_content.encode("utf-8")).hexdigest()
@@ -1767,6 +2034,86 @@ class FixBankStatementLine(models.Model):
         if existing:
             return {"imported": 0, "status": "duplicate_file", "file_hash": file_hash}
 
+        parsed = self._fix_parse_feed(file_content, format_type)
+        rows = parsed["rows"]
+        opening = parsed["opening_balance"]
+        closing = parsed["closing_balance"]
+        has_balances = opening is not None and closing is not None
+        result = {
+            "status": "success",
+            "file_hash": file_hash,
+            "warnings": parsed["warnings"],
+            "opening_balance": float(opening) if opening is not None else None,
+            "closing_balance": float(closing) if closing is not None else None,
+            "has_balances": has_balances,
+            "duplicates_recovered": parsed["duplicates_recovered"],
+            "quarantine_reason": False,
+        }
+
+        # ---- M50-F3 (FR-TRE-006 / T-03): validate BEFORE anything is created
+        quarantine_reason = False
+        if has_balances:
+            lines_total = sum((Decimal(str(r["amount"])) for r in rows), Decimal("0"))
+            expected_closing = opening + lines_total
+            if abs(closing - expected_closing) > Decimal("0.005"):
+                quarantine_reason = (
+                    "FR-TRE-006 / T-03 (BRU-TRE-18): the closing balance %.2f does not "
+                    "equal the opening balance %.2f plus the statement's lines %.2f "
+                    "(expected %.2f). The statement is QUARANTINED and NO line was "
+                    "imported — a truncated or edited file is never partially processed."
+                    % (float(closing), float(opening), float(lines_total), float(expected_closing))
+                )
+            elif journal_id:
+                prev = (
+                    self.env["fix.bank.statement.import"]
+                    .sudo()
+                    .search(
+                        [
+                            ("journal_id", "=", journal_id),
+                            ("state", "=", "imported"),
+                            ("has_balances", "=", True),
+                            ("id", "!=", import_id or 0),
+                        ],
+                        order="id desc",
+                        limit=1,
+                    )
+                )
+                if prev and abs(
+                    opening - Decimal("%.2f" % (prev.closing_balance or 0.0))
+                ) > Decimal("0.005"):
+                    quarantine_reason = (
+                        "FR-TRE-006 / T-03 (BRU-TRE-18): sequence break — the opening "
+                        "balance %.2f does not continue the closing balance %.2f of the "
+                        "last imported statement of %s. The statement is QUARANTINED and "
+                        "NO line was imported."
+                        % (
+                            float(opening),
+                            prev.closing_balance or 0.0,
+                            prev.journal_id.display_name,
+                        )
+                    )
+        if quarantine_reason:
+            result.update(
+                {
+                    "status": "quarantined",
+                    "imported": 0,
+                    "skipped": 0,
+                    "quarantine_reason": quarantine_reason,
+                }
+            )
+            return result
+
+        # ---- M50-F2b: skip rows an earlier import already brought in (the
+        # file hash alone misses a re-downloaded file with any byte change)
+        hashes = [
+            self._fix_line_content_hash(
+                r["date"], r["amount"], r["reference"], r["narration"], journal_id
+            )
+            for r in rows
+        ]
+        known: set[str] = set()
+        if hashes:
+            known = set(self.sudo().search([("line_hash", "in", hashes)]).mapped("line_hash"))
         common = {
             "company_id": self.env.company.id,
             "statement_file_hash": file_hash,
@@ -1774,49 +2121,27 @@ class FixBankStatementLine(models.Model):
             "import_id": import_id or False,
         }
         lines_to_create = []
-        try:
-            from services.reconciliation.src.bank_feed_parser import parse_bank_feed
-
-            parsed = parse_bank_feed(file_content, format_type=format_type)
-            for item in parsed.lines:
-                lines_to_create.append(
-                    dict(
-                        common,
-                        date=item.date,
-                        amount=float(item.amount),
-                        reference=item.reference,
-                        narration=item.narration,
-                        statement_sequence=parsed.sequence_number,
-                    )
+        skipped = 0
+        for row, l_hash in zip(rows, hashes, strict=False):
+            if l_hash in known:
+                skipped += 1
+                continue
+            lines_to_create.append(
+                dict(
+                    common,
+                    date=row["date"],
+                    amount=float(row["amount"]),
+                    reference=row["reference"],
+                    narration=row["narration"],
+                    statement_sequence=parsed["statement_sequence"],
+                    line_hash=l_hash,
                 )
-        except Exception:
-            # discard anything the parser produced before it failed — the
-            # fallback re-reads the whole file (no duplicated lines)
-            lines_to_create = []
-            reader = csv.DictReader(io.StringIO(file_content))
-            for row in reader:
-                dt_str = row.get("Date") or row.get("date")
-                amt_str = (
-                    row.get("Amount")
-                    or row.get("amount")
-                    or row.get("Credit")
-                    or row.get("credit", "0")
-                )
-                if dt_str and amt_str:
-                    lines_to_create.append(
-                        dict(
-                            common,
-                            date=dt_str,
-                            amount=float(amt_str),
-                            reference=row.get("Reference") or row.get("reference") or "",
-                            narration=row.get("Description") or row.get("narration") or "",
-                        )
-                    )
-
+            )
         if lines_to_create:
             self._guarded().create(lines_to_create)
 
-        return {"imported": len(lines_to_create), "status": "success", "file_hash": file_hash}
+        result.update({"imported": len(lines_to_create), "skipped": skipped})
+        return result
 
     # ------------------------------------------------------------------ matching
 
@@ -1904,6 +2229,46 @@ class FixBankStatementLine(models.Model):
             "matched_payment_id": chosen.id,
             "matched_invoice_ref": ref or str(chosen.source_id),
             "matched_kind": "payment",
+        }
+
+    def _match_instalment(self, taken):
+        """A loan instalment awaiting the bank (M50-F4) that this DEBIT line
+        can confirm: the instalment total to the paisa, on the facility's
+        account, named by its facility — mirroring how payments match."""
+        if self.amount >= 0 or not is_imported(self):
+            return False
+        instalments = self.env["fix.facility.repayment"].search(
+            [
+                ("company_id", "=", self.company_id.id),
+                ("state", "=", "awaiting_bank"),
+                ("statement_line_id", "=", False),
+            ]
+        )
+        text = self._text()
+        hits = instalments.filtered(
+            lambda r: (
+                r.id not in taken
+                and abs(abs(self.amount) - r.total) < 0.005
+                and (
+                    not self.journal_id
+                    or not r.facility_id.journal_id
+                    or r.facility_id.journal_id == self.journal_id
+                )
+                # a facility name ("BRAC TL-1") is several words: the line
+                # names the facility however the bank spelled it
+                and (
+                    has_token(text, r.facility_id.name)
+                    or r.facility_id.name.upper() in text.upper()
+                )
+            )
+        )
+        if len(hits) != 1:
+            return False
+        hits._confirm_paid_from_statement(self)
+        return {
+            "matched_instalment_id": hits.id,
+            "matched_invoice_ref": "%s #%s" % (hits.facility_id.name, hits.sequence),
+            "matched_kind": "instalment",
         }
 
     def _match_deposit(self):
@@ -2010,6 +2375,7 @@ class FixBankStatementLine(models.Model):
             ]
         )
         taken: set[int] = set()
+        taken_instalments: set[int] = set()
         for line in pending:
             try:
                 # one line that cannot take its match (an account not
@@ -2017,6 +2383,7 @@ class FixBankStatementLine(models.Model):
                 with self.env.cr.savepoint():
                     vals = (
                         line._match_payment(taken)
+                        or line._match_instalment(taken_instalments)
                         or line._match_deposit()
                         or line._match_cheque()
                         or line._match_gateway()
@@ -2028,6 +2395,8 @@ class FixBankStatementLine(models.Model):
             if vals:
                 if vals.get("matched_payment_id"):
                     taken.add(vals["matched_payment_id"])
+                if vals.get("matched_instalment_id"):
+                    taken_instalments.add(vals["matched_instalment_id"])
                 vals["match_state"] = "auto"
                 line._guarded().write(vals)
                 matched += 1
@@ -2106,6 +2475,22 @@ class FixBankStatementLine(models.Model):
                 )
             doc._clear_from_statement(self)
             kind = "cheque"
+        elif field == "matched_instalment_id":
+            # M50-F4 (FR-TRE-010): a loan instalment is confirmed by the
+            # bank's own debit; the segregation-of-duties check (someone
+            # other than whoever marked it for payment) lives in the
+            # repayment model, like the payment path above.
+            if self.amount >= 0:
+                raise UserError(
+                    "A loan instalment is paid by a bank DEBIT of its total, not a credit."
+                )
+            if abs(abs(self.amount) - doc.total) > 0.005:
+                raise UserError(
+                    "Amounts differ (line %s vs instalment total %s): a match needs the "
+                    "instalment total." % (self.amount, doc.total)
+                )
+            doc._confirm_paid_from_statement(self)
+            kind = "instalment"
         else:
             if self.amount <= 0 or abs(self.amount - doc.total_net) > 0.005:
                 raise UserError(
@@ -2141,6 +2526,8 @@ class FixBankStatementLine(models.Model):
                 if picked[0] == "matched_gateway_id"
                 else (doc.released_amount or doc.amount)
                 if picked[0] == "matched_payment_id"
+                else doc.total
+                if picked[0] == "matched_instalment_id"
                 else doc.amount
             )
             if abs(abs(line.amount) - amount) > 0.005:

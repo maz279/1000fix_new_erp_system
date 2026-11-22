@@ -857,7 +857,11 @@ def cash_forecast(env, date_from=None, date_to=None, weeks=13, trailing=4, **_kw
     ):
         add(inst.due_date, "debt_out", 0.0 if inst.state == "paid" else inst.total, inst.total)
     for inst in env["fix.facility.repayment"].search(
-        [("company_id", "=", company.id), ("due_date", "<", this_week), ("state", "=", "planned")]
+        [
+            ("company_id", "=", company.id),
+            ("due_date", "<", this_week),
+            ("state", "in", ("planned", "awaiting_bank")),
+        ]
     ):
         fc[this_week]["debt_out"] += inst.total
     for b in env["fix.gateway.settlement"].search(

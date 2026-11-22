@@ -1449,9 +1449,18 @@ def test_m50_f02_schedule_frozen_and_paid_in_order_at_scheduled_amounts(c):
         first.with_user(c.acct).action_pay()
     with pytest.raises(UserError, match="schedule order"):
         third.with_user(c.mgr).action_pay()
+    # M50-F4 (BRU-TRE-18 / FR-TRE-010): one person's click no longer moves
+    # bank money — the instalment waits for an imported statement debit,
+    # confirmed by someone other than whoever marked it for payment
     first.with_user(c.mgr).action_pay()
-    assert first.state == "paid" and bal(c, c.bank_acc) == -round(first.total, 2)
+    assert first.state == "awaiting_bank" and bal(c, c.bank_acc) == 0.0
     assert second.state == "planned"
+    stmt(c, [(-first.total, "LN-1", fac.name)])
+    with pytest.raises(UserError, match="Segregation"):
+        first.with_user(c.mgr).action_confirm_bank()
+    assert first.state == "awaiting_bank" and bal(c, c.bank_acc) == 0.0
+    first.with_user(c.mgr2).action_confirm_bank()
+    assert first.state == "paid" and bal(c, c.bank_acc) == -round(first.total, 2)
 
 
 def test_ref_m50_f02b_amendment_reschedules_after_second_approval(c):

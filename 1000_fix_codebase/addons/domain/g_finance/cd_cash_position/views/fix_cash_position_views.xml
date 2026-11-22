@@ -187,6 +187,7 @@
                     <group>
                         <group>
                             <field name="company_id" invisible="1"/>
+                            <field name="currency_id" invisible="1"/>
                             <field name="journal_id"/>
                             <field name="format_type"/>
                             <field name="file" filename="filename"/>
@@ -194,8 +195,15 @@
                         </group>
                         <group>
                             <field name="imported_count"/>
+                            <field name="skipped_count"/>
+                            <field name="opening_balance" readonly="1"/>
+                            <field name="closing_balance" readonly="1"/>
                             <field name="file_hash"/>
                         </group>
+                    </group>
+                    <group string="Validation" invisible="not quarantine_reason and not parser_warnings">
+                        <field name="quarantine_reason" invisible="not quarantine_reason"/>
+                        <field name="parser_warnings" invisible="not parser_warnings"/>
                     </group>
                     <field name="line_ids" readonly="1">
                         <list>
@@ -255,6 +263,7 @@
                             <field name="matched_deposit_id" readonly="match_state != 'unmatched'"/>
                             <field name="matched_cheque_id" readonly="match_state != 'unmatched'"/>
                             <field name="matched_gateway_id" readonly="match_state != 'unmatched'"/>
+                            <field name="matched_instalment_id" readonly="match_state != 'unmatched'"/>
                             <field name="matched_kind"/>
                             <field name="matched_invoice_ref"/>
                             <field name="charge_move_id"/>
@@ -700,7 +709,11 @@
                                     <field name="total"/>
                                     <field name="state"/>
                                     <field name="is_overdue"/>
-                                    <button name="action_pay" type="object" string="Pay" invisible="state != 'planned'"/>
+                                    <field name="paid_by_id" optional="hide"/>
+                                    <field name="statement_line_id" optional="hide"/>
+                                    <button name="action_pay" type="object" string="Mark Paid at Bank" invisible="state != 'planned'"/>
+                                    <button name="action_withdraw_payment" type="object" string="Withdraw" invisible="state != 'awaiting_bank'"/>
+                                    <button name="action_confirm_bank" type="object" string="Confirm Bank Debit" invisible="state != 'awaiting_bank'"/>
                                 </list>
                             </field>
                         </page>

@@ -13,7 +13,10 @@
 # limit or next due date is a fix.facility.amendment requested by one person
 # and approved by a different Accounting Administrator, which re-schedules
 # the unpaid instalments. Instalments are paid in schedule order, by an
-# Accounting Administrator, at their scheduled amounts. A covenant's metric,
+# Accounting Administrator, at their scheduled amounts: one administrator
+# MARKS the instalment for payment and a different one confirms the bank's
+# imported statement debit before anything posts (M50-F4, BRU-TRE-18 /
+# FR-TRE-010). A covenant's metric,
 # operator and threshold are approved by an Accounting Administrator other
 # than the one who set them and are frozen once approved; the test history
 # is written only by the covenant test itself and never edited.
@@ -29,6 +32,7 @@ from .treasury_common import (
     bank_account_of,
     float_param,
     gl_balance,
+    has_token,
     post_treasury_move,
     require_other_person,
     require_role,
@@ -273,7 +277,7 @@ class FixBankFacility(models.Model):
     def action_close(self):
         require_role(self.env, GROUP_ADMIN, "Closing a bank facility")
         for fac in self:
-            if fac.repayment_ids.filtered(lambda r: r.state == "planned"):
+            if fac.repayment_ids.filtered(lambda r: r.state in ("planned", "awaiting_bank")):
                 raise UserError("%s still has unpaid instalments." % fac.name)
             fac._guarded().write({"state": "closed"})
         return True
@@ -328,14 +332,50 @@ class FixFacilityRepayment(models.Model):
     interest = fields.Monetary(currency_field="currency_id")
     total = fields.Monetary(currency_field="currency_id", compute="_compute_total", store=True)
     state = fields.Selection(
-        [("planned", "Planned"), ("paid", "Paid")], default="planned", required=True, tracking=True
+        [
+            ("planned", "Planned"),
+            # M50-F4 (BRU-TRE-18 / FR-TRE-010): the instalment was ordered
+            # paid by one Accounting Administrator and now waits for the
+            # bank's own debit on an imported statement, confirmed by a
+            # DIFFERENT person — one person's click no longer moves bank money.
+            ("awaiting_bank", "Awaiting Bank"),
+            ("paid", "Paid"),
+        ],
+        default="planned",
+        required=True,
+        tracking=True,
     )
     is_overdue = fields.Boolean(compute="_compute_overdue", string="Overdue")
+    paid_by_id = fields.Many2one(
+        "res.users",
+        string="Marked for Payment By",
+        readonly=True,
+        copy=False,
+        help="The Accounting Administrator who ordered the bank to pay this instalment. "
+        "They never confirm it from the statement.",
+    )
+    paid_requested_at = fields.Datetime(string="Marked for Payment", readonly=True, copy=False)
     paid_date = fields.Date(readonly=True, copy=False)
     move_id = fields.Many2one("account.move", readonly=True, copy=False)
+    statement_line_id = fields.Many2one(
+        "fix.bank.statement.line",
+        string="Bank Statement Line",
+        readonly=True,
+        copy=False,
+        index=True,
+        help="The imported statement debit that confirmed the payment (FR-TRE-010).",
+    )
 
     def _fix_guarded_fields(self) -> set:
-        return super()._fix_guarded_fields() | {"state", "paid_date", "move_id", *REPAYMENT_TERMS}
+        return super()._fix_guarded_fields() | {
+            "state",
+            "paid_date",
+            "move_id",
+            "paid_by_id",
+            "paid_requested_at",
+            "statement_line_id",
+            *REPAYMENT_TERMS,
+        }
 
     @api.model_create_multi
     def create(self, vals_list):
@@ -361,13 +401,19 @@ class FixFacilityRepayment(models.Model):
             r.is_overdue = r.state == "planned" and r.due_date and r.due_date < today
 
     def action_pay(self):
-        """Dr loan liability (principal) + Dr interest expense / Cr bank, at
-        the scheduled amounts, in schedule order, by an Accounting
-        Administrator."""
+        """Order the bank to pay the instalment (BRU-TRE-18 / FR-TRE-010):
+        an Accounting Administrator marks the instalment — at its scheduled
+        amounts, in schedule order — as sent to the bank. NOTHING reaches the
+        bank GL here (M50-F4): the instalment stays Awaiting Bank until a
+        DIFFERENT person confirms an imported statement debit of the total,
+        exactly how a payment execution is bank-confirmed."""
         require_role(self.env, GROUP_ADMIN, "Paying a loan instalment")
         for r in self:
             if r.state != "planned":
-                raise UserError("This instalment is already paid.")
+                raise UserError(
+                    "Instalment #%s of %s is %s: only a planned instalment is marked for "
+                    "payment." % (r.sequence, r.facility_id.name, r.state)
+                )
             fac = r.facility_id
             earlier = fac.repayment_ids.filtered(
                 lambda x, r=r: (
@@ -383,35 +429,137 @@ class FixFacilityRepayment(models.Model):
                 raise UserError("%s is not active." % fac.name)
             if not fac.liability_account_id:
                 raise UserError("%s has no liability account." % fac.name)
-            bank = bank_account_of(fac.journal_id)
-            lines = [
-                (
-                    fac.liability_account_id,
-                    "Principal #%s" % r.sequence,
-                    r.principal,
-                    0.0,
-                    fac.lender_id,
-                )
-            ]
+            # resolve the posting targets NOW, so confirmation can never fail
+            # on configuration and leave a half-confirmed instalment
+            bank_account_of(fac.journal_id)
             if r.interest:
-                interest = treasury_account(self.env, fac.company_id, "interest_expense")
-                lines.append(
-                    (interest, "Interest #%s" % r.sequence, r.interest, 0.0, fac.lender_id)
-                )
-            lines.append(
-                (bank, "%s instalment #%s" % (fac.name, r.sequence), 0.0, r.total, fac.lender_id)
-            )
-            move = post_treasury_move(
-                self.env,
-                fac.company_id,
-                fields.Date.context_today(self),
-                "LOAN %s #%s" % (fac.name, r.sequence),
-                lines,
-                source="treasury",
-            )
+                treasury_account(self.env, fac.company_id, "interest_expense")
             r._guarded().write(
-                {"state": "paid", "paid_date": fields.Date.context_today(self), "move_id": move.id}
+                {
+                    "state": "awaiting_bank",
+                    "paid_by_id": self.env.uid,
+                    "paid_requested_at": fields.Datetime.now(),
+                }
             )
+            r.sudo().message_post(
+                body=(
+                    "Marked for payment by %s — awaiting the bank's debit on an imported "
+                    "statement (BRU-TRE-18 / FR-TRE-010). The GL entry posts when someone "
+                    "else confirms that debit." % self.env.user.name
+                )
+            )
+        return True
+
+    def action_withdraw_payment(self):
+        """Take an instalment back out of the bank queue (nothing was paid;
+        the bank never debited it)."""
+        require_role(self.env, GROUP_ADMIN, "Withdrawing a loan instalment payment")
+        for r in self:
+            if r.state != "awaiting_bank":
+                raise UserError("Only an instalment awaiting the bank is withdrawn.")
+            r._guarded().write(
+                {"state": "planned", "paid_by_id": False, "paid_requested_at": False}
+            )
+            r.sudo().message_post(body="Payment withdrawn by %s." % self.env.user.name)
+        return True
+
+    def action_confirm_bank(self):
+        """Confirm the instalment from the bank's own record (FR-TRE-010):
+        an IMPORTED statement DEBIT of the instalment total on the facility's
+        account that names the facility — confirmed by someone other than the
+        person who marked it for payment. A typed reference with no such line
+        confirms nothing, and nothing was paid before it."""
+        require_role(
+            self.env, GROUP_ACCOUNTANT, "Confirming a loan instalment from the bank statement"
+        )
+        Line = self.env["fix.bank.statement.line"]
+        for r in self:
+            fac = r.facility_id
+            refs = [tok for tok in (fac.name, "LOAN %s #%s" % (fac.name, r.sequence)) if tok]
+            candidates = Line.search(
+                [
+                    ("company_id", "=", r.company_id.id),
+                    ("match_state", "=", "unmatched"),
+                    ("statement_file_hash", "!=", False),
+                    ("amount", "<", 0),
+                    ("journal_id", "in", (fac.journal_id.id, False)),
+                ]
+            ).filtered(
+                lambda ln, r=r, refs=refs: (
+                    abs(abs(ln.amount) - r.total) < 0.005
+                    and any(
+                        has_token(ln._text(), tok) or tok.upper() in ln._text().upper()
+                        for tok in refs
+                    )
+                )
+            )
+            if len(candidates) != 1:
+                raise UserError(
+                    "No single imported bank statement debit of %.2f quotes %s: import "
+                    "the bank statement first (FR-TRE-010) — a loan instalment is "
+                    "confirmed by the bank's own record, never typed." % (r.total, " / ".join(refs))
+                )
+            candidates._fix_match_document("matched_instalment_id", r, "manual")
+        return True
+
+    def _confirm_paid_from_statement(self, line):
+        """The imported statement debit that confirms the instalment (called
+        from the statement line's match): Dr loan liability (principal) + Dr
+        interest expense / Cr bank, at the scheduled amounts, dated on the
+        bank's value date — and only by a person other than the one who
+        marked the instalment for payment (BRU-TRE-18)."""
+        self.ensure_one()
+        require_other_person(
+            self.env,
+            self.paid_by_id,
+            "Confirming the bank debit of instalment #%s of %s"
+            % (self.sequence, self.facility_id.name),
+        )
+        if self.state != "awaiting_bank":
+            raise UserError(
+                "Instalment #%s of %s is not awaiting a bank confirmation."
+                % (self.sequence, self.facility_id.name)
+            )
+        fac = self.facility_id
+        bank = bank_account_of(fac.journal_id)
+        lines = [
+            (
+                fac.liability_account_id,
+                "Principal #%s" % self.sequence,
+                self.principal,
+                0.0,
+                fac.lender_id,
+            )
+        ]
+        if self.interest:
+            interest = treasury_account(self.env, fac.company_id, "interest_expense")
+            lines.append(
+                (interest, "Interest #%s" % self.sequence, self.interest, 0.0, fac.lender_id)
+            )
+        lines.append(
+            (bank, "%s instalment #%s" % (fac.name, self.sequence), 0.0, self.total, fac.lender_id)
+        )
+        entry_date = line.date or fields.Date.context_today(self)
+        move = post_treasury_move(
+            self.env,
+            fac.company_id,
+            entry_date,
+            "LOAN %s #%s" % (fac.name, self.sequence),
+            lines,
+            source="treasury",
+        )
+        self._guarded().write(
+            {
+                "state": "paid",
+                "paid_date": entry_date,
+                "move_id": move.id,
+                "statement_line_id": line.id,
+            }
+        )
+        self.sudo().message_post(
+            body="Paid: confirmed by %s from bank statement line %s of %s (FR-TRE-010)."
+            % (self.env.user.name, line.reference or line.id, line.date)
+        )
         return True
 
 

@@ -506,14 +506,28 @@ def test_m50_6_book_entries_not_on_the_statement_reconcile_and_a_difference_is_e
     c,  # noqa: F811
 ):
     """A GL entry on the bank account with no statement line is a reconciling
-    item on the other side; a real difference must be explained in words."""
-    fac = _facility(c)
-    instalment = fac.repayment_ids.sorted("due_date")[:1]
-    instalment.with_user(c.mgr).action_pay()
+    item on the other side; a real difference must be explained in words.
+
+    M50-F4 note: a facility instalment can no longer SUPPLY such an entry —
+    it posts only against an imported statement debit now — so the book entry
+    is arrangement (a direct treasury posting the bank has not shown yet)."""
+    from odoo.addons.cd_cash_position.models.treasury_common import post_treasury_move
+
+    amount = 106618.55
+    post_treasury_move(
+        c.env,
+        c.company,
+        c.today,
+        "B4 book entry not yet on the statement",
+        [
+            (c.expense, "book side", amount, 0.0, None),
+            (c.bank.default_account_id, "bank side", 0.0, amount, None),
+        ],
+    )
     rec = _recon(c)
     rec.with_user(c.acct).action_prepare()
-    assert rec.gl_balance == pytest.approx(-instalment.total)
-    assert rec.book_items_net == pytest.approx(-instalment.total)
+    assert rec.gl_balance == pytest.approx(-amount)
+    assert rec.book_items_net == pytest.approx(-amount)
     assert rec.difference == 0.0  # the bank has not shown it, and shows 0
     rec.line_ids.filtered("counts").with_user(c.acct).action_explain(explanation="Not yet debited")
     rec.with_user(c.acct).write({"statement_balance": 250.0, "statement_ref": "Stmt 2"})

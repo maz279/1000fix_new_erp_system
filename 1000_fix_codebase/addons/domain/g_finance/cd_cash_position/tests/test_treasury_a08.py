@@ -717,8 +717,14 @@ def test_term_loan_schedule_payment_and_covenant(kit):
     env.invalidate_all()
     assert (fac.utilised, fac.available) == (1200000.0, 0.0)
     first = fac.repayment_ids[0]
+    # M50-F4 (BRU-TRE-18 / FR-TRE-010): one click no longer posts to the bank
+    # GL — the instalment waits for an imported statement debit to confirm it
     first.action_pay()
-    assert first.state == "paid"
+    assert first.state == "awaiting_bank"
+    assert not first.move_id
+    kit.line(-first.total, narration="%s instalment #%s" % (fac.name, first.sequence))
+    first.action_confirm_bank()
+    assert first.state == "paid" and first.statement_line_id.match_state == "manual"
     env.invalidate_all()
     assert fac.utilised == round(1200000.0 - first.principal, 2)
     assert _balance(env, kit.accounts["interest_expense"]) == 12000.0

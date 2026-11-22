@@ -183,11 +183,10 @@ class TestBankFeedImport:
     def test_parser_import_and_duplicate_file(self, odoo_env):
         lines = odoo_env["fix.bank.statement.line"]
         digest = hashlib.sha256(FEED.encode("utf-8")).hexdigest()
-        assert lines.import_bank_feed(FEED) == {
-            "imported": 2,
-            "status": "success",
-            "file_hash": digest,
-        }
+        # M50-F2/F3: the result also carries skipped/warning/balance keys
+        result = lines.import_bank_feed(FEED)
+        assert (result["imported"], result["status"], result["file_hash"]) == (2, "success", digest)
+        assert result["skipped"] == 0 and result["has_balances"] is False
         created = lines.search([("statement_file_hash", "=", digest)], order="date")
         assert created.mapped("date") == [date(2026, 10, 10), date(2026, 10, 11)]
         assert [_money(a) for a in created.mapped("amount")] == [D("4500.00"), D("-120.50")]
