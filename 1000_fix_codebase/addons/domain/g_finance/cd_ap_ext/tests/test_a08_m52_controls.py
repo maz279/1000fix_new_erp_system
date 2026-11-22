@@ -1306,6 +1306,66 @@ def test_m52_56b_payroll_recovery_has_a_registered_consumer(c):
     assert consumers
 
 
+# ============================================== own advances, read only (A08 M52-F8)
+def test_m52_f8_an_employee_reads_their_own_advances_and_nobody_elses(c):
+    """A08 M52-F8 (probe3 D): a user without an accounting role met AccessError
+    on fix.employee.advance — they could not read even their own. Probed as the
+    employees themselves, never as superuser: an employee reads their OWN
+    advances; a colleague's are invisible and unreadable; accounting reads
+    every one."""
+    mine = disbursed_advance(c)  # accounting raised and paid it for c.plain
+    mine2 = advance(c, c.acc2, c.emp_plain, 1500.0)  # a second, still a draft
+    theirs = advance(c, c.acc2, c.emp_p2, 3000.0)
+    Advance = c.env["fix.employee.advance"].with_user(c.plain)
+    seen = Advance.search([("employee_id", "in", (c.emp_plain | c.emp_p2).ids)])
+    assert set(seen.ids) == {mine.id, mine2.id}
+    row = Advance.browse(mine.id).read(["state", "amount", "balance"])[0]
+    assert (row["state"], row["amount"], row["balance"]) == ("disbursed", 5000.0, 5000.0)
+    # the colleague's advance is not found, not counted and not readable
+    assert Advance.search([("id", "=", theirs.id)]) == Advance.browse()
+    assert Advance.search_count([("amount", "=", 3000.0), ("employee_id", "=", c.emp_p2.id)]) == 0
+    with pytest.raises(AccessError):
+        Advance.browse(theirs.id).read(["amount", "balance"])
+    with pytest.raises(AccessError):
+        Advance.browse(theirs.id).check_access("read")
+    colleague = c.env["fix.employee.advance"].with_user(c.p2)
+    assert colleague.search([("id", "in", (mine | mine2 | theirs).ids)]) == theirs
+    with pytest.raises(AccessError):
+        colleague.browse(mine.id).read(["balance"])
+    # accounting reads every advance, and nobody else got a write
+    every = c.env["fix.employee.advance"].with_user(c.acc1)
+    assert set(every.search([("id", "in", (mine | mine2 | theirs).ids)]).ids) == {
+        mine.id,
+        mine2.id,
+        theirs.id,
+    }
+    for right in ("write", "create", "unlink"):
+        assert not Advance.has_access(right)
+    assert refused(c.env, lambda: Advance.browse(mine2.id).write({"purpose": "changed"}))
+    assert refused(c.env, lambda: Advance.browse(mine2.id).unlink())
+    assert refused(c.env, lambda: Advance.browse(mine2.id).action_approve())
+    # an advance is still raised by accounting (there is no self-service request)
+    assert refused(c.env, lambda: advance(c, c.plain, c.emp_plain, 1000.0))
+
+
+def test_m52_f8_the_employee_sees_their_own_advance_balance(c):
+    adv = disbursed_advance(c)
+    cl = claim(
+        c,
+        c.plain,
+        c.emp_plain,
+        [{"category_id": c.other.id, "unit_amount": 3000.0, "date": D}],
+        advance_id=adv.id,
+    )
+    mine = c.env["fix.employee.advance"].with_user(c.plain).browse(adv.id)
+    assert (mine.balance, mine.state) == (5000.0, "disbursed")
+    cl.with_user(c.plain).action_submit()
+    cl.with_user(c.acc1).action_approve()
+    adv.with_user(c.acc1).action_settle()
+    mine.invalidate_recordset()
+    assert (mine.balance, mine.settled_amount, mine.state) == (2000.0, 3000.0, "disbursed")
+
+
 # ============================================================ wiring (M52-9)
 def test_m52_60_payment_requested_reaches_treasury(c):
     """An approved claim's payment.requested is consumed by M50's registered

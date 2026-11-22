@@ -11,6 +11,13 @@ from datetime import date, timedelta
 
 import pytest
 from odoo import fields
+from odoo.addons.cd_ap_ext.models.ap_gl import ap_account
+from odoo.addons.cd_ap_ext.models.fix_ap_capture import (
+    BUCKETS,
+    ageing_by_vendor,
+    takeon_open_at,
+)
+from odoo.addons.cd_ap_ext.tests import test_a08_m52_operability as _ops
 from odoo.exceptions import AccessError, UserError, ValidationError
 
 from . import test_a08_m52_controls as _base
@@ -21,6 +28,12 @@ approve = _base.approve
 issued_po = _base.issued_po
 run = _base.run
 _SEQ = _base._SEQ
+# the Request Payment path (M50's relay and the clearing account), as the
+# operability suite drives it
+paying = _ops.paying
+relay = _ops.relay
+treasury_paid = _ops.treasury_paid
+execution_of = _ops.execution_of
 
 pytestmark = [pytest.mark.financial]
 
@@ -301,6 +314,345 @@ def test_an_ageing_snapshot_is_kept_exactly_as_taken(c):
         )  # a date that has not come
     with pytest.raises(UserError):
         c.env["fix.ap.ageing.snapshot"].with_user(c.plain).create({"as_of": "2026-10-31"})
+
+
+# ------------------------------------------ ageing as of a past date (A08 M52-F5)
+# Audit A3 M52-F5 (probe3b B): the ageing "as of" a past date read the CURRENT
+# payment state, so a bill unpaid on that date but paid since (77,500 on
+# 1 Nov, paid 21 Nov) had vanished from it (0.00). The ageing is now read as of
+# its date: what each bill, note and legacy take-on item still owed ON it. A
+# payment counts from the date of the entry that cleared the payable.
+def _today(c):
+    return fields.Date.context_today(c.env.user)
+
+
+def _ageing(c, as_of):
+    """The AP ageing at `as_of`, read as an accountant."""
+    return ageing_by_vendor(c.env(user=c.acc1.id), c.company, as_of)[0]
+
+
+def _sum(row):
+    return round(sum(row[key] for key, _label in BUCKETS), 2)
+
+
+def _sum_all(c, as_of):
+    """The whole ageing at `as_of`, legacy take-on included."""
+    return round(sum(_sum(row) for row in _ageing(c, as_of).values()), 2)
+
+
+def _owed(c, as_of):
+    """What the ageing at `as_of` says the fixture vendor is owed (her own
+    line, without a legacy take-on)."""
+    return round(
+        sum(
+            _sum(row)
+            for label, row in _ageing(c, as_of).items()
+            if row["partner_id"] == c.vendor.id and "·" not in label
+        ),
+        2,
+    )
+
+
+def _paid_by_run(c, b, payment_date=None):
+    """The bill is paid by a payment run whose entry is dated `payment_date`
+    (default today): proposed, submitted, approved, released, executed."""
+    r = (
+        c.env["fix.payment.run"]
+        .with_user(c.acc1)
+        .create(
+            {"rail": "beftn", "due_by": _base.DUE_BY, "payment_date": payment_date or _today(c)}
+        )
+    )
+    r.with_user(c.acc1).action_propose()
+    r.with_user(c.acc1).action_submit()
+    r.with_user(c.mgr).action_approve()
+    r.with_user(c.acc2).action_release()
+    return r
+
+
+def test_f5_a_bill_paid_after_the_as_of_date_is_still_open_on_it(c):
+    today = _today(c)
+    before = today - timedelta(days=5)
+    b = approve(c, bill(c, 10000.0))  # 9,000 payable, dated 1 Oct
+    assert _owed(c, before) == 9000.0
+    r = _paid_by_run(c, b)  # the run pays today
+    assert (_owed(c, before), _owed(c, today)) == (9000.0, 9000.0)  # in flight: still owed
+    _base.treasury_execute(c, r.line_ids.execution_id)
+    r.with_user(c.acc2).action_sync_bank_status()
+    assert (b.payment_state, r.line_ids.move_id.date) == ("paid", today)
+    assert _owed(c, before) == 9000.0  # paid AFTER that date: still owed on it
+    assert _owed(c, today) == 0.0  # and gone from a later one
+    # a snapshot taken now of that earlier date freezes the same figure
+    Snap = c.env["fix.ap.ageing.snapshot"]
+    while Snap.search_count([("company_id", "=", c.company.id), ("as_of", "=", before)]):
+        before -= timedelta(days=1)
+    snap = Snap.with_user(c.acc1).create({"as_of": before})
+    line = snap.line_ids.filtered(lambda ln: "·" not in ln.label and ln.partner_id == c.vendor)
+    assert len(line) == 1 and line.total == 9000.0
+    # the vendor's statement of that date counts the bill too
+    s = (
+        c.env["fix.ap.vendor.statement"]
+        .with_user(c.acc1)
+        .create({"partner_id": c.vendor.id, "statement_date": before, "statement_balance": 0.0})
+    )
+    s.with_user(c.acc1).action_compare()
+    assert (s.ledger_balance, s.open_bill_count, s.difference) == (9000.0, 1, -9000.0)
+    later = (
+        c.env["fix.ap.vendor.statement"]
+        .with_user(c.acc1)
+        .create({"partner_id": c.vendor.id, "statement_date": today, "statement_balance": 0.0})
+    )
+    later.with_user(c.acc1).action_compare()
+    assert (later.ledger_balance, later.open_bill_count) == (0.0, 0)
+
+
+def test_f5_a_bill_request_paid_after_the_as_of_date_is_still_open_on_it(c, paying):
+    today = _today(c)
+    before = today - timedelta(days=5)
+    b = approve(c, bill(c, 10000.0))
+    b.with_user(c.acc1).action_request_payment()
+    relay(c, "payment.requested", "fix.vendor.invoice", b.id)
+    ex = execution_of(c, b._name, b.id)
+    assert _owed(c, today) == 9000.0  # asked for, not paid
+    treasury_paid(c, ex)
+    relay(
+        c,
+        "payment.executed",
+        "fix.payment.execution",
+        ex.id,
+        "cd_ap_ext.consumer_payment_executed_ap",
+    )
+    assert (b.payment_state, b.payment_move_id.date) == ("paid", today)
+    assert (_owed(c, before), _owed(c, today)) == (9000.0, 0.0)
+
+
+def test_f5_a_returned_payment_counts_until_the_day_it_came_back(c):
+    """The other side of the as-of date: a payment the bank took back is in
+    force from its own date until the return is dated, no longer."""
+    today = _today(c)
+    b = approve(c, bill(c, 10000.0))
+    r = _paid_by_run(c, b, payment_date=today - timedelta(days=2))
+    _base.treasury_execute(c, r.line_ids.execution_id)
+    r.with_user(c.acc2).action_sync_bank_status()
+    assert b.payment_state == "paid"
+    assert _owed(c, today - timedelta(days=1)) == 0.0  # paid two days ago: not owed yesterday
+    _base.treasury_fail(c, r.line_ids.execution_id)  # returned after clearing, today
+    r.with_user(c.acc2).action_sync_bank_status()
+    assert (r.line_ids.state, b.payment_state) == ("failed", "not_paid")
+    assert (_owed(c, today - timedelta(days=1)), _owed(c, today)) == (0.0, 9000.0)
+
+
+def test_f5_a_note_netted_after_the_as_of_date_still_counts_on_it(c):
+    today = _today(c)
+    before = today - timedelta(days=5)
+    b = approve(c, bill(c, 20000.0))  # 18,000 payable
+    note = (
+        c.env["fix.vendor.note"]
+        .with_user(c.acc1)
+        .create(
+            {
+                "invoice_id": b.id,
+                "note_type": "decrease",
+                "mushak_ref": "67-F5-1",
+                "note_date": _base.D + timedelta(days=3),
+                "amount": 5000.0,
+            }
+        )
+    )
+    note.with_user(c.acc2).action_approve()
+    assert note.signed_total == -5000.0
+    assert _owed(c, before) == 13000.0
+    r = _paid_by_run(c, b)  # the run nets the note; the bank has not paid yet
+    assert (note.state, b.payment_state, r.state) == ("applied", "in_run", "released")
+    assert _owed(c, today) == 13000.0  # until the bank pays, the payable is not reduced
+    _base.treasury_execute(c, r.line_ids.execution_id)
+    r.with_user(c.acc2).action_sync_bank_status()
+    assert (_owed(c, before), _owed(c, today)) == (13000.0, 0.0)
+
+
+# ---- the legacy take-on lane: the GL lines, posted as superuser (arrangement)
+def _account(c, code, name, kind):
+    Account = c.env["account.account"]
+    return Account.search(
+        [("code", "=", code), ("company_ids", "in", c.company.id)], limit=1
+    ) or Account.create(
+        {"code": code, "name": name, "account_type": kind, "company_ids": [(6, 0, c.company.ids)]}
+    )
+
+
+def _journal(c, code, name):
+    Journal = c.env["account.journal"]
+    return Journal.search(
+        [("code", "=", code), ("company_id", "=", c.company.id)], limit=1
+    ) or Journal.create({"name": name, "code": code, "type": "general", "company_id": c.company.id})
+
+
+def _takeon_control(c):
+    """A payable control the legacy take-on is configured on (on the live
+    estate the take-on and the bills share 200101)."""
+    control = _account(c, "299105", "F5 legacy payable control", "liability_payable")
+    c.env["ir.config_parameter"].sudo().set_param(
+        "cd_gl_ext.ledger_takeon.payable_account_code", "299105"
+    )
+    return control
+
+
+def _post_on_control(c, journal, control, partner, amount, on, name):
+    """One posted entry on the control: a credit (`amount` > 0) or a debit
+    (`amount` < 0) for `partner`, contra another account. Returns the
+    control's line."""
+    debit, credit = (-amount, 0.0) if amount < 0 else (0.0, amount)
+    contra = _account(c, "299906", "F5 legacy take-on contra", "liability_current")
+    move = c.env["account.move"].create(
+        {
+            "journal_id": journal.id,
+            "company_id": c.company.id,
+            "date": on,
+            "move_type": "entry",
+            "ref": name,
+            "line_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "account_id": control.id,
+                        "partner_id": partner.id,
+                        "date_maturity": on,
+                        "name": name,
+                        "debit": debit,
+                        "credit": credit,
+                    },
+                ),
+                (
+                    0,
+                    0,
+                    {"account_id": contra.id, "name": "contra", "debit": credit, "credit": debit},
+                ),
+            ],
+        }
+    )
+    move.action_post()
+    return move.line_ids.filtered(lambda ln: ln.account_id == control)
+
+
+def _takeon_owed(c, partner, as_of):
+    """What the ageing at `as_of` says a party's legacy take-on still owes."""
+    return round(
+        sum(
+            _sum(row)
+            for label, row in _ageing(c, as_of).items()
+            if row["partner_id"] == partner.id and "·" in label
+        ),
+        2,
+    )
+
+
+def test_f5_b_a_take_on_item_settled_after_the_as_of_ages_at_its_residual(c):
+    today = _today(c)
+    before = today - timedelta(days=5)
+    control = _takeon_control(c)
+    legacy = c.env["res.partner"].create({"name": "F5 Legacy Vendor"})
+    taken = _post_on_control(
+        c, _journal(c, "MIG", "Legacy Take-on"), control, legacy, 10000.0, _base.D, "Legacy take-on"
+    )
+    assert (_takeon_owed(c, legacy, before), _takeon_owed(c, legacy, today)) == (
+        10000.0,
+        10000.0,
+    )
+    paid = _post_on_control(
+        c,
+        _journal(c, "F5PAY", "F5 Legacy Settlements"),
+        control,
+        legacy,
+        -4000.0,
+        today,
+        "Legacy balance paid",
+    )
+    (taken | paid).reconcile()  # 4,000 of it cleared today
+    assert taken.amount_residual == -6000.0  # Odoo: 6,000 is open NOW
+    assert _takeon_owed(c, legacy, before) == 10000.0  # 10,000 was open on that date
+    assert _takeon_owed(c, legacy, today) == 6000.0
+    on = takeon_open_at(c.env, c.company, control, today)[legacy.id]
+    assert (on["residual"], on["date"]) == (-6000.0, _base.D)  # Odoo's own residual for today
+    assert _takeon_owed(c, legacy, _base.D - timedelta(days=1)) == 0.0  # taken on the day itself
+    # it is the party's own line, aged from the take-on date: 14 days on 15 Oct
+    row = next(
+        row
+        for label, row in _ageing(c, date(2026, 10, 15)).items()
+        if row["partner_id"] == legacy.id and "·" in label
+    )
+    assert (row["d1_30"], _sum(row)) == (10000.0, 10000.0)
+
+
+def test_f5_d_the_ageing_ties_to_the_payable_controls_at_every_step(c):
+    """Regression (d): open bills, a credit note, a run in flight, the payment
+    and the legacy take-on. At each step the ageing as of today moves exactly
+    as the two payable controls do, so their totals still tie."""
+    today = _today(c)
+    ap = ap_account(c.env, c.company, "ap")
+    legacy_control = _takeon_control(c)
+    start = (
+        _sum_all(c, today),
+        _base.balance(c.env, ap),
+        _base.balance(c.env, legacy_control),
+    )
+    legacy = c.env["res.partner"].create({"name": "F5 Legacy Vendor"})
+    taken = _post_on_control(
+        c,
+        _journal(c, "MIG", "Legacy Take-on"),
+        legacy_control,
+        legacy,
+        8000.0,
+        _base.D,
+        "Legacy take-on",
+    )
+    paid = _post_on_control(
+        c,
+        _journal(c, "F5PAY", "F5 Legacy Settlements"),
+        legacy_control,
+        legacy,
+        -3000.0,
+        today,
+        "Legacy balance paid",
+    )
+    (taken | paid).reconcile()
+
+    def ties():
+        """How much the ageing rose since the start; it equals what the two
+        payable controls took up (credit-normal)."""
+        ageing, on_ap, on_takeon = (
+            _sum_all(c, today),
+            _base.balance(c.env, ap),
+            _base.balance(c.env, legacy_control),
+        )
+        assert ageing - start[0] == pytest.approx(-(on_ap - start[1]) - (on_takeon - start[2]))
+        return ageing - start[0]
+
+    assert ties() == 5000.0  # the legacy take-on, 3,000 of it paid
+    b1 = approve(c, bill(c, 10000.0))  # 9,000 payable
+    b2 = approve(c, bill(c, 20000.0, ref="A08B2-F5-2"))  # 18,000 payable
+    note = (
+        c.env["fix.vendor.note"]
+        .with_user(c.acc1)
+        .create(
+            {
+                "invoice_id": b2.id,
+                "note_type": "decrease",
+                "mushak_ref": "67-F5-2",
+                "note_date": _base.D + timedelta(days=3),
+                "amount": 5000.0,
+            }
+        )
+    )
+    note.with_user(c.acc2).action_approve()
+    assert ties() == 27000.0
+    r = _paid_by_run(c, b1)  # one line: both bills and the note
+    assert r.line_ids.amount == 22000.0 and b1.payment_state == "in_run"
+    assert ties() == 27000.0  # released to the bank, nothing paid: no change
+    _base.treasury_execute(c, r.line_ids.execution_id)
+    r.with_user(c.acc2).action_sync_bank_status()
+    assert (b1.payment_state, b2.payment_state, note.state) == ("paid", "paid", "applied")
+    assert ties() == 5000.0
 
 
 # ------------------------------------------------------------------ GRNI accrual

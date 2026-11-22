@@ -49,6 +49,7 @@ access_fix_expense_policy_base_user,fix.expense.policy.base.user,model_fix_expen
 access_fix_expense_policy_account_readonly,fix.expense.policy.account.readonly,model_fix_expense_policy,account.group_account_readonly,1,0,0,0
 access_fix_expense_policy_account_user,fix.expense.policy.account.user,model_fix_expense_policy,account.group_account_user,1,0,0,0
 access_fix_expense_policy_account_manager,fix.expense.policy.account.manager,model_fix_expense_policy,account.group_account_manager,1,1,1,1
+access_fix_employee_advance_base_user,fix.employee.advance.base.user,model_fix_employee_advance,base.group_user,1,0,0,0
 access_fix_employee_advance_account_readonly,fix.employee.advance.account.readonly,model_fix_employee_advance,account.group_account_readonly,1,0,0,0
 access_fix_employee_advance_account_user,fix.employee.advance.account.user,model_fix_employee_advance,account.group_account_user,1,1,1,0
 access_fix_employee_advance_account_manager,fix.employee.advance.account.manager,model_fix_employee_advance,account.group_account_manager,1,1,1,0

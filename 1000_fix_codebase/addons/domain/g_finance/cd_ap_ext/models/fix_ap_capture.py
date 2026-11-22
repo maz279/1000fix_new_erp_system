@@ -22,6 +22,9 @@
 #     items, signed off by a second person.
 #   * fix.ap.ageing.snapshot (FR-APE-013 P0, BRU-APE-23 H): the payables
 #     ageing frozen at a date. Never edited or deleted.
+#     A08 M52-F5: the ageing is read AS OF its date. A bill paid, a note
+#     netted or a legacy take-on item cleared AFTER the as-of date is still
+#     open on that date, at what it still owed then.
 #   * fix.ap.grni.accrual (FR-APE-031 P0, BRU-APE-22 H): the received-not-
 #     invoiced figure kept for one period end, against the GRNI clearing
 #     balance, with the estimated unrecorded liability and its basis,
@@ -108,39 +111,204 @@ def bucket(days):
     return "d90"
 
 
+def _entry_date(move):
+    """The date a posted entry takes effect on the ledger, or None."""
+    return move.date if move and move.state == "posted" and move.date else None
+
+
+def _in_force_on(paid_on, back_on, as_of):
+    """A payment is in force at `as_of` from the day its entry is dated until
+    the day the bank's return of it is dated."""
+    return bool(paid_on) and paid_on <= as_of and not (back_on and back_on <= as_of)
+
+
+def _runs_unsettled_at(env, companies, as_of):
+    """Payment run lines whose payment had not cleared the payables at `as_of`:
+    released to the bank and not yet paid, or paid after that date (A08
+    M52-F5). Their bills are paid and their notes netted NOW; on that date
+    both were still open."""
+    return env["fix.payment.run.line"].search(
+        [
+            ("company_id", "in", companies.ids),
+            ("state", "in", ("sent", "paid")),
+            "|",
+            ("move_id", "=", False),
+            ("move_id.date", ">", as_of),
+        ]
+    )
+
+
+def open_bills_at(env, bills, as_of):
+    """[(bill, what it still owed at `as_of`)], only the bills whose payable
+    was not cleared on that date (A08 M52-F5).
+
+    A payment counts from the date of the entry that cleared the payable —
+    the run's payment entry (the run's payment date), or the clearing entry
+    of a Request Payment or an external settlement — and stops counting from
+    the date the bank's return of it is posted. An LC remittance that settled
+    part of the bill after `as_of` is added back. A bill marked paid that has
+    no dated settlement record is left out at every date, as it always was."""
+    dated, in_force = set(), set()
+    for line in env["fix.payment.run.line"].search(
+        [("bill_ids", "in", bills.ids), ("move_id", "!=", False)]
+    ):
+        paid_on, back_on = _entry_date(line.move_id), _entry_date(line.reversal_move_id)
+        for bill in line.bill_ids & bills:
+            dated.add(bill.id)
+            if _in_force_on(paid_on, back_on, as_of):
+                in_force.add(bill.id)
+    later = defaultdict(float)
+    for settlement in env["fix.ap.lc.settlement"].search(
+        [("kind", "=", "bill"), ("bill_id", "in", bills.ids)]
+    ):
+        dated.add(settlement.bill_id.id)
+        if settlement.date > as_of:  # the remittance's date, as its entry is dated
+            later[settlement.bill_id.id] += settlement.amount
+    out = []
+    for bill in bills:
+        if bill.payment_move_id:
+            dated.add(bill.id)
+            if _in_force_on(_entry_date(bill.payment_move_id), None, as_of):
+                in_force.add(bill.id)
+        if bill.id in in_force:
+            continue
+        owed = bill.total_payable + later.get(bill.id, 0.0)
+        if bill.payment_state == "paid" and (owed <= 0.005 or bill.id not in dated):
+            continue
+        out.append((bill, owed))
+    return out
+
+
+def open_notes_at(env, notes, as_of):
+    """The notes that still count at `as_of` (A08 M52-F5): every one that no
+    payment in force on that date has netted. Until the bank has paid the run
+    that took a note, the vendor's payable is not reduced by it."""
+    netted = env["fix.vendor.note"]
+    lines = env["fix.payment.run.line"].search(
+        [("note_ids", "in", notes.ids), ("move_id", "!=", False)]
+    )
+    for line in lines:
+        paid_on, back_on = _entry_date(line.move_id), _entry_date(line.reversal_move_id)
+        if _in_force_on(paid_on, back_on, as_of):
+            netted |= line.note_ids & notes
+    return notes - netted
+
+
 def ageing_by_vendor(env, companies, as_of):
     """(rows, take-on note) of the payables ageing at `as_of`, read as the
-    caller: {label: {"partner_id", bucket: amount...}}. Approved, unpaid bills
-    net of TDS/VDS by days past due; approved notes not yet netted are not
-    due; each vendor's legacy take-on still open is its own line."""
+    caller: {label: {"partner_id", bucket: amount...}}. Approved bills net
+    of TDS/VDS by days past due, each at what it still owed ON the as-of
+    date; notes no payment in force on it has netted are not due; each
+    vendor's legacy take-on still open then is its own line (A08 M52-F5)."""
     co = [("company_id", "in", companies.ids)]
+    live = [("approval_state", "=", "approved"), ("invoice_date", "<=", as_of)]
+    # settled since the as-of date: still open on it (A08 M52-F5)
+    lines = _runs_unsettled_at(env, companies, as_of)
+    settled_later = (
+        lines.bill_ids.ids
+        + env["fix.ap.lc.settlement"]
+        .search([("company_id", "in", companies.ids), ("kind", "=", "bill"), ("date", ">", as_of)])
+        .mapped("bill_id")
+        .ids
+    )
     bills = env["fix.vendor.invoice"].search(
         [
             *co,
-            ("approval_state", "=", "approved"),
+            *live,
+            "|",
+            "|",
             ("payment_state", "!=", "paid"),
-            ("invoice_date", "<=", as_of),
+            ("payment_move_id.date", ">", as_of),
+            ("id", "in", settled_later),
         ]
     )
     notes = env["fix.vendor.note"].search(
-        [*co, ("state", "=", "approved"), ("note_date", "<=", as_of)]
+        [*co, ("state", "in", ("approved", "applied")), ("note_date", "<=", as_of)]
     )
+    notes |= lines.note_ids.filtered(lambda n: n.note_date <= as_of)
 
     def slot():
         return {"partner_id": 0, **dict.fromkeys([k for k, _ in BUCKETS], 0.0)}
 
     rows = defaultdict(slot)
-    for bill in bills:
+    for bill, owed in open_bills_at(env, bills, as_of):
         vendor = bill.vendor_id.commercial_partner_id
         row = rows[vendor.display_name]
         row["partner_id"] = vendor.id
-        row[bucket((as_of - (bill.due_date or bill.invoice_date)).days)] += bill.total_payable
-    for note in notes:
+        row[bucket((as_of - (bill.due_date or bill.invoice_date)).days)] += owed
+    for note in open_notes_at(env, notes, as_of):
         vendor = note.vendor_id.commercial_partner_id
         row = rows[vendor.display_name]
         row["partner_id"] = vendor.id
         row["current"] += note.signed_total
     return rows, _add_payable_takeon(env, companies, rows, as_of)
+
+
+def takeon_open_at(env, company, account, as_of):
+    """{commercial partner id: {"residual", "date"}} of the legacy take-on
+    (journal MIG) still open on `account` at `as_of` (A08 M52-F5).
+
+    cd_gl_ext's open_takeon_balances keeps the lines dated by `as_of` but
+    reads TODAY'S amount_residual of each: a payment that cleared a take-on
+    item after the as-of date had already reduced it. Each line is taken here
+    at what was still open ON that date. A reconciliation counts only from
+    the date both its sides exist (account.partial.reconcile.max_date, the
+    date Odoo's own aged reports go by), so for today's date this is Odoo's
+    own residual. `residual` is signed as the GL (+ debit, - credit); `date`
+    is the party's earliest take-on date. Lines on an account that
+    reconciles nothing carry no residual, as in Odoo. Read as superuser: the
+    caller gates who sees it."""
+    from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import TAKEON_JOURNAL_CODE
+
+    if not account or not account.reconcile:
+        return {}
+    lines = (
+        env["account.move.line"]
+        .sudo()
+        .search_read(
+            [
+                ("company_id", "=", company.id),
+                ("account_id", "=", account.id),
+                ("parent_state", "=", "posted"),
+                ("journal_id.code", "=", TAKEON_JOURNAL_CODE),
+                ("date", "<=", as_of),
+            ],
+            ["partner_id", "debit", "credit", "date"],
+        )
+    )
+    ids = [row["id"] for row in lines]
+    # a party is grouped by its commercial partner, as open_takeon_balances
+    # groups it; one loaded without its stored commercial partner is its own
+    commercial = {
+        party.id: (party.commercial_partner_id or party).id
+        for party in env["res.partner"]
+        .sudo()
+        .browse({row["partner_id"][0] for row in lines if row["partner_id"]})
+    }
+    matched = defaultdict(list)
+    if ids:
+        Partial = env["account.partial.reconcile"].sudo()
+        for part in Partial.search_read(
+            ["|", ("debit_move_id", "in", ids), ("credit_move_id", "in", ids)],
+            ["debit_move_id", "credit_move_id", "max_date", "amount"],
+        ):
+            # a match reduces the debit side of it and brings the credit side to zero
+            matched[part["debit_move_id"][0]].append((-part["amount"], part["max_date"]))
+            matched[part["credit_move_id"][0]].append((part["amount"], part["max_date"]))
+    out = {}
+    for row in lines:
+        residual = (row["debit"] or 0.0) - (row["credit"] or 0.0)
+        for amount, on in matched.get(row["id"], ()):
+            if on and on <= as_of:
+                residual += amount
+        slot = out.setdefault(
+            commercial.get(row["partner_id"][0], 0) if row["partner_id"] else 0,
+            {"residual": 0.0, "date": False},
+        )
+        slot["residual"] += residual
+        if row["date"] and (not slot["date"] or row["date"] < slot["date"]):
+            slot["date"] = row["date"]
+    return out
 
 
 def _add_payable_takeon(env, companies, rows, as_of):
@@ -151,7 +319,6 @@ def _add_payable_takeon(env, companies, rows, as_of):
         )
     from odoo.addons.cd_gl_ext.models.fix_ledger_takeon import (
         OPENING_LABEL,
-        open_takeon_balances,
         takeon_control_account,
     )
 
@@ -162,7 +329,7 @@ def _add_payable_takeon(env, companies, rows, as_of):
         if not control:
             continue
         configured = True
-        for partner_id, opening in open_takeon_balances(env, company, control, as_of).items():
+        for partner_id, opening in takeon_open_at(env, company, control, as_of).items():
             owed = -opening["residual"]  # credit-normal: a payable is a credit residual
             if abs(owed) <= 0.005:
                 continue
@@ -1109,7 +1276,10 @@ class FixApVendorStatement(models.Model):
         return super().unlink()
 
     def _fix_ledger(self):
-        """(balance, open bills) we owe the vendor on the statement date."""
+        """(balance, open bills) we owe the vendor on the statement date, each
+        bill and note at what it still counted for ON that date (A08 M52-F5:
+        a run's payment entry cleared the payable too, not only the Request
+        Payment's)."""
         self.ensure_one()
         vendor = self.partner_id.commercial_partner_id
         day = self.statement_date
@@ -1121,20 +1291,17 @@ class FixApVendorStatement(models.Model):
                 ("invoice_date", "<=", day),
             ]
         )
-        open_bills = bills.filtered(
-            lambda b: b.payment_state != "paid"
-            or (b.payment_move_id and b.payment_move_id.date > day)
-        )
-        total = sum(open_bills.mapped("total_payable"))
+        open_bills = open_bills_at(self.env, bills, day)
+        total = sum(owed for _bill, owed in open_bills)
         notes = self.env["fix.vendor.note"].search(
             [
                 ("company_id", "=", self.company_id.id),
                 ("vendor_id.commercial_partner_id", "=", vendor.id),
-                ("state", "=", "approved"),
+                ("state", "in", ("approved", "applied")),
                 ("note_date", "<=", day),
             ]
         )
-        total += sum(notes.mapped("signed_total"))
+        total += sum(open_notes_at(self.env, notes, day).mapped("signed_total"))
         rows, _note = ageing_by_vendor(self.env, self.company_id, day)
         for label, row in rows.items():
             if row["partner_id"] == vendor.id and "·" in label:

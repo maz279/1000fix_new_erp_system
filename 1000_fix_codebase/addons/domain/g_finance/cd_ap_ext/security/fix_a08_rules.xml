@@ -131,6 +131,22 @@
         <field name="perm_create" eval="True"/>
         <field name="perm_unlink" eval="True"/>
     </record>
+    <!-- A08 M52-F8: an employee could not read their own advance (no access
+         at all for a user without an accounting role). An employee now READS
+         their OWN advances, and nothing else: the base access is read-only,
+         so an advance is still raised, approved, settled and cancelled by
+         accounting only, and advances of colleagues stay finance-only. Like
+         the claim rules above this is a GLOBAL rule (a group rule is OR-ed
+         with the operating-unit rule and would be widened to the unit). -->
+    <record id="rule_fix_employee_advance_own_read" model="ir.rule">
+        <field name="name">fix.employee.advance: own advances (read; accounting all)</field>
+        <field name="model_id" ref="model_fix_employee_advance"/>
+        <field name="domain_force">[(1, '=', 1)] if (user.has_group('account.group_account_user') or user.has_group('account.group_account_manager') or user.has_group('account.group_account_readonly')) else [('employee_id.user_id', '=', user.id)]</field>
+        <field name="perm_read" eval="True"/>
+        <field name="perm_write" eval="False"/>
+        <field name="perm_create" eval="False"/>
+        <field name="perm_unlink" eval="False"/>
+    </record>
     <record id="rule_fix_payee_bank_change_company" model="ir.rule">
         <field name="name">fix.payee.bank.change: allowed companies</field>
         <field name="model_id" ref="model_fix_payee_bank_change"/>
