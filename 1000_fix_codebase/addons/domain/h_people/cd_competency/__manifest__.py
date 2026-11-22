@@ -32,8 +32,18 @@ degrades to M61, accepted AR-006 5.4):
 - M22 capture pass 2: role competency requirements and the gap analysis,
   training needs and plans, participant feedback, enrolment withdrawal and
   substitution, mentoring with its interactions, effectiveness evaluation
+- A09 R2 audit fixes: an un-tiered certification no longer satisfies a
+  tiered job (M22-F3); the workshop fail-closed switch
+  (cd_competency.workshop_gate_fail_closed, M22-F2); the work-order gate
+  refuses before the assignment is written (M22-F12);
+  training.session.scheduled flags the trainees' roster slots (M22-F4,
+  FR-LMS-022) and the 90-day effectiveness + monthly coverage/SPOF crons run
+  (AUT-LMS-12/13); the brand_critical flag and dual employee+manager expiry
+  alerts (M22-F8); superuser overrides are logged on the mail thread
+  (M22-F11); business dates are Asia/Dhaka (M22-F13); the catalogue
+  skill-profile gate covers service operations (M22-F10)
 """,
-    "version": "19.0.0.5.0",
+    "version": "19.0.0.5.1",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Human Resources/Learning",

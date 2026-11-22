@@ -2,19 +2,53 @@
 # attendance (FR-LMS-020 session scheduling, FR-LMS-021 enrolment against a
 # session with capacity, FR-LMS-023 attendance, FR-LMS-029 external training).
 #
-# M22 capture audit (2026-11-13): the "Schedule & Attendance" screen and the
-# Training Delivery page captured an enrolment that had no session, no date,
+# M22 capture audit (2026-11-13): the "Schedule & Attendance" screen and
+# the Training Delivery page captured an enrolment that had no session, no date,
 # no trainer, no venue and no attendance, so nothing a training coordinator
 # schedules or a trainer records on the day could be entered anywhere. A
 # session now carries the course, trainer (internal employee or an external
 # provider), venue, window and capacity; an enrolment may name its session and
 # the trainer records attendance on it. An absent trainee is not passed.
+#
+# A09 R2 (M22-F4): training removes availability (FR-LMS-022 / BRU-LMS-08).
+# training.session.scheduled now has a consumer: the trainees' roster slots
+# over the session window are flagged exactly as an approved leave flags its
+# slots (fix.roster.slot.on_leave — M55's availability marker: dispatch and
+# the coverage forecast read it). cd_attendance loads after cd_competency, so
+# the model is reached at runtime (env.get), never at import. Cancelling the
+# session releases the marks (the M55 leave sync recomputes them, so a slot
+# covered by a real approved leave keeps its flag).
+from datetime import UTC, timedelta
+from zoneinfo import ZoneInfo
+
 from odoo import api, fields, models
 from odoo.exceptions import UserError, ValidationError
 
 from libs.py.fix_events import publish
 
-from .fix_competency import TRAINING, changed_fields, guard_first, require_group
+from .fix_competency import (
+    TRAINING,
+    changed_fields,
+    dhaka_today,
+    group_users,
+    guard_first,
+    open_activity_once,
+    require_group,
+)
+
+DHAKA = ZoneInfo("Asia/Dhaka")
+EFFECTIVENESS_GRACE_DAYS = 90  # AUT-LMS-12
+
+
+def _dhaka_dates(start, end):
+    """The Dhaka calendar dates a UTC-stored session window covers."""
+    if not start or not end:
+        return []
+    first = start.replace(tzinfo=UTC).astimezone(DHAKA).date()
+    last = end.replace(tzinfo=UTC).astimezone(DHAKA).date()
+    if last < first:
+        return []
+    return [first + timedelta(days=n) for n in range((last - first).days + 1)]
 
 
 class FixTrainingSession(models.Model):
@@ -196,7 +230,118 @@ class FixTrainingSession(models.Model):
             if rec.enrollment_ids.filtered(lambda e: e.attendance == "attended"):
                 raise UserError("%s has recorded attendance; it is not cancelled." % rec.name)
             rec._guarded().write({"state": "cancelled"})
+            # M22-F4: the trainees go back on the roster (the leave sync
+            # recomputes each slot, so real approved leave keeps its flag).
+            rec._fix_release_roster_marks()
         return True
+
+    # ---- M22-F4: training removes availability (FR-LMS-022) ------------------
+    def _fix_window_dates(self):
+        self.ensure_one()
+        return _dhaka_dates(self.date_start, self.date_end)
+
+    def _fix_roster_marks(self, employees):
+        """Flag the trainees' roster slots over the session window as not
+        available for dispatch (fix.roster.slot.on_leave, the M55 marker the
+        dispatch availability check and the coverage forecast read). cd_attendance
+        loads after cd_competency: the model is reached at runtime only."""
+        self.ensure_one()
+        Slot = self.env.get("fix.roster.slot")
+        if Slot is None or not employees:
+            return Slot.browse() if Slot else self.browse()
+        days = self._fix_window_dates()
+        if not days:
+            return Slot.browse()
+        slots = (
+            Slot.sudo()
+            .with_context(active_test=False)
+            .search(
+                [
+                    ("employee_id", "in", employees.ids),
+                    ("date", ">=", days[0]),
+                    ("date", "<=", days[-1]),
+                ]
+            )
+        )
+        marked = slots.filtered(lambda s: not s.on_leave)
+        if marked:
+            marked.sudo()._guarded().write({"on_leave": True})
+        return marked
+
+    def _fix_release_roster_marks(self):
+        """Give the marks back: M55's own leave sync recomputes every flagged
+        slot in the window, so a slot covered by an approved leave keeps its
+        flag and the training-only ones clear."""
+        self.ensure_one()
+        Slot = self.env.get("fix.roster.slot")
+        if Slot is None or not hasattr(Slot, "_fix_sync_on_leave"):
+            return False
+        days = self._fix_window_dates()
+        if not days:
+            return False
+        employees = self.enrollment_ids.mapped("employee_id")
+        if not employees:
+            return False
+        slots = Slot.sudo().search(
+            [
+                ("employee_id", "in", employees.ids),
+                ("date", ">=", days[0]),
+                ("date", "<=", days[-1]),
+            ]
+        )
+        slots._fix_sync_on_leave()
+        return True
+
+    @api.model
+    def consume_training_session_scheduled(self, event):
+        """fix.event.consumer of training.session.scheduled (relay-registered,
+        data/fix_a09_m22_r2_data.xml): the seated trainees' roster slots over
+        the session window are flagged out for training. Idempotent — a
+        redelivery marks nothing new."""
+        sess = self.sudo().browse(int(event.get("aggregate_id") or 0)).exists()
+        if not sess or sess.state != "scheduled":
+            return False
+        payload_ids = (event.get("payload") or {}).get("employee_ids") or []
+        employees = (
+            sess._fix_seated().mapped("employee_id")
+            | self.env["hr.employee"].browse(payload_ids).exists()
+        )
+        return len(sess._fix_roster_marks(employees))
+
+    # ---- AUT-LMS-12 -----------------------------------------------------------
+    @api.model
+    def _cron_training_effectiveness_reminder(self):
+        """AUT-LMS-12 (ir.cron, daily): 90 days after a held session, an
+        unevaluated session is flagged to the Training Managers — the
+        effectiveness evaluation (FR-LMS-035, BRU-LMS-15) measures the
+        training against the operational measure it targeted, and nothing
+        chased it. Idempotent: one open to-do per session and user."""
+        Effectiveness = self.env.get("fix.training.effectiveness")
+        today = dhaka_today(self.env)
+        cutoff = today - timedelta(days=EFFECTIVENESS_GRACE_DAYS)
+        due = self.sudo().search([("state", "=", "done"), ("date_end", "<", cutoff)])
+        if Effectiveness is not None:
+            evaluated = set(
+                Effectiveness.sudo()
+                .search([("session_id", "in", due.ids)])
+                .mapped("session_id")
+                .ids
+            )
+            due = due.filtered(lambda s: s.id not in evaluated)
+        flagged = self.browse()
+        for rec in due:
+            summary = "Training effectiveness overdue: %s" % rec.name
+            for user in group_users(self.env, TRAINING, rec.company_id):
+                if open_activity_once(
+                    rec,
+                    user,
+                    summary,
+                    "%s was held %s and has no effectiveness evaluation 90 days on "
+                    "(AUT-LMS-12, FR-LMS-035): evaluate the operational measure it "
+                    "targeted." % (rec.name, rec.date_end),
+                ):
+                    flagged |= rec
+        return flagged
 
 
 class FixTrainingEnrollmentSession(models.Model):

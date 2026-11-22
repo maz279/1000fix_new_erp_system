@@ -13,6 +13,33 @@
         <field name="active" eval="True"/>
     </record>
 
+    <!-- A09 R2 M22-F4 (AUT-LMS-12): 90 days after a held session, an
+         unevaluated session is flagged to the Training Managers. A cron
+         method with no ir.cron record never ran. -->
+    <record id="ir_cron_training_effectiveness" model="ir.cron">
+        <field name="name">M22: remind unevaluated training sessions after 90 days (AUT-LMS-12)</field>
+        <field name="model_id" ref="model_fix_training_session"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_training_effectiveness_reminder()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">days</field>
+        <field name="active" eval="True"/>
+    </record>
+
+    <!-- A09 R2 M22-F4 (AUT-LMS-13): monthly competence-coverage recompute and
+         single-point-of-failure flagging (FR-LMS-008). -->
+    <record id="ir_cron_competency_coverage" model="ir.cron">
+        <field name="name">M22: recompute competence coverage and flag single points of failure (AUT-LMS-13)</field>
+        <field name="model_id" ref="model_fix_certification"/>
+        <field name="state">code</field>
+        <field name="code">model._cron_competency_coverage()</field>
+        <field name="user_id" ref="base.user_root"/>
+        <field name="interval_number">1</field>
+        <field name="interval_type">months</field>
+        <field name="active" eval="True"/>
+    </record>
+
     <data noupdate="1">
         <record id="seq_fix_certification_waiver" model="ir.sequence">
             <field name="name">Certification Waiver</field>
