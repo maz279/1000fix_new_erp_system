@@ -11,13 +11,23 @@ QM_GROUP = "cd_qms_process.group_qms_quality_manager"
 # A10 P1-6 (M23-8): ISO 9.3.2 — the input kinds a management review must
 # have PULLED from the system before it is held. Every kind maps to records
 # the system already holds; none of them is typed.
+# A10 deep audit (2026-11-22, A1-F04): the set was incomplete (no 9.3.2 b,
+# d, e, f, c.2, c.5) and cited clause letters that do not exist (g/h).
+# The full set below keeps every legacy key (stored rows stay valid) with
+# its clause reference corrected, and adds the six missing considerations.
 REVIEW_INPUT_KINDS = [
     ("prior_actions", "Actions from previous reviews (9.3.2 a)"),
-    ("customer_feedback", "Customer feedback and complaints (9.3.2 c)"),
-    ("process_performance", "Process performance and conformity (9.3.2 d)"),
-    ("nonconformities", "Nonconformities and corrective actions (9.3.2 e)"),
-    ("audit_results", "Audit results and surveillance (9.3.2 g)"),
-    ("external_providers", "External provider performance (9.3.2 h)"),
+    ("issues_changes", "Changes in external and internal issues (9.3.2 b)"),
+    ("customer_feedback", "Customer satisfaction and feedback (9.3.2 c.1)"),
+    ("objectives_attainment", "Extent to which quality objectives are met (9.3.2 c.2)"),
+    ("process_performance", "Process performance and conformity (9.3.2 c.3)"),
+    ("nonconformities", "Nonconformities and corrective actions (9.3.2 c.4)"),
+    ("monitoring_results", "Monitoring and measurement results (9.3.2 c.5)"),
+    ("audit_results", "Audit results and surveillance (9.3.2 c.6)"),
+    ("external_providers", "External provider performance (9.3.2 c.7)"),
+    ("resources_adequacy", "Adequacy of resources (9.3.2 d)"),
+    ("risk_effectiveness", "Effectiveness of risk and opportunity actions (9.3.2 e)"),
+    ("improvement_opportunities", "Opportunities for improvement (9.3.2 f)"),
 ]
 
 
@@ -216,7 +226,7 @@ class FixQmsGate(models.Model):
 class FixQmsCertification(models.Model):
     _name = "fix.qms.certification"
     _description = "Certification & Surveillance Audit"
-    _inherit = ["fix.guarded.mixin"]
+    _inherit = ["mail.thread", "fix.guarded.mixin"]
     _order = "audit_date desc, id desc"
 
     name = fields.Char(required=True)
@@ -262,8 +272,17 @@ class FixQmsCertification(models.Model):
     def _fix_guarded_fields(self) -> set:
         """A10 Q3 (M23-6, E x01–x04): the audit RESULT is typed by the
         Quality Manager through the actions — never by a plain write that
-        flips a failed audit to passed or sets valid_until = 2099."""
-        return {"result"}
+        flips a failed audit to passed or sets valid_until = 2099.
+        A10 deep audit (2026-11-22, A1-F08): the guard now also freezes the
+        validity window and the certificate number AFTER creation — a quiet
+        extension of a certificate's life is a new surveillance row's fact,
+        not an edit."""
+        return {"result", "valid_until", "certificate_no", "surveillance_band_notified"}
+
+    # A10 deep audit (2026-11-22, A1-F03): the surveillance clock. Which
+    # expiry band the Quality Managers were already told about ('90', '30',
+    # 'overdue') — set once per band by the daily cron, never typed.
+    surveillance_band_notified = fields.Char(readonly=True)
 
     @api.constrains("valid_until", "audit_date")
     def _check_validity_window(self):
@@ -273,6 +292,45 @@ class FixQmsCertification(models.Model):
                     "The certificate's validity ends after its audit date "
                     "(valid_until %s follows audit_date %s)." % (rec.valid_until, rec.audit_date)
                 )
+
+    @api.model
+    def cron_certification_surveillance(self):
+        """A10 deep audit (2026-11-22, A1-F03): nothing watched valid_until —
+        a lapsed ISO certificate (the company's headline credential) would
+        have gone unnoticed. Daily: each passed certificate entering the
+        90-day and 30-day surveillance window, or past its validity, tells
+        the Quality Managers ONCE per band."""
+        today = fields.Date.context_today(self)
+        group = self.env.ref(QM_GROUP, raise_if_not_found=False)
+        managers = (
+            group.sudo().user_ids if group else self.env["res.users"]
+        ).filtered(lambda u: u.active and not u.share)
+        if not managers:
+            return True
+        for rec in self.sudo().search([("result", "=", "passed"), ("valid_until", "!=", False)]):
+            days = (rec.valid_until - today).days
+            band = "overdue" if days < 0 else "30" if days <= 30 else "90" if days <= 90 else None
+            if band is None or rec.surveillance_band_notified == band:
+                continue
+            rec._guarded().write({"surveillance_band_notified": band})
+            rec.message_post(
+                body=(
+                    "Certification surveillance: %s (%s, certificate %s) %s — "
+                    "valid until %s. Book the audit with the certification body."
+                    % (
+                        rec.name,
+                        rec.standard,
+                        rec.certificate_no or "—",
+                        "has LAPSED"
+                        if band == "overdue"
+                        else "enters its %s-day surveillance window" % band,
+                        rec.valid_until,
+                    )
+                ),
+                partner_ids=managers.mapped("partner_id").ids,
+                subtype_xmlid="mail.mt_comment",
+            )
+        return True
 
     def action_pass(self):
         """A10 Q3: a PASS is recorded by the Quality Manager, with the
@@ -581,10 +639,135 @@ class FixQmsReview(models.Model):
             open_sup = suppliers.filtered(lambda n: n.state != "closed")
             summary = (
                 "%d supplier NCR(s) (%s), %d unclosed — external provider "
-                "performance the review must weigh (9.3.2 h)."
+                "performance the review must weigh (9.3.2 c.7)."
                 % (len(suppliers), span, len(open_sup))
             )
             return summary, "%d supplier NCRs" % len(suppliers), len(open_sup)
+        # ---- A10 deep audit (2026-11-22, A1-F04): the six missing
+        # considerations ISO 9001:2015 9.3.2 requires. Each still counts
+        # records the system holds; the judgement itself is the review's.
+        if kind == "issues_changes":
+            Regulatory = env.get("fix.grc.regulatory.change")
+            changes = (
+                Regulatory.sudo().search(
+                    self._scoped(self._window_domain("effective_on", window, date_field=True))
+                )
+                if Regulatory is not None
+                else Regulatory
+            )
+            summary = (
+                "%d regulatory change(s) identified (%s); the review records the "
+                "changes in internal and external issues it decides to act on "
+                "(9.3.2 b)."
+                % (len(changes) if changes else 0, span)
+            )
+            return summary, "%d regulatory changes" % (len(changes) if changes else 0), 0
+        if kind == "objectives_attainment":
+            objectives = env["fix.qms.objective"].sudo().search(
+                self._scoped([("period", "<=", date_to.strftime("%Y"))])
+            )
+            measured = objectives.filtered(lambda o: o.actual or o.attainment)
+            attained = objectives.filtered(
+                lambda o: o.attainment >= 100.0 if o.higher_is_better else o.attainment > 0.0
+            )
+            summary = (
+                "%d quality objective(s), %d with a measurement, %d at target — "
+                "the extent to which the objectives are met (9.3.2 c.2)."
+                % (len(objectives), len(measured), len(attained))
+            )
+            return summary, "%d of %d at target" % (len(attained), len(objectives)), max(
+                len(objectives) - len(attained), 0
+            )
+        if kind == "monitoring_results":
+            Checklist = env["fix.qc.checklist"]
+            checks = Checklist.sudo().search(
+                self._scoped(self._window_domain("checked_at", window))
+            )
+            failed = checks.filtered(lambda c: c.state == "failed")
+            Test = env.get("fix.grc.control.test")
+            tests = (
+                Test.sudo().search(self._scoped(self._window_domain("tested_on", window, date_field=True)))
+                if Test is not None
+                else Test
+            )
+            summary = (
+                "%d QC inspection(s) completed (%s), %d failed; %s — the "
+                "monitoring and measurement results (9.3.2 c.5)."
+                % (
+                    len(checks),
+                    span,
+                    len(failed),
+                    (
+                        "%d control test(s), %d not fully effective"
+                        % (len(tests), len(tests.filtered(lambda t: t.result != "effective")))
+                        if tests is not None
+                        else "no control-test register installed"
+                    ),
+                )
+            )
+            return summary, "%d inspections, %d failed" % (len(checks), len(failed)), len(failed)
+        if kind == "resources_adequacy":
+            branches = env["fix.branch"].sudo().search_count([("active", "=", True)]) if "fix.branch" in env else 0
+            employees = env["hr.employee"].sudo().search_count([("active", "=", True)])
+            summary = (
+                "On-roll: %d active employee(s) across %d active branch(es) (%s); "
+                "the review records its judgement on the adequacy of resources "
+                "(9.3.2 d) — people, infrastructure and environment for the "
+                "operation of processes."
+                % (employees, branches, span)
+            )
+            return summary, "%d on-roll, %d branches" % (employees, branches), 0
+        if kind == "risk_effectiveness":
+            Risk = env.get("fix.risk.register")
+            risks = (
+                Risk.sudo().search(self._scoped([]))
+                if Risk is not None
+                else Risk
+            )
+            assessed = (
+                risks.filtered(lambda r: r.residual_likelihood and r.residual_impact)
+                if risks is not None
+                else risks
+            )
+            summary = (
+                "%d risk register entr(ies), %d with a residual assessed%s — "
+                "the effectiveness of actions taken on risks and opportunities "
+                "(9.3.2 e) is the review's judgement on that register."
+                % (
+                    len(risks) if risks is not None else 0,
+                    len(assessed) if assessed is not None else 0,
+                    "" if risks is not None else " (no risk register installed)",
+                )
+            )
+            return summary, "%d risks, %d assessed" % (
+                len(risks) if risks is not None else 0,
+                len(assessed) if assessed is not None else 0,
+            ), 0
+        if kind == "improvement_opportunities":
+            capas = env["fix.capa"].sudo().search(
+                self._scoped(self._window_domain("create_date", window))
+            )
+            effective = capas.filtered(lambda c: c.effectiveness_result == "effective")
+            # the knowledge library's own flag (AUT-KMS-17): articles the
+            # field repeatedly rejected — reached through env.get (no
+            # dependency on cd_knowledge)
+            Article = env.get("fix.knowledge.article")
+            flagged = (
+                Article.sudo().search_count([("flagged_on", "!=", False)])
+                if Article is not None
+                else 0
+            )
+            summary = (
+                "%d CAPA(s) in the window, %d verified effective; %d flagged "
+                "knowledge article(s) — the opportunities for improvement the "
+                "review decides to take (9.3.2 f)."
+                % (
+                    len(capas),
+                    len(effective),
+                    flagged,
+                )
+            )
+            return summary, "%d effective CAPAs" % len(effective), 0
         raise UserError("Unknown review input kind: %s" % kind)
 
     def action_pull_inputs(self):

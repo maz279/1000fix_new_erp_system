@@ -22,7 +22,7 @@ management-system patterns:
 - fix.complaint EXTENSION — the M34 -> M23 stubs close: ncr_stub_ref /
   capa_stub_ref become real relations; action_raise_ncr creates the NCR
 """,
-    "version": "19.0.0.2.0",
+    "version": "19.0.0.3.0",
     "license": "LGPL-3",
     "author": "1000FiX Services Ltd",
     "category": "Quality/Management System",
@@ -50,6 +50,10 @@ management-system patterns:
         "data/fix_a02r2_quality_consumers.xml",
         # M23 capture audit (2026-11-19): numbering of the new records
         "data/fix_qms_capture_data.xml",
+        # A10 deep audit (2026-11-22, A1-F03): the certification surveillance
+        # clock — the 90/30-day windows and a lapsed certificate tell the
+        # Quality Managers.
+        "data/fix_qms_crons.xml",
         "views/fix_qms_views.xml",
     ],
     "installable": True,
