@@ -1,0 +1,7 @@
+OK   setup (copy only): D22 tariff BDT 120 any leg 0-20 kg; D21 wasted-visit fee BDT 300 -> tariff + fee set on this copy
+OK   D22 M03 pickup leg confirmed -> priced, one charge on the order -> leg CSG/2026/00036 confirmed charge 120.00 (Dhaka Metro & Greater Zone, 1.500 kg: BDT 120.00); order charges [('CHG-TRANSPORT', 120.0)]
+OK   D22 M04 counter collects estimate + pick-up charge with VAT -> due 1288.00 paid, receipt RCP/2026/00004
+OK   D22 M01 hand-over -> tax invoice bills the transport line, paid, revenue + VAT -> invoice INV/2026/00001 paid total 1288.00 residual 0.00 lines [labour CHG-LABOUR 1150.00; transport CHG-TRANSPORT 138.00]; revenue -1120.00 VAT -168.00; AR 0.00
+OK   D22/D1 courier COD leg: its own charge is in its COD; a stale booking holds it -> draft COD 2300.00; booking CBR/2026/00007 held: 'CSG/2026/00037 cannot leave: courier booking CBR/2026/00007 collects BDT 2300.00 but the leg collects BDT 1938.00 now: cancel the booking and book again (D1).'; re-booked CBR/2026/00008 COD 1938.00 = leg COD 1938.00 (leg charge 120.00)
+OK   D21 M02 failed visit carries the fee; re-dispatch, on-site cash, invoice bills it -> visit FVX/2026/00001 fee 300.00; due 2070.00 collected on site; order delivered; invoice INV/2026/00002 total 2070.00 [labour CHG-LABOUR 1725.00; callout CHG-CALLOUT 345.00]
+SUMMARY 6 / 6

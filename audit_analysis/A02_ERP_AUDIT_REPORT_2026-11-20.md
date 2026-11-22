@@ -146,6 +146,21 @@ the fix, re-checked by the reviewer, and the follow-up findings closed:
   opened passed the "verified contacts only" rule. Fixed in 4e735862: such a mobile is refused unless a
   data steward vouches for it (vouch recorded with who and when on the contact point).
 
+## Deployed 22 Nov 2026 (owner approved): everything is live
+- Upgraded cd_data_case, cd_service_order, cd_consignment, cd_field_service, cd_billing_engine and
+  cd_p03_portal on fix_real and fix_dev (exit 0, no errors), restarted 05:27:50 UTC (13:28 local).
+- The live servers now run from a clean release worktree (`1000 fix\live-release`, detached at the
+  pushed shared tip 69bf96f4), not from the main checkout, where an absent A08 session's uncommitted
+  work sits (owner decision: deploy without touching it). Supervisors and the deploy procedure:
+  `1000 fix\live-supervisor\README.md`.
+- Live: 136/136 A02 screens on 8069 and 8090, 0 errors, 0 dropped columns; 68/68 A02 reports per port,
+  0 ERROR/CRITICAL in the logs since the restart, steward vouch field present on both DBs (A03's
+  independent read-only check).
+- Walks on a copy of the deployed fix_real: charges 6/6, repair journey 18/18, declined fee 9/9,
+  field dispatch 6/6 (`evidence_a02_erp/a02_*_deployed_fix_real_copy_2026-11-22.txt`). The live
+  databases themselves are not walked: a rolled-back walk still consumes invoice and Mushak numbers.
+- A03 (independent reviewer): no open findings on A02.
+
 ## A03 review P1/P2 findings, re-checked one by one (22 Nov, tip d233cb24)
 The review's serious (P1) and lower (P2) findings had been reported on the stream branches and never
 re-checked on the merged code. Each was traced to its fix and test, or fixed now:
