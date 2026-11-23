@@ -65,6 +65,12 @@ class VatReturn:
     total_taxable: Decimal
     total_output_vat: Decimal
     total_input_vat: Decimal  # from purchase Mushak 6.3s held
+    # FR-TAX-018/029: the input-credit ledger position carried through the 9.1.
+    # opening_credit is the prior filed return's closing credit; credit_used is
+    # what this period consumed against output; the rest is carried forward.
+    opening_credit: Decimal
+    credit_used: Decimal
+    closing_credit: Decimal
     net_payable: Decimal
     nil_return: bool
     due_date: date
@@ -96,6 +102,7 @@ def prepare_vat_return(
     register_totals: dict[str, tuple[Decimal, Decimal]],
     input_vat: Decimal = Decimal("0"),
     holidays: set[date] | None = None,
+    opening_credit: Decimal = Decimal("0"),
 ) -> VatReturn:
     """Prepare the Mushak 9.1 from the register's per-treatment totals.
 
@@ -103,6 +110,13 @@ def prepare_vat_return(
     aggregated from fix.mushak.register for the period.
     A period with NO transactions still returns a return with nil_return
     True — the mandatory nil return.
+
+    opening_credit: the input VAT credit carried in from the previous filed
+    return (FR-TAX-018/029). The period consumes at most what it owes:
+    ``credit_used = min(opening_credit, max(0, output - input))`` and the
+    remainder — plus any excess input VAT of the period — is
+    ``closing_credit``. A negative net payable is therefore impossible: the
+    VAT challan cannot be stranded with a credit the return refuses to hold.
     """
     if not (len(company_bin) == 13 and company_bin.isdigit()):
         raise ReturnError("The company BIN must be 13 digits")
@@ -117,6 +131,9 @@ def prepare_vat_return(
     total_taxable = sum((line.taxable_value for line in lines), Decimal("0")).quantize(TWO)
     total_output = sum((line.output_vat for line in lines), Decimal("0")).quantize(TWO)
     input_v = Decimal(str(input_vat)).quantize(TWO, ROUND_HALF_UP)
+    opening = Decimal(str(opening_credit)).quantize(TWO, ROUND_HALF_UP)
+    raw_net = (total_output - input_v).quantize(TWO, ROUND_HALF_UP)
+    credit_used = min(opening, max(Decimal("0"), raw_net)).quantize(TWO, ROUND_HALF_UP)
     return VatReturn(
         company_bin=company_bin,
         period=period,
@@ -124,7 +141,10 @@ def prepare_vat_return(
         total_taxable=total_taxable,
         total_output_vat=total_output,
         total_input_vat=input_v,
-        net_payable=(total_output - input_v).quantize(TWO, ROUND_HALF_UP),
+        opening_credit=opening,
+        credit_used=credit_used,
+        closing_credit=(opening - credit_used + max(Decimal("0"), -raw_net)).quantize(TWO),
+        net_payable=max(Decimal("0"), raw_net - credit_used).quantize(TWO),
         nil_return=(total_output == 0 and input_v == 0),
         due_date=vat_return_due_date(period, holidays),
     )

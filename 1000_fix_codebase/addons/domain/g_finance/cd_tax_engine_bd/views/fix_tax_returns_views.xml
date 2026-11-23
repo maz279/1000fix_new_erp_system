@@ -11,7 +11,10 @@
                 <field name="currency_id" invisible="1"/>
                 <field name="output_vat"/>
                 <field name="input_vat" optional="show"/>
+                <field name="opening_credit" optional="hide"/>
+                <field name="credit_used" optional="hide"/>
                 <field name="net_payable"/>
+                <field name="closing_credit" optional="show"/>
                 <field name="nil_return" optional="show" string="Nil"/>
                 <field name="due_date"/>
                 <field name="state" widget="badge"/>
@@ -38,7 +41,10 @@
                             <field name="total_taxable"/>
                             <field name="output_vat"/>
                             <field name="input_vat"/>
+                            <field name="opening_credit"/>
+                            <field name="credit_used"/>
                             <field name="net_payable"/>
+                            <field name="closing_credit"/>
                             <field name="vds_received_credit"/>
                             <field name="net_payable_after_vds"/>
                         </group>

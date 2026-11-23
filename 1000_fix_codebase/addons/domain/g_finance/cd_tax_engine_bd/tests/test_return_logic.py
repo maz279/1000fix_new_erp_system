@@ -95,10 +95,37 @@ class TestPrepareVatReturn(unittest.TestCase):
         self.assertEqual(ret.net_payable, D("0.00"))
 
     def test_input_vat_exceeds_output(self):
+        """FR-TAX-018/029: a refund position is NEVER a negative payable — the
+        excess input VAT becomes the credit carried forward."""
         ret = prepare_vat_return(
             "1234567890123", "2026-10", {"standard_15": (D("1000"), D("150"))}, input_vat=D("300")
         )
-        self.assertEqual(ret.net_payable, D("-150.00"))  # refund position
+        self.assertEqual(ret.net_payable, D("0.00"))
+        self.assertEqual(ret.credit_used, D("0.00"))
+        self.assertEqual(ret.closing_credit, D("150.00"))
+
+    def test_opening_credit_offsets_output_and_carries_the_remainder(self):
+        ret = prepare_vat_return(
+            "1234567890123",
+            "2026-10",
+            {"standard_15": (D("10000"), D("1500"))},
+            input_vat=D("500"),
+            opening_credit=D("300"),
+        )
+        self.assertEqual(ret.credit_used, D("300.00"))
+        self.assertEqual(ret.net_payable, D("700.00"))  # 1500 - 500 - 300
+        self.assertEqual(ret.closing_credit, D("0.00"))
+
+    def test_opening_credit_larger_than_liability_carries_remainder(self):
+        ret = prepare_vat_return(
+            "1234567890123",
+            "2026-10",
+            {"standard_15": (D("1000"), D("150"))},
+            opening_credit=D("500"),
+        )
+        self.assertEqual(ret.credit_used, D("150.00"))
+        self.assertEqual(ret.net_payable, D("0.00"))
+        self.assertEqual(ret.closing_credit, D("350.00"))
 
     def test_bad_bin_refused(self):
         with self.assertRaises(ReturnError):

@@ -158,7 +158,11 @@ class FixVatReturnA08(models.Model):
 
         A08: native posted sales invoices of the period are registered first
         (M51-9), and every credit is re-checked for eligibility before it is
-        claimed (M51-3: a credit typed "eligible" is not taken on trust)."""
+        claimed (M51-3: a credit typed "eligible" is not taken on trust).
+
+        The input credit carried in from the previous FILED return is consumed
+        here (FR-TAX-018/029): it reduces the net payable and the remainder is
+        stored as this period's closing credit."""
         from .fix_tax_returns import _require_finance
 
         _require_finance(self.env, "Preparing a VAT return")
@@ -197,8 +201,16 @@ class FixVatReturnA08(models.Model):
             candidates.filtered(lambda c: c.state != "claimed").action_check_eligibility()
             credits = candidates.filtered(lambda c: c.state == "eligible")
             input_vat = Decimal(str(money(sum(credits.mapped("signed_vat")))))
+            # FR-TAX-018/029: the credit carried in from the previous FILED
+            # return is consumed here, never typed — and never allowed to make
+            # net payable negative.
+            opening_credit = ret._opening_input_credit(company, ret.period)
             prepared = return_logic.prepare_vat_return(
-                ret._company_bin_checked(), ret.period, register_totals, input_vat=input_vat
+                ret._company_bin_checked(),
+                ret.period,
+                register_totals,
+                input_vat=input_vat,
+                opening_credit=opening_credit,
             )
             due = self.env["fix.statutory.due.rule"].due_date_for(
                 "vat_91_return", nxt - timedelta(days=1), company
@@ -215,6 +227,9 @@ class FixVatReturnA08(models.Model):
                     "total_taxable": float(prepared.total_taxable),
                     "output_vat": float(prepared.total_output_vat),
                     "input_vat": float(prepared.total_input_vat),
+                    "opening_credit": float(prepared.opening_credit),
+                    "credit_used": float(prepared.credit_used),
+                    "closing_credit": float(prepared.closing_credit),
                     "net_payable": float(prepared.net_payable),
                     "vds_received_credit": vds,
                     "vds_certificate_ids": json.dumps(certs.ids if certs else []),

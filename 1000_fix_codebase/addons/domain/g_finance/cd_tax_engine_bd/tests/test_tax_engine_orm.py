@@ -9,6 +9,7 @@ import json
 import sys
 from datetime import date, datetime, timedelta
 from decimal import Decimal
+from itertools import count
 
 import pytest
 from odoo.exceptions import UserError, ValidationError
@@ -19,6 +20,7 @@ pytestmark = [pytest.mark.tax, pytest.mark.financial]
 
 D = Decimal
 COMPANY_BIN = "1234567890123"
+_RETURN_SEQ = count(1)
 
 
 def _money(value) -> Decimal:
@@ -399,6 +401,17 @@ class TestVatReturnFiling:
         `gl` = (output, input): filing recomputes the reconciliation."""
         if gl is not None:
             _vat_gl(env, output_posted=gl[0], input_posted=gl[1])
+        # 9e5ce1a0: filing re-reads the LIVE Mushak register, so a return
+        # arranged for filing needs the matching register row behind its
+        # breakdown — otherwise the gate correctly says the register changed.
+        _register_row(
+            env,
+            "M51-FILING-%s-%s" % (env.company.id, next(_RETURN_SEQ)),
+            date(2026, 9, 2),
+            3000.0,
+            450.0,
+            treatment_summary="SVC: standard_15 @ 15%",
+        )
         base = {
             "period": "2026-09",
             "total_taxable": 3000.0,

@@ -967,6 +967,10 @@ class FixTaxChallan(models.Model):
             if ch.tax_kind == "vat":
                 # A08 M51-11: the VDS customers deducted is already deposited
                 # on the company's behalf; the challan settles what remains.
+                # FR-TAX-018/029: this reads the return's POST-credit net
+                # payable (net_payable_after_vds is derived from net_payable,
+                # never from output_vat - input_vat), so a period that consumed
+                # carried-forward input credit is settled at the reduced amount.
                 ch.liability_total = ch.vat_return_id.net_payable_after_vds
             else:
                 ch.liability_total = sum(ch.withholding_line_ids.mapped("amount"))

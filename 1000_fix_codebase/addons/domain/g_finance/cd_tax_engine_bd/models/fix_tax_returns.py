@@ -32,6 +32,9 @@ VAT_RETURN_GUARDED = {
     "total_taxable",
     "output_vat",
     "input_vat",
+    "opening_credit",
+    "credit_used",
+    "closing_credit",
     "net_payable",
     "nil_return",
     "due_date",
@@ -190,6 +193,27 @@ class FixVatReturn(models.Model):
     )
     output_vat = fields.Monetary(string="Output VAT", currency_field="currency_id", readonly=True)
     input_vat = fields.Monetary(string="Input VAT", currency_field="currency_id", readonly=True)
+    opening_credit = fields.Monetary(
+        string="Opening Input Credit",
+        currency_field="currency_id",
+        readonly=True,
+        help="Input VAT credit carried in from the previous filed return for this company "
+        "(FR-TAX-018/029). A first period opens at 0.00.",
+    )
+    credit_used = fields.Monetary(
+        string="Credit Used",
+        currency_field="currency_id",
+        readonly=True,
+        help="Opening credit consumed against this period's output VAT: "
+        "min(opening credit, max(0, output - input)).",
+    )
+    closing_credit = fields.Monetary(
+        string="Closing Input Credit",
+        currency_field="currency_id",
+        readonly=True,
+        help="Input VAT credit carried forward to the next period: the unused opening "
+        "credit plus any excess of input VAT over output VAT (FR-TAX-018/029).",
+    )
     net_payable = fields.Monetary(string="Net Payable", currency_field="currency_id", readonly=True)
     nil_return = fields.Boolean(readonly=True)
     due_date = fields.Date(readonly=True)
@@ -258,6 +282,29 @@ class FixVatReturn(models.Model):
         return {k: (Decimal(str(v[0])), Decimal(str(v[1]))) for k, v in raw.items()}
 
     @api.model
+    def _previous_filed_return(self, company, period):
+        """The latest FILED return of this company before `period` — the
+        return whose closing input credit this period opens with. It is the
+        tie-out (FR-TAX-018/029, AC-26): the opening balance must agree to
+        the last filed Mushak 9.1, never to a book balance."""
+        return self.sudo().search(
+            [
+                ("company_id", "=", company.id),
+                ("state", "=", "filed"),
+                ("period", "<", period),
+            ],
+            order="period desc",
+            limit=1,
+        )
+
+    @api.model
+    def _opening_input_credit(self, company, period) -> Decimal:
+        """Opening input VAT credit for a period: the previous filed return's
+        closing credit, or zero for a company's first period."""
+        previous = self._previous_filed_return(company, period)
+        return Decimal(str(previous.closing_credit or 0.0)).quantize(Decimal("0.01"))
+
+    @api.model
     def action_prepare_period(self, period: str, input_vat: float | None = None) -> "FixVatReturn":
         """Prepare from the register (event-driven totals): sum Mushak rows
         per treatment for the period and build the return — including the
@@ -275,6 +322,11 @@ class FixVatReturn(models.Model):
         is refused rather than silently filed as 0.00 (which would over-declare
         the net payable). Pass ``input_vat=0.0`` explicitly for a period with
         no creditable purchases.
+
+        Input-credit ledger (FR-TAX-018/029): the previous FILED return's
+        closing credit is carried in automatically; this period consumes it
+        against output VAT and stores the remainder as ``closing_credit`` so
+        net payable is never negative.
         """
         company = self.env.company
         if input_vat is None:
@@ -297,11 +349,13 @@ class FixVatReturn(models.Model):
             [(row.taxable_amount, row.vat_amount, row.treatment_summary or "") for row in rows]
         )
         # The holiday set comes from M30's country pack; empty at this layer
+        opening_credit = self._opening_input_credit(company, period)
         prepared = return_logic.prepare_vat_return(
             _company_bin(company),
             period,
             register_totals,
             input_vat=Decimal(str(input_vat)),
+            opening_credit=opening_credit,
         )
         existing: FixVatReturn = self.search(
             [("company_id", "=", company.id), ("period", "=", period)]
@@ -327,6 +381,9 @@ class FixVatReturn(models.Model):
                 "total_taxable": float(prepared.total_taxable),
                 "output_vat": float(prepared.total_output_vat),
                 "input_vat": float(prepared.total_input_vat),
+                "opening_credit": float(prepared.opening_credit),
+                "credit_used": float(prepared.credit_used),
+                "closing_credit": float(prepared.closing_credit),
                 "net_payable": float(prepared.net_payable),
                 "nil_return": prepared.nil_return,
                 "due_date": prepared.due_date,
@@ -356,6 +413,34 @@ class FixVatReturn(models.Model):
         )
         return record.with_env(self.env)
 
+    def _fix_assert_credit_continuity(self) -> None:
+        """FR-TAX-018/029, AC-26: the opening input credit of a filed period
+        must be exactly the closing credit of the previous filed return for
+        the same company. This is the tie-out that prevents silent credit
+        loss (or silent double-use): a tampered or stale opening balance is
+        refused, naming both figures. A company's FIRST filed period is
+        exempt because there is nothing to carry in."""
+        for ret in self:
+            previous = ret._previous_filed_return(ret.company_id, ret.period)
+            if not previous:
+                continue
+            opening = Decimal(str(ret.opening_credit or 0.0)).quantize(Decimal("0.01"))
+            closing = Decimal(str(previous.closing_credit or 0.0)).quantize(Decimal("0.01"))
+            if abs(opening - closing) > Decimal("0.005"):
+                raise UserError(
+                    "Return %s opens with an input credit of %.2f, but the previous filed "
+                    "return %s closes with %.2f. The difference (%.2f) would be lost or "
+                    "double-used: re-prepare this return from the filed return before "
+                    "filing (FR-TAX-018/029, BRU-TAX-06, AC-26)."
+                    % (
+                        ret.period,
+                        opening,
+                        previous.period,
+                        closing,
+                        opening - closing,
+                    )
+                )
+
     def _fix_assert_fileable(self):
         """BRU-TAX-12/13 (A08 M51-1): only a PREPARED return whose sub-ledger
         reconciles — recomputed now, by the system, against the posted GL —
@@ -370,6 +455,7 @@ class FixVatReturn(models.Model):
                     % (ret.period, ret.state)
                 )
             _require_filer(ret.env, ret.prepared_by_id, "Filing the Mushak 9.1")
+            ret._fix_assert_credit_continuity()
             _company_bin(ret.company_id)
             register_totals = ret._register_totals()
             unclassified = sorted(
